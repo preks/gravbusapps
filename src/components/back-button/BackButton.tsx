@@ -1,23 +1,23 @@
-import React from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { PiArrowLeft } from 'react-icons/pi';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { PiArrowLeft } from 'react-icons/pi'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface BackButtonProps {
   /**
    * Custom back button text. If not provided, will use default translation.
    */
-  customBackText?: string;
-  
+  customBackText?: string
+
   /**
    * Additional CSS classes for styling
    */
-  className?: string;
-  
+  className?: string
+
   /**
    * Data test ID for testing
    */
-  dataTestId?: string;
+  dataTestId?: string
 }
 
 /**
@@ -31,11 +31,11 @@ export const BackButton: React.FC<BackButtonProps> = ({
 }) => {
   const handleBackClick = () => {
     // Use window.history.back() - the simplest solution
-    window.history.back();
-    
-  };
+    window.history.back()
+  }
 
-  const backText = customBackText || getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back');
+  const backText =
+    customBackText || getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')
 
   return (
     <Button
@@ -48,7 +48,7 @@ export const BackButton: React.FC<BackButtonProps> = ({
       <PiArrowLeft className="gba:h-4 gba:w-4" />
       <span>{backText}</span>
     </Button>
-  );
-};
+  )
+}
 
-export default BackButton;
+export default BackButton

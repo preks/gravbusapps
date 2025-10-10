@@ -1,11 +1,11 @@
-"use client";
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { useState, useEffect } from 'react'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface MatrixTeamOption {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 /**
@@ -15,15 +15,15 @@ export interface MatrixTeamOption {
  * @param offset Pagination offset
  */
 export function useGetMatrixTeams(accessToken: string, searchRegex: string, offset: number = 0) {
-  const client = useGraphqlClient(accessToken);
-  const [teams, setTeams] = useState<MatrixTeamOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [hasMore, setHasMore] = useState(true);
+  const client = useGraphqlClient(accessToken)
+  const [teams, setTeams] = useState<MatrixTeamOption[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
     async function fetchTeams() {
       try {
         const query = `
@@ -49,49 +49,49 @@ export function useGetMatrixTeams(accessToken: string, searchRegex: string, offs
               }
             }
           }
-        `;
-        const variables = { searchRegex, offset };
-        const res = await client.request(query, variables);
-        const results = (res as any).EmployeePosition ?? [];
+        `
+        const variables = { searchRegex, offset }
+        const res = await client.request(query, variables)
+        const results = (res as any).EmployeePosition ?? []
         // Extract unique matrix teams from the results
-        const matrixTeams: MatrixTeamOption[] = [];
-        const teamIds = new Set<string>();
-        
+        const matrixTeams: MatrixTeamOption[] = []
+        const teamIds = new Set<string>()
+
         // Helper function to process a matrix unit and add it to the results if unique
         const addUniqueMatrixTeam = (matrixUnit: any) => {
           if (matrixUnit?.id && !teamIds.has(matrixUnit.id)) {
-            teamIds.add(matrixUnit.id);
+            teamIds.add(matrixUnit.id)
             matrixTeams.push({
               id: matrixUnit.id,
               name: matrixUnit.name ?? 'Unknown Team'
-            });
+            })
           }
-        };
-        
+        }
+
         // Process each result row
         for (const row of results) {
           // Skip if no matrix unit employees
-          if (!row.matrixUnitEmployees?.length) continue;
-          
+          if (!row.matrixUnitEmployees?.length) continue
+
           // Process each matrix unit employee
           for (const employee of row.matrixUnitEmployees) {
-            addUniqueMatrixTeam(employee.matrixUnit);
+            addUniqueMatrixTeam(employee.matrixUnit)
           }
         }
-        
-        setTeams(matrixTeams);
-        
+
+        setTeams(matrixTeams)
+
         // Update hasMore flag based on whether we got less results than requested
-        setHasMore(results.length === 5);
-        setLoading(false);
+        setHasMore(results.length === 5)
+        setLoading(false)
       } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
-        setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setLoading(false)
       }
     }
 
-    fetchTeams();
-  }, [client, searchRegex, offset]);
+    fetchTeams()
+  }, [client, searchRegex, offset])
 
-  return { teams, loading, error, hasMore };
+  return { teams, loading, error, hasMore }
 }

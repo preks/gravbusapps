@@ -1,6 +1,6 @@
-import FeedbackRequestForm from './FeedbackRequestForm';
-import FeedbackRequestFormScreen from './FeedbackRequestFormScreen';
+import FeedbackRequestForm from './FeedbackRequestForm'
+import FeedbackRequestFormScreen from './FeedbackRequestFormScreen'
 
-export { FeedbackRequestForm, FeedbackRequestFormScreen };
-export default FeedbackRequestForm;
-export * from './types';
+export { FeedbackRequestForm, FeedbackRequestFormScreen }
+export default FeedbackRequestForm
+export * from './types'

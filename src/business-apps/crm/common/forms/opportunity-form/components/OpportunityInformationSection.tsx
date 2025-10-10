@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from 'react'
 import {
   Input,
   Label,
@@ -13,16 +13,16 @@ import {
   CardTitle,
   Alert,
   AlertDescription,
-  Button,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useOpportunityFormContext } from "../context/OpportunityFormContext";
-import OwnerSelector from "./OwnerSelector";
-import SearchableSelect from "./SearchableSelect";
-import { useCurrenciesGraphQL } from "../hooks/useCurrenciesGraphQL";
-import { useAccountsGraphQL } from "../hooks/useAccountsGraphQL";
+  Button
+} from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useOpportunityFormContext } from '../context/OpportunityFormContext'
+import OwnerSelector from './OwnerSelector'
+import SearchableSelect from './SearchableSelect'
+import { useCurrenciesGraphQL } from '../hooks/useCurrenciesGraphQL'
+import { useAccountsGraphQL } from '../hooks/useAccountsGraphQL'
 
-const prefixDataTestId = "OpportunityForm";
+const prefixDataTestId = 'OpportunityForm'
 
 const OpportunityInformationSection: React.FC = () => {
   const {
@@ -41,11 +41,11 @@ const OpportunityInformationSection: React.FC = () => {
     refetchStages,
 
     // Business app context
-    businessAppContext,
-  } = useOpportunityFormContext();
+    businessAppContext
+  } = useOpportunityFormContext()
 
   // Ref to track previous pipeline to detect changes
-  const previousPipelineRef = useRef<string>(formValues.pipeline);
+  const previousPipelineRef = useRef<string>(formValues.pipeline)
 
   // Simple currencies hook (like Account form countries)
   const {
@@ -54,10 +54,10 @@ const OpportunityInformationSection: React.FC = () => {
     error: simpleCurrenciesError,
     hasMore: simpleCurrenciesHasMore,
     search: searchSimpleCurrencies,
-    loadMore: loadMoreSimpleCurrencies,
+    loadMore: loadMoreSimpleCurrencies
   } = useCurrenciesGraphQL({
-    accessToken: businessAppContext.accessToken,
-  });
+    accessToken: businessAppContext.accessToken
+  })
 
   // Simple accounts hook (like Lead form)
   const {
@@ -66,90 +66,81 @@ const OpportunityInformationSection: React.FC = () => {
     error: simpleAccountsError,
     hasMore: simpleAccountsHasMore,
     search: searchSimpleAccounts,
-    loadMore: loadMoreSimpleAccounts,
+    loadMore: loadMoreSimpleAccounts
   } = useAccountsGraphQL({
-    accessToken: businessAppContext.accessToken,
-  });
+    accessToken: businessAppContext.accessToken
+  })
 
   // Auto-select "Standard" pipeline option if not already selected, fallback to first option
   useEffect(() => {
     if (pipelines.length > 0 && !formValues.pipeline) {
-      console.log(
-        "🎯 Auto-selecting pipeline from",
-        pipelines.length,
-        "options"
-      );
+      console.log('🎯 Auto-selecting pipeline from', pipelines.length, 'options')
 
       // First try to find "Standard" pipeline (case-insensitive)
       const standardPipeline = pipelines.find(
-        (pipeline) =>
-          pipeline.label?.toLowerCase().includes("standard") ||
-          pipeline.name?.toLowerCase().includes("standard") ||
-          pipeline.value?.toLowerCase().includes("standard") ||
-          pipeline.id?.toLowerCase().includes("standard")
-      );
+        pipeline =>
+          pipeline.label?.toLowerCase().includes('standard') ||
+          pipeline.name?.toLowerCase().includes('standard') ||
+          pipeline.value?.toLowerCase().includes('standard') ||
+          pipeline.id?.toLowerCase().includes('standard')
+      )
 
       // Select Standard if found, otherwise select first option
-      const selectedPipeline = standardPipeline || pipelines[0];
-      setFormValues({ pipeline: selectedPipeline.value });
+      const selectedPipeline = standardPipeline || pipelines[0]
+      setFormValues({ pipeline: selectedPipeline.value })
     }
-  }, [pipelines.length, formValues.pipeline]);
+  }, [pipelines.length, formValues.pipeline])
 
   // Handle pipeline changes: load stages for new pipeline
   useEffect(() => {
-    const currentPipeline = formValues.pipeline;
-    const previousPipeline = previousPipelineRef.current;
+    const currentPipeline = formValues.pipeline
+    const previousPipeline = previousPipelineRef.current
 
-    console.log("🔍 Pipeline changed:", {
+    console.log('🔍 Pipeline changed:', {
       currentPipeline,
       previousPipeline,
-      hasRefetchStages: !!refetchStages,
-    });
+      hasRefetchStages: !!refetchStages
+    })
 
     if (currentPipeline && refetchStages) {
-      console.log("📡 Loading stages for pipeline:", currentPipeline);
-      refetchStages(currentPipeline);
+      console.log('📡 Loading stages for pipeline:', currentPipeline)
+      refetchStages(currentPipeline)
     }
 
     // Update the ref to track current pipeline
-    previousPipelineRef.current = currentPipeline;
-  }, [formValues.pipeline, refetchStages]);
+    previousPipelineRef.current = currentPipeline
+  }, [formValues.pipeline, refetchStages])
 
   // When stages are loaded, ALWAYS set first stage as selected
   useEffect(() => {
     if (formValues.pipeline && salesPipelineStages.length > 0) {
-      const firstStage = salesPipelineStages[0];
-      console.log(
-        "🎯 Setting first stage:",
-        firstStage.label,
-        "Value:",
-        firstStage.value
-      );
-      setFormValues({ salesPipelineStage: firstStage.value });
+      const firstStage = salesPipelineStages[0]
+      console.log('🎯 Setting first stage:', firstStage.label, 'Value:', firstStage.value)
+      setFormValues({ salesPipelineStage: firstStage.value })
     }
-  }, [formValues.pipeline, salesPipelineStages.length]);
+  }, [formValues.pipeline, salesPipelineStages.length])
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <CardContent
         className="gba:space-y-6 gba:p-0"
         style={{
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          padding: "0",
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          padding: '0'
         }}
       >
         {error && (
@@ -171,10 +162,10 @@ const OpportunityInformationSection: React.FC = () => {
             hasMore={employeePositionsHasMore}
             onLoadMore={loadMoreEmployeePositions}
             onSearch={(searchTerm: string) => {
-              searchEmployeePositions(searchTerm);
+              searchEmployeePositions(searchTerm)
             }}
             error={employeePositionsError}
-            dataTestId={formatDataTestId(prefixDataTestId, "OwnerSelect")}
+            dataTestId={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
           />
         </div>
 
@@ -185,12 +176,12 @@ const OpportunityInformationSection: React.FC = () => {
           </Label>
           <Input
             name="name"
-            value={formValues.name || ""}
-            onChange={(e) => setFormValues({ name: e.target.value })}
+            value={formValues.name || ''}
+            onChange={e => setFormValues({ name: e.target.value })}
             placeholder="Please Enter..."
             required
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "NameInput")}
+            data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
           />
         </div>
 
@@ -206,20 +197,18 @@ const OpportunityInformationSection: React.FC = () => {
             hasMore={simpleAccountsHasMore}
             onSearch={searchSimpleAccounts}
             onLoadMore={loadMoreSimpleAccounts}
-            onChange={(value) => {
+            onChange={value => {
               // Find the selected account to get both ID and name
-              const selectedAccount = simpleAccounts.find(
-                (account) => account.value === value || account.id === value
-              );
+              const selectedAccount = simpleAccounts.find(account => account.value === value || account.id === value)
               if (selectedAccount) {
                 setFormValues({
                   companyName: selectedAccount.name, // Store name for display
-                  accountId: selectedAccount.value, // Store ID for backend
-                });
+                  accountId: selectedAccount.value // Store ID for backend
+                })
               }
             }}
             error={simpleAccountsError}
-            data-testid={formatDataTestId(prefixDataTestId, "CompanySelect")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CompanySelect')}
           />
         </div>
 
@@ -231,17 +220,17 @@ const OpportunityInformationSection: React.FC = () => {
             </Label>
             <Select
               value={formValues.pipeline}
-              onValueChange={(value) => setFormValues({ pipeline: value })}
-              data-testid={formatDataTestId(prefixDataTestId, "PipelineSelect")}
+              onValueChange={value => setFormValues({ pipeline: value })}
+              data-testid={formatDataTestId(prefixDataTestId, 'PipelineSelect')}
             >
               <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent
                 className="gba:max-h-[200px] gba:overflow-y-auto"
-                style={{ maxHeight: "200px", overflowY: "auto" }}
+                style={{ maxHeight: '200px', overflowY: 'auto' }}
               >
-                {pipelines.map((option) => (
+                {pipelines.map(option => (
                   <SelectItem key={option.id} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -256,42 +245,35 @@ const OpportunityInformationSection: React.FC = () => {
             </Label>
             <Select
               value={formValues.salesPipelineStage}
-              onValueChange={(value) =>
-                setFormValues({ salesPipelineStage: value })
-              }
+              onValueChange={value => setFormValues({ salesPipelineStage: value })}
               onOpenChange={() => {
                 if (formValues.pipeline && refetchStages) {
-                  refetchStages(formValues.pipeline);
+                  refetchStages(formValues.pipeline)
                 }
               }}
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "SalesPipelineStageSelect"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'SalesPipelineStageSelect')}
             >
               <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                 <SelectValue
                   placeholder={
                     !formValues.pipeline
-                      ? "Select Pipeline First..."
+                      ? 'Select Pipeline First...'
                       : salesPipelineStages.length === 0
-                      ? "No Stages Available"
-                      : "Please Select..."
+                        ? 'No Stages Available'
+                        : 'Please Select...'
                   }
                 />
               </SelectTrigger>
               <SelectContent
                 className="gba:max-h-[200px] gba:overflow-y-auto"
-                style={{ maxHeight: "200px", overflowY: "auto" }}
+                style={{ maxHeight: '200px', overflowY: 'auto' }}
               >
                 {salesPipelineStages.length === 0 ? (
                   <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-gray-500 gba:text-center">
-                    {!formValues.pipeline
-                      ? "Please select a pipeline first"
-                      : "No stages available for this pipeline"}
+                    {!formValues.pipeline ? 'Please select a pipeline first' : 'No stages available for this pipeline'}
                   </div>
                 ) : (
-                  salesPipelineStages.map((option) => (
+                  salesPipelineStages.map(option => (
                     <SelectItem key={option.id} value={option.value}>
                       {option.label}
                     </SelectItem>
@@ -304,24 +286,20 @@ const OpportunityInformationSection: React.FC = () => {
 
         {/* Opportunity Status */}
         <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-            Opportunity Status
-          </Label>
+          <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Opportunity Status</Label>
           <Select
             value={formValues.opportunityStatus}
-            onValueChange={(value) =>
-              setFormValues({ opportunityStatus: value })
-            }
-            data-testid={formatDataTestId(prefixDataTestId, "StatusSelect")}
+            onValueChange={value => setFormValues({ opportunityStatus: value })}
+            data-testid={formatDataTestId(prefixDataTestId, 'StatusSelect')}
           >
             <SelectTrigger className="gba:border-gray-300 gba:bg-white">
               <SelectValue placeholder="Please Select..." />
             </SelectTrigger>
             <SelectContent
               className="gba:max-h-[200px] gba:overflow-y-auto"
-              style={{ maxHeight: "200px", overflowY: "auto" }}
+              style={{ maxHeight: '200px', overflowY: 'auto' }}
             >
-              {opportunityStatuses.map((option) => (
+              {opportunityStatuses.map(option => (
                 <SelectItem key={option.id} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -341,17 +319,12 @@ const OpportunityInformationSection: React.FC = () => {
               type="number"
               min="0"
               step="0.01"
-              value={formValues.estimatedAmount || ""}
-              onChange={(e) =>
-                setFormValues({ estimatedAmount: e.target.value })
-              }
+              value={formValues.estimatedAmount || ''}
+              onChange={e => setFormValues({ estimatedAmount: e.target.value })}
               placeholder="0.00"
               required
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "EstimatedAmountInput"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'EstimatedAmountInput')}
             />
           </div>
 
@@ -366,15 +339,15 @@ const OpportunityInformationSection: React.FC = () => {
               hasMore={simpleCurrenciesHasMore}
               onSearch={searchSimpleCurrencies}
               onLoadMore={loadMoreSimpleCurrencies}
-              onChange={(value) => setFormValues({ currency: value })}
+              onChange={value => setFormValues({ currency: value })}
               error={simpleCurrenciesError}
-              data-testid={formatDataTestId(prefixDataTestId, "CurrencySelect")}
+              data-testid={formatDataTestId(prefixDataTestId, 'CurrencySelect')}
             />
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default OpportunityInformationSection;
+export default OpportunityInformationSection

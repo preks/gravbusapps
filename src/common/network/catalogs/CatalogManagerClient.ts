@@ -1,4 +1,4 @@
-import { env } from "../../env/EnvUtils";
+import { env } from '../../env/EnvUtils'
 import {
   CatalogEntry,
   GetCatalogEntriesParams,
@@ -11,155 +11,142 @@ import {
   ParentCatalog,
   CatalogImportResponse,
   CatalogExportRequest,
-  ImportCatalogEntriesParams,
-} from "../../types/CatalogTypes";
-import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
-import { RestClient, type RequestOptions, ResponseType } from "../rest/RestClient";
+  ImportCatalogEntriesParams
+} from '../../types/CatalogTypes'
+import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
+import { RestClient, type RequestOptions, ResponseType } from '../rest/RestClient'
 
-const BASE_PATH = "api/v1";
+const BASE_PATH = 'api/v1'
 
 export class CatalogManagerClient extends RestClient {
   constructor() {
-    let url: string = env("NEXT_PUBLIC_CATALOG_API") ?? "";
-    if (!url.endsWith("/")) {
-      url += "/";
+    let url: string = env('NEXT_PUBLIC_CATALOG_API') ?? ''
+    if (!url.endsWith('/')) {
+      url += '/'
     }
 
-    url += BASE_PATH;
+    url += BASE_PATH
 
-    super(url, {});
+    super(url, {})
   }
 
-  private replacePathParams(
-    path: string,
-    params: Record<string, string | number> = {}
-  ): string {
-    return Object.entries(params).reduce(
-      (result, [key, value]) => result.replace(`{${key}}`, String(value)),
-      path
-    );
+  private replacePathParams(path: string, params: Record<string, string | number> = {}): string {
+    return Object.entries(params).reduce((result, [key, value]) => result.replace(`{${key}}`, String(value)), path)
   }
 
   setAccessToken(accessToken: string) {
     if (!this.headers) {
-      this.headers = {};
+      this.headers = {}
     }
 
-    this.headers["Authorization"] =
-      setAccessTokenToAuthorizationHeader(accessToken);
+    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
   }
 
   public async getCatalogEntriesList(
     pathParams: GetCatalogEntriesParams,
     params: GetCatalogsParams = {},
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<GetCatalogEntriesResponse> {
-    const { limit, offset, value, parentEntryId, ...restParams } = params;
-    const path = this.replacePathParams("/catalogs/{catalogIdentifier}/{version}/entries", {
+    const { limit, offset, value, parentEntryId, ...restParams } = params
+    const path = this.replacePathParams('/catalogs/{catalogIdentifier}/{version}/entries', {
       catalogIdentifier: pathParams.catalogIdentifier,
-      version: pathParams.version || "v1", // Default to 'v1' if not provided
-    });
+      version: pathParams.version || 'v1' // Default to 'v1' if not provided
+    })
 
     const queryParams: Record<string, string | number | boolean> = {
-      ...restParams,
-    };
+      ...restParams
+    }
 
     if (limit !== undefined) {
-      queryParams.limit = limit;
+      queryParams.limit = limit
     }
     if (offset !== undefined) {
-      queryParams.offset = offset;
+      queryParams.offset = offset
     }
 
     if (value !== undefined) {
-      queryParams.value = value;
+      queryParams.value = value
     }
 
     if (parentEntryId !== undefined) {
-      queryParams.parentEntryId = parentEntryId;
+      queryParams.parentEntryId = parentEntryId
     }
 
     return this.get<GetCatalogEntriesResponse>(path, {
       ...options,
-      params: queryParams,
-    });
+      params: queryParams
+    })
   }
 
   public async getCatalogs(
     params: GetCatalogsParams = {},
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<GetCatalogsResponse> {
-    const { limit, offset, ...restParams } = params;
+    const { limit, offset, ...restParams } = params
     const queryParams: Record<string, string | number | boolean> = {
-      ...restParams,
-    };
+      ...restParams
+    }
 
     if (limit !== undefined) {
-      queryParams.limit = limit;
+      queryParams.limit = limit
     }
     if (offset !== undefined) {
-      queryParams.offset = offset;
+      queryParams.offset = offset
     }
 
-    return this.get<GetCatalogsResponse>("/catalogs", {
+    return this.get<GetCatalogsResponse>('/catalogs', {
       ...options,
-      params: queryParams,
-    });
+      params: queryParams
+    })
   }
 
   public async createCatalogEntry(
     catalogIdentifier: string,
     version: string,
-    entry: Omit<CatalogEntry, "id" | "type">,
-    options: Omit<RequestOptions, "body"> = {}
+    entry: Omit<CatalogEntry, 'id' | 'type'>,
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogEntry> {
-    const path = this.replacePathParams(
-      "/catalogs/{catalogIdentifier}/{version}/entries",
-      {
-        catalogIdentifier,
-        version: version || "v1", // Default to 'v1' if not provided
-      }
-    );
+    const path = this.replacePathParams('/catalogs/{catalogIdentifier}/{version}/entries', {
+      catalogIdentifier,
+      version: version || 'v1' // Default to 'v1' if not provided
+    })
 
-    return this.post<CatalogEntry>(path, entry, options);
+    return this.post<CatalogEntry>(path, entry, options)
   }
 
   public async updateCatalogEntry(
     _catalogIdentifier: string,
     _version: string,
     entryId: string,
-    entry: Partial<Omit<CatalogEntry, "id" | "type">>,
-    options: Omit<RequestOptions, "body"> = {}
+    entry: Partial<Omit<CatalogEntry, 'id' | 'type'>>,
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogEntry> {
-    const path = this.replacePathParams("/catalog-entries/{entryId}", {
-      entryId: entryId,
-    });
+    const path = this.replacePathParams('/catalog-entries/{entryId}', {
+      entryId: entryId
+    })
 
-    return this.put<CatalogEntry>(path, entry, options);
+    return this.put<CatalogEntry>(path, entry, options)
   }
 
   public async deleteCatalogEntry(
     _catalogIdentifier: string,
     _version: string,
     entryId: string,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<void> {
-    const path = this.replacePathParams("/catalog-entries/{entryId}", {
-      entryId: entryId,
-    });
+    const path = this.replacePathParams('/catalog-entries/{entryId}', {
+      entryId: entryId
+    })
 
-    return this.delete(path, options);
+    return this.delete(path, options)
   }
 
-  public async getCatalogEntryById(
-    entryId: string,
-    options: Omit<RequestOptions, "body"> = {}
-  ): Promise<CatalogEntry> {
-    const path = this.replacePathParams("/catalog-entries/{entryId}", {
-      entryId: entryId,
-    });
+  public async getCatalogEntryById(entryId: string, options: Omit<RequestOptions, 'body'> = {}): Promise<CatalogEntry> {
+    const path = this.replacePathParams('/catalog-entries/{entryId}', {
+      entryId: entryId
+    })
 
-    return this.get<CatalogEntry>(path, options);
+    return this.get<CatalogEntry>(path, options)
   }
 
   // =====================================================================================
@@ -175,10 +162,10 @@ export class CatalogManagerClient extends RestClient {
    * Do not use for business operations - use getCatalogEntriesList instead
    */
   public async createCatalog(
-    catalog: Omit<CatalogManagement, "id" | "createdAt" | "createdBy" | "updatedAt" | "updatedBy">,
-    options: Omit<RequestOptions, "body"> = {}
+    catalog: Omit<CatalogManagement, 'id' | 'createdAt' | 'createdBy' | 'updatedAt' | 'updatedBy'>,
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogManagement> {
-    return this.post<CatalogManagement>("/catalogs", catalog, options);
+    return this.post<CatalogManagement>('/catalogs', catalog, options)
   }
 
   /**
@@ -188,14 +175,14 @@ export class CatalogManagerClient extends RestClient {
   public async readCatalog(
     identifier: string,
     version: string,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogManagement> {
-    const path = this.replacePathParams("/catalogs/{identifier}/{version}", {
+    const path = this.replacePathParams('/catalogs/{identifier}/{version}', {
       identifier,
-      version,
-    });
+      version
+    })
 
-    return this.get<CatalogManagement>(path, options);
+    return this.get<CatalogManagement>(path, options)
   }
 
   /**
@@ -206,14 +193,14 @@ export class CatalogManagerClient extends RestClient {
     identifier: string,
     version: string,
     catalog: Partial<CatalogManagement>,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogManagement> {
-    const path = this.replacePathParams("/catalogs/{identifier}/{version}", {
+    const path = this.replacePathParams('/catalogs/{identifier}/{version}', {
       identifier,
-      version,
-    });
+      version
+    })
 
-    return this.put<CatalogManagement>(path, catalog, options);
+    return this.put<CatalogManagement>(path, catalog, options)
   }
 
   /**
@@ -223,14 +210,14 @@ export class CatalogManagerClient extends RestClient {
   public async deleteCatalog(
     identifier: string,
     version: string,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<void> {
-    const path = this.replacePathParams("/catalogs/{identifier}/{version}", {
+    const path = this.replacePathParams('/catalogs/{identifier}/{version}', {
       identifier,
-      version,
-    });
+      version
+    })
 
-    return this.delete(path, options);
+    return this.delete(path, options)
   }
 
   /**
@@ -239,13 +226,13 @@ export class CatalogManagerClient extends RestClient {
    */
   public async getCatalogAncestors(
     catalogId: string,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<ParentCatalog[]> {
-    const path = this.replacePathParams("/catalogs/{id}/ancestors", {
-      id: catalogId,
-    });
+    const path = this.replacePathParams('/catalogs/{id}/ancestors', {
+      id: catalogId
+    })
 
-    return this.get<ParentCatalog[]>(path, options);
+    return this.get<ParentCatalog[]>(path, options)
   }
 
   /**
@@ -256,18 +243,15 @@ export class CatalogManagerClient extends RestClient {
     identifier: string,
     version: string,
     parentId: string,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<void> {
-    const path = this.replacePathParams(
-      "/catalogs/{identifier}/{version}/remove-parent/{parentId}",
-      {
-        identifier,
-        version,
-        parentId,
-      }
-    );
+    const path = this.replacePathParams('/catalogs/{identifier}/{version}/remove-parent/{parentId}', {
+      identifier,
+      version,
+      parentId
+    })
 
-    return this.delete(path, options);
+    return this.delete(path, options)
   }
 
   /**
@@ -277,27 +261,27 @@ export class CatalogManagerClient extends RestClient {
   public async readCatalogEntryById(
     catalogEntryId: string,
     params: {
-      localeCode?: string;
-      includeTranslations?: boolean;
+      localeCode?: string
+      includeTranslations?: boolean
     } = {},
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogEntryManagement> {
-    const path = this.replacePathParams("/catalog-entries/{catalogEntryId}", {
-      catalogEntryId,
-    });
+    const path = this.replacePathParams('/catalog-entries/{catalogEntryId}', {
+      catalogEntryId
+    })
 
-    const queryParams: Record<string, string | boolean> = {};
+    const queryParams: Record<string, string | boolean> = {}
     if (params.localeCode) {
-      queryParams.localeCode = params.localeCode;
+      queryParams.localeCode = params.localeCode
     }
     if (params.includeTranslations !== undefined) {
-      queryParams.includeTranslations = params.includeTranslations;
+      queryParams.includeTranslations = params.includeTranslations
     }
 
     return this.get<CatalogEntryManagement>(path, {
       ...options,
-      params: queryParams,
-    });
+      params: queryParams
+    })
   }
 
   /**
@@ -307,34 +291,31 @@ export class CatalogManagerClient extends RestClient {
   public async importCatalogEntries(
     params: ImportCatalogEntriesParams,
     file: File,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogEntryManagement[]> {
-    const path = this.replacePathParams(
-      "/catalogs/{catalogIdentifier}/{version}/import/{importMode}",
-      {
-        catalogIdentifier: params.catalogIdentifier,
-        version: params.version,
-        importMode: params.importMode,
-      }
-    );
+    const path = this.replacePathParams('/catalogs/{catalogIdentifier}/{version}/import/{importMode}', {
+      catalogIdentifier: params.catalogIdentifier,
+      version: params.version,
+      importMode: params.importMode
+    })
 
-    const formData = new FormData();
-    formData.append("file", file);
+    const formData = new FormData()
+    formData.append('file', file)
 
-    const queryParams: Record<string, string> = {};
-    if (params.parentEntryId) queryParams.parentEntryId = params.parentEntryId;
-    if (params.localeCode) queryParams.localeCode = params.localeCode;
-    if (params.catalogEntryId) queryParams.catalogEntryId = params.catalogEntryId;
-    if (params.fileEncoding) queryParams.fileEncoding = params.fileEncoding;
+    const queryParams: Record<string, string> = {}
+    if (params.parentEntryId) queryParams.parentEntryId = params.parentEntryId
+    if (params.localeCode) queryParams.localeCode = params.localeCode
+    if (params.catalogEntryId) queryParams.catalogEntryId = params.catalogEntryId
+    if (params.fileEncoding) queryParams.fileEncoding = params.fileEncoding
 
     return this.post<CatalogEntryManagement[]>(path, formData, {
       ...options,
       params: queryParams,
       headers: {
-        ...options.headers,
+        ...options.headers
         // Don't set Content-Type, let browser set it with boundary for FormData
-      },
-    });
+      }
+    })
   }
 
   /**
@@ -344,17 +325,14 @@ export class CatalogManagerClient extends RestClient {
   public async deleteParentEntryCatalog(
     catalogEntryId: string,
     parentEntryId: string,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<void> {
-    const path = this.replacePathParams(
-      "/catalog-entries/{catalogEntryId}/remove-parent/{parentEntryId}",
-      {
-        catalogEntryId,
-        parentEntryId,
-      }
-    );
+    const path = this.replacePathParams('/catalog-entries/{catalogEntryId}/remove-parent/{parentEntryId}', {
+      catalogEntryId,
+      parentEntryId
+    })
 
-    return this.delete(path, options);
+    return this.delete(path, options)
   }
 
   /**
@@ -364,23 +342,23 @@ export class CatalogManagerClient extends RestClient {
   public async importCatalogs(
     file: File,
     overwrite: boolean = true,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<CatalogImportResponse> {
-    const formData = new FormData();
-    formData.append("file", file);
+    const formData = new FormData()
+    formData.append('file', file)
 
     const queryParams: Record<string, boolean> = {
-      overwrite,
-    };
+      overwrite
+    }
 
-    return this.post<CatalogImportResponse>("/catalogs/transfer/import", formData, {
+    return this.post<CatalogImportResponse>('/catalogs/transfer/import', formData, {
       ...options,
       params: queryParams,
       headers: {
-        ...options.headers,
+        ...options.headers
         // Don't set Content-Type, let browser set it with boundary for FormData
-      },
-    });
+      }
+    })
   }
 
   /**
@@ -389,13 +367,13 @@ export class CatalogManagerClient extends RestClient {
    */
   public async exportCatalogs(
     exportRequest: CatalogExportRequest = {},
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<Blob> {
-    return this.post<Blob>("/catalogs/transfer/export", exportRequest, {
+    return this.post<Blob>('/catalogs/transfer/export', exportRequest, {
       ...options,
-      responseType: ResponseType.BLOB,
-    });
+      responseType: ResponseType.BLOB
+    })
   }
 }
 
-export const catalogManagerClient = new CatalogManagerClient();
+export const catalogManagerClient = new CatalogManagerClient()

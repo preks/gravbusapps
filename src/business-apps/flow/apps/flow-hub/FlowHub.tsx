@@ -1,8 +1,8 @@
-import React, { useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  LauncherLayout, 
-  type LauncherSectionConfig, 
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  LauncherLayout,
+  type LauncherSectionConfig,
   type QuickActionData,
   type KpiData,
   Spinner,
@@ -10,13 +10,13 @@ import {
   AlertTitle,
   AlertDescription,
   Button
-} from '@newwork/nw-design-system';
-import { quickActions } from './utils/flowAreas';
-import { FlowArea, FlowQuickAction } from './types';
-import { useFlowDashboardStats } from './hooks/useFlowDashboardStats';
-import { useFlowPermissions } from './hooks/useFlowPermissions';
-import { navigateTo } from '@/common/utils/navigationUtils';
-import * as RemixIcons from '@remixicon/react';
+} from '@newwork/nw-design-system'
+import { quickActions } from './utils/flowAreas'
+import { FlowArea, FlowQuickAction } from './types'
+import { useFlowDashboardStats } from './hooks/useFlowDashboardStats'
+import { useFlowPermissions } from './hooks/useFlowPermissions'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import * as RemixIcons from '@remixicon/react'
 // Import RemixIcons for LauncherLayout
 import {
   RiUser3Line as User,
@@ -27,16 +27,15 @@ import {
   RiPieChartLine as ChartPie,
   RiFlowChart as Workflow,
   RiFileTextLine as FileText,
-  RiPlayLine as Play,
-  
-} from '@remixicon/react';
+  RiPlayLine as Play
+} from '@remixicon/react'
 
 interface FlowHubProps extends BusinessAppContextProps {}
 
-const FlowHub: React.FC<FlowHubProps> = (context) => {
-  const { stats, isLoading, error, refetch } = useFlowDashboardStats(context);
-  const { 
-    loading: permissionsLoading, 
+const FlowHub: React.FC<FlowHubProps> = context => {
+  const { stats, isLoading, error, refetch } = useFlowDashboardStats(context)
+  const {
+    loading: permissionsLoading,
     error: permissionsError,
     hasManagerPermissions,
     hasAdminPermissions,
@@ -45,28 +44,25 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
     canManageWorkflows,
     canAdministerFlows,
     isFeatureVisible
-  } = useFlowPermissions(
-    context.userInfo?.employeeDetails?.employeeId || '',
-    context.accessToken || ''
-  );
+  } = useFlowPermissions(context.userInfo?.employeeDetails?.employeeId || '', context.accessToken || '')
 
   // Determine UI layout based on permissions
-  const showAdminView = hasAdminPermissions();
-  const showManagerView = hasManagerPermissions() && !hasAdminPermissions();
+  const showAdminView = hasAdminPermissions()
+  const showManagerView = hasManagerPermissions() && !hasAdminPermissions()
   // const showEmployeeView = !hasManagerPermissions() && !hasAdminPermissions();
 
   // Format numbers
   const formatNumber = (num: number): string => {
     if (showAdminView || showManagerView) {
-      return num.toString(); // Simple format for admin and manager
+      return num.toString() // Simple format for admin and manager
     }
-    return num.toLocaleString(); // Locale format for employee
-  };
+    return num.toLocaleString() // Locale format for employee
+  }
 
   // Convert stats to KpiData format for header
   const headerKpis = useMemo((): KpiData[] => {
-    if (error) return [];
-    
+    if (error) return []
+
     if (showAdminView) {
       return [
         {
@@ -87,7 +83,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           value: isLoading ? '...' : formatNumber(stats.teamActiveTasks),
           color: 'success'
         }
-      ];
+      ]
     } else if (showManagerView) {
       return [
         {
@@ -108,7 +104,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           value: isLoading ? '...' : formatNumber(stats.teamPendingApprovals),
           color: 'success'
         }
-      ];
+      ]
     } else {
       return [
         {
@@ -129,9 +125,9 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           value: isLoading ? '...' : formatNumber(stats.completedTasksMonth),
           color: 'primary'
         }
-      ];
+      ]
     }
-  }, [stats, isLoading, error, showAdminView, showManagerView]);
+  }, [stats, isLoading, error, showAdminView, showManagerView])
 
   // Convert quick actions to LauncherLayout format
   const hubQuickActions = useMemo((): QuickActionData[] => {
@@ -141,24 +137,30 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
       icon: action.icon as unknown as any,
       onClick: () => handleQuickAction(action),
       variant: 'secondary'
-    }));
-  }, []);
+    }))
+  }, [])
 
   // Helper functions
   const getDefaultButtonLabel = (areaId: string): string => {
     switch (areaId) {
-      case 'active-tasks': return 'View Active Tasks';
-      case 'my-flows': return 'View My Flows';
-      case 'templates': return 'Browse Templates';
-      case 'completed': return 'View Completed';
-      case 'analytics': return 'View Analytics';
-      default: return 'View Details';
+      case 'active-tasks':
+        return 'View Active Tasks'
+      case 'my-flows':
+        return 'View My Flows'
+      case 'templates':
+        return 'Browse Templates'
+      case 'completed':
+        return 'View Completed'
+      case 'analytics':
+        return 'View Analytics'
+      default:
+        return 'View Details'
     }
-  };
+  }
 
   // Generate sections based on permissions
   const sections = useMemo((): LauncherSectionConfig[] => {
-    const areas: FlowArea[] = [];
+    const areas: FlowArea[] = []
 
     if (showAdminView) {
       // Admin view: system administration cards
@@ -178,7 +180,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           ],
           buttonLabel: 'Go to Personal Flows',
           buttonAction: 'navigate-personal-workflows'
-        });
+        })
       }
 
       areas.push({
@@ -196,7 +198,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         ],
         buttonLabel: 'Go to Administration',
         buttonAction: 'navigate-admin-workflows'
-      });
+      })
 
       areas.push({
         id: 'system-analytics',
@@ -207,8 +209,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         kpiType: 'analytics',
         buttonLabel: 'View System Analytics',
         buttonAction: 'navigate-system-analytics'
-      });
-
+      })
     } else if (showManagerView) {
       if (canViewPersonalFlows()) {
         areas.push({
@@ -226,7 +227,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           ],
           buttonLabel: 'Go to Personal Flows',
           buttonAction: 'navigate-personal-workflows'
-        });
+        })
       }
 
       if (canViewTeamFlows() || canManageWorkflows()) {
@@ -245,7 +246,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           ],
           buttonLabel: 'Go to Team Flows',
           buttonAction: 'navigate-team-workflows'
-        });
+        })
       }
 
       areas.push({
@@ -257,7 +258,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         kpiType: 'analytics',
         buttonLabel: 'View My Analytics',
         buttonAction: 'navigate-personal-analytics'
-      });
+      })
 
       if (canViewTeamFlows() || canManageWorkflows()) {
         areas.push({
@@ -269,7 +270,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           kpiType: 'analytics',
           buttonLabel: 'View Team Analytics',
           buttonAction: 'navigate-team-analytics'
-        });
+        })
       }
     } else {
       // Employee view: Four cards per spec
@@ -286,7 +287,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         ],
         buttonLabel: 'Open Inbox',
         buttonAction: 'navigate-inbox'
-      });
+      })
 
       areas.push({
         id: 'flow-solutions',
@@ -301,7 +302,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         ],
         buttonLabel: 'Browse Solutions',
         buttonAction: 'navigate-solution-compliance'
-      });
+      })
 
       areas.push({
         id: 'flow-launcher',
@@ -315,7 +316,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         ],
         buttonLabel: 'Open Flow Launcher',
         buttonAction: 'navigate-flow-launcher'
-      });
+      })
 
       areas.push({
         id: 'flow-creator',
@@ -329,7 +330,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         ],
         buttonLabel: 'Open Flow Creator',
         buttonAction: 'navigate-flow-creator'
-      });
+      })
 
       areas.push({
         id: 'flow-success',
@@ -345,7 +346,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         ],
         buttonLabel: 'Open Flow Success',
         buttonAction: 'navigate-flow-success'
-      });
+      })
 
       areas.push({
         id: 'flow-guardian',
@@ -353,12 +354,10 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         description: 'Monitor flow quality and governance checks',
         icon: ChartPie,
         category: 'analytics',
-        links: [
-          { label: 'Guardian Dashboard', action: 'guardian-dashboard' }
-        ],
+        links: [{ label: 'Guardian Dashboard', action: 'guardian-dashboard' }],
         buttonLabel: 'Open Flow Guardian',
         buttonAction: 'navigate-flow-guardian'
-      });
+      })
     }
 
     // Convert areas to NavigationCardData format
@@ -368,96 +367,119 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         if ((showManagerView || showAdminView) && kpiType) {
           switch (kpiType) {
             case 'personal':
-              return { 
-                value: formatNumber(stats.activeTasks || 7), 
+              return {
+                value: formatNumber(stats.activeTasks || 7),
                 label: 'Active Tasks'
-              };
+              }
             case 'team':
-              return { 
-                value: formatNumber(stats.teamActiveTasks || 45), 
+              return {
+                value: formatNumber(stats.teamActiveTasks || 45),
                 label: 'Team Tasks'
-              };
+              }
             case 'analytics':
-              return { 
-                value: formatNumber(stats.completedTasksMonth || 24), 
+              return {
+                value: formatNumber(stats.completedTasksMonth || 24),
                 label: 'Completed This Month'
-              };
+              }
             case 'admin':
-              return { 
-                value: formatNumber(stats.systemActiveWorkflows || 189), 
+              return {
+                value: formatNumber(stats.systemActiveWorkflows || 189),
                 label: 'System Flows'
-              };
+              }
             default:
-              return { value: '0', label: 'Items' };
+              return { value: '0', label: 'Items' }
           }
         }
 
         switch (areaId) {
           case 'active-tasks':
-            return { 
-              value: formatNumber(stats.activeTasks), 
+            return {
+              value: formatNumber(stats.activeTasks),
               label: 'Active Tasks'
-            };
+            }
           case 'my-flows':
-            return { 
-              value: formatNumber(stats.activeTasks), 
+            return {
+              value: formatNumber(stats.activeTasks),
               label: 'Open Tasks'
-            };
+            }
           case 'flow-solutions':
             return {
               value: formatNumber(1),
               label: 'Enabled Solutions'
-            };
+            }
           case 'flow-creator':
           case 'flow-launcher':
-            return { 
+            return {
               value: formatNumber(25), // Mock template count
               label: 'Available Templates'
-            };
+            }
           case 'completed':
-            return { 
-              value: formatNumber(stats.totalCompletedTasks), 
+            return {
+              value: formatNumber(stats.totalCompletedTasks),
               label: 'Total Completed'
-            };
+            }
           case 'flow-success':
-            return { 
-              value: formatNumber(stats.completedTasksMonth), 
+            return {
+              value: formatNumber(stats.completedTasksMonth),
               label: 'Completed This Month'
-            };
+            }
           case 'flow-guardian':
             return {
               value: formatNumber(stats.activeFlows),
               label: 'Active Flows'
-            };
+            }
           default:
-            return { value: '0', label: 'Items' };
+            return { value: '0', label: 'Items' }
         }
-      };
+      }
 
-      const areaStats = getAreaStats(area.id, area.kpiType);
+      const areaStats = getAreaStats(area.id, area.kpiType)
 
       // Convert links to actions format
-      const actions = area.links?.map(link => ({
-        label: link.label,
-        onClick: () => handleLinkClick(link.action)
-      })) || [];
+      const actions =
+        area.links?.map(link => ({
+          label: link.label,
+          onClick: () => handleLinkClick(link.action)
+        })) || []
 
       // Get variant based on category and area ID
-      const getVariant = (category: string, areaId: string): 'default' | 'success' | 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8' | 'info' | 'destructive' | 'warning' | undefined => {
-        if (areaId === 'templates' || areaId === 'flow-creator' || areaId === 'flow-launcher') return 'ext2';
-        if (areaId === 'completed') return 'success';
-        if (areaId === 'analytics' || areaId === 'flow-success' || areaId === 'flow-guardian') return 'info';
-        if (areaId === 'system-administration' || areaId === 'system-analytics') return 'success';
-        if (areaId === 'team-workflows' || areaId === 'team-analytics') return 'success';
+      const getVariant = (
+        category: string,
+        areaId: string
+      ):
+        | 'default'
+        | 'success'
+        | 'ext1'
+        | 'ext2'
+        | 'ext3'
+        | 'ext4'
+        | 'ext5'
+        | 'ext6'
+        | 'ext7'
+        | 'ext8'
+        | 'info'
+        | 'destructive'
+        | 'warning'
+        | undefined => {
+        if (areaId === 'templates' || areaId === 'flow-creator' || areaId === 'flow-launcher') return 'ext2'
+        if (areaId === 'completed') return 'success'
+        if (areaId === 'analytics' || areaId === 'flow-success' || areaId === 'flow-guardian') return 'info'
+        if (areaId === 'system-administration' || areaId === 'system-analytics') return 'success'
+        if (areaId === 'team-workflows' || areaId === 'team-analytics') return 'success'
 
         switch (category) {
-          case 'core': return 'ext2';
-          case 'management': return 'ext2';
-          case 'analytics': return 'ext4';
-          case 'admin': return 'success';
-          default: return 'default';
+          case 'core':
+            return 'ext2'
+          case 'management':
+            return 'ext2'
+          case 'analytics':
+            return 'ext4'
+          case 'admin':
+            return 'success'
+          default:
+            return 'default'
         }
-      };
+      }
 
       const baseCard = {
         id: area.id,
@@ -467,7 +489,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         stats: areaStats,
         actions,
         variant: getVariant(area.category, area.id)
-      };
+      }
 
       // Only include primaryAction if a buttonAction/label is provided
       if (area.buttonAction || area.buttonLabel) {
@@ -477,70 +499,80 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
             label: area.buttonLabel || getDefaultButtonLabel(area.id),
             onClick: () => handleNavigationClick(area)
           }
-        };
+        }
       }
 
-      return baseCard;
-    });
+      return baseCard
+    })
 
-    return [{
-      id: 'flow-modules',
-      title: showAdminView ? 'System Administration Hub' : (showManagerView ? 'Management Hub' : 'Flow Hub'),
-      description: showAdminView 
-        ? 'Comprehensive system oversight and flow administration' 
-        : (showManagerView 
-          ? 'Personal and team flow management tools' 
-          : 'Essential flow functions for task management and process automation'
-        ),
-      cards
-    }];
-  }, [showAdminView, showManagerView, canViewPersonalFlows, canViewTeamFlows, canManageWorkflows, canAdministerFlows, isFeatureVisible, stats]);
+    return [
+      {
+        id: 'flow-modules',
+        title: showAdminView ? 'System Administration Hub' : showManagerView ? 'Management Hub' : 'Flow Hub',
+        description: showAdminView
+          ? 'Comprehensive system oversight and flow administration'
+          : showManagerView
+            ? 'Personal and team flow management tools'
+            : 'Essential flow functions for task management and process automation',
+        cards
+      }
+    ]
+  }, [
+    showAdminView,
+    showManagerView,
+    canViewPersonalFlows,
+    canViewTeamFlows,
+    canManageWorkflows,
+    canAdministerFlows,
+    isFeatureVisible,
+    stats
+  ])
 
   const handleNavigationClick = (area: FlowArea) => {
-    console.log(`Navigation clicked for ${area.title} - navigation implementation coming soon`);
-    
+    console.log(`Navigation clicked for ${area.title} - navigation implementation coming soon`)
+
     if (area.buttonAction) {
       switch (area.buttonAction) {
         case 'navigate-inbox':
-          navigateTo('/platform/apps/flow/apps/inbox?tab=open');
-          break;
+          navigateTo('/platform/apps/flow/apps/inbox?tab=open')
+          break
         case 'navigate-personal-workflows':
-          console.log('Navigating to personal flows');
-          break;
+          console.log('Navigating to personal flows')
+          break
         case 'navigate-team-workflows':
-          console.log('Navigating to team flows');
-          break;
+          console.log('Navigating to team flows')
+          break
         case 'navigate-admin-workflows':
-          console.log('Navigating to admin flows');
-          break;
+          console.log('Navigating to admin flows')
+          break
         case 'navigate-solution-compliance':
-          navigateTo('/platform/apps/flow/apps/solutions/compliance');
-          break;
+          navigateTo('/platform/apps/flow/apps/solutions/compliance')
+          break
         case 'navigate-solution-employee-lifecycle':
-          navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle');
-          break;
+          navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle')
+          break
         case 'navigate-solution-survey':
-          navigateTo('/platform/apps/flow/apps/solutions/survey');
-          break;
+          navigateTo('/platform/apps/flow/apps/solutions/survey')
+          break
         case 'navigate-personal-analytics':
         case 'navigate-team-analytics':
         case 'navigate-system-analytics':
-          console.log('Navigating to analytics');
-          break;
+          console.log('Navigating to analytics')
+          break
         case 'navigate-flow-creator':
-          navigateTo('/platform/apps/flow/apps/creator#create');
-          break;
+          navigateTo('/platform/apps/flow/apps/creator#create')
+          break
         case 'navigate-flow-launcher':
-          navigateTo('/platform/apps/flow/apps/launcher');
-          break;
+          navigateTo('/platform/apps/flow/apps/launcher')
+          break
         case 'navigate-flow-success':
-          navigateTo('/platform/apps/flow/apps/success');
-          break;
+          navigateTo('/platform/apps/flow/apps/success')
+          break
         case 'navigate-flow-guardian':
-          navigateTo('/platform/apps/flow/apps/guardian');
-          break;
+          navigateTo('/platform/apps/flow/apps/guardian')
+          break
         default:
-          console.log(`Unknown button action: ${area.buttonAction}`);
+          console.log(`Unknown button action: ${area.buttonAction}`)
       }
     } else {
       // Handle employee view card navigation
@@ -549,126 +581,126 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         'my-flows': '/platform/apps/flow/apps/inbox?tab=open',
         'flow-creator': '/platform/apps/flow/apps/creator#create',
         'flow-launcher': '/platform/apps/flow/apps/launcher',
-        'completed': '/platform/apps/flow/apps/success',
+        completed: '/platform/apps/flow/apps/success',
         'flow-success': '/platform/apps/flow/apps/success',
         'flow-guardian': '/platform/apps/flow/apps/guardian'
-      };
-      
-      const url = areaToUrlMap[area.id];
-      
+      }
+
+      const url = areaToUrlMap[area.id]
+
       if (url) {
-        navigateTo(url);
+        navigateTo(url)
       }
     }
-  };
+  }
 
   const handleLinkClick = (linkAction: string) => {
     switch (linkAction) {
       // My Flows (Inbox) tabs
       case 'inbox-open-tasks':
-        navigateTo('/platform/apps/flow/apps/inbox?tab=open');
-        return;
+        navigateTo('/platform/apps/flow/apps/inbox?tab=open')
+        return
       case 'inbox-initiated':
-        navigateTo('/platform/apps/flow/apps/inbox?tab=initiated');
-        return;
+        navigateTo('/platform/apps/flow/apps/inbox?tab=initiated')
+        return
       case 'inbox-participated':
-        navigateTo('/platform/apps/flow/apps/inbox?tab=participated');
-        return;
+        navigateTo('/platform/apps/flow/apps/inbox?tab=participated')
+        return
 
       // Flow Solutions
       case 'solution-compliance':
-        navigateTo('/platform/apps/flow/apps/solutions/compliance');
-        return;
+        navigateTo('/platform/apps/flow/apps/solutions/compliance')
+        return
       case 'solution-employee-lifecycle':
-        navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle');
-        return;
+        navigateTo('/platform/apps/flow/apps/solutions/employee-lifecycle')
+        return
       case 'solution-survey':
-        navigateTo('/platform/apps/flow/apps/solutions/survey');
-        return;
+        navigateTo('/platform/apps/flow/apps/solutions/survey')
+        return
 
       // Flow Templates / Creator
       case 'templates-create':
-        navigateTo('/platform/apps/flow/apps/creator#create');
-        return;
+        navigateTo('/platform/apps/flow/apps/creator#create')
+        return
       case 'templates-manage':
-        navigateTo('/platform/apps/flow/apps/creator#manage');
-        return;
+        navigateTo('/platform/apps/flow/apps/creator#manage')
+        return
       case 'templates-launch':
-        navigateTo('/platform/apps/flow/apps/launcher');
-        return;
+        navigateTo('/platform/apps/flow/apps/launcher')
+        return
 
       // Launcher
       case 'launcher-launch':
-        navigateTo('/platform/apps/flow/apps/launcher');
-        return;
+        navigateTo('/platform/apps/flow/apps/launcher')
+        return
       case 'launcher-simulate':
-        navigateTo('/platform/apps/flow/apps/launcher');
-        return;
+        navigateTo('/platform/apps/flow/apps/launcher')
+        return
 
       // Flow Success tabs via hash-based navigation
       case 'success-flow':
-        navigateTo('/platform/apps/flow/apps/success#flow');
-        return;
+        navigateTo('/platform/apps/flow/apps/success#flow')
+        return
       case 'success-trends':
-        navigateTo('/platform/apps/flow/apps/success#trends');
-        return;
+        navigateTo('/platform/apps/flow/apps/success#trends')
+        return
       case 'success-task-performance':
-        navigateTo('/platform/apps/flow/apps/success#task-performance');
-        return;
+        navigateTo('/platform/apps/flow/apps/success#task-performance')
+        return
       case 'success-sla':
-        navigateTo('/platform/apps/flow/apps/success#sla');
-        return;
+        navigateTo('/platform/apps/flow/apps/success#sla')
+        return
       case 'success-audit':
-        navigateTo('/platform/apps/flow/apps/success#audit');
-        return;
+        navigateTo('/platform/apps/flow/apps/success#audit')
+        return
       // Guardian
       case 'guardian-dashboard':
-        navigateTo('/platform/apps/flow/apps/guardian');
-        return;
+        navigateTo('/platform/apps/flow/apps/guardian')
+        return
       default:
-        console.log(`Unknown link action: ${linkAction}`);
+        console.log(`Unknown link action: ${linkAction}`)
     }
-  };
+  }
 
   const handleQuickAction = (action: FlowQuickAction) => {
-    const employeeId = context.userInfo?.employeeDetails?.employeeId;
-    
+    const employeeId = context.userInfo?.employeeDetails?.employeeId
+
     if (!employeeId) {
-      console.error('Employee ID not found, cannot perform action');
-      return;
+      console.error('Employee ID not found, cannot perform action')
+      return
     }
 
     switch (action.action) {
       case 'start-workflow':
-        navigateTo('/platform/apps/flow/apps/launcher');
-        break;
+        navigateTo('/platform/apps/flow/apps/launcher')
+        break
       case 'create-template':
-        navigateTo('/platform/apps/flow/apps/creator#create');
-        break;
+        navigateTo('/platform/apps/flow/apps/creator#create')
+        break
       case 'view-inbox':
-        navigateTo('/platform/apps/flow/apps/inbox?tab=open');
-        break;
+        navigateTo('/platform/apps/flow/apps/inbox?tab=open')
+        break
       case 'view-analytics':
-        navigateTo('/platform/apps/flow/apps/success');
-        break;
+        navigateTo('/platform/apps/flow/apps/success')
+        break
       default:
-        console.log(`Quick action "${action.action}" functionality coming soon`);
+        console.log(`Quick action "${action.action}" functionality coming soon`)
     }
-  };
+  }
 
   const getPageTitle = (): string => {
-    return 'My Flow Hub';
-  };
+    return 'My Flow Hub'
+  }
 
   const getDescriptionText = (): string => {
     if (showAdminView) {
-      return 'Comprehensive system administration and flow oversight';
+      return 'Comprehensive system administration and flow oversight'
     }
     if (showManagerView) {
-      return 'Manage personal and team flows with comprehensive oversight';
+      return 'Manage personal and team flows with comprehensive oversight'
     }
-    return 'Comprehensive flow management, task tracking, and process automation';
-  };
+    return 'Comprehensive flow management, task tracking, and process automation'
+  }
 
   // Show loading state while determining permissions
   if (permissionsLoading) {
@@ -677,13 +709,11 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
         <div className="bg-card/90 backdrop-blur-md p-8 rounded-xl shadow-lg">
           <div className="flex items-center gap-3">
             <Spinner size="lg" />
-            <span className="text-lg font-medium text-card-foreground">
-              Loading your personalized hub...
-            </span>
+            <span className="text-lg font-medium text-card-foreground">Loading your personalized hub...</span>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Show error state if permission check failed
@@ -694,13 +724,11 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
             <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
             <AlertTitle>Permission Check Failed</AlertTitle>
-            <AlertDescription>
-              Unable to determine your permissions. Showing limited view.
-            </AlertDescription>
+            <AlertDescription>Unable to determine your permissions. Showing limited view.</AlertDescription>
           </Alert>
         </div>
       </div>
-    );
+    )
   }
 
   // Show error state if stats loading failed
@@ -712,13 +740,9 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
             <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
             <AlertTitle>Error Loading Stats</AlertTitle>
             <AlertDescription>
-              {error} 
+              {error}
               <div className="mt-2">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={refetch}
-                >
+                <Button size="sm" variant="outline" onClick={refetch}>
                   <RemixIcons.RiRefreshLine className="h-4 w-4 mr-1" />
                   Retry
                 </Button>
@@ -727,7 +751,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
           </Alert>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -741,8 +765,7 @@ const FlowHub: React.FC<FlowHubProps> = (context) => {
       quickActionsTitle="Quick Actions"
       quickActionsDescription="Frequently used flow functions and shortcuts"
     />
-  );
-};
+  )
+}
 
-export default FlowHub;
-
+export default FlowHub

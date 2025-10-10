@@ -1,41 +1,22 @@
-import React, { useState } from 'react';
-import {
-  AreaChart,
-  LineChart,
-  Line,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Button,
-  Alert,
-  Spinner,
-  Checkbox
-} from '@newwork/nw-design-system';
-import { PiChartLine, PiCalendar, PiEye, PiEyeSlash } from 'react-icons/pi';
-import { usePerformanceTrendsData } from './hooks/usePerformanceTrendsData';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React, { useState } from 'react'
+import { AreaChart, LineChart, Line, Area, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Card, CardContent, CardHeader, CardTitle, Button, Alert, Spinner, Checkbox } from '@newwork/nw-design-system'
+import { PiChartLine, PiCalendar, PiEye, PiEyeSlash } from 'react-icons/pi'
+import { usePerformanceTrendsData } from './hooks/usePerformanceTrendsData'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-const DATA_TEST_ID_PREFIX = 'PerformanceTrendsChart';
+const DATA_TEST_ID_PREFIX = 'PerformanceTrendsChart'
 
-export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical';
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 interface PerformanceTrendsChartProps extends BusinessAppContextProps {
-  employeeId: string;
+  employeeId: string
 }
 
-export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (props) => {
-  const { employeeId } = props;
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilter>('quarter');
-  
+export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = props => {
+  const { employeeId } = props
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilter>('quarter')
+
   // Line visibility state
   const [visibleLines, setVisibleLines] = useState({
     convertedLeads: true,
@@ -43,14 +24,9 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
     wonOpportunities: true,
     managedAccounts: true,
     totalSales: true
-  });
+  })
 
-  const {
-    trendsData,
-    isLoading,
-    error,
-    refetch
-  } = usePerformanceTrendsData(props, selectedTimeFilter, employeeId);
+  const { trendsData, isLoading, error, refetch } = usePerformanceTrendsData(props, selectedTimeFilter, employeeId)
 
   const timeFilterOptions = [
     { key: 'month' as TimeFilter, label: 'Last Month' },
@@ -58,7 +34,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
     { key: 'sixMonths' as TimeFilter, label: 'Last 6 Months' },
     { key: 'year' as TimeFilter, label: 'Last Year' },
     { key: 'historical' as TimeFilter, label: 'Historical' }
-  ];
+  ]
 
   const lineOptions = [
     { key: 'convertedLeads' as keyof typeof visibleLines, label: 'Converted Leads', color: '#3B82F6' },
@@ -66,15 +42,15 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
     { key: 'wonOpportunities' as keyof typeof visibleLines, label: 'Won Opportunities', color: '#F59E0B' },
     { key: 'managedAccounts' as keyof typeof visibleLines, label: 'Managed Accounts', color: '#06B6D4' },
     { key: 'totalSales' as keyof typeof visibleLines, label: 'Total Sales (EUR)', color: '#10B981' }
-  ];
+  ]
 
   // Toggle line visibility
   const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
     setVisibleLines(prev => ({
       ...prev,
       [lineKey]: !prev[lineKey]
-    }));
-  };
+    }))
+  }
 
   // Custom tooltip formatter
   const formatTooltip = (value: any, name: string) => {
@@ -84,8 +60,8 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
       wonOpportunities: 'Won Opportunities',
       managedAccounts: 'Managed Accounts',
       totalSales: 'Total Sales'
-    };
-    
+    }
+
     // Format currency for sales
     if (name === 'totalSales') {
       const formattedValue = new Intl.NumberFormat('en-US', {
@@ -93,24 +69,24 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
         currency: 'EUR',
         minimumFractionDigits: 0,
         maximumFractionDigits: 0
-      }).format(value);
-      return [formattedValue, labelMap[name] || name];
+      }).format(value)
+      return [formattedValue, labelMap[name] || name]
     }
-    
-    return [value, labelMap[name] || name];
-  };
+
+    return [value, labelMap[name] || name]
+  }
 
   // Custom label formatter for X-axis
   const formatXAxisLabel = (value: string) => {
-    const date = new Date(value);
+    const date = new Date(value)
     if (selectedTimeFilter === 'month') {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     } else if (selectedTimeFilter === 'quarter' || selectedTimeFilter === 'sixMonths') {
-      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     }
-  };
+  }
 
   if (isLoading) {
     return (
@@ -127,7 +103,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (error) {
@@ -140,10 +116,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Alert
-            variant="destructive"
-            data-testid={`${DATA_TEST_ID_PREFIX}-error`}
-          >
+          <Alert variant="destructive" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <h4 className="gba:text-sm gba:font-medium">Error Loading Trends</h4>
@@ -151,19 +124,14 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
                   {error.message || 'Failed to load performance trends data'}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refetch}
-                data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-              >
+              <Button variant="outline" size="sm" onClick={refetch} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
                 Retry
               </Button>
             </div>
           </Alert>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -177,10 +145,10 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
           <div className="gba:flex gba:items-center gba:gap-2">
             <PiCalendar size={16} className="gba:text-gray-500" />
             <div className="gba:flex gba:gap-1" data-testid={`${DATA_TEST_ID_PREFIX}-time-filters`}>
-              {timeFilterOptions.map((option) => (
+              {timeFilterOptions.map(option => (
                 <Button
                   key={option.key}
-                  variant={selectedTimeFilter === option.key ? "default" : "outline"}
+                  variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setSelectedTimeFilter(option.key)}
                   data-testid={`${DATA_TEST_ID_PREFIX}-filter-${option.key}`}
@@ -191,7 +159,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
             </div>
           </div>
         </div>
-        
+
         {/* Line Visibility Filters */}
         <div className="gba:mt-4 gba:border-t gba:pt-4">
           <div className="gba:flex gba:items-center gba:gap-6">
@@ -200,20 +168,14 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Lines:</span>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid={`${DATA_TEST_ID_PREFIX}-line-filters`}>
-              {lineOptions.map((line) => (
+              {lineOptions.map(line => (
                 <label
                   key={line.key}
                   className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
                   data-testid={`${DATA_TEST_ID_PREFIX}-line-filter-${line.key}`}
                 >
-                  <Checkbox
-                    checked={visibleLines[line.key]}
-                    onCheckedChange={() => toggleLineVisibility(line.key)}
-                  />
-                  <div
-                    className="gba:w-3 gba:h-3 gba:rounded"
-                    style={{ backgroundColor: line.color }}
-                  />
+                  <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => toggleLineVisibility(line.key)} />
+                  <div className="gba:w-3 gba:h-3 gba:rounded" style={{ backgroundColor: line.color }} />
                   <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
                 </label>
               ))}
@@ -239,36 +201,29 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
                   top: 20,
                   right: 30,
                   left: 20,
-                  bottom: 20,
+                  bottom: 20
                 }}
               >
-                <XAxis 
-                  dataKey="period"
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={formatXAxisLabel}
-                  stroke="#666"
-                />
-                <YAxis 
-                  yAxisId="left"
-                  tick={{ fontSize: 12 }}
-                  stroke="#666"
-                />
-                <YAxis 
+                <XAxis dataKey="period" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} stroke="#666" />
+                <YAxis yAxisId="left" tick={{ fontSize: 12 }} stroke="#666" />
+                <YAxis
                   yAxisId="right"
                   orientation="right"
                   tick={{ fontSize: 12 }}
                   stroke="#666"
-                  tickFormatter={(value) => new Intl.NumberFormat('en-US', {
-                    style: 'currency',
-                    currency: 'EUR',
-                    notation: 'compact',
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 1
-                  }).format(value)}
+                  tickFormatter={value =>
+                    new Intl.NumberFormat('en-US', {
+                      style: 'currency',
+                      currency: 'EUR',
+                      notation: 'compact',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 1
+                    }).format(value)
+                  }
                 />
                 <Tooltip
                   formatter={formatTooltip}
-                  labelFormatter={(label) => `Period: ${formatXAxisLabel(label)}`}
+                  labelFormatter={label => `Period: ${formatXAxisLabel(label)}`}
                   contentStyle={{
                     backgroundColor: 'white',
                     border: '1px solid #ccc',
@@ -276,10 +231,8 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
                     fontSize: '12px'
                   }}
                 />
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px' }}
-                />
-                
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+
                 {/* Converted Leads - Blue */}
                 {visibleLines.convertedLeads && (
                   <Area
@@ -295,7 +248,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
                     name="Converted Leads"
                   />
                 )}
-                
+
                 {/* Contacts with Accounts - Purple */}
                 {visibleLines.contactsWithAccounts && (
                   <Area
@@ -311,7 +264,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
                     name="Contacts with Accounts"
                   />
                 )}
-                
+
                 {/* Won Opportunities - Orange */}
                 {visibleLines.wonOpportunities && (
                   <Area
@@ -327,7 +280,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
                     name="Won Opportunities"
                   />
                 )}
-                
+
                 {/* Managed Accounts - Teal */}
                 {visibleLines.managedAccounts && (
                   <Area
@@ -343,7 +296,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
                     name="Managed Accounts"
                   />
                 )}
-                
+
                 {/* Total Sales - Green */}
                 {visibleLines.totalSales && (
                   <Area
@@ -365,7 +318,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = (pr
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default PerformanceTrendsChart; 
+export default PerformanceTrendsChart

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Card,
   CardContent,
@@ -12,21 +12,21 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useLeadFormContext } from "../context/LeadFormContext";
-import { toStringOrUndefined } from "../utils/validationUtils";
-import SearchableSelect from "../../opportunity-form/components/SearchableSelect";
+  Checkbox
+} from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useLeadFormContext } from '../context/LeadFormContext'
+import { toStringOrUndefined } from '../utils/validationUtils'
+import SearchableSelect from '../../opportunity-form/components/SearchableSelect'
 // Note: Removed SearchableSelect and useAccountsGraphQL imports since we're using simple input
 
-const prefixDataTestId = "LeadForm";
+const prefixDataTestId = 'LeadForm'
 
 const LeadInformationSection: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [isStatusOpen, setIsStatusOpen] = useState(false);
-  const [isSourceOpen, setIsSourceOpen] = useState(false);
-  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true)
+  const [isStatusOpen, setIsStatusOpen] = useState(false)
+  const [isSourceOpen, setIsSourceOpen] = useState(false)
+  const [isRatingOpen, setIsRatingOpen] = useState(false)
 
   const {
     formValues,
@@ -78,121 +78,78 @@ const LeadInformationSection: React.FC = () => {
     loadMoreSalesCampaigns,
 
     // Access token for API calls
-    accessToken,
-  } = useLeadFormContext();
+    accessToken
+  } = useLeadFormContext()
 
   // Note: Removed accounts hook since we're using simple input instead of dropdown
 
   // Simple effect to load more lead sources when needed
   useEffect(() => {
     if (leadSourcesNeedsMoreData && !leadSourcesLoading && leadSourcesHasMore) {
-      loadMoreLeadSources();
+      loadMoreLeadSources()
     }
-  }, [
-    leadSourcesNeedsMoreData,
-    leadSourcesLoading,
-    leadSourcesHasMore,
-    leadSourcesTotalFetched,
-    loadMoreLeadSources,
-  ]);
+  }, [leadSourcesNeedsMoreData, leadSourcesLoading, leadSourcesHasMore, leadSourcesTotalFetched, loadMoreLeadSources])
 
   // Simple effect to load more lead statuses when needed
   useEffect(() => {
-    if (
-      leadStatusesNeedsMoreData &&
-      !leadStatusesLoading &&
-      leadStatusesHasMore
-    ) {
-      loadMoreLeadStatuses();
+    if (leadStatusesNeedsMoreData && !leadStatusesLoading && leadStatusesHasMore) {
+      loadMoreLeadStatuses()
     }
   }, [
     leadStatusesNeedsMoreData,
     leadStatusesLoading,
     leadStatusesHasMore,
     leadStatusesTotalFetched,
-    loadMoreLeadStatuses,
-  ]);
+    loadMoreLeadStatuses
+  ])
 
   // Simple effect to load more lead ratings when needed
   useEffect(() => {
     if (leadRatingsNeedsMoreData && !leadRatingsLoading && leadRatingsHasMore) {
-      loadMoreLeadRatings();
+      loadMoreLeadRatings()
     }
-  }, [
-    leadRatingsNeedsMoreData,
-    leadRatingsLoading,
-    leadRatingsHasMore,
-    leadRatingsTotalFetched,
-    loadMoreLeadRatings,
-  ]);
+  }, [leadRatingsNeedsMoreData, leadRatingsLoading, leadRatingsHasMore, leadRatingsTotalFetched, loadMoreLeadRatings])
 
   // When dropdowns open, show more if we have them cached
   useEffect(() => {
-    if (
-      isStatusOpen &&
-      leadStatusesDisplayCount < leadStatusesTotalFetched &&
-      leadStatusesTotalFetched > 5
-    ) {
-      showMoreLeadStatuses();
+    if (isStatusOpen && leadStatusesDisplayCount < leadStatusesTotalFetched && leadStatusesTotalFetched > 5) {
+      showMoreLeadStatuses()
     }
-  }, [
-    isStatusOpen,
-    leadStatusesDisplayCount,
-    leadStatusesTotalFetched,
-    showMoreLeadStatuses,
-  ]);
+  }, [isStatusOpen, leadStatusesDisplayCount, leadStatusesTotalFetched, showMoreLeadStatuses])
 
   useEffect(() => {
-    if (
-      isSourceOpen &&
-      leadSourcesDisplayCount < leadSourcesTotalFetched &&
-      leadSourcesTotalFetched > 5
-    ) {
-      showMoreLeadSources();
+    if (isSourceOpen && leadSourcesDisplayCount < leadSourcesTotalFetched && leadSourcesTotalFetched > 5) {
+      showMoreLeadSources()
     }
-  }, [
-    isSourceOpen,
-    leadSourcesDisplayCount,
-    leadSourcesTotalFetched,
-    showMoreLeadSources,
-  ]);
+  }, [isSourceOpen, leadSourcesDisplayCount, leadSourcesTotalFetched, showMoreLeadSources])
 
   useEffect(() => {
-    if (
-      isRatingOpen &&
-      leadRatingsDisplayCount < leadRatingsTotalFetched &&
-      leadRatingsTotalFetched > 5
-    ) {
-      showMoreLeadRatings();
+    if (isRatingOpen && leadRatingsDisplayCount < leadRatingsTotalFetched && leadRatingsTotalFetched > 5) {
+      showMoreLeadRatings()
     }
-  }, [
-    isRatingOpen,
-    leadRatingsDisplayCount,
-    leadRatingsTotalFetched,
-    showMoreLeadRatings,
-  ]);
+  }, [isRatingOpen, leadRatingsDisplayCount, leadRatingsTotalFetched, showMoreLeadRatings])
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <CardContent
         className="gba:space-y-6 gba:p-0"
         style={{
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          padding: "0",
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          padding: '0'
         }}
       >
         {/* First Name and Last Name - Side by side */}
@@ -203,16 +160,12 @@ const LeadInformationSection: React.FC = () => {
             </Label>
             <Input
               name="firstName"
-              value={
-                typeof formValues.firstName === "string"
-                  ? formValues.firstName
-                  : ""
-              }
-              onChange={(e) => setFormValues({ firstName: e.target.value })}
+              value={typeof formValues.firstName === 'string' ? formValues.firstName : ''}
+              onChange={e => setFormValues({ firstName: e.target.value })}
               placeholder="Please Enter..."
               required
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "FirstNameInput")}
+              data-testid={formatDataTestId(prefixDataTestId, 'FirstNameInput')}
             />
           </div>
 
@@ -222,16 +175,12 @@ const LeadInformationSection: React.FC = () => {
             </Label>
             <Input
               name="lastName"
-              value={
-                typeof formValues.lastName === "string"
-                  ? formValues.lastName
-                  : ""
-              }
-              onChange={(e) => setFormValues({ lastName: e.target.value })}
+              value={typeof formValues.lastName === 'string' ? formValues.lastName : ''}
+              onChange={e => setFormValues({ lastName: e.target.value })}
               placeholder="Please Enter..."
               required
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "LastNameInput")}
+              data-testid={formatDataTestId(prefixDataTestId, 'LastNameInput')}
             />
           </div>
         </div>
@@ -243,16 +192,12 @@ const LeadInformationSection: React.FC = () => {
           </Label>
           <Input
             name="company"
-            value={
-              typeof formValues.company === "string"
-                ? formValues.company
-                : String(formValues.company || "")
-            }
-            onChange={(e) => setFormValues({ company: e.target.value })}
+            value={typeof formValues.company === 'string' ? formValues.company : String(formValues.company || '')}
+            onChange={e => setFormValues({ company: e.target.value })}
             placeholder="Please Enter..."
             required
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "CompanyInput")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CompanyInput')}
           />
         </div>
 
@@ -260,30 +205,22 @@ const LeadInformationSection: React.FC = () => {
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
           {/* Status dropdown like Country */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Status
-            </Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Status</Label>
             <Select
               value={formValues.leadStatus}
-              onValueChange={(value) => setFormValues({ leadStatus: value })}
+              onValueChange={value => setFormValues({ leadStatus: value })}
               onOpenChange={setIsStatusOpen}
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "LeadStatusSelect"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'LeadStatusSelect')}
             >
               <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent
                 className="gba:max-h-[200px] gba:overflow-y-auto"
-                style={{ maxHeight: "200px", overflowY: "auto" }}
+                style={{ maxHeight: '200px', overflowY: 'auto' }}
               >
                 {leadStatuses.map((option, index) => (
-                  <SelectItem
-                    key={`${option.id}-${index}`}
-                    value={option.value}
-                  >
+                  <SelectItem key={`${option.id}-${index}`} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -298,30 +235,22 @@ const LeadInformationSection: React.FC = () => {
 
           {/* Source dropdown like Country */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Source
-            </Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Source</Label>
             <Select
               value={formValues.leadSource}
-              onValueChange={(value) => setFormValues({ leadSource: value })}
+              onValueChange={value => setFormValues({ leadSource: value })}
               onOpenChange={setIsSourceOpen}
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "LeadSourceSelect"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'LeadSourceSelect')}
             >
               <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent
                 className="gba:max-h-[200px] gba:overflow-y-auto"
-                style={{ maxHeight: "200px", overflowY: "auto" }}
+                style={{ maxHeight: '200px', overflowY: 'auto' }}
               >
                 {leadSources.map((option, index) => (
-                  <SelectItem
-                    key={`${option.id}-${index}`}
-                    value={option.value}
-                  >
+                  <SelectItem key={`${option.id}-${index}`} value={option.value}>
                     {option.label}
                   </SelectItem>
                 ))}
@@ -340,27 +269,22 @@ const LeadInformationSection: React.FC = () => {
           {/* Rating Field */}
           <div className="gba:w-80">
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Rating
-              </Label>
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Rating</Label>
               <Select
                 value={formValues.rating}
-                onValueChange={(value) => setFormValues({ rating: value })}
+                onValueChange={value => setFormValues({ rating: value })}
                 onOpenChange={setIsRatingOpen}
-                data-testid={formatDataTestId(prefixDataTestId, "RatingSelect")}
+                data-testid={formatDataTestId(prefixDataTestId, 'RatingSelect')}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
                   className="gba:max-h-[200px] gba:overflow-y-auto"
-                  style={{ maxHeight: "200px", overflowY: "auto" }}
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
                 >
                   {leadRatings.map((option, index) => (
-                    <SelectItem
-                      key={`${option.id}-${index}`}
-                      value={option.value}
-                    >
+                    <SelectItem key={`${option.id}-${index}`} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -380,18 +304,15 @@ const LeadInformationSection: React.FC = () => {
               <Checkbox
                 id="sensitive-checkbox"
                 checked={!!formValues.sensitive}
-                onCheckedChange={(checked) => {
-                  console.log("🔄 CRM Form - Sensitive checkbox changed:", {
+                onCheckedChange={checked => {
+                  console.log('🔄 CRM Form - Sensitive checkbox changed:', {
                     previousValue: formValues.sensitive,
                     newValue: checked,
-                    checkedState: !!checked,
-                  });
-                  setFormValues({ sensitive: !!checked });
+                    checkedState: !!checked
+                  })
+                  setFormValues({ sensitive: !!checked })
                 }}
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "SensitiveCheckbox"
-                )}
+                data-testid={formatDataTestId(prefixDataTestId, 'SensitiveCheckbox')}
               />
               <Label
                 htmlFor="sensitive-checkbox"
@@ -415,19 +336,19 @@ const LeadInformationSection: React.FC = () => {
             hasMore={salesCampaignsHasMore}
             onSearch={searchSalesCampaigns}
             onLoadMore={loadMoreSalesCampaigns}
-            onChange={(value) => {
+            onChange={value => {
               setFormValues({
-                salesCampaignId: value, // Store only ID for backend
-              });
+                salesCampaignId: value // Store only ID for backend
+              })
             }}
             error={salesCampaignsError}
             className="gba:w-full gba:min-w-[300px]"
-            data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CampaignSelect')}
           />
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default LeadInformationSection;
+export default LeadInformationSection

@@ -17,16 +17,16 @@ The platform dispatches various event types when processes complete:
 ```typescript
 const eventNames = [
   'com.newwork.process.taskCompletion',
-  'com.newwork.process.completion', 
+  'com.newwork.process.completion',
   'com.newwork.process.continue',
   'com.newwork.process.processCompletion',
   'processCompletion',
-  'taskCompletion', 
+  'taskCompletion',
   'taskCompleted',
   'processCompleted',
   'task-completion',
-  'process-completion',
-];
+  'process-completion'
+]
 ```
 
 ### Event Structure
@@ -35,19 +35,19 @@ Events follow this general structure:
 
 ```typescript
 interface ProcessEvent {
-  type: string;
+  type: string
   detail: {
-    resolution?: 'success' | 'error';
+    resolution?: 'success' | 'error'
     response?: {
       detail?: {
-        resolution?: 'success' | 'error';
-      };
-      investment?: any;
-      opportunity?: any;
+        resolution?: 'success' | 'error'
+      }
+      investment?: any
+      opportunity?: any
       // ... other entity types
-    };
-    payload?: any;
-  };
+    }
+    payload?: any
+  }
 }
 ```
 
@@ -58,47 +58,49 @@ interface ProcessEvent {
 All data-driven components should implement this pattern:
 
 ```typescript
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react'
 
 const MyDataComponent = () => {
-  const { data, isLoading, error, refetch } = useDataHook();
+  const { data, isLoading, error, refetch } = useDataHook()
   // OR
   const loadData = useCallback(async () => {
     // data loading logic
-  }, [dependencies]);
+  }, [dependencies])
 
   // Listen for process completion events to refresh data
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log('MyDataComponent: Process completion event received:', event.type);
-        
+        console.log('MyDataComponent: Process completion event received:', event.type)
+
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          console.log('MyDataComponent: Process completed successfully, refreshing data');
-          refetch(); // or loadData()
-          return;
+          console.log('MyDataComponent: Process completed successfully, refreshing data')
+          refetch() // or loadData()
+          return
         }
-        
+
         // Check for different event structures
-        const response = event.detail?.response;
-        if (response?.detail?.resolution === 'success' || 
-            response?.investment ||  // Adjust for relevant entity types
-            response?.opportunity) {
-          console.log('MyDataComponent: Relevant data detected, refreshing list');
-          refetch(); // or loadData()
-          return;
+        const response = event.detail?.response
+        if (
+          response?.detail?.resolution === 'success' ||
+          response?.investment || // Adjust for relevant entity types
+          response?.opportunity
+        ) {
+          console.log('MyDataComponent: Relevant data detected, refreshing list')
+          refetch() // or loadData()
+          return
         }
-        
+
         // Check for continue events with payload
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          console.log('MyDataComponent: Continue event with payload detected, refreshing data');
-          refetch(); // or loadData()
+          console.log('MyDataComponent: Continue event with payload detected, refreshing data')
+          refetch() // or loadData()
         }
       } catch (err) {
-        console.error('Error handling process completion in MyDataComponent:', err);
+        console.error('Error handling process completion in MyDataComponent:', err)
       }
-    };
+    }
 
     // Listen to multiple possible event names
     const eventNames = [
@@ -111,22 +113,22 @@ const MyDataComponent = () => {
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion',
-    ];
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion)
+    })
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion);
-      });
-    };
-  }, [refetch]); // or [loadData] for custom load functions
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion)
+      })
+    }
+  }, [refetch]) // or [loadData] for custom load functions
 
   // Component JSX...
-};
+}
 ```
 
 ## Implementation Examples
@@ -136,13 +138,15 @@ const MyDataComponent = () => {
 The following components have been updated with automatic refresh logic:
 
 #### Investment View Components
+
 - `AllInvestmentsList.tsx` - Refreshes on any investment-related process completion
 - `EquityInvestmentsList.tsx` - Refreshes specifically for equity investment events
-- `RealEstateInvestmentsList.tsx` - Refreshes specifically for real estate investment events  
+- `RealEstateInvestmentsList.tsx` - Refreshes specifically for real estate investment events
 - `LiquidFundInvestmentsList.tsx` - Refreshes specifically for liquid fund investment events
 - `InvestmentStatistics.tsx` - Refreshes KPI statistics when investments change
 
 #### Divestment View Components
+
 - `PlannedExits.tsx` - Refreshes planned exit data
 - `Sales.tsx` - Refreshes sales opportunity data
 - `ExitOpportunities.tsx` - Refreshes exit opportunity data
@@ -153,23 +157,22 @@ Different components may need to handle specific entity types:
 
 ```typescript
 // For Investment-related components
-if (response?.investment || 
-    response?.equityInvestment || 
-    response?.realEstateInvestment || 
-    response?.liquidFundInvestment) {
+if (
+  response?.investment ||
+  response?.equityInvestment ||
+  response?.realEstateInvestment ||
+  response?.liquidFundInvestment
+) {
   // Refresh investment data
 }
 
-// For Opportunity-related components  
-if (response?.opportunity || 
-    response?.investmentOpportunity) {
+// For Opportunity-related components
+if (response?.opportunity || response?.investmentOpportunity) {
   // Refresh opportunity data
 }
 
 // For CRM components
-if (response?.lead || 
-    response?.account || 
-    response?.contact) {
+if (response?.lead || response?.account || response?.contact) {
   // Refresh CRM data
 }
 ```
@@ -182,19 +185,19 @@ For components that use custom data loading functions:
 
 ```typescript
 const loadData = useCallback(async () => {
-  setIsLoading(true);
+  setIsLoading(true)
   try {
-    const result = await fetchData(queryVariables);
-    setData(result);
+    const result = await fetchData(queryVariables)
+    setData(result)
   } catch (err) {
-    setError(err);
+    setError(err)
   } finally {
-    setIsLoading(false);
+    setIsLoading(false)
   }
-}, [dependencies]);
+}, [dependencies])
 
 // In event handler:
-loadData(); // Call the load function
+loadData() // Call the load function
 ```
 
 ### Components with Hook-based Data Fetching
@@ -202,10 +205,10 @@ loadData(); // Call the load function
 For components using data hooks with refetch functions:
 
 ```typescript
-const { data, isLoading, error, refetch } = useDataHook(context);
+const { data, isLoading, error, refetch } = useDataHook(context)
 
 // In event handler:
-refetch(); // Call the refetch function
+refetch() // Call the refetch function
 ```
 
 ### Statistics Components
@@ -213,10 +216,10 @@ refetch(); // Call the refetch function
 For KPI/statistics components:
 
 ```typescript
-const { metrics, isLoading, error, refetch } = useMetricsHook(context);
+const { metrics, isLoading, error, refetch } = useMetricsHook(context)
 
 // In event handler:
-refetch(); // Refresh the metrics
+refetch() // Refresh the metrics
 ```
 
 ## Event Timing and Best Practices
@@ -224,6 +227,7 @@ refetch(); // Refresh the metrics
 ### When Events Are Dispatched
 
 Events are typically dispatched by:
+
 1. **AppActionForm** components when forms are successfully submitted
 2. **Process completion** when Kogito workflows finish
 3. **Task completion** when individual process tasks complete
@@ -274,8 +278,9 @@ The refresh pattern works seamlessly with AppActionForm components because:
 3. The refresh happens automatically without user intervention
 
 Example flow:
+
 1. User clicks AppActionButton → Opens form
-2. User submits form → AppActionForm processes submission  
+2. User submits form → AppActionForm processes submission
 3. On success → AppActionForm dispatches process event
 4. Table components → Receive event and refresh data
 5. User sees → Updated data immediately
@@ -335,8 +340,9 @@ To add refresh capability to existing components:
 ### Extensibility
 
 The pattern is designed to be easily extended for:
+
 - New entity types
-- Different event structures  
+- Different event structures
 - Custom refresh strategies
 - Cross-component communication
 
@@ -345,4 +351,3 @@ The pattern is designed to be easily extended for:
 The automatic data refresh pattern provides a seamless user experience by ensuring that displayed data stays current with business process completions. By following the standardized implementation pattern, developers can easily add this capability to new components and maintain consistency across the platform.
 
 For questions or issues with implementation, refer to existing working examples in the investment management components or consult the development team.
-

@@ -30,12 +30,7 @@ hr-settings/
 import { HrSettings } from '@/business-apps/hr/core/apps/hr-settings'
 
 function App() {
-  return (
-    <HrSettings 
-      prefixDataTestId="MyApp"
-      className="custom-class"
-    />
-  )
+  return <HrSettings prefixDataTestId="MyApp" className="custom-class" />
 }
 ```
 
@@ -75,4 +70,4 @@ Test IDs are automatically generated with the format: `{prefixDataTestId}-HrSett
 - React 18+
 - Ant Design
 - react-i18next
-- @remixicon/react 
+- @remixicon/react

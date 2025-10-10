@@ -26,7 +26,7 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
     <Card
       hoverable
       className="gba:shadow-md"
-      style={{ 
+      style={{
         borderRadius: '12px',
         border: '1px solid #e5e7eb',
         overflow: 'hidden'
@@ -54,16 +54,14 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                 : icon}
             </div>
           )}
-          <span style={{ color: '#1e40af', fontWeight: 600, fontSize: '16px' }}>
-            {title}
-          </span>
+          <span style={{ color: '#1e40af', fontWeight: 600, fontSize: '16px' }}>{title}</span>
         </div>
       }
     >
       {typeof description === 'string' && description.trim().length > 0 && (
-        <Typography.Paragraph 
-          style={{ 
-            color: '#6b7280', 
+        <Typography.Paragraph
+          style={{
+            color: '#6b7280',
             marginBottom: '16px',
             fontSize: '14px'
           }}
@@ -75,18 +73,15 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
       {entries && entries.length > 0 && (
         <div style={{ position: 'relative' }}>
           <div
-            // text={`${entries.length} items`} 
-            // color="blue" 
+            // text={`${entries.length} items`}
+            // color="blue"
             style={{ fontSize: '12px' }}
           >
             <div style={{ paddingTop: '8px' }}>
               {entries.map((entry, idx) => (
-                <div 
-                  key={`${idx}-${entry.label}`}
-                  style={{ marginBottom: '8px' }}
-                >
+                <div key={`${idx}-${entry.label}`} style={{ marginBottom: '8px' }}>
                   {entry.disabled ? (
-                    <div 
+                    <div
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -116,24 +111,21 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                         transition: 'all 0.2s',
                         border: '1px solid transparent'
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#eff6ff';
-                        e.currentTarget.style.color = '#1d4ed8';
-                        e.currentTarget.style.borderColor = '#bfdbfe';
+                      onMouseEnter={e => {
+                        e.currentTarget.style.backgroundColor = '#eff6ff'
+                        e.currentTarget.style.color = '#1d4ed8'
+                        e.currentTarget.style.borderColor = '#bfdbfe'
                       }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f9fafb';
-                        e.currentTarget.style.color = '#374151';
-                        e.currentTarget.style.borderColor = 'transparent';
+                      onMouseLeave={e => {
+                        e.currentTarget.style.backgroundColor = '#f9fafb'
+                        e.currentTarget.style.color = '#374151'
+                        e.currentTarget.style.borderColor = 'transparent'
                       }}
                       onClick={() => {
                         navigateTo(entry.url)
                       }}
                     >
-                      <span 
-                        data-testid={`${dataTestId}-Navigation-Label`} 
-                        style={{ fontWeight: 500 }}
-                      >
+                      <span data-testid={`${dataTestId}-Navigation-Label`} style={{ fontWeight: 500 }}>
                         {entry.label}
                       </span>
                       <RiArrowRightSLine
@@ -150,4 +142,4 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
       )}
     </Card>
   )
-} 
+}

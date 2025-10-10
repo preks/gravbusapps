@@ -1,71 +1,61 @@
 /**
  * EXAMPLE IMPLEMENTATION: CRM Opportunity ActivityTimeline with Flow Registry Delete
- * 
+ *
  * This demonstrates how to migrate the existing ActivityTimeline component
  * to use the new universal DeleteConfirmPopup with Flow Registry.
  */
 
-import React, { useState, useEffect } from 'react';
-import { Button, message, Timeline, Typography } from 'antd';
-import { EditOutlined, CloseOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DeleteConfirmPopup, useDeleteConfirm } from '@/common/components/common-relations/popups/delete-confirm-popup';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { AppAction } from '@/components/app-action/AppAction';
+import React, { useState, useEffect } from 'react'
+import { Button, message, Timeline, Typography } from 'antd'
+import { EditOutlined, CloseOutlined } from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DeleteConfirmPopup, useDeleteConfirm } from '@/common/components/common-relations/popups/delete-confirm-popup'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { AppAction } from '@/components/app-action/AppAction'
 
-const { Title } = Typography;
+const { Title } = Typography
 
 // Example interfaces (these would come from your actual types)
 interface SalesActivityData {
-  id: string;
-  version: number;
-  title: string;
-  description?: string;
-  date?: string;
-  activityType?: any;
-  opportunity?: string;
+  id: string
+  version: number
+  title: string
+  description?: string
+  date?: string
+  activityType?: any
+  opportunity?: string
 }
 
 interface ActivityTimelineProps {
-  opportunityId: string;
-  context: BusinessAppContextProps;
+  opportunityId: string
+  context: BusinessAppContextProps
 }
 
-export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> = ({ 
-  opportunityId, 
-  context 
-}) => {
-  const [activities, setActivities] = useState<SalesActivityData[]>([]);
-  const [loading, setLoading] = useState(true);
+export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> = ({ opportunityId, context }) => {
+  const [activities, setActivities] = useState<SalesActivityData[]>([])
+  const [loading, setLoading] = useState(true)
 
   // ✅ NEW: Use the universal delete confirmation hook
-  const {
-    isOpen,
-    isLoading,
-    config,
-    showDeleteConfirm,
-    closeDeleteConfirm,
-    handleDeleteConfirm,
-  } = useDeleteConfirm();
+  const { isOpen, isLoading, config, showDeleteConfirm, closeDeleteConfirm, handleDeleteConfirm } = useDeleteConfirm()
 
   // Load activities (placeholder - replace with actual data loading)
   useEffect(() => {
     const loadActivities = async () => {
-      setLoading(true);
+      setLoading(true)
       try {
         // Your actual activity loading logic here
         // const activities = await fetchActivities(opportunityId);
         // setActivities(activities);
-        setActivities([]); // Placeholder
+        setActivities([]) // Placeholder
       } catch (error) {
-        console.error('Error loading activities:', error);
+        console.error('Error loading activities:', error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    loadActivities();
-  }, [opportunityId]);
+    loadActivities()
+  }, [opportunityId])
 
   // ✅ NEW: Flow Registry-based delete handler
   const handleDeleteActivity = (activity: SalesActivityData) => {
@@ -76,39 +66,39 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
       flowContextName: FlowContextName.customerActivityEntity,
       externalContextData: {
         activityId: activity.id,
-        opportunityId,
+        opportunityId
       },
       onFlowSuccess: () => {
         // Remove from local state
-        setActivities(prevActivities =>
-          prevActivities.filter(a => a.id !== activity.id)
-        );
-        message.success('Activity deleted successfully');
+        setActivities(prevActivities => prevActivities.filter(a => a.id !== activity.id))
+        message.success('Activity deleted successfully')
       },
-      onFlowError: (error) => {
-        console.error('Error deleting activity:', error);
-        message.error('Failed to delete activity');
+      onFlowError: error => {
+        console.error('Error deleting activity:', error)
+        message.error('Failed to delete activity')
       },
       'data-testid': 'delete-activity'
-    });
-  };
+    })
+  }
 
   return (
     <div data-testid="opportunity-activity-timeline">
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '16px'
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '16px'
+        }}
+      >
         <Title level={4} style={{ margin: 0 }}>
           Activities
         </Title>
-        
+
         {/* Add Activity using AppAction */}
         <AppAction
           contextsArray={[FlowContextName.customerActivityCreate]}
-          externalContextData={{ 
+          externalContextData={{
             opportunityId,
             opportunity: opportunityId,
             salesActivity: { opportunity: opportunityId }
@@ -132,7 +122,7 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
           <p>No activities found</p>
           <AppAction
             contextsArray={[FlowContextName.customerActivityCreate]}
-            externalContextData={{ 
+            externalContextData={{
               opportunityId,
               opportunity: opportunityId,
               salesActivity: { opportunity: opportunityId }
@@ -149,20 +139,14 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
         </div>
       ) : (
         <Timeline>
-          {activities.map((activity) => (
+          {activities.map(activity => (
             <Timeline.Item key={activity.id} color="blue">
               <div style={{ position: 'relative', paddingRight: '80px' }}>
                 <div>
                   <strong>{activity.title}</strong>
-                  {activity.description && (
-                    <p style={{ margin: '4px 0', color: '#666' }}>
-                      {activity.description}
-                    </p>
-                  )}
+                  {activity.description && <p style={{ margin: '4px 0', color: '#666' }}>{activity.description}</p>}
                   {activity.date && (
-                    <small style={{ color: '#999' }}>
-                      {new Date(activity.date).toLocaleDateString()}
-                    </small>
+                    <small style={{ color: '#999' }}>{new Date(activity.date).toLocaleDateString()}</small>
                   )}
                 </div>
 
@@ -213,25 +197,25 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
         />
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ActivityTimelineWithFlowRegistry;
+export default ActivityTimelineWithFlowRegistry
 
 /**
  * KEY CHANGES FROM ORIGINAL:
- * 
+ *
  * 1. ✅ **Removed Modal.confirm**: Replaced with showDeleteConfirm()
- * 2. ✅ **Removed REST Client**: No more direct API calls  
+ * 2. ✅ **Removed REST Client**: No more direct API calls
  * 3. ✅ **Added Flow Registry**: Uses FlowContextName.customerActivityEntity
  * 4. ✅ **Added Access Token**: Passed from BusinessAppContextProps
  * 5. ✅ **Added External Context**: Includes activityId and opportunityId
  * 6. ✅ **Improved Error Handling**: Centralized through Flow Registry
  * 7. ✅ **Consistent UI**: Same popup design across all components
  * 8. ✅ **Better Testing**: Standardized data-testid attributes
- * 
+ *
  * MIGRATION BENEFITS:
- * 
+ *
  * - 🔐 **Security**: Authentication handled by Flow Registry
  * - 📋 **Permissions**: User permissions checked automatically
  * - 🔄 **Event System**: Integrates with platform event system

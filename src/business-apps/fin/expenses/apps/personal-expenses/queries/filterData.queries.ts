@@ -18,6 +18,4 @@ export const GET_PERSONAL_EXPENSE_CURRENCIES = `
       currency { code value }
     }
   }
-`;
-
-
+`

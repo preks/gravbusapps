@@ -1,18 +1,17 @@
-import React from 'react';
-import { Card } from '@newwork/nw-design-system';
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
- 
-  Tooltip, 
-  Legend, 
-  ScatterChart, 
-  Scatter, 
+import React from 'react'
+import { Card } from '@newwork/nw-design-system'
+import {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  ScatterChart,
+  Scatter,
   ResponsiveContainer,
   LineChart,
   Line,
@@ -24,30 +23,30 @@ import {
   PolarAngleAxis,
   PolarRadiusAxis,
   Radar
-} from 'recharts';
-import { formatCurrency, formatPercentage } from '@/common/data/investment';
-import { renderCustomizedLabel, CHART_COLORS } from '../utils';
+} from 'recharts'
+import { formatCurrency, formatPercentage } from '@/common/data/investment'
+import { renderCustomizedLabel, CHART_COLORS } from '../utils'
 
 interface RealEstateChartsProps {
   chartData: {
-    propertyTypeData: any[];
-    countryData: any[];
-    regionData: any[];
-    occupancyData: any[];
-    expensesValueData: any[];
-    buildingYearData: any[];
-    statusData: any[];
-    phaseData: any[];
-    riskLevelData: any[];
-    currencyData: any[];
-    propertySizeData: any[];
-    timelineData: any[];
-    leverageData: any[];
-    roiSizeData: any[];
-    ownershipStructureData: any[];
-    performanceData: any[];
-    geoValueData: any[];
-  };
+    propertyTypeData: any[]
+    countryData: any[]
+    regionData: any[]
+    occupancyData: any[]
+    expensesValueData: any[]
+    buildingYearData: any[]
+    statusData: any[]
+    phaseData: any[]
+    riskLevelData: any[]
+    currencyData: any[]
+    propertySizeData: any[]
+    timelineData: any[]
+    leverageData: any[]
+    roiSizeData: any[]
+    ownershipStructureData: any[]
+    performanceData: any[]
+    geoValueData: any[]
+  }
 }
 
 export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData }) => {
@@ -69,7 +68,7 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
     ownershipStructureData,
     performanceData,
     geoValueData
-  } = chartData;
+  } = chartData
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
@@ -91,9 +90,9 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               formatter={(value, name, props) => [
-                `${value} properties (${((value as number / propertyTypeData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
+                `${value} properties (${(((value as number) / propertyTypeData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
             />
@@ -106,26 +105,27 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="Investment Acquisition Timeline" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={timelineData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <XAxis 
-              dataKey="month" 
-              tick={{ fontSize: 10 }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
-            <YAxis yAxisId="left" tickFormatter={(value) => `${value}`} />
-            <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => `€${(value / 1000000).toFixed(1)}M`} />
-            <Tooltip 
+            <XAxis dataKey="month" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
+            <YAxis yAxisId="left" tickFormatter={value => `${value}`} />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={value => `€${(value / 1000000).toFixed(1)}M`} />
+            <Tooltip
               formatter={(value, name) => {
-                if (name === 'count') return [`${value} acquisitions`, 'Properties Acquired'];
-                if (name === 'value') return [formatCurrency(value as number, 'EUR'), 'Investment Value'];
-                return [value, name];
+                if (name === 'count') return [`${value} acquisitions`, 'Properties Acquired']
+                if (name === 'value') return [formatCurrency(value as number, 'EUR'), 'Investment Value']
+                return [value, name]
               }}
-              labelFormatter={(label) => `Month: ${label}`}
+              labelFormatter={label => `Month: ${label}`}
             />
             <Legend />
             <Bar yAxisId="left" dataKey="count" fill="#8884d8" name="Properties Acquired" />
-            <Line yAxisId="right" type="monotone" dataKey="value" stroke="#82ca9d" strokeWidth={2} name="Investment Value" />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="value"
+              stroke="#82ca9d"
+              strokeWidth={2}
+              name="Investment Value"
+            />
           </LineChart>
         </ResponsiveContainer>
       </Card>
@@ -134,19 +134,13 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="Properties by Region" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={regionData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <XAxis 
-              dataKey="name" 
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              fontSize={10}
-            />
+            <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={10} />
             <YAxis />
-            <Tooltip 
+            <Tooltip
               formatter={(value, name) => {
-                if (name === 'value') return [`${value} properties`, 'Property Count'];
-                if (name === 'totalValue') return [formatCurrency(value as number, 'EUR'), 'Total Value'];
-                return [value, name];
+                if (name === 'value') return [`${value} properties`, 'Property Count']
+                if (name === 'totalValue') return [formatCurrency(value as number, 'EUR'), 'Total Value']
+                return [value, name]
               }}
             />
             <Legend />
@@ -159,42 +153,35 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="Property Size vs Market Value" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <ScatterChart data={propertySizeData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <XAxis 
-              type="number" 
-              dataKey="size" 
-              name="Size"
-              tickFormatter={(value) => `${value} sqm`}
-            />
-            <YAxis 
-              type="number" 
-              dataKey="value" 
+            <XAxis type="number" dataKey="size" name="Size" tickFormatter={value => `${value} sqm`} />
+            <YAxis
+              type="number"
+              dataKey="value"
               name="Market Value"
-              tickFormatter={(value) => formatCurrency(value, 'EUR').replace('€', '€')}
+              tickFormatter={value => formatCurrency(value, 'EUR').replace('€', '€')}
             />
-            <Tooltip 
+            <Tooltip
               cursor={{ strokeDasharray: '3 3' }}
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
-                  const data = payload[0].payload;
+                  const data = payload[0].payload
                   return (
-                    <div style={{ 
-                      backgroundColor: 'white', 
-                      padding: '10px', 
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
+                    <div
+                      style={{
+                        backgroundColor: 'white',
+                        padding: '10px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                    >
                       <p style={{ margin: 0, fontWeight: 'bold' }}>{data.name}</p>
-                      <p style={{ margin: 0, color: '#8884d8' }}>
-                        Size: {data.size} sqm
-                      </p>
-                      <p style={{ margin: 0, color: '#82ca9d' }}>
-                        Value: {formatCurrency(data.value, 'EUR')}
-                      </p>
+                      <p style={{ margin: 0, color: '#8884d8' }}>Size: {data.size} sqm</p>
+                      <p style={{ margin: 0, color: '#82ca9d' }}>Value: {formatCurrency(data.value, 'EUR')}</p>
                     </div>
-                  );
+                  )
                 }
-                return null;
+                return null
               }}
             />
             <Scatter name="Properties" fill="#8884d8" />
@@ -206,27 +193,27 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="Leverage Analysis" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={leverageData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-            <XAxis 
-              dataKey="name" 
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              fontSize={10}
-              interval={0}
-            />
-            <YAxis yAxisId="left" tickFormatter={(value) => `${value}%`} />
-            <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => `€${(value / 1000000).toFixed(1)}M`} />
-            <Tooltip 
+            <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
+            <YAxis yAxisId="left" tickFormatter={value => `${value}%`} />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={value => `€${(value / 1000000).toFixed(1)}M`} />
+            <Tooltip
               formatter={(value, name) => {
-                if (name === 'leverageRatio') return [`${value}%`, 'Leverage Ratio'];
-                if (name === 'marketValue') return [formatCurrency(value as number, 'EUR'), 'Market Value'];
-                if (name === 'debtFinancing') return [formatCurrency(value as number, 'EUR'), 'Debt Financing'];
-                return [value, name];
+                if (name === 'leverageRatio') return [`${value}%`, 'Leverage Ratio']
+                if (name === 'marketValue') return [formatCurrency(value as number, 'EUR'), 'Market Value']
+                if (name === 'debtFinancing') return [formatCurrency(value as number, 'EUR'), 'Debt Financing']
+                return [value, name]
               }}
             />
             <Legend />
             <Bar yAxisId="left" dataKey="leverageRatio" fill="#8884d8" name="Leverage Ratio %" />
-            <Line yAxisId="right" type="monotone" dataKey="marketValue" stroke="#82ca9d" strokeWidth={2} name="Market Value" />
+            <Line
+              yAxisId="right"
+              type="monotone"
+              dataKey="marketValue"
+              stroke="#82ca9d"
+              strokeWidth={2}
+              name="Market Value"
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </Card>
@@ -235,45 +222,31 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="ROI vs Property Size Analysis" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <ScatterChart data={roiSizeData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <XAxis 
-              type="number" 
-              dataKey="size" 
-              name="Size"
-              tickFormatter={(value) => `${value} sqm`}
-            />
-            <YAxis 
-              type="number" 
-              dataKey="roi" 
-              name="ROI"
-              tickFormatter={(value) => `${value}%`}
-            />
-            <Tooltip 
+            <XAxis type="number" dataKey="size" name="Size" tickFormatter={value => `${value} sqm`} />
+            <YAxis type="number" dataKey="roi" name="ROI" tickFormatter={value => `${value}%`} />
+            <Tooltip
               cursor={{ strokeDasharray: '3 3' }}
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
-                  const data = payload[0].payload;
+                  const data = payload[0].payload
                   return (
-                    <div style={{ 
-                      backgroundColor: 'white', 
-                      padding: '10px', 
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
+                    <div
+                      style={{
+                        backgroundColor: 'white',
+                        padding: '10px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                    >
                       <p style={{ margin: 0, fontWeight: 'bold' }}>{data.name}</p>
-                      <p style={{ margin: 0, color: '#8884d8' }}>
-                        Size: {data.size} sqm
-                      </p>
-                      <p style={{ margin: 0, color: '#82ca9d' }}>
-                        ROI: {data.roi}%
-                      </p>
-                      <p style={{ margin: 0, color: '#ffc658' }}>
-                        Type: {data.propertyType}
-                      </p>
+                      <p style={{ margin: 0, color: '#8884d8' }}>Size: {data.size} sqm</p>
+                      <p style={{ margin: 0, color: '#82ca9d' }}>ROI: {data.roi}%</p>
+                      <p style={{ margin: 0, color: '#ffc658' }}>Type: {data.propertyType}</p>
                     </div>
-                  );
+                  )
                 }
-                return null;
+                return null
               }}
             />
             <Scatter name="Properties" fill="#ffc658" />
@@ -299,9 +272,9 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               formatter={(value, name, props) => [
-                `${value} properties (${((value as number / ownershipStructureData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
+                `${value} properties (${(((value as number) / ownershipStructureData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
             />
@@ -314,20 +287,9 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="Occupancy Rate Distribution" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={occupancyData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-            <XAxis 
-              dataKey="name" 
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              interval={0}
-              fontSize={10}
-            />
-            <YAxis 
-              tickFormatter={(value) => `${value}%`}
-            />
-            <Tooltip 
-              formatter={(value) => [`${value}%`, 'Occupancy Rate']}
-            />
+            <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} fontSize={10} />
+            <YAxis tickFormatter={value => `${value}%`} />
+            <Tooltip formatter={value => [`${value}%`, 'Occupancy Rate']} />
             <Bar dataKey="occupancy" fill="#8884d8" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
@@ -337,22 +299,15 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="Geographic Value Distribution" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={geoValueData.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-            <XAxis 
-              dataKey="location" 
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              fontSize={10}
-              interval={0}
-            />
-            <YAxis yAxisId="left" tickFormatter={(value) => `${value}`} />
-            <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => `€${(value / 1000000).toFixed(1)}M`} />
-            <Tooltip 
+            <XAxis dataKey="location" angle={-45} textAnchor="end" height={80} fontSize={10} interval={0} />
+            <YAxis yAxisId="left" tickFormatter={value => `${value}`} />
+            <YAxis yAxisId="right" orientation="right" tickFormatter={value => `€${(value / 1000000).toFixed(1)}M`} />
+            <Tooltip
               formatter={(value, name) => {
-                if (name === 'count') return [`${value} properties`, 'Property Count'];
-                if (name === 'totalValue') return [formatCurrency(value as number, 'EUR'), 'Total Value'];
-                if (name === 'avgOccupancy') return [`${(value as number).toFixed(1)}%`, 'Avg Occupancy'];
-                return [value, name];
+                if (name === 'count') return [`${value} properties`, 'Property Count']
+                if (name === 'totalValue') return [formatCurrency(value as number, 'EUR'), 'Total Value']
+                if (name === 'avgOccupancy') return [`${(value as number).toFixed(1)}%`, 'Avg Occupancy']
+                return [value, name]
               }}
             />
             <Legend />
@@ -366,41 +321,43 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
       <Card title="Annual Expenses vs Property Value" style={{ borderRadius: '8px' }}>
         <ResponsiveContainer width="100%" height={300}>
           <ScatterChart data={expensesValueData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-            <XAxis 
-              type="number" 
-              dataKey="value" 
+            <XAxis
+              type="number"
+              dataKey="value"
               name="Property Value"
-              tickFormatter={(value) => formatCurrency(value, 'EUR').replace('€', '€')}
+              tickFormatter={value => formatCurrency(value, 'EUR').replace('€', '€')}
             />
-            <YAxis 
-              type="number" 
-              dataKey="expenses" 
+            <YAxis
+              type="number"
+              dataKey="expenses"
               name="Annual Expenses"
-              tickFormatter={(value) => formatCurrency(value, 'EUR').replace('€', '€')}
+              tickFormatter={value => formatCurrency(value, 'EUR').replace('€', '€')}
             />
-            <Tooltip 
+            <Tooltip
               cursor={{ strokeDasharray: '3 3' }}
               formatter={(value, name, props) => {
                 if (name === 'expenses') {
-                  return [formatCurrency(value as number, props.payload?.currency || 'EUR'), 'Annual Expenses'];
+                  return [formatCurrency(value as number, props.payload?.currency || 'EUR'), 'Annual Expenses']
                 }
                 if (name === 'value') {
-                  return [formatCurrency(value as number, props.payload?.currency || 'EUR'), 'Property Value'];
+                  return [formatCurrency(value as number, props.payload?.currency || 'EUR'), 'Property Value']
                 }
-                return [value, name];
+                return [value, name]
               }}
-              labelFormatter={(label) => `Property: ${label}`}
+              labelFormatter={label => `Property: ${label}`}
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
-                  const data = payload[0].payload;
+                  const data = payload[0].payload
                   return (
-                    <div style={{ 
-                      backgroundColor: 'white', 
-                      padding: '10px', 
-                      border: '1px solid #ccc',
-                      borderRadius: '4px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
+                    <div
+                      style={{
+                        backgroundColor: 'white',
+                        padding: '10px',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                    >
                       <p style={{ margin: 0, fontWeight: 'bold' }}>{data.name}</p>
                       <p style={{ margin: 0, color: '#8884d8' }}>
                         Market Value: {formatCurrency(data.value, data.currency)}
@@ -409,9 +366,9 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
                         Annual Expenses: {formatCurrency(data.expenses, data.currency)}
                       </p>
                     </div>
-                  );
+                  )
                 }
-                return null;
+                return null
               }}
             />
             <Scatter name="Properties" fill="#8884d8" />
@@ -449,9 +406,9 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
                 <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip 
+            <Tooltip
               formatter={(value, name, props) => [
-                `${value} properties (${((value as number / statusData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
+                `${value} properties (${(((value as number) / statusData.reduce((sum, item) => sum + item.value, 0)) * 100).toFixed(1)}%)`,
                 'Count'
               ]}
             />
@@ -460,5 +417,5 @@ export const RealEstateCharts: React.FC<RealEstateChartsProps> = ({ chartData })
         </ResponsiveContainer>
       </Card>
     </div>
-  );
-}; 
+  )
+}

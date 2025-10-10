@@ -1,6 +1,6 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import {
   UserOutlined,
   ContactsOutlined,
   DollarOutlined,
@@ -9,14 +9,14 @@ import {
   BankOutlined,
   PercentageOutlined,
   TeamOutlined
-} from '@ant-design/icons';
-import { CampaignAnalyticsMetrics } from '../../queries/CampaignAnalyticsQueries';
+} from '@ant-design/icons'
+import { CampaignAnalyticsMetrics } from '../../queries/CampaignAnalyticsQueries'
 
 interface CampaignAnalyticsStatisticsProps {
-  metrics: CampaignAnalyticsMetrics | null;
-  isLoading?: boolean;
-  error?: string | null;
-  onRetry?: () => void;
+  metrics: CampaignAnalyticsMetrics | null
+  isLoading?: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
 const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = ({
@@ -32,13 +32,13 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       currency: 'EUR',
       notation: 'compact',
       maximumFractionDigits: 1
-    }).format(amount);
-  };
+    }).format(amount)
+  }
 
-    // Format percentage values
+  // Format percentage values
   const formatPercentage = (value: number): string => {
-    return `${value.toFixed(1)}%`;
-  };
+    return `${value.toFixed(1)}%`
+  }
 
   // Helper function to create combined descriptions
   const createCombinedDescription = (mainDesc: string, additionalInfo: string) => {
@@ -47,24 +47,24 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
         <div>{mainDesc}</div>
         <div style={{ fontWeight: 'bold', marginTop: '4px' }}>{additionalInfo}</div>
       </div>
-    );
-  };
+    )
+  }
 
   // Calculate derived metrics
-  const totalLeads = metrics?.totalEntities.leads || 0;
-  const convertedLeads = metrics?.conversionMetrics.leadsConverted || 0;
-  const conversionRate = metrics?.conversionMetrics.conversionRate || 0;
-  
-  const totalOpportunities = metrics?.totalEntities.opportunities || 0;
-  const winRate = metrics?.revenueMetrics.winRate || 0;
-  const wonRevenue = metrics?.revenueMetrics.wonRevenue || 0;
-  const totalPipeline = metrics?.revenueMetrics.totalPipeline || 0;
-  
-  const totalAccounts = metrics?.totalEntities.accounts || 0;
-  const totalContacts = metrics?.totalEntities.contacts || 0;
-  
-  const teamMembers = metrics?.performanceMetrics.topPerformers.length || 0;
-  const averageDealSize = metrics?.revenueMetrics.averageDealSize || 0;
+  const totalLeads = metrics?.totalEntities.leads || 0
+  const convertedLeads = metrics?.conversionMetrics.leadsConverted || 0
+  const conversionRate = metrics?.conversionMetrics.conversionRate || 0
+
+  const totalOpportunities = metrics?.totalEntities.opportunities || 0
+  const winRate = metrics?.revenueMetrics.winRate || 0
+  const wonRevenue = metrics?.revenueMetrics.wonRevenue || 0
+  const totalPipeline = metrics?.revenueMetrics.totalPipeline || 0
+
+  const totalAccounts = metrics?.totalEntities.accounts || 0
+  const totalContacts = metrics?.totalEntities.contacts || 0
+
+  const teamMembers = metrics?.performanceMetrics.topPerformers.length || 0
+  const averageDealSize = metrics?.revenueMetrics.averageDealSize || 0
 
   // Transform metrics data into combined widgets format
   const widgets: WidgetItem[] = [
@@ -80,8 +80,8 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
         `${convertedLeads}/${totalLeads} converted (${formatPercentage(conversionRate)})`
       )
     },
-    
-    // Opportunities Performance  
+
+    // Opportunities Performance
     {
       key: 'opportunities-performance',
       title: 'Total Opportunities',
@@ -93,7 +93,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
         `Win rate: ${formatPercentage(winRate)}`
       )
     },
-    
+
     // Revenue Performance
     {
       key: 'revenue-performance',
@@ -107,7 +107,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
         `Pipeline: ${formatCurrency(totalPipeline)} • Avg: ${formatCurrency(averageDealSize)}`
       )
     },
-    
+
     // Accounts & Contacts
     {
       key: 'accounts-contacts',
@@ -115,12 +115,9 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
       value: totalAccounts,
       prefix: <BankOutlined />,
       color: '#fa8c16',
-      description: createCombinedDescription(
-        'Accounts associated with campaign',
-        `${totalContacts} contacts linked`
-      )
+      description: createCombinedDescription('Accounts associated with campaign', `${totalContacts} contacts linked`)
     }
-  ];
+  ]
 
   return (
     <div data-testid="campaign-analytics-statistics-container">
@@ -132,7 +129,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
           Key metrics and performance indicators for this campaign
         </p>
       </div>
-      
+
       <WidgetGroup
         widgets={widgets}
         isLoading={isLoading}
@@ -143,7 +140,7 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
         data-testid="campaign-analytics-statistics"
       />
     </div>
-  );
-};
+  )
+}
 
-export default CampaignAnalyticsStatistics;
+export default CampaignAnalyticsStatistics

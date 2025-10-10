@@ -1,134 +1,134 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface GetOpportunityByIdResponse {
-  Opportunity: OpportunityResponse[];
+  Opportunity: OpportunityResponse[]
 }
 
 export interface StageConditionStatusResponse {
-  id: string;
-  completed: boolean;
-  completedAt?: string | null;
+  id: string
+  completed: boolean
+  completedAt?: string | null
   completedByEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName: string;
-  } | null;
-  deadlineAt?: string | null;
-  processInstanceId?: string | null;
+    id: string
+    firstName: string
+    lastName: string
+    displayName: string
+  } | null
+  deadlineAt?: string | null
+  processInstanceId?: string | null
   salesPipelineStageCondition?: {
-    id: string;
-    value: string;
-    code: string;
-    type?: string | null;
-    objectValue?: any;
-    parentEntryId?: string | null;
-  };
-  configSnapshot?: any;
-  createdAt: string;
-  updatedAt: string;
+    id: string
+    value: string
+    code: string
+    type?: string | null
+    objectValue?: any
+    parentEntryId?: string | null
+  }
+  configSnapshot?: any
+  createdAt: string
+  updatedAt: string
 }
 
 export interface OpportunityResponse {
-  id: string;
-  version: string;
-  name: string;
-  estimatedAmount?: number;
+  id: string
+  version: string
+  name: string
+  estimatedAmount?: number
   // Indicates which source app created/owns the opportunity (e.g. 'CRM' or 'IRM')
-  sourceApp?: string;
-  salesPipelineRef?: string;
+  sourceApp?: string
+  salesPipelineRef?: string
   salesPipeline?: {
-    id: string;
-    value: string;
-    type: string;
-    code: string;
-    objectValue?: any;
-  };
-  salesPipelineStageRef?: string;
+    id: string
+    value: string
+    type: string
+    code: string
+    objectValue?: any
+  }
+  salesPipelineStageRef?: string
   salesPipelineStage?: {
-    id: string;
-    value: string;
-    type: string;
-    code: string;
-    objectValue?: any;
-  };
+    id: string
+    value: string
+    type: string
+    code: string
+    objectValue?: any
+  }
   opportunityStatus?: {
-    id: string;
-    value: string;
-    type: string;
-    code: string;
-    objectValue?: any;
-  };
+    id: string
+    value: string
+    type: string
+    code: string
+    objectValue?: any
+  }
   currency?: {
-    id: string;
-    value: string;
-    type: string;
-    code: string;
-  };
+    id: string
+    value: string
+    type: string
+    code: string
+  }
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
+    id: string
+    firstName: string
+    lastName: string
+  }
   account?: {
-    id: string;
-    version: string;
-    name: string;
-    industryRef: string;
+    id: string
+    version: string
+    name: string
+    industryRef: string
     industry: {
-      id: string;
-      value: string;
-      type: string;
-      code: string;
-    };
+      id: string
+      value: string
+      type: string
+      code: string
+    }
     numberOfEmployees: {
-      id: string;
-      value: string;
-      type: string;
-      code: string;
-    };
+      id: string
+      value: string
+      type: string
+      code: string
+    }
     addresses?: Array<{
-      addressLine?: any;
-      city?: string;
+      addressLine?: any
+      city?: string
       country?: {
-        id: string;
-        value: string;
-        code: string;
-      };
+        id: string
+        value: string
+        code: string
+      }
       region?: {
-        id: string;
-        value: string;
-        code: string;
-      };
-    }>;
-    foundationDate: string;
+        id: string
+        value: string
+        code: string
+      }
+    }>
+    foundationDate: string
     annualRevenue: {
-      id: string;
-      value: string;
-      type: string;
-      code: string;
-    };
-    website: string;
+      id: string
+      value: string
+      type: string
+      code: string
+    }
+    website: string
     ownerEmployee?: {
-      firstName: string;
-      lastName: string;
-    };
-  };
+      firstName: string
+      lastName: string
+    }
+  }
   lead?: {
-    id: string;
-    companyName: string;
+    id: string
+    companyName: string
     leadStatus: {
-      id: string;
-      value: string;
-      type: string;
-      code: string;
-      objectValue?: any;
-    };
-  };
-  stageConditionStatuses?: StageConditionStatusResponse[];
-  createdAt: string;
-  updatedAt: string;
+      id: string
+      value: string
+      type: string
+      code: string
+      objectValue?: any
+    }
+  }
+  stageConditionStatuses?: StageConditionStatusResponse[]
+  createdAt: string
+  updatedAt: string
 }
 
 export const GET_OPPORTUNITY_BY_ID = `
@@ -256,23 +256,20 @@ export const GET_OPPORTUNITY_BY_ID = `
       updatedAt
     }
   }
-`;
+`
 
 export const useGetOpportunityById = (context: BusinessAppContextProps) => {
-  const graphQLClient = useGraphQLClient(context.accessToken);
+  const graphQLClient = useGraphQLClient(context.accessToken)
 
   const fetchOpportunityById = async (id: string) => {
     try {
-      const result = await graphQLClient.request<GetOpportunityByIdResponse>(
-        GET_OPPORTUNITY_BY_ID,
-        { id }
-      );
-      return result;
+      const result = await graphQLClient.request<GetOpportunityByIdResponse>(GET_OPPORTUNITY_BY_ID, { id })
+      return result
     } catch (error) {
-      console.error('Error fetching opportunity by ID:', error);
-      throw error;
+      console.error('Error fetching opportunity by ID:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchOpportunityById };
-}; 
+  return { fetchOpportunityById }
+}

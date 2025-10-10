@@ -19,16 +19,19 @@ This project is a modern React application built with the following technologies
 3. To allow local requests like GraphQL, see https://newwork.atlassian.net/wiki/spaces/PSM/pages/4513234959/How+to+allow+Queries+to+execute+locally
 
 ### Installation
+
 ```bash
 npm install
 ```
 
 ### Development
+
 ```bash
 npm run dev
 ```
 
 ### Build for Production
+
 ```bash
 npm run build
 ```
@@ -62,7 +65,6 @@ npm run publish:screen -- /hr/employee-screens/EmployeeDirectory --resource
 npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -r
 ```
 
-
 ## Project Structure
 
 - `src/` - Source files
@@ -79,7 +81,6 @@ npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -r
 - `postcss.config.js` - PostCSS configuration
 - `vite.config.js` - Vite configuration
 - `scripts/` - Script files
-  
 
 ## How To
 
@@ -88,14 +89,14 @@ npm run publish:screen -- /hr/employee-screens/EmployeeDirectory -r
 Import `useGraphqlClient` from `@/common/network/graphql/useGraphQLClient`.
 
 ```typescript
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 ```
 
 Use `useGraphqlClient` to query data.
 
 ```typescript
-  const client = useGraphqlClient(accessToken);
-  const query = `query getManagers($searchRegex: String!, $limit: Int!, $offset: Int!) {
+const client = useGraphqlClient(accessToken)
+const query = `query getManagers($searchRegex: String!, $limit: Int!, $offset: Int!) {
     EmployeePosition(
       where: {
         supervisor: {
@@ -116,10 +117,10 @@ Use `useGraphqlClient` to query data.
       }
     }
   }
-  `;
-    
-const variables = { searchRegex: "", limit: 5, offset: 0 };
-const data = await client.request(query, variables);
+  `
+
+const variables = { searchRegex: '', limit: 5, offset: 0 }
+const data = await client.request(query, variables)
 ```
 
 ### Query Catalog Data
@@ -127,18 +128,18 @@ const data = await client.request(query, variables);
 Import `useCatalogManagerClient` from `@/common/network/catalogs/useCatalogManagerClient`.
 
 ```typescript
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 ```
 
 Use `useCatalogManagerClient` to query data.
 
 ```typescript
-const client = useCatalogManagerClient(accessToken);
-const data = await client.getCatalogEntriesList({ catalogIdentifier: 'AbsenceType', version: 'v1' });
+const client = useCatalogManagerClient(accessToken)
+const data = await client.getCatalogEntriesList({ catalogIdentifier: 'AbsenceType', version: 'v1' })
 ```
 
 ```typescript
-const data = await client.getCatalogs();
+const data = await client.getCatalogs()
 ```
 
 ### Query Flow Registry Data
@@ -146,20 +147,25 @@ const data = await client.getCatalogs();
 Import `useFlowRegistryClient` from `@/common/network/flows/useFlowRegistryClient`.
 
 ```typescript
-import { useFlowRegistryClient } from "@/common/network/flows/useFlowRegistryClient";
+import { useFlowRegistryClient } from '@/common/network/flows/useFlowRegistryClient'
 ```
 
 Use `useFlowRegistryClient` to query data.
 
 ```typescript
-const client = useFlowRegistryClient(accessToken);
-const data = await client.getPermissionFlowItemsV1({ contexts: ['employeeEntity', 'expenseItems'] });
+const client = useFlowRegistryClient(accessToken)
+const data = await client.getPermissionFlowItemsV1({ contexts: ['employeeEntity', 'expenseItems'] })
 ```
 
 ```typescript
-const data = await client.getPermissionFlowItemsV2({ contexts: [{ contextName: 'employeeEntity', mainContextDataId: 'id1' }, { contextName: 'expenseItems', mainContextDataId: 'id2' }] });
+const data = await client.getPermissionFlowItemsV2({
+  contexts: [
+    { contextName: 'employeeEntity', mainContextDataId: 'id1' },
+    { contextName: 'expenseItems', mainContextDataId: 'id2' }
+  ]
+})
 ```
 
 ```typescript
-const data = await client.getMainContextData({ contextNames: ['employeeEntity', 'expenseItems'] });
+const data = await client.getMainContextData({ contextNames: ['employeeEntity', 'expenseItems'] })
 ```

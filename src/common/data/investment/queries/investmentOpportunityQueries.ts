@@ -1,106 +1,113 @@
 // Investment Opportunity Queries - Complete queries using shared fragments
-import { INVESTMENT, INVESTMENT_REF } from './fragments/investmentFragments';
-import { INVESTMENT_OPPORTUNITY, INVESTMENT_ACCOUNT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
-import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments';
+import { INVESTMENT, INVESTMENT_REF } from './fragments/investmentFragments'
+import {
+  INVESTMENT_OPPORTUNITY,
+  INVESTMENT_ACCOUNT_REF,
+  INVESTMENT_TASK,
+  INVESTMENT_ACTIVITY,
+  INVESTMENT_NOTE,
+  INVESTMENT_DOCUMENT
+} from './fragments/investmentRelationFragments'
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
 
 export interface InvestmentOpportunityQueryVariables {
-  ids?: string[];
-  search?: string;
-  dealType?: string; // Added dealType filtering
-  accountIds?: string[];
-  accountSearch?: string; // Search account by name
-  stageIds?: string[];
-  pipelineIds?: string[];
-  statusIds?: string[];
-  leadSourceIds?: string[];
-  currencyIds?: string[];
-  ownerEmployeeIds?: string[];
-  forecastedProfitBetween?: [number, number];
+  ids?: string[]
+  search?: string
+  dealType?: string // Added dealType filtering
+  accountIds?: string[]
+  accountSearch?: string // Search account by name
+  stageIds?: string[]
+  pipelineIds?: string[]
+  statusIds?: string[]
+  leadSourceIds?: string[]
+  currencyIds?: string[]
+  ownerEmployeeIds?: string[]
+  forecastedProfitBetween?: [number, number]
   // Date filters
-  createdAfter?: string;
-  createdBefore?: string;
-  closeDateFrom?: string;
-  closeDateTo?: string;
-  limit?: number;
-  offset?: number;
+  createdAfter?: string
+  createdBefore?: string
+  closeDateFrom?: string
+  closeDateTo?: string
+  limit?: number
+  offset?: number
   orderBy?: Array<{
-    field: string;
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
-  }>;
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
 }
 
 // Filter structure types for type safety
 export interface GraphQLFilter {
-  [key: string]: any;
+  [key: string]: any
 }
 
 export interface GraphQLWhereCondition {
-  isDeleted: { _eq: boolean };
-  [key: string]: any;
+  isDeleted: { _eq: boolean }
+  [key: string]: any
 }
 
 export interface DateRangeFilter {
-  _gte?: string;
-  _lte?: string;
+  _gte?: string
+  _lte?: string
 }
 
 export interface SearchFilter {
-  _or: Array<Record<string, { _ilike: string }>>;
+  _or: Array<Record<string, { _ilike: string }>>
 }
 
 export interface InFilter {
-  _in: string[];
+  _in: string[]
 }
 
 export interface NumberRangeFilter {
-  _gte?: number;
-  _lte?: number;
+  _gte?: number
+  _lte?: number
 }
 
 const escapeGraphQLString = (str: string): string => {
-  return JSON.stringify(str).slice(1, -1);
-};
+  return JSON.stringify(str).slice(1, -1)
+}
 
 // Utility function to serialize filter objects to GraphQL string format with secure escaping
 const serializeGraphQLFilter = (filter: Record<string, any>): string => {
   const serializeValue = (value: any): string => {
     if (value === null || value === undefined) {
-      return 'null';
+      return 'null'
     }
     if (typeof value === 'string') {
-      return `"${escapeGraphQLString(value)}"`;
+      return `"${escapeGraphQLString(value)}"`
     }
     if (typeof value === 'number' || typeof value === 'boolean') {
-      return String(value);
+      return String(value)
     }
     if (Array.isArray(value)) {
-      return `[${value.map(serializeValue).join(', ')}]`;
+      return `[${value.map(serializeValue).join(', ')}]`
     }
     if (typeof value === 'object') {
-      return serializeGraphQLFilter(value);
+      return serializeGraphQLFilter(value)
     }
-    return String(value);
-  };
+    return String(value)
+  }
 
   const pairs = Object.entries(filter).map(([key, value]) => {
-    return `${key}: ${serializeValue(value)}`;
-  });
+    return `${key}: ${serializeValue(value)}`
+  })
 
-  return `{ ${pairs.join(', ')} }`;
-};
+  return `{ ${pairs.join(', ')} }`
+}
 
 // Base filter builder that returns structured filter objects
 const buildBaseFilters = (variables: InvestmentOpportunityQueryVariables = {}): GraphQLFilter[] => {
-  const filters: GraphQLFilter[] = [];
-  
+  const filters: GraphQLFilter[] = []
+
   if (variables.dealType) {
     filters.push({
       dealType: { _eq: variables.dealType }
-    });
+    })
   }
-  
+
   if (variables.search?.trim()) {
-    const searchTerm = variables.search.trim();
+    const searchTerm = variables.search.trim()
     filters.push({
       _or: [
         { name: { _ilike: `%${searchTerm}%` } },
@@ -108,136 +115,145 @@ const buildBaseFilters = (variables: InvestmentOpportunityQueryVariables = {}): 
         { notesSummary: { _ilike: `%${searchTerm}%` } },
         { investmentName: { _ilike: `%${searchTerm}%` } }
       ]
-    });
+    })
   }
-  
+
   if (variables.accountIds?.length) {
     filters.push({
       accountId: { _in: variables.accountIds }
-    });
+    })
   }
-  
+
   if (variables.accountSearch?.trim()) {
-    const accountSearchTerm = variables.accountSearch.trim();
+    const accountSearchTerm = variables.accountSearch.trim()
     filters.push({
       account: {
         name: { _ilike: `%${accountSearchTerm}%` }
       }
-    });
+    })
   }
-  
+
   if (variables.stageIds?.length) {
     filters.push({
       opportunityPipelineStage: {
         id: { _in: variables.stageIds }
       }
-    });
+    })
   }
-  
+
   if (variables.pipelineIds?.length) {
     filters.push({
       opportunityPipeline: {
         id: { _in: variables.pipelineIds }
       }
-    });
+    })
   }
-  
+
   if (variables.statusIds?.length) {
     filters.push({
       opportunityStatus: {
         id: { _in: variables.statusIds }
       }
-    });
+    })
   }
-  
+
   if (variables.currencyIds?.length) {
     filters.push({
       currency: {
         id: { _in: variables.currencyIds }
       }
-    });
+    })
   }
-  
+
   if (variables.ownerEmployeeIds?.length) {
     filters.push({
       ownerEmployee: {
         id: { _in: variables.ownerEmployeeIds }
       }
-    });
+    })
   }
-  
+
   if (variables.forecastedProfitBetween) {
-    const [min, max] = variables.forecastedProfitBetween;
+    const [min, max] = variables.forecastedProfitBetween
     filters.push({
       forecastedProfitAmount: {
         _gte: min,
         _lte: max
       }
-    });
+    })
   }
-  
+
   // Date filters
   if (variables.createdAfter || variables.createdBefore) {
-    const createdAtFilter: DateRangeFilter = {};
+    const createdAtFilter: DateRangeFilter = {}
     if (variables.createdAfter) {
-      createdAtFilter._gte = variables.createdAfter;
+      createdAtFilter._gte = variables.createdAfter
     }
     if (variables.createdBefore) {
-      createdAtFilter._lte = variables.createdBefore;
+      createdAtFilter._lte = variables.createdBefore
     }
     filters.push({
       createdAt: createdAtFilter
-    });
+    })
   }
-  
+
   if (variables.closeDateFrom || variables.closeDateTo) {
-    const closeDateFilter: DateRangeFilter = {};
+    const closeDateFilter: DateRangeFilter = {}
     if (variables.closeDateFrom) {
-      closeDateFilter._gte = variables.closeDateFrom;
+      closeDateFilter._gte = variables.closeDateFrom
     }
     if (variables.closeDateTo) {
-      closeDateFilter._lte = variables.closeDateTo;
+      closeDateFilter._lte = variables.closeDateTo
     }
     filters.push({
       closeDate: closeDateFilter
-    });
+    })
   }
-  
-  return filters;
-};
 
-export const buildInvestmentOpportunityWhereCondition = (variables: InvestmentOpportunityQueryVariables = {}): string => {
-  const baseFilters = buildBaseFilters(variables);
+  return filters
+}
+
+export const buildInvestmentOpportunityWhereCondition = (
+  variables: InvestmentOpportunityQueryVariables = {}
+): string => {
+  const baseFilters = buildBaseFilters(variables)
 
   // Start with the base condition that always includes isDeleted: false
   if (baseFilters.length === 0) {
-    return `where: ${serializeGraphQLFilter({ isDeleted: { _eq: false } })}`;
+    return `where: ${serializeGraphQLFilter({ isDeleted: { _eq: false } })}`
   }
   const whereCondition: GraphQLWhereCondition = {
     isDeleted: { _eq: false },
-    _and: baseFilters,
-  };
-  return `where: ${serializeGraphQLFilter(whereCondition)}`;
-};
+    _and: baseFilters
+  }
+  return `where: ${serializeGraphQLFilter(whereCondition)}`
+}
 
 // Get Investment Opportunities with full details
 export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  const where = buildInvestmentOpportunityWhereCondition(variables);
-  
-  const orderByClause = variables.orderBy?.length 
-    ? `orderBy: [${variables.orderBy.map(o => {
-        const f = o.field;
-        if (f === 'opportunityStatus' || f === 'opportunityPipeline' || f === 'opportunityPipelineStage' || f === 'currency') {
-          return `{ ${f}: { code: ${o.direction} } }`;
-        }
-        if (f === 'ownerEmployee') {
-          return `{ ownerEmployee: { displayName: ${o.direction} } }`;
-        }
-        return `{ ${f}: ${o.direction} }`;
-      }).join(', ')}]`
-    : 'orderBy: [{ closeDate: ASC }]';
+  const limit = Math.min(variables.limit || 50, 100)
+  const offset = variables.offset || 0
+  const where = buildInvestmentOpportunityWhereCondition(variables)
+
+  const orderByClause = variables.orderBy?.length
+    ? `orderBy: [${variables.orderBy
+        .map(o => {
+          const f = o.field
+          if (
+            f === 'opportunityStatus' ||
+            f === 'opportunityPipeline' ||
+            f === 'opportunityPipelineStage' ||
+            f === 'currency'
+          ) {
+            return `{ ${f}: { code: ${o.direction} } }`
+          }
+          if (f === 'ownerEmployee') {
+            return `{ ownerEmployee: { displayName: ${o.direction} } }`
+          }
+          return `{ ${f}: ${o.direction} }`
+        })
+        .join(', ')}]`
+    : 'orderBy: [{ closeDate: ASC }]'
 
   return `
     query GetInvestmentOpportunities {
@@ -293,8 +309,8 @@ export const GET_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQue
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Opportunity by ID
 export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
@@ -322,13 +338,13 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = (id: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Search Investment Opportunities (lightweight for autocomplete)
 export const SEARCH_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunityQueryVariables): string => {
-  const { search = '', limit = 10 } = variables;
-  
+  const { search = '', limit = 10 } = variables
+
   return `
     query SearchInvestmentOpportunities {
       InvestmentOpportunity(
@@ -375,8 +391,8 @@ export const SEARCH_INVESTMENT_OPPORTUNITIES = (variables: InvestmentOpportunity
         }
       }
     }
-  `;
-};
+  `
+}
 
 // =====================================================
 // INVESTMENT OPPORTUNITY RELATED ENTITIES QUERIES
@@ -403,8 +419,8 @@ export const GET_INVESTMENT_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): s
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Activities by Opportunity ID
 export const GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
@@ -427,8 +443,8 @@ export const GET_INVESTMENT_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: strin
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Notes by Opportunity ID
 export const GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
@@ -451,8 +467,8 @@ export const GET_INVESTMENT_NOTES_BY_OPPORTUNITY_ID = (opportunityId: string): s
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Documents by Opportunity ID
 export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
@@ -475,35 +491,32 @@ export const GET_INVESTMENT_DOCUMENTS_BY_OPPORTUNITY_ID = (opportunityId: string
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Build where condition specifically for won opportunities using object merging
 const buildWonOpportunityWhereCondition = (variables: InvestmentOpportunityQueryVariables = {}): string => {
-  const baseFilters = buildBaseFilters(variables);
-  
+  const baseFilters = buildBaseFilters(variables)
+
   // Create the won filter as a structured object
   const wonFilter: GraphQLFilter = {
-    _or: [
-      { opportunityStatus: { alternativeCode: { _eq: "WON" } } },
-      { opportunityStatus: { value: { _eq: "WON" } } }
-    ]
-  };
-  
+    _or: [{ opportunityStatus: { alternativeCode: { _eq: 'WON' } } }, { opportunityStatus: { value: { _eq: 'WON' } } }]
+  }
+
   // Start with base condition and add all filters using _and array
   const whereCondition: GraphQLWhereCondition = {
     isDeleted: { _eq: false },
     _and: [wonFilter, ...baseFilters]
-  };
-  
-  return `where: ${serializeGraphQLFilter(whereCondition)}`;
-};
+  }
+
+  return `where: ${serializeGraphQLFilter(whereCondition)}`
+}
 
 // Get Investment Opportunity Aggregates - for metrics calculation
 export const GET_INVESTMENT_OPPORTUNITY_AGGREGATES = (variables: InvestmentOpportunityQueryVariables = {}): string => {
-  const where = buildInvestmentOpportunityWhereCondition(variables);
-  const wonWhere = buildWonOpportunityWhereCondition(variables);
-  
+  const where = buildInvestmentOpportunityWhereCondition(variables)
+  const wonWhere = buildWonOpportunityWhereCondition(variables)
+
   return `
     query GetInvestmentOpportunityAggregates {
       # All opportunities aggregate
@@ -529,8 +542,8 @@ export const GET_INVESTMENT_OPPORTUNITY_AGGREGATES = (variables: InvestmentOppor
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Opportunity Stage Condition by ID
 export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITION_BY_ID = (id: string): string => {
@@ -551,8 +564,8 @@ export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITION_BY_ID = (id: string): st
         configSnapshot
       }
     }
-  `;
-};
+  `
+}
 
 // Get all Investment Opportunity Stage Conditions for an Opportunity
 export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITIONS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
@@ -585,5 +598,5 @@ export const GET_INVESTMENT_OPPORTUNITY_STAGE_CONDITIONS_BY_OPPORTUNITY_ID = (op
         }
       }
     }
-  `;
-};
+  `
+}

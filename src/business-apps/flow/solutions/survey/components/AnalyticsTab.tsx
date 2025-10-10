@@ -1,37 +1,77 @@
-import React, { useEffect, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  Card, CardHeader, CardTitle, CardContent, Alert, Button,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+import React, { useEffect, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Alert,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Spinner,
-  ChartContainer, ChartTooltip, ChartTooltipContent
-} from '@newwork/nw-design-system';
-import { 
-  BarChart3, TrendingUp, Calendar, Clock, CheckCircle2, Users, PieChart, Target, ClipboardCheck, MessageSquare
-} from 'lucide-react';
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart as RechartsPieChart, Cell, Pie } from 'recharts';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  useFlowManagementAnalytics, 
-  useTemplatePerformanceAnalytics, 
-  useTaskPerformanceAnalytics 
-} from '@/business-apps/flow/apps/success/hooks/useFlowAnalytics';
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import {
+  BarChart3,
+  TrendingUp,
+  Calendar,
+  Clock,
+  CheckCircle2,
+  Users,
+  PieChart,
+  Target,
+  ClipboardCheck,
+  MessageSquare
+} from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Cell,
+  Pie
+} from 'recharts'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import {
+  useFlowManagementAnalytics,
+  useTemplatePerformanceAnalytics,
+  useTaskPerformanceAnalytics
+} from '@/business-apps/flow/apps/success/hooks/useFlowAnalytics'
 
 interface AnalyticsTabProps extends BusinessAppContextProps {}
 
 export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._context }) => {
-  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd');
+  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd')
 
   // Fetch flow analytics filtered for surveys
-  const { data: flowAnalytics, isLoading: flowLoading, error: flowError, refetch: refetchFlows } = useFlowManagementAnalytics({
+  const {
+    data: flowAnalytics,
+    isLoading: flowLoading,
+    error: flowError,
+    refetch: refetchFlows
+  } = useFlowManagementAnalytics({
     timeframe,
     accessToken,
     // @ts-ignore extend hook to append tag.solution on request
     tags: { solution: 'survey' }
-  } as any);
+  } as any)
 
   // Template performance for survey flows
-  const { data: templateData, isLoading: templateLoading, error: templateError, refetch: refetchTemplates } = useTemplatePerformanceAnalytics({
+  const {
+    data: templateData,
+    isLoading: templateLoading,
+    error: templateError,
+    refetch: refetchTemplates
+  } = useTemplatePerformanceAnalytics({
     timeframe,
     accessToken,
     limit: 10,
@@ -40,29 +80,34 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
     sortOrder: 'desc',
     // @ts-ignore extend hook to append tag.solution on request
     tags: { solution: 'survey' }
-  } as any);
+  } as any)
 
   // Task performance for survey flows
-  const { data: taskAnalytics, isLoading: taskLoading, error: taskError, refetch: refetchTasks } = useTaskPerformanceAnalytics({
+  const {
+    data: taskAnalytics,
+    isLoading: taskLoading,
+    error: taskError,
+    refetch: refetchTasks
+  } = useTaskPerformanceAnalytics({
     timeframe,
     accessToken,
     // @ts-ignore extend hook to append tag.solution on request
     tags: { solution: 'survey' }
-  } as any);
+  } as any)
 
   useEffect(() => {
     // reset state on timeframe change if needed
-  }, [timeframe]);
+  }, [timeframe])
 
-  const isLoading = flowLoading || templateLoading || taskLoading;
-  const error = flowError || templateError || taskError || null;
+  const isLoading = flowLoading || templateLoading || taskLoading
+  const error = flowError || templateError || taskError || null
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid="survey-analytics-tab-loading">
         <Spinner />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -71,18 +116,27 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
         <div>
           <h3>Error Loading Survey Data</h3>
           <p>{error.message}</p>
-          <Button onClick={() => { refetchFlows(); refetchTemplates(); refetchTasks(); }} variant="secondary" className="gba:mt-2" data-testid="survey-analytics-tab-retry-button">
+          <Button
+            onClick={() => {
+              refetchFlows()
+              refetchTemplates()
+              refetchTasks()
+            }}
+            variant="secondary"
+            className="gba:mt-2"
+            data-testid="survey-analytics-tab-retry-button"
+          >
             Retry
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
-  const statusMetrics = flowAnalytics?.statusMetrics;
-  const timeSeries = flowAnalytics?.timeSeries || [];
-  const templates = templateData?.templates || [];
-  const templateSummary = templateData?.summary;
+  const statusMetrics = flowAnalytics?.statusMetrics
+  const timeSeries = flowAnalytics?.timeSeries || []
+  const templates = templateData?.templates || []
+  const templateSummary = templateData?.summary
 
   // Survey-specific KPI widgets: Response metrics and participation
   const responseKpis: WidgetItem[] = [
@@ -106,9 +160,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       key: 'response-rate',
       title: 'Response Rate',
       value: (() => {
-        const completed = taskAnalytics?.userProductivity?.reduce((sum, user) => sum + (user.tasksCompleted || 0), 0) || 0;
-        const total = (taskAnalytics?.pendingTasks || 0) + completed;
-        return total > 0 ? Math.round((completed / total) * 100) : 0;
+        const completed =
+          taskAnalytics?.userProductivity?.reduce((sum, user) => sum + (user.tasksCompleted || 0), 0) || 0
+        const total = (taskAnalytics?.pendingTasks || 0) + completed
+        return total > 0 ? Math.round((completed / total) * 100) : 0
       })(),
       suffix: '%',
       prefix: <MessageSquare className="gba:h-4 gba:w-4" />,
@@ -119,17 +174,17 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       key: 'avg-completion-time',
       title: 'Avg Completion Time',
       value: (() => {
-        const times = taskAnalytics?.taskTypePerformance || [];
-        const avgMinutes = times.length > 0 ? 
-          Math.round(times.reduce((s, t) => s + (t.avgResponseTime || 0), 0) / times.length) : 0;
-        return avgMinutes > 60 ? `${Math.round(avgMinutes / 60)}h` : `${avgMinutes}m`;
+        const times = taskAnalytics?.taskTypePerformance || []
+        const avgMinutes =
+          times.length > 0 ? Math.round(times.reduce((s, t) => s + (t.avgResponseTime || 0), 0) / times.length) : 0
+        return avgMinutes > 60 ? `${Math.round(avgMinutes / 60)}h` : `${avgMinutes}m`
       })(),
       prefix: <Clock className="gba:h-4 gba:w-4" />,
       color: '#8b5cf6',
       description: 'Average time to complete survey',
       valueIsString: true
     }
-  ];
+  ]
 
   const participationKpis: WidgetItem[] = [
     {
@@ -164,29 +219,29 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       color: '#7c3aed',
       description: 'All collected responses'
     }
-  ];
+  ]
 
   // Survey performance derived
-  const surveyTypePerformance = taskAnalytics?.taskTypePerformance ?? [];
+  const surveyTypePerformance = taskAnalytics?.taskTypePerformance ?? []
   const surveyTypeChartData = surveyTypePerformance
-    .filter((t) => t && typeof t.taskType !== 'undefined')
+    .filter(t => t && typeof t.taskType !== 'undefined')
     .slice(0, 8)
-    .map((survey) => {
-      const fullName = String(survey.taskType ?? 'UNKNOWN');
-      const name = fullName.length > 20 ? fullName.substring(0, 20) + '...' : fullName;
+    .map(survey => {
+      const fullName = String(survey.taskType ?? 'UNKNOWN')
+      const name = fullName.length > 20 ? fullName.substring(0, 20) + '...' : fullName
       return {
         name,
         fullName,
         responseRate: survey.completionRate ?? 0,
         totalSurveys: survey.totalTasks ?? 0,
-        avgResponseTime: survey.avgResponseTime ?? 0,
-      };
-    });
+        avgResponseTime: survey.avgResponseTime ?? 0
+      }
+    })
 
-  const responseStatusData = (taskAnalytics as any)?.taskStatusDistribution ?? [];
+  const responseStatusData = (taskAnalytics as any)?.taskStatusDistribution ?? []
 
   // Colors for pie chart
-  const COLORS = ['#3b82f6', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+  const COLORS = ['#3b82f6', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
 
   return (
     <div className="gba:space-y-6" data-testid="survey-analytics-tab">
@@ -194,9 +249,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">Survey Analytics</h2>
-          <p className="gba:text-gray-600">Response rates, participation metrics, and survey insights{templateSummary && (
-            <span className="gba:ml-2 gba:text-sm gba:text-blue-600"> • {templateSummary.totalTemplates} survey types</span>
-          )}</p>
+          <p className="gba:text-gray-600">
+            Response rates, participation metrics, and survey insights
+            {templateSummary && (
+              <span className="gba:ml-2 gba:text-sm gba:text-blue-600">
+                {' '}
+                • {templateSummary.totalTemplates} survey types
+              </span>
+            )}
+          </p>
         </div>
         <Select value={timeframe} onValueChange={(value: any) => setTimeframe(value)}>
           <SelectTrigger className="gba:w-[180px]" data-testid="survey-data-timeframe">
@@ -212,12 +273,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
       </div>
 
       {/* KPI widgets: Response metrics then Participation */}
-      <WidgetGroup
-        widgets={responseKpis}
-        isLoading={false}
-        skeletonCount={4}
-        data-testid="survey-data-response-kpis"
-      />
+      <WidgetGroup widgets={responseKpis} isLoading={false} skeletonCount={4} data-testid="survey-data-response-kpis" />
       <WidgetGroup
         widgets={participationKpis}
         isLoading={false}
@@ -247,32 +303,36 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                 </tr>
               </thead>
               <tbody>
-                {templates.length > 0 ? templates.map((template: any, index: number) => (
-                  <tr 
-                    key={template.templateId} 
-                    className={`gba:border-b gba:border-gray-100 ${index % 2 === 0 ? 'gba:bg-gray-50' : ''}`}
-                    data-testid={`survey-data-template-row-${index}`}
-                  >
-                    <td className="gba:p-3 gba:font-medium">{template.templateName}</td>
-                    <td className="gba:p-3 gba:text-right">{template.totalWorkflows}</td>
-                    <td className="gba:p-3 gba:text-right">{template.completedWorkflows}</td>
-                    <td className="gba:p-3 gba:text-right">
-                      <span className={`gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${
-                        template.completionRate >= 90 ? 'gba:bg-green-100 gba:text-green-800' :
-                        template.completionRate >= 70 ? 'gba:bg-yellow-100 gba:text-yellow-800' :
-                        'gba:bg-red-100 gba:text-red-800'
-                      }`}>
-                        {template.completionRate.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="gba:p-3 gba:text-right">{template.avgCycleTime}</td>
-                    <td className="gba:p-3 gba:text-right">
-                      {typeof template.completedTasks !== 'undefined'
-                        ? template.completedTasks
-                        : '—'}
-                    </td>
-                  </tr>
-                )) : (
+                {templates.length > 0 ? (
+                  templates.map((template: any, index: number) => (
+                    <tr
+                      key={template.templateId}
+                      className={`gba:border-b gba:border-gray-100 ${index % 2 === 0 ? 'gba:bg-gray-50' : ''}`}
+                      data-testid={`survey-data-template-row-${index}`}
+                    >
+                      <td className="gba:p-3 gba:font-medium">{template.templateName}</td>
+                      <td className="gba:p-3 gba:text-right">{template.totalWorkflows}</td>
+                      <td className="gba:p-3 gba:text-right">{template.completedWorkflows}</td>
+                      <td className="gba:p-3 gba:text-right">
+                        <span
+                          className={`gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium ${
+                            template.completionRate >= 90
+                              ? 'gba:bg-green-100 gba:text-green-800'
+                              : template.completionRate >= 70
+                                ? 'gba:bg-yellow-100 gba:text-yellow-800'
+                                : 'gba:bg-red-100 gba:text-red-800'
+                          }`}
+                        >
+                          {template.completionRate.toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="gba:p-3 gba:text-right">{template.avgCycleTime}</td>
+                      <td className="gba:p-3 gba:text-right">
+                        {typeof template.completedTasks !== 'undefined' ? template.completedTasks : '—'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan={6} className="gba:p-8 gba:text-center gba:text-gray-500">
                       <ClipboardCheck className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-gray-300" />
@@ -355,14 +415,18 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                   >
                     <BarChart data={timeSeries.slice(-7)}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="date" 
-                        tickFormatter={(value) => new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={value =>
+                          new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+                        }
                       />
                       <YAxis />
-                      <ChartTooltip 
-                        content={<ChartTooltipContent />} 
-                        labelFormatter={(value) => new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+                      <ChartTooltip
+                        content={<ChartTooltipContent />}
+                        labelFormatter={value =>
+                          new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })
+                        }
                       />
                       <Bar dataKey="workflows_started" fill="hsl(200, 85%, 70%)" name="Launched" />
                       <Bar dataKey="workflows_completed" fill="hsl(200, 85%, 55%)" name="Completed" />
@@ -398,23 +462,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={surveyTypeChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="name" 
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      interval={0}
-                    />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
                     <YAxis domain={[0, 100]} />
-                    <ChartTooltip 
+                    <ChartTooltip
                       content={<ChartTooltipContent />}
                       formatter={(value: any, _name: any, props: any) => {
-                        const item = props?.payload;
-                        if (!item) return [`${value}%`, 'Response Rate'];
-                        return [
-                          `${value}%`, 
-                          `${item.fullName} (${item.totalSurveys} surveys)`
-                        ];
+                        const item = props?.payload
+                        if (!item) return [`${value}%`, 'Response Rate']
+                        return [`${value}%`, `${item.fullName} (${item.totalSurveys} surveys)`]
                       }}
                     />
                     <Bar dataKey="responseRate" fill="hsl(200, 85%, 55%)" name="Response Rate" radius={[4, 4, 0, 0]} />
@@ -431,5 +486,5 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({ accessToken, ..._con
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

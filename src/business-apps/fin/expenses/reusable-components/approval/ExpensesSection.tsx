@@ -1,22 +1,22 @@
-import React from 'react';
-import { FileTextOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { FileTextOutlined } from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseItem {
-  id: string;
-  title: string;
-  expenseClass: any;
+  id: string
+  title: string
+  expenseClass: any
   expenseRuleGeneralExpense?: {
-    name?: string;
-  };
-  totalAmount: number;
+    name?: string
+  }
+  totalAmount: number
 }
 
 interface ExpensesSectionProps {
-  expenseItems: ExpenseItem[];
-  currencyCode: string;
-  formatCurrency: (amount: number, currencyCode: string) => string;
-  getCatalogValue: (catalogEntry: any) => string;
+  expenseItems: ExpenseItem[]
+  currencyCode: string
+  formatCurrency: (amount: number, currencyCode: string) => string
+  getCatalogValue: (catalogEntry: any) => string
 }
 
 const ExpensesSection: React.FC<ExpensesSectionProps> = ({
@@ -26,7 +26,7 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
   getCatalogValue
 }) => {
   if (expenseItems.length === 0) {
-    return null;
+    return null
   }
 
   return (
@@ -34,15 +34,14 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
       {/* Title - Grayed out full width */}
       <div className="gba:bg-gray-100 gba:p-3 gba:rounded-sm gba:mb-4 gba:w-full">
         <span className="gba:text-foreground gba:text-sm gba:font-semibold gba:pl-3">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.planned_expenses_header', 'Expenses')}({expenseItems.length})
+          {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.planned_expenses_header', 'Expenses')}(
+          {expenseItems.length})
         </span>
       </div>
 
       {expenseItems.map((item, index) => (
         <div key={item.id} className="gba:mb-3 gba:pl-6" data-testid={`approve-expense-plan-expense-${index}`}>
-          <div className="gba:font-semibold gba:text-foreground">
-            {item.title}
-          </div>
+          <div className="gba:font-semibold gba:text-foreground">{item.title}</div>
           <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
             <div className="gba:text-muted-foreground">
               <FileTextOutlined className="gba:text-base gba:text-muted-foreground gba:mr-1" />
@@ -55,7 +54,7 @@ const ExpensesSection: React.FC<ExpensesSectionProps> = ({
         </div>
       ))}
     </div>
-  );
-};
+  )
+}
 
-export default ExpensesSection; 
+export default ExpensesSection

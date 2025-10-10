@@ -1,30 +1,25 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  UserOutlined,
-  MailOutlined,
-  TrophyOutlined,
-  ContactsOutlined
-} from '@ant-design/icons';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { UserOutlined, MailOutlined, TrophyOutlined, ContactsOutlined } from '@ant-design/icons'
 
 interface TrendData {
-  current: number;
-  previous: number;
-  change: number;
-  changePercent: number;
-  isPositive: boolean;
+  current: number
+  previous: number
+  change: number
+  changePercent: number
+  isPositive: boolean
 }
 
 interface ContactStatisticsWithTrendProps {
   trendData: {
-    recentContacts: TrendData;
-    activeContacts: TrendData;
-    emailEngagements: TrendData;
-    contactsThisYear: TrendData;
-  };
-  isLoading?: boolean;
-  error?: Error | null;
-  onRetry?: () => void;
+    recentContacts: TrendData
+    activeContacts: TrendData
+    emailEngagements: TrendData
+    contactsThisYear: TrendData
+  }
+  isLoading?: boolean
+  error?: Error | null
+  onRetry?: () => void
 }
 
 /**
@@ -38,9 +33,9 @@ export const ContactStatisticsWithTrend: React.FC<ContactStatisticsWithTrendProp
 }) => {
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
-    const sign = changePercent >= 0 ? '+' : '';
-    return `${sign}${changePercent.toFixed(1)}%`;
-  };
+    const sign = changePercent >= 0 ? '+' : ''
+    return `${sign}${changePercent.toFixed(1)}%`
+  }
 
   // Transform the trend data into widgets format with trend information
   const widgets: WidgetItem[] = [
@@ -100,7 +95,7 @@ export const ContactStatisticsWithTrend: React.FC<ContactStatisticsWithTrendProp
         description: 'vs same period last year'
       }
     }
-  ];
+  ]
 
   return (
     <div data-testid="contact-statistics-with-trend-container">
@@ -114,5 +109,5 @@ export const ContactStatisticsWithTrend: React.FC<ContactStatisticsWithTrendProp
         data-testid="contact-statistics-with-trend"
       />
     </div>
-  );
-}; 
+  )
+}

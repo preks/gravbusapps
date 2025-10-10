@@ -1,1 +1,1 @@
-export { OpportunityView } from './OpportunityView';
+export { OpportunityView } from './OpportunityView'

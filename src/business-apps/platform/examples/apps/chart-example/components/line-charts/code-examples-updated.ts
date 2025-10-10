@@ -1,8 +1,8 @@
-export const simpleLineCode = `// Simple line chart implementation`;
-export const multipleLineCode = `// Multiple series line chart implementation`;
-export const lineDotsCode = `// Line chart with dots implementation`;
-export const stepLineCode = `// Step line chart implementation`;
-export const linearLineCode = `// Linear line chart implementation`;
+export const simpleLineCode = `// Simple line chart implementation`
+export const multipleLineCode = `// Multiple series line chart implementation`
+export const lineDotsCode = `// Line chart with dots implementation`
+export const stepLineCode = `// Step line chart implementation`
+export const linearLineCode = `// Linear line chart implementation`
 
 export const interactiveLineCode = `import React, { useMemo, useState } from "react";
 import {
@@ -101,12 +101,12 @@ const InteractiveLineChart = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
-export const customDotsLineCode = `// Line chart with custom styled data points and active states`;
+export const customDotsLineCode = `// Line chart with custom styled data points and active states`
 
-export const dotsColorsLineCode = `// Line chart with colored dots and active state styling`;
+export const dotsColorsLineCode = `// Line chart with colored dots and active state styling`
 
-export const lineLabelCode = `// Line chart with data labels displayed above points`;
+export const lineLabelCode = `// Line chart with data labels displayed above points`
 
-export const customLabelLineCode = `// Line chart with custom formatted labels and positioning`;
+export const customLabelLineCode = `// Line chart with custom formatted labels and positioning`

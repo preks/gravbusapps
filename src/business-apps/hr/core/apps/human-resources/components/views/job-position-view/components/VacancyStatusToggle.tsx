@@ -1,22 +1,16 @@
-import React from 'react';
-import { useTranslation } from 'react-i18next';
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@newwork/nw-design-system';
-import { PiCircle, PiCheckCircle, PiList, PiWarning } from 'react-icons/pi';
-import { VacancyFilter } from '../hooks/useJobPositionListData';
+import React from 'react'
+import { useTranslation } from 'react-i18next'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { PiCircle, PiCheckCircle, PiList, PiWarning } from 'react-icons/pi'
+import { VacancyFilter } from '../hooks/useJobPositionListData'
 
-export type ExtendedVacancyFilter = VacancyFilter | 'missing-profile';
+export type ExtendedVacancyFilter = VacancyFilter | 'missing-profile'
 
 interface VacancyStatusToggleProps {
-  value: ExtendedVacancyFilter;
-  onChange: (value: ExtendedVacancyFilter) => void;
-  missingJobProfileCount?: number;
-  className?: string;
+  value: ExtendedVacancyFilter
+  onChange: (value: ExtendedVacancyFilter) => void
+  missingJobProfileCount?: number
+  className?: string
 }
 
 /**
@@ -29,7 +23,7 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
   missingJobProfileCount = 0,
   className = ''
 }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   const options = [
     {
@@ -56,22 +50,19 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
       icon: <PiWarning size={16} />,
       color: 'destructive'
     }
-  ];
+  ]
 
   // Find the current selected option for display
-  const selectedOption = options.find(option => option.key === value);
+  const selectedOption = options.find(option => option.key === value)
 
   return (
     <div className={`gba:w-64 ${className}`} data-testid="vacancy-status-toggle">
       <Select value={value} onValueChange={(newValue: ExtendedVacancyFilter) => onChange(newValue)}>
-        <SelectTrigger 
-          className="gba:w-full gba:h-9" 
-          data-testid="vacancy-status-select-trigger"
-        >
+        <SelectTrigger className="gba:w-full gba:h-9" data-testid="vacancy-status-select-trigger">
           <SelectValue>
             {selectedOption && (
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span 
+                <span
                   style={{ color: `var(--nw-color-${selectedOption.color})` }}
                   className="gba:flex gba:items-center"
                 >
@@ -83,7 +74,7 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
           </SelectValue>
         </SelectTrigger>
         <SelectContent data-testid="vacancy-status-select-content">
-          {options.map((option) => (
+          {options.map(option => (
             <SelectItem
               key={option.key}
               value={option.key}
@@ -91,10 +82,7 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
               className="gba:cursor-pointer"
             >
               <div className="gba:flex gba:items-center gba:gap-2">
-                <span 
-                  style={{ color: `var(--nw-color-${option.color})` }}
-                  className="gba:flex gba:items-center"
-                >
+                <span style={{ color: `var(--nw-color-${option.color})` }} className="gba:flex gba:items-center">
                   {option.icon}
                 </span>
                 <span className="gba:text-sm">{option.label}</span>
@@ -104,7 +92,7 @@ export const VacancyStatusToggle: React.FC<VacancyStatusToggleProps> = ({
         </SelectContent>
       </Select>
     </div>
-  );
-};
+  )
+}
 
-export default VacancyStatusToggle; 
+export default VacancyStatusToggle

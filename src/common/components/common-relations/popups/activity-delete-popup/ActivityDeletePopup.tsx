@@ -1,28 +1,28 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DeleteConfirmPopup } from '@/common/components/common-relations/popups/delete-confirm-popup'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 export interface ActivityDeletePopupProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  activityId: string;
-  activityVersion?: number;
-  activityTitle: string;
+  isOpen: boolean
+  onClose: () => void
+  activityId: string
+  activityVersion?: number
+  activityTitle: string
 
   // Entity scoping (at least one should be present)
-  opportunityId?: string;
-  accountId?: string;
-  contactId?: string;
-  leadId?: string;
+  opportunityId?: string
+  accountId?: string
+  contactId?: string
+  leadId?: string
 
   // Domain selection (default CRM)
-  domain?: 'crm' | 'investments';
+  domain?: 'crm' | 'investments'
 
-  onSuccess?: () => void;
-  onError?: (error: any) => void;
+  onSuccess?: () => void
+  onError?: (error: any) => void
 
-  'data-testid'?: string;
+  'data-testid'?: string
 }
 
 /**
@@ -41,11 +41,10 @@ export const ActivityDeletePopup: React.FC<ActivityDeletePopupProps> = ({
   domain = 'crm',
   onSuccess,
   onError,
-  'data-testid': dataTestId = 'activity-delete-popup',
+  'data-testid': dataTestId = 'activity-delete-popup'
 }) => {
-  const flowContextName = domain === 'investments'
-    ? FlowContextName.investmentActivityDelete
-    : FlowContextName.customerActivityDelete;
+  const flowContextName =
+    domain === 'investments' ? FlowContextName.investmentActivityDelete : FlowContextName.customerActivityDelete
 
   const externalContextData: Record<string, any> = {
     // Flow compatibility keys
@@ -56,16 +55,16 @@ export const ActivityDeletePopup: React.FC<ActivityDeletePopupProps> = ({
           investmentActivityId: activityId,
           investmentActivity: {
             id: activityId,
-            ...(typeof activityVersion === 'number' ? { version: activityVersion } : {}),
-          },
+            ...(typeof activityVersion === 'number' ? { version: activityVersion } : {})
+          }
         }
       : {
           salesActivity: {
             id: activityId,
-            ...(typeof activityVersion === 'number' ? { version: activityVersion } : {}),
-          },
-        }),
-  };
+            ...(typeof activityVersion === 'number' ? { version: activityVersion } : {})
+          }
+        })
+  }
 
   return (
     <DeleteConfirmPopup
@@ -80,5 +79,5 @@ export const ActivityDeletePopup: React.FC<ActivityDeletePopupProps> = ({
       onFlowError={onError}
       data-testid={dataTestId}
     />
-  );
-};
+  )
+}

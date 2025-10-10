@@ -1,1 +1,1 @@
-export * from './AnalyticsQueries';
+export * from './AnalyticsQueries'

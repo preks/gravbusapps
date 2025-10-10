@@ -1,15 +1,15 @@
-import React from "react";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from "@newwork/nw-design-system";
-import { useFormContext } from "react-hook-form";
+import React from 'react'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
 
 interface Props {
-  label?: React.ReactNode;
+  label?: React.ReactNode
 }
 
 const GeographicPresenceSegment: React.FC<Props> = ({ label }) => {
-  const form = useFormContext<any>();
+  const form = useFormContext<any>()
 
-  if (!label) return null;
+  if (!label) return null
 
   return (
     <FormField
@@ -25,10 +25,7 @@ const GeographicPresenceSegment: React.FC<Props> = ({ label }) => {
         </FormItem>
       )}
     />
-  );
-};
+  )
+}
 
-export default GeographicPresenceSegment;
-
-
-
+export default GeographicPresenceSegment

@@ -1,4 +1,4 @@
-import BackofficeExpenses from './BackofficeExpenses';
+import BackofficeExpenses from './BackofficeExpenses'
 
-export { BackofficeExpenses };
-export default BackofficeExpenses;
+export { BackofficeExpenses }
+export default BackofficeExpenses

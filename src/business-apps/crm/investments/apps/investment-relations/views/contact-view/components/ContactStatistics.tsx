@@ -1,63 +1,79 @@
-import React, { useEffect, useState } from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  UserOutlined,
-  MailOutlined,
-  TrophyOutlined,
-  ContactsOutlined
-} from '@ant-design/icons';
+import React, { useEffect, useState } from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { UserOutlined, MailOutlined, TrophyOutlined, ContactsOutlined } from '@ant-design/icons'
 // import type { InvestmentContact } from '@/common/data/investment/types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useContactStatisticsQueries } from '../queries/ContactStatisticsQueries';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useContactStatisticsQueries } from '../queries/ContactStatisticsQueries'
 
 interface ContactStatisticsProps extends BusinessAppContextProps {}
 
 export const ContactStatistics: React.FC<ContactStatisticsProps> = ({ ...context }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const { fetchRecentContactsWithTrend, fetchActiveContactsWithTrend, fetchEmailEngagementsWithTrend, fetchContactsThisYearWithTrend } = useContactStatisticsQueries(context);
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const {
+    fetchRecentContactsWithTrend,
+    fetchActiveContactsWithTrend,
+    fetchEmailEngagementsWithTrend,
+    fetchContactsThisYearWithTrend
+  } = useContactStatisticsQueries(context)
 
-  const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
-  const [active, setActive] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
-  const [email, setEmail] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
-  const [thisYear, setThisYear] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
+  const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [active, setActive] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [email, setEmail] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [thisYear, setThisYear] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
 
   useEffect(() => {
     const load = async () => {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
       try {
         const [r, a, e, y] = await Promise.all([
           fetchRecentContactsWithTrend(),
           fetchActiveContactsWithTrend(),
           fetchEmailEngagementsWithTrend(),
-          fetchContactsThisYearWithTrend(),
-        ]);
+          fetchContactsThisYearWithTrend()
+        ])
         const calc = (t: { current: number; previous: number }) => ({
           current: t.current,
-          changePercent: t.previous > 0 ? ((t.current - t.previous) / t.previous) * 100 : (t.current > 0 ? 100 : 0),
-          isPositive: t.current - t.previous >= 0,
-        });
-        setRecent(calc(r));
-        setActive(calc(a));
-        setEmail(calc(e));
-        setThisYear(calc(y));
+          changePercent: t.previous > 0 ? ((t.current - t.previous) / t.previous) * 100 : t.current > 0 ? 100 : 0,
+          isPositive: t.current - t.previous >= 0
+        })
+        setRecent(calc(r))
+        setActive(calc(a))
+        setEmail(calc(e))
+        setThisYear(calc(y))
       } catch (e) {
-        setError(e instanceof Error ? e : new Error('Failed to load contact statistics'));
+        setError(e instanceof Error ? e : new Error('Failed to load contact statistics'))
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
-    load();
+    }
+    load()
     // Run once on mount; hooks are memoized with useCallback
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [])
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
-    const sign = changePercent >= 0 ? '+' : '';
-    return `${sign}${changePercent.toFixed(1)}%`;
-  };
+    const sign = changePercent >= 0 ? '+' : ''
+    return `${sign}${changePercent.toFixed(1)}%`
+  }
 
   // Transform the trend data into widgets format with trend information
   const widgets: WidgetItem[] = [
@@ -117,7 +133,7 @@ export const ContactStatistics: React.FC<ContactStatisticsProps> = ({ ...context
         description: 'vs same period last year'
       }
     }
-  ];
+  ]
 
   return (
     <div data-testid="contact-statistics-with-trend-container">
@@ -131,5 +147,5 @@ export const ContactStatistics: React.FC<ContactStatisticsProps> = ({ ...context
         data-testid="contact-statistics-with-trend"
       />
     </div>
-  );
-};
+  )
+}

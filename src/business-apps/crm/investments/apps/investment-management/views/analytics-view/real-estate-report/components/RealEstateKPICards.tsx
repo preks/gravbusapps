@@ -1,41 +1,45 @@
-import React from 'react';
-import { Card } from '@newwork/nw-design-system';
-import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment';
+import React from 'react'
+import { Card } from '@newwork/nw-design-system'
+import { HomeOutlined, BarChartOutlined, DollarOutlined, BuildOutlined } from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { formatCurrency, formatNumber, formatPercentage } from '@/common/data/investment'
 
 // Typography components removed - using native HTML elements with nw-design-system styling
 
 interface RealEstateKPICardsProps {
   kpis: {
-    totalPropertyValue: number;
-    averageOccupancyRate: number;
-    totalUnits: number;
-    totalAnnualExpenses: number;
-  };
-  prefixDataTestId: string;
+    totalPropertyValue: number
+    averageOccupancyRate: number
+    totalUnits: number
+    totalAnnualExpenses: number
+  }
+  prefixDataTestId: string
 }
 
 export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, prefixDataTestId }) => {
   return (
-    <div style={{ 
-      display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-      gap: '16px',
-      marginBottom: '24px'
-    }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: '16px',
+        marginBottom: '24px'
+      }}
+    >
       <Card
         data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalPropertyValue')}
         style={{ borderRadius: '8px' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#fa8c16', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#fa8c16',
+              borderRadius: '8px',
+              padding: '12px',
+              color: 'white'
+            }}
+          >
             <HomeOutlined style={{ fontSize: '24px' }} />
           </div>
           <div>
@@ -54,12 +58,14 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
         style={{ borderRadius: '8px' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#52c41a', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#52c41a',
+              borderRadius: '8px',
+              padding: '12px',
+              color: 'white'
+            }}
+          >
             <BarChartOutlined style={{ fontSize: '24px' }} />
           </div>
           <div>
@@ -73,17 +79,16 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
         </div>
       </Card>
 
-      <Card
-        data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalUnits')}
-        style={{ borderRadius: '8px' }}
-      >
+      <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalUnits')} style={{ borderRadius: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#1890ff', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#1890ff',
+              borderRadius: '8px',
+              padding: '12px',
+              color: 'white'
+            }}
+          >
             <BuildOutlined style={{ fontSize: '24px' }} />
           </div>
           <div>
@@ -102,12 +107,14 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
         style={{ borderRadius: '8px' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ 
-            backgroundColor: '#722ed1', 
-            borderRadius: '8px', 
-            padding: '12px',
-            color: 'white'
-          }}>
+          <div
+            style={{
+              backgroundColor: '#722ed1',
+              borderRadius: '8px',
+              padding: '12px',
+              color: 'white'
+            }}
+          >
             <DollarOutlined style={{ fontSize: '24px' }} />
           </div>
           <div>
@@ -121,5 +128,5 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
         </div>
       </Card>
     </div>
-  );
-}; 
+  )
+}

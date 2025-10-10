@@ -1,61 +1,78 @@
-import React, { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis } from "recharts";
-import { ClockIcon } from "@phosphor-icons/react";
+import React, { useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { ClockIcon } from '@phosphor-icons/react'
 
 export interface LeadOverTimePoint {
-  date: string;
-  leadsCreated: number;
-  leadsConverted: number;
+  date: string
+  leadsCreated: number
+  leadsConverted: number
 }
 
 export interface LeadVelocityAnalysisProps {
   data: {
-    avgTimeToConversion: number;
-    conversionRate: number;
-    leadsOverTime: LeadOverTimePoint[];
-  };
-  moduleColor?: string;
+    avgTimeToConversion: number
+    conversionRate: number
+    leadsOverTime: LeadOverTimePoint[]
+  }
+  moduleColor?: string
 }
 
 export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data, moduleColor = 'default' }) => {
   const aggregateDataByMonth = (dailyData: LeadOverTimePoint[]) => {
-    const monthMap = new Map<string, { leadsCreated: number; leadsConverted: number; date: string }>();
+    const monthMap = new Map<string, { leadsCreated: number; leadsConverted: number; date: string }>()
 
-    dailyData.forEach((item) => {
-      const date = new Date(item.date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    dailyData.forEach(item => {
+      const date = new Date(item.date)
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
       if (!monthMap.has(monthKey)) {
         monthMap.set(monthKey, {
           leadsCreated: 0,
           leadsConverted: 0,
-          date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`,
-        });
+          date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+        })
       }
-      const m = monthMap.get(monthKey)!;
-      m.leadsCreated += item.leadsCreated || 0;
-      m.leadsConverted += item.leadsConverted || 0;
-    });
+      const m = monthMap.get(monthKey)!
+      m.leadsCreated += item.leadsCreated || 0
+      m.leadsConverted += item.leadsConverted || 0
+    })
 
     return Array.from(monthMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => v);
-  };
+      .map(([, v]) => v)
+  }
 
-  const monthlyData = aggregateDataByMonth(data?.leadsOverTime || []);
-  const recentLeadsData = monthlyData.slice(-12);
-  const velocityTrendData = recentLeadsData.slice(-6).map((item) => {
-    const d = new Date(item.date);
-    const monthYear = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-    const conversionVelocity = item.leadsCreated > 0 ? Math.round((item.leadsConverted / item.leadsCreated) * 100) : 0;
-    return { month: monthYear, date: item.date, leadsCreated: item.leadsCreated, leadsConverted: item.leadsConverted, conversionVelocity };
-  });
+  const monthlyData = aggregateDataByMonth(data?.leadsOverTime || [])
+  const recentLeadsData = monthlyData.slice(-12)
+  const velocityTrendData = recentLeadsData.slice(-6).map(item => {
+    const d = new Date(item.date)
+    const monthYear = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+    const conversionVelocity = item.leadsCreated > 0 ? Math.round((item.leadsConverted / item.leadsCreated) * 100) : 0
+    return {
+      month: monthYear,
+      date: item.date,
+      leadsCreated: item.leadsCreated,
+      leadsConverted: item.leadsConverted,
+      conversionVelocity
+    }
+  })
 
-  const velocityScore = data?.conversionRate ? Math.round(data.conversionRate * 10) / 10 : 0;
+  const velocityScore = data?.conversionRate ? Math.round(data.conversionRate * 10) / 10 : 0
 
-  const recentVolume = recentLeadsData.slice(-3).reduce((s, x) => s + x.leadsCreated, 0);
-  const previousVolume = recentLeadsData.slice(-6, -3).reduce((s, x) => s + x.leadsCreated, 0);
-  const volumeTrend = previousVolume > 0 ? Math.round(((recentVolume - previousVolume) / previousVolume) * 100) : 0;
+  const recentVolume = recentLeadsData.slice(-3).reduce((s, x) => s + x.leadsCreated, 0)
+  const previousVolume = recentLeadsData.slice(-6, -3).reduce((s, x) => s + x.leadsCreated, 0)
+  const volumeTrend = previousVolume > 0 ? Math.round(((recentVolume - previousVolume) / previousVolume) * 100) : 0
 
   return (
     <Card data-testid="lead-velocity-analysis">
@@ -81,22 +98,35 @@ export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data
           </div>
 
           <div className="gba:p-3 gba:bg-orange-50 gba:rounded-lg gba:text-center">
-            <div className="gba:text-xl gba:font-bold gba:text-orange-600">{volumeTrend > 0 ? "+" : ""}{volumeTrend}%</div>
+            <div className="gba:text-xl gba:font-bold gba:text-orange-600">
+              {volumeTrend > 0 ? '+' : ''}
+              {volumeTrend}%
+            </div>
             <div className="gba:text-sm gba:text-gray-600">Lead Volume Trend</div>
             <div className="gba:text-xs gba:text-gray-500">Recent vs previous quarter</div>
           </div>
 
           {velocityTrendData.length > 0 ? (
             <div className="gba:h-56">
-              <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Conversion Velocity Trend (Monthly)</h4>
+              <h4 className="gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">
+                Conversion Velocity Trend (Monthly)
+              </h4>
               <ChartContainer
-                config={useMemo(() => ({
-                  leadsCreated: { label: "Leads Created" },
-                  leadsConverted: { label: "Leads Converted" },
-                }), [])}
+                config={useMemo(
+                  () => ({
+                    leadsCreated: { label: 'Leads Created' },
+                    leadsConverted: { label: 'Leads Converted' }
+                  }),
+                  []
+                )}
                 className="gba:w-full gba:h-full"
               >
-                <BarChart data={velocityTrendData} maxBarSize={30} barCategoryGap="25%" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <BarChart
+                  data={velocityTrendData}
+                  maxBarSize={30}
+                  barCategoryGap="25%"
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
                   <XAxis dataKey="month" tick={{ fontSize: 10 }} height={40} />
                   <YAxis tick={{ fontSize: 10 }} />
                   <ChartTooltip content={<ChartTooltipContent labelKey="month" />} />
@@ -114,9 +144,7 @@ export const LeadVelocityAnalysis: React.FC<LeadVelocityAnalysisProps> = ({ data
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default LeadVelocityAnalysis;
-
-
+export default LeadVelocityAnalysis

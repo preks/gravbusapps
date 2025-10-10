@@ -1,1 +1,1 @@
-export { EquityReport } from './EquityReport';
+export { EquityReport } from './EquityReport'

@@ -4,5 +4,5 @@ export const MODULE_COLORS = {
   IRM: 'decorative',
   FIN: 'decorative',
   ERP: 'decorative',
-  SER: 'decorative',
+  SER: 'decorative'
 } as const

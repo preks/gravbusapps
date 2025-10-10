@@ -1,26 +1,23 @@
-import { Employee } from '../hooks/useGetEmployeesReport';
+import { Employee } from '../hooks/useGetEmployeesReport'
 
 export interface KpiCardData {
-  key: string;
-  label: string;
-  subLabel: string;
-  value: number | string;
-  iconName: string;
-  shouldShow: boolean;
+  key: string
+  label: string
+  subLabel: string
+  value: number | string
+  iconName: string
+  shouldShow: boolean
 }
 
-export const generateKpiCards = (
-  allEmployees: Employee[],
-  averageTenureFormatted: string
-): KpiCardData[] => {
-  const internalEmployees = allEmployees.filter(e => e.employmentType === 'Internal');
-  const externalEmployees = allEmployees.filter(e => e.employmentType === 'External');
-  const contractWorkers = allEmployees.filter(e => e.employmentType === 'Contract worker');
-  const demoTestUsers = allEmployees.filter(e => e.employmentType === 'Demo' || e.employmentType === 'Test');
-  const activeEmployees = allEmployees.filter(e => !e.exitDate);
-  const inactiveEmployees = allEmployees.filter(e => e.exitDate);
-  const fullTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('full time'));
-  const partTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('part time'));
+export const generateKpiCards = (allEmployees: Employee[], averageTenureFormatted: string): KpiCardData[] => {
+  const internalEmployees = allEmployees.filter(e => e.employmentType === 'Internal')
+  const externalEmployees = allEmployees.filter(e => e.employmentType === 'External')
+  const contractWorkers = allEmployees.filter(e => e.employmentType === 'Contract worker')
+  const demoTestUsers = allEmployees.filter(e => e.employmentType === 'Demo' || e.employmentType === 'Test')
+  const activeEmployees = allEmployees.filter(e => !e.exitDate)
+  const inactiveEmployees = allEmployees.filter(e => e.exitDate)
+  const fullTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('full time'))
+  const partTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('part time'))
 
   const cards: KpiCardData[] = [
     {
@@ -29,7 +26,7 @@ export const generateKpiCards = (
       subLabel: 'All members',
       value: allEmployees.length,
       iconName: 'UserOutlined',
-      shouldShow: true,
+      shouldShow: true
     },
     {
       key: 'internal',
@@ -37,7 +34,7 @@ export const generateKpiCards = (
       subLabel: 'Employees',
       value: internalEmployees.length,
       iconName: 'CheckOutlined',
-      shouldShow: internalEmployees.length > 0,
+      shouldShow: internalEmployees.length > 0
     },
     {
       key: 'external',
@@ -45,7 +42,7 @@ export const generateKpiCards = (
       subLabel: 'Workers',
       value: externalEmployees.length,
       iconName: 'CheckOutlined',
-      shouldShow: externalEmployees.length > 0,
+      shouldShow: externalEmployees.length > 0
     },
     {
       key: 'contract',
@@ -53,7 +50,7 @@ export const generateKpiCards = (
       subLabel: 'Contractors',
       value: contractWorkers.length,
       iconName: 'SolutionOutlined',
-      shouldShow: contractWorkers.length > 0,
+      shouldShow: contractWorkers.length > 0
     },
     {
       key: 'demo',
@@ -61,7 +58,7 @@ export const generateKpiCards = (
       subLabel: 'Test users',
       value: demoTestUsers.length,
       iconName: 'CloseOutlined',
-      shouldShow: demoTestUsers.length > 0,
+      shouldShow: demoTestUsers.length > 0
     },
     {
       key: 'tenure',
@@ -69,7 +66,7 @@ export const generateKpiCards = (
       subLabel: 'Years & Months',
       value: averageTenureFormatted,
       iconName: 'CalendarOutlined',
-      shouldShow: true,
+      shouldShow: true
     },
     {
       key: 'fulltime',
@@ -77,7 +74,7 @@ export const generateKpiCards = (
       subLabel: 'Employees',
       value: fullTimeEmployees.length,
       iconName: 'IdcardOutlined',
-      shouldShow: fullTimeEmployees.length > 0,
+      shouldShow: fullTimeEmployees.length > 0
     },
     {
       key: 'parttime',
@@ -85,8 +82,8 @@ export const generateKpiCards = (
       subLabel: 'Employees',
       value: partTimeEmployees.length,
       iconName: 'CheckOutlined',
-      shouldShow: partTimeEmployees.length > 0,
-    },
+      shouldShow: partTimeEmployees.length > 0
+    }
     // {
     //   key: 'active',
     //   label: 'Active',
@@ -103,34 +100,34 @@ export const generateKpiCards = (
     //   iconName: 'CloseOutlined',
     //   shouldShow: inactiveEmployees.length > 0,
     // },
-  ];
+  ]
 
-  return cards.filter(card => card.shouldShow);
-};
+  return cards.filter(card => card.shouldShow)
+}
 
 export const matchesKpi = (employee: Employee, activeKpi: string): boolean => {
   switch (activeKpi) {
     case 'all':
-      return true;
+      return true
     case 'tenure':
-      return !!employee.startDate;
+      return !!employee.startDate
     // case 'active':
     //   return !employee.exitDate;
     // case 'inactive':
     //   return !!employee.exitDate;
     case 'internal':
-      return employee.employmentType === 'Internal';
+      return employee.employmentType === 'Internal'
     case 'external':
-      return employee.employmentType === 'External';
+      return employee.employmentType === 'External'
     case 'contract':
-      return employee.employmentType === 'Contract worker';
+      return employee.employmentType === 'Contract worker'
     case 'demo':
-      return employee.employmentType === 'Demo' || employee.employmentType === 'Test';
+      return employee.employmentType === 'Demo' || employee.employmentType === 'Test'
     case 'fulltime':
-      return !!employee.contractType?.toLowerCase().includes('full time');
+      return !!employee.contractType?.toLowerCase().includes('full time')
     case 'parttime':
-      return !!employee.contractType?.toLowerCase().includes('part time');
+      return !!employee.contractType?.toLowerCase().includes('part time')
     default:
-      return true;
+      return true
   }
-};
+}

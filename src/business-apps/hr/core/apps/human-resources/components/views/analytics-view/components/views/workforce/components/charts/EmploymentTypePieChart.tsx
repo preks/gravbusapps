@@ -1,25 +1,21 @@
-import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
-import { Card, Spinner, Alert, Badge } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { EmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution';
+import React from 'react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts'
+import { Card, Spinner, Alert, Badge } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { EmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
 
 interface EmploymentTypePieChartProps {
-  data: EmploymentTypeDistribution[];
-  loading?: boolean;
-  error?: Error | null;
+  data: EmploymentTypeDistribution[]
+  loading?: boolean
+  error?: Error | null
 }
 
 /**
  * Pie chart component for displaying employment type distribution
  */
-const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ 
-  data, 
-  loading = false, 
-  error = null 
-}) => {
-  const [activeIndex, setActiveIndex] = React.useState<number>(-1);
-  const prefixDataTestId = 'EmploymentTypePieChart';
+const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, loading = false, error = null }) => {
+  const [activeIndex, setActiveIndex] = React.useState<number>(-1)
+  const prefixDataTestId = 'EmploymentTypePieChart'
 
   // Transform data for the pie chart
   const chartData = React.useMemo(() => {
@@ -28,24 +24,39 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
       value: item.count,
       percentage: item.percentage,
       displayValue: `${item.count.toLocaleString()} (${item.percentage}%)`
-    }));
-  }, [data]);
-  
+    }))
+  }, [data])
+
   // Standard colors for consistent presentation
   const COLORS = [
-    '#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#13C2C2', 
-    '#3436C7', '#F04864', '#D0021B', '#5B8FF9', '#5AD8A6', '#5D7092',
-    '#F6BD16', '#E8684A', '#6DC8EC', '#9270CA', '#FF9D4D', '#269A99'
-  ];
+    '#1890FF',
+    '#2FC25B',
+    '#FACC14',
+    '#223273',
+    '#8543E0',
+    '#13C2C2',
+    '#3436C7',
+    '#F04864',
+    '#D0021B',
+    '#5B8FF9',
+    '#5AD8A6',
+    '#5D7092',
+    '#F6BD16',
+    '#E8684A',
+    '#6DC8EC',
+    '#9270CA',
+    '#FF9D4D',
+    '#269A99'
+  ]
 
   // Calculate the total number of employees
   const totalEmployees = React.useMemo(() => {
-    return chartData.reduce((sum, item) => sum + item.value, 0);
-  }, [chartData]);
+    return chartData.reduce((sum, item) => sum + item.value, 0)
+  }, [chartData])
 
   // Custom active shape for the pie chart when hovering
   const renderActiveShape = (props: any) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props;
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, value } = props
 
     return (
       <g>
@@ -78,17 +89,17 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
           {payload.percentage}%
         </text>
       </g>
-    );
-  };
-  
+    )
+  }
+
   // Event handlers for pie slice hover
   const onPieEnter = (_: any, index: number) => {
-    setActiveIndex(index);
-  };
-  
+    setActiveIndex(index)
+  }
+
   const onPieLeave = () => {
-    setActiveIndex(-1);
-  };
+    setActiveIndex(-1)
+  }
 
   if (loading) {
     return (
@@ -105,7 +116,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
           <Spinner className="gba:w-8 gba:h-8" />
         </div>
       </Card>
-    );
+    )
   }
 
   if (error) {
@@ -123,7 +134,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
           {getTranslationFromI18nKeyAndLabel('hr_analytics_error_message', 'Error loading data')}
         </Alert>
       </Card>
-    );
+    )
   }
 
   return (
@@ -168,39 +179,52 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
                   animationDuration={1200}
                 >
                   {chartData.map((_, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={COLORS[index % COLORS.length]} 
-                      stroke="#ffffff" 
-                      strokeWidth={2}
-                    />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#ffffff" strokeWidth={2} />
                   ))}
                   {/* Custom center label */}
-                  <text x="50%" y="47%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '20px', fill: '#374151', fontWeight: 600 }}>
+                  <text
+                    x="50%"
+                    y="47%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    style={{ fontSize: '20px', fill: '#374151', fontWeight: 600 }}
+                  >
                     {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
                   </text>
-                  <text x="50%" y="57%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: '28px', fontWeight: 'bold', fill: '#111827' }}>
+                  <text
+                    x="50%"
+                    y="57%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    style={{ fontSize: '28px', fontWeight: 'bold', fill: '#111827' }}
+                  >
                     {totalEmployees.toLocaleString()}
                   </text>
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
           </div>
-          
+
           {/* Custom Legend */}
-          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200" data-testid={`${prefixDataTestId}-legend`}>
+          <div
+            className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200"
+            data-testid={`${prefixDataTestId}-legend`}
+          >
             <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-3">
               {chartData.map((item, index) => (
-                <div 
-                  key={`legend-${index}`} 
+                <div
+                  key={`legend-${index}`}
                   className="gba:flex gba:items-center gba:px-3 gba:py-2 gba:bg-gray-50 gba:rounded gba:border gba:border-gray-100"
                 >
-                  <div 
+                  <div
                     className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
                   <span className="gba:text-sm gba:font-medium gba:text-gray-700">
-                    {item.name}: <span className="gba:font-semibold">{item.value.toLocaleString()} ({item.percentage}%)</span>
+                    {item.name}:{' '}
+                    <span className="gba:font-semibold">
+                      {item.value.toLocaleString()} ({item.percentage}%)
+                    </span>
                   </span>
                 </div>
               ))}
@@ -209,7 +233,7 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({
         </>
       )}
     </Card>
-  );
-};
+  )
+}
 
-export default EmploymentTypePieChart; 
+export default EmploymentTypePieChart

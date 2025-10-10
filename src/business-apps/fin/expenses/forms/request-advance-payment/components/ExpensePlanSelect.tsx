@@ -1,14 +1,19 @@
-import React from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ExpensePlan } from '../hooks/useRequestAdvancePaymentData';
-import { SelectFieldProps } from '../types/FormTypes';
+import React from 'react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ExpensePlan } from '../hooks/useRequestAdvancePaymentData'
+import { SelectFieldProps } from '../types/FormTypes'
 
 interface ExpensePlanSelectProps extends Omit<SelectFieldProps, 'disabled'> {
-  plans: ExpensePlan[];
+  plans: ExpensePlan[]
 }
 
-const ExpensePlanSelect: React.FC<ExpensePlanSelectProps> = ({ plans, value, onChange, 'data-testid': dataTestId = 'request-advance-payment-expense-plan-field' }) => {
+const ExpensePlanSelect: React.FC<ExpensePlanSelectProps> = ({
+  plans,
+  value,
+  onChange,
+  'data-testid': dataTestId = 'request-advance-payment-expense-plan-field'
+}) => {
   return (
     <div className="gba:mb-6 gba:bg-gray-100" data-testid={dataTestId}>
       <label className="gba:block gba:text-xs gba:font-medium gba:text-black  gba:px-3 gba:py-1 gba:rounded">
@@ -24,13 +29,15 @@ const ExpensePlanSelect: React.FC<ExpensePlanSelectProps> = ({ plans, value, onC
             className="gba:h-10 gba:bg-gray-100 gba:border-none"
             style={{ width: '100%', justifyContent: 'space-between' }}
           >
-            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
-              'Select Expense Plan'
-            )} />
+            <SelectValue
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
+                'Select Expense Plan'
+              )}
+            />
           </SelectTrigger>
           <SelectContent>
-            {plans.map((plan) => (
+            {plans.map(plan => (
               <SelectItem key={plan.id} value={plan.id}>
                 {plan.code} - {plan.title}
               </SelectItem>
@@ -53,7 +60,7 @@ const ExpensePlanSelect: React.FC<ExpensePlanSelectProps> = ({ plans, value, onC
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ExpensePlanSelect;
+export default ExpensePlanSelect

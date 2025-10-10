@@ -1,17 +1,17 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface RealEstateKPIData {
-  totalInvestments: number;
-  totalAmountInvested: number;
-  totalMarketValue: number;
-  averageOccupancyRate: number;
+  totalInvestments: number
+  totalAmountInvested: number
+  totalMarketValue: number
+  averageOccupancyRate: number
 }
 
 export interface RealEstateKPIComparison {
-  current: RealEstateKPIData;
-  previous: RealEstateKPIData;
+  current: RealEstateKPIData
+  previous: RealEstateKPIData
 }
 
 const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string): string => {
@@ -91,117 +91,121 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string): string =>
         }
       }
     }
-  `;
-};
+  `
+}
 
 export interface RealEstateKPIResponse {
   currentAggregate: {
     aggregate: {
-      count: number;
+      count: number
       sum: {
-        totalInvestmentAmount: number | null;
-        investmentMarketValue: number | null;
-      };
-    };
-  };
+        totalInvestmentAmount: number | null
+        investmentMarketValue: number | null
+      }
+    }
+  }
   currentRealEstateAggregate: {
     aggregate: {
       avg: {
-        occupancyPercent: number | null;
-      };
-      count: number;
-    };
-  };
+        occupancyPercent: number | null
+      }
+      count: number
+    }
+  }
   previousAggregate: {
     aggregate: {
-      count: number;
+      count: number
       sum: {
-        totalInvestmentAmount: number | null;
-        investmentMarketValue: number | null;
-      };
-    };
-  };
+        totalInvestmentAmount: number | null
+        investmentMarketValue: number | null
+      }
+    }
+  }
   previousRealEstateAggregate: {
     aggregate: {
       avg: {
-        occupancyPercent: number | null;
-      };
-      count: number;
-    };
-  };
+        occupancyPercent: number | null
+      }
+      count: number
+    }
+  }
 }
 
 export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
   const fetchRealEstateKPIs = useCallback(async (): Promise<RealEstateKPIComparison> => {
     // Calculate date 7 days ago for comparison
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const comparisonDate = sevenDaysAgo.toISOString();
-    
-    const query = GET_REAL_ESTATE_KPIS_WITH_COMPARISON(comparisonDate);
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+    const comparisonDate = sevenDaysAgo.toISOString()
+
+    const query = GET_REAL_ESTATE_KPIS_WITH_COMPARISON(comparisonDate)
     try {
-      const result = await graphqlClient.request<RealEstateKPIResponse>(query);
-      
+      const result = await graphqlClient.request<RealEstateKPIResponse>(query)
+
       // Transform current data
-      const currentCount = result.currentAggregate.aggregate.count;
-      const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0;
-      const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0;
-      const currentAvgOccupancy = result.currentRealEstateAggregate.aggregate.avg.occupancyPercent || 0;
+      const currentCount = result.currentAggregate.aggregate.count
+      const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0
+      const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0
+      const currentAvgOccupancy = result.currentRealEstateAggregate.aggregate.avg.occupancyPercent || 0
 
       const current: RealEstateKPIData = {
         totalInvestments: currentCount,
         totalAmountInvested: currentTotalAmount,
         totalMarketValue: currentMarketValue,
-        averageOccupancyRate: currentAvgOccupancy,
-      };
+        averageOccupancyRate: currentAvgOccupancy
+      }
 
       // Check if we have meaningful historical data
-      const previousCount = result.previousAggregate.aggregate.count;
-      const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0;
-      const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0;
-      const previousAvgOccupancy = result.previousRealEstateAggregate.aggregate.avg.occupancyPercent || 0;
+      const previousCount = result.previousAggregate.aggregate.count
+      const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
+      const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
+      const previousAvgOccupancy = result.previousRealEstateAggregate.aggregate.avg.occupancyPercent || 0
 
-      let previous: RealEstateKPIData;
+      let previous: RealEstateKPIData
 
       // If current and previous are identical (demo data scenario), simulate realistic previous values
-      if (currentCount === previousCount && currentTotalAmount === previousTotalAmount && currentMarketValue === previousMarketValue) {
+      if (
+        currentCount === previousCount &&
+        currentTotalAmount === previousTotalAmount &&
+        currentMarketValue === previousMarketValue
+      ) {
         // Simulate realistic previous values with slight variations (4-8% lower)
         const growthFactors = {
           investments: 0.92, // 8% fewer investments
-          amount: 0.96,      // 4% less invested amount  
+          amount: 0.96, // 4% less invested amount
           marketValue: 0.94, // 6% lower market value (showing growth)
-          occupancy: 0.95    // 5% lower occupancy rate
-        };
+          occupancy: 0.95 // 5% lower occupancy rate
+        }
 
-        const simulatedPreviousCount = Math.max(1, Math.floor(currentCount * growthFactors.investments));
-        const simulatedPreviousAmount = currentTotalAmount * growthFactors.amount;
-        const simulatedPreviousMarketValue = currentMarketValue * growthFactors.marketValue;
-        const simulatedPreviousOccupancy = currentAvgOccupancy * growthFactors.occupancy;
+        const simulatedPreviousCount = Math.max(1, Math.floor(currentCount * growthFactors.investments))
+        const simulatedPreviousAmount = currentTotalAmount * growthFactors.amount
+        const simulatedPreviousMarketValue = currentMarketValue * growthFactors.marketValue
+        const simulatedPreviousOccupancy = currentAvgOccupancy * growthFactors.occupancy
 
         previous = {
           totalInvestments: simulatedPreviousCount,
           totalAmountInvested: simulatedPreviousAmount,
           totalMarketValue: simulatedPreviousMarketValue,
-          averageOccupancyRate: simulatedPreviousOccupancy,
-        };
+          averageOccupancyRate: simulatedPreviousOccupancy
+        }
       } else {
         // Use actual historical data when available
         previous = {
           totalInvestments: previousCount,
           totalAmountInvested: previousTotalAmount,
           totalMarketValue: previousMarketValue,
-          averageOccupancyRate: previousAvgOccupancy,
-        };
+          averageOccupancyRate: previousAvgOccupancy
+        }
       }
 
-      return { current, previous };
+      return { current, previous }
     } catch (error) {
-      console.error('Error fetching real estate KPIs:', error);
-      throw error;
+      console.error('Error fetching real estate KPIs:', error)
+      throw error
     }
-  }, [graphqlClient]);
+  }, [graphqlClient])
 
-  return { fetchRealEstateKPIs };
-};
+  return { fetchRealEstateKPIs }
+}

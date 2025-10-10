@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface LeadOwner {
-  id: string;
-  name: string;
-  displayName: string;
-  firstName: string;
-  lastName: string;
+  id: string
+  name: string
+  displayName: string
+  firstName: string
+  lastName: string
 }
 
 const GET_LEAD_OWNERS_QUERY = `
@@ -27,27 +27,23 @@ const GET_LEAD_OWNERS_QUERY = `
       }
     }
   }
-`;
+`
 
-export const useGetLeadOwners = (
-  context: BusinessAppContextProps,
-  search: string = "",
-  offset: number = 0
-) => {
-  const [leadOwners, setLeadOwners] = useState<LeadOwner[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
+export const useGetLeadOwners = (context: BusinessAppContextProps, search: string = '', offset: number = 0) => {
+  const [leadOwners, setLeadOwners] = useState<LeadOwner[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchLeadOwners = useCallback(async () => {
     if (!context.accessToken) {
-      console.log("No access token available for lead owners");
-      return;
+      console.log('No access token available for lead owners')
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Build where condition with employee search
@@ -62,25 +58,22 @@ export const useGetLeadOwners = (
                     _or: [
                       { firstName: { _ilike: `%${search}%` } },
                       { lastName: { _ilike: `%${search}%` } },
-                      { displayName: { _ilike: `%${search}%` } },
-                    ],
-                  },
+                      { displayName: { _ilike: `%${search}%` } }
+                    ]
+                  }
                 ]
-              : []),
-          ],
-        },
-      };
+              : [])
+          ]
+        }
+      }
 
       const variables = {
         where: whereCondition,
         limit: 5, // Limit to 5 items as per other filters
-        offset,
-      };
+        offset
+      }
 
-      const result = await graphqlClient.request(
-        GET_LEAD_OWNERS_QUERY,
-        variables
-      );
+      const result = await graphqlClient.request(GET_LEAD_OWNERS_QUERY, variables)
 
       if (result?.Lead) {
         const owners = result.Lead.filter((lead: any) => lead.ownerEmployee) // Ensure ownerEmployee exists
@@ -88,36 +81,34 @@ export const useGetLeadOwners = (
             id: lead.ownerEmployee.id,
             name:
               lead.ownerEmployee.displayName ||
-              `${lead.ownerEmployee.firstName || ""} ${
-                lead.ownerEmployee.lastName || ""
-              }`.trim(),
+              `${lead.ownerEmployee.firstName || ''} ${lead.ownerEmployee.lastName || ''}`.trim(),
             displayName: lead.ownerEmployee.displayName,
             firstName: lead.ownerEmployee.firstName,
-            lastName: lead.ownerEmployee.lastName,
+            lastName: lead.ownerEmployee.lastName
           }))
-          .slice(0, 5); // Frontend enforcement of limit
+          .slice(0, 5) // Frontend enforcement of limit
 
-        setLeadOwners(owners);
+        setLeadOwners(owners)
       } else {
-        setLeadOwners([]);
+        setLeadOwners([])
       }
     } catch (err) {
-      console.error("Error fetching lead owners:", err);
-      setError(err);
-      setLeadOwners([]);
+      console.error('Error fetching lead owners:', err)
+      setError(err)
+      setLeadOwners([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, offset]); // Removed graphqlClient from dependencies
+  }, [context.accessToken, search, offset]) // Removed graphqlClient from dependencies
 
   useEffect(() => {
-    fetchLeadOwners();
-  }, [fetchLeadOwners]);
+    fetchLeadOwners()
+  }, [fetchLeadOwners])
 
   return {
     leadOwners,
     isLoading,
     error,
-    refetch: fetchLeadOwners,
-  };
-};
+    refetch: fetchLeadOwners
+  }
+}

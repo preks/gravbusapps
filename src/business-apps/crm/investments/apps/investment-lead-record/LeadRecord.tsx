@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Spinner,
   Button,
@@ -7,236 +7,222 @@ import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
-  TooltipContent,
-} from "@newwork/nw-design-system";
-import { Users, FileText, AddressBook } from '@phosphor-icons/react';
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { useLeadData } from "./hooks/useLeadData";
-import { StatusProgression } from "./components/StatusProgression";
-import { 
+  TooltipContent
+} from '@newwork/nw-design-system'
+import { Users, FileText, AddressBook } from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useLeadData } from './hooks/useLeadData'
+import { StatusProgression } from './components/StatusProgression'
+import {
   useGetInvestmentActivitiesByLeadId,
   useGetInvestmentNotesByLeadId,
   useGetInvestmentTasksByLeadId
-} from '@/common/data/investment/hooks/useInvestmentLeads';
-import { LeadDocuments } from "./components/LeadDocuments";
-import AccountSection from "@/common/components/common-relations/record-sections/account-section/AccountSection";
-import ContactSection from "@/common/components/common-relations/record-sections/contact-section/ContactSection";
-import InvestmentSection from "@/common/components/common-relations/record-sections/investment-section/InvestmentSection";
-import ActivitySection from "@/common/components/common-relations/record-sections/activity-section/ActivitySection";
-import NoteSection from "@/common/components/common-relations/record-sections/note-section/NoteSection";
-import TaskSection from "@/common/components/common-relations/record-sections/task-section/TaskSection";
-import SectionWrapper from "@/common/components/common-relations/record-sections/section-card/SectionCard";
-import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions';
-import { useAiSummary } from './hooks/useAiSummary';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { Bot, Flag } from 'lucide-react';
-import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
-
+} from '@/common/data/investment/hooks/useInvestmentLeads'
+import { LeadDocuments } from './components/LeadDocuments'
+import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
+import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
+import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
+import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
+import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
+import { useAiSummary } from './hooks/useAiSummary'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { Bot, Flag } from 'lucide-react'
+import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 
 interface LeadRecordContentProps extends BusinessAppContextProps {
-  leadId: string;
-  onBack: () => void;
-  fromEntity?: string;
+  leadId: string
+  onBack: () => void
+  fromEntity?: string
 }
 
-const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
-  leadId,
-  onBack,
-  fromEntity,
-  ...props
-}) => {
-  const ALLOWED_TABS = ["overview", "documents"] as const;
-  type LeadRecordTab = (typeof ALLOWED_TABS)[number];
+const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, fromEntity, ...props }) => {
+  const ALLOWED_TABS = ['overview', 'documents'] as const
+  type LeadRecordTab = (typeof ALLOWED_TABS)[number]
 
   const getValidTab = (value: string | null): LeadRecordTab =>
-    (ALLOWED_TABS as readonly string[]).includes(value ?? "")
-      ? (value as LeadRecordTab)
-      : "overview";
+    (ALLOWED_TABS as readonly string[]).includes(value ?? '') ? (value as LeadRecordTab) : 'overview'
 
   const [activeTab, setActiveTab] = useState<LeadRecordTab>(() => {
-    if (typeof window === 'undefined') return 'overview';
-    return getValidTab(new URLSearchParams(window.location.search).get('tab'));
-  });
-  
+    if (typeof window === 'undefined') return 'overview'
+    return getValidTab(new URLSearchParams(window.location.search).get('tab'))
+  })
+
   // Construct businessAppContext from props for sections
   const businessAppContext: BusinessAppContextProps = {
     accessToken: props.accessToken,
     userInfo: props.userInfo,
-    additionalData: props.additionalData,
-  };
-  
-  const {
-    lead,
-    leadData,
-    loading,
-    error,
-    leadStatuses,
-    loadingStatuses,
-    refetch,
-  } = useLeadData(leadId, props.accessToken);
+    additionalData: props.additionalData
+  }
+
+  const { lead, leadData, loading, error, leadStatuses, loadingStatuses, refetch } = useLeadData(
+    leadId,
+    props.accessToken
+  )
 
   // Always call useAiSummary hook, but conditionally use its result
-  const aiSummary = useAiSummary(leadId, props.accessToken);
+  const aiSummary = useAiSummary(leadId, props.accessToken)
 
   // Data fetching hooks for sections
-  const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId(props);
-  const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId(props);
-  const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(props);
+  const { fetchInvestmentActivitiesByLeadId } = useGetInvestmentActivitiesByLeadId(props)
+  const { fetchInvestmentNotesByLeadId } = useGetInvestmentNotesByLeadId(props)
+  const { fetchInvestmentTasksByLeadId } = useGetInvestmentTasksByLeadId(props)
 
   // State for section data
-  const [activities, setActivities] = useState<any[]>([]);
-  const [notes, setNotes] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [approvals, setApprovals] = useState<any[]>([]);
-  const [sectionsLoading, setSectionsLoading] = useState(true);
-  const [sectionsError, setSectionsError] = useState<string | null>(null);
+  const [activities, setActivities] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [approvals, setApprovals] = useState<any[]>([])
+  const [sectionsLoading, setSectionsLoading] = useState(true)
+  const [sectionsError, setSectionsError] = useState<string | null>(null)
 
   // Build reference URLs for IRM context
   const buildReferenceUrl = (reference: TaskReference): string => {
     switch (reference.type) {
-      case 'lead': 
-        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id });
-      case 'account': 
-        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id });
-      case 'contact': 
-        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id });
-      case 'opportunity': 
-        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id });
+      case 'lead':
+        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
+      case 'account':
+        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id })
+      case 'contact':
+        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id })
+      case 'opportunity':
+        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id })
       case 'investment':
-        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id });
-      default: 
-        return '';
+        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id })
+      default:
+        return ''
     }
-  };
+  }
 
   // Load section data
   const loadSectionData = useCallback(async () => {
-    if (!leadId || !props.accessToken) return;
+    if (!leadId || !props.accessToken) return
 
-    setSectionsLoading(true);
-    setSectionsError(null);
+    setSectionsLoading(true)
+    setSectionsError(null)
 
     try {
       const [activitiesData, notesData, tasksData] = await Promise.all([
         fetchInvestmentActivitiesByLeadId(leadId),
         fetchInvestmentNotesByLeadId(leadId),
         fetchInvestmentTasksByLeadId(leadId)
-      ]);
+      ])
 
       // Sort by creation date (newest first)
       const sortedActivities = (activitiesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      )
       const sortedNotes = (notesData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      )
       const sortedTasks = (tasksData || []).sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      )
 
       // Separate tasks from approvals based on taskType catalog entry
       const regularTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || '';
-        const taskTypeValue = task?.taskType?.value || '';
-        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL';
-      });
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+      })
       const approvalTasks = sortedTasks.filter((task: any) => {
-        const taskTypeCode = task?.taskType?.code || '';
-        const taskTypeValue = task?.taskType?.value || '';
-        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL';
-      });
+        const taskTypeCode = task?.taskType?.code || ''
+        const taskTypeValue = task?.taskType?.value || ''
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+      })
 
-      setActivities(sortedActivities);
-      setNotes(sortedNotes);
-      setTasks(regularTasks);
-      setApprovals(approvalTasks);
-
+      setActivities(sortedActivities)
+      setNotes(sortedNotes)
+      setTasks(regularTasks)
+      setApprovals(approvalTasks)
     } catch (error) {
-      console.error('Error loading section data:', error);
+      console.error('Error loading section data:', error)
       setSectionsError(
         error instanceof Error
           ? error.message
           : getTranslationFromI18nKeyAndLabel('common.loadFailed', 'Failed to load data')
-      );
+      )
     } finally {
-      setSectionsLoading(false);
+      setSectionsLoading(false)
     }
-  }, [leadId, props.accessToken, fetchInvestmentActivitiesByLeadId, fetchInvestmentNotesByLeadId, fetchInvestmentTasksByLeadId]);
+  }, [
+    leadId,
+    props.accessToken,
+    fetchInvestmentActivitiesByLeadId,
+    fetchInvestmentNotesByLeadId,
+    fetchInvestmentTasksByLeadId
+  ])
 
   // Load data when component mounts or leadId changes
   useEffect(() => {
-    loadSectionData();
-  }, [loadSectionData]);
+    loadSectionData()
+  }, [loadSectionData])
 
   const getBackButtonText = () => {
-    if (fromEntity === "investment-relations") {
-      return "Back to Investment Relations";
+    if (fromEntity === 'investment-relations') {
+      return 'Back to Investment Relations'
     }
-    return "Back to Investment Leads";
-  };
+    return 'Back to Investment Leads'
+  }
 
   // Listen for process completion events to refresh lead data (including status updates)
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         // Check for successful completion
-        if (event.detail?.resolution === "success") {
-          refetch();
-          loadSectionData(); // Also refresh section data
-          return;
+        if (event.detail?.resolution === 'success') {
+          refetch()
+          loadSectionData() // Also refresh section data
+          return
         }
 
         // Also check for different event structure
-        const response = event.detail?.response;
-        if (response?.detail?.resolution === "success" || response?.lead) {
-          refetch();
-          loadSectionData(); // Also refresh section data
+        const response = event.detail?.response
+        if (response?.detail?.resolution === 'success' || response?.lead) {
+          refetch()
+          loadSectionData() // Also refresh section data
         }
       } catch (err) {
-        console.error("Error handling process completion in LeadRecord:", err);
+        console.error('Error handling process completion in LeadRecord:', err)
       }
-    };
+    }
 
     // Listen to multiple possible event names for lead updates
     const eventNames = [
-      "com.newwork.process.taskCompletion",
-      "com.newwork.process.completion",
-      "com.newwork.process.continue",
-      "com.newwork.process.processCompletion",
-      "processCompletion",
-      "taskCompletion",
-      "taskCompleted",
-      "processCompleted",
-      "task-completion",
-      "process-completion",
-    ];
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(
-        eventName,
-        handleProcessCompletion as EventListener
-      );
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(
-          eventName,
-          handleProcessCompletion as EventListener
-        );
-      });
-    };
-  }, [leadId, refetch]);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+    }
+  }, [leadId, refetch])
 
   // Prepare header content for RecordLayout - MUST be before conditional returns
   const headerTitle = (
     <div className="gba:flex gba:items-center gba:gap-2">
       <span>
         {lead?.displayName ||
-          `${lead?.firstName || ""} ${lead?.lastName || ""}`.trim() ||
+          `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim() ||
           getTranslationFromI18nKeyAndLabel('crm.investments.lead.title', 'Investment Lead')}
       </span>
       {lead?.sensitive === true && (
@@ -258,36 +244,39 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
         </TooltipProvider>
       )}
     </div>
-  );
+  )
 
-  const headerDetailGroups = useMemo(() => [
-    {
-      id: 'lead-details',
-      items: [
-        {
-          label: getTranslationFromI18nKeyAndLabel('crm.lead.source', 'Source'),
-          value: lead?.leadSource?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-          icon: Users
-        },
-        {
-          label: getTranslationFromI18nKeyAndLabel('crm.lead.rating', 'Rating'),
-          value: lead?.leadRating?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-          icon: AddressBook
-        },
-        {
-          label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
-          value: lead?.ownerEmployee
-            ? `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}`
-            : getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-          icon: Users
-        }
-      ]
-    }
-  ], [lead?.leadSource?.value, lead?.leadRating?.value, lead?.ownerEmployee]);
+  const headerDetailGroups = useMemo(
+    () => [
+      {
+        id: 'lead-details',
+        items: [
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.lead.source', 'Source'),
+            value: lead?.leadSource?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+            icon: Users
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.lead.rating', 'Rating'),
+            value: lead?.leadRating?.value || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+            icon: AddressBook
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
+            value: lead?.ownerEmployee
+              ? `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}`
+              : getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+            icon: Users
+          }
+        ]
+      }
+    ],
+    [lead?.leadSource?.value, lead?.leadRating?.value, lead?.ownerEmployee]
+  )
 
   const headerActions = useMemo(() => {
-    if (!props.accessToken || !leadId) return null;
-    
+    if (!props.accessToken || !leadId) return null
+
     const actions: AiAction[] = [
       {
         key: 'ai-summary',
@@ -297,64 +286,73 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
         config: {
           entityType: 'lead',
           loadingMessage: getTranslationFromI18nKeyAndLabel('crm.ai.summary.loading', 'Generating AI Summary...'),
-          loadingSubtitle: getTranslationFromI18nKeyAndLabel('crm.ai.summary.subtitle', 'Analyzing lead data and activities')
+          loadingSubtitle: getTranslationFromI18nKeyAndLabel(
+            'crm.ai.summary.subtitle',
+            'Analyzing lead data and activities'
+          )
         }
       }
-    ];
-    
-    return <AiActions actions={actions} dataTestId={`lead-update-button-${leadId}`} buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')} />;
-  }, [props.accessToken, leadId, aiSummary]);
+    ]
 
-  const headerActionButton = useMemo(() => (
-    props.accessToken && (
-      <AppActionButton
-        data-testid="investment-lead-record-action-button"
-        size="icon"
-        contextsArray={[FlowContextName.investmentLeadEntity]}
-        externalContextData={{
-          leadId: leadId,
-        }}
-        prefixDataTestId="lead-record-action"
-        accessToken={props.accessToken}
-        emptyStateBehavior="hide"
-        deferMainContextRequestsUntilClick={false}
+    return (
+      <AiActions
+        actions={actions}
+        dataTestId={`lead-update-button-${leadId}`}
+        buttonText={getTranslationFromI18nKeyAndLabel('crm.ai.summary', 'AI Summary')}
       />
     )
-  ), [props.accessToken, leadId]);
+  }, [props.accessToken, leadId, aiSummary])
+
+  const headerActionButton = useMemo(
+    () =>
+      props.accessToken && (
+        <AppActionButton
+          data-testid="investment-lead-record-action-button"
+          size="icon"
+          contextsArray={[FlowContextName.investmentLeadEntity]}
+          externalContextData={{
+            leadId: leadId
+          }}
+          prefixDataTestId="lead-record-action"
+          accessToken={props.accessToken}
+          emptyStateBehavior="hide"
+          deferMainContextRequestsUntilClick={false}
+        />
+      ),
+    [props.accessToken, leadId]
+  )
 
   // Tab handling hooks - MUST be before conditional returns to comply with Rules of Hooks
   const handleTabChange = useCallback((value: string) => {
-    const tab = getValidTab(value);
-    setActiveTab(tab);
-    if (typeof window === 'undefined') return;
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
-    window.history.replaceState(null, '', url.toString());
-  }, []);
+    const tab = getValidTab(value)
+    setActiveTab(tab)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', tab)
+    window.history.replaceState(null, '', url.toString())
+  }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
     if (!params.get('tab')) {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', activeTab);
-      window.history.replaceState(null, '', url.toString());
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', activeTab)
+      window.history.replaceState(null, '', url.toString())
     }
     const onPop = () => {
-      setActiveTab(
-        getValidTab(new URLSearchParams(window.location.search).get('tab'))
-      );
-    };
-    window.addEventListener('popstate', onPop);
-    return () => window.removeEventListener('popstate', onPop);
-  }, [activeTab]);
+      setActiveTab(getValidTab(new URLSearchParams(window.location.search).get('tab')))
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [activeTab])
 
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error || !lead) {
@@ -369,7 +367,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
           </Button>
         </div>
       </div>
-    );
+    )
   }
 
   // Status progression content
@@ -380,13 +378,13 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
           currentStatus={lead?.leadStatus?.value || getTranslationFromI18nKeyAndLabel('crm.common.status.new', 'New')}
           statuses={leadStatuses}
           leadId={leadId}
-          leadVersion={typeof lead.version === 'string' ? parseInt(lead.version) : (lead.version || 0)}
+          leadVersion={typeof lead.version === 'string' ? parseInt(lead.version) : lead.version || 0}
           accessToken={props.accessToken}
           onStatusUpdate={refetch}
         />
       )}
     </>
-  );
+  )
 
   // Configure subViews for RecordLayout
   const subViewsConfig = {
@@ -408,35 +406,40 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                   component: AccountSection,
                   props: {
                     ...props,
-                    account: leadData ? {
-                      name: leadData.companyName,
-                      email: leadData.companyEmail,
-                      phone: leadData.companyPhone,
-                      website: leadData.companyWebsite,
-                      legalForm: leadData.legalForm?.value || leadData.legalForm?.code || leadData.legalForm,
-                      industry: leadData.industryClass?.value || leadData.industryClass?.code || leadData.industryClass,
-                      size: leadData.companySize?.value || leadData.companySize?.code || leadData.companySize,
-                      revenue: leadData.annualRevenue?.value || leadData.annualRevenue,
-                      // Add numberOfEmployees for AccountSection compatibility
-                      numberOfEmployees: leadData.companySize,
-                    } : {
-                      name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
-                      email: null,
-                      phone: null,
-                      website: null,
-                      legalForm: null,
-                      industry: null,
-                      size: null,
-                      revenue: null,
-                      numberOfEmployees: null,
-                    },
-                    address: leadData ? {
-                      addressLine: leadData.addressLine,
-                      postalCode: leadData.postalCode,
-                      locality: leadData.locality,
-                      country: typeof leadData.country === 'string' ? leadData.country : leadData.country?.value,
-                      region: typeof leadData.region === 'string' ? leadData.region : leadData.region?.value,
-                    } : undefined,
+                    account: leadData
+                      ? {
+                          name: leadData.companyName,
+                          email: leadData.companyEmail,
+                          phone: leadData.companyPhone,
+                          website: leadData.companyWebsite,
+                          legalForm: leadData.legalForm?.value || leadData.legalForm?.code || leadData.legalForm,
+                          industry:
+                            leadData.industryClass?.value || leadData.industryClass?.code || leadData.industryClass,
+                          size: leadData.companySize?.value || leadData.companySize?.code || leadData.companySize,
+                          revenue: leadData.annualRevenue?.value || leadData.annualRevenue,
+                          // Add numberOfEmployees for AccountSection compatibility
+                          numberOfEmployees: leadData.companySize
+                        }
+                      : {
+                          name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
+                          email: null,
+                          phone: null,
+                          website: null,
+                          legalForm: null,
+                          industry: null,
+                          size: null,
+                          revenue: null,
+                          numberOfEmployees: null
+                        },
+                    address: leadData
+                      ? {
+                          addressLine: leadData.addressLine,
+                          postalCode: leadData.postalCode,
+                          locality: leadData.locality,
+                          country: typeof leadData.country === 'string' ? leadData.country : leadData.country?.value,
+                          region: typeof leadData.region === 'string' ? leadData.region : leadData.region?.value
+                        }
+                      : undefined
                   }
                 }
               ]}
@@ -452,16 +455,18 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                   component: ContactSection,
                   props: {
                     ...props,
-                    contact: leadData ? {
-                      firstName: leadData.firstName,
-                      lastName: leadData.lastName,
-                      email: leadData.email,
-                      phone: leadData.phoneNumber,
-                      jobTitle: leadData.position,
-                      academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
-                      salutation: leadData.salutation?.value || leadData.salutation?.code,
-                      communicationChannels: leadData.communicationChannels
-                    } : undefined,
+                    contact: leadData
+                      ? {
+                          firstName: leadData.firstName,
+                          lastName: leadData.lastName,
+                          email: leadData.email,
+                          phone: leadData.phoneNumber,
+                          jobTitle: leadData.position,
+                          academicTitle: leadData.academicTitle?.value || leadData.academicTitle?.code,
+                          salutation: leadData.salutation?.value || leadData.salutation?.code,
+                          communicationChannels: leadData.communicationChannels
+                        }
+                      : undefined
                   }
                 }
               ]}
@@ -479,7 +484,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                     investmentData: leadData,
                     businessAppContext: businessAppContext,
                     isLoading: loading,
-                    error: error,
+                    error: error
                   }
                 }
               ]}
@@ -502,12 +507,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                     activitySectionActionProps: {
                       contextsArray: [FlowContextName.createInvestmentActivity],
                       externalContextData: { leadId },
-                      prefixDataTestId: "lead-activities",
+                      prefixDataTestId: 'lead-activities'
                     },
                     activityEntityActionProps: {
                       contextsArray: [FlowContextName.investmentActivityEntity],
                       externalContextData: { leadId },
-                      prefixDataTestId: "lead-activity-entity",
+                      prefixDataTestId: 'lead-activity-entity'
                     }
                   }
                 },
@@ -518,23 +523,29 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                     ...props,
                     notes: notes.map(note => ({
                       id: note.id,
-                      noteTitle: note.title || note.displayName || getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
+                      noteTitle:
+                        note.title ||
+                        note.displayName ||
+                        getTranslationFromI18nKeyAndLabel('crm.notes.untitled', 'Untitled Note'),
                       noteText: note.text || '',
                       createdAt: note.createdAt,
-                      createdBy: note.authorDisplayName || note.authorEmployee?.displayName || getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
+                      createdBy:
+                        note.authorDisplayName ||
+                        note.authorEmployee?.displayName ||
+                        getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
                       authorEmployee: note.authorEmployee,
                       reminderAt: note.reminderDate
                     })),
                     noteActionProps: {
                       contextsArray: [FlowContextName.investmentNoteCreate],
                       externalContextData: { leadId },
-                      prefixDataTestId: "lead-notes",
+                      prefixDataTestId: 'lead-notes',
                       emptyStateBehavior: 'enable'
                     },
                     noteEntityActionProps: {
                       contextsArray: [FlowContextName.investmentNoteEntity],
                       externalContextData: { leadId },
-                      prefixDataTestId: "lead-note-entity",
+                      prefixDataTestId: 'lead-note-entity',
                       emptyStateBehavior: 'enable'
                     }
                   }
@@ -556,7 +567,10 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                     buildReferenceUrl,
                     tasks: tasks.map(task => ({
                       id: task.id,
-                      title: task.name || task.displayName || getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
+                      title:
+                        task.name ||
+                        task.displayName ||
+                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
                       description: task.description,
                       createdAt: task.createdAt,
                       due: task.dueDate,
@@ -568,38 +582,54 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                       taskTiming: task.taskTiming,
                       startDate: task.startDate,
                       creatorEmployee: task.creatorEmployee,
-                      reference: task.lead ? {
-                        type: 'lead' as const,
-                        id: task.lead.id,
-                        name: `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() || task.lead.code || 'Lead'
-                      } : task.account ? {
-                        type: 'account' as const,
-                        id: task.account.id,
-                        name: task.account.name || task.account.code || 'Account'
-                      } : task.contact ? {
-                        type: 'contact' as const,
-                        id: task.contact.id,
-                        name: `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() || task.contact.code || 'Contact'
-                      } : task.opportunity ? {
-                        type: 'opportunity' as const,
-                        id: task.opportunity.id,
-                        name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                      } : task.investment ? {
-                        type: 'investment' as const,
-                        id: task.investment.id,
-                        name: task.investment.name || task.investment.code || 'Investment'
-                      } : undefined
+                      reference: task.lead
+                        ? {
+                            type: 'lead' as const,
+                            id: task.lead.id,
+                            name:
+                              `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() ||
+                              task.lead.code ||
+                              'Lead'
+                          }
+                        : task.account
+                          ? {
+                              type: 'account' as const,
+                              id: task.account.id,
+                              name: task.account.name || task.account.code || 'Account'
+                            }
+                          : task.contact
+                            ? {
+                                type: 'contact' as const,
+                                id: task.contact.id,
+                                name:
+                                  `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
+                                  task.contact.code ||
+                                  'Contact'
+                              }
+                            : task.opportunity
+                              ? {
+                                  type: 'opportunity' as const,
+                                  id: task.opportunity.id,
+                                  name: task.opportunity.name || task.opportunity.code || 'Opportunity'
+                                }
+                              : task.investment
+                                ? {
+                                    type: 'investment' as const,
+                                    id: task.investment.id,
+                                    name: task.investment.name || task.investment.code || 'Investment'
+                                  }
+                                : undefined
                     })),
                     taskActionProps: {
                       contextsArray: [FlowContextName.investmentTaskCreate],
                       externalContextData: { leadId },
-                      prefixDataTestId: "lead-tasks",
+                      prefixDataTestId: 'lead-tasks',
                       emptyStateBehavior: 'enable'
                     },
                     taskEntityActionProps: {
                       contextsArray: [FlowContextName.investmentTaskEntity],
                       externalContextData: { leadId },
-                      prefixDataTestId: "lead-task-entity",
+                      prefixDataTestId: 'lead-task-entity',
                       emptyStateBehavior: 'enable'
                     }
                   }
@@ -614,7 +644,10 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                     buildReferenceUrl,
                     tasks: approvals.map(approval => ({
                       id: approval.id,
-                      title: approval.name || approval.displayName || getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
+                      title:
+                        approval.name ||
+                        approval.displayName ||
+                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
                       description: approval.description,
                       createdAt: approval.createdAt,
                       due: approval.dueDate,
@@ -626,43 +659,59 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
                       taskTiming: approval.taskTiming,
                       startDate: approval.startDate,
                       creatorEmployee: approval.creatorEmployee,
-                      reference: approval.lead ? {
-                        type: 'lead' as const,
-                        id: approval.lead.id,
-                        name: `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() || approval.lead.code || 'Lead'
-                      } : approval.account ? {
-                        type: 'account' as const,
-                        id: approval.account.id,
-                        name: approval.account.name || approval.account.code || 'Account'
-                      } : approval.contact ? {
-                        type: 'contact' as const,
-                        id: approval.contact.id,
-                        name: `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() || approval.contact.code || 'Contact'
-                      } : approval.opportunity ? {
-                        type: 'opportunity' as const,
-                        id: approval.opportunity.id,
-                        name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                      } : approval.investment ? {
-                        type: 'investment' as const,
-                        id: approval.investment.id,
-                        name: approval.investment.name || approval.investment.code || 'Investment'
-                      } : undefined
+                      reference: approval.lead
+                        ? {
+                            type: 'lead' as const,
+                            id: approval.lead.id,
+                            name:
+                              `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
+                              approval.lead.code ||
+                              'Lead'
+                          }
+                        : approval.account
+                          ? {
+                              type: 'account' as const,
+                              id: approval.account.id,
+                              name: approval.account.name || approval.account.code || 'Account'
+                            }
+                          : approval.contact
+                            ? {
+                                type: 'contact' as const,
+                                id: approval.contact.id,
+                                name:
+                                  `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
+                                  approval.contact.code ||
+                                  'Contact'
+                              }
+                            : approval.opportunity
+                              ? {
+                                  type: 'opportunity' as const,
+                                  id: approval.opportunity.id,
+                                  name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
+                                }
+                              : approval.investment
+                                ? {
+                                    type: 'investment' as const,
+                                    id: approval.investment.id,
+                                    name: approval.investment.name || approval.investment.code || 'Investment'
+                                  }
+                                : undefined
                     })),
                     taskEntityActionProps: {
                       contextsArray: [FlowContextName.investmentTaskEntity],
                       externalContextData: { leadId },
-                      prefixDataTestId: "lead-approval-entity",
+                      prefixDataTestId: 'lead-approval-entity',
                       emptyStateBehavior: 'enable'
                     },
                     taskActionProps: {
                       contextsArray: [FlowContextName.investmentTaskCreate],
-                      externalContextData: { 
+                      externalContextData: {
                         leadId,
                         lead: leadId,
                         typeRef: 'InvestmentTaskType:v1:APPROVAL',
                         investmentTask: { lead: leadId, type: 'InvestmentTaskType:v1:APPROVAL' }
                       },
-                      prefixDataTestId: "lead-approvals",
+                      prefixDataTestId: 'lead-approvals',
                       emptyStateBehavior: 'enable'
                     }
                   }
@@ -671,7 +720,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
               data-testid="lead-tasks-approvals-section-wrapper"
             />
           </>
-        ),
+        )
       },
       {
         value: 'documents',
@@ -681,10 +730,10 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
           <div className="gba:col-span-12">
             <LeadDocuments leadId={leadId} context={props} />
           </div>
-        ),
-      },
-    ],
-  };
+        )
+      }
+    ]
+  }
 
   return (
     <div data-testid="investment-lead-detail">
@@ -701,54 +750,45 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({
         subViews={subViewsConfig}
       />
     </div>
-  );
-};
-
-interface LeadRecordProps extends BusinessAppContextProps {
-  leadId?: string;
-  source?: string;
-  fromEntity?: string;
-  onBack?: () => void;
+  )
 }
 
-const LeadRecord: React.FC<LeadRecordProps> = (props) => {
-  const leadId =
-    props.leadId || new URLSearchParams(window.location.search).get("leadId");
+interface LeadRecordProps extends BusinessAppContextProps {
+  leadId?: string
+  source?: string
+  fromEntity?: string
+  onBack?: () => void
+}
 
+const LeadRecord: React.FC<LeadRecordProps> = props => {
+  const leadId = props.leadId || new URLSearchParams(window.location.search).get('leadId')
 
   const fromEntity = useMemo(() => {
-    const urlFromEntity = new URLSearchParams(window.location.search).get(
-      "fromEntity"
-    );
-    return props.fromEntity || urlFromEntity;
-  }, [props.fromEntity, window.location.search]);
+    const urlFromEntity = new URLSearchParams(window.location.search).get('fromEntity')
+    return props.fromEntity || urlFromEntity
+  }, [props.fromEntity, window.location.search])
 
   const handleBack = () => {
     if (props.onBack) {
-      props.onBack();
+      props.onBack()
     } else {
       // Always navigate to investment relations
-      navigateTo("/platform/irm/investment-relations?view=leads");
+      navigateTo('/platform/irm/investment-relations?view=leads')
     }
-  };
+  }
 
   if (!leadId) {
     return (
       <div data-testid="investment-lead-record-no-id">
         <p>{getTranslationFromI18nKeyAndLabel('crm.investments.lead.noIdProvided', 'No lead ID provided')}</p>
       </div>
-    );
+    )
   }
-          return (
-            <InvestmentLeadRecordContent
-              {...props}
-              leadId={leadId}
-              onBack={handleBack}
-              fromEntity={fromEntity || undefined}
-            />
-          );
-};
+  return (
+    <InvestmentLeadRecordContent {...props} leadId={leadId} onBack={handleBack} fromEntity={fromEntity || undefined} />
+  )
+}
 
-export { LeadRecord, InvestmentLeadRecordContent };
+export { LeadRecord, InvestmentLeadRecordContent }
 
-export default LeadRecord;
+export default LeadRecord

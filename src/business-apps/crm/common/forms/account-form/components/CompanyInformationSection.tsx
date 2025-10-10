@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -10,18 +10,18 @@ import {
   Textarea,
   Card,
   CardContent,
-  Button,
-} from "@newwork/nw-design-system";
-import { PiCaretDown, PiCaretUp } from "react-icons/pi";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useAccountFormContext } from "../context/AccountFormContext";
+  Button
+} from '@newwork/nw-design-system'
+import { PiCaretDown, PiCaretUp } from 'react-icons/pi'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useAccountFormContext } from '../context/AccountFormContext'
 
-const prefixDataTestId = "AccountForm";
+const prefixDataTestId = 'AccountForm'
 
 const CompanyInformationSection: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(false); // Start collapsed
-  const [isLegalFormOpen, setIsLegalFormOpen] = useState(false);
-  const [isIndustryOpen, setIsIndustryOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false) // Start collapsed
+  const [isLegalFormOpen, setIsLegalFormOpen] = useState(false)
+  const [isIndustryOpen, setIsIndustryOpen] = useState(false)
 
   const {
     formValues,
@@ -47,94 +47,64 @@ const CompanyInformationSection: React.FC = () => {
     industriesDisplayCount,
     industriesTotalFetched,
     loadMoreIndustries,
-    showMoreIndustries,
-  } = useAccountFormContext();
+    showMoreIndustries
+  } = useAccountFormContext()
 
   // Simple effect to load more legal forms when needed
   useEffect(() => {
     if (legalFormsNeedsMoreData && !legalFormsLoading && legalFormsHasMore) {
-      loadMoreLegalForms();
+      loadMoreLegalForms()
     }
-  }, [
-    legalFormsNeedsMoreData,
-    legalFormsLoading,
-    legalFormsHasMore,
-    legalFormsTotalFetched,
-    loadMoreLegalForms,
-  ]);
+  }, [legalFormsNeedsMoreData, legalFormsLoading, legalFormsHasMore, legalFormsTotalFetched, loadMoreLegalForms])
 
   // Simple effect to load more industries when needed
   useEffect(() => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
-      loadMoreIndustries();
+      loadMoreIndustries()
     }
-  }, [
-    industriesNeedsMoreData,
-    industriesLoading,
-    industriesHasMore,
-    industriesTotalFetched,
-    loadMoreIndustries,
-  ]);
+  }, [industriesNeedsMoreData, industriesLoading, industriesHasMore, industriesTotalFetched, loadMoreIndustries])
 
   // When Legal Form dropdown opens, show more if we have them cached
   useEffect(() => {
-    if (
-      isLegalFormOpen &&
-      legalFormsDisplayCount < legalFormsTotalFetched &&
-      legalFormsTotalFetched > 5
-    ) {
-      showMoreLegalForms();
+    if (isLegalFormOpen && legalFormsDisplayCount < legalFormsTotalFetched && legalFormsTotalFetched > 5) {
+      showMoreLegalForms()
     }
-  }, [
-    isLegalFormOpen,
-    legalFormsDisplayCount,
-    legalFormsTotalFetched,
-    showMoreLegalForms,
-  ]);
+  }, [isLegalFormOpen, legalFormsDisplayCount, legalFormsTotalFetched, showMoreLegalForms])
 
   // When Industry dropdown opens, show more if we have them cached
   useEffect(() => {
-    if (
-      isIndustryOpen &&
-      industriesDisplayCount < industriesTotalFetched &&
-      industriesTotalFetched > 5
-    ) {
-      showMoreIndustries();
+    if (isIndustryOpen && industriesDisplayCount < industriesTotalFetched && industriesTotalFetched > 5) {
+      showMoreIndustries()
     }
-  }, [
-    isIndustryOpen,
-    industriesDisplayCount,
-    industriesTotalFetched,
-    showMoreIndustries,
-  ]);
+  }, [isIndustryOpen, industriesDisplayCount, industriesTotalFetched, showMoreIndustries])
 
   const handleLoadMoreLegalForms = () => {
     if (legalFormsNeedsMoreData && !legalFormsLoading && legalFormsHasMore) {
-      loadMoreLegalForms();
+      loadMoreLegalForms()
     } else if (legalFormsDisplayCount < legalFormsTotalFetched) {
-      showMoreLegalForms();
+      showMoreLegalForms()
     }
-  };
+  }
 
   const handleLoadMoreIndustries = () => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
-      loadMoreIndustries();
+      loadMoreIndustries()
     } else if (industriesDisplayCount < industriesTotalFetched) {
-      showMoreIndustries();
+      showMoreIndustries()
     }
-  };
+  }
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent gba:p-0"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <Button
@@ -142,33 +112,29 @@ const CompanyInformationSection: React.FC = () => {
         onClick={() => setIsExpanded(!isExpanded)}
         className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
         style={{
-          background: "linear-gradient(to right, #ddd6fe, #c4b5fd)",
-          transition: "all 0.3s ease",
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          outline: "none",
-          outlineWidth: "0",
-          outlineStyle: "none",
-          boxShadow: "none",
-          borderRadius: "12px",
+          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
+          transition: 'all 0.3s ease',
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          outline: 'none',
+          outlineWidth: '0',
+          outlineStyle: 'none',
+          boxShadow: 'none',
+          borderRadius: '12px'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background =
-            "linear-gradient(to right, #c4b5fd, #a78bfa)";
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #c4b5fd, #a78bfa)'
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background =
-            "linear-gradient(to right, #ddd6fe, #c4b5fd)";
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #ddd6fe, #c4b5fd)'
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "CompanyInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, 'CompanyInfoToggle')}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-purple-500 gba:rounded-full"></div>
-          <span className="gba:font-medium gba:text-gray-900">
-            Company Information
-          </span>
+          <span className="gba:font-medium gba:text-gray-900">Company Information</span>
         </div>
         <div className="gba:flex gba:items-center">
           {isExpanded ? (
@@ -183,41 +149,33 @@ const CompanyInformationSection: React.FC = () => {
         <CardContent
           className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
           style={{
-            border: "0",
-            borderWidth: "0",
-            borderStyle: "none",
-            borderColor: "transparent",
-            padding: "16px",
-            marginTop: "0",
+            border: '0',
+            borderWidth: '0',
+            borderStyle: 'none',
+            borderColor: 'transparent',
+            padding: '16px',
+            marginTop: '0'
           }}
         >
           {/* Legal Form and Industry - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Legal Form
-              </Label>
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Legal Form</Label>
               <Select
                 value={formValues.legalForm}
-                onValueChange={(value) => setFormValues({ legalForm: value })}
+                onValueChange={value => setFormValues({ legalForm: value })}
                 onOpenChange={setIsLegalFormOpen}
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "LegalFormSelect"
-                )}
+                data-testid={formatDataTestId(prefixDataTestId, 'LegalFormSelect')}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
                   className="gba:max-h-[200px] gba:overflow-y-auto"
-                  style={{ maxHeight: "200px", overflowY: "auto" }}
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
                 >
                   {legalForms.map((option, index) => (
-                    <SelectItem
-                      key={`${option.id}-${index}`}
-                      value={option.value}
-                    >
+                    <SelectItem key={`${option.id}-${index}`} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -236,8 +194,7 @@ const CompanyInformationSection: React.FC = () => {
                         onClick={handleLoadMoreLegalForms}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
                       >
-                        📥 Load More Legal Forms ({legalFormsDisplayCount}/
-                        {legalFormsTotalFetched} shown)
+                        📥 Load More Legal Forms ({legalFormsDisplayCount}/{legalFormsTotalFetched} shown)
                       </button>
                     </div>
                   )}
@@ -246,30 +203,22 @@ const CompanyInformationSection: React.FC = () => {
             </div>
 
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Industry
-              </Label>
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Industry</Label>
               <Select
                 value={formValues.industry}
-                onValueChange={(value) => setFormValues({ industry: value })}
+                onValueChange={value => setFormValues({ industry: value })}
                 onOpenChange={setIsIndustryOpen}
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "IndustrySelect"
-                )}
+                data-testid={formatDataTestId(prefixDataTestId, 'IndustrySelect')}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
                   className="gba:max-h-[200px] gba:overflow-y-auto"
-                  style={{ maxHeight: "200px", overflowY: "auto" }}
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
                 >
                   {industries.map((option, index) => (
-                    <SelectItem
-                      key={`${option.id}-${index}`}
-                      value={option.value}
-                    >
+                    <SelectItem key={`${option.id}-${index}`} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -288,8 +237,7 @@ const CompanyInformationSection: React.FC = () => {
                         onClick={handleLoadMoreIndustries}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
                       >
-                        📥 Load More Industries ({industriesDisplayCount}/
-                        {industriesTotalFetched} shown)
+                        📥 Load More Industries ({industriesDisplayCount}/{industriesTotalFetched} shown)
                       </button>
                     </div>
                   )}
@@ -300,41 +248,34 @@ const CompanyInformationSection: React.FC = () => {
 
           {/* Website */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Website
-            </Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Website</Label>
             <Input
               name="website"
               value={formValues.website}
-              onChange={(e) => setFormValues({ website: e.target.value })}
+              onChange={e => setFormValues({ website: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "WebsiteInput")}
+              data-testid={formatDataTestId(prefixDataTestId, 'WebsiteInput')}
             />
           </div>
 
           {/* Description */}
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Description
-            </Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Description</Label>
             <Textarea
               name="description"
               value={formValues.description}
-              onChange={(e) => setFormValues({ description: e.target.value })}
+              onChange={e => setFormValues({ description: e.target.value })}
               placeholder="Please Enter..."
               rows={4}
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "DescriptionTextarea"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'DescriptionTextarea')}
             />
           </div>
         </CardContent>
       )}
     </Card>
-  );
-};
+  )
+}
 
-export default CompanyInformationSection;
+export default CompanyInformationSection

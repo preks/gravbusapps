@@ -1,4 +1,4 @@
-import { CardTabHeaderComponent } from "./CardTabHeaderComponent";
+import { CardTabHeaderComponent } from './CardTabHeaderComponent'
 
-export { CardTabHeaderComponent };
-export default CardTabHeaderComponent;
+export { CardTabHeaderComponent }
+export default CardTabHeaderComponent

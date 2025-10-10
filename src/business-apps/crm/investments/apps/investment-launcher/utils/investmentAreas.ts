@@ -1,13 +1,5 @@
-import { InvestmentArea, InvestmentQuickAction } from '../types';
-import { 
-  UserPlus, 
-  Target, 
-  Building,
-  AddressBook,
-  FileText,
-  ChartBar,
-  Wallet
-} from '@phosphor-icons/react';
+import { InvestmentArea, InvestmentQuickAction } from '../types'
+import { UserPlus, Target, Building, AddressBook, FileText, ChartBar, Wallet } from '@phosphor-icons/react'
 
 export const investmentAreas: InvestmentArea[] = [
   // CRM Areas (identical to CRM functionality)
@@ -43,7 +35,7 @@ export const investmentAreas: InvestmentArea[] = [
     category: 'crm',
     path: '/crm/contacts'
   },
-  
+
   // Investment Areas
   {
     id: 'investments',
@@ -53,7 +45,7 @@ export const investmentAreas: InvestmentArea[] = [
     category: 'portfolio',
     path: '/investments'
   },
-  
+
   // Analytics & Reporting
   {
     id: 'analytics-reporting',
@@ -63,7 +55,7 @@ export const investmentAreas: InvestmentArea[] = [
     category: 'analytics',
     path: '/investments/analytics'
   }
-];
+]
 
 export const investmentQuickActions: InvestmentQuickAction[] = [
   {
@@ -102,20 +94,23 @@ export const investmentQuickActions: InvestmentQuickAction[] = [
     icon: FileText,
     action: 'generate-report'
   }
-];
+]
 
 export const categoryLabels = {
   crm: 'Customer Relationship Management',
   portfolio: 'Investment Portfolio',
   analytics: 'Analytics & Reporting'
-};
+}
 
 export const getInvestmentAreasByCategory = () => {
-  return investmentAreas.reduce((acc, area) => {
-    if (!acc[area.category]) {
-      acc[area.category] = [];
-    }
-    acc[area.category].push(area);
-    return acc;
-  }, {} as Record<string, InvestmentArea[]>);
-}; 
+  return investmentAreas.reduce(
+    (acc, area) => {
+      if (!acc[area.category]) {
+        acc[area.category] = []
+      }
+      acc[area.category].push(area)
+      return acc
+    },
+    {} as Record<string, InvestmentArea[]>
+  )
+}

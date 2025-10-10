@@ -1,17 +1,17 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { DataContainer } from '@/components/layout/dataContainer';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { AbsenceTable } from '../../AbsenceTable';
-import { EnhancedAbsence } from '../../../types';
-import { useAbsenceFilters } from '../../../hooks/useAbsenceFilters';
-import { useAbsenceListDataSimple } from '../../../hooks/useAbsenceListDataSimple';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { DataContainer } from '@/components/layout/dataContainer'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AbsenceTable } from '../../AbsenceTable'
+import { EnhancedAbsence } from '../../../types'
+import { useAbsenceFilters } from '../../../hooks/useAbsenceFilters'
+import { useAbsenceListDataSimple } from '../../../hooks/useAbsenceListDataSimple'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AbsenceListModernProps extends BusinessAppContextProps {}
 
-export const AbsenceListModern: React.FC<AbsenceListModernProps> = (props) => {
-  const { accessToken, userInfo } = props;
-  const supervisorId = userInfo?.employeeDetails?.employeeId;
+export const AbsenceListModern: React.FC<AbsenceListModernProps> = props => {
+  const { accessToken, userInfo } = props
+  const supervisorId = userInfo?.employeeDetails?.employeeId
 
   const {
     search,
@@ -24,99 +24,98 @@ export const AbsenceListModern: React.FC<AbsenceListModernProps> = (props) => {
     resetFilters,
     getFilters,
     startDate,
-    endDate,
-  } = useAbsenceFilters(props);
+    endDate
+  } = useAbsenceFilters(props)
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState('');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
-  const [selectedAbsence, setSelectedAbsence] = useState<EnhancedAbsence | null>(null);
-  const initialLoadDone = useRef(false);
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [sortField, setSortField] = useState('')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+  const [selectedAbsence, setSelectedAbsence] = useState<EnhancedAbsence | null>(null)
+  const initialLoadDone = useRef(false)
 
-  const { absences, total, loading, error, hasMore, loadMore, loadPage, retry } =
-    useAbsenceListDataSimple({
-      ...getFilters(),
-      sortField,
-      sortOrder,
-      accessToken,
-      orgUnitId: supervisorId,
-    });
+  const { absences, total, loading, error, hasMore, loadMore, loadPage, retry } = useAbsenceListDataSimple({
+    ...getFilters(),
+    sortField,
+    sortOrder,
+    accessToken,
+    orgUnitId: supervisorId
+  })
 
   useEffect(() => {
     if (!initialLoadDone.current && accessToken && supervisorId) {
-      initialLoadDone.current = true;
-      loadPage(currentPage, pageSize);
+      initialLoadDone.current = true
+      loadPage(currentPage, pageSize)
     }
-  }, [accessToken, supervisorId, currentPage, pageSize]);
+  }, [accessToken, supervisorId, currentPage, pageSize])
 
   useEffect(() => {
     if (initialLoadDone.current) {
-      setCurrentPage(1);
-      loadPage(1, pageSize);
+      setCurrentPage(1)
+      loadPage(1, pageSize)
     }
-  }, [search, pageSize]);
+  }, [search, pageSize])
 
   useEffect(() => {
     if (initialLoadDone.current) {
-      setCurrentPage(1);
-      loadPage(1, pageSize);
+      setCurrentPage(1)
+      loadPage(1, pageSize)
     }
-  }, [JSON.stringify(selectedFilters), startDate, endDate, pageSize, sortField, sortOrder]);
+  }, [JSON.stringify(selectedFilters), startDate, endDate, pageSize, sortField, sortOrder])
 
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId);
-      setCurrentPage(1);
+      selected ? addFilter(filterId) : removeFilter(filterId)
+      setCurrentPage(1)
     },
-    [addFilter, removeFilter],
-  );
+    [addFilter, removeFilter]
+  )
 
   const handleSearchChange = useCallback(
     (value: string) => {
-      setSearch(value);
-      setCurrentPage(1);
+      setSearch(value)
+      setCurrentPage(1)
     },
-    [setSearch],
-  );
+    [setSearch]
+  )
 
   const handleSetFilter = useCallback(
     (filters: string[]) => {
       if (filters.length === 0) {
-        resetFilters();
+        resetFilters()
       } else {
-        const removedFilters = selectedFilters.filter((f) => !filters.includes(f));
-        removedFilters.forEach((filterId) => removeFilter(filterId));
+        const removedFilters = selectedFilters.filter(f => !filters.includes(f))
+        removedFilters.forEach(filterId => removeFilter(filterId))
       }
     },
-    [resetFilters, selectedFilters, removeFilter],
-  );
+    [resetFilters, selectedFilters, removeFilter]
+  )
 
   const handleSelectAbsence = useCallback((absence: EnhancedAbsence) => {
-    setSelectedAbsence(absence);
-  }, []);
+    setSelectedAbsence(absence)
+  }, [])
 
   const handlePaginationChange = useCallback(
     (page: number, newPageSize?: number) => {
-      const targetPageSize = newPageSize || pageSize;
-      setCurrentPage(page);
-      setPageSize(targetPageSize);
-      loadPage(page, targetPageSize);
+      const targetPageSize = newPageSize || pageSize
+      setCurrentPage(page)
+      setPageSize(targetPageSize)
+      loadPage(page, targetPageSize)
     },
-    [pageSize, loadPage],
-  );
+    [pageSize, loadPage]
+  )
 
   const handleSortingChange = useCallback((field: string, order: '' | 'ASC' | 'DESC') => {
     if (order === '') {
-      setSortField('');
-      setSortOrder('DESC');
-      setCurrentPage(1);
+      setSortField('')
+      setSortOrder('DESC')
+      setCurrentPage(1)
     } else {
-      setSortField(field);
-      setSortOrder(order);
-      setCurrentPage(1);
+      setSortField(field)
+      setSortOrder(order)
+      setCurrentPage(1)
     }
-  }, []);
+  }, [])
 
   return (
     <div data-testid="absence-list-modern-content">
@@ -134,17 +133,17 @@ export const AbsenceListModern: React.FC<AbsenceListModernProps> = (props) => {
                 <span>
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:absence_management_hub_manager.absence_list_screen.title',
-                    'Absences',
+                    'Absences'
                   )}
                 </span>
                 <span className="gba:text-gray-500">({total})</span>
               </div>
             </div>
-          ),
+          )
         }}
         dataFilterProps={{
           filterGroups,
-          onFilterChange: handleFilterChange,
+          onFilterChange: handleFilterChange
         }}
         dataBody={
           <div data-testid="absence-table-container">
@@ -171,5 +170,5 @@ export const AbsenceListModern: React.FC<AbsenceListModernProps> = (props) => {
         }
       />
     </div>
-  );
-};
+  )
+}

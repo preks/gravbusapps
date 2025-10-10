@@ -1,31 +1,31 @@
-import React from 'react';
-import { EquityTimelineCharts } from './EquityTimelineCharts';
-import { EquityAnalyticsCharts } from './EquityAnalyticsCharts';
-import { EquityDistributionCharts } from './EquityDistributionCharts';
+import React from 'react'
+import { EquityTimelineCharts } from './EquityTimelineCharts'
+import { EquityAnalyticsCharts } from './EquityAnalyticsCharts'
+import { EquityDistributionCharts } from './EquityDistributionCharts'
 
 interface ChartData {
   // Original data
-  roleData: any[];
-  valuationEbitdaData: any[];
-  ebitdaMarginData: any[];
-  statusData: any[];
-  phaseData: any[];
-  riskLevelData: any[];
-  currencyData: any[];
-  roiData: any[];
+  roleData: any[]
+  valuationEbitdaData: any[]
+  ebitdaMarginData: any[]
+  statusData: any[]
+  phaseData: any[]
+  riskLevelData: any[]
+  currencyData: any[]
+  roiData: any[]
   // Enhanced analytics data
-  equityTimelineData: any[];
-  stakeVsValuationData: any[];
-  ebitdaValuationAnalysisData: any[];
-  rolePerformanceData: any[];
-  concentrationByRoleData: any[];
-  equityActivePeriodData: any[];
-  topCompaniesByValuationData: any[];
-  valuationDistributionData: any[];
+  equityTimelineData: any[]
+  stakeVsValuationData: any[]
+  ebitdaValuationAnalysisData: any[]
+  rolePerformanceData: any[]
+  concentrationByRoleData: any[]
+  equityActivePeriodData: any[]
+  topCompaniesByValuationData: any[]
+  valuationDistributionData: any[]
 }
 
 interface EquityChartsProps {
-  chartData: ChartData;
+  chartData: ChartData
 }
 
 export const EquityCharts: React.FC<EquityChartsProps> = ({ chartData }) => {
@@ -47,8 +47,7 @@ export const EquityCharts: React.FC<EquityChartsProps> = ({ chartData }) => {
     concentrationByRoleData,
     topCompaniesByValuationData,
     valuationDistributionData
-  } = chartData;
-
+  } = chartData
 
   return (
     <>
@@ -79,5 +78,5 @@ export const EquityCharts: React.FC<EquityChartsProps> = ({ chartData }) => {
         topCompaniesByValuationData={topCompaniesByValuationData}
       />
     </>
-  );
-}; 
+  )
+}

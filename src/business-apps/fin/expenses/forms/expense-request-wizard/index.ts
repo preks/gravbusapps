@@ -1,4 +1,4 @@
-import ExpenseRequestWizard from './ExpenseRequestWizard';
+import ExpenseRequestWizard from './ExpenseRequestWizard'
 
-export { ExpenseRequestWizard };
-export default ExpenseRequestWizard;
+export { ExpenseRequestWizard }
+export default ExpenseRequestWizard

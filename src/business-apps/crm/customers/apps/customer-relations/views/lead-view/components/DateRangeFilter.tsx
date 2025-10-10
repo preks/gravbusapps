@@ -1,47 +1,47 @@
-import React, { useCallback } from 'react';
-import { DatePicker, Space } from 'antd';
-import dayjs, { Dayjs } from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+import React, { useCallback } from 'react'
+import { DatePicker, Space } from 'antd'
+import dayjs, { Dayjs } from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
-const { RangePicker } = DatePicker;
+const { RangePicker } = DatePicker
 
 interface DateRangeFilterProps {
-  createdAfter?: string;
-  createdBefore?: string;
-  onDateRangeChange: (createdAfter?: string, createdBefore?: string) => void;
-  className?: string;
+  createdAfter?: string
+  createdBefore?: string
+  onDateRangeChange: (createdAfter?: string, createdBefore?: string) => void
+  className?: string
 }
 
 export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
   createdAfter,
   createdBefore,
   onDateRangeChange,
-  className = '',
+  className = ''
 }) => {
   // Convert string dates to dayjs objects for the DatePicker
   const dateRange: [Dayjs | null, Dayjs | null] = [
     createdAfter ? dayjs(createdAfter) : null,
-    createdBefore ? dayjs(createdBefore) : null,
-  ];
+    createdBefore ? dayjs(createdBefore) : null
+  ]
 
   const handleDateRangeChange = useCallback(
     (dates: [Dayjs | null, Dayjs | null] | null) => {
       if (!dates) {
         // Clear the date range
-        onDateRangeChange(undefined, undefined);
+        onDateRangeChange(undefined, undefined)
       } else {
         // Convert to ISO strings for the API, allowing partial ranges
-        const startDate = dates[0] ? dates[0].startOf('day').toISOString() : undefined;
-        const endDate = dates[1] ? dates[1].endOf('day').toISOString() : undefined;
-        onDateRangeChange(startDate, endDate);
+        const startDate = dates[0] ? dates[0].startOf('day').toISOString() : undefined
+        const endDate = dates[1] ? dates[1].endOf('day').toISOString() : undefined
+        onDateRangeChange(startDate, endDate)
       }
     },
-    [onDateRangeChange],
-  );
+    [onDateRangeChange]
+  )
 
   return (
     <div
@@ -59,5 +59,5 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
         data-testid="lead-date-range-filter"
       />
     </div>
-  );
-};
+  )
+}

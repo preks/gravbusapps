@@ -1,2 +1,2 @@
-export { DocumentUploadForm } from './DocumentUploadForm';
-export { DocumentUploadForm as default } from './DocumentUploadForm'; 
+export { DocumentUploadForm } from './DocumentUploadForm'
+export { DocumentUploadForm as default } from './DocumentUploadForm'

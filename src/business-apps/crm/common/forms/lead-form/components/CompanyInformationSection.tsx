@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -9,32 +9,22 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Button,
-} from "@newwork/nw-design-system";
-import {
-  PiPhone,
-  PiEnvelopeSimple,
-  PiCaretDown,
-  PiCaretUp,
-} from "react-icons/pi";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useLeadFormContext } from "../context/LeadFormContext";
-import {
-  validateEmail,
-  validatePhone,
-  toStringOrUndefined,
-} from "../utils/validationUtils";
+  Button
+} from '@newwork/nw-design-system'
+import { PiPhone, PiEnvelopeSimple, PiCaretDown, PiCaretUp } from 'react-icons/pi'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useLeadFormContext } from '../context/LeadFormContext'
+import { validateEmail, validatePhone, toStringOrUndefined } from '../utils/validationUtils'
 
-const prefixDataTestId = "LeadForm";
+const prefixDataTestId = 'LeadForm'
 
 const CompanyInformationSection: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isAdditionalInfoExpanded, setIsAdditionalInfoExpanded] =
-    useState(false);
-  const [isLegalFormOpen, setIsLegalFormOpen] = useState(false);
-  const [isIndustryOpen, setIsIndustryOpen] = useState(false);
-  const [isEmployeeSizeOpen, setIsEmployeeSizeOpen] = useState(false);
-  const [isRevenueSizeOpen, setIsRevenueSizeOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [isAdditionalInfoExpanded, setIsAdditionalInfoExpanded] = useState(false)
+  const [isLegalFormOpen, setIsLegalFormOpen] = useState(false)
+  const [isIndustryOpen, setIsIndustryOpen] = useState(false)
+  const [isEmployeeSizeOpen, setIsEmployeeSizeOpen] = useState(false)
+  const [isRevenueSizeOpen, setIsRevenueSizeOpen] = useState(false)
 
   const {
     formValues,
@@ -87,233 +77,157 @@ const CompanyInformationSection: React.FC = () => {
     revenueSizesTotalFetched,
     searchRevenueSizes,
     loadMoreRevenueSizes,
-    showMoreRevenueSizes,
-  } = useLeadFormContext();
+    showMoreRevenueSizes
+  } = useLeadFormContext()
 
   // Simple effect to load more legal forms when needed
   useEffect(() => {
     if (legalFormsNeedsMoreData && !legalFormsLoading && legalFormsHasMore) {
-      loadMoreLegalForms();
+      loadMoreLegalForms()
     }
-  }, [
-    legalFormsNeedsMoreData,
-    legalFormsLoading,
-    legalFormsHasMore,
-    legalFormsTotalFetched,
-    loadMoreLegalForms,
-  ]);
+  }, [legalFormsNeedsMoreData, legalFormsLoading, legalFormsHasMore, legalFormsTotalFetched, loadMoreLegalForms])
 
   // Simple effect to load more industries when needed
   useEffect(() => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
       console.log(
         `🚀 Auto-loading more industries from API (${industriesTotalFetched} fetched so far, loading 100 more)`
-      );
-      loadMoreIndustries();
+      )
+      loadMoreIndustries()
     }
-  }, [
-    industriesNeedsMoreData,
-    industriesLoading,
-    industriesHasMore,
-    industriesTotalFetched,
-    loadMoreIndustries,
-  ]);
+  }, [industriesNeedsMoreData, industriesLoading, industriesHasMore, industriesTotalFetched, loadMoreIndustries])
 
   // When Legal Form dropdown opens, show more if we have them cached
   useEffect(() => {
-    if (
-      isLegalFormOpen &&
-      legalFormsDisplayCount < legalFormsTotalFetched &&
-      legalFormsTotalFetched > 5
-    ) {
-      showMoreLegalForms();
+    if (isLegalFormOpen && legalFormsDisplayCount < legalFormsTotalFetched && legalFormsTotalFetched > 5) {
+      showMoreLegalForms()
     }
-  }, [
-    isLegalFormOpen,
-    legalFormsDisplayCount,
-    legalFormsTotalFetched,
-    showMoreLegalForms,
-  ]);
+  }, [isLegalFormOpen, legalFormsDisplayCount, legalFormsTotalFetched, showMoreLegalForms])
 
   // When Industry dropdown opens, show more if we have them cached
   useEffect(() => {
-    if (
-      isIndustryOpen &&
-      industriesDisplayCount < industriesTotalFetched &&
-      industriesTotalFetched > 5
-    ) {
+    if (isIndustryOpen && industriesDisplayCount < industriesTotalFetched && industriesTotalFetched > 5) {
       console.log(
         `🚀 Industry dropdown opened - showing more from cache (${industriesDisplayCount}/${industriesTotalFetched})`
-      );
-      showMoreIndustries();
+      )
+      showMoreIndustries()
     }
-  }, [
-    isIndustryOpen,
-    industriesDisplayCount,
-    industriesTotalFetched,
-    showMoreIndustries,
-  ]);
+  }, [isIndustryOpen, industriesDisplayCount, industriesTotalFetched, showMoreIndustries])
 
   // Employee Sizes auto-loading effects
   useEffect(() => {
-    if (
-      employeeSizesNeedsMoreData &&
-      !employeeSizesLoading &&
-      employeeSizesHasMore
-    ) {
+    if (employeeSizesNeedsMoreData && !employeeSizesLoading && employeeSizesHasMore) {
       console.log(
         `🚀 Auto-loading more employee sizes from API (${employeeSizesTotalFetched} fetched so far, loading 100 more)`
-      );
-      loadMoreEmployeeSizes();
+      )
+      loadMoreEmployeeSizes()
     }
   }, [
     employeeSizesNeedsMoreData,
     employeeSizesLoading,
     employeeSizesHasMore,
     employeeSizesTotalFetched,
-    loadMoreEmployeeSizes,
-  ]);
+    loadMoreEmployeeSizes
+  ])
 
   useEffect(() => {
-    if (
-      isEmployeeSizeOpen &&
-      employeeSizesDisplayCount < employeeSizesTotalFetched &&
-      employeeSizesTotalFetched > 5
-    ) {
+    if (isEmployeeSizeOpen && employeeSizesDisplayCount < employeeSizesTotalFetched && employeeSizesTotalFetched > 5) {
       console.log(
         `🚀 Employee size dropdown opened - showing more from cache (${employeeSizesDisplayCount}/${employeeSizesTotalFetched})`
-      );
-      showMoreEmployeeSizes();
+      )
+      showMoreEmployeeSizes()
     }
-  }, [
-    isEmployeeSizeOpen,
-    employeeSizesDisplayCount,
-    employeeSizesTotalFetched,
-    showMoreEmployeeSizes,
-  ]);
+  }, [isEmployeeSizeOpen, employeeSizesDisplayCount, employeeSizesTotalFetched, showMoreEmployeeSizes])
 
   // Revenue Sizes auto-loading effects
   useEffect(() => {
-    if (
-      revenueSizesNeedsMoreData &&
-      !revenueSizesLoading &&
-      revenueSizesHasMore
-    ) {
+    if (revenueSizesNeedsMoreData && !revenueSizesLoading && revenueSizesHasMore) {
       console.log(
         `🚀 Auto-loading more revenue sizes from API (${revenueSizesTotalFetched} fetched so far, loading 100 more)`
-      );
-      loadMoreRevenueSizes();
+      )
+      loadMoreRevenueSizes()
     }
   }, [
     revenueSizesNeedsMoreData,
     revenueSizesLoading,
     revenueSizesHasMore,
     revenueSizesTotalFetched,
-    loadMoreRevenueSizes,
-  ]);
+    loadMoreRevenueSizes
+  ])
 
   useEffect(() => {
-    if (
-      isRevenueSizeOpen &&
-      revenueSizesDisplayCount < revenueSizesTotalFetched &&
-      revenueSizesTotalFetched > 5
-    ) {
+    if (isRevenueSizeOpen && revenueSizesDisplayCount < revenueSizesTotalFetched && revenueSizesTotalFetched > 5) {
       console.log(
         `🚀 Revenue size dropdown opened - showing more from cache (${revenueSizesDisplayCount}/${revenueSizesTotalFetched})`
-      );
-      showMoreRevenueSizes();
+      )
+      showMoreRevenueSizes()
     }
-  }, [
-    isRevenueSizeOpen,
-    revenueSizesDisplayCount,
-    revenueSizesTotalFetched,
-    showMoreRevenueSizes,
-  ]);
+  }, [isRevenueSizeOpen, revenueSizesDisplayCount, revenueSizesTotalFetched, showMoreRevenueSizes])
 
   const handleLoadMoreLegalForms = () => {
     if (legalFormsNeedsMoreData && !legalFormsLoading && legalFormsHasMore) {
-      console.log(
-        `🚀 Manual load more - fetching next 100 legal forms from API`
-      );
-      loadMoreLegalForms();
+      console.log(`🚀 Manual load more - fetching next 100 legal forms from API`)
+      loadMoreLegalForms()
     } else if (legalFormsDisplayCount < legalFormsTotalFetched) {
       console.log(
         `🚀 Manual load more - showing more legal forms from cache (${legalFormsDisplayCount}/${legalFormsTotalFetched})`
-      );
-      showMoreLegalForms();
+      )
+      showMoreLegalForms()
     }
-  };
+  }
 
   const handleLoadMoreIndustries = () => {
     if (industriesNeedsMoreData && !industriesLoading && industriesHasMore) {
-      console.log(
-        `🚀 Manual load more - fetching next 100 industries from API`
-      );
-      loadMoreIndustries();
+      console.log(`🚀 Manual load more - fetching next 100 industries from API`)
+      loadMoreIndustries()
     } else if (industriesDisplayCount < industriesTotalFetched) {
       console.log(
         `🚀 Manual load more - showing more industries from cache (${industriesDisplayCount}/${industriesTotalFetched})`
-      );
-      showMoreIndustries();
+      )
+      showMoreIndustries()
     }
-  };
+  }
 
   const handleLoadMoreEmployeeSizes = () => {
-    if (
-      employeeSizesNeedsMoreData &&
-      !employeeSizesLoading &&
-      employeeSizesHasMore
-    ) {
-      console.log(
-        `🚀 Manual load more - fetching next 100 employee sizes from API`
-      );
-      loadMoreEmployeeSizes();
+    if (employeeSizesNeedsMoreData && !employeeSizesLoading && employeeSizesHasMore) {
+      console.log(`🚀 Manual load more - fetching next 100 employee sizes from API`)
+      loadMoreEmployeeSizes()
     } else if (employeeSizesDisplayCount < employeeSizesTotalFetched) {
       console.log(
         `🚀 Manual load more - showing more employee sizes from cache (${employeeSizesDisplayCount}/${employeeSizesTotalFetched})`
-      );
-      showMoreEmployeeSizes();
+      )
+      showMoreEmployeeSizes()
     }
-  };
+  }
 
   const handleLoadMoreRevenueSizes = () => {
-    if (
-      revenueSizesNeedsMoreData &&
-      !revenueSizesLoading &&
-      revenueSizesHasMore
-    ) {
-      console.log(
-        `🚀 Manual load more - fetching next 100 revenue sizes from API`
-      );
-      loadMoreRevenueSizes();
+    if (revenueSizesNeedsMoreData && !revenueSizesLoading && revenueSizesHasMore) {
+      console.log(`🚀 Manual load more - fetching next 100 revenue sizes from API`)
+      loadMoreRevenueSizes()
     } else if (revenueSizesDisplayCount < revenueSizesTotalFetched) {
       console.log(
         `🚀 Manual load more - showing more revenue sizes from cache (${revenueSizesDisplayCount}/${revenueSizesTotalFetched})`
-      );
-      showMoreRevenueSizes();
+      )
+      showMoreRevenueSizes()
     }
-  };
+  }
 
   const companyEmailError =
-    formValues.companyEmail && !validateEmail(formValues.companyEmail)
-      ? "Please enter a valid email address"
-      : "";
+    formValues.companyEmail && !validateEmail(formValues.companyEmail) ? 'Please enter a valid email address' : ''
   const companyPhoneError =
-    formValues.companyPhone && !validatePhone(formValues.companyPhone)
-      ? "Please enter a valid phone number"
-      : "";
+    formValues.companyPhone && !validatePhone(formValues.companyPhone) ? 'Please enter a valid phone number' : ''
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent gba:p-0"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <Button
@@ -321,33 +235,29 @@ const CompanyInformationSection: React.FC = () => {
         onClick={() => setIsExpanded(!isExpanded)}
         className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
         style={{
-          background: "linear-gradient(to right, #ddd6fe, #c4b5fd)",
-          transition: "all 0.3s ease",
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          outline: "none",
-          outlineWidth: "0",
-          outlineStyle: "none",
-          boxShadow: "none",
-          borderRadius: "12px",
+          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
+          transition: 'all 0.3s ease',
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          outline: 'none',
+          outlineWidth: '0',
+          outlineStyle: 'none',
+          boxShadow: 'none',
+          borderRadius: '12px'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background =
-            "linear-gradient(to right, #c4b5fd, #a78bfa)";
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #c4b5fd, #a78bfa)'
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background =
-            "linear-gradient(to right, #ddd6fe, #c4b5fd)";
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #ddd6fe, #c4b5fd)'
         }}
-        data-testid={formatDataTestId(prefixDataTestId, "CompanyInfoToggle")}
+        data-testid={formatDataTestId(prefixDataTestId, 'CompanyInfoToggle')}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
           <div className="gba:w-2 gba:h-2 gba:bg-purple-500 gba:rounded-full"></div>
-          <span className="gba:font-medium gba:text-gray-900">
-            Company Information
-          </span>
+          <span className="gba:font-medium gba:text-gray-900">Company Information</span>
         </div>
         <div className="gba:flex gba:items-center">
           {isExpanded ? (
@@ -362,42 +272,34 @@ const CompanyInformationSection: React.FC = () => {
         <CardContent
           className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
           style={{
-            border: "0",
-            borderWidth: "0",
-            borderStyle: "none",
-            borderColor: "transparent",
-            padding: "16px",
-            marginTop: "0",
+            border: '0',
+            borderWidth: '0',
+            borderStyle: 'none',
+            borderColor: 'transparent',
+            padding: '16px',
+            marginTop: '0'
           }}
         >
           {/* Legal Form and Industry - Side by side */}
           <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
             {/* Legal Form dropdown like Country */}
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Legal Form
-              </Label>
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Legal Form</Label>
               <Select
                 value={formValues.legalForm}
-                onValueChange={(value) => setFormValues({ legalForm: value })}
+                onValueChange={value => setFormValues({ legalForm: value })}
                 onOpenChange={setIsLegalFormOpen}
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "LegalFormSelect"
-                )}
+                data-testid={formatDataTestId(prefixDataTestId, 'LegalFormSelect')}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
                   className="gba:max-h-[200px] gba:overflow-y-auto"
-                  style={{ maxHeight: "200px", overflowY: "auto" }}
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
                 >
                   {legalForms.map((option, index) => (
-                    <SelectItem
-                      key={`${option.id}-${index}`}
-                      value={option.value}
-                    >
+                    <SelectItem key={`${option.id}-${index}`} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -416,8 +318,7 @@ const CompanyInformationSection: React.FC = () => {
                         onClick={handleLoadMoreLegalForms}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
                       >
-                        📥 Load More Legal Forms ({legalFormsDisplayCount}/
-                        {legalFormsTotalFetched} shown)
+                        📥 Load More Legal Forms ({legalFormsDisplayCount}/{legalFormsTotalFetched} shown)
                       </button>
                     </div>
                   )}
@@ -427,30 +328,22 @@ const CompanyInformationSection: React.FC = () => {
 
             {/* Industry dropdown like Country */}
             <div className="gba:space-y-2">
-              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                Industry
-              </Label>
+              <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Industry</Label>
               <Select
                 value={formValues.industry}
-                onValueChange={(value) => setFormValues({ industry: value })}
+                onValueChange={value => setFormValues({ industry: value })}
                 onOpenChange={setIsIndustryOpen}
-                data-testid={formatDataTestId(
-                  prefixDataTestId,
-                  "IndustrySelect"
-                )}
+                data-testid={formatDataTestId(prefixDataTestId, 'IndustrySelect')}
               >
                 <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
                   className="gba:max-h-[200px] gba:overflow-y-auto"
-                  style={{ maxHeight: "200px", overflowY: "auto" }}
+                  style={{ maxHeight: '200px', overflowY: 'auto' }}
                 >
                   {industries.map((option, index) => (
-                    <SelectItem
-                      key={`${option.id}-${index}`}
-                      value={option.value}
-                    >
+                    <SelectItem key={`${option.id}-${index}`} value={option.value}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -469,8 +362,7 @@ const CompanyInformationSection: React.FC = () => {
                         onClick={handleLoadMoreIndustries}
                         className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
                       >
-                        📥 Load More Industries ({industriesDisplayCount}/
-                        {industriesTotalFetched} shown)
+                        📥 Load More Industries ({industriesDisplayCount}/{industriesTotalFetched} shown)
                       </button>
                     </div>
                   )}
@@ -483,51 +375,42 @@ const CompanyInformationSection: React.FC = () => {
           <Card
             className="gba:border-0 gba:shadow-none gba:bg-white"
             style={{
-              border: "0",
-              borderWidth: "0",
-              borderStyle: "none",
-              borderColor: "transparent",
-              boxShadow: "none",
-              background: "white",
+              border: '0',
+              borderWidth: '0',
+              borderStyle: 'none',
+              borderColor: 'transparent',
+              boxShadow: 'none',
+              background: 'white'
             }}
           >
             <Button
               variant="ghost"
-              onClick={() =>
-                setIsAdditionalInfoExpanded(!isAdditionalInfoExpanded)
-              }
+              onClick={() => setIsAdditionalInfoExpanded(!isAdditionalInfoExpanded)}
               className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
               style={{
-                background: "linear-gradient(to right, #f3f4f6, #e5e7eb)",
-                transition: "all 0.3s ease",
-                border: "0",
-                borderWidth: "0",
-                borderStyle: "none",
-                borderColor: "transparent",
-                outline: "none",
-                outlineWidth: "0",
-                outlineStyle: "none",
-                boxShadow: "none",
-                borderRadius: "12px",
+                background: 'linear-gradient(to right, #f3f4f6, #e5e7eb)',
+                transition: 'all 0.3s ease',
+                border: '0',
+                borderWidth: '0',
+                borderStyle: 'none',
+                borderColor: 'transparent',
+                outline: 'none',
+                outlineWidth: '0',
+                outlineStyle: 'none',
+                boxShadow: 'none',
+                borderRadius: '12px'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background =
-                  "linear-gradient(to right, #e5e7eb, #d1d5db)";
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'linear-gradient(to right, #e5e7eb, #d1d5db)'
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background =
-                  "linear-gradient(to right, #f3f4f6, #e5e7eb)";
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'linear-gradient(to right, #f3f4f6, #e5e7eb)'
               }}
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "AdditionalInfoToggle"
-              )}
+              data-testid={formatDataTestId(prefixDataTestId, 'AdditionalInfoToggle')}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
                 <div className="gba:w-2 gba:h-2 gba:bg-gray-500 gba:rounded-full"></div>
-                <span className="gba:font-medium gba:text-gray-900">
-                  Additional Information
-                </span>
+                <span className="gba:font-medium gba:text-gray-900">Additional Information</span>
               </div>
               <div className="gba:flex gba:items-center">
                 {isAdditionalInfoExpanded ? (
@@ -542,152 +425,97 @@ const CompanyInformationSection: React.FC = () => {
               <CardContent
                 className="gba:space-y-4 gba:bg-white gba:border-0 gba:p-3"
                 style={{
-                  border: "0",
-                  borderWidth: "0",
-                  borderStyle: "none",
-                  borderColor: "transparent",
-                  padding: "12px",
-                  background: "white",
+                  border: '0',
+                  borderWidth: '0',
+                  borderStyle: 'none',
+                  borderColor: 'transparent',
+                  padding: '12px',
+                  background: 'white'
                 }}
               >
                 {/* Website */}
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    Website
-                  </Label>
+                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Website</Label>
                   <Input
                     name="website"
-                    value={
-                      typeof formValues.website === "string"
-                        ? formValues.website
-                        : ""
-                    }
-                    onChange={(e) => setFormValues({ website: e.target.value })}
+                    value={typeof formValues.website === 'string' ? formValues.website : ''}
+                    onChange={e => setFormValues({ website: e.target.value })}
                     placeholder="Please Enter..."
                     className="gba:border-gray-300 gba:bg-white"
-                    data-testid={formatDataTestId(
-                      prefixDataTestId,
-                      "WebsiteInput"
-                    )}
+                    data-testid={formatDataTestId(prefixDataTestId, 'WebsiteInput')}
                   />
                 </div>
 
                 {/* Company Email */}
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    Company Email
-                  </Label>
+                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Company Email</Label>
                   <div className="gba:relative">
                     <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-2 gba:flex gba:items-center gba:pointer-events-none gba:z-10">
                       <PiEnvelopeSimple className="gba:h-5 gba:w-5 gba:text-gray-400" />
                     </div>
                     <Input
                       name="companyEmail"
-                      value={
-                        typeof formValues.companyEmail === "string"
-                          ? formValues.companyEmail
-                          : ""
-                      }
-                      onChange={(e) =>
-                        setFormValues({ companyEmail: e.target.value })
-                      }
+                      value={typeof formValues.companyEmail === 'string' ? formValues.companyEmail : ''}
+                      onChange={e => setFormValues({ companyEmail: e.target.value })}
                       placeholder="Please Enter..."
                       className="gba:pl-8 gba:border-gray-300 gba:bg-white"
                       style={{
-                        borderColor: companyEmailError ? "#ef4444" : "#d1d5db",
-                        paddingLeft: "32px",
+                        borderColor: companyEmailError ? '#ef4444' : '#d1d5db',
+                        paddingLeft: '32px'
                       }}
-                      data-testid={formatDataTestId(
-                        prefixDataTestId,
-                        "CompanyEmailInput"
-                      )}
+                      data-testid={formatDataTestId(prefixDataTestId, 'CompanyEmailInput')}
                     />
                   </div>
-                  {companyEmailError && (
-                    <p className="gba:text-sm gba:text-red-600">
-                      {companyEmailError}
-                    </p>
-                  )}
+                  {companyEmailError && <p className="gba:text-sm gba:text-red-600">{companyEmailError}</p>}
                 </div>
 
                 {/* Company Phone */}
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    Company Phone
-                  </Label>
+                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Company Phone</Label>
                   <div className="gba:relative">
                     <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-2 gba:flex gba:items-center gba:pointer-events-none gba:z-10">
                       <PiPhone className="gba:h-5 gba:w-5 gba:text-gray-400" />
                     </div>
                     <Input
                       name="companyPhone"
-                      value={
-                        typeof formValues.companyPhone === "string"
-                          ? formValues.companyPhone
-                          : ""
-                      }
-                      onChange={(e) =>
-                        setFormValues({ companyPhone: e.target.value })
-                      }
+                      value={typeof formValues.companyPhone === 'string' ? formValues.companyPhone : ''}
+                      onChange={e => setFormValues({ companyPhone: e.target.value })}
                       placeholder="Please Enter..."
                       className="gba:pl-8 gba:border-gray-300 gba:bg-white"
                       style={{
-                        borderColor: companyPhoneError ? "#ef4444" : "#d1d5db",
-                        paddingLeft: "32px",
+                        borderColor: companyPhoneError ? '#ef4444' : '#d1d5db',
+                        paddingLeft: '32px'
                       }}
-                      data-testid={formatDataTestId(
-                        prefixDataTestId,
-                        "CompanyPhoneInput"
-                      )}
+                      data-testid={formatDataTestId(prefixDataTestId, 'CompanyPhoneInput')}
                     />
                   </div>
-                  {companyPhoneError && (
-                    <p className="gba:text-sm gba:text-red-600">
-                      {companyPhoneError}
-                    </p>
-                  )}
+                  {companyPhoneError && <p className="gba:text-sm gba:text-red-600">{companyPhoneError}</p>}
                 </div>
 
                 {/* Number of Employees - Full width */}
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    Number of Employees
-                  </Label>
+                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Number of Employees</Label>
                   <Select
-                    value={
-                      toStringOrUndefined(formValues.numberOfEmployees) || ""
-                    }
-                    onValueChange={(value) =>
-                      setFormValues({ numberOfEmployees: value || "" })
-                    }
+                    value={toStringOrUndefined(formValues.numberOfEmployees) || ''}
+                    onValueChange={value => setFormValues({ numberOfEmployees: value || '' })}
                     onOpenChange={setIsEmployeeSizeOpen}
-                    data-testid={formatDataTestId(
-                      prefixDataTestId,
-                      "NumberOfEmployeesSelect"
-                    )}
+                    data-testid={formatDataTestId(prefixDataTestId, 'NumberOfEmployeesSelect')}
                   >
                     <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                       <SelectValue placeholder="Please Select..." />
                     </SelectTrigger>
                     <SelectContent
                       className="gba:max-h-[200px] gba:overflow-y-auto"
-                      style={{ maxHeight: "200px", overflowY: "auto" }}
+                      style={{ maxHeight: '200px', overflowY: 'auto' }}
                     >
                       {employeeSizes.map((option, index) => {
                         // Format display value to remove leading zeros (e.g., "01-10" becomes "1-10")
-                        const displayValue = (
-                          option.label ||
-                          option.name ||
-                          ""
-                        ).replace(/\b0+(\d)/g, "$1");
+                        const displayValue = (option.label || option.name || '').replace(/\b0+(\d)/g, '$1')
                         return (
-                          <SelectItem
-                            key={`${option.id}-${index}`}
-                            value={option.value}
-                          >
+                          <SelectItem key={`${option.id}-${index}`} value={option.value}>
                             {displayValue}
                           </SelectItem>
-                        );
+                        )
                       })}
 
                       {/* Load More button or loading message */}
@@ -704,9 +532,7 @@ const CompanyInformationSection: React.FC = () => {
                             onClick={handleLoadMoreEmployeeSizes}
                             className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
                           >
-                            📥 Load More Employee Sizes (
-                            {employeeSizesDisplayCount}/
-                            {employeeSizesTotalFetched} shown)
+                            📥 Load More Employee Sizes ({employeeSizesDisplayCount}/{employeeSizesTotalFetched} shown)
                           </button>
                         </div>
                       )}
@@ -716,32 +542,22 @@ const CompanyInformationSection: React.FC = () => {
 
                 {/* Annual Revenue */}
                 <div className="gba:space-y-2">
-                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-                    Annual Revenue
-                  </Label>
+                  <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Annual Revenue</Label>
                   <Select
-                    value={toStringOrUndefined(formValues.annualRevenue) || ""}
-                    onValueChange={(value) =>
-                      setFormValues({ annualRevenue: value || "" })
-                    }
+                    value={toStringOrUndefined(formValues.annualRevenue) || ''}
+                    onValueChange={value => setFormValues({ annualRevenue: value || '' })}
                     onOpenChange={setIsRevenueSizeOpen}
-                    data-testid={formatDataTestId(
-                      prefixDataTestId,
-                      "AnnualRevenueSelect"
-                    )}
+                    data-testid={formatDataTestId(prefixDataTestId, 'AnnualRevenueSelect')}
                   >
                     <SelectTrigger className="gba:border-gray-300 gba:bg-white">
                       <SelectValue placeholder="Please Select..." />
                     </SelectTrigger>
                     <SelectContent
                       className="gba:max-h-[200px] gba:overflow-y-auto"
-                      style={{ maxHeight: "200px", overflowY: "auto" }}
+                      style={{ maxHeight: '200px', overflowY: 'auto' }}
                     >
                       {revenueSizes.map((option, index) => (
-                        <SelectItem
-                          key={`${option.id}-${index}`}
-                          value={option.value}
-                        >
+                        <SelectItem key={`${option.id}-${index}`} value={option.value}>
                           {option.label}
                         </SelectItem>
                       ))}
@@ -760,9 +576,7 @@ const CompanyInformationSection: React.FC = () => {
                             onClick={handleLoadMoreRevenueSizes}
                             className="gba:w-full gba:px-3 gba:py-2 gba:text-sm gba:text-blue-600 gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded gba:hover:bg-blue-100 gba:transition-colors"
                           >
-                            📥 Load More Revenue Sizes (
-                            {revenueSizesDisplayCount}/
-                            {revenueSizesTotalFetched} shown)
+                            📥 Load More Revenue Sizes ({revenueSizesDisplayCount}/{revenueSizesTotalFetched} shown)
                           </button>
                         </div>
                       )}
@@ -775,7 +589,7 @@ const CompanyInformationSection: React.FC = () => {
         </CardContent>
       )}
     </Card>
-  );
-};
+  )
+}
 
-export default CompanyInformationSection;
+export default CompanyInformationSection

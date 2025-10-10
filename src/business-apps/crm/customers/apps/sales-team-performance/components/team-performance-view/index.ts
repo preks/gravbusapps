@@ -1,2 +1,2 @@
-export { TeamPerformanceView } from './TeamPerformanceView';
-export { default } from './TeamPerformanceView';
+export { TeamPerformanceView } from './TeamPerformanceView'
+export { default } from './TeamPerformanceView'

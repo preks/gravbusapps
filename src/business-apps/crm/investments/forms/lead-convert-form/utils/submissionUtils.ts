@@ -1,8 +1,8 @@
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'; // Still used in cancelConversionForm
-import { ConvertLeadFormData, ConvertLeadFormDataLegacy } from '../types';
-import { AccountFormValues } from '../../account-form/types';
-import { ContactFormValues } from '../../contact-form/types';
-import { InvestmentOpportunityFormValues } from '../../opportunity-form/types';
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils' // Still used in cancelConversionForm
+import { ConvertLeadFormData, ConvertLeadFormDataLegacy } from '../types'
+import { AccountFormValues } from '../../account-form/types'
+import { ContactFormValues } from '../../contact-form/types'
+import { InvestmentOpportunityFormValues } from '../../opportunity-form/types'
 
 export const createSubmissionPayload = (
   data: ConvertLeadFormData,
@@ -23,7 +23,7 @@ export const createSubmissionPayload = (
       industry: data.accountIndustry,
       // Use basic fields from schema only
       email: data.accountName, // Will be populated by form wrapper
-      phone: '', // Will be populated by form wrapper
+      phone: '' // Will be populated by form wrapper
     },
     contactOption: data.contactOption,
     selectedContactId: data.selectedContactId,
@@ -32,7 +32,7 @@ export const createSubmissionPayload = (
       firstName: data.contactFirstName,
       lastName: data.contactLastName,
       email: data.contactEmail,
-      ownerEmployeeId: data.contactOwnerEmployeeId,
+      ownerEmployeeId: data.contactOwnerEmployeeId
       // Additional fields will be populated by form wrappers
     },
     createOpportunity: data.createOpportunity,
@@ -42,27 +42,27 @@ export const createSubmissionPayload = (
       pipeline: data.opportunityPipeline,
       pipelineStage: data.opportunityPipelineStage,
       estimatedAmount: data.opportunityEstimatedAmount,
-      currency: data.opportunityCurrency,
+      currency: data.opportunityCurrency
       // Additional fields will be populated by form wrappers
-    },
-  };
+    }
+  }
 
   // Build the payload following the Investment API structure and expected schema
   const payload: any = {
-    leadId: actualLeadId,
-  };
+    leadId: actualLeadId
+  }
 
   // Handle Account (following CRM pattern: minimal for match, complete for create)
   if (legacyFormData.accountOption === 'match' && legacyFormData.selectedAccountId) {
     // CRM pattern: For matching existing account, only send id and ownerEmployee
     payload.account = {
       id: legacyFormData.selectedAccountId,
-      ownerEmployee: legacyFormData.accountData.owner || null,
-    };
+      ownerEmployee: legacyFormData.accountData.owner || null
+    }
   } else if (legacyFormData.accountOption === 'create') {
     // For creating new account, use exact fields from current AccountFormComponent
     payload.account = {
-      sourceApp: "IRM",
+      sourceApp: 'IRM',
       name: completeAccountData.accountName || legacyFormData.accountData.accountName,
       code: completeAccountData.tickerSymbol || null,
       legalFormRef: completeAccountData.legalForm || null,
@@ -77,31 +77,36 @@ export const createSubmissionPayload = (
       foundationDate: completeAccountData.foundationDate || null,
       ownerEmployee: completeAccountData.owner || null,
       // Address and geographic information (filter and format like AccountFormComponent)
-      addresses: completeAccountData.addresses?.filter(addr => 
-        // Only include addresses that have some content
-        addr.addressLines.some(line => line.trim()) || 
-        addr.postalCode.trim() || 
-        addr.locality.trim() ||
-        addr.regionRef.trim() ||
-        addr.countryRef.trim()
-      ).map(addr => {
-        const addressPayload: any = {
-          addressType: "PRIMARY_ADDRESS", // Always set to PRIMARY_ADDRESS
-          addressLine: addr.addressLines.filter(line => line.trim()).length > 0 
-            ? { lines: addr.addressLines.filter(line => line.trim()) }
-            : null,
-          postalCode: addr.postalCode.trim() || null,
-          locality: addr.locality.trim() || null,
-          regionRef: addr.regionRef.trim() || null,
-          countryRef: addr.countryRef.trim() || null,
-        };
+      addresses:
+        completeAccountData.addresses
+          ?.filter(
+            addr =>
+              // Only include addresses that have some content
+              addr.addressLines.some(line => line.trim()) ||
+              addr.postalCode.trim() ||
+              addr.locality.trim() ||
+              addr.regionRef.trim() ||
+              addr.countryRef.trim()
+          )
+          .map(addr => {
+            const addressPayload: any = {
+              addressType: 'PRIMARY_ADDRESS', // Always set to PRIMARY_ADDRESS
+              addressLine:
+                addr.addressLines.filter(line => line.trim()).length > 0
+                  ? { lines: addr.addressLines.filter(line => line.trim()) }
+                  : null,
+              postalCode: addr.postalCode.trim() || null,
+              locality: addr.locality.trim() || null,
+              regionRef: addr.regionRef.trim() || null,
+              countryRef: addr.countryRef.trim() || null
+            }
 
-        // ✅ FIXED: Don't include ID for new accounts (lead conversion always creates new accounts)
-        // This prevents the "default-address" ID from being sent to the backend
-        // The backend will generate proper UUIDs for new addresses
+            // ✅ FIXED: Don't include ID for new accounts (lead conversion always creates new accounts)
+            // This prevents the "default-address" ID from being sent to the backend
+            // The backend will generate proper UUIDs for new addresses
 
-        return addressPayload;
-      }) || [],
+            return addressPayload
+          }) || [],
       countryRef: completeAccountData.country || null,
       regionRef: completeAccountData.region || null,
       addressLine1: completeAccountData.addressLine1 || null,
@@ -116,22 +121,24 @@ export const createSubmissionPayload = (
       liquidationDate: null,
       picture: null,
       pictureThumbnail: null,
-      tags: [], // AccountFormComponent initializes this
-    };
+      tags: [] // AccountFormComponent initializes this
+    }
   }
 
   // Handle Contact (following CRM pattern: minimal for match, complete for create)
   if (legacyFormData.contactOption === 'match' && legacyFormData.selectedContactId) {
     // CRM pattern: For matching existing contact, only send id
     payload.contact = {
-      id: legacyFormData.selectedContactId,
-    };
+      id: legacyFormData.selectedContactId
+    }
   } else if (legacyFormData.contactOption === 'create') {
     // For creating new contact, use exact fields from current ContactFormComponent
     payload.contact = {
       firstName: completeContactData.firstName || legacyFormData.contactData.firstName,
       lastName: completeContactData.lastName || legacyFormData.contactData.lastName,
-      fullName: completeContactData.fullName || `${legacyFormData.contactData.firstName || ""} ${legacyFormData.contactData.lastName || ""}`.trim(),
+      fullName:
+        completeContactData.fullName ||
+        `${legacyFormData.contactData.firstName || ''} ${legacyFormData.contactData.lastName || ''}`.trim(),
       type: completeContactData.type || 'UNKNOWN_CONTACT', // ✅ ADDED: Contact type field
       birthDate: completeContactData.birthDate || null,
       description: completeContactData.description || null,
@@ -145,132 +152,137 @@ export const createSubmissionPayload = (
       businessKey: completeContactData.businessKey || null,
       academicTitleRef: completeContactData.academicTitleRef || null,
       languageRef: completeContactData.languageRef || null,
-      additionalProperties: completeContactData.additionalProperties || {},
-    };
+      additionalProperties: completeContactData.additionalProperties || {}
+    }
 
     // ✅ ADDED: Add communication channels for LinkedIn and Xing (matching ContactFormComponent)
-    const communicationChannels = [];
-    
+    const communicationChannels = []
+
     // Add LinkedIn communication channel if provided
     if (completeContactData.linkedinUrl && completeContactData.linkedinUrl.trim()) {
       communicationChannels.push({
-        communicationChannelRef: "CommunicationChannel:v1:LinkedIn",
+        communicationChannelRef: 'CommunicationChannel:v1:LinkedIn',
         value: completeContactData.linkedinUrl.trim(),
         valueExtension: null,
-        source: "FORM_INPUT",
+        source: 'FORM_INPUT',
         activeFrom: new Date().toISOString(),
-        activeTo: null,
-      });
+        activeTo: null
+      })
     }
-    
+
     // Add Xing communication channel if provided
     if (completeContactData.xingUrl && completeContactData.xingUrl.trim()) {
       communicationChannels.push({
-        communicationChannelRef: "CommunicationChannel:v1:Xing",
+        communicationChannelRef: 'CommunicationChannel:v1:Xing',
         value: completeContactData.xingUrl.trim(),
         valueExtension: null,
-        source: "FORM_INPUT",
+        source: 'FORM_INPUT',
         activeFrom: new Date().toISOString(),
-        activeTo: null,
-      });
+        activeTo: null
+      })
     }
 
     // Add communication channels to payload if any exist
     if (communicationChannels.length > 0) {
-      payload.contact.communicationChannels = communicationChannels;
+      payload.contact.communicationChannels = communicationChannels
     }
   }
 
   // Handle Opportunity (using exact fields from current OpportunityFormComponent)
   if (legacyFormData.createOpportunity) {
     payload.opportunity = {
-      sourceApp: "IRM",
-      
+      sourceApp: 'IRM',
+
       // Basic information (matching OpportunityFormComponent exactly)
       name: completeOpportunityData.name || legacyFormData.opportunityData.name,
       investmentName: completeOpportunityData.name || legacyFormData.opportunityData.name, // Same as name
       code: completeOpportunityData.code || null,
       businessKey: completeOpportunityData.businessKey || null,
-      dealType: completeOpportunityData.dealType || "INVESTMENT_DEAL",
-      
+      dealType: completeOpportunityData.dealType || 'INVESTMENT_DEAL',
+
       // Financial information
-      estimatedAmount: completeOpportunityData.estimatedAmount 
-        ? parseFloat(completeOpportunityData.estimatedAmount) 
-        : (legacyFormData.opportunityData.estimatedAmount 
-            ? parseFloat(legacyFormData.opportunityData.estimatedAmount) 
-            : undefined),
-      currencyRef: completeOpportunityData.currencyRef || completeOpportunityData.currency || legacyFormData.opportunityData.currency || null,
+      estimatedAmount: completeOpportunityData.estimatedAmount
+        ? parseFloat(completeOpportunityData.estimatedAmount)
+        : legacyFormData.opportunityData.estimatedAmount
+          ? parseFloat(legacyFormData.opportunityData.estimatedAmount)
+          : undefined,
+      currencyRef:
+        completeOpportunityData.currencyRef ||
+        completeOpportunityData.currency ||
+        legacyFormData.opportunityData.currency ||
+        null,
       closeDate: completeOpportunityData.closeDate || null,
-      
+
       // Pipeline information (correct field names from OpportunityFormComponent)
       opportunityPipelineRef: completeOpportunityData.pipeline || legacyFormData.opportunityData.pipeline || null,
-      opportunityPipelineStageRef: completeOpportunityData.pipelineStage || legacyFormData.opportunityData.pipelineStage || null,
-      
+      opportunityPipelineStageRef:
+        completeOpportunityData.pipelineStage || legacyFormData.opportunityData.pipelineStage || null,
+
       // Status - Always set to OPEN for new opportunities created during lead conversion
-      opportunityStatusRef: "InvestmentOpportunityStatus:v1:OPEN",
-      
+      opportunityStatusRef: 'InvestmentOpportunityStatus:v1:OPEN',
+
       // Notes summary
       notesSummary: completeOpportunityData.notesSummary || null,
-      
+
       // Investment-specific financial fields (exact from OpportunityFormComponent)
-      initialInvestmentAmount: completeOpportunityData.initialInvestmentAmount 
-        ? parseFloat(completeOpportunityData.initialInvestmentAmount) 
+      initialInvestmentAmount: completeOpportunityData.initialInvestmentAmount
+        ? parseFloat(completeOpportunityData.initialInvestmentAmount)
         : undefined,
-      forecastedProfitAmount: completeOpportunityData.forecastedProfitAmount 
-        ? parseFloat(completeOpportunityData.forecastedProfitAmount) 
+      forecastedProfitAmount: completeOpportunityData.forecastedProfitAmount
+        ? parseFloat(completeOpportunityData.forecastedProfitAmount)
         : undefined,
-      loanAmount: completeOpportunityData.loanAmount 
-        ? parseFloat(completeOpportunityData.loanAmount) 
+      loanAmount: completeOpportunityData.loanAmount ? parseFloat(completeOpportunityData.loanAmount) : undefined,
+      loanInterestRate: completeOpportunityData.loanInterestRate
+        ? parseFloat(completeOpportunityData.loanInterestRate)
         : undefined,
-      loanInterestRate: completeOpportunityData.loanInterestRate 
-        ? parseFloat(completeOpportunityData.loanInterestRate) 
+      marketValue: completeOpportunityData.marketValue ? parseFloat(completeOpportunityData.marketValue) : undefined,
+      requiredCapitalAmount: completeOpportunityData.requiredCapitalAmount
+        ? parseFloat(completeOpportunityData.requiredCapitalAmount)
         : undefined,
-      marketValue: completeOpportunityData.marketValue 
-        ? parseFloat(completeOpportunityData.marketValue) 
+      stakePercentage: completeOpportunityData.stakePercentage
+        ? parseFloat(completeOpportunityData.stakePercentage)
         : undefined,
-      requiredCapitalAmount: completeOpportunityData.requiredCapitalAmount 
-        ? parseFloat(completeOpportunityData.requiredCapitalAmount) 
+      annualNetColdRent: completeOpportunityData.annualNetColdRent
+        ? parseFloat(completeOpportunityData.annualNetColdRent)
         : undefined,
-      stakePercentage: completeOpportunityData.stakePercentage 
-        ? parseFloat(completeOpportunityData.stakePercentage) 
-        : undefined,
-      annualNetColdRent: completeOpportunityData.annualNetColdRent 
-        ? parseFloat(completeOpportunityData.annualNetColdRent) 
-        : undefined,
-      
+
       // Investment classification (catalog references from OpportunityFormComponent)
       investmentGroupRef: completeOpportunityData.investmentGroupRef || null,
       investmentTypeRef: completeOpportunityData.investmentTypeRef || null,
       investmentRoleRef: completeOpportunityData.investmentRoleRef || null,
       investmentStakeTypeRef: completeOpportunityData.investmentStakeTypeRef || null,
-      
+
       // Relationships
       ownerEmployee: completeOpportunityData.owner || legacyFormData.opportunityData.owner || null,
-      account: legacyFormData.selectedAccountId || completeOpportunityData.accountId || completeOpportunityData.account || null,
-      
+      account:
+        legacyFormData.selectedAccountId ||
+        completeOpportunityData.accountId ||
+        completeOpportunityData.account ||
+        null,
+
       // Additional fields from form
       description: completeOpportunityData.description || null,
-      recordState: completeOpportunityData.recordState || "ACTIVE",
-      
+      recordState: completeOpportunityData.recordState || 'ACTIVE',
+
       // Additional properties (empty object as per OpportunityFormComponent)
-      additionalProperties: completeOpportunityData.additionalProperties || {},
-    };
+      additionalProperties: completeOpportunityData.additionalProperties || {}
+    }
   }
 
-  return payload;
-};
+  return payload
+}
 
 export const submitConversionForm = (payload: any, onSuccess?: (payload: any) => void) => {
   // NOTE: AppActionForm will handle dispatchProcessContinueEvent automatically
   // We don't need to call it here to avoid double execution
-  
+
   // Trigger onSuccess to close modal
   if (onSuccess) {
-    onSuccess(payload);
+    onSuccess(payload)
   }
-};
+}
 
 export const cancelConversionForm = () => {
   // Use same cancel pattern as CRM convert lead form
-  dispatchProcessContinueEvent("pse_pause", {});
-};
+  dispatchProcessContinueEvent('pse_pause', {})
+}

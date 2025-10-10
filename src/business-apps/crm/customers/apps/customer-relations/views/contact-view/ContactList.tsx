@@ -1,101 +1,84 @@
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-  useMemo,
-} from "react";
-import { DataContainer } from "@/components/layout/dataContainer";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useContactListData } from "./hooks/useContactListData";
-import { useContactStatisticsWithTrend } from "./hooks/useContactStatisticsWithTrend";
-import { useContactFilters } from "./hooks/useContactFilters";
-import { ContactStatisticsWithTrend } from "./components/ContactStatistics";
-import ContactTable from "./components/ContactTable";
-import { Contact } from "./types";
-import { ColumnConfig } from "@/components/dataController";
-import { Alert } from "antd";
-import { AppAction } from "@/components/app-action/AppAction";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { PlusSquareIcon } from "@phosphor-icons/react";
-import { useProcessCompletion } from "@/common/hooks/useProcessCompletion";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { DataContainer } from '@/components/layout/dataContainer'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useContactListData } from './hooks/useContactListData'
+import { useContactStatisticsWithTrend } from './hooks/useContactStatisticsWithTrend'
+import { useContactFilters } from './hooks/useContactFilters'
+import { ContactStatisticsWithTrend } from './components/ContactStatistics'
+import ContactTable from './components/ContactTable'
+import { Contact } from './types'
+import { ColumnConfig } from '@/components/dataController'
+import { Alert } from 'antd'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { PlusSquareIcon } from '@phosphor-icons/react'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 interface ContactListProps extends BusinessAppContextProps {
-  sourceApp?: string;
+  sourceApp?: string
 }
 
-const ContactList: React.FC<ContactListProps> = (context) => {
-  const { sourceApp, accessToken } = context;
+const ContactList: React.FC<ContactListProps> = context => {
+  const { sourceApp, accessToken } = context
 
   // State management
-  const [selectedContactId, setSelectedContactId] = useState<
-    string | undefined
-  >(undefined);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState("");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
-  const initialLoadDone = useRef(false);
+  const [selectedContactId, setSelectedContactId] = useState<string | undefined>(undefined)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [sortField, setSortField] = useState('')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+  const initialLoadDone = useRef(false)
 
   // Define available columns with default visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(() => [
-    { id: "actions", label: "Actions", visible: true, disabled: true }, // Always visible
-    { id: "name", label: "Name", visible: true },
-    { id: "contact", label: "Contact Info", visible: true },
-    { id: "company", label: "Account", visible: true },
-    { id: "type", label: "Type", visible: true },
-    { id: "created", label: "Creation Date", visible: true },
-    { id: "owner", label: "Owner", visible: true },
-    { id: "academicTitle", label: "Academic Title", visible: false },
-    { id: "birthDate", label: "Birth Date", visible: false },
-    { id: "account", label: "Account", visible: false },
-    { id: "linkedin", label: "LinkedIn Profile", visible: false },
-    { id: "xing", label: "Xing Profile", visible: false },
-    { id: "jobTitle", label: "Job Title", visible: false },
-    { id: "department", label: "Department", visible: true },
-  ]);
+    { id: 'actions', label: 'Actions', visible: true, disabled: true }, // Always visible
+    { id: 'name', label: 'Name', visible: true },
+    { id: 'contact', label: 'Contact Info', visible: true },
+    { id: 'company', label: 'Account', visible: true },
+    { id: 'type', label: 'Type', visible: true },
+    { id: 'created', label: 'Creation Date', visible: true },
+    { id: 'owner', label: 'Owner', visible: true },
+    { id: 'academicTitle', label: 'Academic Title', visible: false },
+    { id: 'birthDate', label: 'Birth Date', visible: false },
+    { id: 'account', label: 'Account', visible: false },
+    { id: 'linkedin', label: 'LinkedIn Profile', visible: false },
+    { id: 'xing', label: 'Xing Profile', visible: false },
+    { id: 'jobTitle', label: 'Job Title', visible: false },
+    { id: 'department', label: 'Department', visible: true }
+  ])
 
   // Get visible columns for passing to table
-  const visibleColumns = columnConfig
-    .filter((col) => col.visible)
-    .map((col) => col.id);
+  const visibleColumns = columnConfig.filter(col => col.visible).map(col => col.id)
 
   // Handle column visibility change
-  const handleColumnVisibilityChange = useCallback(
-    (columnId: string, visible: boolean) => {
-      setColumnConfig((prev) =>
-        prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
-      );
-    },
-    []
-  );
+  const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
+    setColumnConfig(prev => prev.map(col => (col.id === columnId ? { ...col, visible } : col)))
+  }, [])
 
   // Filters
-  const contactFilters = useContactFilters(context);
-  const appliedFilters = contactFilters.getFilters();
-  const { filtersInitialized } = contactFilters;
+  const contactFilters = useContactFilters(context)
+  const appliedFilters = contactFilters.getFilters()
+  const { filtersInitialized } = contactFilters
 
   // Filter groups based on visible columns
   const visibleFilterGroups = useMemo(() => {
     const columnToFilterMap: Record<string, string> = {
-      type: "contactType",
-      department: "departments",
+      type: 'contactType',
+      department: 'departments'
       // Note: name, contact, company, created, owner, academicTitle, birthDate, account, linkedin, xing, jobTitle don't have corresponding filters yet
-    };
+    }
 
-    return contactFilters.filterGroups.filter((group) => {
+    return contactFilters.filterGroups.filter(group => {
       // Find the column that corresponds to this filter group
       const correspondingColumn = Object.keys(columnToFilterMap).find(
-        (columnId) => columnToFilterMap[columnId] === group.id
-      );
+        columnId => columnToFilterMap[columnId] === group.id
+      )
 
       // If there's no corresponding column (shouldn't happen), show the filter
       // If there is a corresponding column, only show the filter if the column is visible
-      return (
-        !correspondingColumn || visibleColumns.includes(correspondingColumn)
-      );
-    });
-  }, [contactFilters.filterGroups, visibleColumns]);
+      return !correspondingColumn || visibleColumns.includes(correspondingColumn)
+    })
+  }, [contactFilters.filterGroups, visibleColumns])
 
   // Data hooks
   const contactListData = useContactListData({
@@ -111,40 +94,40 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     accounts: appliedFilters.accounts,
     owners: appliedFilters.owners,
     createdAfter: appliedFilters.createdAfter,
-    createdBefore: appliedFilters.createdBefore,
-  });
+    createdBefore: appliedFilters.createdBefore
+  })
 
   const contactStatistics = useContactStatisticsWithTrend({
     ...context,
-    sourceApp,
-  });
+    sourceApp
+  })
 
   // Listen for process completion events and refresh data when contact processes complete
   useProcessCompletion({
     onSuccess: () => {
-      console.log("Process completed successfully, refreshing contact data");
-      contactListData.retry();
-      contactStatistics.refetch(); // Also refresh statistics
+      console.log('Process completed successfully, refreshing contact data')
+      contactListData.retry()
+      contactStatistics.refetch() // Also refresh statistics
     },
     onFailure: () => {
-      console.log("Process failed, no data refresh needed");
-    },
-  });
+      console.log('Process failed, no data refresh needed')
+    }
+  })
 
   // Initial load effect
   useEffect(() => {
     if (!initialLoadDone.current && context.accessToken && filtersInitialized) {
-      initialLoadDone.current = true;
-      contactListData.loadPage(1, pageSize);
-      contactStatistics.refetch();
+      initialLoadDone.current = true
+      contactListData.loadPage(1, pageSize)
+      contactStatistics.refetch()
     }
-  }, [context.accessToken, pageSize, filtersInitialized]);
+  }, [context.accessToken, pageSize, filtersInitialized])
 
   // Auto-reload when filters change
   useEffect(() => {
     if (initialLoadDone.current && context.accessToken && filtersInitialized) {
-      setCurrentPage(1);
-      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder);
+      setCurrentPage(1)
+      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder)
     }
   }, [
     JSON.stringify(appliedFilters.contactTypes),
@@ -157,87 +140,75 @@ const ContactList: React.FC<ContactListProps> = (context) => {
     appliedFilters.createdBefore,
     context.accessToken,
     pageSize,
-    filtersInitialized,
-  ]);
+    filtersInitialized
+  ])
 
   // Auto-reload when search changes
   useEffect(() => {
     if (initialLoadDone.current && context.accessToken && filtersInitialized) {
-      setCurrentPage(1);
-      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder);
+      setCurrentPage(1)
+      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder)
     }
-  }, [
-    appliedFilters.search,
-    context.accessToken,
-    pageSize,
-    filtersInitialized,
-  ]);
+  }, [appliedFilters.search, context.accessToken, pageSize, filtersInitialized])
 
   // Auto-reload when sort changes
   useEffect(() => {
     if (initialLoadDone.current && context.accessToken && filtersInitialized) {
-      contactListData.loadPage(currentPage, pageSize, {}, sortField, sortOrder);
+      contactListData.loadPage(currentPage, pageSize, {}, sortField, sortOrder)
     }
-  }, [
-    sortField,
-    sortOrder,
-    context.accessToken,
-    currentPage,
-    pageSize,
-    filtersInitialized,
-  ]);
+  }, [sortField, sortOrder, context.accessToken, currentPage, pageSize, filtersInitialized])
 
   // Handlers
   const handleContactClick = useCallback((contact: Contact) => {
-    setSelectedContactId(contact.id);
+    setSelectedContactId(contact.id)
     // TODO: Open contact detail side panel
-    console.log("Contact clicked:", contact);
-  }, []);
+    console.log('Contact clicked:', contact)
+  }, [])
 
   const handleSort = useCallback(
-    (field: string, order: "ASC" | "DESC" | "") => {
+    (field: string, order: 'ASC' | 'DESC' | '') => {
       // When order is empty, clear sorting completely
-      if (order === "") {
-        setSortField("");
-        setSortOrder("DESC"); // Keep DESC as default for state type, but field will be empty
-        setCurrentPage(1);
+      if (order === '') {
+        setSortField('')
+        setSortOrder('DESC') // Keep DESC as default for state type, but field will be empty
+        setCurrentPage(1)
         // Pass empty field to loadPage immediately
-        contactListData.loadPage(1, pageSize, {}, "", "DESC");
+        contactListData.loadPage(1, pageSize, {}, '', 'DESC')
       } else {
-        setSortField(field);
-        setSortOrder(order);
-        setCurrentPage(1);
+        setSortField(field)
+        setSortOrder(order)
+        setCurrentPage(1)
         // Pass new sorting values to loadPage immediately
-        contactListData.loadPage(1, pageSize, {}, field, order);
+        contactListData.loadPage(1, pageSize, {}, field, order)
       }
     },
     [contactListData, pageSize]
-  );
+  )
 
   const handlePageChange = useCallback(
     (page: number, pageSize?: number) => {
-      const targetPageSize = pageSize || 20;
-      setCurrentPage(page);
-      setPageSize(targetPageSize);
-      contactListData.loadPage(page, targetPageSize);
+      const targetPageSize = pageSize || 20
+      setCurrentPage(page)
+      setPageSize(targetPageSize)
+      contactListData.loadPage(page, targetPageSize)
     },
     [contactListData]
-  );
+  )
 
   const handleSearch = useCallback(
     (searchTerm: string) => {
-      contactFilters.setSearch(searchTerm);
-      setCurrentPage(1);
-      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder);
+      contactFilters.setSearch(searchTerm)
+      setCurrentPage(1)
+      contactListData.loadPage(1, pageSize, {}, sortField, sortOrder)
     },
     [contactFilters, contactListData, pageSize]
-  );
+  )
 
   // AppAction will handle creating a contact via flow context
 
   const handleRetryStatistics = useCallback(() => {
-    contactStatistics.refetch();
-  }, [contactStatistics]);
+    contactStatistics.refetch()
+  }, [contactStatistics])
 
   // If there's an error loading contacts, show error state
   if (contactListData.error) {
@@ -246,16 +217,14 @@ const ContactList: React.FC<ContactListProps> = (context) => {
         <Alert
           message="Error Loading Contacts"
           description={
-            contactListData.error instanceof Error
-              ? contactListData.error.message
-              : String(contactListData.error)
+            contactListData.error instanceof Error ? contactListData.error.message : String(contactListData.error)
           }
           type="error"
           showIcon
           data-testid="contact-list-error"
         />
       </div>
-    );
+    )
   }
 
   return (
@@ -283,31 +252,24 @@ const ContactList: React.FC<ContactListProps> = (context) => {
             // This is called by DataController's "Clear all filters" button or individual filter removal
             if (filters.length === 0) {
               // Clear all filters
-              contactFilters.clearAllFilters();
+              contactFilters.clearAllFilters()
             } else {
               // Handle individual filter removal - find which filters were removed and remove them
-              const removedFilters = contactFilters.selectedFilters.filter(
-                (f) => !filters.includes(f)
-              );
-              removedFilters.forEach((filterId) =>
-                contactFilters.removeFilter(filterId)
-              );
+              const removedFilters = contactFilters.selectedFilters.filter(f => !filters.includes(f))
+              removedFilters.forEach(filterId => contactFilters.removeFilter(filterId))
             }
           },
           filterLabelMap: contactFilters.filterLabelMap,
           dateRange: {
             createdAfter: contactFilters.createdAfter,
             createdBefore: contactFilters.createdBefore,
-            onClear: () =>
-              contactFilters.handleDateRangeChange(undefined, undefined),
+            onClear: () => contactFilters.handleDateRangeChange(undefined, undefined)
           },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <span>Contacts</span>
-                <span className="gba:text-gray-500">
-                  ({contactListData.total})
-                </span>
+                <span className="gba:text-gray-500">({contactListData.total})</span>
               </div>
             </div>
           ),
@@ -331,15 +293,13 @@ const ContactList: React.FC<ContactListProps> = (context) => {
             columns: columnConfig,
             onColumnVisibilityChange: handleColumnVisibilityChange,
             'data-testid': 'contact-list-column-visibility'
-          },
+          }
         }}
         dataFilterProps={{
           filterGroups: visibleFilterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
-            selected
-              ? contactFilters.addFilter(filterId)
-              : contactFilters.removeFilter(filterId);
-          },
+            selected ? contactFilters.addFilter(filterId) : contactFilters.removeFilter(filterId)
+          }
         }}
         dataBody={
           <div data-testid="contact-table-container">
@@ -367,7 +327,7 @@ const ContactList: React.FC<ContactListProps> = (context) => {
         }
       />
     </div>
-  );
-};
+  )
+}
 
-export default ContactList;
+export default ContactList

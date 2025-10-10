@@ -1,44 +1,41 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system';
-import { Trophy, TrendingUp, TrendingDown } from 'lucide-react';
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
+import { Trophy, TrendingUp, TrendingDown } from 'lucide-react'
 
 export interface WinRateMetrics {
   monthToDate: {
-    won: number;
-    lost: number;
-    winRate: number;
-  };
+    won: number
+    lost: number
+    winRate: number
+  }
   quarterToDate: {
-    won: number;
-    lost: number;
-    winRate: number;
-  };
+    won: number
+    lost: number
+    winRate: number
+  }
 }
 
 const formatPercentage = (value: number, decimals: number = 1): string => {
-  return `${value.toFixed(decimals)}%`;
-};
-
-export interface ConversionPerformanceProps {
-  winRateMetrics: WinRateMetrics;
-  pipelineId: string;
+  return `${value.toFixed(decimals)}%`
 }
 
-export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({
-  winRateMetrics,
-  pipelineId
-}) => {
+export interface ConversionPerformanceProps {
+  winRateMetrics: WinRateMetrics
+  pipelineId: string
+}
+
+export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({ winRateMetrics, pipelineId }) => {
   const getProgressColor = (winRate: number) => {
-    if (winRate >= 70) return 'gba:bg-green-500';
-    if (winRate >= 50) return 'gba:bg-orange-500';
-    return 'gba:bg-red-500';
-  };
+    if (winRate >= 70) return 'gba:bg-green-500'
+    if (winRate >= 50) return 'gba:bg-orange-500'
+    return 'gba:bg-red-500'
+  }
 
   const getTrendIcon = (winRate: number) => {
-    if (winRate >= 60) return <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />;
-    if (winRate >= 40) return null;
-    return <TrendingDown className="gba:h-4 gba:w-4 gba:text-red-500" />;
-  };
+    if (winRate >= 60) return <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />
+    if (winRate >= 40) return null
+    return <TrendingDown className="gba:h-4 gba:w-4 gba:text-red-500" />
+  }
 
   return (
     <Card data-testid={`win-rate-kpis-${pipelineId}`}>
@@ -58,26 +55,24 @@ export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({
                   <span className="gba:font-medium gba:text-sm">Month to Date</span>
                   {getTrendIcon(winRateMetrics.monthToDate.winRate)}
                 </div>
-                
+
                 <div className="gba:text-center gba:mb-3">
-                  <div className={`gba:text-2xl gba:font-bold ${winRateMetrics.monthToDate.winRate >= 70 ? 'gba:text-green-600' : winRateMetrics.monthToDate.winRate >= 50 ? 'gba:text-orange-600' : 'gba:text-red-600'}`}>
+                  <div
+                    className={`gba:text-2xl gba:font-bold ${winRateMetrics.monthToDate.winRate >= 70 ? 'gba:text-green-600' : winRateMetrics.monthToDate.winRate >= 50 ? 'gba:text-orange-600' : 'gba:text-red-600'}`}
+                  >
                     {formatPercentage(winRateMetrics.monthToDate.winRate)}
                   </div>
                   <span className="gba:text-gray-600 gba:text-xs">Win Rate</span>
                 </div>
 
-                <Progress 
-                  value={winRateMetrics.monthToDate.winRate} 
+                <Progress
+                  value={winRateMetrics.monthToDate.winRate}
                   className={`gba:mb-2 ${getProgressColor(winRateMetrics.monthToDate.winRate)}`}
                 />
 
                 <div className="gba:flex gba:justify-between gba:text-xs">
-                  <span className="gba:text-green-600">
-                    Won: {winRateMetrics.monthToDate.won}
-                  </span>
-                  <span className="gba:text-red-600">
-                    Lost: {winRateMetrics.monthToDate.lost}
-                  </span>
+                  <span className="gba:text-green-600">Won: {winRateMetrics.monthToDate.won}</span>
+                  <span className="gba:text-red-600">Lost: {winRateMetrics.monthToDate.lost}</span>
                 </div>
               </div>
             </CardContent>
@@ -91,26 +86,24 @@ export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({
                   <span className="gba:font-medium gba:text-sm">Quarter to Date</span>
                   {getTrendIcon(winRateMetrics.quarterToDate.winRate)}
                 </div>
-                
+
                 <div className="gba:text-center gba:mb-3">
-                  <div className={`gba:text-2xl gba:font-bold ${winRateMetrics.quarterToDate.winRate >= 70 ? 'gba:text-green-600' : winRateMetrics.quarterToDate.winRate >= 50 ? 'gba:text-orange-600' : 'gba:text-red-600'}`}>
+                  <div
+                    className={`gba:text-2xl gba:font-bold ${winRateMetrics.quarterToDate.winRate >= 70 ? 'gba:text-green-600' : winRateMetrics.quarterToDate.winRate >= 50 ? 'gba:text-orange-600' : 'gba:text-red-600'}`}
+                  >
                     {formatPercentage(winRateMetrics.quarterToDate.winRate)}
                   </div>
                   <span className="gba:text-gray-600 gba:text-xs">Win Rate</span>
                 </div>
 
-                <Progress 
-                  value={winRateMetrics.quarterToDate.winRate} 
+                <Progress
+                  value={winRateMetrics.quarterToDate.winRate}
                   className={`gba:mb-2 ${getProgressColor(winRateMetrics.quarterToDate.winRate)}`}
                 />
 
                 <div className="gba:flex gba:justify-between gba:text-xs">
-                  <span className="gba:text-green-600">
-                    Won: {winRateMetrics.quarterToDate.won}
-                  </span>
-                  <span className="gba:text-red-600">
-                    Lost: {winRateMetrics.quarterToDate.lost}
-                  </span>
+                  <span className="gba:text-green-600">Won: {winRateMetrics.quarterToDate.won}</span>
+                  <span className="gba:text-red-600">Lost: {winRateMetrics.quarterToDate.lost}</span>
                 </div>
               </div>
             </CardContent>
@@ -142,7 +135,7 @@ export const ConversionPerformance: React.FC<ConversionPerformanceProps> = ({
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ConversionPerformance;
+export default ConversionPerformance

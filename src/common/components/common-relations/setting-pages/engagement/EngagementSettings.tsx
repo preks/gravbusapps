@@ -1,9 +1,33 @@
 import React, { useMemo, useState } from 'react'
-import { 
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-  Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, Input, Badge, Alert, AlertDescription,
-  Tabs, TabsList, TabsTrigger, TabsContent, PageHeader
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  Input,
+  Badge,
+  Alert,
+  AlertDescription,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  PageHeader
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { useForm } from 'react-hook-form'
@@ -83,11 +107,12 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim()
     if (!s) return items
-    return items.filter((i) =>
-      i.code.toLowerCase().includes(s) ||
-      i.value.toLowerCase().includes(s) ||
-      (i.alternativeCode && i.alternativeCode.toLowerCase().includes(s)) ||
-      (i.displayOrder != null && String(i.displayOrder).toLowerCase().includes(s))
+    return items.filter(
+      i =>
+        i.code.toLowerCase().includes(s) ||
+        i.value.toLowerCase().includes(s) ||
+        (i.alternativeCode && i.alternativeCode.toLowerCase().includes(s)) ||
+        (i.displayOrder != null && String(i.displayOrder).toLowerCase().includes(s))
     )
   }, [items, search])
 
@@ -158,9 +183,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
           <DialogContent data-testid={`${dataTestId}-Modal`}>
             <DialogHeader>
               <DialogTitle>{editing ? 'Edit' : 'Add'}</DialogTitle>
-              <DialogDescription>
-                {editing ? 'Update the details below.' : 'Add a new entry.'}
-              </DialogDescription>
+              <DialogDescription>{editing ? 'Update the details below.' : 'Add a new entry.'}</DialogDescription>
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -247,7 +270,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
         <DebouncedInput
           placeholder="Search..."
           value={search}
-          onChange={(v) => {
+          onChange={v => {
             setSearch(v)
             onSearchChange && onSearchChange(v)
           }}
@@ -274,7 +297,7 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                   <TableCell colSpan={4}>No entries found</TableCell>
                 </TableRow>
               ) : (
-                filtered.map((item) => (
+                filtered.map(item => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant="outline">{item.code}</Badge>
@@ -283,8 +306,10 @@ const GenericCatalogTab: React.FC<GenericTabProps> = ({
                     <TableCell>
                       {item.displayOrder != null ? (
                         <Badge variant="secondary">{item.displayOrder}</Badge>
+                      ) : item.alternativeCode ? (
+                        <Badge variant="secondary">{item.alternativeCode}</Badge>
                       ) : (
-                        item.alternativeCode ? <Badge variant="secondary">{item.alternativeCode}</Badge> : <span>-</span>
+                        <span>-</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -327,9 +352,11 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
   taskTypes,
   taskPriorities,
   taskStatuses,
-  onBack,
+  onBack
 }) => {
-  const [active, setActive] = useState<'activity-types' | 'task-types' | 'task-priorities' | 'task-statuses'>('activity-types')
+  const [active, setActive] = useState<'activity-types' | 'task-types' | 'task-priorities' | 'task-statuses'>(
+    'activity-types'
+  )
 
   return (
     <div className={className} data-testid={`${prefixDataTestId || ''}-EngagementSettings-Container`}>
@@ -349,7 +376,11 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
       />
 
       <div>
-        <Tabs value={active} onValueChange={(k) => setActive(k as any)} data-testid={`${prefixDataTestId || ''}-EngagementSettings-Tabs`}>
+        <Tabs
+          value={active}
+          onValueChange={k => setActive(k as any)}
+          data-testid={`${prefixDataTestId || ''}-EngagementSettings-Tabs`}
+        >
           <TabsList>
             <TabsTrigger value="activity-types">Activity Types</TabsTrigger>
             <TabsTrigger value="task-types">Task Types</TabsTrigger>
@@ -403,5 +434,3 @@ export const EngagementSettings: React.FC<EngagementSettingsProps> = ({
 }
 
 export default EngagementSettings
-
-

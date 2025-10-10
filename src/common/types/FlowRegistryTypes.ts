@@ -1,145 +1,129 @@
 export enum FlowContextName {
   // Human Resources
-  employeeEntity = "employeeEntity",
-  jobPositionEntity = "jobPositionEntity",
-
+  employeeEntity = 'employeeEntity',
+  jobPositionEntity = 'jobPositionEntity',
 
   // Customer Relations
 
   /// Customer Leads
-  leadEntity = "custopmerLeadEntity", // TODO: Obsolete
-  customerLeadEntity = "customerLeadEntity",
-  customerLeadCreate = "customerLeadCreate",
+  leadEntity = 'custopmerLeadEntity', // TODO: Obsolete
+  customerLeadEntity = 'customerLeadEntity',
+  customerLeadCreate = 'customerLeadCreate',
 
   /// Customer Accounts
-  accountEntity = "customerAccountEntity", // TODO: Obsolete
-  customerAccountEntity = "customerAccountEntity", // TODO: Check
-  customerAccountCreate = "customerAccountCreate", // TODO: Replace startProcess
-  customerAccountUpdate = "customerAccountUpdate", // TODO: Replace startProcess
+  accountEntity = 'customerAccountEntity', // TODO: Obsolete
+  customerAccountEntity = 'customerAccountEntity', // TODO: Check
+  customerAccountCreate = 'customerAccountCreate', // TODO: Replace startProcess
+  customerAccountUpdate = 'customerAccountUpdate', // TODO: Replace startProcess
 
   /// Customer Contacts
-  contactEntity = "customerContactEntity", // TODO: Rename
-  customerContactEntity = "customerContactEntity",
-  customerContactCreate = "customerContactCreate", // TODO: Replace startProcess
-  customerContactUpdate = "customerContactUpdate", // TODO: Replace startProcess
+  contactEntity = 'customerContactEntity', // TODO: Rename
+  customerContactEntity = 'customerContactEntity',
+  customerContactCreate = 'customerContactCreate', // TODO: Replace startProcess
+  customerContactUpdate = 'customerContactUpdate', // TODO: Replace startProcess
 
   /// Customer Opportunities
-  opportunityEntity = "customerOpportunityEntity", // TODO: Obsolete
-  customerOpportunityEntity = "customerOpportunityEntity",
-  customerOpportunityCreate = "customerOpportunityCreate", // TODO: Replace startProcess
-  customerOpportunityUpdate = "customerOpportunityUpdate", // TODO: Replace startProcess
+  opportunityEntity = 'customerOpportunityEntity', // TODO: Obsolete
+  customerOpportunityEntity = 'customerOpportunityEntity',
+  customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
+  customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
 
-  transitionOpportunityStage = "transitionOpportunityStage",
-  saveOpportunityStageConditionStatus='saveOpportunityStageConditionStatus',
+  transitionOpportunityStage = 'transitionOpportunityStage',
+  saveOpportunityStageConditionStatus = 'saveOpportunityStageConditionStatus',
 
   /// Customer Campaigns
-  customerCampaignEntity = "customerCampaignEntity",
-  customerCampaignCreate = "customerCampaignCreate",
-  customerCampaignUpdate = "customerCampaignUpdate",
+  customerCampaignEntity = 'customerCampaignEntity',
+  customerCampaignCreate = 'customerCampaignCreate',
+  customerCampaignUpdate = 'customerCampaignUpdate',
 
   /// Customer Activities
-  customerActivityEntity = "customerActivityEntity",
-  customerActivityCreate = "customerActivityCreate",
-  customerActivityUpdate = "customerActivityUpdate",
-  customerActivityDelete = "customerActivityDelete",
+  customerActivityEntity = 'customerActivityEntity',
+  customerActivityCreate = 'customerActivityCreate',
+  customerActivityUpdate = 'customerActivityUpdate',
+  customerActivityDelete = 'customerActivityDelete',
 
   /// Customer Notes
-  customerNoteCreate = "customerNoteCreate",
-  customerNoteDelete = "customerNoteDelete",
+  customerNoteCreate = 'customerNoteCreate',
+  customerNoteDelete = 'customerNoteDelete',
 
   /// Customer Documents
-  createCustomerDocument = "customerDocumentCreate",
-  
+  createCustomerDocument = 'customerDocumentCreate',
 
   customerTaskEntity = 'customerTaskEntity',
   createCustomerTask = 'customerTaskCreate',
   customerTaskDelete = 'customerTaskDelete',
 
-
   // Investment Relations
 
   /// Investment Leads
-  investmentLeadEntity = "investmentLeadEntity",
-  createInvestmentLead = "investmentLeadCreate",
-  updateInvestmentLead = "investmentLeadUpdate",
+  investmentLeadEntity = 'investmentLeadEntity',
+  createInvestmentLead = 'investmentLeadCreate',
+  updateInvestmentLead = 'investmentLeadUpdate',
 
   /// Investment Accounts
-  investmentAccountEntity = "investmentAccountEntity",
-  createInvestmentAccount = "investmentAccountCreate",
-  updateInvestmentAccount = "investmentAccountUpdate",
+  investmentAccountEntity = 'investmentAccountEntity',
+  createInvestmentAccount = 'investmentAccountCreate',
+  updateInvestmentAccount = 'investmentAccountUpdate',
 
   /// Investment Contacts
-  investmentContactEntity = "investmentContactEntity",
-  createInvestmentContact = "investmentContactCreate",
-  updateInvestmentContact = "investmentContactUpdate",
+  investmentContactEntity = 'investmentContactEntity',
+  createInvestmentContact = 'investmentContactCreate',
+  updateInvestmentContact = 'investmentContactUpdate',
 
   /// Investment Opportunities
-  investmentOpportunityEntity = "investmentOpportunityEntity",
-  createInvestmentOpportunity = "investmentOpportunityCreate",
-  updateInvestmentOpportunity = "investmentOpportunityUpdate",
-  investmentOpportunityStageTransition = "investmentOpportunityStageTransition",
-  investmentOpportunityConditionUpdate = "investmentOpportunityConditionUpdate",
-
+  investmentOpportunityEntity = 'investmentOpportunityEntity',
+  createInvestmentOpportunity = 'investmentOpportunityCreate',
+  updateInvestmentOpportunity = 'investmentOpportunityUpdate',
+  investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
+  investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
 
   /// Investment Activities
 
-  investmentActivityEntity = "investmentActivityEntity",
-  createInvestmentActivity = "investmentActivityCreate",
-  investmentActivityDelete = "investmentActivityDelete",
+  investmentActivityEntity = 'investmentActivityEntity',
+  createInvestmentActivity = 'investmentActivityCreate',
+  investmentActivityDelete = 'investmentActivityDelete',
 
   /// Investment Tasks
 
-  investmentTaskEntity = "investmentTaskEntity",
-  investmentTaskCreate = "investmentTaskCreate",
-  investmentTaskUpdate = "investmentTaskUpdate",
-  investmentTaskDelete = "investmentTaskDelete",
+  investmentTaskEntity = 'investmentTaskEntity',
+  investmentTaskCreate = 'investmentTaskCreate',
+  investmentTaskUpdate = 'investmentTaskUpdate',
+  investmentTaskDelete = 'investmentTaskDelete',
   /// Investment Notes
 
-  investmentNoteEntity = "investmentNoteEntity",
-  investmentNoteCreate = "investmentNoteCreate",
-  investmentNoteDelete = "investmentNoteDelete",
-  
+  investmentNoteEntity = 'investmentNoteEntity',
+  investmentNoteCreate = 'investmentNoteCreate',
+  investmentNoteDelete = 'investmentNoteDelete',
+
   /// Investment Documents
-  investmentDocumentEntity = "investmentDocumentEntity",
-  investmentDocumentCreate = "investmentDocumentCreate",
-  createInvestmentDocument = "createInvestmentDocument",
-  investmentDocumentUpdate = "investmentDocumentUpdate",
-  investmentDocumentDelete = "investmentDocumentDelete",
+  investmentDocumentEntity = 'investmentDocumentEntity',
+  investmentDocumentCreate = 'investmentDocumentCreate',
+  createInvestmentDocument = 'createInvestmentDocument',
+  investmentDocumentUpdate = 'investmentDocumentUpdate',
+  investmentDocumentDelete = 'investmentDocumentDelete',
 
   /// Investments
-  createInvestment = "investmentCreate", // TODO: Obsolete
-  investmentCreate = "investmentCreate", // TODO: Replace startProcess
-  investmentEntity = "investmentEntity",
-  investmentTileUpdate = "investmentTileUpdate",
-  investmentStatusUpdate = "investmentStatusUpdate",
-  investmentPlanExit = "investmentPlanExit",
+  createInvestment = 'investmentCreate', // TODO: Obsolete
+  investmentCreate = 'investmentCreate', // TODO: Replace startProcess
+  investmentEntity = 'investmentEntity',
+  investmentTileUpdate = 'investmentTileUpdate',
+  investmentStatusUpdate = 'investmentStatusUpdate',
+  investmentPlanExit = 'investmentPlanExit',
 
-  equityInvestmentEntity = "equityInvestmentEntity", // TODO: Check
-  privateEquityInvestmentEntity = "privateEquityInvestmentEntity", // TODO: Check
-  realEstateInvestmentEntity = "realEstateInvestmentEntity", // TODO: Check
-  liquidFundInvestmentEntity = "liquidFundInvestmentEntity", // TODO: Check
+  equityInvestmentEntity = 'equityInvestmentEntity', // TODO: Check
+  privateEquityInvestmentEntity = 'privateEquityInvestmentEntity', // TODO: Check
+  realEstateInvestmentEntity = 'realEstateInvestmentEntity', // TODO: Check
+  liquidFundInvestmentEntity = 'liquidFundInvestmentEntity', // TODO: Check
 
   /// Investment Equity Round
-  investmentEquityInvestmentRoundCreate = "investmentEquityInvestmentRoundCreate",
-  investmentEquityInvestmentRoundUpdate = "investmentEquityInvestmentRoundUpdate",
-  investmentEquityInvestmentRoundDelete = "investmentEquityInvestmentRoundDelete",
+  investmentEquityInvestmentRoundCreate = 'investmentEquityInvestmentRoundCreate',
+  investmentEquityInvestmentRoundUpdate = 'investmentEquityInvestmentRoundUpdate',
+  investmentEquityInvestmentRoundDelete = 'investmentEquityInvestmentRoundDelete',
 
   /// Investment Reports
-  investmentReportUpload = "investmentReportUpload",
-  investmentReportEntity = "investmentReportEntity", // Integrate
-  investmentReportGenerate = "investmentReportGenerate",
-
-
-
-
-
-
-
-
-
-
-
-
+  investmentReportUpload = 'investmentReportUpload',
+  investmentReportEntity = 'investmentReportEntity', // Integrate
+  investmentReportGenerate = 'investmentReportGenerate',
 
   expenseItems = 'expenseItems',
   expensePlans = 'expensePlans',
@@ -159,75 +143,74 @@ export enum FlowContextName {
   employeeSkills = 'employeeSkills',
   employeeProfilePicture = 'employeeProfilePicture',
 
-  updateEmployeePersonalData = "updateEmployeePersonalData",
-  updateEmployeeAddress = "updateEmployeeAddress",
-  updateEmployeeCommunication = "updateEmployeeCommunication",
-  updateEmployeeRelationship = "updateEmployeeRelationship",
-  updateEmployeeBankAccount = "updateEmployeeBankAccount",
-  updateEmployeePicture = "updateEmployeePicture",
-  updateEmployeeSkill = "updateEmployeeSkill",
-  updateEmployeeWorkingCondition = "updateEmployeeWorkingCondition",
-  updateEmployeeWorkingHours = "updateEmployeeWorkingHours",
+  updateEmployeePersonalData = 'updateEmployeePersonalData',
+  updateEmployeeAddress = 'updateEmployeeAddress',
+  updateEmployeeCommunication = 'updateEmployeeCommunication',
+  updateEmployeeRelationship = 'updateEmployeeRelationship',
+  updateEmployeeBankAccount = 'updateEmployeeBankAccount',
+  updateEmployeePicture = 'updateEmployeePicture',
+  updateEmployeeSkill = 'updateEmployeeSkill',
+  updateEmployeeWorkingCondition = 'updateEmployeeWorkingCondition',
+  updateEmployeeWorkingHours = 'updateEmployeeWorkingHours',
 
-  createEmployee = "createEmployee",
-  createJobPosition = "createJobPosition",
-
+  createEmployee = 'createEmployee',
+  createJobPosition = 'createJobPosition'
 }
 
 export type ContextData = {
-  id?: string | null;
-  contextDataName: string;
-  contextDataType: string;
-};
+  id?: string | null
+  contextDataName: string
+  contextDataType: string
+}
 
 export type Context = {
-  id?: string | null;
-  contextName: string;
-  contextData?: ContextData[] | null;
-  contextDataType?: string;
-  contextDataName?: string;
-  contextId?: string;
-  isDeleted?: boolean;
-  rank?: number;
-};
+  id?: string | null
+  contextName: string
+  contextData?: ContextData[] | null
+  contextDataType?: string
+  contextDataName?: string
+  contextId?: string
+  isDeleted?: boolean
+  rank?: number
+}
 
 export type FlowItemReduced = {
-  id?: string | null;
-  flowName: string;
-  flowNameTranslation?: Record<string, string> | string;
-  flowType: string;
-  context?: Context; // Single context object from API
-  contexts?: Context[]; // For backward compatibility
-  processName: string;
-  domain: string;
-  targetDesktop: string;
-  targetMobile: string;
-  rank?: number;
-  builderType?: string;
-};
+  id?: string | null
+  flowName: string
+  flowNameTranslation?: Record<string, string> | string
+  flowType: string
+  context?: Context // Single context object from API
+  contexts?: Context[] // For backward compatibility
+  processName: string
+  domain: string
+  targetDesktop: string
+  targetMobile: string
+  rank?: number
+  builderType?: string
+}
 
 export type GetPermissionFlowItemsV1Params = {
-  contexts: FlowContextName[];
-};
+  contexts: FlowContextName[]
+}
 
 export type GetPermissionFlowItemsV2Body = {
   contexts: {
-    contextName: FlowContextName;
-    mainContextDataId: string;
-  }[];
-};
+    contextName: FlowContextName
+    mainContextDataId: string
+  }[]
+}
 
 export type GetMainContextDataBody = {
-  contextNames: FlowContextName[];
-};
+  contextNames: FlowContextName[]
+}
 
 export type GetPermissionFlowItemsResponse = {
-  flowItems: FlowItemReduced[];
-};
+  flowItems: FlowItemReduced[]
+}
 
 export type GetMainContextDataResponse = {
   contextData: {
-    mainContextDataName: string;
-    contextName: string;
-  }[];
-};
+    mainContextDataName: string
+    contextName: string
+  }[]
+}

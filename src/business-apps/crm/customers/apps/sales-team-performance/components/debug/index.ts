@@ -1,2 +1,2 @@
-export { SimpleBypass } from './SimpleBypass';
-export { default } from './SimpleBypass';
+export { SimpleBypass } from './SimpleBypass'
+export { default } from './SimpleBypass'

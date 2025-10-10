@@ -1,34 +1,26 @@
-import React, { Dispatch, SetStateAction, useState } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-  Textarea,
-} from "@newwork/nw-design-system";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useTranslation } from "react-i18next";
-import type { Team } from "../../apps/organizational-data/types";
+import React, { Dispatch, SetStateAction, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FormWrapperModal } from '@/components/form-wrapper'
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useTranslation } from 'react-i18next'
+import type { Team } from '../../apps/organizational-data/types'
 
-const DATA_TEST_ID_PREFIX = "TeamForm";
-const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+const DATA_TEST_ID_PREFIX = 'TeamForm'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export interface TeamFormProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  team?: Team;
-  refetch: () => void;
-  structureId: string;
-  open?: boolean;
-  setOpen?: Dispatch<SetStateAction<boolean>>;
-  isDrawerActive?: boolean;
-  childAddButton?: React.ReactNode;
-  teamsCount: number;
+  prefixDataTestId?: string
+  team?: Team
+  refetch: () => void
+  structureId: string
+  open?: boolean
+  setOpen?: Dispatch<SetStateAction<boolean>>
+  isDrawerActive?: boolean
+  childAddButton?: React.ReactNode
+  teamsCount: number
 }
 
 export const TeamForm: React.FC<TeamFormProps> = ({
@@ -41,71 +33,71 @@ export const TeamForm: React.FC<TeamFormProps> = ({
   isDrawerActive = false,
   childAddButton,
   accessToken,
-  teamsCount,
+  teamsCount
 }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(ORGCHART_BASE_URL);
-  const { t } = useTranslation("master-data");
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(ORGCHART_BASE_URL)
+  const { t } = useTranslation('master-data')
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false)
 
   const defaultValues = {
-    name: "",
-    description: "",
-    rank: 0,
-  };
+    name: '',
+    description: '',
+    rank: 0
+  }
 
   const onCancel = () => {
-    setOpen?.(false);
-  };
+    setOpen?.(false)
+  }
 
   const handleSubmit = async (values: Record<string, unknown>) => {
     try {
-      setLoading(true);
+      setLoading(true)
 
       const teamData = {
         name: values.name,
         description: values.description,
         rank: teamsCount,
         structureId: structureId,
-        ...(team ? { id: team.id } : {}),
-      };
+        ...(team ? { id: team.id } : {})
+      }
 
       if (team) {
         // Update existing team
         await restClient.put(`/matrix-units/${team.id}`, teamData, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
       } else {
         // Create new team
-        await restClient.post("/matrix-units", teamData, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
+        await restClient.post('/matrix-units', teamData, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
       }
 
-      refetch?.();
-      setOpen?.(false);
+      refetch?.()
+      setOpen?.(false)
     } catch (error) {
-      console.error("Error saving team:", error);
+      console.error('Error saving team:', error)
     } finally {
-      setLoading(false);
-      setOpen?.(false);
+      setLoading(false)
+      setOpen?.(false)
     }
-  };
+  }
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={team ? "Edit Team" : "Create Team"}
+      title={team ? 'Edit Team' : 'Create Team'}
       description="Configure team details and information"
       onSubmit={handleSubmit}
       onCancel={onCancel}
       defaultValues={
         team
           ? {
-              ...team,
+              ...team
             }
           : {
-              ...defaultValues,
+              ...defaultValues
             }
       }
       isEditing={!!team}
@@ -117,17 +109,17 @@ export const TeamForm: React.FC<TeamFormProps> = ({
       <FormField
         name="name"
         rules={{
-          required: t("forms.team.fields.name.validation", {
-            defaultValue: "Please enter team name",
-          }),
+          required: t('forms.team.fields.name.validation', {
+            defaultValue: 'Please enter team name'
+          })
         }}
         render={({ field }) => (
           <FormItem>
-            <FormLabel>{t("forms.team.fields.name.label", { defaultValue: "Name" })}</FormLabel>
+            <FormLabel>{t('forms.team.fields.name.label', { defaultValue: 'Name' })}</FormLabel>
             <FormControl>
               <Input
-                placeholder={t("forms.team.fields.name.placeholder", {
-                  defaultValue: "Enter team name",
+                placeholder={t('forms.team.fields.name.placeholder', {
+                  defaultValue: 'Enter team name'
                 })}
                 data-testid={`${dataTestId}-name-input`}
                 {...field}
@@ -142,13 +134,11 @@ export const TeamForm: React.FC<TeamFormProps> = ({
         name="description"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t("forms.team.fields.description.label", { defaultValue: "Description" })}
-            </FormLabel>
+            <FormLabel>{t('forms.team.fields.description.label', { defaultValue: 'Description' })}</FormLabel>
             <FormControl>
               <Textarea
-                placeholder={t("forms.team.fields.description.placeholder", {
-                  defaultValue: "Enter team description (optional)",
+                placeholder={t('forms.team.fields.description.placeholder', {
+                  defaultValue: 'Enter team description (optional)'
                 })}
                 data-testid={`${dataTestId}-description-textarea`}
                 {...field}
@@ -159,7 +149,7 @@ export const TeamForm: React.FC<TeamFormProps> = ({
         )}
       />
     </FormWrapperModal>
-  );
-};
+  )
+}
 
-export default TeamForm;
+export default TeamForm

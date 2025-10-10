@@ -3,7 +3,7 @@ export type {
   RealEstateAnalyticsRowData,
   RealEstateAnalyticsTableProps,
   RealEstateAnalyticsResponse
-} from './RealEstateTypes';
+} from './RealEstateTypes'
 
 export type {
   EnhancedRealEstateInvestment,
@@ -16,4 +16,4 @@ export type {
   ProjectDevelopmentData,
   MezzanineLoansData,
   OthersData
-} from './realEstateReportTypes';
+} from './realEstateReportTypes'

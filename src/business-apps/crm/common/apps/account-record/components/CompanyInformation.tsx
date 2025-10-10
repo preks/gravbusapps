@@ -1,51 +1,51 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert } from '@newwork/nw-design-system';
-import { Account } from '../hooks/useAccountData';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetAccountById } from '../queries/GetAccountByIdQueries';
+import React, { useState, useEffect } from 'react'
+import { Card, CardHeader, CardTitle, CardContent, Spinner, Alert } from '@newwork/nw-design-system'
+import { Account } from '../hooks/useAccountData'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetAccountById } from '../queries/GetAccountByIdQueries'
 
 interface CompanyInformationProps {
-  account?: Account;
-  accountData?: any;
-  accountId?: string;
-  context?: BusinessAppContextProps;
+  account?: Account
+  accountData?: any
+  accountId?: string
+  context?: BusinessAppContextProps
 }
 
-export const CompanyInformation: React.FC<CompanyInformationProps> = ({ 
-  account, 
-  accountData: providedAccountData, 
+export const CompanyInformation: React.FC<CompanyInformationProps> = ({
+  account,
+  accountData: providedAccountData,
   accountId,
-  context 
+  context
 }) => {
-  const [fetchedAccountData, setFetchedAccountData] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
+  const [fetchedAccountData, setFetchedAccountData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
   // Use GraphQL query hook if context is provided
-  const { fetchAccountById } = context ? useGetAccountById(context) : { fetchAccountById: null };
-  
+  const { fetchAccountById } = context ? useGetAccountById(context) : { fetchAccountById: null }
+
   // Use provided data or fetch from GraphQL
-  const accountData = providedAccountData || fetchedAccountData;
-  
+  const accountData = providedAccountData || fetchedAccountData
+
   useEffect(() => {
     // Only fetch if we don't have provided data and we have the necessary props
     if (!providedAccountData && accountId && fetchAccountById) {
       const loadAccountData = async () => {
-        setLoading(true);
-        setError(null);
+        setLoading(true)
+        setError(null)
         try {
-          const result = await fetchAccountById({ id: accountId });
-          setFetchedAccountData(result.Account?.[0] || null);
+          const result = await fetchAccountById({ id: accountId })
+          setFetchedAccountData(result.Account?.[0] || null)
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load account data');
+          setError(err instanceof Error ? err.message : 'Failed to load account data')
         } finally {
-          setLoading(false);
+          setLoading(false)
         }
-      };
-      
-      loadAccountData();
+      }
+
+      loadAccountData()
     }
-  }, [providedAccountData, accountId, fetchAccountById]);
+  }, [providedAccountData, accountId, fetchAccountById])
 
   if (loading) {
     return (
@@ -59,7 +59,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (error) {
@@ -75,7 +75,7 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
           </Alert>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -95,23 +95,21 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
                   {accountData?.name || account?.name || '-'}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Legal Form</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {accountData?.legalForm?.value || account?.legalForm || '-'}
                 </div>
               </div>
-              
 
-              
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Industry</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {accountData?.industry?.value || account?.industry || '-'}
                 </div>
               </div>
-              
+
               <div>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
@@ -119,70 +117,71 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {/* Right Column */}
             <div>
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Website</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {(() => {
-                    const website = accountData?.website || account?.website;
-                    if (!website) return '-';
-                    
-                    const fullUrl = website.includes('://') ? website : `https://${website}`;
+                    const website = accountData?.website || account?.website
+                    if (!website) return '-'
+
+                    const fullUrl = website.includes('://') ? website : `https://${website}`
                     return (
-                      <a 
-                        href={fullUrl} 
-                        target="_blank" 
+                      <a
+                        href={fullUrl}
+                        target="_blank"
                         rel="noopener noreferrer"
                         style={{ color: '#3b82f6', textDecoration: 'none' }}
                       >
                         {website}
                       </a>
-                    );
+                    )
                   })()}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {(() => {
-                    const phone = accountData?.phone || account?.phone;
-                    if (!phone) return '-';
-                    
+                    const phone = accountData?.phone || account?.phone
+                    if (!phone) return '-'
+
                     return (
-                      <a 
-                        href={`tel:${phone}`} 
+                      <a
+                        href={`tel:${phone}`}
                         style={{ color: '#3b82f6', textDecoration: 'none' }}
                         data-testid="account-phone-link"
                       >
                         {phone}
                       </a>
-                    );
+                    )
                   })()}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Employees</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {accountData?.numberOfEmployees?.value || account?.numberOfEmployees?.value || account?.size || '-'}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Revenue</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }} data-testid="account-revenue-value">
+                <div
+                  style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}
+                  data-testid="account-revenue-value"
+                >
                   {accountData?.annualRevenue?.value || account?.annualRevenue?.value || account?.revenue || '-'}
                 </div>
               </div>
-              
-
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-}; 
+  )
+}

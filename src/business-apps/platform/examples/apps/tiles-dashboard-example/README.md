@@ -14,6 +14,7 @@ This demo application demonstrates the versatility and functionality of the Tile
 ## Features
 
 ### Sample Data Includes:
+
 - Sales performance metrics and KPIs
 - Revenue trends and regional performance charts
 - Team performance tables
@@ -22,15 +23,17 @@ This demo application demonstrates the versatility and functionality of the Tile
 - Lead source analytics
 
 ### Tile Types Demonstrated:
+
 1. **Text Tiles**: Sales summaries, pipeline health checks, action items
 2. **KPI Tiles**: Revenue, win rates, customer satisfaction with trend indicators
-3. **Chart Tiles**: 
+3. **Chart Tiles**:
    - Line charts for time-based data
    - Bar charts for comparative data
    - Pie charts for distribution data
 4. **Table Tiles**: Sales rep performance, regional breakdowns
 
 ### Interactive Features:
+
 - Create new tiles using the modal form
 - Edit existing tiles with pre-populated data
 - Delete tiles with confirmation
@@ -41,12 +44,14 @@ This demo application demonstrates the versatility and functionality of the Tile
 ## Technical Implementation
 
 ### Dependencies
+
 - React 18+
 - `@newwork/nw-design-system` (includes TilesDashboard component)
 - `recharts` for chart rendering
 - `lucide-react` for icons
 
 ### Component Structure
+
 ```typescript
 import { TilesDashboard } from '@newwork/nw-design-system'
 
@@ -58,15 +63,17 @@ import { TilesDashboard } from '@newwork/nw-design-system'
 ```
 
 ### Data Format
+
 Each tile follows a structured format defined in the design system:
+
 ```typescript
 interface Tile {
-  id: string;
-  title: string;
-  group?: string;
-  type: 'text' | 'kpi' | 'chart' | 'table';
-  createdAt: Date;
-  updatedAt: Date;
+  id: string
+  title: string
+  group?: string
+  type: 'text' | 'kpi' | 'chart' | 'table'
+  createdAt: Date
+  updatedAt: Date
   // ... type-specific properties
 }
 ```
@@ -84,6 +91,7 @@ This demo shows how the TilesDashboard can be integrated into business applicati
 ## Development Notes
 
 The component is designed to be:
+
 - **Responsive**: Works across different screen sizes
 - **Accessible**: Following WCAG guidelines
 - **Customizable**: Supports theming and styling
@@ -93,9 +101,10 @@ The component is designed to be:
 ## Future Enhancements
 
 Potential improvements for production use:
+
 - Real-time data integration
 - Advanced chart configurations
 - Export capabilities
 - Collaborative editing
 - Role-based permissions
-- Template management 
+- Template management

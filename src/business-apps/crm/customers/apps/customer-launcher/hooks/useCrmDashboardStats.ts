@@ -1,20 +1,20 @@
-import { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetCrmDashboardStats } from '../queries/CrmDashboardQueries';
+import { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetCrmDashboardStats } from '../queries/CrmDashboardQueries'
 
 export interface CrmDashboardStats {
   // CRM Stats (filtered by sourceApp and excluding deleted records)
-  totalCustomers: number;
-  activeOpportunities: number;
-  pipelineValue: number;
-  totalLeads: number;
-  totalOpportunities: number;
-  totalAccounts: number;
-  totalContacts: number;
+  totalCustomers: number
+  activeOpportunities: number
+  pipelineValue: number
+  totalLeads: number
+  totalOpportunities: number
+  totalAccounts: number
+  totalContacts: number
 }
 
 export const useCrmDashboardStats = (context: BusinessAppContextProps) => {
-  const { fetchCrmDashboardStats } = useGetCrmDashboardStats(context);
+  const { fetchCrmDashboardStats } = useGetCrmDashboardStats(context)
   const [stats, setStats] = useState<CrmDashboardStats>({
     totalCustomers: 0,
     activeOpportunities: 0,
@@ -23,23 +23,23 @@ export const useCrmDashboardStats = (context: BusinessAppContextProps) => {
     totalOpportunities: 0,
     totalAccounts: 0,
     totalContacts: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchData = async () => {
     if (!context.accessToken) {
-      setError('No access token available');
-      setIsLoading(false);
-      return;
+      setError('No access token available')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const result = await fetchCrmDashboardStats();
-      
+      const result = await fetchCrmDashboardStats()
+
       // Extract CRM data (filtered by sourceApp and excluding deleted records)
       const dashboardStats: CrmDashboardStats = {
         totalCustomers: result.totalCustomers?.aggregate?.count || 0,
@@ -49,32 +49,32 @@ export const useCrmDashboardStats = (context: BusinessAppContextProps) => {
         totalOpportunities: result.totalOpportunities?.aggregate?.count || 0,
         totalAccounts: result.totalAccounts?.aggregate?.count || 0,
         totalContacts: result.totalContacts?.aggregate?.count || 0
-      };
+      }
 
-      setStats(dashboardStats);
+      setStats(dashboardStats)
     } catch (err) {
-      console.error('Error fetching CRM dashboard stats:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard statistics');
+      console.error('Error fetching CRM dashboard stats:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch dashboard statistics')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const refetch = async () => {
-    await fetchData();
-  };
+    await fetchData()
+  }
 
   // Auto-fetch on mount when access token is available
   useEffect(() => {
     if (context.accessToken) {
-      fetchData();
+      fetchData()
     }
-  }, [context.accessToken]);
+  }, [context.accessToken])
 
   return {
     stats,
     isLoading,
     error,
     refetch
-  };
-}; 
+  }
+}

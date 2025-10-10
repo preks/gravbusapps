@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
-import { useGraphqlClient } from '../graphql/useGraphQLClient';
-import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { useMemo } from 'react'
+import { useGraphqlClient } from '../graphql/useGraphQLClient'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export const employeeExpenseDataQuery = `
   query fetchEmployee($employeeId: uuid, $activeUserLocale: String) {
@@ -91,27 +91,30 @@ export const employeeExpenseDataQuery = `
       costCenterId
     }
   }
-`;
+`
 
 export const useEmployeeExpenseData = (accessToken: string, employeeId: string, activeUserLocale: string) => {
-  const graphQLClient = useGraphqlClient(accessToken);
-  
-  const fetchEmployeeData = useMemo(() => async () => {
-    try {
-      const data = await graphQLClient.request(
-        employeeExpenseDataQuery,
-        { employeeId, activeUserLocale }
-      );
-      
-      return data;
-    } catch (error) {
-            showToast(
-                  getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-                  "error"
-                );
-      throw error;
-    }
-  }, [graphQLClient, employeeId, activeUserLocale, accessToken]);
-  
-  return fetchEmployeeData;
-};
+  const graphQLClient = useGraphqlClient(accessToken)
+
+  const fetchEmployeeData = useMemo(
+    () => async () => {
+      try {
+        const data = await graphQLClient.request(employeeExpenseDataQuery, { employeeId, activeUserLocale })
+
+        return data
+      } catch (error) {
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_type_item.process_error_data_fetch',
+            'Error fetching data'
+          ),
+          'error'
+        )
+        throw error
+      }
+    },
+    [graphQLClient, employeeId, activeUserLocale, accessToken]
+  )
+
+  return fetchEmployeeData
+}

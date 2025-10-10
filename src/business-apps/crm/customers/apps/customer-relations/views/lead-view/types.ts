@@ -1,93 +1,93 @@
 export interface Lead {
-  id: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phoneNumber?: string;
-  position?: string;
-  companyName?: string;
-  companyEmail?: string;
-  companyPhone?: string;
-  companyWebsite?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  version?: number;
-  sensitive?: boolean;
+  id: string
+  name?: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  phoneNumber?: string
+  position?: string
+  companyName?: string
+  companyEmail?: string
+  companyPhone?: string
+  companyWebsite?: string
+  createdAt?: string
+  updatedAt?: string
+  version?: number
+  sensitive?: boolean
   addresses?: Array<{
-    addressLine?: any;
-    city?: string;
-    postalCode?: string;
+    addressLine?: any
+    city?: string
+    postalCode?: string
     country?: {
-      id: string;
-      code: string;
-      value: string;
-    };
+      id: string
+      code: string
+      value: string
+    }
     region?: {
-      id: string;
-      code: string;
-      value: string;
-      additionalValue1?: string;
-    };
-    addressType?: string;
-  }>;
+      id: string
+      code: string
+      value: string
+      additionalValue1?: string
+    }
+    addressType?: string
+  }>
   leadSource?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
   leadStatus?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
   leadRating?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
   industry?: {
-    id: string;
-    code: string;
-    value: string;
-    objectValue?: any;
-  };
-  ownerEmployeeId?: string;
+    id: string
+    code: string
+    value: string
+    objectValue?: any
+  }
+  ownerEmployeeId?: string
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName: string;
-    picture?: string | null;
-    pictureThumbnail?: string | null;
-  };
+    id: string
+    firstName: string
+    lastName: string
+    displayName: string
+    picture?: string | null
+    pictureThumbnail?: string | null
+  }
   account?: {
-    id: string;
-    name: string;
-  };
+    id: string
+    name: string
+  }
   contact?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    pictureUrl: string;
-    pictureThumbnailUrl: string;
-  };
+    id: string
+    firstName: string
+    lastName: string
+    pictureUrl: string
+    pictureThumbnailUrl: string
+  }
 }
 
 export interface LeadQueryVariables {
-  offset?: number;
-  limit?: number;
-  orderBy?: Array<any>;
-  where?: any;
+  offset?: number
+  limit?: number
+  orderBy?: Array<any>
+  where?: any
 }
 
 export interface LeadListResponse {
-  Lead: Lead[];
+  Lead: Lead[]
   LeadAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }

@@ -1,18 +1,21 @@
-import React, { useMemo, useState } from "react";
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { RecordLayout, Card, CardHeader, CardTitle, CardContent, Button } from "@newwork/nw-design-system";
-import { DocumentSection, type DocumentItem } from '@/common/components/common-relations/record-sections/document-section';
-import { SummarySection } from '@/common/components/common-relations/record-sections/summary-section';
-import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard';
-import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection';
-import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection';
-import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection';
-import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection';
-import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection';
-import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { FileText, Users, Building } from '@phosphor-icons/react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React, { useMemo, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { RecordLayout, Card, CardHeader, CardTitle, CardContent, Button } from '@newwork/nw-design-system'
+import {
+  DocumentSection,
+  type DocumentItem
+} from '@/common/components/common-relations/record-sections/document-section'
+import { SummarySection } from '@/common/components/common-relations/record-sections/summary-section'
+import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
+import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
+import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
+import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
+import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
+import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { FileText, Users, Building } from '@phosphor-icons/react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const mockAccountData = {
   name: 'Acme Corporation',
@@ -28,9 +31,8 @@ const mockAccountData = {
   numberOfEmployees: { value: '120' },
   annualRevenue: { value: '€12,000,000' },
   // Company logo - dynamic demo v2.0
-  logoUrl: 'https://picsum.photos/40/40?random=1',
-};
-
+  logoUrl: 'https://picsum.photos/40/40?random=1'
+}
 
 const mockContact = {
   firstName: 'Max',
@@ -43,8 +45,8 @@ const mockContact = {
   linkedinUrl: 'https://linkedin.com/in/max-mustermann',
   xingUrl: 'https://xing.com/profile/max-mustermann',
   // Profile picture - shows when uploaded
-  pictureThumbnailUrl: 'https://randomuser.me/api/portraits/men/32.jpg',
-};
+  pictureThumbnailUrl: 'https://randomuser.me/api/portraits/men/32.jpg'
+}
 
 const mockAccounts = [
   {
@@ -62,7 +64,7 @@ const mockAccounts = [
     numberOfEmployees: { value: '120' },
     annualRevenue: { value: '€12,000,000' },
     // Has uploaded logo - shows avatar
-    logoUrl: 'https://picsum.photos/40/40?random=2',
+    logoUrl: 'https://picsum.photos/40/40?random=2'
   },
   {
     id: 'acc_2',
@@ -77,7 +79,7 @@ const mockAccounts = [
     website: 'startupcorp.example',
     phone: '+49 30 5555555',
     numberOfEmployees: { value: '25' },
-    annualRevenue: { value: '€2,500,000' },
+    annualRevenue: { value: '€2,500,000' }
     // No logo uploaded - shows bank icon
     // logoUrl: undefined
   },
@@ -96,7 +98,7 @@ const mockAccounts = [
     numberOfEmployees: { value: '500' },
     annualRevenue: { value: '€45,000,000' },
     // Has logo
-    logoUrl: 'https://picsum.photos/40/40?random=4',
+    logoUrl: 'https://picsum.photos/40/40?random=4'
   },
   {
     id: 'acc_4',
@@ -111,7 +113,7 @@ const mockAccounts = [
     website: 'techstart.example',
     phone: '+49 30 1111111',
     numberOfEmployees: { value: '15' },
-    annualRevenue: { value: '€1,200,000' },
+    annualRevenue: { value: '€1,200,000' }
   },
   {
     id: 'acc_5',
@@ -127,9 +129,9 @@ const mockAccounts = [
     phone: '+49 30 9999999',
     numberOfEmployees: { value: '200' },
     annualRevenue: { value: '€8,500,000' },
-    logoUrl: 'https://picsum.photos/40/40?random=5',
+    logoUrl: 'https://picsum.photos/40/40?random=5'
   }
-];
+]
 
 const mockContacts = [
   {
@@ -145,7 +147,7 @@ const mockContacts = [
     xingUrl: 'https://www.xing.com/profile/Max_Mustermann',
     // Has uploaded profile picture - shows avatar
     pictureThumbnailUrl: 'https://randomuser.me/api/portraits/men/45.jpg',
-    createdAt: new Date().toISOString(),
+    createdAt: new Date().toISOString()
   },
   {
     id: 'con_2',
@@ -159,7 +161,7 @@ const mockContacts = [
     linkedinUrl: 'https://linkedin.com/in/anna-schmidt',
     // No profile picture uploaded - shows user icon
     // pictureThumbnailUrl: undefined
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 2).toISOString()
   },
   {
     id: 'con_3',
@@ -173,7 +175,7 @@ const mockContacts = [
     linkedinUrl: 'https://linkedin.com/in/julia-weber',
     // Has profile picture
     pictureThumbnailUrl: 'https://randomuser.me/api/portraits/women/32.jpg',
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString()
   },
   {
     id: 'con_4',
@@ -186,7 +188,7 @@ const mockContacts = [
     xingUrl: 'https://xing.com/profile/thomas-fischer',
     // No profile picture
     // pictureThumbnailUrl: undefined
-    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString()
   },
   {
     id: 'con_5',
@@ -199,7 +201,7 @@ const mockContacts = [
     academicTitle: { id: 'at5', value: 'M.A.' },
     linkedinUrl: 'https://linkedin.com/in/sarah-mueller',
     pictureThumbnailUrl: 'https://randomuser.me/api/portraits/women/28.jpg',
-    createdAt: new Date(Date.now() - 86400000 * 7).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 7).toISOString()
   },
   {
     id: 'con_6',
@@ -211,32 +213,31 @@ const mockContacts = [
     department: 'engineering',
     academicTitle: { id: 'at6', value: 'Prof. Dr.' },
     linkedinUrl: 'https://linkedin.com/in/michael-wagner',
-    createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+    createdAt: new Date(Date.now() - 86400000 * 10).toISOString()
   }
-];
-
+]
 
 const mockInvestmentData = {
   investmentName: 'TechGrowth Venture Capital Fund',
-  investmentGroup: { 
-    id: 'ig_1', 
-    value: 'Venture Capital', 
-    code: 'VC' 
+  investmentGroup: {
+    id: 'ig_1',
+    value: 'Venture Capital',
+    code: 'VC'
   },
-  investmentType: { 
-    id: 'it_1', 
-    value: 'Growth Stage Fund', 
-    code: 'GROWTH_FUND' 
+  investmentType: {
+    id: 'it_1',
+    value: 'Growth Stage Fund',
+    code: 'GROWTH_FUND'
   },
-  investmentRole: { 
-    id: 'ir_1', 
-    value: 'Lead Investor', 
-    code: 'LEAD' 
+  investmentRole: {
+    id: 'ir_1',
+    value: 'Lead Investor',
+    code: 'LEAD'
   },
-  investmentStakeType: { 
-    id: 'ist_1', 
-    value: 'Equity Stake', 
-    code: 'EQUITY' 
+  investmentStakeType: {
+    id: 'ist_1',
+    value: 'Equity Stake',
+    code: 'EQUITY'
   },
   // Dynamic fields that would come from catalog reference fields
   targetReturn: 15.5,
@@ -244,15 +245,15 @@ const mockInvestmentData = {
   minInvestment: 1000000,
   riskRating: 'Medium-High',
   currencyRef: 'Currency:v1:EUR'
-};
+}
 
 const mockEntityIds = {
   accountId: 'acc_mock_1',
   contactId: 'con_mock_1',
   opportunityId: 'opp_mock_1',
   leadId: 'lead_mock_1',
-  investmentId: 'inv_mock_1',
-};
+  investmentId: 'inv_mock_1'
+}
 
 const mockDocuments: DocumentItem[] = [
   // Folders
@@ -285,7 +286,7 @@ const mockDocuments: DocumentItem[] = [
     createdBy: 'emp_anna_schmidt',
     documentGroup: { id: 'dg3', value: 'Technical' }
   },
-  
+
   // Files in Contracts folder
   {
     id: 'file-agreement',
@@ -420,490 +421,492 @@ const mockDocuments: DocumentItem[] = [
     documentType: { id: 'dt10', value: 'User Guide' },
     expirationDate: '2024-12-31T23:59:59Z'
   }
-];
+]
 
-const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documentsError, setDocumentsError] = useState<string | null>(null);
+const RecordExample: React.FC<BusinessAppContextProps> = context => {
+  const [activeTab, setActiveTab] = useState('overview')
+  const [documentsLoading, setDocumentsLoading] = useState(false)
+  const [documentsError, setDocumentsError] = useState<string | null>(null)
 
-  const entityIds = useMemo(() => mockEntityIds, []);
+  const entityIds = useMemo(() => mockEntityIds, [])
 
   const handleRefreshDocuments = () => {
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    
+    setDocumentsLoading(true)
+    setDocumentsError(null)
+
     // Simulate API call
     setTimeout(() => {
-      setDocumentsLoading(false);
-      console.log('Documents refreshed successfully');
-    }, 2000);
-  };
+      setDocumentsLoading(false)
+      console.log('Documents refreshed successfully')
+    }, 2000)
+  }
 
   const handleSimulateError = () => {
-    setDocumentsError('Failed to load documents. Please try again.');
-  };
+    setDocumentsError('Failed to load documents. Please try again.')
+  }
 
   const handleClearError = () => {
-    setDocumentsError(null);
-  };
+    setDocumentsError(null)
+  }
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value);
-  };
+    setActiveTab(value)
+  }
 
   // Header data for RecordLayout
-  const headerDetailGroups = useMemo(() => [
-    {
-      id: 'example-details',
+  const headerDetailGroups = useMemo(
+    () => [
+      {
+        id: 'example-details',
+        items: [
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.type', 'Type'),
+            value: 'Record Example',
+            icon: Building
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.status', 'Status'),
+            value: 'Demo Mode',
+            icon: Users
+          }
+        ]
+      }
+    ],
+    []
+  )
+
+  const subViewsConfig = useMemo(
+    () => ({
+      defaultValue: activeTab,
+      onValueChange: handleTabChange,
       items: [
         {
-          label: getTranslationFromI18nKeyAndLabel('crm.common.type', 'Type'),
-          value: 'Record Example',
-          icon: Building
-        },
-        {
-          label: getTranslationFromI18nKeyAndLabel('crm.common.status', 'Status'),
-          value: 'Demo Mode',
-          icon: Users
-        }
-      ]
-    }
-  ], []);
-
-  const subViewsConfig = useMemo(() => ({
-    defaultValue: activeTab,
-    onValueChange: handleTabChange,
-    items: [
-      {
-        value: 'overview',
-        label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-        icon: <Users className="gba:mr-2" />,
-        content: (
-          <>
-            {/* Account Section - 1/3 width */}
-            <SectionWrapper
-              className="gba:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'account-section',
-                  component: AccountSection,
-                  props: {
-                    ...context,
-                    accountId: entityIds.accountId,
-                    accountData: mockAccountData,
-                    actionButtonProps: {
-                      contextsArray: [FlowContextName.customerAccountEntity],
-                      externalContextData: { accountId: entityIds.accountId },
-                      prefixDataTestId: 'record-example-account'
-                    }
-                  }
-                }
-              ]}
-              data-testid="record-example-account-section-wrapper"
-            />
-
-            {/* Contact Section - 1/3 width */}
-            <SectionWrapper
-              className="gba:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'contact-section',
-                  component: ContactSection,
-                  props: {
-                    ...context,
-                    contactId: entityIds.contactId,
-                    contact: mockContact,
-                    actionButtonProps: {
-                      contextsArray: [FlowContextName.customerContactEntity],
-                      externalContextData: { contactId: entityIds.contactId },
-                      prefixDataTestId: 'record-example-contact'
-                    }
-                  }
-                }
-              ]}
-              data-testid="record-example-contact-section-wrapper"
-            />
-
-            {/* Investment Section - 1/3 width */}
-            <SectionWrapper
-              className="gba:col-span-6 gba:row-span-1"
-              sections={[
-                {
-                  id: 'investment-section',
-                  component: InvestmentSection,
-                  props: {
-                    investmentData: mockInvestmentData,
-                    businessAppContext: context,
-                    actionButtonProps: {
-                      contextsArray: [FlowContextName.investmentLeadEntity],
-                      externalContextData: { investmentId: entityIds.investmentId },
-                      prefixDataTestId: 'record-example-investment'
-                    }
-                  }
-                }
-              ]}
-              data-testid="record-example-investment-section-wrapper"
-            />
-
-            {/* Activities Section - 1/3 width, full height */}
-            <SectionWrapper
-              className="gba:col-span-4 gba:row-span-5"
-              sections={[
-                {
-                  id: 'activities-section',
-                  component: ActivitySection,
-                  props: {
-                    ...context,
-                    activities: [
-                      { 
-                        id: 'a1', 
-                        title: 'Intro Call', 
-                        description: 'Initial discovery with client', 
-                        occurredAt: new Date().toISOString(), 
-                        createdBy: 'Daniel Vorberg', 
-                        activityType: { value: 'Call' },
-                        ownerEmployee: { 
-                          id: 'emp_daniel_vorberg', 
-                          displayName: 'Daniel Vorberg',
-                          firstName: 'Daniel',
-                          lastName: 'Vorberg'
-                        }
-                      },
-                      { 
-                        id: 'a2', 
-                        title: 'Email Follow-up', 
-                        description: 'Sent recap and next steps', 
-                        occurredAt: new Date(Date.now()-86400000).toISOString(), 
-                        createdBy: 'You', 
-                        activityType: { value: 'Email' },
-                        ownerEmployee: { 
-                          id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user', 
-                          displayName: 'Current User',
-                          firstName: 'Current',
-                          lastName: 'User'
-                        }
-                      },
-                    ],
-                    activitiesLoading: false,
-                    activitiesError: null,
-                    onReloadActivities: () => {},
-                    activitySectionActionProps: {
-                      contextsArray: [FlowContextName.createInvestmentActivity],
-                      externalContextData: { ...entityIds },
-                      prefixDataTestId: 'record-example-activities',
-                      emptyStateBehavior: 'enable'
-                    },
-                    activityEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentActivityEntity],
-                      externalContextData: { ...entityIds },
-                      prefixDataTestId: 'record-example-activity-entity',
-                      emptyStateBehavior: 'enable'
-                    }
-                  }
-                }
-              ]}
-              data-testid="record-example-activity-section-wrapper"
-            />
-
-            {/* Notes Section - 2/3 width, spans 2 rows */}
-            <SectionWrapper
-              className="gba:col-span-8 gba:row-span-2"
-              sections={[
-                {
-                  id: 'note-section',
-                  component: NoteSection,
-                  props: {
-                    ...context,
-                    noteActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteEntity],
-                      externalContextData: { ...entityIds },
-                      prefixDataTestId: 'record-example-notes',
-                      emptyStateBehavior: 'enable'
-                    },
-                    noteEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentNoteEntity],
-                      externalContextData: { ...entityIds },
-                      prefixDataTestId: 'record-example-note-entity',
-                      emptyStateBehavior: 'enable'
-                    }
-                  }
-                }
-              ]}
-              data-testid="record-example-note-section-wrapper"
-            />
-
-            {/* Summary Section - full width */}
-            <div className="gba:col-span-12 gba:row-span-1">
-              <SummarySection data-testid="record-example-summary-section">
-                <div className="gba:text-sm">AI summary preview: ACME shows strong engagement. Next steps: finalize proposal, schedule exec review.</div>
-              </SummarySection>
-            </div>
-
-            {/* Multiple Accounts Section - 1/4 width */}
-            <SectionWrapper
-              className="gba:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'multiple-accounts-section',
-                  component: AccountSection,
-                  props: {
-                    ...context,
-                    accounts: mockAccounts,
-                    actionButtonProps: {
-                      contextsArray: [FlowContextName.customerAccountEntity],
-                      externalContextData: { accountId: mockAccounts[0]?.id },
-                      prefixDataTestId: 'record-example-account-multiple'
-                    }
-                  }
-                }
-              ]}
-              data-testid="record-example-account-section-multiple-wrapper"
-            />
-
-            {/* Multiple Contacts Section - 1/4 width */}
-            <SectionWrapper
-              className="gba:col-span-3 gba:row-span-1"
-              sections={[
-                {
-                  id: 'multiple-contacts-section',
-                  component: ContactSection,
-                  props: {
-                    ...context,
-                    contacts: mockContacts,
-                    actionButtonProps: {
-                      contextsArray: [FlowContextName.customerContactEntity],
-                      externalContextData: { contactId: mockContacts[0]?.id },
-                      prefixDataTestId: 'record-example-contact-multiple'
-                    }
-                  }
-                }
-              ]}
-              data-testid="record-example-contact-section-multiple-wrapper"
-            />
-
-            {/* Conditions Section - full width */}
-            <div className="gba:col-span-12 gba:row-span-1">
+          value: 'overview',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
+          icon: <Users className="gba:mr-2" />,
+          content: (
+            <>
+              {/* Account Section - 1/3 width */}
               <SectionWrapper
+                className="gba:col-span-3 gba:row-span-1"
                 sections={[
                   {
-                    id: 'condition-section',
-                    component: ConditionSection,
+                    id: 'account-section',
+                    component: AccountSection,
                     props: {
                       ...context,
-                      opportunity: { 
-                        opportunityPipelineStage: { 
-                          code: 'DISCOVERY', 
-                          value: 'Discovery Phase',
-                          id: 'SalesPipelineStage:v1:DISCOVERY'
-                        } 
-                      },
-                      stageConditionActionProps: {
-                        contextsArray: [FlowContextName.saveOpportunityStageConditionStatus],
-                        externalContextData: { ...entityIds },
-                        prefixDataTestId: 'record-example-stage-condition-status-icon',
-                        emptyStateBehavior: 'disable'
-                      },
-                      stageConditionStatuses: [
-                        {
-                          id: 'cond_1',
-                          completed: false,
-                          opportunityPipelineStageCondition: { 
-                            code: 'REQ_DOCS', 
-                            value: 'Requirements Document', 
-                            parentEntryId: 'SalesPipelineStage:v1:DISCOVERY' 
-                          },
-                          configSnapshot: { 
-                            description: 'Upload comprehensive requirements document for technical validation and stakeholder review', 
-                            check_type: 'MANUAL', 
-                            deadline_enabled: true, 
-                            deadline_duration: 3, 
-                            deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
-                            generate_task: true
-                          },
-                          deadlineAt: new Date(Date.now() + 3*24*60*60*1000).toISOString(),
-                        },
-                        {
-                          id: 'cond_2',
-                          completed: true,
-                          completedAt: new Date(Date.now() - 2*24*60*60*1000).toISOString(),
-                          completedByEmployee: { 
-                            firstName: 'Alice', 
-                            lastName: 'Johnson',
-                            displayName: 'Alice Johnson'
-                          },
-                          opportunityPipelineStageCondition: { 
-                            code: 'STAKEHOLDER_OK', 
-                            value: 'Stakeholder Alignment', 
-                            parentEntryId: 'SalesPipelineStage:v1:DISCOVERY' 
-                          },
-                          configSnapshot: { 
-                            description: 'Ensure all key stakeholders are aligned with project scope and timeline', 
-                            check_type: 'MANUAL',
-                            generate_task: false
-                          },
-                        },
-                        {
-                          id: 'cond_3',
-                          completed: false,
-                          opportunityPipelineStageCondition: { 
-                            code: 'BUDGET_APPROVAL', 
-                            value: 'Budget Approval', 
-                            parentEntryId: 'SalesPipelineStage:v1:DISCOVERY' 
-                          },
-                          configSnapshot: { 
-                            description: 'Obtain formal budget approval from finance department', 
-                            check_type: 'MANUAL', 
-                            deadline_enabled: true, 
-                            deadline_duration: 5, 
-                            deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
-                            generate_task: true
-                          },
-                          deadlineAt: new Date(Date.now() + 5*24*60*60*1000).toISOString(),
-                        },
-                        {
-                          id: 'cond_4',
-                          completed: true,
-                          completedAt: new Date(Date.now() - 1*24*60*60*1000).toISOString(),
-                          completedByEmployee: { 
-                            firstName: 'Michael', 
-                            lastName: 'Chen',
-                            displayName: 'Michael Chen'
-                          },
-                          opportunityPipelineStageCondition: { 
-                            code: 'TECH_REVIEW', 
-                            value: 'Technical Review', 
-                            parentEntryId: 'SalesPipelineStage:v1:DISCOVERY' 
-                          },
-                          configSnapshot: { 
-                            description: 'Complete technical feasibility review with engineering team', 
-                            check_type: 'AUTOMATED',
-                            generate_task: false
-                          },
-                        },
-                        {
-                          id: 'cond_5',
-                          completed: false,
-                          opportunityPipelineStageCondition: { 
-                            code: 'LEGAL_CLEARANCE', 
-                            value: 'Legal Clearance', 
-                            parentEntryId: 'SalesPipelineStage:v1:DISCOVERY' 
-                          },
-                          configSnapshot: { 
-                            description: 'Obtain legal clearance for proposed contract terms and conditions', 
-                            check_type: 'MANUAL', 
-                            deadline_enabled: true, 
-                            deadline_duration: 7, 
-                            deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
-                            generate_task: true
-                          },
-                          deadlineAt: new Date(Date.now() + 7*24*60*60*1000).toISOString(),
-                        },
-                        {
-                          id: 'cond_6',
-                          completed: false,
-                          opportunityPipelineStageCondition: { 
-                            code: 'RISK_ASSESSMENT', 
-                            value: 'Risk Assessment', 
-                            parentEntryId: 'SalesPipelineStage:v1:DISCOVERY' 
-                          },
-                          configSnapshot: { 
-                            description: 'Complete comprehensive risk assessment and mitigation strategy', 
-                            check_type: 'MANUAL', 
-                            deadline_enabled: true, 
-                            deadline_duration: 4, 
-                            deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
-                            generate_task: true
-                          },
-                          deadlineAt: new Date(Date.now() + 4*24*60*60*1000).toISOString(),
-                        }
-                      ]
+                      accountId: entityIds.accountId,
+                      accountData: mockAccountData,
+                      actionButtonProps: {
+                        contextsArray: [FlowContextName.customerAccountEntity],
+                        externalContextData: { accountId: entityIds.accountId },
+                        prefixDataTestId: 'record-example-account'
+                      }
                     }
                   }
                 ]}
-                data-testid="record-example-condition-section-wrapper"
+                data-testid="record-example-account-section-wrapper"
               />
-            </div>
-          </>
-        )
-      },
-      {
-        value: 'documents',
-        label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-        icon: <FileText className="gba:mr-2" />,
-        content: (
-          <div className="gba:col-span-12">
-            <div className="gba:space-y-4">
-              {/* Demo Controls */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Document Section Demo Controls</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="gba:flex gba:gap-2">
-                    <Button 
-                      onClick={handleRefreshDocuments}
-                      variant="default"
-                      disabled={documentsLoading}
-                      data-testid="test-loading-button"
-                    >
-                      {documentsLoading ? 'Loading...' : 'Test Loading State'}
-                    </Button>
-                    <Button 
-                      onClick={handleSimulateError}
-                      variant="destructive"
-                      data-testid="test-error-button"
-                    >
-                      Test Error State
-                    </Button>
-                    <Button 
-                      onClick={handleClearError}
-                      variant="outline"
-                      data-testid="clear-error-button"
-                    >
-                      Clear Error
-                    </Button>
-                  </div>
-                  <p 
-                    className="gba:text-sm gba:text-muted-foreground gba:mt-2"
-                    data-testid="demo-controls-description"
-                  >
-                    Use these buttons to test different states of the DocumentSection component.
-                  </p>
-                </CardContent>
-              </Card>
 
-              {/* DocumentSection */}
-              <DocumentSection
-                {...context}
-                entityId={entityIds.accountId}
-                documents={documentsError ? [] : mockDocuments}
-                isLoading={documentsLoading}
-                error={documentsError}
-                onRefresh={handleRefreshDocuments}
-                createFolderActionProps={{
-                  contextsArray: [FlowContextName.customerAccountEntity],
-                  externalContextData: { 
-                    accountId: entityIds.accountId,
-                    folder: true
-                  },
-                  prefixDataTestId: 'document-create-folder'
-                }}
-                uploadActionProps={{
-                  contextsArray: [FlowContextName.customerAccountEntity],
-                  externalContextData: { 
-                    accountId: entityIds.accountId
-                  },
-                  prefixDataTestId: 'document-upload'
-                }}
-                data-testid="record-example-document-section"
+              {/* Contact Section - 1/3 width */}
+              <SectionWrapper
+                className="gba:col-span-3 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'contact-section',
+                    component: ContactSection,
+                    props: {
+                      ...context,
+                      contactId: entityIds.contactId,
+                      contact: mockContact,
+                      actionButtonProps: {
+                        contextsArray: [FlowContextName.customerContactEntity],
+                        externalContextData: { contactId: entityIds.contactId },
+                        prefixDataTestId: 'record-example-contact'
+                      }
+                    }
+                  }
+                ]}
+                data-testid="record-example-contact-section-wrapper"
               />
+
+              {/* Investment Section - 1/3 width */}
+              <SectionWrapper
+                className="gba:col-span-6 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'investment-section',
+                    component: InvestmentSection,
+                    props: {
+                      investmentData: mockInvestmentData,
+                      businessAppContext: context,
+                      actionButtonProps: {
+                        contextsArray: [FlowContextName.investmentLeadEntity],
+                        externalContextData: { investmentId: entityIds.investmentId },
+                        prefixDataTestId: 'record-example-investment'
+                      }
+                    }
+                  }
+                ]}
+                data-testid="record-example-investment-section-wrapper"
+              />
+
+              {/* Activities Section - 1/3 width, full height */}
+              <SectionWrapper
+                className="gba:col-span-4 gba:row-span-5"
+                sections={[
+                  {
+                    id: 'activities-section',
+                    component: ActivitySection,
+                    props: {
+                      ...context,
+                      activities: [
+                        {
+                          id: 'a1',
+                          title: 'Intro Call',
+                          description: 'Initial discovery with client',
+                          occurredAt: new Date().toISOString(),
+                          createdBy: 'Daniel Vorberg',
+                          activityType: { value: 'Call' },
+                          ownerEmployee: {
+                            id: 'emp_daniel_vorberg',
+                            displayName: 'Daniel Vorberg',
+                            firstName: 'Daniel',
+                            lastName: 'Vorberg'
+                          }
+                        },
+                        {
+                          id: 'a2',
+                          title: 'Email Follow-up',
+                          description: 'Sent recap and next steps',
+                          occurredAt: new Date(Date.now() - 86400000).toISOString(),
+                          createdBy: 'You',
+                          activityType: { value: 'Email' },
+                          ownerEmployee: {
+                            id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                            displayName: 'Current User',
+                            firstName: 'Current',
+                            lastName: 'User'
+                          }
+                        }
+                      ],
+                      activitiesLoading: false,
+                      activitiesError: null,
+                      onReloadActivities: () => {},
+                      activitySectionActionProps: {
+                        contextsArray: [FlowContextName.createInvestmentActivity],
+                        externalContextData: { ...entityIds },
+                        prefixDataTestId: 'record-example-activities',
+                        emptyStateBehavior: 'enable'
+                      },
+                      activityEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentActivityEntity],
+                        externalContextData: { ...entityIds },
+                        prefixDataTestId: 'record-example-activity-entity',
+                        emptyStateBehavior: 'enable'
+                      }
+                    }
+                  }
+                ]}
+                data-testid="record-example-activity-section-wrapper"
+              />
+
+              {/* Notes Section - 2/3 width, spans 2 rows */}
+              <SectionWrapper
+                className="gba:col-span-8 gba:row-span-2"
+                sections={[
+                  {
+                    id: 'note-section',
+                    component: NoteSection,
+                    props: {
+                      ...context,
+                      noteActionProps: {
+                        contextsArray: [FlowContextName.investmentNoteEntity],
+                        externalContextData: { ...entityIds },
+                        prefixDataTestId: 'record-example-notes',
+                        emptyStateBehavior: 'enable'
+                      },
+                      noteEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentNoteEntity],
+                        externalContextData: { ...entityIds },
+                        prefixDataTestId: 'record-example-note-entity',
+                        emptyStateBehavior: 'enable'
+                      }
+                    }
+                  }
+                ]}
+                data-testid="record-example-note-section-wrapper"
+              />
+
+              {/* Summary Section - full width */}
+              <div className="gba:col-span-12 gba:row-span-1">
+                <SummarySection data-testid="record-example-summary-section">
+                  <div className="gba:text-sm">
+                    AI summary preview: ACME shows strong engagement. Next steps: finalize proposal, schedule exec
+                    review.
+                  </div>
+                </SummarySection>
+              </div>
+
+              {/* Multiple Accounts Section - 1/4 width */}
+              <SectionWrapper
+                className="gba:col-span-3 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'multiple-accounts-section',
+                    component: AccountSection,
+                    props: {
+                      ...context,
+                      accounts: mockAccounts,
+                      actionButtonProps: {
+                        contextsArray: [FlowContextName.customerAccountEntity],
+                        externalContextData: { accountId: mockAccounts[0]?.id },
+                        prefixDataTestId: 'record-example-account-multiple'
+                      }
+                    }
+                  }
+                ]}
+                data-testid="record-example-account-section-multiple-wrapper"
+              />
+
+              {/* Multiple Contacts Section - 1/4 width */}
+              <SectionWrapper
+                className="gba:col-span-3 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'multiple-contacts-section',
+                    component: ContactSection,
+                    props: {
+                      ...context,
+                      contacts: mockContacts,
+                      actionButtonProps: {
+                        contextsArray: [FlowContextName.customerContactEntity],
+                        externalContextData: { contactId: mockContacts[0]?.id },
+                        prefixDataTestId: 'record-example-contact-multiple'
+                      }
+                    }
+                  }
+                ]}
+                data-testid="record-example-contact-section-multiple-wrapper"
+              />
+
+              {/* Conditions Section - full width */}
+              <div className="gba:col-span-12 gba:row-span-1">
+                <SectionWrapper
+                  sections={[
+                    {
+                      id: 'condition-section',
+                      component: ConditionSection,
+                      props: {
+                        ...context,
+                        opportunity: {
+                          opportunityPipelineStage: {
+                            code: 'DISCOVERY',
+                            value: 'Discovery Phase',
+                            id: 'SalesPipelineStage:v1:DISCOVERY'
+                          }
+                        },
+                        stageConditionActionProps: {
+                          contextsArray: [FlowContextName.saveOpportunityStageConditionStatus],
+                          externalContextData: { ...entityIds },
+                          prefixDataTestId: 'record-example-stage-condition-status-icon',
+                          emptyStateBehavior: 'disable'
+                        },
+                        stageConditionStatuses: [
+                          {
+                            id: 'cond_1',
+                            completed: false,
+                            opportunityPipelineStageCondition: {
+                              code: 'REQ_DOCS',
+                              value: 'Requirements Document',
+                              parentEntryId: 'SalesPipelineStage:v1:DISCOVERY'
+                            },
+                            configSnapshot: {
+                              description:
+                                'Upload comprehensive requirements document for technical validation and stakeholder review',
+                              check_type: 'MANUAL',
+                              deadline_enabled: true,
+                              deadline_duration: 3,
+                              deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
+                              generate_task: true
+                            },
+                            deadlineAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
+                          },
+                          {
+                            id: 'cond_2',
+                            completed: true,
+                            completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                            completedByEmployee: {
+                              firstName: 'Alice',
+                              lastName: 'Johnson',
+                              displayName: 'Alice Johnson'
+                            },
+                            opportunityPipelineStageCondition: {
+                              code: 'STAKEHOLDER_OK',
+                              value: 'Stakeholder Alignment',
+                              parentEntryId: 'SalesPipelineStage:v1:DISCOVERY'
+                            },
+                            configSnapshot: {
+                              description: 'Ensure all key stakeholders are aligned with project scope and timeline',
+                              check_type: 'MANUAL',
+                              generate_task: false
+                            }
+                          },
+                          {
+                            id: 'cond_3',
+                            completed: false,
+                            opportunityPipelineStageCondition: {
+                              code: 'BUDGET_APPROVAL',
+                              value: 'Budget Approval',
+                              parentEntryId: 'SalesPipelineStage:v1:DISCOVERY'
+                            },
+                            configSnapshot: {
+                              description: 'Obtain formal budget approval from finance department',
+                              check_type: 'MANUAL',
+                              deadline_enabled: true,
+                              deadline_duration: 5,
+                              deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
+                              generate_task: true
+                            },
+                            deadlineAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+                          },
+                          {
+                            id: 'cond_4',
+                            completed: true,
+                            completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+                            completedByEmployee: {
+                              firstName: 'Michael',
+                              lastName: 'Chen',
+                              displayName: 'Michael Chen'
+                            },
+                            opportunityPipelineStageCondition: {
+                              code: 'TECH_REVIEW',
+                              value: 'Technical Review',
+                              parentEntryId: 'SalesPipelineStage:v1:DISCOVERY'
+                            },
+                            configSnapshot: {
+                              description: 'Complete technical feasibility review with engineering team',
+                              check_type: 'AUTOMATED',
+                              generate_task: false
+                            }
+                          },
+                          {
+                            id: 'cond_5',
+                            completed: false,
+                            opportunityPipelineStageCondition: {
+                              code: 'LEGAL_CLEARANCE',
+                              value: 'Legal Clearance',
+                              parentEntryId: 'SalesPipelineStage:v1:DISCOVERY'
+                            },
+                            configSnapshot: {
+                              description: 'Obtain legal clearance for proposed contract terms and conditions',
+                              check_type: 'MANUAL',
+                              deadline_enabled: true,
+                              deadline_duration: 7,
+                              deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
+                              generate_task: true
+                            },
+                            deadlineAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+                          },
+                          {
+                            id: 'cond_6',
+                            completed: false,
+                            opportunityPipelineStageCondition: {
+                              code: 'RISK_ASSESSMENT',
+                              value: 'Risk Assessment',
+                              parentEntryId: 'SalesPipelineStage:v1:DISCOVERY'
+                            },
+                            configSnapshot: {
+                              description: 'Complete comprehensive risk assessment and mitigation strategy',
+                              check_type: 'MANUAL',
+                              deadline_enabled: true,
+                              deadline_duration: 4,
+                              deadline_duration_measurement_unit_ref: 'MeasurementUnit:v1:DAY',
+                              generate_task: true
+                            },
+                            deadlineAt: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString()
+                          }
+                        ]
+                      }
+                    }
+                  ]}
+                  data-testid="record-example-condition-section-wrapper"
+                />
+              </div>
+            </>
+          )
+        },
+        {
+          value: 'documents',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
+          icon: <FileText className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <div className="gba:space-y-4">
+                {/* Demo Controls */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Document Section Demo Controls</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="gba:flex gba:gap-2">
+                      <Button
+                        onClick={handleRefreshDocuments}
+                        variant="default"
+                        disabled={documentsLoading}
+                        data-testid="test-loading-button"
+                      >
+                        {documentsLoading ? 'Loading...' : 'Test Loading State'}
+                      </Button>
+                      <Button onClick={handleSimulateError} variant="destructive" data-testid="test-error-button">
+                        Test Error State
+                      </Button>
+                      <Button onClick={handleClearError} variant="outline" data-testid="clear-error-button">
+                        Clear Error
+                      </Button>
+                    </div>
+                    <p
+                      className="gba:text-sm gba:text-muted-foreground gba:mt-2"
+                      data-testid="demo-controls-description"
+                    >
+                      Use these buttons to test different states of the DocumentSection component.
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* DocumentSection */}
+                <DocumentSection
+                  {...context}
+                  entityId={entityIds.accountId}
+                  documents={documentsError ? [] : mockDocuments}
+                  isLoading={documentsLoading}
+                  error={documentsError}
+                  onRefresh={handleRefreshDocuments}
+                  createFolderActionProps={{
+                    contextsArray: [FlowContextName.customerAccountEntity],
+                    externalContextData: {
+                      accountId: entityIds.accountId,
+                      folder: true
+                    },
+                    prefixDataTestId: 'document-create-folder'
+                  }}
+                  uploadActionProps={{
+                    contextsArray: [FlowContextName.customerAccountEntity],
+                    externalContextData: {
+                      accountId: entityIds.accountId
+                    },
+                    prefixDataTestId: 'document-upload'
+                  }}
+                  data-testid="record-example-document-section"
+                />
+              </div>
             </div>
-          </div>
-        )
-      }
-    ]
-  }), [activeTab, context, entityIds, documentsLoading, documentsError]);
+          )
+        }
+      ]
+    }),
+    [activeTab, context, entityIds, documentsLoading, documentsError]
+  )
 
   return (
     <div data-testid="record-example">
@@ -916,9 +919,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = (context) => {
         subViews={subViewsConfig}
       />
     </div>
-  );
-};
+  )
+}
 
-export default RecordExample;
-
-
+export default RecordExample

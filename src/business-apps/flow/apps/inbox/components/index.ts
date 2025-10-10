@@ -1,6 +1,6 @@
-export { TaskDetailsTab } from './TaskDetailsTab';
-export { AssignmentHistoryTab } from './AssignmentHistoryTab';
-export { default as FlowProgressTab } from './FlowProgressTab';
-export { TaskListCard } from './TaskListCard';
-export { FlowHistoryTab } from './HistoryTab';
-export { FlowDataTab } from './DataTab'; 
+export { TaskDetailsTab } from './TaskDetailsTab'
+export { AssignmentHistoryTab } from './AssignmentHistoryTab'
+export { default as FlowProgressTab } from './FlowProgressTab'
+export { TaskListCard } from './TaskListCard'
+export { FlowHistoryTab } from './HistoryTab'
+export { FlowDataTab } from './DataTab'

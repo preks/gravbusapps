@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useEmployeeContext } from '../context/EmployeeContext';
-import { InputField, SelectField, Button, Select, Input } from '@newwork/gravity-ui-catalog';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import Pill from '@/components/pill';
+import React, { useEffect, useState } from 'react'
+import { useEmployeeContext } from '../context/EmployeeContext'
+import { InputField, SelectField, Button, Select, Input } from '@newwork/gravity-ui-catalog'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import Pill from '@/components/pill'
 
-const toStringOrUndefined = (val: any): string | undefined => (typeof val === 'string' && val.length > 0 ? val : undefined);
+const toStringOrUndefined = (val: any): string | undefined =>
+  typeof val === 'string' && val.length > 0 ? val : undefined
 
 const EmployeeForm: React.FC = () => {
   const {
@@ -43,11 +44,11 @@ const EmployeeForm: React.FC = () => {
     loadMoreContractTypes,
     hasMoreContractTypes,
     contractTypesError,
-    contractTypesLoading,
-  } = useEmployeeContext();
+    contractTypesLoading
+  } = useEmployeeContext()
 
   // State for collapsible additional attributes
-  const [showAdditionalAttributes, setShowAdditionalAttributes] = useState(false);
+  const [showAdditionalAttributes, setShowAdditionalAttributes] = useState(false)
 
   // Check if all mandatory fields are filled
   const isFormValid =
@@ -57,21 +58,25 @@ const EmployeeForm: React.FC = () => {
     toStringOrUndefined(formValues.organizationalUnitId) &&
     toStringOrUndefined(formValues.jobPositionId) &&
     toStringOrUndefined(formValues.employmentTypeId) &&
-    toStringOrUndefined(formValues.contractTypeId);
+    toStringOrUndefined(formValues.contractTypeId)
 
   // Validate email format
   const isEmailValid = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
 
-  const isEmailFieldValid = !formValues.email || isEmailValid(formValues.email);
+  const isEmailFieldValid = !formValues.email || isEmailValid(formValues.email)
 
   // Create enhanced job positions with organizational unit information in the label
   const enhancedJobPositions = jobPositions.map(position => {
-    const fullPosition = allJobPositions.find(p => p.id === position.id);
-    if (fullPosition && fullPosition.organizationalUnitEmployees && fullPosition.organizationalUnitEmployees.length > 0) {
-      const orgUnit = fullPosition.organizationalUnitEmployees[0].organizationalUnit;
+    const fullPosition = allJobPositions.find(p => p.id === position.id)
+    if (
+      fullPosition &&
+      fullPosition.organizationalUnitEmployees &&
+      fullPosition.organizationalUnitEmployees.length > 0
+    ) {
+      const orgUnit = fullPosition.organizationalUnitEmployees[0].organizationalUnit
       return {
         ...position,
         // Create a custom label that includes the org unit info
@@ -80,41 +85,32 @@ const EmployeeForm: React.FC = () => {
             <div className="gba:font-medium">{position.name}</div>
             {orgUnit && (
               <div className="gba:flex gba:items-center">
-                <Pill
-                  label={orgUnit.name}
-                  type="waiting"
-                  className="gba:text-xs"
-                />
+                <Pill label={orgUnit.name} type="waiting" className="gba:text-xs" />
               </div>
             )}
           </div>
         ),
         // Keep the original name for search functionality
         name: position.name
-      };
+      }
     }
-    return position;
-  });
+    return position
+  })
 
   // Handle search directly from Select components
   const handleOrganizationalUnitSearch = (searchTerm: string) => {
-    searchOrganizationalUnits(searchTerm || undefined);
-  };
+    searchOrganizationalUnits(searchTerm || undefined)
+  }
 
   const handleJobPositionSearch = (searchTerm: string) => {
-    searchJobPositions(searchTerm || undefined);
-  };
-
-
+    searchJobPositions(searchTerm || undefined)
+  }
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <form
-        className="gba:h-full gba:flex gba:flex-col"
-      >
+      <form className="gba:h-full gba:flex gba:flex-col">
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6">
-
           {/* Personal Information Section */}
           <div className="gba:space-y-4">
             <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:border-b gba:border-gray-200 gba:pb-2">
@@ -123,9 +119,7 @@ const EmployeeForm: React.FC = () => {
 
             {/* First Name - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                First Name *
-              </label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">First Name *</label>
               <Input
                 name="firstName"
                 value={formValues.firstName}
@@ -137,9 +131,7 @@ const EmployeeForm: React.FC = () => {
 
             {/* Last Name - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                Last Name *
-              </label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Last Name *</label>
               <Input
                 name="lastName"
                 value={formValues.lastName}
@@ -151,9 +143,7 @@ const EmployeeForm: React.FC = () => {
 
             {/* Email - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                Email *
-              </label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Email *</label>
               <Input
                 name="email"
                 type="email"
@@ -164,9 +154,7 @@ const EmployeeForm: React.FC = () => {
                 status={!isEmailFieldValid ? 'error' : undefined}
               />
               {!isEmailFieldValid && (
-                <div className="gba:text-red-500 gba:text-sm gba:mt-1">
-                  Please enter a valid email address
-                </div>
+                <div className="gba:text-red-500 gba:text-sm gba:mt-1">Please enter a valid email address</div>
               )}
             </div>
           </div>
@@ -197,51 +185,47 @@ const EmployeeForm: React.FC = () => {
                 style={{ width: '100%' }}
               />
               {organizationalUnitsError && (
-                <div className="gba:text-red-500 gba:text-sm gba:mt-1">
-                  {organizationalUnitsError}
-                </div>
+                <div className="gba:text-red-500 gba:text-sm gba:mt-1">{organizationalUnitsError}</div>
               )}
             </div>
 
             {/* Job Position Selection - Mandatory */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                Job Position *
-              </label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Job Position *</label>
               <Select
                 name="jobPositionId"
                 value={toStringOrUndefined(formValues.jobPositionId)}
                 onChange={e => {
-                  const selectedJobPositionId = String(e.value || '');
-                  
+                  const selectedJobPositionId = String(e.value || '')
+
                   if (selectedJobPositionId) {
                     // Find the selected job position from allJobPositions to get complete data
-                    const selectedJobPosition = allJobPositions.find(jp => jp.id === selectedJobPositionId);
-                    
+                    const selectedJobPosition = allJobPositions.find(jp => jp.id === selectedJobPositionId)
+
                     if (selectedJobPosition) {
                       // Auto-fill employment type and contract type from job position
-                      const updates: any = { jobPositionId: selectedJobPositionId };
-                      
+                      const updates: any = { jobPositionId: selectedJobPositionId }
+
                       if (selectedJobPosition.employmentType?.id) {
-                        updates.employmentTypeId = selectedJobPosition.employmentType.id;
+                        updates.employmentTypeId = selectedJobPosition.employmentType.id
                       }
-                      
+
                       if (selectedJobPosition.contractType?.id) {
-                        updates.contractTypeId = selectedJobPosition.contractType.id;
+                        updates.contractTypeId = selectedJobPosition.contractType.id
                       }
-                      
-                      setFormValues(updates);
+
+                      setFormValues(updates)
                     } else {
                       // Just set the job position ID if no matching position found
-                      setFormValues({ jobPositionId: selectedJobPositionId });
+                      setFormValues({ jobPositionId: selectedJobPositionId })
                     }
                   } else {
                     // Clear job position and related fields when job position is cleared
-                    setFormValues({ 
+                    setFormValues({
                       jobPositionId: '',
                       employmentTypeId: '',
                       contractTypeId: ''
-                    });
+                    })
                   }
                 }}
                 data={enhancedJobPositions}
@@ -255,25 +239,19 @@ const EmployeeForm: React.FC = () => {
                 style={{ width: '100%' }}
                 disabled={jobPositions.length === 0 && !jobPositionsLoading}
               />
-              {jobPositionsError && (
-                <div className="gba:text-red-500 gba:text-sm gba:mt-1">
-                  {jobPositionsError}
-                </div>
-              )}
+              {jobPositionsError && <div className="gba:text-red-500 gba:text-sm gba:mt-1">{jobPositionsError}</div>}
               {jobPositions.length === 0 && !jobPositionsLoading && !jobPositionsError && (
                 <div className="gba:text-gray-500 gba:text-sm gba:mt-1">
                   {formValues.organizationalUnitId
-                    ? "No vacant positions available in the selected organizational unit"
-                    : "No vacant positions available"}
+                    ? 'No vacant positions available in the selected organizational unit'
+                    : 'No vacant positions available'}
                 </div>
               )}
             </div>
 
             {/* Hire Date - Optional */}
             <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">
-                Hire Date
-              </label>
+              <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-1">Hire Date</label>
               <Input
                 name="hireDate"
                 type="date"
@@ -292,7 +270,9 @@ const EmployeeForm: React.FC = () => {
               className="gba:w-full gba:px-4 gba:py-3 gba:text-left gba:flex gba:items-center gba:justify-between gba:bg-gray-50 gba:hover:bg-gray-100 gba:rounded-lg gba:transition-colors"
             >
               <span className="gba:font-medium gba:text-gray-700">Additional Attributes</span>
-              <span className={`gba:transform gba:transition-transform ${showAdditionalAttributes ? 'gba:rotate-180' : ''}`}>
+              <span
+                className={`gba:transform gba:transition-transform ${showAdditionalAttributes ? 'gba:rotate-180' : ''}`}
+              >
                 ▼
               </span>
             </button>
@@ -334,9 +314,7 @@ const EmployeeForm: React.FC = () => {
                       disabled={!toStringOrUndefined(formValues.jobPositionId)}
                     />
                     {employmentTypesError && (
-                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">
-                        {employmentTypesError}
-                      </div>
+                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">{employmentTypesError}</div>
                     )}
                   </div>
                 </div>
@@ -363,9 +341,7 @@ const EmployeeForm: React.FC = () => {
                       disabled={!toStringOrUndefined(formValues.jobPositionId)}
                     />
                     {contractTypesError && (
-                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">
-                        {contractTypesError}
-                      </div>
+                      <div className="gba:text-red-500 gba:text-sm gba:mt-1">{contractTypesError}</div>
                     )}
                   </div>
                 </div>
@@ -376,9 +352,7 @@ const EmployeeForm: React.FC = () => {
           {/* Error Display */}
           {error && (
             <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4">
-              <div className="gba:text-red-800 gba:text-sm">
-                {error}
-              </div>
+              <div className="gba:text-red-800 gba:text-sm">{error}</div>
             </div>
           )}
         </div>
@@ -393,55 +367,55 @@ const EmployeeForm: React.FC = () => {
             size="large"
             onClick={async () => {
               try {
-                await submit();
+                await submit()
                 // Dispatch process continue event on successful submission
-                
+
                 // Format hire date to include time (2024-01-01T00:00:00)
                 // If no hire date is set, use current date
-                const hireDateToUse = formValues.hireDate || new Date().toISOString().split('T')[0];
-                const hireDateFormatted = `${hireDateToUse}T00:00:00`;
-                
+                const hireDateToUse = formValues.hireDate || new Date().toISOString().split('T')[0]
+                const hireDateFormatted = `${hireDateToUse}T00:00:00`
+
                 const payload: any = {
-                  "employee": {
-                    "firstName": formValues.firstName,
-                    "lastName": formValues.lastName,
-                    "preferredName": formValues.preferredName,
-                    "fullName": `${formValues.firstName} ${formValues.lastName}`,
-                    "communication": [
+                  employee: {
+                    firstName: formValues.firstName,
+                    lastName: formValues.lastName,
+                    preferredName: formValues.preferredName,
+                    fullName: `${formValues.firstName} ${formValues.lastName}`,
+                    communication: [
                       {
-                        "purpose": "INTERNAL",
-                        "typeRef": "CommunicationType:v1:1",
-                        "channelRef": "CommunicationChannel:v1:e-mail",
-                        "value": formValues.email,
-                        "valueExtension": "string"
+                        purpose: 'INTERNAL',
+                        typeRef: 'CommunicationType:v1:1',
+                        channelRef: 'CommunicationChannel:v1:e-mail',
+                        value: formValues.email,
+                        valueExtension: 'string'
                       }
                     ],
-                    "workingCondition": [
+                    workingCondition: [
                       {
-                        "contractStatus": "ACTIVE",
-                        "contractTypeRef": formValues.contractTypeId,
-                        "employmentTypeRef": formValues.employmentTypeId,
-                        "hireDate": hireDateFormatted
+                        contractStatus: 'ACTIVE',
+                        contractTypeRef: formValues.contractTypeId,
+                        employmentTypeRef: formValues.employmentTypeId,
+                        hireDate: hireDateFormatted
                       }
                     ]
                   },
-                  "organizationalUnitId": formValues.organizationalUnitId,
-                  "structureId": structureId,
-                  "jobPositionId": formValues.jobPositionId,
-                  "changeMode": "INSERT",
-                  "createUser": true,
-                };
+                  organizationalUnitId: formValues.organizationalUnitId,
+                  structureId: structureId,
+                  jobPositionId: formValues.jobPositionId,
+                  changeMode: 'INSERT',
+                  createUser: true
+                }
 
                 // Add displayName only if preferredName is set
                 if (formValues.preferredName && formValues.preferredName.trim()) {
-                  payload.employee.displayName = `${formValues.preferredName} ${formValues.lastName}`;
+                  payload.employee.displayName = `${formValues.preferredName} ${formValues.lastName}`
                 } else {
-                  payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`;
+                  payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
                 }
 
-                dispatchProcessContinueEvent('employee_submit', payload);
+                dispatchProcessContinueEvent('employee_submit', payload)
               } catch (err) {
-                console.error('Error submitting employee form:', err);
+                console.error('Error submitting employee form:', err)
               }
             }}
           >
@@ -450,7 +424,7 @@ const EmployeeForm: React.FC = () => {
         </div>
       </form>
     </div>
-  );
-};
+  )
+}
 
-export default EmployeeForm; 
+export default EmployeeForm

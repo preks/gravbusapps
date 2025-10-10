@@ -3,5 +3,5 @@
  * Provides convenient exports for the DataContainer components
  */
 
-export { DataContainer } from './DataContainer';
-export type { DataContainerProps } from './DataContainer';
+export { DataContainer } from './DataContainer'
+export type { DataContainerProps } from './DataContainer'

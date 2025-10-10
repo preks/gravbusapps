@@ -1,12 +1,7 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  UserOutlined,
-  ContactsOutlined,
-  DollarOutlined,
-  TeamOutlined
-} from '@ant-design/icons';
-import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { UserOutlined, ContactsOutlined, DollarOutlined, TeamOutlined } from '@ant-design/icons'
+import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
 
 const CampaignsAnalyticsStatistics: React.FC<CampaignsAnalyticsComponentProps> = ({
   metrics,
@@ -21,16 +16,16 @@ const CampaignsAnalyticsStatistics: React.FC<CampaignsAnalyticsComponentProps> =
       currency: 'USD',
       notation: 'compact',
       maximumFractionDigits: 1
-    }).format(amount);
-  };
+    }).format(amount)
+  }
 
   // Format percentage
   const formatPercentage = (value: number): string => {
-    return `${value.toFixed(1)}%`;
-  };
+    return `${value.toFixed(1)}%`
+  }
 
   if (!metrics) {
-    return null;
+    return null
   }
 
   const widgets: WidgetItem[] = [
@@ -41,11 +36,12 @@ const CampaignsAnalyticsStatistics: React.FC<CampaignsAnalyticsComponentProps> =
       value: metrics.totalLeads,
       prefix: <UserOutlined />,
       color: '#1890ff',
-      description: metrics.averageConversionRate > 0 
-        ? `${formatPercentage(metrics.averageConversionRate)} converted`
-        : 'Generated across all campaigns',
+      description:
+        metrics.averageConversionRate > 0
+          ? `${formatPercentage(metrics.averageConversionRate)} converted`
+          : 'Generated across all campaigns'
     },
-    
+
     // 2. Total Accounts (created from campaign leads)
     {
       key: 'total-accounts',
@@ -53,9 +49,9 @@ const CampaignsAnalyticsStatistics: React.FC<CampaignsAnalyticsComponentProps> =
       value: metrics.totalAccounts,
       prefix: <ContactsOutlined />,
       color: '#52c41a',
-      description: 'Created from campaign leads',
+      description: 'Created from campaign leads'
     },
-    
+
     // 3. Total Contacts (added through campaigns)
     {
       key: 'total-contacts',
@@ -63,9 +59,9 @@ const CampaignsAnalyticsStatistics: React.FC<CampaignsAnalyticsComponentProps> =
       value: metrics.totalContacts,
       prefix: <TeamOutlined />,
       color: '#722ed1',
-      description: 'Added through campaigns',
+      description: 'Added through campaigns'
     },
-    
+
     // 4. Total Opportunities (with revenue and win rate)
     {
       key: 'total-opportunities',
@@ -73,14 +69,15 @@ const CampaignsAnalyticsStatistics: React.FC<CampaignsAnalyticsComponentProps> =
       value: metrics.totalOpportunities,
       prefix: <DollarOutlined />,
       color: '#fa8c16',
-      description: metrics.totalRevenue > 0 
-        ? `${formatCurrency(metrics.totalRevenue)} revenue, ${formatPercentage(metrics.averageWinRate)} win rate`
-        : metrics.averageWinRate > 0 
-          ? `${formatPercentage(metrics.averageWinRate)} win rate`
-          : 'Generated from campaigns',
-      valueIsString: false,
-    },
-  ];
+      description:
+        metrics.totalRevenue > 0
+          ? `${formatCurrency(metrics.totalRevenue)} revenue, ${formatPercentage(metrics.averageWinRate)} win rate`
+          : metrics.averageWinRate > 0
+            ? `${formatPercentage(metrics.averageWinRate)} win rate`
+            : 'Generated from campaigns',
+      valueIsString: false
+    }
+  ]
 
   return (
     <div data-testid="campaigns-analytics-statistics-container">
@@ -94,7 +91,7 @@ const CampaignsAnalyticsStatistics: React.FC<CampaignsAnalyticsComponentProps> =
         data-testid="campaigns-analytics-statistics"
       />
     </div>
-  );
-};
+  )
+}
 
-export default CampaignsAnalyticsStatistics;
+export default CampaignsAnalyticsStatistics

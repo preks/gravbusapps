@@ -1,4 +1,8 @@
-export { useEmployeeRuleQuery,fetchEmployeeRule, getExpenseRulesDataQuery } from "../../expense-request-wizard/ExpenseRequestWizardQueries";
+export {
+  useEmployeeRuleQuery,
+  fetchEmployeeRule,
+  getExpenseRulesDataQuery
+} from '../../expense-request-wizard/ExpenseRequestWizardQueries'
 
 export const fetchExpensePlanAndItems = `
 query MyQuery($expenseId: uuid!, $activeUserLocale: String, $employeeId: uuid!) {
@@ -270,8 +274,6 @@ export const fetchEmployeeExpenseItemsFromPayload = `query FetchEmployeeExpenseP
 }
 `
 
-
-
 export const getRequestsAbsences = `query MyQuery($employeeId: uuid,$planId:uuid, $requestType: String, $absenceStatus: String, $startTimeValue: timestamp, $endTimeValue: timestamp, $statusArray: [String!], $activeUserLocale: String) {
   ExpenseRequest(where: {requestTypeRef: {_eq: $requestType}, employeeId: {_eq: $employeeId}, isDeleted: {_eq: false}, _or: [{startDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {endDate: {_gte: $startTimeValue, _lte: $endTimeValue}}, {_and: [{startDate: {_lte: $startTimeValue}}, {endDate: {_gte: $endTimeValue}}]}], status: {_nin: $statusArray}}, orderBy: {startDate: ASC},limit: 1) {
     id
@@ -302,7 +304,7 @@ export const getRequestsAbsences = `query MyQuery($employeeId: uuid,$planId:uuid
   }
 }
 `
-export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid,$activeUserLocale: String) {
+export const getTravelRegionsAndUser = `query getTravelRegionRules($expenseRuleId: uuid!,$employeeId: uuid,$activeUserLocale: String) {
   AllowanceRegionRuleDetail(where: {allowanceRegionRule: {expenseRuleAllowanceCode: {expenseRuleId: {_eq: $expenseRuleId}}},isDeleted: {_eq: false}}, distinctOn: travelRegionRef) {
     id
     travelRegionRef
@@ -337,7 +339,7 @@ export const getTravelRegionsAndUser =`query getTravelRegionRules($expenseRuleId
   }
 }`
 
-export const getUserCostCenters =`query MyQuery($structureId: uuid!) {
+export const getUserCostCenters = `query MyQuery($structureId: uuid!) {
   userCostCenters: CostCenter(where: {structureId: {_eq: $structureId}, isDeleted: {_eq: false}}) {
     id
     name
@@ -346,7 +348,7 @@ export const getUserCostCenters =`query MyQuery($structureId: uuid!) {
 }
 `
 
-export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
+export const getUserProjects = `query MyQuery($structureIdArray: [uuid!]) {
   Project(where: {structureId: {_in: $structureIdArray},isDeleted:{_eq:false}}) {
     id
     name
@@ -354,8 +356,8 @@ export const getUserProjects =`query MyQuery($structureIdArray: [uuid!]) {
     validTo
   }
 }
-` 
-export const getCurrencyForUser= `query MyQuery($activeUserLocale: String!)
+`
+export const getCurrencyForUser = `query MyQuery($activeUserLocale: String!)
 {
   currency: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Currency"}}}) {
     id

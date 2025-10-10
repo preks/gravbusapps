@@ -1,9 +1,9 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useSiteLocations } from "../../hooks";
-import { SiteLocation, Employee, SiteLocationCostCenter } from "../../types";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useSiteLocations } from '../../hooks'
+import { SiteLocation, Employee, SiteLocationCostCenter } from '../../types'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import {
   Accordion,
   DataTable,
@@ -15,8 +15,8 @@ import {
   AlertTitle,
   AlertDescription,
   Icon,
-  Spinner,
-} from "@newwork/nw-design-system";
+  Spinner
+} from '@newwork/nw-design-system'
 import {
   ArrowsDownUpIcon,
   EyeIcon,
@@ -28,29 +28,29 @@ import {
   BankIcon,
   GlobeIcon,
   ClockIcon,
-  PlusIcon,
-} from "@phosphor-icons/react";
-import { ColumnDef } from "@tanstack/react-table";
-import CardTabHeaderComponent from "../../../generic-components/card";
-import SheetWrapperComponent from "../../../generic-components/sheet-wrapper/SheetWrapperComponent";
-import { VerticalTableProps } from "../../../generic-components/table/VerticalTable";
-import { DeleteButton } from "../../../generic-components/delete-button/DeleteButton";
-import SiteLocationForm from "@/business-apps/mdm/forms/site-location-form/SiteLocationForm";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+  PlusIcon
+} from '@phosphor-icons/react'
+import { ColumnDef } from '@tanstack/react-table'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { VerticalTableProps } from '../../../generic-components/table/VerticalTable'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import SiteLocationForm from '@/business-apps/mdm/forms/site-location-form/SiteLocationForm'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface SiteLocationsTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DATA_TEST_ID_PREFIX = "SiteLocationsTab";
-const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+const DATA_TEST_ID_PREFIX = 'SiteLocationsTab'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
-const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId, userInfo } = context;
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(ORGCHART_BASE_URL);
+const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
+  const { t } = useTranslation()
+  const { prefixDataTestId, userInfo } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
   const {
     siteLocations,
@@ -61,79 +61,79 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
     totalLocations,
     countries,
     fetchRegionsForCountries,
-    getRegionsForCountry,
-  } = useSiteLocations(context, 10);
+    getRegionsForCountry
+  } = useSiteLocations(context, 10)
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedSiteLocation, setSelectedSiteLocation] = useState<SiteLocation | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [accordionValue, setAccordionValue] = useState<string | string[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedSiteLocation, setSelectedSiteLocation] = useState<SiteLocation | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [accordionValue, setAccordionValue] = useState<string | string[]>([])
+  const [isFormOpen, setIsFormOpen] = useState(false)
 
   const filteredLocations = siteLocations.filter(
-    (location) =>
+    location =>
       location.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (location.code && location.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (location.locality && location.locality.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (location.country && location.country.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase())),
-  );
+      (location.address && location.address.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
 
   useEffect(() => {
     if (selectedSiteLocation) {
       const updatedSelectedSiteLocation = siteLocations.find(
-        (siteLocation) => siteLocation.id === selectedSiteLocation.id,
-      );
+        siteLocation => siteLocation.id === selectedSiteLocation.id
+      )
 
       if (updatedSelectedSiteLocation) {
-        setSelectedSiteLocation(updatedSelectedSiteLocation);
+        setSelectedSiteLocation(updatedSelectedSiteLocation)
       }
     }
-  }, [siteLocations, selectedSiteLocation]);
+  }, [siteLocations, selectedSiteLocation])
 
   const handleViewLocation = (record: SiteLocation) => {
-    setSelectedSiteLocation(record);
-    setDrawerVisible(true);
-  };
+    setSelectedSiteLocation(record)
+    setDrawerVisible(true)
+  }
 
   const handleDelete = useCallback(
     async (location: SiteLocation | undefined) => {
-      if (!location) return;
+      if (!location) return
 
       await restClient.delete(`/site-locations/${location.id}`, {
-        headers: { Authorization: `Bearer ${context.accessToken}` },
-      });
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      })
 
-      refetch();
+      refetch()
     },
-    [restClient, context.accessToken, refetch],
-  );
+    [restClient, context.accessToken, refetch]
+  )
 
   const employeeDataTable = useCallback(
     (employees: Employee[]) =>
-      employees.map((employee) => ({
+      employees.map(employee => ({
         ...employee,
-        name: `${employee.firstName} ${employee.lastName}`,
+        name: `${employee.firstName} ${employee.lastName}`
       })),
-    [filteredLocations],
-  );
+    [filteredLocations]
+  )
 
   const costCenterDataTable = useCallback(
     (costCenters: SiteLocationCostCenter[]) =>
-      costCenters.map((costCenter) => ({
-        ...costCenter,
+      costCenters.map(costCenter => ({
+        ...costCenter
       })),
-    [filteredLocations],
-  );
+    [filteredLocations]
+  )
 
   const renderSiteLocationsTable = (location: SiteLocation) => {
     const costCenterColumns: ColumnDef<SiteLocationCostCenter>[] = [
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -142,20 +142,20 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue();
+          const name = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:font-semibold">{name as string}</div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "code",
+        accessorKey: 'code',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Code
@@ -164,20 +164,20 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const code = getValue();
+          const code = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:font-semibold">{code as string}</div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "description",
+        accessorKey: 'description',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Description
@@ -186,23 +186,23 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const description = row.original?.description;
+          const description = row.original?.description
           return (
             <div className="gba:flex gba:items-center">
-              <div className="gba:font-semibold">{description ?? "N/A"}</div>
+              <div className="gba:font-semibold">{description ?? 'N/A'}</div>
             </div>
-          );
-        },
-      },
-    ];
+          )
+        }
+      }
+    ]
 
     const employeeColumns: ColumnDef<Employee>[] = [
       {
-        accessorKey: "name",
+        accessorKey: 'name',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Name
@@ -211,20 +211,20 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue();
+          const name = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:font-semibold">{name as string}</div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
-        accessorKey: "personnelCode",
+        accessorKey: 'personnelCode',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Personnel Code
@@ -232,14 +232,14 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
           </Button>
         ),
         enableSorting: true,
-        cell: ({ getValue }) => getValue() ?? "N/A",
+        cell: ({ getValue }) => getValue() ?? 'N/A'
       },
       {
-        accessorKey: "jobPosition",
+        accessorKey: 'jobPosition',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Job Position
@@ -248,17 +248,17 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const jobPosition = row.original?.jobPosition?.jobPositionName;
+          const jobPosition = row.original?.jobPosition?.jobPositionName
 
-          return jobPosition ?? "N/A";
-        },
+          return jobPosition ?? 'N/A'
+        }
       },
       {
-        accessorKey: "organizationalUnit",
+        accessorKey: 'organizationalUnit',
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
             Organizational Unit
@@ -267,40 +267,40 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const organizationalUnit = row.original?.organizationalUnit?.organizationalUnitName;
+          const organizationalUnit = row.original?.organizationalUnit?.organizationalUnitName
 
-          return organizationalUnit ?? "N/A";
-        },
-      },
-    ];
+          return organizationalUnit ?? 'N/A'
+        }
+      }
+    ]
 
     return (
       <DataTable
         defaultDataSetId="site-locations"
         dataSets={[
           {
-            id: "employees",
+            id: 'employees',
             label: `Employees (${location.employeeCount})`,
             data: employeeDataTable(location.employees),
-            columns: employeeColumns,
+            columns: employeeColumns
           },
           {
-            id: "cost-centers",
+            id: 'cost-centers',
             label: `Cost Centers (${location.costCenterCount})`,
             data: costCenterDataTable(location.costCenters),
-            columns: costCenterColumns,
-          },
+            columns: costCenterColumns
+          }
         ]}
       />
-    );
-  };
+    )
+  }
 
   const groupItems = useMemo(
     () =>
-      filteredLocations.map((location) => ({
+      filteredLocations.map(location => ({
         id: location.id,
         title: location.name,
-        description: `Code: ${location.code || "N/A"}`,
+        description: `Code: ${location.code || 'N/A'}`,
         buttons: [
           {
             icon: () => (
@@ -312,7 +312,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
                 <EyeIcon />
               </Button>
             ),
-            onClick: () => {},
+            onClick: () => {}
           },
           {
             icon: () => (
@@ -320,8 +320,8 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
                 childAddButton={
                   <Button
                     variant="ghost"
-                    onClick={(event) => event.stopPropagation()}
-                    data-testid={`${prefixDataTestId || ""}-SiteLocationsTab-EditButton`}
+                    onClick={event => event.stopPropagation()}
+                    data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-EditButton`}
                   >
                     <PencilSimpleLineIcon />
                   </Button>
@@ -337,18 +337,18 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
                 siteLocation={location}
               />
             ),
-            onClick: () => {},
+            onClick: () => {}
           },
           {
             icon: () => (
               <DeleteButton
                 onDelete={() => handleDelete(location)}
-                itemName={location?.name ?? ""}
-                itemTitle={"Location"}
+                itemName={location?.name ?? ''}
+                itemTitle={'Location'}
               />
             ),
-            onClick: () => {},
-          },
+            onClick: () => {}
+          }
         ],
         content: (
           <div className="gba:space-y-4">
@@ -380,155 +380,146 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
             </div>
             {renderSiteLocationsTable(location)}
           </div>
-        ),
+        )
       })),
-    [
-      filteredLocations,
-      userInfo?.employeeDetails.employeeId,
-      refetch,
-      context.accessToken,
-      dataTestId,
-    ],
-  );
+    [filteredLocations, userInfo?.employeeDetails.employeeId, refetch, context.accessToken, dataTestId]
+  )
 
   const drawerItems = useMemo(() => {
-    if (!selectedSiteLocation) return [];
+    if (!selectedSiteLocation) return []
 
     const items: VerticalTableProps[] = [
       {
         icon: <InfoIcon />,
-        title: "Basic Information",
+        title: 'Basic Information',
         verticalTable: true,
         items: [
           {
-            label: "Name",
-            value: selectedSiteLocation.name,
+            label: 'Name',
+            value: selectedSiteLocation.name
           },
           {
-            label: "Code",
-            value: selectedSiteLocation.code ?? "Unknown",
-          },
-        ],
-      },
-    ];
+            label: 'Code',
+            value: selectedSiteLocation.code ?? 'Unknown'
+          }
+        ]
+      }
+    ]
 
-    const addressItems = [];
+    const addressItems = []
 
     if (selectedSiteLocation.address) {
       addressItems.push({
-        label: "Street Address",
-        value: selectedSiteLocation.address,
-      });
+        label: 'Street Address',
+        value: selectedSiteLocation.address
+      })
     }
 
     if (selectedSiteLocation.locality) {
       addressItems.push({
-        label: "City / Locality",
-        value: selectedSiteLocation.locality,
-      });
+        label: 'City / Locality',
+        value: selectedSiteLocation.locality
+      })
     }
 
     if (selectedSiteLocation.postalCode) {
       addressItems.push({
-        label: "Postal Code",
-        value: selectedSiteLocation.postalCode,
-      });
+        label: 'Postal Code',
+        value: selectedSiteLocation.postalCode
+      })
     }
 
     if (selectedSiteLocation.region) {
       addressItems.push({
-        label: "Region",
-        value: selectedSiteLocation.region,
-      });
+        label: 'Region',
+        value: selectedSiteLocation.region
+      })
     }
 
     if (selectedSiteLocation.country) {
       addressItems.push({
-        label: "Country",
-        value: selectedSiteLocation.country,
-      });
+        label: 'Country',
+        value: selectedSiteLocation.country
+      })
     }
 
     if (addressItems.length > 0) {
       items.push({
         icon: <InfoIcon />,
-        title: "Address",
-        items: addressItems,
-      });
+        title: 'Address',
+        items: addressItems
+      })
     }
 
     items.push({
       icon: <InfoIcon />,
-      title: "Statistics",
+      title: 'Statistics',
       items: [
         {
-          label: "Number of Employees",
-          value: selectedSiteLocation.employeeCount ?? "-",
+          label: 'Number of Employees',
+          value: selectedSiteLocation.employeeCount ?? '-'
         },
         {
-          label: "Number of Cost Centers",
-          value: selectedSiteLocation.costCenterCount ?? "-",
-        },
-      ],
-    });
+          label: 'Number of Cost Centers',
+          value: selectedSiteLocation.costCenterCount ?? '-'
+        }
+      ]
+    })
 
-    return items;
-  }, [selectedSiteLocation]);
+    return items
+  }, [selectedSiteLocation])
 
   const navigationItems = useMemo(() => {
-    if (!selectedSiteLocation) return [];
+    if (!selectedSiteLocation) return []
 
     const items = [
       {
         redirectLink: `/employee-management/employees?siteLocationId=${selectedSiteLocation.id}`,
-        color: "blue",
+        color: 'blue',
         icon: UserIcon,
-        title: "View Employees",
-        description: "View all employees assigned to this location",
+        title: 'View Employees',
+        description: 'View all employees assigned to this location'
       },
       {
         redirectLink: `/finance/cost-centers?siteLocationId=${selectedSiteLocation.id}`,
-        color: "green",
+        color: 'green',
         icon: BankIcon,
-        title: "View Cost Centers",
-        description: "View all cost centers associated with this location",
+        title: 'View Cost Centers',
+        description: 'View all cost centers associated with this location'
       },
       {
         redirectLink: selectedSiteLocation.fullAddress
           ? `https://maps.google.com/?q=${encodeURIComponent(selectedSiteLocation.fullAddress)}`
-          : "#",
-        color: "cyan",
+          : '#',
+        color: 'cyan',
         icon: GlobeIcon,
-        title: "View on Map",
-        description: "View this location on Google Maps",
+        title: 'View on Map',
+        description: 'View this location on Google Maps'
       },
       {
         redirectLink: `/mdm/location-data/history?locationId=${selectedSiteLocation.id}`,
-        color: "purple",
+        color: 'purple',
         icon: ClockIcon,
-        title: "Location History",
-        description: "View historical changes for this location",
-      },
-    ];
+        title: 'Location History',
+        description: 'View historical changes for this location'
+      }
+    ]
 
-    return items;
-  }, [selectedSiteLocation]);
+    return items
+  }, [selectedSiteLocation])
 
   if (isLoading && siteLocations.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <Alert
-          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
-          variant="destructive"
-        >
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <Icon icon={XCircleIcon} />
             Error Loading Site Locations
@@ -540,14 +531,11 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
           </AlertDescription>
         </Alert>
       </div>
-    );
+    )
   }
 
   return (
-    <Card
-      data-testid={`${prefixDataTestId || ""}-SiteLocationsTab`}
-      className="gba:overflow-hidden"
-    >
+    <Card data-testid={`${prefixDataTestId || ''}-SiteLocationsTab`} className="gba:overflow-hidden">
       {!isLoading && (
         <CardTabHeaderComponent
           addButton={
@@ -555,8 +543,8 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
               childAddButton={
                 <Button
                   variant="default"
-                  onClick={(event) => event.stopPropagation()}
-                  data-testid={`${prefixDataTestId || ""}-SiteLocationsTab-AddButton`}
+                  onClick={event => event.stopPropagation()}
+                  data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-AddButton`}
                 >
                   <PlusIcon /> Add Site Location
                 </Button>
@@ -573,7 +561,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
               setOpen={setIsFormOpen}
             />
           }
-          cardTitle={`${t("hr.organizational_data", "Locations")} (${totalLocations})`}
+          cardTitle={`${t('hr.organizational_data', 'Locations')} (${totalLocations})`}
           cardDescription="Manage locations and their details"
         />
       )}
@@ -583,7 +571,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
           <Input
             placeholder="Search locations..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             data-testid={`${dataTestId}-search-input`}
           />
         </div>
@@ -591,7 +579,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
         <Accordion
           className="gba:w-full"
           value={accordionValue}
-          onValueChange={(value) => setAccordionValue(value)}
+          onValueChange={value => setAccordionValue(value)}
           items={groupItems}
         />
 
@@ -599,11 +587,11 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
           <SheetWrapperComponent
             prefixDataTestId={dataTestId}
             isDrawerVisible={drawerVisible}
-            onOpenChange={(openStatus) => {
+            onOpenChange={openStatus => {
               if (!openStatus) {
-                setSelectedSiteLocation(null);
+                setSelectedSiteLocation(null)
               }
-              setDrawerVisible(openStatus);
+              setDrawerVisible(openStatus)
             }}
             title="Location Details"
             titleIcon={MapPinIcon}
@@ -612,7 +600,7 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
             footerButtons={[
               <SiteLocationForm
                 childAddButton={
-                  <Button data-testid={`${prefixDataTestId || ""}-SiteLocationsTab-EditButton`}>
+                  <Button data-testid={`${prefixDataTestId || ''}-SiteLocationsTab-EditButton`}>
                     <PencilSimpleLineIcon /> Edit
                   </Button>
                 }
@@ -626,14 +614,14 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = (context) => {
                 getRegionsForCountry={getRegionsForCountry}
                 siteLocation={selectedSiteLocation}
                 isDrawerActive={true}
-              />,
+              />
             ]}
           />
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default SiteLocationsTab;
-export { SiteLocationsTab };
+export default SiteLocationsTab
+export { SiteLocationsTab }

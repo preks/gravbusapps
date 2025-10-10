@@ -1,4 +1,4 @@
-import BomManagementOverview from './BomManagementOverview';
+import BomManagementOverview from './BomManagementOverview'
 
-export { BomManagementOverview };
-export default BomManagementOverview;
+export { BomManagementOverview }
+export default BomManagementOverview

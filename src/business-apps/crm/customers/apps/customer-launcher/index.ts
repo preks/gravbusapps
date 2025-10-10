@@ -1,4 +1,4 @@
-import CustomerLauncher from './CustomerLauncher';
+import CustomerLauncher from './CustomerLauncher'
 
-export { CustomerLauncher };
-export default CustomerLauncher;
+export { CustomerLauncher }
+export default CustomerLauncher

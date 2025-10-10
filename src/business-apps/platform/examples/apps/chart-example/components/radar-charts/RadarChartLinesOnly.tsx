@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,29 +11,33 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { CircleWavyIcon } from "@phosphor-icons/react";
-import radarChartData from "../../data/radarChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { CircleWavyIcon } from '@phosphor-icons/react'
+import radarChartData from '../../data/radarChartData.json'
 
 interface RadarChartLinesOnlyProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const RadarChartLinesOnly: React.FC<RadarChartLinesOnlyProps> = ({ moduleColor }) => {
-  const chartData = radarChartData.linesOnly;
+  const chartData = radarChartData.linesOnly
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - no color needed (used for dataKey only)
-    visitors: { 
-      label: "Visitors", 
-      color: "none" 
-    },
-    // Visual categories - get automatic colors (used for legend)
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - no color needed (used for dataKey only)
+        visitors: {
+          label: 'Visitors',
+          color: 'none'
+        },
+        // Visual categories - get automatic colors (used for legend)
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="radar-chart-lines-only">
@@ -45,37 +49,19 @@ const RadarChartLinesOnly: React.FC<RadarChartLinesOnlyProps> = ({ moduleColor }
         </div>
       </CardHeader>
       <CardContent className="gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <RadarChart data={chartData}>
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <PolarAngleAxis dataKey="month" />
             <PolarRadiusAxis className="gba:fill-muted-foreground gba:text-xs" />
-            <Radar
-              dataKey="desktop"
-              stroke="var(--color-desktop)"
-              fill="transparent"
-              strokeWidth={2}
-              dot={false}
-            />
-            <Radar
-              dataKey="mobile"
-              stroke="var(--color-mobile)"
-              fill="transparent"
-              strokeWidth={2}
-              dot={false}
-            />
+            <Radar dataKey="desktop" stroke="var(--color-desktop)" fill="transparent" strokeWidth={2} dot={false} />
+            <Radar dataKey="mobile" stroke="var(--color-mobile)" fill="transparent" strokeWidth={2} dot={false} />
             <ChartLegend content={<ChartLegendContent />} />
           </RadarChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RadarChartLinesOnly;
+export default RadarChartLinesOnly

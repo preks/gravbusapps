@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface City {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 const GET_LEAD_CITIES_QUERY = `
@@ -18,27 +18,23 @@ const GET_LEAD_CITIES_QUERY = `
       city
     }
   }
-`;
+`
 
-export const useGetCities = (
-  context: BusinessAppContextProps,
-  search: string = "",
-  offset: number = 0
-) => {
-  const [cities, setCities] = useState<City[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
+export const useGetCities = (context: BusinessAppContextProps, search: string = '', offset: number = 0) => {
+  const [cities, setCities] = useState<City[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchCities = useCallback(async () => {
     if (!context.accessToken) {
-      console.log("No access token available for cities");
-      return;
+      console.log('No access token available for cities')
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Build where condition with city search
@@ -46,72 +42,69 @@ export const useGetCities = (
         isDeleted: { _eq: false },
         _and: [
           { city: { _isNull: false } },
-          { city: { _neq: "" } },
+          { city: { _neq: '' } },
           ...(search.trim()
             ? [
                 {
-                  city: { _ilike: `%${search}%` },
-                },
+                  city: { _ilike: `%${search}%` }
+                }
               ]
-            : []),
-        ],
-      };
+            : [])
+        ]
+      }
 
       const variables = {
         where: whereCondition,
         limit: 50,
-        offset,
-      };
+        offset
+      }
 
-      const result = await graphqlClient.request(
-        GET_LEAD_CITIES_QUERY,
-        variables
-      );
+      const result = await graphqlClient.request(GET_LEAD_CITIES_QUERY, variables)
 
       if (result?.Lead) {
         // Process and deduplicate cities
-        const cityMap = new Map<string, any>();
-        
+        const cityMap = new Map<string, any>()
+
         result.Lead.forEach((lead: any) => {
           if (lead.city && lead.city.trim()) {
-            const cityName = lead.city.trim();
-            
+            const cityName = lead.city.trim()
+
             // Use city name as both key and ID for filtering
             if (!cityMap.has(cityName)) {
               cityMap.set(cityName, {
                 id: cityName,
-                name: cityName,
-              });
+                name: cityName
+              })
             }
           }
-        });
+        })
 
         // Convert map to array and sort alphabetically
         const citiesList = Array.from(cityMap.values())
           .sort((a, b) => a.name.localeCompare(b.name))
-          .slice(0, 20); // Reasonable limit for dropdown performance
+          .slice(0, 20) // Reasonable limit for dropdown performance
 
-        setCities(citiesList);
+        setCities(citiesList)
       } else {
-        setCities([]);
+        setCities([])
       }
     } catch (err) {
-      console.error("Error fetching cities:", err);
-      setError(err);
-      setCities([]);
+      console.error('Error fetching cities:', err)
+      setError(err)
+      setCities([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, offset]);
+  }, [context.accessToken, search, offset])
 
   useEffect(() => {
-    fetchCities();
-  }, [fetchCities]);
+    fetchCities()
+  }, [fetchCities])
 
   return {
     cities,
     isLoading,
     error,
-    refetch: fetchCities,
-  };
-}; 
+    refetch: fetchCities
+  }
+}

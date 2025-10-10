@@ -1,43 +1,40 @@
-import React from "react";
-import { OpportunityFormProvider } from "./context/OpportunityFormContext";
-import OpportunityFormComponent from "./components/OpportunityFormComponent";
-import { InvestmentOpportunityFormValues } from "./types";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import React from 'react'
+import { OpportunityFormProvider } from './context/OpportunityFormContext'
+import OpportunityFormComponent from './components/OpportunityFormComponent'
+import { InvestmentOpportunityFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface InvestmentOpportunityFormProps {
-  initialValues?: Partial<InvestmentOpportunityFormValues>;
-  onSubmit?: (values: InvestmentOpportunityFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
-  hideActions?: boolean;
+  initialValues?: Partial<InvestmentOpportunityFormValues>
+  onSubmit?: (values: InvestmentOpportunityFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
+  hideActions?: boolean
 }
 
-const InvestmentOpportunityForm: React.FC<
-  BusinessAppContextProps & InvestmentOpportunityFormProps
-> = ({
+const InvestmentOpportunityForm: React.FC<BusinessAppContextProps & InvestmentOpportunityFormProps> = ({
   initialValues,
   onSubmit = async () => {},
   onCancel = async () => {},
   hideActions = false,
   accessToken,
   userInfo,
-  additionalData,
+  additionalData
 }) => {
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
         <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly
-          authenticated.
+          Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
-    additionalData,
-  };
+    additionalData
+  }
 
   return (
     <OpportunityFormProvider
@@ -49,7 +46,7 @@ const InvestmentOpportunityForm: React.FC<
     >
       <OpportunityFormComponent />
     </OpportunityFormProvider>
-  );
-};
+  )
+}
 
-export default InvestmentOpportunityForm;
+export default InvestmentOpportunityForm

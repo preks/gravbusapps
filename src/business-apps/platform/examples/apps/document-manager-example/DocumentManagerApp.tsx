@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { DocumentManager, useDocumentDataController } from '@/components/document-manager';
-import { Document } from '@/components/document-manager/types/documentTypes';
+import React, { useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { DocumentManager, useDocumentDataController } from '@/components/document-manager'
+import { Document } from '@/components/document-manager/types/documentTypes'
 
-const DocumentManagerApp: React.FC<BusinessAppContextProps> = (context) => {
+const DocumentManagerApp: React.FC<BusinessAppContextProps> = context => {
   // Example entity data for demonstration
-  const exampleEntityId = 'example-123';
-  const exampleEntityType = 'account';
+  const exampleEntityId = 'example-123'
+  const exampleEntityType = 'account'
 
   // Mock data for demonstration
   const [mockDocuments] = useState<Document[]>([
@@ -116,28 +116,26 @@ const DocumentManagerApp: React.FC<BusinessAppContextProps> = (context) => {
       createdBy: 'Robert Wilson',
       format: 'FILE'
     }
-  ]);
+  ])
 
   const handleDocumentUpdate = () => {
-    console.log('Documents updated - refresh data');
+    console.log('Documents updated - refresh data')
     // In a real app, this would trigger a data refresh
-  };
+  }
 
   // Create context object with flowContexts for AppAction
   const documentManagerContext = {
     accessToken: context.accessToken,
     flowContexts: [FlowContextName.investmentAccountEntity] // Example flow context
-  };
+  }
 
   // Initialize data controller with mock documents
-  const dataController = useDocumentDataController({ initialDocuments: mockDocuments });
+  const dataController = useDocumentDataController({ initialDocuments: mockDocuments })
 
   return (
     <div className="gba:p-6" data-testid="document-manager-app">
       <div className="gba:mb-6">
-        <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">
-          Document Manager Example
-        </h1>
+        <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Document Manager Example</h1>
         <p className="gba:text-gray-600 gba:mt-2">
           This is a demonstration of the reusable DocumentManager component with mock data.
         </p>
@@ -155,11 +153,11 @@ const DocumentManagerApp: React.FC<BusinessAppContextProps> = (context) => {
         dataController={dataController}
       />
     </div>
-  );
-};
+  )
+}
 
 // Named export
-export { DocumentManagerApp };
+export { DocumentManagerApp }
 
 // Default export for business app pattern
-export default DocumentManagerApp;
+export default DocumentManagerApp

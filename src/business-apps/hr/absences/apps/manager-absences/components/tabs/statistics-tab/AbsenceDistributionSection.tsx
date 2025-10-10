@@ -1,14 +1,14 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Card } from '@newwork/nw-design-system';
-import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData';
-import { AbsenceDistributionChart } from '../../KPISection/AbsenceDistributionChart';
-import { AbsenceFilters } from '../../../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Card } from '@newwork/nw-design-system'
+import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData'
+import { AbsenceDistributionChart } from '../../KPISection/AbsenceDistributionChart'
+import { AbsenceFilters } from '../../../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface AbsenceDistributionSectionProps extends BusinessAppContextProps {}
 
-export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProps> = (props) => {
+export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProps> = props => {
   const filters: AbsenceFilters = {
     search: '',
     statuses: [],
@@ -16,23 +16,20 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
     groups: [],
     employees: [],
     startDate: undefined,
-    endDate: undefined,
-  };
+    endDate: undefined
+  }
 
-  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props, filters);
+  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props, filters)
 
-  const loading = dataLoading;
-  const error = dataError;
+  const loading = dataLoading
+  const error = dataError
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (
-      <div
-        className="gba:p-6 gba:text-center gba:text-red-600"
-        data-testid="absence-distribution-error-no-employee"
-      >
+      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-distribution-error-no-employee">
         Error: Employee ID not found. Please check your user profile.
       </div>
-    );
+    )
   }
 
   if (loading) {
@@ -40,18 +37,15 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
       <div className="gba:p-6 gba:text-center" data-testid="absence-distribution-loading">
         Loading absence distribution data...
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div
-        className="gba:p-6 gba:text-center gba:text-red-600"
-        data-testid="absence-distribution-error"
-      >
+      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-distribution-error">
         Error: {error}
       </div>
-    );
+    )
   }
 
   if (!data) {
@@ -59,20 +53,17 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
       <div className="gba:p-6 gba:text-center" data-testid="absence-distribution-no-data">
         No absence distribution data available.
       </div>
-    );
+    )
   }
 
   // Colors are now included in the data from useAbsenceKPIData
 
   return (
     <section className="gba:mb-6" data-testid="absence-distribution-section">
-      <h3
-        className="gba:text-lg gba:font-bold gba:mb-4"
-        data-testid="absence-distribution-section-title"
-      >
+      <h3 className="gba:text-lg gba:font-bold gba:mb-4" data-testid="absence-distribution-section-title">
         {getTranslationFromI18nKeyAndLabel(
           'lowcoder:absence_management_hub_manager.absence_distribution',
-          'Absence Distribution',
+          'Absence Distribution'
         )}
       </h3>
       <Card className="gba:hover:shadow-md gba:transition-shadow gba:w-full gba:h-[510px]">
@@ -84,5 +75,5 @@ export const AbsenceDistributionSection: React.FC<AbsenceDistributionSectionProp
         />
       </Card>
     </section>
-  );
-};
+  )
+}

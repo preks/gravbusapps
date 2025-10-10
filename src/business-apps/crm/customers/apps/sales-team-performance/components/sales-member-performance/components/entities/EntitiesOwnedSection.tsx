@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react'
 import {
   Card,
   CardContent,
@@ -8,132 +8,124 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-  Badge,
-} from "@newwork/nw-design-system";
-import { PiUsers } from "react-icons/pi";
-import { EntitiesOwned, EntityType } from "../../types";
-import { EmployeeAccountsTab } from "./EmployeeAccountsTab";
-import { EmployeeContactsTab } from "./EmployeeContactsTab";
-import { EmployeeLeadsTab } from "./EmployeeLeadsTab";
-import { EmployeeOpportunitiesTab } from "./EmployeeOpportunitiesTab";
-import { useEmployeeEntityCounts } from "../../hooks/useEmployeeEntityCounts";
+  Badge
+} from '@newwork/nw-design-system'
+import { PiUsers } from 'react-icons/pi'
+import { EntitiesOwned, EntityType } from '../../types'
+import { EmployeeAccountsTab } from './EmployeeAccountsTab'
+import { EmployeeContactsTab } from './EmployeeContactsTab'
+import { EmployeeLeadsTab } from './EmployeeLeadsTab'
+import { EmployeeOpportunitiesTab } from './EmployeeOpportunitiesTab'
+import { useEmployeeEntityCounts } from '../../hooks/useEmployeeEntityCounts'
 
-const DATA_TEST_ID_PREFIX = "EntitiesOwnedSection";
+const DATA_TEST_ID_PREFIX = 'EntitiesOwnedSection'
 
 interface EntitiesOwnedSectionProps {
-  employeeId: string;
-  entitiesOwned: EntitiesOwned;
-  accessToken: string;
-  isLoading?: boolean;
+  employeeId: string
+  entitiesOwned: EntitiesOwned
+  accessToken: string
+  isLoading?: boolean
 }
 
 export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
   employeeId,
   entitiesOwned: _entitiesOwned,
   accessToken,
-  isLoading: _isLoading = false,
+  isLoading: _isLoading = false
 }) => {
-  const [activeEntityTab, setActiveEntityTab] = useState<EntityType>("leads");
-  const [leadsTotal, setLeadsTotal] = useState<number>(0);
-  const [contactsTotal, setContactsTotal] = useState<number>(0);
-  const [opportunitiesTotal, setOpportunitiesTotal] = useState<number>(0);
-  const [accountsTotal, setAccountsTotal] = useState<number>(0);
+  const [activeEntityTab, setActiveEntityTab] = useState<EntityType>('leads')
+  const [leadsTotal, setLeadsTotal] = useState<number>(0)
+  const [contactsTotal, setContactsTotal] = useState<number>(0)
+  const [opportunitiesTotal, setOpportunitiesTotal] = useState<number>(0)
+  const [accountsTotal, setAccountsTotal] = useState<number>(0)
 
   // Handle entity tab change with simplified logic
   const handleEntityTabChange = (value: string) => {
-    setActiveEntityTab(value as EntityType);
-  };
+    setActiveEntityTab(value as EntityType)
+  }
 
   // Load initial counts for all entities when employee changes
-  const { counts: initialCounts, loading: countsLoading } =
-    useEmployeeEntityCounts(employeeId, accessToken);
+  const { counts: initialCounts, loading: countsLoading } = useEmployeeEntityCounts(employeeId, accessToken)
 
   // Update individual count states when initial counts are loaded
   useEffect(() => {
     if (!countsLoading) {
-      setLeadsTotal(initialCounts.leads);
-      setContactsTotal(initialCounts.contacts);
-      setOpportunitiesTotal(initialCounts.opportunities);
-      setAccountsTotal(initialCounts.accounts);
+      setLeadsTotal(initialCounts.leads)
+      setContactsTotal(initialCounts.contacts)
+      setOpportunitiesTotal(initialCounts.opportunities)
+      setAccountsTotal(initialCounts.accounts)
     }
-  }, [initialCounts, countsLoading]);
+  }, [initialCounts, countsLoading])
 
   // Reset state when employeeId changes (ensures data is specific to selected employee)
   useEffect(() => {
-    setActiveEntityTab("leads");
-    setLeadsTotal(0);
-    setContactsTotal(0);
-    setOpportunitiesTotal(0);
-    setAccountsTotal(0);
-  }, [employeeId]);
+    setActiveEntityTab('leads')
+    setLeadsTotal(0)
+    setContactsTotal(0)
+    setOpportunitiesTotal(0)
+    setAccountsTotal(0)
+  }, [employeeId])
 
   // Get count for each entity type
   const entityCounts = {
     leads: leadsTotal,
     contacts: contactsTotal,
     opportunities: opportunitiesTotal,
-    accounts: accountsTotal,
-  };
+    accounts: accountsTotal
+  }
 
   // Handle leads total change
   const handleLeadsTotalChange = (total: number) => {
-    setLeadsTotal(total);
-  };
+    setLeadsTotal(total)
+  }
 
   // Handle contacts total change
   const handleContactsTotalChange = (total: number) => {
-    setContactsTotal(total);
-  };
+    setContactsTotal(total)
+  }
 
   // Handle opportunities total change
   const handleOpportunitiesTotalChange = (total: number) => {
-    setOpportunitiesTotal(total);
-  };
+    setOpportunitiesTotal(total)
+  }
 
   // Handle accounts total change
   const handleAccountsTotalChange = (total: number) => {
-    setAccountsTotal(total);
-  };
+    setAccountsTotal(total)
+  }
 
   // Entity tab configuration
   const entityTabs = [
     {
-      key: "leads" as EntityType,
-      label: "Leads",
+      key: 'leads' as EntityType,
+      label: 'Leads',
       count: entityCounts.leads,
-      loading: countsLoading,
+      loading: countsLoading
     },
     {
-      key: "contacts" as EntityType,
-      label: "Contacts",
+      key: 'contacts' as EntityType,
+      label: 'Contacts',
       count: entityCounts.contacts,
-      loading: countsLoading,
+      loading: countsLoading
     },
     {
-      key: "opportunities" as EntityType,
-      label: "Opportunities",
+      key: 'opportunities' as EntityType,
+      label: 'Opportunities',
       count: entityCounts.opportunities,
-      loading: countsLoading,
+      loading: countsLoading
     },
     {
-      key: "accounts" as EntityType,
-      label: "Accounts",
+      key: 'accounts' as EntityType,
+      label: 'Accounts',
       count: entityCounts.accounts,
-      loading: countsLoading,
-    },
-  ];
+      loading: countsLoading
+    }
+  ]
 
   return (
-    <Card
-      key={`entities-owned-${employeeId}`}
-      className="gba:w-full"
-      data-testid={`${DATA_TEST_ID_PREFIX}-container`}
-    >
+    <Card key={`entities-owned-${employeeId}`} className="gba:w-full" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       <CardHeader>
-        <CardTitle
-          data-testid={`${DATA_TEST_ID_PREFIX}-title`}
-          className="gba:flex gba:items-center gba:gap-2"
-        >
+        <CardTitle data-testid={`${DATA_TEST_ID_PREFIX}-title`} className="gba:flex gba:items-center gba:gap-2">
           <PiUsers className="gba:text-black" size={20} />
           Entities Owned
         </CardTitle>
@@ -147,7 +139,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
           data-testid={`${DATA_TEST_ID_PREFIX}-tabs`}
         >
           <TabsList className="gba:grid gba:w-full gba:grid-cols-4 gba:mb-4">
-            {entityTabs.map((tab) => (
+            {entityTabs.map(tab => (
               <TabsTrigger
                 key={tab.key}
                 value={tab.key}
@@ -160,22 +152,15 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
                   className="gba:ml-1"
                   data-testid={`${DATA_TEST_ID_PREFIX}-tab-count-${tab.key}`}
                 >
-                  {tab.loading ? "..." : tab.count}
+                  {tab.loading ? '...' : tab.count}
                 </Badge>
               </TabsTrigger>
             ))}
           </TabsList>
 
           {/* Tab Contents - Stabilized container */}
-          <div
-            className="gba:h-[800px] gba:overflow-auto"
-            data-testid={`${DATA_TEST_ID_PREFIX}-tab-content-container`}
-          >
-            <TabsContent
-              value="leads"
-              className="gba:m-0"
-              data-testid={`${DATA_TEST_ID_PREFIX}-content-leads`}
-            >
+          <div className="gba:h-[800px] gba:overflow-auto" data-testid={`${DATA_TEST_ID_PREFIX}-tab-content-container`}>
+            <TabsContent value="leads" className="gba:m-0" data-testid={`${DATA_TEST_ID_PREFIX}-content-leads`}>
               <EmployeeLeadsTab
                 key={`leads-tab-${employeeId}`}
                 employeeId={employeeId}
@@ -184,11 +169,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
               />
             </TabsContent>
 
-            <TabsContent
-              value="contacts"
-              className="gba:m-0"
-              data-testid={`${DATA_TEST_ID_PREFIX}-content-contacts`}
-            >
+            <TabsContent value="contacts" className="gba:m-0" data-testid={`${DATA_TEST_ID_PREFIX}-content-contacts`}>
               <EmployeeContactsTab
                 key={`contacts-tab-${employeeId}`}
                 employeeId={employeeId}
@@ -210,11 +191,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
               />
             </TabsContent>
 
-            <TabsContent
-              value="accounts"
-              className="gba:m-0"
-              data-testid={`${DATA_TEST_ID_PREFIX}-content-accounts`}
-            >
+            <TabsContent value="accounts" className="gba:m-0" data-testid={`${DATA_TEST_ID_PREFIX}-content-accounts`}>
               <EmployeeAccountsTab
                 key={`accounts-tab-${employeeId}`}
                 employeeId={employeeId}
@@ -226,7 +203,7 @@ export const EntitiesOwnedSection: React.FC<EntitiesOwnedSectionProps> = ({
         </Tabs>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default EntitiesOwnedSection;
+export default EntitiesOwnedSection

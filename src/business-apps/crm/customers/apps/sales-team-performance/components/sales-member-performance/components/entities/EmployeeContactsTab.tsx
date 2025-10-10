@@ -1,20 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { DataContainer } from "@/components/layout/dataContainer";
-import { useContactFilters } from "@/business-apps/crm/customers/apps/customer-relations/views/contact-view/hooks/useContactFilters";
-import { useEmployeeContactsData } from "../../hooks/useEmployeeContactsData";
-import { ContactsTable } from "./ContactsTable";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { DataContainer } from '@/components/layout/dataContainer'
+import { useContactFilters } from '@/business-apps/crm/customers/apps/customer-relations/views/contact-view/hooks/useContactFilters'
+import { useEmployeeContactsData } from '../../hooks/useEmployeeContactsData'
+import { ContactsTable } from './ContactsTable'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface EmployeeContactsTabProps extends BusinessAppContextProps {
-  employeeId: string;
-  onTotalChange?: (total: number) => void;
+  employeeId: string
+  onTotalChange?: (total: number) => void
 }
 
-export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({
-  employeeId,
-  accessToken,
-  onTotalChange,
-}) => {
+export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({ employeeId, accessToken, onTotalChange }) => {
   // Filters and search
   const {
     search,
@@ -28,96 +24,86 @@ export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({
     clearAllFilters,
     createdAfter,
     createdBefore,
-    handleDateRangeChange,
-  } = useContactFilters({ accessToken });
+    handleDateRangeChange
+  } = useContactFilters({ accessToken })
 
   // Pagination and sorting
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState<string>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC" | "">("DESC");
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const [sortField, setSortField] = useState<string>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC')
 
   // Map filter state to GraphQL where clause
-  const filters = getFilters();
+  const filters = getFilters()
   const additionalFilters = useMemo(() => {
-    const andConditions: any[] = [];
+    const andConditions: any[] = []
     if (filters.contactTypes && filters.contactTypes.length > 0) {
-      andConditions.push({ contactType: { _in: filters.contactTypes } });
+      andConditions.push({ contactType: { _in: filters.contactTypes } })
     }
     if (filters.jobTitles && filters.jobTitles.length > 0) {
-      andConditions.push({ jobTitle: { _in: filters.jobTitles } });
+      andConditions.push({ jobTitle: { _in: filters.jobTitles } })
     }
     if (filters.createdAfter) {
-      andConditions.push({ createdAt: { _gte: filters.createdAfter } });
+      andConditions.push({ createdAt: { _gte: filters.createdAfter } })
     }
     if (filters.createdBefore) {
-      andConditions.push({ createdAt: { _lte: filters.createdBefore } });
+      andConditions.push({ createdAt: { _lte: filters.createdBefore } })
     }
-    return andConditions.length > 0 ? { _and: andConditions } : {};
-  }, [filters]);
+    return andConditions.length > 0 ? { _and: andConditions } : {}
+  }, [filters])
 
   // Data fetching
-  const { contacts, total, loading, error, hasMore, loadPage, retry } =
-    useEmployeeContactsData({
-      employeeId,
-      search,
-      sortField,
-      sortOrder: sortOrder as "ASC" | "DESC",
-      accessToken,
-    });
+  const { contacts, total, loading, error, hasMore, loadPage, retry } = useEmployeeContactsData({
+    employeeId,
+    search,
+    sortField,
+    sortOrder: sortOrder as 'ASC' | 'DESC',
+    accessToken
+  })
 
   // Initial and reactive data loading
   useEffect(() => {
-    loadPage(currentPage, pageSize, additionalFilters);
+    loadPage(currentPage, pageSize, additionalFilters)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    employeeId,
-    accessToken,
-    search,
-    sortField,
-    sortOrder,
-    currentPage,
-    pageSize,
-    JSON.stringify(additionalFilters),
-  ]);
+  }, [employeeId, accessToken, search, sortField, sortOrder, currentPage, pageSize, JSON.stringify(additionalFilters)])
 
   // Report total to parent
   useEffect(() => {
     if (onTotalChange) {
-      onTotalChange(total);
+      onTotalChange(total)
     }
-  }, [total, onTotalChange]);
+  }, [total, onTotalChange])
 
   // Handlers
   const handlePaginationChange = (page: number, newPageSize?: number) => {
-    setCurrentPage(page);
+    setCurrentPage(page)
     if (newPageSize && newPageSize !== pageSize) {
-      setPageSize(newPageSize);
+      setPageSize(newPageSize)
     }
-  };
-  const handleSortingChange = (field: string, order: "ASC" | "DESC" | "") => {
-    setSortField(field);
-    setSortOrder(order as "ASC" | "DESC");
-    setCurrentPage(1);
-  };
+  }
+  const handleSortingChange = (field: string, order: 'ASC' | 'DESC' | '') => {
+    setSortField(field)
+    setSortOrder(order as 'ASC' | 'DESC')
+    setCurrentPage(1)
+  }
 
   // Handler for DataController setFilter (bulk set)
   const handleSetFilter = (filters: string[]) => {
     // Remove all, then add each
-    clearAllFilters();
-    filters.forEach(addFilter);
-    setCurrentPage(1);
-  };
+    clearAllFilters()
+    filters.forEach(addFilter)
+    setCurrentPage(1)
+  }
 
   // Handler for DataFilter onFilterChange (single toggle)
   const handleFilterChange = (filterId: string, selected: boolean) => {
     if (selected) {
-      addFilter(filterId);
+      addFilter(filterId)
     } else {
-      removeFilter(filterId);
+      removeFilter(filterId)
     }
-    setCurrentPage(1);
-  };
+    setCurrentPage(1)
+  }
 
   return (
     <DataContainer
@@ -133,11 +119,11 @@ export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({
             <span className="gba:text-lg gba:font-semibold">Contacts</span>
             <span className="gba:text-gray-500">({total})</span>
           </div>
-        ),
+        )
       }}
       dataFilterProps={{
         filterGroups,
-        onFilterChange: handleFilterChange,
+        onFilterChange: handleFilterChange
       }}
       dataBody={
         <ContactsTable
@@ -150,7 +136,7 @@ export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({
           pageSize={pageSize}
           currentPage={currentPage}
           sortField={sortField}
-          sortOrder={sortOrder as "ASC" | "DESC" | ""}
+          sortOrder={sortOrder as 'ASC' | 'DESC' | ''}
           onPaginationChange={handlePaginationChange}
           onSortingChange={handleSortingChange}
           accessToken={accessToken}
@@ -158,5 +144,5 @@ export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({
         />
       }
     />
-  );
-};
+  )
+}

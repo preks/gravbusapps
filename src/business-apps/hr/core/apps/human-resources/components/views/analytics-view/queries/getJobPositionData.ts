@@ -36,4 +36,4 @@ export const GET_JOB_POSITION_DATA = `
       }
     }
   }
-`;
+`

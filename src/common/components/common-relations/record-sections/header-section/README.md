@@ -13,11 +13,10 @@ A generic, reusable header section component for CRM and IRM record pages. This 
 ## Usage
 
 ```tsx
-import { HeaderSection } from '@/common/components/common-relations/record-sections/header-section';
-import { LightbulbIcon } from '@phosphor-icons/react';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-
-<HeaderSection
+import { HeaderSection } from '@/common/components/common-relations/record-sections/header-section'
+import { LightbulbIcon } from '@phosphor-icons/react'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+;<HeaderSection
   accessToken={accessToken}
   entityId="123"
   entityName="Sample Opportunity"
@@ -38,7 +37,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
   actionButtonConfig={{
     contextsArray: [FlowContextName.investmentOpportunityEntity],
     externalContextData: { opportunityId: entityId },
-    prefixDataTestId: "opportunity-record-action"
+    prefixDataTestId: 'opportunity-record-action'
   }}
 />
 ```
@@ -46,6 +45,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 ## Props
 
 ### Required Props
+
 - `accessToken`: Access token for API requests
 - `entityId`: Unique identifier for the entity
 - `entityName`: Display name of the entity
@@ -53,6 +53,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 - `entityIcon`: Icon component for the entity
 
 ### Optional Props
+
 - `onBack`: Back button click handler
 - `primaryBadge`: Main badge (usually value/amount)
 - `additionalBadges`: Array of additional badges
@@ -63,6 +64,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 ## Examples
 
 ### Minimal Header
+
 ```tsx
 <HeaderSection
   accessToken={accessToken}
@@ -74,6 +76,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 ```
 
 ### Full-Featured Header
+
 ```tsx
 <HeaderSection
   accessToken={accessToken}
@@ -83,11 +86,13 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
   entityIcon={LightbulbIcon}
   onBack={handleBack}
   primaryBadge={{
-    content: <><DollarOutlined /> $100,000</>
+    content: (
+      <>
+        <DollarOutlined /> $100,000
+      </>
+    )
   }}
-  additionalBadges={[
-    { content: "High Priority", style: { backgroundColor: '#ff4d4f', color: 'white' } }
-  ]}
+  additionalBadges={[{ content: 'High Priority', style: { backgroundColor: '#ff4d4f', color: 'white' } }]}
   infoItems={[
     { icon: StarOutlined, label: 'Status', value: 'Active' },
     { icon: UserOutlined, label: 'Owner', value: 'Jane Smith' },
@@ -103,7 +108,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
   actionButtonConfig={{
     contextsArray: [FlowContextName.investmentOpportunityEntity],
     externalContextData: { opportunityId: entityId },
-    prefixDataTestId: "opportunity-actions"
+    prefixDataTestId: 'opportunity-actions'
   }}
 />
 ```
@@ -127,7 +132,3 @@ To use HeaderSection with other entity types:
 4. **Customize badges and info**: Display entity-relevant information
 
 This component is designed to work seamlessly with leads, accounts, contacts, investments, and any other CRM/IRM entities.
-
-
-
-

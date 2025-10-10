@@ -1,11 +1,11 @@
-import React from 'react';
-import FeedbackRequestForm from './FeedbackRequestForm';
-import { FeedbackRequestFormValues } from './types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import React from 'react'
+import FeedbackRequestForm from './FeedbackRequestForm'
+import { FeedbackRequestFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 interface FeedbackRequestFormScreenProps extends BusinessAppContextProps {
-  preSelectedEmployeeId?: string;
+  preSelectedEmployeeId?: string
 }
 
 const FeedbackRequestFormScreen: React.FC<FeedbackRequestFormScreenProps> = ({
@@ -15,27 +15,25 @@ const FeedbackRequestFormScreen: React.FC<FeedbackRequestFormScreenProps> = ({
   preSelectedEmployeeId
 }) => {
   // Extract employeeId from additionalData following the same pattern as other forms
-  const employeeId = additionalData?.employeeId || 
-                    additionalData?.flowContext?.employeeId || 
-                    additionalData?.contextData?.employeeId ||
-                    additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
-                    preSelectedEmployeeId;
+  const employeeId =
+    additionalData?.employeeId ||
+    additionalData?.flowContext?.employeeId ||
+    additionalData?.contextData?.employeeId ||
+    additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
+    preSelectedEmployeeId
 
   const handleSubmitFeedbackRequest = async (values: FeedbackRequestFormValues) => {
     // Feedback request submission is now handled by Kogito process via dispatchProcessContinueEvent
     // This function is kept for backward compatibility but the actual submission happens in the context
-  };
+  }
 
   const handleCancelFeedbackRequest = async () => {
     // Feedback request cancellation is now handled by Kogito process via dispatchProcessContinueEvent
     // This function is kept for backward compatibility but the actual cancellation happens in the context
-  };
+  }
 
   return (
-    <div 
-      className="gba:h-full gba:w-full"
-      data-testid={formatDataTestId("FeedbackRequestFormScreen", "Container")}
-    >
+    <div className="gba:h-full gba:w-full" data-testid={formatDataTestId('FeedbackRequestFormScreen', 'Container')}>
       <FeedbackRequestForm
         accessToken={accessToken}
         userInfo={userInfo}
@@ -45,7 +43,7 @@ const FeedbackRequestFormScreen: React.FC<FeedbackRequestFormScreenProps> = ({
         preSelectedEmployeeId={employeeId}
       />
     </div>
-  );
-};
+  )
+}
 
-export default FeedbackRequestFormScreen;
+export default FeedbackRequestFormScreen

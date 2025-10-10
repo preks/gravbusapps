@@ -1,54 +1,49 @@
-'use client';
+'use client'
 
-import React, { useState, useRef, useEffect } from 'react';
-import {
-  Card,
-  CardContent,
-  Button,
-  Input
-} from '@newwork/nw-design-system';
+import React, { useState, useRef, useEffect } from 'react'
+import { Card, CardContent, Button, Input } from '@newwork/nw-design-system'
 import {
   PiPaperPlaneRight,
   PiX,
   PiStar as PiSparkle, // Using PiStar as replacement for PiSparkle
   PiUser,
   PiRobot
-} from 'react-icons/pi';
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
-import { UserInfo } from '../types/employee.types';
+} from 'react-icons/pi'
+import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { UserInfo } from '../types/employee.types'
 
 // AI suggestions - keeping existing predefined prompts
 const aiSuggestions = [
-  "Help me prepare for 1:1s",
-  "Flag risks on my team",
-  "Show team time off calendar",
-  "Analyze team workload",
-  "Identify skill gaps"
-];
+  'Help me prepare for 1:1s',
+  'Flag risks on my team',
+  'Show team time off calendar',
+  'Analyze team workload',
+  'Identify skill gaps'
+]
 
 // Types for conversation following the Every message pattern
 interface ConversationTurn {
-  side: 'user' | 'agent';
-  text?: string;
-  outputs?: OutputItem[];
-  timestamp: Date;
+  side: 'user' | 'agent'
+  text?: string
+  outputs?: OutputItem[]
+  timestamp: Date
 }
 
 interface OutputItem {
-  type: 'answer' | 'loading' | 'error';
-  displayData?: DisplayData[];
-  text?: string;
+  type: 'answer' | 'loading' | 'error'
+  displayData?: DisplayData[]
+  text?: string
 }
 
 interface DisplayData {
-  type: 'textBlock';
-  text: string;
+  type: 'textBlock'
+  text: string
 }
 
 interface ManagerAssistantProps {
-  className?: string;
-  accessToken?: string;
-  userInfo?: UserInfo;
+  className?: string
+  accessToken?: string
+  userInfo?: UserInfo
 }
 
 /**
@@ -57,174 +52,178 @@ interface ManagerAssistantProps {
  * Now with conversation history following Every message pattern
  */
 export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, accessToken, userInfo }) => {
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [conversation, setConversation] = useState<ConversationTurn[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState('');
-  const [isChatMode, setIsChatMode] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const MAX_CHAT_HEIGHT = 400; // Maximum height for chat mode
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [conversation, setConversation] = useState<ConversationTurn[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [sessionId, setSessionId] = useState('')
+  const [isChatMode, setIsChatMode] = useState(false)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const MAX_CHAT_HEIGHT = 400 // Maximum height for chat mode
 
   // Auto-scroll to bottom when conversation grows
   useEffect(() => {
     if (scrollRef.current && isChatMode) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [conversation.length, isChatMode]);
+  }, [conversation.length, isChatMode])
 
   // Handle AI prompt submission with conversation history
   const handleAiPromptSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!aiPrompt.trim() || isLoading) return;
-    
-    const userMessage = aiPrompt.trim();
-    setAiPrompt('');
-    setIsLoading(true);
-    setIsChatMode(true);
-    
+    e.preventDefault()
+
+    if (!aiPrompt.trim() || isLoading) return
+
+    const userMessage = aiPrompt.trim()
+    setAiPrompt('')
+    setIsLoading(true)
+    setIsChatMode(true)
+
     // Add user message to conversation
     const userTurn: ConversationTurn = {
       side: 'user',
       text: userMessage,
       timestamp: new Date()
-    };
-    
-    setConversation(prev => [...prev, userTurn]);
-    
+    }
+
+    setConversation(prev => [...prev, userTurn])
+
     try {
       // Create FormData as expected by the flowbot API
-      const form = new FormData();
-      form.append('session_id', sessionId); // use existing session or empty for new
-      form.append('user_input_text', userMessage);
-      form.append('llm_model', 'gpt-4.1'); // Use the correct model version
-      form.append('use_web_search_tool', 'false');
-      
+      const form = new FormData()
+      form.append('session_id', sessionId) // use existing session or empty for new
+      form.append('user_input_text', userMessage)
+      form.append('llm_model', 'gpt-4.1') // Use the correct model version
+      form.append('use_web_search_tool', 'false')
+
       // Add current page context - use correct structure for manager dashboard
       const pageContext = {
-        type: "overview",
+        type: 'overview',
         url: window.location.href,
-        entity_name: "employee"
-      };
-      form.append('current_page_context', JSON.stringify(pageContext));
+        entity_name: 'employee'
+      }
+      form.append('current_page_context', JSON.stringify(pageContext))
 
       const response = await fetch('/flowbot/api/agent/v2/chat', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Accept': 'text/event-stream'
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'text/event-stream'
         },
         body: form
-      });
+      })
 
       if (!response.ok) {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        throw new Error(`API returned ${response.status}: ${response.statusText}`)
       }
 
       // Handle streaming response with Every message pattern
       if (!response.body) {
-        throw new Error('No response body received');
+        throw new Error('No response body received')
       }
 
-      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
-      let accumulatedResponse = '';
-      let frames = '';
-      let newSessionId = sessionId;
+      const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+      let accumulatedResponse = ''
+      let frames = ''
+      let newSessionId = sessionId
 
       try {
         while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+          const { done, value } = await reader.read()
+          if (done) break
 
-          frames += value;
-          const frameList = frames.split('\n\n');
-          frames = frameList.pop() || '';
+          frames += value
+          const frameList = frames.split('\n\n')
+          frames = frameList.pop() || ''
 
           for (const frame of frameList) {
-            const lines = frame.split('\n');
-            let eventType = '';
-            let data = '';
+            const lines = frame.split('\n')
+            let eventType = ''
+            let data = ''
 
             for (const line of lines) {
               if (line.startsWith('event: ')) {
-                eventType = line.slice(7);
+                eventType = line.slice(7)
               } else if (line.startsWith('data: ')) {
-                data = line.slice(6);
+                data = line.slice(6)
               }
             }
 
             if (eventType === 'session-id' && data && !newSessionId) {
-              newSessionId = data.replace(/"/g, '');
+              newSessionId = data.replace(/"/g, '')
             } else if (eventType === 'output-item' && data) {
               try {
-                const parsed = JSON.parse(data);
+                const parsed = JSON.parse(data)
                 if (parsed.type === 'answer' && parsed.displayData) {
                   for (const displayItem of parsed.displayData) {
                     if (displayItem.type === 'textBlock' && displayItem.text) {
-                      accumulatedResponse += displayItem.text;
+                      accumulatedResponse += displayItem.text
                     }
                   }
                 }
               } catch (parseError) {
-                console.warn('Failed to parse output item:', parseError);
+                console.warn('Failed to parse output item:', parseError)
               }
             }
           }
         }
       } finally {
-        reader.releaseLock();
+        reader.releaseLock()
       }
 
       // Update session ID for future requests
       if (newSessionId && newSessionId !== sessionId) {
-        setSessionId(newSessionId);
+        setSessionId(newSessionId)
       }
 
       // Add agent response to conversation
-      const responseText = accumulatedResponse || 'I received your message but couldn\'t generate a response. Please try again.';
+      const responseText =
+        accumulatedResponse || "I received your message but couldn't generate a response. Please try again."
       const agentTurn: ConversationTurn = {
         side: 'agent',
-        outputs: [{
-          type: 'answer',
-          displayData: [{ type: 'textBlock', text: responseText }]
-        }],
+        outputs: [
+          {
+            type: 'answer',
+            displayData: [{ type: 'textBlock', text: responseText }]
+          }
+        ],
         timestamp: new Date()
-      };
-      
-      setConversation(prev => [...prev, agentTurn]);
-      
+      }
+
+      setConversation(prev => [...prev, agentTurn])
     } catch (error) {
-      console.error('Error calling AI agent:', error);
-      
+      console.error('Error calling AI agent:', error)
+
       // Add error message to conversation
       const errorTurn: ConversationTurn = {
         side: 'agent',
-        outputs: [{
-          type: 'error',
-          text: 'I apologize, but I\'m having trouble connecting to the AI service at the moment. Please try again later.'
-        }],
+        outputs: [
+          {
+            type: 'error',
+            text: "I apologize, but I'm having trouble connecting to the AI service at the moment. Please try again later."
+          }
+        ],
         timestamp: new Date()
-      };
-      
-      setConversation(prev => [...prev, errorTurn]);
+      }
+
+      setConversation(prev => [...prev, errorTurn])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleSuggestionClick = (suggestion: string) => {
-    setAiPrompt(suggestion);
+    setAiPrompt(suggestion)
     // Auto-submit after a short delay
     setTimeout(() => {
-      handleAiPromptSubmit({ preventDefault: () => {} } as React.FormEvent);
-    }, 300);
-  };
+      handleAiPromptSubmit({ preventDefault: () => {} } as React.FormEvent)
+    }, 300)
+  }
 
   const clearConversation = () => {
-    setConversation([]);
-    setIsChatMode(false);
-    setSessionId('');
-  };
+    setConversation([])
+    setIsChatMode(false)
+    setSessionId('')
+  }
 
   // Render user message following Every message pattern
   const renderUserMessage = (turn: ConversationTurn, index: number) => (
@@ -233,7 +232,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         <p className="gba:text-sm gba:text-neutral-800">{turn.text}</p>
       </div>
     </div>
-  );
+  )
 
   // Render agent message following Every message pattern
   const renderAgentMessage = (turn: ConversationTurn, index: number) => (
@@ -251,20 +250,20 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
                 <p key={`data-${dataIndex}`} className="gba:text-sm gba:text-neutral-700 gba:whitespace-pre-line">
                   {data.text}
                 </p>
-              ));
+              ))
             } else if (output.type === 'error') {
               return (
                 <p key={`error-${outputIndex}`} className="gba:text-sm gba:text-red-600">
                   {output.text}
                 </p>
-              );
+              )
             }
-            return null;
+            return null
           })}
         </div>
       </div>
     </div>
-  );
+  )
 
   // Render loading message
   const renderLoadingMessage = () => (
@@ -283,7 +282,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         </div>
       </div>
     </div>
-  );
+  )
 
   return (
     <Card className={`${className || ''} gba:mb-4`} data-testid="manager-dashboard-ai-card">
@@ -300,7 +299,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
             </div>
           </div>
           {isChatMode && conversation.length > 0 && (
-            <button 
+            <button
               className="gba:text-neutral-400 gba:hover:text-neutral-600 gba:text-xs"
               onClick={clearConversation}
               data-testid="manager-dashboard-ai-clear-button"
@@ -312,16 +311,14 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
 
         {/* Conversation History */}
         {isChatMode && conversation.length > 0 && (
-          <div 
+          <div
             ref={scrollRef}
             className="gba:mb-3 gba:overflow-y-auto gba:border gba:border-neutral-200 gba:rounded-lg gba:p-2"
             style={{ maxHeight: `${MAX_CHAT_HEIGHT}px` }}
             data-testid="manager-dashboard-ai-conversation"
           >
-            {conversation.map((turn, index) => 
-              turn.side === 'user' 
-                ? renderUserMessage(turn, index)
-                : renderAgentMessage(turn, index)
+            {conversation.map((turn, index) =>
+              turn.side === 'user' ? renderUserMessage(turn, index) : renderAgentMessage(turn, index)
             )}
             {isLoading && renderLoadingMessage()}
           </div>
@@ -331,14 +328,14 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         <form onSubmit={handleAiPromptSubmit} className="gba:flex gba:space-x-2 gba:mb-3">
           <Input
             value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            placeholder={isChatMode ? "Ask a follow-up question..." : "How can I help you manage your team today?"}
+            onChange={e => setAiPrompt(e.target.value)}
+            placeholder={isChatMode ? 'Ask a follow-up question...' : 'How can I help you manage your team today?'}
             className="gba:flex-1 gba:text-sm gba:h-8"
             disabled={isLoading}
             data-testid="manager-dashboard-ai-input"
           />
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             variant="default"
             size="sm"
             className="gba:h-8 gba:px-3"
@@ -367,7 +364,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ManagerAssistant;
+export default ManagerAssistant

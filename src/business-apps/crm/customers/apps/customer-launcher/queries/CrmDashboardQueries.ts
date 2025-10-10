@@ -1,5 +1,5 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface CrmDashboardQueryVariables {
   // No variables needed for dashboard stats, but keeping interface for consistency
@@ -96,67 +96,67 @@ export const GET_CRM_DASHBOARD_STATS = (): string => {
         }
       }
     }
-  }`;
-};
+  }`
+}
 
 export type CrmDashboardStatsData = {
   totalCustomers: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   activeOpportunities: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   totalLeads: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   totalOpportunities: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   totalAccounts: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   totalContacts: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   pipelineValue: {
     aggregate: {
       sum: {
-        estimatedAmount: number;
-      };
-    };
-  };
-};
+        estimatedAmount: number
+      }
+    }
+  }
+}
 
 export interface GetCrmDashboardStatsVariables {
   // No variables needed for this query
 }
 
 export const useGetCrmDashboardStats = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchCrmDashboardStats = async (variables: GetCrmDashboardStatsVariables = {}) => {
-    const query = GET_CRM_DASHBOARD_STATS();
+    const query = GET_CRM_DASHBOARD_STATS()
 
     try {
-      const result = await graphqlClient.request<CrmDashboardStatsData>(query);
-      return result;
+      const result = await graphqlClient.request<CrmDashboardStatsData>(query)
+      return result
     } catch (error) {
-      console.error('Error fetching CRM dashboard stats:', error);
-      throw error;
+      console.error('Error fetching CRM dashboard stats:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchCrmDashboardStats };
-}; 
+  return { fetchCrmDashboardStats }
+}

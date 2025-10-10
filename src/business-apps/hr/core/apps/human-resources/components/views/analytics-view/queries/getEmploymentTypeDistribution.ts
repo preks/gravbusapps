@@ -18,4 +18,4 @@ export const GET_EMPLOYMENT_TYPE_DISTRIBUTION = `
       employeeId
     }
   }
-`;
+`

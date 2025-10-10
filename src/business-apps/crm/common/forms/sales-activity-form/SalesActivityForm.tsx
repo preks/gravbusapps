@@ -1,40 +1,42 @@
-import React, { useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import ActivitySegment, { createActivitySegmentResolver } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment';
-import { AppActionForm } from '@/components/app-action-form';
-import { useForm } from 'react-hook-form';
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import ActivitySegment, {
+  createActivitySegmentResolver
+} from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
+import { AppActionForm } from '@/components/app-action-form'
+import { useForm } from 'react-hook-form'
 
 export interface SalesActivityFormProps extends BusinessAppContextProps {}
 
 // Removed unused TextArea destructure to satisfy linter
 
 type SalesActivityFormValues = {
-  title: string;
-  activityTypeRef: string;
-  occurredAt: string;
-  description: string;
-};
+  title: string
+  activityTypeRef: string
+  occurredAt: string
+  description: string
+}
 
 const initialValues: SalesActivityFormValues = {
   title: '',
   activityTypeRef: '',
   occurredAt: '',
-  description: '',
-};
+  description: ''
+}
 
-const SALES_ACTIVITY_TYPE_CATALOG = 'SalesActivityType';
-const SALES_ACTIVITY_TYPE_VERSION = 'v1';
+const SALES_ACTIVITY_TYPE_CATALOG = 'SalesActivityType'
+const SALES_ACTIVITY_TYPE_VERSION = 'v1'
 
-export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
-  const { accessToken, additionalData } = props;
+export const SalesActivityForm: React.FC<SalesActivityFormProps> = props => {
+  const { accessToken, additionalData } = props
 
-  const resolver = useMemo(() => createActivitySegmentResolver() as any, []);
+  const resolver = useMemo(() => createActivitySegmentResolver() as any, [])
   const form = useForm<any>({
     defaultValues: initialValues,
     resolver,
-    mode: 'onChange',
-  });
+    mode: 'onChange'
+  })
 
   const handleSubmit = async (values: SalesActivityFormValues) => {
     const payload = {
@@ -55,16 +57,16 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
         ...(additionalData?.contactId && { contact: additionalData.contactId }),
         ...(additionalData?.accountId && { account: additionalData.accountId }),
         description: values.description || '',
-        ownerEmployee: additionalData?.employeeId,
-      },
-    };
-    return payload;
-  };
+        ownerEmployee: additionalData?.employeeId
+      }
+    }
+    return payload
+  }
 
-  const accountId = additionalData?.accountId;
-  const contactId = additionalData?.contactId;
-  const opportunityId = additionalData?.opportunityId;
-  const leadId = additionalData?.leadId;
+  const accountId = additionalData?.accountId
+  const contactId = additionalData?.contactId
+  const opportunityId = additionalData?.opportunityId
+  const leadId = additionalData?.leadId
 
   return (
     <AppActionForm
@@ -94,7 +96,7 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = (props) => {
         />
       </div>
     </AppActionForm>
-  );
-};
+  )
+}
 
-export default SalesActivityForm; 
+export default SalesActivityForm

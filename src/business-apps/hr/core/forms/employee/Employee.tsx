@@ -1,28 +1,24 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
-import { EmployeeProvider } from './context/EmployeeContext';
-import EmployeeForm from './components/EmployeeForm';
-import { EmployeeFormValues } from './types';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { EmployeeProvider } from './context/EmployeeContext'
+import EmployeeForm from './components/EmployeeForm'
+import { EmployeeFormValues } from './types'
 
 interface EmployeeProps extends BusinessAppContextProps {
-  initialValues?: Partial<EmployeeFormValues>;
-  isEdit?: boolean;
+  initialValues?: Partial<EmployeeFormValues>
+  isEdit?: boolean
 }
 
-const Employee: React.FC<EmployeeProps> = ({ 
-  accessToken, 
-  initialValues = {}, 
-  isEdit = false 
-}) => {
-  const structureId = getCurrentActiveStructureId();
+const Employee: React.FC<EmployeeProps> = ({ accessToken, initialValues = {}, isEdit = false }) => {
+  const structureId = getCurrentActiveStructureId()
 
   if (!accessToken) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
         <div className="gba:text-gray-500">Access token required</div>
       </div>
-    );
+    )
   }
 
   if (!structureId) {
@@ -30,19 +26,14 @@ const Employee: React.FC<EmployeeProps> = ({
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
         <div className="gba:text-gray-500">Structure ID required</div>
       </div>
-    );
+    )
   }
 
   return (
-    <EmployeeProvider
-      accessToken={accessToken}
-      structureId={structureId}
-      initialValues={initialValues}
-      isEdit={isEdit}
-    >
+    <EmployeeProvider accessToken={accessToken} structureId={structureId} initialValues={initialValues} isEdit={isEdit}>
       <EmployeeForm />
     </EmployeeProvider>
-  );
-};
+  )
+}
 
-export default Employee; 
+export default Employee

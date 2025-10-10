@@ -1,34 +1,33 @@
-import React from 'react';
-import { RiPieChart2Line } from '@remixicon/react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { RiPieChart2Line } from '@remixicon/react'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AbsenceDistributionChartProps {
-  pieChartData: { name: string; value: number }[];
-  totalAbsenceDays: number;
-  vacationShare: string;
-  groupColors: { [key: string]: string };
+  pieChartData: { name: string; value: number }[]
+  totalAbsenceDays: number
+  vacationShare: string
+  groupColors: { [key: string]: string }
 }
 
 export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> = ({
   pieChartData,
   vacationShare,
-  groupColors,
+  groupColors
 }) => {
-  const currentYear = new Date().getFullYear();
+  const currentYear = new Date().getFullYear()
 
-  const currentYearVacationShare = pieChartData.length > 0 ? vacationShare : '0';
+  const currentYearVacationShare = pieChartData.length > 0 ? vacationShare : '0'
 
   const renderLabel = (entry: any) => {
-    const currentYearTotal = pieChartData.reduce((sum, item) => sum + item.value, 0);
-    const percent =
-      currentYearTotal > 0 ? ((entry.value / currentYearTotal) * 100).toFixed(1) : '0.0';
+    const currentYearTotal = pieChartData.reduce((sum, item) => sum + item.value, 0)
+    const percent = currentYearTotal > 0 ? ((entry.value / currentYearTotal) * 100).toFixed(1) : '0.0'
 
     // Check if this is the vacation entry by looking for the translated vacation name
     const vacationName = getTranslationFromI18nKeyAndLabel(
       'lowcoder:absence_management_hub_manager.vacation',
-      'Vacation',
-    );
+      'Vacation'
+    )
 
     if (entry.name === vacationName) {
       return (
@@ -43,11 +42,11 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
         >
           {`${percent}%`}
         </text>
-      );
+      )
     }
 
-    return `${percent}%`;
-  };
+    return `${percent}%`
+  }
 
   return (
     <>
@@ -57,23 +56,21 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
             {' '}
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_manager.absence_distribution',
-              'Absence Distribution',
+              'Absence Distribution'
             )}
           </h5>
           <p className="gba:text-xs gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_manager.distribution_for',
-              'Distribution for ',
+              'Distribution for '
             )}{' '}
             {currentYear}
           </p>
-          <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">
-            {currentYearVacationShare}%
-          </div>
+          <div className="gba:text-2xl gba:font-bold gba:pt-2 gba:text-left">{currentYearVacationShare}%</div>
           <div className="gba:text-xs gba:text-muted-foreground gba:text-left gba:pb-3">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_manager.vacation_share',
-              'Vacation Share',
+              'Vacation Share'
             )}
           </div>
         </div>
@@ -96,22 +93,20 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
               fontSize={14}
               fontWeight="bold"
             >
-              {pieChartData.map((entry) => (
+              {pieChartData.map(entry => (
                 <Cell key={`cell-${entry.name}`} fill={groupColors[entry.name] || undefined} />
               ))}
             </Pie>
             <RechartsTooltip
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
-                  const data = payload[0];
-                  const name = data.name;
-                  const value = data.value;
-                  const color = groupColors[name as string] || undefined;
-                  const currentYearTotal = pieChartData.reduce((sum, item) => sum + item.value, 0);
+                  const data = payload[0]
+                  const name = data.name
+                  const value = data.value
+                  const color = groupColors[name as string] || undefined
+                  const currentYearTotal = pieChartData.reduce((sum, item) => sum + item.value, 0)
                   const percentage =
-                    currentYearTotal > 0
-                      ? (((value as number) / currentYearTotal) * 100).toFixed(1)
-                      : '0.0';
+                    currentYearTotal > 0 ? (((value as number) / currentYearTotal) * 100).toFixed(1) : '0.0'
 
                   return (
                     <div
@@ -121,7 +116,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                         padding: 12,
                         fontSize: 13,
-                        border: '1px solid #e5e7eb',
+                        border: '1px solid #e5e7eb'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
@@ -132,7 +127,7 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                             background: color,
                             display: 'inline-block',
                             borderRadius: 3,
-                            marginRight: 6,
+                            marginRight: 6
                           }}
                         />
                         <span style={{ fontWeight: 600 }}>{name}</span>
@@ -140,27 +135,27 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
                       <div style={{ color: '#666' }}>
                         {getTranslationFromI18nKeyAndLabel(
                           'lowcoder:absence_management_hub_manager.dashboard.days',
-                          'days',
+                          'days'
                         )}{' '}
                         {value}
                       </div>
                       <div style={{ color: '#666' }}>
                         {getTranslationFromI18nKeyAndLabel(
                           'lowcoder:absence_management_hub_manager.dashboard.of_total',
-                          'of total',
+                          'of total'
                         )}{' '}
                         {percentage}%
                       </div>
                     </div>
-                  );
+                  )
                 }
-                return null;
+                return null
               }}
             />
           </PieChart>
         </ResponsiveContainer>
         <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-4 gba:mt-4">
-          {pieChartData.map((entry) => (
+          {pieChartData.map(entry => (
             <div key={entry.name} className="gba:flex gba:items-center gba:gap-2">
               <div
                 className="gba:w-3 gba:h-3 gba:rounded-sm"
@@ -172,5 +167,5 @@ export const AbsenceDistributionChart: React.FC<AbsenceDistributionChartProps> =
         </div>
       </div>
     </>
-  );
-};
+  )
+}

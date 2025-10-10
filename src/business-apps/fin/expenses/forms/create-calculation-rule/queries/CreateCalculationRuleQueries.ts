@@ -70,7 +70,7 @@ query plansAndRequestsInRange($from: timestamptz!, $to: timestamptz!) {
     activeTo
   }
 }
-`;
+`
 
 // Paginated query for affected expenses modal with aggregates
 export const buildGetAffectedExpensesQuery = (): string => {
@@ -83,10 +83,10 @@ export const buildGetAffectedExpensesQuery = (): string => {
     ExpenseRequestAggregate(where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } }) { aggregate { count } }
     ExpenseItemAggregate(where: { isDeleted: { _eq: false }, createdAt: { _gte: $from, _lte: $to } }) { aggregate { count } }
   }
-  `;
-};
+  `
+}
 
-export const getLastCalculationRule=`
+export const getLastCalculationRule = `
 query myQuery {
   ExpenseRule(orderBy: {createdAt: DESC}, limit: 1, where: {isDeleted: {_eq: false}}) {
     id
@@ -112,7 +112,7 @@ query myQuery {
 }
 `
 
-export const getExpenseRuleFlagById=`query myQuery($id: uuid!){
+export const getExpenseRuleFlagById = `query myQuery($id: uuid!){
     ExpenseRuleFlag(where: { expenseRuleId: {_eq: $id}, isDeleted: {_eq: false}}) {
       id
       version
@@ -122,7 +122,7 @@ export const getExpenseRuleFlagById=`query myQuery($id: uuid!){
   }
 }
 `
-export const getCalculationRule =`query myQuery($calculationId: uuid = null) {
+export const getCalculationRule = `query myQuery($calculationId: uuid = null) {
   ExpenseRule(
     where: {
       isDeleted: {_eq: false},
@@ -156,7 +156,7 @@ export const getCalculationRule =`query myQuery($calculationId: uuid = null) {
 }
 `
 
-export const getExpenseRuleAggregateByCode=`query ExpenseRuleAggregateByCode($codeValue: String, $ruleId: uuid) {
+export const getExpenseRuleAggregateByCode = `query ExpenseRuleAggregateByCode($codeValue: String, $ruleId: uuid) {
   ExpenseRuleAggregate(where: {isDeleted: {_eq: false}, _or: [{code: {_eq: $codeValue}}, {id: {_isNull: true}}], id: {_neq: $ruleId}}) {
     aggregate {
       count

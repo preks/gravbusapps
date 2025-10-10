@@ -1,8 +1,8 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { ReminderConfig } from '../general-config/ReminderConfig';
-import { EscalationConfig } from '../general-config/EscalationConfig';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { ReminderConfig } from '../general-config/ReminderConfig'
+import { EscalationConfig } from '../general-config/EscalationConfig'
 
 /**
  * Notifications and escalation section for the flow template
@@ -21,7 +21,7 @@ export const NotificationsSection: React.FC = () => {
           <ReminderConfig />
         </CardContent>
       </Card>
-      
+
       {/* Escalation Card */}
       <Card className="gba:shadow-sm" data-testid="escalation-card">
         <CardHeader>
@@ -34,5 +34,5 @@ export const NotificationsSection: React.FC = () => {
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

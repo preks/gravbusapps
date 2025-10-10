@@ -1,44 +1,44 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Trash2, Edit, Download } from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { startProcess } from '@/common/utils/start-process';
-import { useGetInvestmentDocumentsByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts';
-import type { InvestmentDocument } from '@/common/data/investment/types';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { env } from '@/common/env/EnvUtils';
-import { toast } from 'sonner';
+import React, { useState, useEffect, useMemo } from 'react'
+import { Trash2, Edit, Download } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { startProcess } from '@/common/utils/start-process'
+import { useGetInvestmentDocumentsByAccountId } from '@/common/data/investment/hooks/useInvestmentAccounts'
+import type { InvestmentDocument } from '@/common/data/investment/types'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { env } from '@/common/env/EnvUtils'
+import { toast } from 'sonner'
 
 // Use the actual investment document type
-type Document = InvestmentDocument;
+type Document = InvestmentDocument
 
 interface AccountDocumentsProps {
-  accountId: string;
-  context: BusinessAppContextProps;
+  accountId: string
+  context: BusinessAppContextProps
 }
 
 const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context }) => {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Fetch documents using the existing hook
-  const { fetchInvestmentDocumentsByAccountId } = useGetInvestmentDocumentsByAccountId(context);
+  const { fetchInvestmentDocumentsByAccountId } = useGetInvestmentDocumentsByAccountId(context)
 
   // Function to load documents
   const loadDocuments = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
-      const documentsData = await fetchInvestmentDocumentsByAccountId(accountId);
-      setDocuments(documentsData);
+      setIsLoading(true)
+      setError(null)
+      const documentsData = await fetchInvestmentDocumentsByAccountId(accountId)
+      setDocuments(documentsData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load documents');
+      setError(err instanceof Error ? err.message : 'Failed to load documents')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Transform documents to match DocumentItem interface
   const transformedDocuments = useMemo(() => {
@@ -48,70 +48,84 @@ const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context 
       description: doc.description,
       createdAt: doc.createdAt,
       expirationDate: doc.expirationDate,
-      documentType: doc.documentType ? {
-        id: doc.documentType.id,
-        value: doc.documentType.value || '',
-        code: doc.documentType.code
-      } : null,
-      documentGroup: doc.documentGroup ? {
-        id: doc.documentGroup.id,
-        value: doc.documentGroup.value || '',
-        code: doc.documentGroup.code
-      } : null,
+      documentType: doc.documentType
+        ? {
+            id: doc.documentType.id,
+            value: doc.documentType.value || '',
+            code: doc.documentType.code
+          }
+        : null,
+      documentGroup: doc.documentGroup
+        ? {
+            id: doc.documentGroup.id,
+            value: doc.documentGroup.value || '',
+            code: doc.documentGroup.code
+          }
+        : null,
       file: doc.file,
       mimeType: doc.mimeType,
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,
-      parentDocument: typeof doc.parentDocument === 'object' ? doc.parentDocument?.id ?? null : doc.parentDocument ?? null,
+      parentDocument:
+        typeof doc.parentDocument === 'object' ? (doc.parentDocument?.id ?? null) : (doc.parentDocument ?? null),
       folder: doc.folder === true, // Use direct folder property like opportunity documents
       version: doc.version,
       updatedAt: doc.updatedAt,
       updatedBy: doc.updatedBy
-    }));
-  }, [documents]);
+    }))
+  }, [documents])
 
   // Load documents on mount and when accountId changes
   useEffect(() => {
     if (accountId && context.accessToken) {
-      loadDocuments();
+      loadDocuments()
     }
-  }, [accountId, context.accessToken]);
+  }, [accountId, context.accessToken])
 
   // Process completion handler for refreshing documents after operations
   useProcessCompletion({
     onSuccess: () => {
-      loadDocuments();
+      loadDocuments()
     }
-  });
+  })
 
   // Memoized action props for document operations
-  const documentCreateFolderActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentCreate],
-    externalContextData: { 
-      accountId,
-      folder: true
-    },
-    prefixDataTestId: 'account-document-create-folder'
-  }), [accountId]);
+  const documentCreateFolderActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentCreate],
+      externalContextData: {
+        accountId,
+        folder: true
+      },
+      prefixDataTestId: 'account-document-create-folder'
+    }),
+    [accountId]
+  )
 
-  const documentUploadActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentCreate],
-    externalContextData: { 
-      accountId
-    },
-    prefixDataTestId: 'account-document-upload'
-  }), [accountId]);
+  const documentUploadActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentCreate],
+      externalContextData: {
+        accountId
+      },
+      prefixDataTestId: 'account-document-upload'
+    }),
+    [accountId]
+  )
 
-  const documentDeleteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentDelete],
-    externalContextData: { 
-                  accountId,
-      entityType: 'account'
-    },
-    prefixDataTestId: 'account-document-delete'
-  }), [accountId]);
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      externalContextData: {
+        accountId,
+        entityType: 'account'
+      },
+      prefixDataTestId: 'account-document-delete'
+    }),
+    [accountId]
+  )
 
-                    return (
+  return (
     <DocumentSection
       entityId={accountId}
       documents={transformedDocuments}
@@ -135,15 +149,15 @@ const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context 
           onClick: (_documentId: string, document: any, entityId: string) => {
             // Handle document download using the same pattern as OpportunityDocuments
             if (!document.file) {
-              toast.warning('No file available to download');
-              return;
+              toast.warning('No file available to download')
+              return
             }
-            
+
             try {
-              const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || '';
+              const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || ''
               const getFileExtension = (doc: any): string => {
                 if (doc.name && doc.name.includes('.')) {
-                  return doc.name.split('.').pop() || 'pdf';
+                  return doc.name.split('.').pop() || 'pdf'
                 }
                 const mimeTypeExtensions: Record<string, string> = {
                   'application/pdf': 'pdf',
@@ -154,31 +168,31 @@ const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context 
                   'image/png': 'png',
                   'image/jpeg': 'jpg',
                   'text/plain': 'txt'
-                };
-                return (doc.mimeType && mimeTypeExtensions[doc.mimeType]) || 'pdf';
-              };
-
-              const fileExtension = getFileExtension(document);
-              const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/accounts/${entityId}/documents/`;
-              
-              let fileUrl: string;
-              if (document.file.includes('.')) {
-                fileUrl = `${baseUrl}${document.file}`;
-              } else {
-                fileUrl = `${baseUrl}${document.file}.${fileExtension}`;
+                }
+                return (doc.mimeType && mimeTypeExtensions[doc.mimeType]) || 'pdf'
               }
-              
-              const downloadFilename = document.name || `document.${fileExtension}`;
-              
-              const link = window.document.createElement('a');
-              link.href = fileUrl;
-              link.download = downloadFilename;
-              window.document.body.appendChild(link);
-              link.click();
-              window.document.body.removeChild(link);
+
+              const fileExtension = getFileExtension(document)
+              const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/accounts/${entityId}/documents/`
+
+              let fileUrl: string
+              if (document.file.includes('.')) {
+                fileUrl = `${baseUrl}${document.file}`
+              } else {
+                fileUrl = `${baseUrl}${document.file}.${fileExtension}`
+              }
+
+              const downloadFilename = document.name || `document.${fileExtension}`
+
+              const link = window.document.createElement('a')
+              link.href = fileUrl
+              link.download = downloadFilename
+              window.document.body.appendChild(link)
+              link.click()
+              window.document.body.removeChild(link)
             } catch (error) {
-              console.error('Error downloading document:', error);
-              toast.error('Failed to download document');
+              console.error('Error downloading document:', error)
+              toast.error('Failed to download document')
             }
           }
         },
@@ -188,10 +202,10 @@ const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context 
           icon: <Edit className="gba:h-4 gba:w-4" />,
           onClick: (documentId: string, document: any, entityId: string) => {
             // Open the document update popup
-                                    startProcess({
-                                      domain: 'investment-relations',
+            startProcess({
+              domain: 'investment-relations',
               processName: 'updateInvestmentDocument',
-                                      payload: {
+              payload: {
                 documentId: documentId,
                 accountId: entityId,
                 investmentDocument: {
@@ -202,11 +216,11 @@ const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context 
                   documentTypeRef: document.documentType?.id,
                   expirationDate: document.expirationDate,
                   description: document.description,
-                  folder: document.folder || false,
-                },
-                  },
-                  builderType: 'NATIVE_SCREEN',
-            });
+                  folder: document.folder || false
+                }
+              },
+              builderType: 'NATIVE_SCREEN'
+            })
           }
         },
         {
@@ -223,8 +237,8 @@ const AccountDocuments: React.FC<AccountDocumentsProps> = ({ accountId, context 
       data-testid="account-document-section"
       {...context}
     />
-  );
-};
+  )
+}
 
-export { AccountDocuments };
-export default AccountDocuments; 
+export { AccountDocuments }
+export default AccountDocuments

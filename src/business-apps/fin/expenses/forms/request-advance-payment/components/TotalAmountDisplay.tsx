@@ -1,18 +1,18 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils';
-import { BaseFormFieldProps } from '../types/FormTypes';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
+import { BaseFormFieldProps } from '../types/FormTypes'
 
 interface TotalAmountDisplayProps extends BaseFormFieldProps {
-  totalRemainingAmount?: number;
-  requestTypeValue?: string;
-  selectedPlan?: any;
+  totalRemainingAmount?: number
+  requestTypeValue?: string
+  selectedPlan?: any
 }
 
 const TotalAmountDisplay: React.FC<TotalAmountDisplayProps> = ({
   totalRemainingAmount = 0,
   requestTypeValue,
   'data-testid': dataTestId = 'request-advance-payment-total-section',
-  selectedPlan = null,
+  selectedPlan = null
 }) => {
   return (
     <div className="gba:mb-6" data-testid={dataTestId}>
@@ -20,13 +20,11 @@ const TotalAmountDisplay: React.FC<TotalAmountDisplayProps> = ({
         <div className="gba:flex-1 gba:flex gba:justify-center">
           <div className="gba:flex gba:items-center gba:gap-2">
             <span className="gba:text-2xl gba:font-bold gba:text-black">
-              {formatNumberFunction((totalRemainingAmount || 0).toString(), '0.00[,]00')} {selectedPlan ? selectedPlan.currency?.code : ''}
+              {formatNumberFunction((totalRemainingAmount || 0).toString(), '0.00[,]00')}{' '}
+              {selectedPlan ? selectedPlan.currency?.code : ''}
             </span>
             <span className="gba:text-sm gba:text-gray-500 gba:font-bold gba:mt-3">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:initiate_advance_payment.total',
-                'Total'
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
             </span>
           </div>
         </div>
@@ -38,7 +36,7 @@ const TotalAmountDisplay: React.FC<TotalAmountDisplayProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default TotalAmountDisplay;
+export default TotalAmountDisplay

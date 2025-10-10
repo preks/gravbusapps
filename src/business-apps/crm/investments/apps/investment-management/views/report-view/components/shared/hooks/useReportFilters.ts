@@ -1,40 +1,40 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import dayjs from 'dayjs';
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import dayjs from 'dayjs'
 
 export interface ColumnConfig {
-  id: string;
-  label: string;
-  visible: boolean;
-  disabled?: boolean;
+  id: string
+  label: string
+  visible: boolean
+  disabled?: boolean
 }
 
 export interface ReportFiltersState {
-  startDate: dayjs.Dayjs | null;
-  endDate: dayjs.Dayjs | null;
-  isTransposed: boolean;
-  columnConfig: ColumnConfig[];
-  visibleColumns: string[];
-  selectedCurrencies: string[];
+  startDate: dayjs.Dayjs | null
+  endDate: dayjs.Dayjs | null
+  isTransposed: boolean
+  columnConfig: ColumnConfig[]
+  visibleColumns: string[]
+  selectedCurrencies: string[]
 }
 
 export interface ReportFiltersCallbacks {
-  handleStartDateChange: (date: dayjs.Dayjs | null) => void;
-  handleEndDateChange: (date: dayjs.Dayjs | null) => void;
-  handleClearFilters: () => void;
-  handleTransposeToggle: () => void;
-  handleColumnVisibilityChange: (columnId: string, visible: boolean) => void;
-  handleCurrencyChange: (currencies: string[]) => void;
+  handleStartDateChange: (date: dayjs.Dayjs | null) => void
+  handleEndDateChange: (date: dayjs.Dayjs | null) => void
+  handleClearFilters: () => void
+  handleTransposeToggle: () => void
+  handleColumnVisibilityChange: (columnId: string, visible: boolean) => void
+  handleCurrencyChange: (currencies: string[]) => void
 }
 
 export interface UseReportFiltersReturn extends ReportFiltersState, ReportFiltersCallbacks {
   // Computed filters for API calls
   computedFilters: {
-    startDate?: string;
-    endDate?: string;
-    currencyIds?: string[];
-  };
+    startDate?: string
+    endDate?: string
+    currencyIds?: string[]
+  }
   // Filter initialization state
-  filtersInitialized: boolean;
+  filtersInitialized: boolean
 }
 
 /**
@@ -42,84 +42,75 @@ export interface UseReportFiltersReturn extends ReportFiltersState, ReportFilter
  * Handles date range filtering and column visibility
  */
 export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFiltersReturn => {
-  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null);
-  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null);
-  const [isTransposed, setIsTransposed] = useState(false);
-  const [filtersInitialized, setFiltersInitialized] = useState(false);
-  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([]);
-  
+  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(null)
+  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(null)
+  const [isTransposed, setIsTransposed] = useState(false)
+  const [filtersInitialized, setFiltersInitialized] = useState(false)
+  const [selectedCurrencies, setSelectedCurrencies] = useState<string[]>([])
+
   // Column visibility management
-  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(initialColumns || []);
+  const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>(initialColumns || [])
 
   // Update columnConfig when initialColumns changes (e.g., after catalog loads or tab switch)
   useEffect(() => {
     if (initialColumns && initialColumns.length > 0) {
-      setColumnConfig((prevConfig) => {
+      setColumnConfig(prevConfig => {
         if (prevConfig.length === 0) {
           // First time initialization - use initialColumns as-is
-          return initialColumns;
+          return initialColumns
         }
 
         // Check how many columns from prevConfig exist in initialColumns
-        const newIds = new Set(initialColumns.map(col => col.id));
-        const commonIds = prevConfig.filter(col => newIds.has(col.id));
-        const overlapPercentage = prevConfig.length > 0 ? (commonIds.length / prevConfig.length) : 0;
+        const newIds = new Set(initialColumns.map(col => col.id))
+        const commonIds = prevConfig.filter(col => newIds.has(col.id))
+        const overlapPercentage = prevConfig.length > 0 ? commonIds.length / prevConfig.length : 0
 
         // If less than 50% overlap, this is likely a tab switch - reset all columns to default
         if (overlapPercentage < 0.5) {
-          return initialColumns;
+          return initialColumns
         }
 
         // Otherwise, preserve user's visibility preferences for columns that exist in both configs
-        const prevVisibilityMap = new Map(
-          prevConfig.map((col) => [col.id, col.visible])
-        );
+        const prevVisibilityMap = new Map(prevConfig.map(col => [col.id, col.visible]))
 
         // Merge: keep user's visibility choices, but add new columns from initialColumns
-        return initialColumns.map((col) => ({
+        return initialColumns.map(col => ({
           ...col,
-          visible: prevVisibilityMap.has(col.id) 
-            ? prevVisibilityMap.get(col.id)! 
-            : col.visible // Use default for new columns
-        }));
-      });
+          visible: prevVisibilityMap.has(col.id) ? prevVisibilityMap.get(col.id)! : col.visible // Use default for new columns
+        }))
+      })
     }
-  }, [initialColumns]);
+  }, [initialColumns])
 
   // Get visible columns
-  const visibleColumns = useMemo(() => 
-    columnConfig.filter((col) => col.visible).map((col) => col.id),
-    [columnConfig]
-  );
+  const visibleColumns = useMemo(() => columnConfig.filter(col => col.visible).map(col => col.id), [columnConfig])
 
   // Filter change handlers - consistent across all reports
   const handleStartDateChange = useCallback((date: dayjs.Dayjs | null) => {
-    setStartDate(date);
-  }, []);
+    setStartDate(date)
+  }, [])
 
   const handleEndDateChange = useCallback((date: dayjs.Dayjs | null) => {
-    setEndDate(date);
-  }, []);
+    setEndDate(date)
+  }, [])
 
   const handleTransposeToggle = useCallback(() => {
-    setIsTransposed(prev => !prev);
-  }, []);
+    setIsTransposed(prev => !prev)
+  }, [])
 
   const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig((prev) =>
-      prev.map((col) => (col.id === columnId ? { ...col, visible } : col))
-    );
-  }, []);
+    setColumnConfig(prev => prev.map(col => (col.id === columnId ? { ...col, visible } : col)))
+  }, [])
 
   const handleCurrencyChange = useCallback((currencies: string[]) => {
-    setSelectedCurrencies(currencies);
-  }, []);
+    setSelectedCurrencies(currencies)
+  }, [])
 
   const handleClearFilters = useCallback(() => {
-    setStartDate(null);
-    setEndDate(null);
-    setSelectedCurrencies([]);
-  }, []);
+    setStartDate(null)
+    setEndDate(null)
+    setSelectedCurrencies([])
+  }, [])
 
   // Compute final filter values for API calls
   const computedFilters = useMemo(() => {
@@ -127,13 +118,13 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
       startDate: startDate?.format('YYYY-MM-DD'),
       endDate: endDate?.format('YYYY-MM-DD'),
       currencyIds: selectedCurrencies.length > 0 ? selectedCurrencies : undefined
-    };
-  }, [startDate, endDate, selectedCurrencies]);
+    }
+  }, [startDate, endDate, selectedCurrencies])
 
   // Initialize filters after initial state setup
   useEffect(() => {
-    setFiltersInitialized(true);
-  }, []);
+    setFiltersInitialized(true)
+  }, [])
 
   return {
     // State
@@ -154,5 +145,5 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
     computedFilters,
     // Initialization state
     filtersInitialized
-  };
-};
+  }
+}

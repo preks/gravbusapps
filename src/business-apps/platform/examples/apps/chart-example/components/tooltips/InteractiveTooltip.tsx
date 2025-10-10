@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,29 +9,33 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
 
 interface InteractiveTooltipProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
-];
+  { month: 'January', desktop: 186, mobile: 80 },
+  { month: 'February', desktop: 305, mobile: 200 },
+  { month: 'March', desktop: 237, mobile: 120 },
+  { month: 'April', desktop: 73, mobile: 190 },
+  { month: 'May', desktop: 209, mobile: 130 },
+  { month: 'June', desktop: 214, mobile: 140 }
+]
 
 const InteractiveTooltip: React.FC<InteractiveTooltipProps> = ({ moduleColor }) => {
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="interactive-tooltip">
@@ -51,25 +55,22 @@ const InteractiveTooltip: React.FC<InteractiveTooltipProps> = ({ moduleColor }) 
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={{ strokeDasharray: "3 3" }}
-              content={<ChartTooltipContent indicator="line" />}
-            />
+            <ChartTooltip cursor={{ strokeDasharray: '3 3' }} content={<ChartTooltipContent indicator="line" />} />
             <Line
               dataKey="desktop"
               type="monotone"
               stroke="var(--color-desktop)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-desktop)",
+                fill: 'var(--color-desktop)',
                 strokeWidth: 2,
-                r: 4,
+                r: 4
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
             <Line
@@ -78,19 +79,19 @@ const InteractiveTooltip: React.FC<InteractiveTooltipProps> = ({ moduleColor }) 
               stroke="var(--color-mobile)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-mobile)",
+                fill: 'var(--color-mobile)',
                 strokeWidth: 2,
-                r: 4,
+                r: 4
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
           </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default InteractiveTooltip;
+export default InteractiveTooltip

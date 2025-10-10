@@ -1,38 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DocumentSection, type DocumentItem } from '@/common/components/common-relations/record-sections';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { useGetInvestmentDocumentsByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads';
-import type { InvestmentDocument } from '@/common/data/investment/types';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import { Trash2, Edit } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DocumentSection, type DocumentItem } from '@/common/components/common-relations/record-sections'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useGetInvestmentDocumentsByLeadId } from '@/common/data/investment/hooks/useInvestmentLeads'
+import type { InvestmentDocument } from '@/common/data/investment/types'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { Trash2, Edit } from 'lucide-react'
 
 interface LeadDocumentsSectionProps extends BusinessAppContextProps {
-  leadId: string;
+  leadId: string
 }
 
-export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({ 
-  leadId, 
-  ...context 
-}) => {
-  const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({ leadId, ...context }) => {
+  const [documents, setDocuments] = useState<DocumentItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { fetchInvestmentDocumentsByLeadId } = useGetInvestmentDocumentsByLeadId(context);
+  const { fetchInvestmentDocumentsByLeadId } = useGetInvestmentDocumentsByLeadId(context)
 
   const fetchDocuments = async () => {
     if (!leadId || !context.accessToken) {
-      setLoading(false);
-      return;
+      setLoading(false)
+      return
     }
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
-      const investmentDocs = await fetchInvestmentDocumentsByLeadId(leadId);
-      
+      const investmentDocs = await fetchInvestmentDocumentsByLeadId(leadId)
+
       // Transform InvestmentDocument to DocumentItem format
       const documentItems: DocumentItem[] = investmentDocs.map((doc: InvestmentDocument) => ({
         id: doc.id,
@@ -46,7 +43,8 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
         mimeType: doc.mimeType,
         fileSize: doc.fileSize,
         createdBy: doc.createdBy,
-        parentDocument: typeof doc.parentDocument === 'object' ? doc.parentDocument?.id ?? null : doc.parentDocument ?? null,
+        parentDocument:
+          typeof doc.parentDocument === 'object' ? (doc.parentDocument?.id ?? null) : (doc.parentDocument ?? null),
         folder: doc.folder === true, // Use direct folder property like opportunity documents
         verified: doc.verified,
         verificationDate: doc.verificationDate,
@@ -54,31 +52,31 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
         authenticationDate: doc.authenticationDate,
         mandatory: doc.mandatory,
         version: doc.version
-      }));
+      }))
 
-      setDocuments(documentItems);
+      setDocuments(documentItems)
     } catch (err) {
-      console.error('Error fetching lead documents:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load documents');
+      console.error('Error fetching lead documents:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load documents')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchDocuments();
-  }, [leadId, context.accessToken]);
+    fetchDocuments()
+  }, [leadId, context.accessToken])
 
   // Listen for process completion to refetch documents after upload
   useProcessCompletion({
     onSuccess: () => {
-      console.log('Process completed, refreshing lead documents');
-      fetchDocuments();
+      console.log('Process completed, refreshing lead documents')
+      fetchDocuments()
     },
     onFailure: () => {
-      console.log('Document upload process failed');
+      console.log('Document upload process failed')
     }
-  });
+  })
 
   return (
     <DocumentSection
@@ -110,7 +108,7 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
       ]}
       uploadActionProps={{
         contextsArray: [FlowContextName.investmentDocumentCreate],
-        externalContextData: { 
+        externalContextData: {
           leadId: leadId,
           entityType: 'lead'
         },
@@ -118,7 +116,7 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
       }}
       createFolderActionProps={{
         contextsArray: [FlowContextName.investmentDocumentCreate],
-        externalContextData: { 
+        externalContextData: {
           leadId: leadId,
           entityType: 'lead',
           folder: true
@@ -127,7 +125,7 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
       }}
       viewActionProps={{
         contextsArray: [FlowContextName.investmentDocumentView],
-        externalContextData: { 
+        externalContextData: {
           leadId: leadId,
           entityType: 'lead'
         },
@@ -135,7 +133,7 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
       }}
       downloadActionProps={{
         contextsArray: [FlowContextName.investmentDocumentDownload],
-        externalContextData: { 
+        externalContextData: {
           leadId: leadId,
           entityType: 'lead'
         },
@@ -143,7 +141,7 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
       }}
       deleteActionProps={{
         contextsArray: [FlowContextName.investmentDocumentDelete],
-        externalContextData: { 
+        externalContextData: {
           leadId: leadId,
           entityType: 'lead'
         },
@@ -151,7 +149,7 @@ export const LeadDocumentsSection: React.FC<LeadDocumentsSectionProps> = ({
       }}
       data-testid="investment-lead-documents-section"
     />
-  );
-};
+  )
+}
 
-export default LeadDocumentsSection;
+export default LeadDocumentsSection

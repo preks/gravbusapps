@@ -1,18 +1,18 @@
-import React from 'react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import AmountInput from './AmountInput';
+import React from 'react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import AmountInput from './AmountInput'
 // types from FormTypes are not required here
 
 interface AmountCurrencySectionProps {
-  amount: number;
-  currency: string;
-  onAmountChange: (value: number) => void;
-  onCurrencyChange: (value: string) => void;
-  onValidationError: (error: string | null) => void;
-  maxAmount: number;
-  disabled?: boolean;
-  'data-testid'?: string;
+  amount: number
+  currency: string
+  onAmountChange: (value: number) => void
+  onCurrencyChange: (value: string) => void
+  onValidationError: (error: string | null) => void
+  maxAmount: number
+  disabled?: boolean
+  'data-testid'?: string
 }
 
 /**
@@ -30,18 +30,20 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
   'data-testid': dataTestId = 'request-advance-payment-amount-currency-section'
 }) => {
   const handleAmountChange = (newAmount: number) => {
-    onAmountChange(newAmount);
-    
+    onAmountChange(newAmount)
+
     // Validate against max amount
     if (newAmount > maxAmount) {
-      onValidationError(getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_advance_payment.amount_error',
-        'Advance Payment amount can\'t be greater than Estimated Expenses and Allowances amount'
-      ));
+      onValidationError(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:initiate_advance_payment.amount_error',
+          "Advance Payment amount can't be greater than Estimated Expenses and Allowances amount"
+        )
+      )
     } else {
-      onValidationError(null);
+      onValidationError(null)
     }
-  };
+  }
   return (
     <div className="gba:flex gba:gap-4 gba:mb-4" data-testid={dataTestId}>
       {/* Amount Field */}
@@ -85,10 +87,12 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
             className="gba:h-10 gba:bg-gray-100 gba:border-none"
             style={{ width: '100%', justifyContent: 'space-between' }}
           >
-            <SelectValue placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:request_advance_payment.select_currency',
-              'Select Currency'
-            )} />
+            <SelectValue
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:request_advance_payment.select_currency',
+                'Select Currency'
+              )}
+            />
           </SelectTrigger>
           <SelectContent>
             {currency && (
@@ -100,7 +104,7 @@ const AmountCurrencySection: React.FC<AmountCurrencySectionProps> = ({
         </Select>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AmountCurrencySection;
+export default AmountCurrencySection
