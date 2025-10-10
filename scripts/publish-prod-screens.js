@@ -1068,7 +1068,7 @@ async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
         // Sync screen to prod with preserved screenKey
         const screenSyncResult = await syncScreenFromDevToProd(
           screen,
-          SCREEN_MANAGEMENT_SERVICE_API_PROD,
+          target.services.screenManagementApi,
           prodOauthConfig,
           PUBLISH_VERSION
         )
