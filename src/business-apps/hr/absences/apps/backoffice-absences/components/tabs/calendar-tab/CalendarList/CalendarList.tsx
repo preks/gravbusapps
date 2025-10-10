@@ -7,6 +7,7 @@ import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale
 } from '../../../../../../../../../common/utils/windowUtils'
+import { getAbsenceStatusLabel, getAbsenceStatusColor, getAbsenceStatusType } from '@/business-apps/hr/absences/utils/absenceStatusUtils';
 const { Option } = Select
 
 interface EmployeeAbsence {
@@ -161,10 +162,6 @@ const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
   }
 `
 
-interface OrganizationalUnit {
-  id: string
-  name: string
-}
 
 const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphQLClient(accessToken)
@@ -186,21 +183,10 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
     return translation?.value || type.value || type.objectValue || 'Unknown Type'
   }
 
-  // Helper function to get translated status name
+  // Helper function to get translated status name - now using centralized utility
   const getStatusName = (status: string): string => {
-    switch (status) {
-      case 'APPROVED':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved')
-      case 'PENDING':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')
-      case 'REJECTED':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected')
-      case 'CANCELLED':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled')
-      default:
-        return status
-    }
-  }
+    return getAbsenceStatusLabel(status);
+  };
 
   const fetchData = useCallback(
     async (departments: string[] = selectedOrgUnits) => {
@@ -433,36 +419,15 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   }, [allEmployees, selectedOrgUnits])
 
   // Status color mapping (like manager-absences)
+  // Status color mapping - now using centralized utility
   const getStatusColor = (status: string): string => {
-    switch (status) {
-      case 'APPROVED':
-        return '#10b981' // success variant - green
-      case 'PENDING':
-        return '#f59e0b' // warning variant - amber
-      case 'REJECTED':
-        return '#ef4444' // destructive variant - red
-      case 'CANCELLED':
-        return '#6b7280' // secondary variant - gray
-      default:
-        return '#6b7280' // default - gray
-    }
-  }
+    return getAbsenceStatusColor(status);
+  };
 
-  // Status type mapping (like manager-absences)
+  // Status type mapping - now using centralized utility
   const getStatusType = (status: string): string => {
-    switch (status) {
-      case 'APPROVED':
-        return 'approved'
-      case 'PENDING':
-        return 'pending'
-      case 'REJECTED':
-        return 'rejected'
-      case 'CANCELLED':
-        return 'cancelled'
-      default:
-        return 'cancelled'
-    }
-  }
+    return getAbsenceStatusType(status);
+  };
 
   // Create timeline events from absences (data is already filtered server-side)
   const timelineEvents = useMemo(() => {
@@ -494,23 +459,23 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
     return events
   }, [employeeAbsences, selectedOrgUnits])
 
-  // Create status-based legend (like manager-absences)
+  // Create status-based legend using centralized utilities
   const legendItems = [
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved'),
-      color: '#10b981'
+    { 
+      label: getAbsenceStatusLabel('APPROVED'), 
+      color: getAbsenceStatusColor('APPROVED') 
     },
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending'),
-      color: '#f59e0b'
+    { 
+      label: getAbsenceStatusLabel('PENDING'), 
+      color: getAbsenceStatusColor('PENDING') 
     },
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected'),
-      color: '#ef4444'
+    { 
+      label: getAbsenceStatusLabel('REJECTED'), 
+      color: getAbsenceStatusColor('REJECTED') 
     },
-    {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'),
-      color: '#6b7280'
+    { 
+      label: getAbsenceStatusLabel('CANCELLED'), 
+      color: getAbsenceStatusColor('CANCELLED') 
     }
   ]
 
