@@ -14,6 +14,7 @@ import {
 } from '@newwork/nw-design-system';
 import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '../../../../../../../../../common/utils/windowUtils';
+import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '@/business-apps/hr/absences/utils/absenceStatusUtils';
 import { EnhancedAbsence } from '../../../../types';
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList';
@@ -63,34 +64,13 @@ const getEmployeeName = (absence: EnhancedAbsence) => {
   return '-';
 };
 
+// Status mapping functions now use centralized utilities
 const getTranslatedStatus = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PENDING':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending');
-    case 'APPROVED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved');
-    case 'REJECTED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected');
-    case 'CANCELLED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.cancelled', 'Cancelled');
-    default:
-      return status || '-';
-  }
+  return getAbsenceStatusLabel(status);
 };
 
 const getStatusBadgeVariant = (status: string) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'success' as const;
-    case 'PENDING':
-      return 'warning' as const;
-    case 'REJECTED':
-      return 'destructive' as const;
-    case 'CANCELLED':
-      return 'secondary' as const;
-    default:
-      return 'outline' as const;
-  }
+  return getAbsenceStatusBadgeVariant(status);
 };
 
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'ASC' | 'DESC' | '') => {

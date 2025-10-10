@@ -18,22 +18,7 @@ import { DashboardData, TimeFilter, AbsenceDetailsFilter } from '../../../../typ
 import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group';
 import { PiUsers, PiClock, PiCalendar, PiPercent } from 'react-icons/pi';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-
-const getStatusTranslation = (status: string): string => {
-  const statusMap: Record<string, string> = {
-    'APPROVED': 'lowcoder:absence_calendar.approved',
-    'PENDING': 'lowcoder:absence_calendar.pending',
-    'REJECTED': 'lowcoder:absence_calendar.rejected',
-    'CANCELLED': 'lowcoder:absence_calendar.cancelled'
-  };
-  
-  const translationKey = statusMap[status];
-  if (translationKey) {
-    return getTranslationFromI18nKeyAndLabel(translationKey, status);
-  }
-  
-  return status;
-};
+import { getAbsenceStatusLabel, getAbsenceStatusColor } from '@/business-apps/hr/absences/utils/absenceStatusUtils';
 
 interface OptimizedKPISectionProps extends BusinessAppContextProps {
   dashboardData: DashboardData;
@@ -65,11 +50,12 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     error
   } = dashboardData;
 
-  // Color palettes for consistency with original KPISection
+  // Color palettes using centralized status utility
   const statusColors: {[key: string]: string} = {
-    'PENDING': '#fbbf24',   
-    'APPROVED': '#52c41a',
-    'REJECTED': '#f87171'   
+    'PENDING': getAbsenceStatusColor('PENDING'),   
+    'APPROVED': getAbsenceStatusColor('APPROVED'),
+    'REJECTED': getAbsenceStatusColor('REJECTED'),
+    'CANCELLED': getAbsenceStatusColor('CANCELLED')
   };
   
 
@@ -87,9 +73,9 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   }));
 
   const pieChartData = statusBreakdown.map((status) => ({
-    name: status.status,
+    name: getAbsenceStatusLabel(status.status), // Use translated status name
     value: status.count, // Use count of requests, not total days
-    status: status.status,
+    status: status.status, // Keep original status for color mapping
     count: status.count,
     totalDays: status.totalDays, // Keep days for tooltip
     percentage: status.percentage
@@ -384,7 +370,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow"
                            style={{ pointerEvents: 'none' }}>
-                        <p className="gba:font-medium">{getStatusTranslation(entry.name)}</p>
+                        <p className="gba:font-medium">{entry.name}</p>
                         <p>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.count', 'Count')}: {entry.value} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.requests', 'requests')}</p>
                         <p>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'Days')}: {entry.totalDays} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_days', 'total days')}</p>
                         <p>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.share', 'Share')}: {percent}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.of_total_requests', 'of total requests')}</p>
@@ -415,7 +401,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                   style={{ backgroundColor: statusColors[entry.status] || '#94a3b8' }}
                 />
                 <span className="gba:text-xs">
-                  {getStatusTranslation(entry.name)}: {percent}%
+                  {entry.name}: {percent}%
                 </span>
               </span>
             );

@@ -4,6 +4,7 @@ import { Alert, Spinner } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { getAbsenceStatusLabel, getAbsenceStatusColor } from '../../../../../../utils/absenceStatusUtils';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { GET_ABSENCES_FOR_CALENDAR } from '../../../../queries/AbsenceQueries';
 import { getAbsenceTypeName, getAbsenceStatusDisplay } from '../../../../utils';
@@ -186,20 +187,20 @@ const CalendarList: React.FC<BusinessAppContextProps> = (props) => {
 
   const statusLegend = [
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved'),
-      color: '#10b981',
+      label: getAbsenceStatusLabel('APPROVED'),
+      color: getAbsenceStatusColor('APPROVED'),
     },
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending'),
-      color: '#f59e0b',
+      label: getAbsenceStatusLabel('PENDING'),
+      color: getAbsenceStatusColor('PENDING'),
     },
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected'),
-      color: '#ef4444',
+      label: getAbsenceStatusLabel('REJECTED'),
+      color: getAbsenceStatusColor('REJECTED'),
     },
     {
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'),
-      color: '#6b7280',
+      label: getAbsenceStatusLabel('CANCELLED'),
+      color: getAbsenceStatusColor('CANCELLED'),
     },
   ];
 

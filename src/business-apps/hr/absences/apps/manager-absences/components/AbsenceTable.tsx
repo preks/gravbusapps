@@ -20,6 +20,7 @@ import { EnhancedAbsence } from '../types';
 import { useAbsenceColors } from '../utils/absenceColors';
 import dayjs from 'dayjs';
 import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '../../../utils/absenceStatusUtils';
 
 interface AbsenceTableProps extends BusinessAppContextProps {
   absences: EnhancedAbsence[];
@@ -79,34 +80,13 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
     return absence.originalGroupName || absence.groupName || '-';
   };
 
+  // Status mapping functions now use centralized utilities
   const getTranslatedStatus = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'PENDING':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending');
-      case 'APPROVED':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved');
-      case 'REJECTED':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected');
-      case 'CANCELLED':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:absences_overview_entry_screen.cancelled_status', 'Cancelled');
-      default:
-        return status || '-';
-    }
+    return getAbsenceStatusLabel(status);
   };
 
   const getStatusBadgeVariant = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'APPROVED':
-        return 'success' as const;
-      case 'PENDING':
-        return 'warning' as const;
-      case 'REJECTED':
-        return 'destructive' as const;
-      case 'CANCELLED':
-        return 'secondary' as const;
-      default:
-        return 'default' as const;
-    }
+    return getAbsenceStatusBadgeVariant(status);
   };
 
   const handleRowClick = useCallback(
