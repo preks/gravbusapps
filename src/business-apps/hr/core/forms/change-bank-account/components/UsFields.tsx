@@ -12,7 +12,7 @@ interface UsFieldsProps {
 
 const UsFields: React.FC<UsFieldsProps> = ({ form, catalogRoutingTypes, employeeAddresses, selectedEmployeeAddress }) => {
   return (
-    <>
+    <div className="gba:space-y-4">
       <FormField
         control={form.control as any}
         name={"routingNumberTypeId" as any}
@@ -147,7 +147,7 @@ const UsFields: React.FC<UsFieldsProps> = ({ form, catalogRoutingTypes, employee
           </FormItem>
         )}
       />
-    </>
+    </div>
   );
 };
 

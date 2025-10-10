@@ -9,7 +9,7 @@ interface NonUsFieldsProps {
 
 const NonUsFields: React.FC<NonUsFieldsProps> = ({ form }) => {
   return (
-    <>
+    <div className="gba:space-y-4">
       <FormField
         control={form.control as any}
         name={"iban" as any}
@@ -47,7 +47,7 @@ const NonUsFields: React.FC<NonUsFieldsProps> = ({ form }) => {
           </FormItem>
         )}
       />
-    </>
+    </div>
   );
 };
 

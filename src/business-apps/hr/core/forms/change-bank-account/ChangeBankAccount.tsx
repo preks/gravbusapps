@@ -189,9 +189,9 @@ const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = ({ userIn
             const payload = buildBankAccountPayload({ values, existingAccount: existing, employeeId });  
             return payload as any;
           }}
-          data-testid="flw_changeBankAccount_bankName_bankAccountContainer"
+          data-testid="change-bank-account"
         >
-          <div className="gba:flex-1 gba:space-y-4">
+          <div className="gba:flex-1 gba:space-y-4" data-testid="flw_changeBankAccount_bankName_bankAccountContainer">
             <DefaultFields
               form={form}
               catalogCountries={catalogCountries}
