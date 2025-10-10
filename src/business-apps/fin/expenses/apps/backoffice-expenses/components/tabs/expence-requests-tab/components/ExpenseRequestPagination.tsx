@@ -1,18 +1,18 @@
-import React from 'react';
+import React from 'react'
 import {
   Pagination,
   PaginationContent,
   PaginationItem,
   PaginationLink,
   PaginationNext,
-  PaginationPrevious,
-} from '@newwork/nw-design-system';
+  PaginationPrevious
+} from '@newwork/nw-design-system'
 
 interface ExpenseRequestPaginationProps {
-  currentPage: number;
-  pageSize: number;
-  totalItems: number;
-  onPageChange: (pagination: any) => void;
+  currentPage: number
+  pageSize: number
+  totalItems: number
+  onPageChange: (pagination: any) => void
 }
 
 const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
@@ -22,10 +22,10 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
   onPageChange
 }) => {
   if (totalItems <= 0) {
-    return null;
+    return null
   }
 
-  const totalPages = Math.ceil(totalItems / pageSize);
+  const totalPages = Math.ceil(totalItems / pageSize)
 
   return (
     <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
@@ -35,7 +35,7 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
       <Pagination>
         <PaginationContent>
           <PaginationItem>
-            <PaginationPrevious 
+            <PaginationPrevious
               onClick={() => onPageChange({ current: currentPage - 1, pageSize })}
               className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
             />
@@ -60,7 +60,7 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
               </React.Fragment>
             ))}
           <PaginationItem>
-            <PaginationNext 
+            <PaginationNext
               onClick={() => onPageChange({ current: currentPage + 1, pageSize })}
               className={currentPage >= totalPages ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
             />
@@ -68,7 +68,7 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
         </PaginationContent>
       </Pagination>
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseRequestPagination; 
+export default ExpenseRequestPagination

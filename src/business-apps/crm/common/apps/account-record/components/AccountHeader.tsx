@@ -1,26 +1,26 @@
-import React from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { Tags, User, Edit } from 'lucide-react';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { Account } from '../hooks/useAccountData';
+import React from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { Tags, User, Edit } from 'lucide-react'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { Account } from '../hooks/useAccountData'
 
 interface AccountHeaderProps {
-  account: Account;
-  accountData: any;
-  accountId: string;
-  additionalData?: any;
-  accessToken: string;
-  onStatusUpdate?: () => void;
+  account: Account
+  accountData: any
+  accountId: string
+  additionalData?: any
+  accessToken: string
+  onStatusUpdate?: () => void
 }
 
-export const AccountHeader: React.FC<AccountHeaderProps> = ({ 
-  account, 
-  accountData, 
-  accountId, 
-  additionalData, 
-  accessToken, 
-  onStatusUpdate 
+export const AccountHeader: React.FC<AccountHeaderProps> = ({
+  account,
+  accountData,
+  accountId,
+  additionalData,
+  accessToken,
+  onStatusUpdate
 }) => {
   // Actions button is now empty - no flows or static actions
 
@@ -29,10 +29,8 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
       <div className="gba:flex gba:items-center gba:justify-between">
         <div className="gba:flex gba:items-center gba:gap-4">
           <div>
-            <div className="gba:text-2xl gba:font-bold gba:mb-1">
-              {account.name}
-            </div>
-            
+            <div className="gba:text-2xl gba:font-bold gba:mb-1">{account.name}</div>
+
             {/* Account-specific fields */}
             <div className="gba:text-gray-500 gba:text-sm gba:mb-2 gba:flex gba:flex-row gba:items-center gba:flex-nowrap">
               {(accountData?.industry?.value || account.industry) && (
@@ -43,7 +41,12 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
                 </>
               )}
               <User className="gba:inline gba:w-4 gba:h-4 gba:mr-1" />
-              <span>Owner: {accountData?.ownerEmployee ? `${accountData.ownerEmployee.firstName} ${accountData.ownerEmployee.lastName}` : account.accountOwner?.name || 'Unknown'}</span>
+              <span>
+                Owner:{' '}
+                {accountData?.ownerEmployee
+                  ? `${accountData.ownerEmployee.firstName} ${accountData.ownerEmployee.lastName}`
+                  : account.accountOwner?.name || 'Unknown'}
+              </span>
             </div>
           </div>
         </div>
@@ -69,5 +72,5 @@ export const AccountHeader: React.FC<AccountHeaderProps> = ({
         </div>
       </div>
     </div>
-  );
-}; 
+  )
+}

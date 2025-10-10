@@ -1,5 +1,5 @@
 /**
  * Hooks exports for Backoffice Absences
  */
- 
-export { useDashboardData } from './useDashboardData'; 
+
+export { useDashboardData } from './useDashboardData'

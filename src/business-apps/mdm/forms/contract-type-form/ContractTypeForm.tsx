@@ -1,32 +1,25 @@
-import React, { useMemo } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import FormWrapperModal from "../../apps/generic-components/form-wrapper/FormWrapperModal";
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FormWrapperModal } from '@/components/form-wrapper'
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
   CONTRACT_TYPE_CATALOG,
-  CONTRACT_TYPE_VERSION,
-} from "@/business-apps/hr/core/forms/job-position/hooks/useContractTypes";
-import { useCodeError } from "@/business-apps/mdm/hooks/useCodeError";
-import { ContractTypeTable } from "../../apps/employment-data/components/tabs/ContractTypesTab";
+  CONTRACT_TYPE_VERSION
+} from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
+import { useCodeError } from '@/business-apps/mdm/hooks/useCodeError'
+import { ContractTypeTable } from '../../apps/employment-data/components/tabs/ContractTypesTab'
 
 export interface ContractTypeFormProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  contractType?: ContractTypeTable;
-  onCancel?: () => void;
-  childAddButton: React.ReactNode;
-  refetch: () => void;
-  accessToken: string;
-  isDrawerActive?: boolean;
-  usedCodes?: string[];
+  prefixDataTestId?: string
+  contractType?: ContractTypeTable
+  onCancel?: () => void
+  childAddButton: React.ReactNode
+  refetch: () => void
+  accessToken: string
+  isDrawerActive?: boolean
+  usedCodes?: string[]
 }
 
 const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
@@ -37,15 +30,15 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
   refetch,
   accessToken,
   isDrawerActive,
-  usedCodes = [],
+  usedCodes = []
 }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, "ContractTypeForm");
-  const catalogClient = useCatalogManagerClient(accessToken);
-  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes);
+  const dataTestId = formatDataTestId(prefixDataTestId, 'ContractTypeForm')
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const handleSubmit = async (data: any) => {
-    if (!validateCode(data.code)) {
-      return;
+    if (!validateCode(data.code) && !contractType) {
+      return
     }
 
     const payload = {
@@ -53,35 +46,35 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       code: data.code,
       value: data.value,
       additionalValue1: data.description,
-      translations: [],
-    };
+      translations: []
+    }
     if (contractType) {
       await catalogClient.updateCatalogEntry(
         CONTRACT_TYPE_CATALOG,
         CONTRACT_TYPE_VERSION,
-        contractType.id ?? "",
-        payload,
-      );
+        contractType.id ?? '',
+        payload
+      )
     } else {
-      await catalogClient.createCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, payload);
+      await catalogClient.createCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, payload)
     }
 
-    refetch();
-  };
+    refetch()
+  }
 
   const defaultValues = useMemo(
     () => ({
-      value: contractType?.value || "",
-      code: contractType?.code || "",
-      description: contractType?.description || "",
+      value: contractType?.value || '',
+      code: contractType?.code || '',
+      description: contractType?.description || ''
     }),
-    [contractType],
-  );
+    [contractType]
+  )
 
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={contractType ? "Edit Contract Type" : "Create Contract Type"}
+      title={contractType ? 'Edit Contract Type' : 'Create Contract Type'}
       description="Configure contract type details and additional information"
       onSubmit={handleSubmit}
       onCancel={onCancel}
@@ -94,7 +87,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
     >
       <FormField
         name="value"
-        rules={{ required: "Please enter contract type name" }}
+        rules={{ required: 'Please enter contract type name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Name</FormLabel>
@@ -109,7 +102,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
       {!contractType && (
         <FormField
           name="code"
-          rules={{ required: "Please enter contract type code" }}
+          rules={{ required: 'Please enter contract type code' }}
           render={({ field }) => (
             <FormItem>
               <FormLabel>Code</FormLabel>
@@ -117,9 +110,9 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
                 <Input
                   placeholder="Enter code"
                   {...field}
-                  onChange={(e) => {
-                    field.onChange(e);
-                    validateCode(e.target.value);
+                  onChange={e => {
+                    field.onChange(e)
+                    validateCode(e.target.value)
                   }}
                   data-testid={`${dataTestId}-code-input`}
                 />
@@ -147,7 +140,7 @@ const ContractTypeForm: React.FC<ContractTypeFormProps> = ({
         )}
       />
     </FormWrapperModal>
-  );
-};
+  )
+}
 
-export default ContractTypeForm;
+export default ContractTypeForm

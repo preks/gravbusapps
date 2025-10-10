@@ -1,38 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DocumentSection, type DocumentItem } from '@/common/components/common-relations/record-sections';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { useGetInvestmentDocumentsByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
-import type { InvestmentDocument } from '@/common/data/investment/types';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import { Trash2, Edit } from 'lucide-react';
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DocumentSection, type DocumentItem } from '@/common/components/common-relations/record-sections'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useGetInvestmentDocumentsByContactId } from '@/common/data/investment/hooks/useInvestmentContacts'
+import type { InvestmentDocument } from '@/common/data/investment/types'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { Trash2, Edit } from 'lucide-react'
 
 interface ContactDocumentsSectionProps extends BusinessAppContextProps {
-  contactId: string;
+  contactId: string
 }
 
-export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = ({ 
-  contactId, 
-  ...context 
-}) => {
-  const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = ({ contactId, ...context }) => {
+  const [documents, setDocuments] = useState<DocumentItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { fetchInvestmentDocumentsByContactId } = useGetInvestmentDocumentsByContactId(context);
+  const { fetchInvestmentDocumentsByContactId } = useGetInvestmentDocumentsByContactId(context)
 
   const fetchDocuments = async () => {
     if (!contactId || !context.accessToken) {
-      setLoading(false);
-      return;
+      setLoading(false)
+      return
     }
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
-      const investmentDocs = await fetchInvestmentDocumentsByContactId(contactId);
-      
+      const investmentDocs = await fetchInvestmentDocumentsByContactId(contactId)
+
       // Transform InvestmentDocument to DocumentItem format
       const documentItems: DocumentItem[] = investmentDocs.map((doc: InvestmentDocument) => ({
         id: doc.id,
@@ -46,7 +43,8 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
         mimeType: doc.mimeType,
         fileSize: doc.fileSize,
         createdBy: doc.createdBy,
-        parentDocument: typeof doc.parentDocument === 'object' ? doc.parentDocument?.id ?? null : doc.parentDocument ?? null,
+        parentDocument:
+          typeof doc.parentDocument === 'object' ? (doc.parentDocument?.id ?? null) : (doc.parentDocument ?? null),
         folder: doc.folder === true, // Use direct folder property like opportunity documents
         verified: doc.verified,
         verificationDate: doc.verificationDate,
@@ -54,31 +52,31 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
         authenticationDate: doc.authenticationDate,
         mandatory: doc.mandatory,
         version: doc.version
-      }));
+      }))
 
-      setDocuments(documentItems);
+      setDocuments(documentItems)
     } catch (err) {
-      console.error('Error fetching contact documents:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load documents');
+      console.error('Error fetching contact documents:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load documents')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchDocuments();
-  }, [contactId, context.accessToken]);
+    fetchDocuments()
+  }, [contactId, context.accessToken])
 
   // Listen for process completion to refetch documents after upload
   useProcessCompletion({
     onSuccess: () => {
-      console.log('Process completed, refreshing contact documents');
-      fetchDocuments();
+      console.log('Process completed, refreshing contact documents')
+      fetchDocuments()
     },
     onFailure: () => {
-      console.log('Document upload process failed');
+      console.log('Document upload process failed')
     }
-  });
+  })
 
   return (
     <DocumentSection
@@ -110,7 +108,7 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
       ]}
       uploadActionProps={{
         contextsArray: [FlowContextName.investmentDocumentCreate],
-        externalContextData: { 
+        externalContextData: {
           contactId: contactId,
           entityType: 'contact'
         },
@@ -118,7 +116,7 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
       }}
       createFolderActionProps={{
         contextsArray: [FlowContextName.investmentDocumentCreate],
-        externalContextData: { 
+        externalContextData: {
           contactId: contactId,
           entityType: 'contact',
           folder: true
@@ -127,7 +125,7 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
       }}
       viewActionProps={{
         contextsArray: [FlowContextName.investmentDocumentView],
-        externalContextData: { 
+        externalContextData: {
           contactId: contactId,
           entityType: 'contact'
         },
@@ -135,7 +133,7 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
       }}
       downloadActionProps={{
         contextsArray: [FlowContextName.investmentDocumentDownload],
-        externalContextData: { 
+        externalContextData: {
           contactId: contactId,
           entityType: 'contact'
         },
@@ -143,7 +141,7 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
       }}
       deleteActionProps={{
         contextsArray: [FlowContextName.investmentDocumentDelete],
-        externalContextData: { 
+        externalContextData: {
           contactId: contactId,
           entityType: 'contact'
         },
@@ -151,7 +149,7 @@ export const ContactDocumentsSection: React.FC<ContactDocumentsSectionProps> = (
       }}
       data-testid="investment-contact-documents-section"
     />
-  );
-};
+  )
+}
 
-export default ContactDocumentsSection;
+export default ContactDocumentsSection

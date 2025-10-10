@@ -4,67 +4,67 @@
  */
 
 export interface MockUser {
-  id: string;
-  name: string;
-  email: string;
-  departmentId: string;
-  roleId: string;
-  capabilityIds: string[];
-  legalEntityId: string;
-  locationId: string;
-  managerId?: string;
-  isActive: boolean;
+  id: string
+  name: string
+  email: string
+  departmentId: string
+  roleId: string
+  capabilityIds: string[]
+  legalEntityId: string
+  locationId: string
+  managerId?: string
+  isActive: boolean
 }
 
 export interface MockDepartment {
-  id: string;
-  name: string;
-  description: string;
-  managerId: string;
-  legalEntityId: string;
-  locationId: string;
-  parentDepartmentId?: string;
+  id: string
+  name: string
+  description: string
+  managerId: string
+  legalEntityId: string
+  locationId: string
+  parentDepartmentId?: string
 }
 
 export interface MockRole {
-  id: string;
-  name: string;
-  description: string;
-  level: number;
-  departmentId?: string;
+  id: string
+  name: string
+  description: string
+  level: number
+  departmentId?: string
 }
 
 export interface MockCapability {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
+  id: string
+  name: string
+  description: string
+  category: string
 }
 
 export interface MockLegalEntity {
-  id: string;
-  name: string;
-  code: string;
-  country: string;
-  currency: string;
+  id: string
+  name: string
+  code: string
+  country: string
+  currency: string
 }
 
 export interface MockLocation {
-  id: string;
-  name: string;
-  address: string;
-  city: string;
-  country: string;
-  legalEntityId: string;
+  id: string
+  name: string
+  address: string
+  city: string
+  country: string
+  legalEntityId: string
 }
 
 export interface MockTeam {
-  id: string;
-  name: string;
-  description: string;
-  leaderId: string;
-  departmentId: string;
-  memberIds: string[];
+  id: string
+  name: string
+  description: string
+  leaderId: string
+  departmentId: string
+  memberIds: string[]
 }
 
 // Mock Legal Entities
@@ -90,7 +90,7 @@ export const mockLegalEntities: MockLegalEntity[] = [
     country: 'United Kingdom',
     currency: 'GBP'
   }
-];
+]
 
 // Mock Locations
 export const mockLocations: MockLocation[] = [
@@ -126,7 +126,7 @@ export const mockLocations: MockLocation[] = [
     country: 'United Kingdom',
     legalEntityId: 'le-003'
   }
-];
+]
 
 // Mock Departments
 export const mockDepartments: MockDepartment[] = [
@@ -178,7 +178,7 @@ export const mockDepartments: MockDepartment[] = [
     legalEntityId: 'le-002',
     locationId: 'loc-003'
   }
-];
+]
 
 // Mock Roles
 export const mockRoles: MockRole[] = [
@@ -251,7 +251,7 @@ export const mockRoles: MockRole[] = [
     description: 'Senior leadership and strategic direction',
     level: 6
   }
-];
+]
 
 // Mock Capabilities
 export const mockCapabilities: MockCapability[] = [
@@ -315,7 +315,7 @@ export const mockCapabilities: MockCapability[] = [
     description: 'Online marketing and growth strategies',
     category: 'Marketing'
   }
-];
+]
 
 // Mock Users
 export const mockUsers: MockUser[] = [
@@ -434,7 +434,7 @@ export const mockUsers: MockUser[] = [
     managerId: 'user-002',
     isActive: true
   }
-];
+]
 
 // Mock Teams
 export const mockTeams: MockTeam[] = [
@@ -462,78 +462,78 @@ export const mockTeams: MockTeam[] = [
     departmentId: 'dept-002',
     memberIds: ['user-002', 'user-010']
   }
-];
+]
 
 /**
  * Assignment Resolution Functions
  */
 
 export function resolveUsersByDepartment(departmentId: string): MockUser[] {
-  return mockUsers.filter(user => user.departmentId === departmentId && user.isActive);
+  return mockUsers.filter(user => user.departmentId === departmentId && user.isActive)
 }
 
 export function resolveUsersByRole(roleId: string): MockUser[] {
-  return mockUsers.filter(user => user.roleId === roleId && user.isActive);
+  return mockUsers.filter(user => user.roleId === roleId && user.isActive)
 }
 
 export function resolveUsersByCapability(capabilityId: string): MockUser[] {
-  return mockUsers.filter(user => user.capabilityIds.includes(capabilityId) && user.isActive);
+  return mockUsers.filter(user => user.capabilityIds.includes(capabilityId) && user.isActive)
 }
 
 export function resolveUsersByTeam(teamId: string): MockUser[] {
-  const team = mockTeams.find(t => t.id === teamId);
-  if (!team) return [];
-  return mockUsers.filter(user => team.memberIds.includes(user.id) && user.isActive);
+  const team = mockTeams.find(t => t.id === teamId)
+  if (!team) return []
+  return mockUsers.filter(user => team.memberIds.includes(user.id) && user.isActive)
 }
 
 export function resolveUsersByLegalEntity(legalEntityId: string): MockUser[] {
-  return mockUsers.filter(user => user.legalEntityId === legalEntityId && user.isActive);
+  return mockUsers.filter(user => user.legalEntityId === legalEntityId && user.isActive)
 }
 
 export function resolveUsersByLocation(locationId: string): MockUser[] {
-  return mockUsers.filter(user => user.locationId === locationId && user.isActive);
+  return mockUsers.filter(user => user.locationId === locationId && user.isActive)
 }
 
-export function resolveAssignmentTargets(targets: Array<{entity: string, id: string}>): MockUser[] {
-  const resolvedUsers: MockUser[] = [];
-  
+export function resolveAssignmentTargets(targets: Array<{ entity: string; id: string }>): MockUser[] {
+  const resolvedUsers: MockUser[] = []
+
   targets.forEach(target => {
-    let users: MockUser[] = [];
-    
+    let users: MockUser[] = []
+
     switch (target.entity) {
       case 'user':
-        const user = mockUsers.find(u => u.id === target.id && u.isActive);
-        if (user) users = [user];
-        break;
+        const user = mockUsers.find(u => u.id === target.id && u.isActive)
+        if (user) users = [user]
+        break
       case 'department':
-        users = resolveUsersByDepartment(target.id);
-        break;
+        users = resolveUsersByDepartment(target.id)
+        break
       case 'role':
-        users = resolveUsersByRole(target.id);
-        break;
+        users = resolveUsersByRole(target.id)
+        break
       case 'capability':
-        users = resolveUsersByCapability(target.id);
-        break;
+        users = resolveUsersByCapability(target.id)
+        break
       case 'team':
-        users = resolveUsersByTeam(target.id);
-        break;
+        users = resolveUsersByTeam(target.id)
+        break
       case 'legal_entity':
-        users = resolveUsersByLegalEntity(target.id);
-        break;
+        users = resolveUsersByLegalEntity(target.id)
+        break
       case 'location':
-        users = resolveUsersByLocation(target.id);
-        break;
+        users = resolveUsersByLocation(target.id)
+        break
     }
-    
+
     // Add users avoiding duplicates
     users.forEach(user => {
       if (!resolvedUsers.find(u => u.id === user.id)) {
-        resolvedUsers.push(user);
+        resolvedUsers.push(user)
       }
-    });
-  });
-  
-  return resolvedUsers;
+    })
+  })
+
+  return resolvedUsers
 }
 
 /**
@@ -541,29 +541,29 @@ export function resolveAssignmentTargets(targets: Array<{entity: string, id: str
  */
 
 export function getUserById(userId: string): MockUser | undefined {
-  return mockUsers.find(user => user.id === userId);
+  return mockUsers.find(user => user.id === userId)
 }
 
 export function getDepartmentById(departmentId: string): MockDepartment | undefined {
-  return mockDepartments.find(dept => dept.id === departmentId);
+  return mockDepartments.find(dept => dept.id === departmentId)
 }
 
 export function getRoleById(roleId: string): MockRole | undefined {
-  return mockRoles.find(role => role.id === roleId);
+  return mockRoles.find(role => role.id === roleId)
 }
 
 export function getCapabilityById(capabilityId: string): MockCapability | undefined {
-  return mockCapabilities.find(cap => cap.id === capabilityId);
+  return mockCapabilities.find(cap => cap.id === capabilityId)
 }
 
 export function getTeamById(teamId: string): MockTeam | undefined {
-  return mockTeams.find(team => team.id === teamId);
+  return mockTeams.find(team => team.id === teamId)
 }
 
 export function getLegalEntityById(legalEntityId: string): MockLegalEntity | undefined {
-  return mockLegalEntities.find(le => le.id === legalEntityId);
+  return mockLegalEntities.find(le => le.id === legalEntityId)
 }
 
 export function getLocationById(locationId: string): MockLocation | undefined {
-  return mockLocations.find(loc => loc.id === locationId);
-} 
+  return mockLocations.find(loc => loc.id === locationId)
+}

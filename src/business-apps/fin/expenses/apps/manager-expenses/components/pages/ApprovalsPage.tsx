@@ -1,42 +1,35 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  TabsBadge,
-  PageLayout,
-} from '@newwork/nw-design-system';
-import { Toaster } from 'sonner';
-import { PiArrowLeft } from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { ApprovalRequest, ApprovalTabKey } from '../../types';
-import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks';
-import { APPROVAL_TABS, getTabByKey, getTabLabel } from '../../constants/approvalTabs';
-import ApprovalTable from '../ApprovalTable';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import { useApprovalTabCounts } from '../../hooks/useApprovalTabCounts';
+import React, { useState, useEffect, useCallback } from 'react'
+import { Tabs, TabsList, TabsTrigger, TabsContent, TabsBadge, PageLayout } from '@newwork/nw-design-system'
+import { Toaster } from 'sonner'
+import { PiArrowLeft } from 'react-icons/pi'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ApprovalRequest, ApprovalTabKey } from '../../types'
+import { useFlowExecutionTasks } from '../../hooks/useFlowExecutionTasks'
+import { APPROVAL_TABS, getTabByKey, getTabLabel } from '../../constants/approvalTabs'
+import ApprovalTable from '../ApprovalTable'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { useApprovalTabCounts } from '../../hooks/useApprovalTabCounts'
 
 interface ApprovalsPageProps extends BusinessAppContextProps {
-  onNavigateBack: () => void;
+  onNavigateBack: () => void
 }
 
-const DATA_TEST_ID_PREFIX = 'approvals-page';
+const DATA_TEST_ID_PREFIX = 'approvals-page'
 
 const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props }) => {
-  const [activeTab, setActiveTab] = useState<ApprovalTabKey>('expense-plan');
-  const [selectedTasks, setSelectedTasks] = useState<ApprovalRequest[]>([]);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ApprovalTabKey>('expense-plan')
+  const [selectedTasks, setSelectedTasks] = useState<ApprovalRequest[]>([])
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   // Pagination state per tab
   const [tabPagination, setTabPagination] = useState<
     Record<
       ApprovalTabKey,
       {
-        currentPage: number;
-        pageSize: number;
-        searchTerm: string;
+        currentPage: number
+        pageSize: number
+        searchTerm: string
       }
     >
   >({
@@ -44,50 +37,50 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
     'expense-request': { currentPage: 1, pageSize: 20, searchTerm: '' },
     'advance-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
     'handout-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
-    'transfer-payment': { currentPage: 1, pageSize: 20, searchTerm: '' },
-  });
+    'transfer-payment': { currentPage: 1, pageSize: 20, searchTerm: '' }
+  })
 
   // Tab counts via dedicated hook
-  const { tabCounts, isLoadingCounts, refreshTabCounts } = useApprovalTabCounts(props);
+  const { tabCounts, isLoadingCounts, refreshTabCounts } = useApprovalTabCounts(props)
 
   // Get current tab's pagination state
-  const currentTabPagination = tabPagination[activeTab];
+  const currentTabPagination = tabPagination[activeTab]
 
-  const currentTab = getTabByKey(activeTab);
+  const currentTab = getTabByKey(activeTab)
 
   const { tasks, totalCount, isLoading, error, refresh } = useFlowExecutionTasks(props, {
     currentPage: currentTabPagination.currentPage,
     pageSize: currentTabPagination.pageSize,
     searchTerm: currentTabPagination.searchTerm,
-    filterTaskName: currentTab?.processName || null,
-  });
+    filterTaskName: currentTab?.processName || null
+  })
 
   // Fetch counts for all tabs on mount (hook handles effect internally, this keeps dependency for clarity)
   useEffect(() => {
     // no-op; hook already loads on mount
-  }, [props.accessToken, props.userInfo?.id, refreshTabCounts]);
+  }, [props.accessToken, props.userInfo?.id, refreshTabCounts])
 
   // Listen for process completion events and refresh data
   useProcessCompletion({
     onSuccess: () => {
-      refreshTabCounts(); // Refresh badge counts
-      refresh(); // Refresh the task list
+      refreshTabCounts() // Refresh badge counts
+      refresh() // Refresh the task list
     }
-  });
+  })
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value as ApprovalTabKey);
-    setSelectedTasks([]);
-    setValidationError(null);
-  };
+    setActiveTab(value as ApprovalTabKey)
+    setSelectedTasks([])
+    setValidationError(null)
+  }
 
   // Update pagination for current tab
   const updateTabPagination = (updates: Partial<typeof currentTabPagination>) => {
-    setTabPagination((prev) => ({
+    setTabPagination(prev => ({
       ...prev,
-      [activeTab]: { ...prev[activeTab], ...updates },
-    }));
-  };
+      [activeTab]: { ...prev[activeTab], ...updates }
+    }))
+  }
 
   return (
     <div data-testid="approvals-page-container">
@@ -101,7 +94,7 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
           <span>
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:team_expenses_page.dashboard_tab.back_to_btn',
-              'Back to Dashboard',
+              'Back to Dashboard'
             )}
           </span>
         </button>
@@ -110,28 +103,29 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
       <PageLayout
         headerTitle={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.review_approvals',
-          'Approvals Review',
+          'Approvals Review'
         )}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'lowcoder:team_expenses_page.dashboard_tab.review_subheader',
-          'Review and process pending expense approval requests from your team',
+          'Review and process pending expense approval requests from your team'
         )}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
-          items: APPROVAL_TABS.map((tab) => {
-            const base = getTabLabel(tab.key);
-            const count = isLoadingCounts ? '' : ` (${tabCounts[tab.key as ApprovalTabKey] || 0})`;
+          items: APPROVAL_TABS.map(tab => {
+            const base = getTabLabel(tab.key)
+            const count = isLoadingCounts ? '' : ` (${tabCounts[tab.key as ApprovalTabKey] || 0})`
             return {
               value: tab.key,
-              label: `${base}${count}`,
-            };
-          }),
+              label: `${base}${count}`
+            }
+          })
         }}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6" data-testid="approvals-page">
           <ApprovalTable
+            key={activeTab}
             {...props}
             tasks={tasks}
             totalCount={totalCount}
@@ -148,15 +142,15 @@ const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigateBack, ...props 
             dataTestIdPrefix={`${DATA_TEST_ID_PREFIX}-${activeTab}`}
             tabKey={activeTab}
             onApprovalSuccess={() => {
-              refresh(); // Refresh task list
-              refreshTabCounts(); // Refresh badge counts
+              refresh() // Refresh task list
+              refreshTabCounts() // Refresh badge counts
             }}
           />
         </div>
       </PageLayout>
       <Toaster position="bottom-right" />
     </div>
-  );
-};
+  )
+}
 
-export default ApprovalsPage;
+export default ApprovalsPage

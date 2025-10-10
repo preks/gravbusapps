@@ -1,4 +1,4 @@
-import { CompanyDocument } from './CompanyDocument';
+import { CompanyDocument } from './CompanyDocument'
 
-export { CompanyDocument };
-export default CompanyDocument;
+export { CompanyDocument }
+export default CompanyDocument

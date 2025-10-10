@@ -1,21 +1,21 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react'
 
 // Mock entity data - matching backend exactly
 export interface MockEntity {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 export interface MockDataContextType {
-  users: MockEntity[];
-  departments: MockEntity[];
-  roles: MockEntity[];
-  capabilities: MockEntity[];
-  companies: MockEntity[];
-  locations: MockEntity[];
-  costCenters: MockEntity[];
-  matrixTeams: MockEntity[];
-  resolveEntityName: (entity: string, id: string) => string;
+  users: MockEntity[]
+  departments: MockEntity[]
+  roles: MockEntity[]
+  capabilities: MockEntity[]
+  companies: MockEntity[]
+  locations: MockEntity[]
+  costCenters: MockEntity[]
+  matrixTeams: MockEntity[]
+  resolveEntityName: (entity: string, id: string) => string
 }
 
 const mockUsers: MockEntity[] = [
@@ -23,24 +23,24 @@ const mockUsers: MockEntity[] = [
   { id: 'user-002', name: 'Bob Smith (Finance Manager)' },
   { id: 'user-007', name: 'Grace Lee (Senior Software Engineer)' },
   { id: 'user-008', name: 'Henry Taylor (Sales Manager)' },
-  { id: 'user-009', name: 'Ivy Chen (Marketing Manager)' },
-];
+  { id: 'user-009', name: 'Ivy Chen (Marketing Manager)' }
+]
 
 const mockDepartments: MockEntity[] = [
   { id: 'dept-001', name: 'Human Resources' },
   { id: 'dept-002', name: 'Finance' },
   { id: 'dept-003', name: 'Engineering' },
   { id: 'dept-004', name: 'Sales' },
-  { id: 'dept-005', name: 'Marketing' },
-];
+  { id: 'dept-005', name: 'Marketing' }
+]
 
 const mockRoles: MockEntity[] = [
   { id: 'role-001', name: 'HR Manager' },
   { id: 'role-003', name: 'Finance Manager' },
   { id: 'role-005', name: 'Senior Software Engineer' },
   { id: 'role-007', name: 'Sales Manager' },
-  { id: 'role-009', name: 'Marketing Manager' },
-];
+  { id: 'role-009', name: 'Marketing Manager' }
+]
 
 const mockCapabilities: MockEntity[] = [
   { id: 'cap-001', name: 'Employee Relations' },
@@ -57,16 +57,16 @@ const mockCapabilities: MockEntity[] = [
   { id: 'cap-012', name: 'Content Creation' },
   { id: 'cap-013', name: 'Data Analysis' },
   { id: 'cap-014', name: 'Quality Assurance' },
-  { id: 'cap-015', name: 'System Administration' },
-];
+  { id: 'cap-015', name: 'System Administration' }
+]
 
 const mockCompanies: MockEntity[] = [
   { id: 'company-001', name: 'NEWWORK SE' },
   { id: 'company-002', name: 'XING GmbH & Co. KG' },
   { id: 'company-003', name: 'kununu GmbH' },
   { id: 'company-004', name: 'NEWWORK Spain S.L.' },
-  { id: 'company-005', name: 'NEWWORK Italia S.r.l.' },
-];
+  { id: 'company-005', name: 'NEWWORK Italia S.r.l.' }
+]
 
 const mockLocations: MockEntity[] = [
   { id: 'location-001', name: 'Hamburg - HQ' },
@@ -74,8 +74,8 @@ const mockLocations: MockEntity[] = [
   { id: 'location-003', name: 'Munich - Office' },
   { id: 'location-004', name: 'Vienna - Office' },
   { id: 'location-005', name: 'Barcelona - Office' },
-  { id: 'location-006', name: 'Milan - Office' },
-];
+  { id: 'location-006', name: 'Milan - Office' }
+]
 
 const mockCostCenters: MockEntity[] = [
   { id: 'cc-001', name: 'HR - Administration' },
@@ -83,55 +83,55 @@ const mockCostCenters: MockEntity[] = [
   { id: 'cc-003', name: 'Marketing - Digital' },
   { id: 'cc-004', name: 'Sales - Direct' },
   { id: 'cc-005', name: 'Finance - Operations' },
-  { id: 'cc-006', name: 'Product - Development' },
-];
+  { id: 'cc-006', name: 'Product - Development' }
+]
 
 const mockMatrixTeams: MockEntity[] = [
   { id: 'matrix-001', name: 'Digital Transformation' },
   { id: 'matrix-002', name: 'Customer Experience' },
   { id: 'matrix-003', name: 'Data Analytics' },
   { id: 'matrix-004', name: 'Security & Compliance' },
-  { id: 'matrix-005', name: 'Innovation Lab' },
-];
+  { id: 'matrix-005', name: 'Innovation Lab' }
+]
 
-const MockDataContext = createContext<MockDataContextType | undefined>(undefined);
+const MockDataContext = createContext<MockDataContextType | undefined>(undefined)
 
 export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const resolveEntityName = (entity: string, id: string): string => {
-    let entities: MockEntity[] = [];
-    
+    let entities: MockEntity[] = []
+
     switch (entity) {
       case 'users':
-        entities = mockUsers;
-        break;
+        entities = mockUsers
+        break
       case 'departments':
-        entities = mockDepartments;
-        break;
+        entities = mockDepartments
+        break
       case 'roles':
-        entities = mockRoles;
-        break;
+        entities = mockRoles
+        break
       case 'capabilities':
-        entities = mockCapabilities;
-        break;
+        entities = mockCapabilities
+        break
       case 'companies':
-        entities = mockCompanies;
-        break;
+        entities = mockCompanies
+        break
       case 'locations':
-        entities = mockLocations;
-        break;
+        entities = mockLocations
+        break
       case 'costCenters':
-        entities = mockCostCenters;
-        break;
+        entities = mockCostCenters
+        break
       case 'matrixTeams':
-        entities = mockMatrixTeams;
-        break;
+        entities = mockMatrixTeams
+        break
       default:
-        return id; // Return ID if entity type not found
+        return id // Return ID if entity type not found
     }
-    
-    const found = entities.find(e => e.id === id);
-    return found ? found.name : id; // Return name if found, otherwise return ID
-  };
+
+    const found = entities.find(e => e.id === id)
+    return found ? found.name : id // Return name if found, otherwise return ID
+  }
 
   const value: MockDataContextType = {
     users: mockUsers,
@@ -142,20 +142,16 @@ export const MockDataProvider: React.FC<{ children: ReactNode }> = ({ children }
     locations: mockLocations,
     costCenters: mockCostCenters,
     matrixTeams: mockMatrixTeams,
-    resolveEntityName,
-  };
+    resolveEntityName
+  }
 
-  return (
-    <MockDataContext.Provider value={value}>
-      {children}
-    </MockDataContext.Provider>
-  );
-};
+  return <MockDataContext.Provider value={value}>{children}</MockDataContext.Provider>
+}
 
 export const useMockData = (): MockDataContextType => {
-  const context = useContext(MockDataContext);
+  const context = useContext(MockDataContext)
   if (!context) {
-    throw new Error('useMockData must be used within a MockDataProvider');
+    throw new Error('useMockData must be used within a MockDataProvider')
   }
-  return context;
-}; 
+  return context
+}

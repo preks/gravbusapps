@@ -1,5 +1,5 @@
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
 // ==========================================
 // CRM ACCOUNT FRAGMENTS
@@ -12,7 +12,7 @@ export const CUSTOMER_ACCOUNT_REF = `
     annualRevenue {
       ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const CUSTOMER_ACCOUNT = `
     id
@@ -29,7 +29,7 @@ export const CUSTOMER_ACCOUNT = `
     ownerEmployee {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 // ==========================================
 // CRM CONTACT FRAGMENTS
@@ -41,7 +41,7 @@ export const CUSTOMER_CONTACT_REF = `
     firstName
     lastName
     email
-`;
+`
 
 export const CUSTOMER_CONTACT = `
     id
@@ -64,7 +64,7 @@ export const CUSTOMER_CONTACT = `
     ownerEmployee {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 // ==========================================
 // CRM OPPORTUNITY FRAGMENTS
@@ -74,7 +74,7 @@ export const CUSTOMER_OPPORTUNITY_REF = `
     id
     code
     name
-`;
+`
 
 export const CUSTOMER_OPPORTUNITY = `
     id
@@ -100,7 +100,7 @@ export const CUSTOMER_OPPORTUNITY = `
     # Direct scalar stage/status
     stage
     status
-`;
+`
 
 // ==========================================
 // CRM LEAD FRAGMENTS
@@ -112,7 +112,7 @@ export const CUSTOMER_LEAD_REF = `
     firstName
     lastName
     email
-`;
+`
 
 export const CUSTOMER_LEAD = `
     id
@@ -148,7 +148,7 @@ export const CUSTOMER_LEAD = `
     ownerEmployee {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 // ==========================================
 // CRM RELATED ENTITIES (TASK / ACTIVITY / NOTE / DOCUMENT)
@@ -192,7 +192,7 @@ export const CUSTOMER_TASK = `
       code
       name
     }
-`;
+`
 
 export const CUSTOMER_SALES_ACTIVITY = `
     id
@@ -211,7 +211,7 @@ export const CUSTOMER_SALES_ACTIVITY = `
     ownerEmployee {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 export const CUSTOMER_CRM_NOTE = `
     id
@@ -224,7 +224,7 @@ export const CUSTOMER_CRM_NOTE = `
     authorEmployee {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 export const CUSTOMER_CRM_DOCUMENT = `
     id
@@ -248,4 +248,4 @@ export const CUSTOMER_CRM_DOCUMENT = `
     documentType {
       ${CATALOG_ENTRY}
     }
-`;
+`

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,23 +9,27 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import lineChartData from "../../data/lineChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import lineChartData from '../../data/lineChartData.json'
 
 interface LineChartDotsProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const LineChartDots: React.FC<LineChartDotsProps> = ({ moduleColor }) => {
-  const chartData = lineChartData.dots;
+  const chartData = lineChartData.dots
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="line-chart-dots">
@@ -45,7 +49,7 @@ const LineChartDots: React.FC<LineChartDotsProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
@@ -55,10 +59,10 @@ const LineChartDots: React.FC<LineChartDotsProps> = ({ moduleColor }) => {
               stroke="var(--color-desktop)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-desktop)",
+                fill: 'var(--color-desktop)'
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
             <Line
@@ -67,17 +71,17 @@ const LineChartDots: React.FC<LineChartDotsProps> = ({ moduleColor }) => {
               stroke="var(--color-mobile)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-mobile)",
+                fill: 'var(--color-mobile)'
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
           </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default LineChartDots;
+export default LineChartDots

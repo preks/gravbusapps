@@ -1,101 +1,99 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Button, Alert, Spinner, Form, WizardForm, useWizard, type WizardStep } from '@newwork/nw-design-system';
-import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { Button, Alert, Spinner, Form, WizardForm, useWizard, type WizardStep } from '@newwork/nw-design-system'
+import { useForm, type Resolver, type UseFormReturn } from 'react-hook-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface ProcessMessage {
-  type: 'success' | 'error' | 'info';
-  message: string;
+  type: 'success' | 'error' | 'info'
+  message: string
 }
 
-
-
 export interface AppActionFormProps {
-  children: React.ReactNode;
-  processType: 'create' | 'update' | 'delete' | 'custom';
-  submitEventType?: string;
-  cancelEventType?: string;
-  onSubmit: (formData: any) => Promise<any> | any;
-  onCancel?: () => void;
-  onSuccess?: (result: any) => void;
-  formData: any;
-  validateForm?: (formData: any) => string[] | null;
-  submitButtonText?: string;
-  cancelButtonText?: string;
-  showCancelButton?: boolean;
-  submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  businessAppContext?: BusinessAppContextProps;
-  form?: UseFormReturn<any>;
-  resolver?: Resolver<any>;
-  'data-testid'?: string;
+  children: React.ReactNode
+  processType: 'create' | 'update' | 'delete' | 'custom'
+  submitEventType?: string
+  cancelEventType?: string
+  onSubmit: (formData: any) => Promise<any> | any
+  onCancel?: () => void
+  onSuccess?: (result: any) => void
+  formData: any
+  validateForm?: (formData: any) => string[] | null
+  submitButtonText?: string
+  cancelButtonText?: string
+  showCancelButton?: boolean
+  submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+  businessAppContext?: BusinessAppContextProps
+  form?: UseFormReturn<any>
+  resolver?: Resolver<any>
+  'data-testid'?: string
   // Optional overrides for test ids on action buttons
-  submitButtonTestId?: string;
-  cancelButtonTestId?: string;
+  submitButtonTestId?: string
+  cancelButtonTestId?: string
   // Support for custom form layouts (like wizards)
-  customFormLayout?: boolean;
-  customActions?: React.ReactNode;
+  customFormLayout?: boolean
+  customActions?: React.ReactNode
   // Support for disabling form submission when using WizardForm or other custom handlers
-  disableFormSubmission?: boolean;
+  disableFormSubmission?: boolean
   // Form type selection
-  formType?: 'form' | 'wizard';
+  formType?: 'form' | 'wizard'
   // Wizard-specific props
-  wizardSteps?: WizardStep<any>[];
-  showStepIndicator?: boolean;
-  allowStepJumping?: boolean;
+  wizardSteps?: WizardStep<any>[]
+  showStepIndicator?: boolean
+  allowStepJumping?: boolean
   // Pre-submission handler (e.g., for file uploads)
-  handlePreSubmit?: (formData: any) => Promise<any>;
-  isSubmitDisabled?: boolean;
+  handlePreSubmit?: (formData: any) => Promise<any>
+  isSubmitDisabled?: boolean
   // Optional completion callback and success navigation
-  onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void;
+  onProcessCompletion?: (detail: { resolution?: 'success' | 'failure' } | null) => void
 }
 
 const getSuccessMessage = (processType: string): string => {
   switch (processType) {
     case 'create':
-      return getTranslationFromI18nKeyAndLabel('process:success.created', 'Successfully created');
+      return getTranslationFromI18nKeyAndLabel('process:success.created', 'Successfully created')
     case 'update':
-      return getTranslationFromI18nKeyAndLabel('process:success.updated', 'Successfully updated');
+      return getTranslationFromI18nKeyAndLabel('process:success.updated', 'Successfully updated')
     case 'delete':
-      return getTranslationFromI18nKeyAndLabel('process:success.deleted', 'Successfully deleted');
+      return getTranslationFromI18nKeyAndLabel('process:success.deleted', 'Successfully deleted')
     default:
-      return getTranslationFromI18nKeyAndLabel('process:success.completed', 'Successfully completed');
+      return getTranslationFromI18nKeyAndLabel('process:success.completed', 'Successfully completed')
   }
-};
+}
 
 // Form Navigation component that handles all 4 buttons: Cancel, Back, Next, Submit
 interface FormNavigationProps {
   // Button states
-  showCancelButton?: boolean;
-  showBackButton?: boolean;
-  showNextButton?: boolean;
-  showSubmitButton?: boolean;
-  
+  showCancelButton?: boolean
+  showBackButton?: boolean
+  showNextButton?: boolean
+  showSubmitButton?: boolean
+
   // Button actions
-  onCancel?: () => void;
-  onBack?: () => void;
-  onNext?: () => void;
-  onSubmit?: () => void;
-  
+  onCancel?: () => void
+  onBack?: () => void
+  onNext?: () => void
+  onSubmit?: () => void
+
   // Button text customization
-  cancelButtonText?: string;
-  backButtonText?: string;
-  nextButtonText?: string;
-  submitButtonText?: string;
-  
+  cancelButtonText?: string
+  backButtonText?: string
+  nextButtonText?: string
+  submitButtonText?: string
+
   // Button states
-  isLoading?: boolean;
-  isNextDisabled?: boolean;
-  isSubmitDisabled?: boolean;
-  
+  isLoading?: boolean
+  isNextDisabled?: boolean
+  isSubmitDisabled?: boolean
+
   // Styling
-  submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  
+  submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+
   // Test IDs
-  dataTestId: string;
-  submitButtonDataTestId?: string;
-  cancelButtonDataTestId?: string;
+  dataTestId: string
+  submitButtonDataTestId?: string
+  cancelButtonDataTestId?: string
 }
 
 const FormNavigation: React.FC<FormNavigationProps> = ({
@@ -117,16 +115,19 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
   submitButtonVariant = 'default',
   dataTestId,
   submitButtonDataTestId,
-  cancelButtonDataTestId,
+  cancelButtonDataTestId
 }) => {
   return (
-    <div className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4" data-testid={`${dataTestId}-form-navigation`}>
+    <div
+      className="gba:flex gba:justify-end gba:gap-2 gba:items-center gba:mt-auto gba:pt-4"
+      data-testid={`${dataTestId}-form-navigation`}
+    >
       {/* Left side: Cancel and Back buttons */}
       <div className="gba:flex gba:gap-2">
         {showCancelButton && (
-          <Button 
-            variant="outline" 
-            data-testid={cancelButtonDataTestId || `${dataTestId}-cancel-button`} 
+          <Button
+            variant="outline"
+            data-testid={cancelButtonDataTestId || `${dataTestId}-cancel-button`}
             type="button"
             onClick={onCancel}
             disabled={isLoading}
@@ -134,11 +135,11 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
             {cancelButtonText || getTranslationFromI18nKeyAndLabel('process:button.cancel', 'Cancel')}
           </Button>
         )}
-        
+
         {showBackButton && (
-          <Button 
-            variant="outline" 
-            data-testid={`${dataTestId}-back-button`} 
+          <Button
+            variant="outline"
+            data-testid={`${dataTestId}-back-button`}
             type="button"
             onClick={onBack}
             disabled={isLoading}
@@ -151,9 +152,9 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
       {/* Right side: Next and Submit buttons */}
       <div className="gba:flex gba:gap-2">
         {showNextButton && (
-          <Button 
-            data-testid={`${dataTestId}-next-button`} 
-            type="button" 
+          <Button
+            data-testid={`${dataTestId}-next-button`}
+            type="button"
             variant="default"
             disabled={isLoading || isNextDisabled}
             onClick={onNext}
@@ -161,11 +162,11 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
             {nextButtonText || getTranslationFromI18nKeyAndLabel('process:button.next', 'Next')}
           </Button>
         )}
-        
+
         {showSubmitButton && (
-          <Button 
-            data-testid={submitButtonDataTestId || `${dataTestId}-submit-button`} 
-            type="submit" 
+          <Button
+            data-testid={submitButtonDataTestId || `${dataTestId}-submit-button`}
+            type="submit"
             variant={submitButtonVariant}
             disabled={isLoading || isSubmitDisabled}
           >
@@ -174,9 +175,8 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
         )}
       </div>
     </div>
-  );
-};
-
+  )
+}
 
 export const AppActionForm: React.FC<AppActionFormProps> = ({
   children,
@@ -207,117 +207,120 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   allowStepJumping = false,
   handlePreSubmit,
   isSubmitDisabled = false,
-  onProcessCompletion,
+  onProcessCompletion
 }) => {
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<ProcessMessage | null>(null);
-  const isSubmittingRef = useRef(false);
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState<ProcessMessage | null>(null)
+  const isSubmittingRef = useRef(false)
 
   useEffect(() => {
-    setMessage(null);
-  }, [processType]);
+    setMessage(null)
+  }, [processType])
 
-  const handleSubmit = useCallback(async (values?: any) => {
-    // Prevent duplicate submissions using ref for synchronous check
-    if (isSubmittingRef.current) {
-      return;
-    }
+  const handleSubmit = useCallback(
+    async (values?: any) => {
+      // Prevent duplicate submissions using ref for synchronous check
+      if (isSubmittingRef.current) {
+        return
+      }
 
-    try {
-      isSubmittingRef.current = true;
-      setLoading(true);
-      setMessage(null);
-      const dataForValidation = values ?? formData;
-      
-      if (validateForm) {
-        const errors = validateForm(dataForValidation);
-        if (errors && errors.length > 0) {
-          setMessage({ type: 'error', message: errors.join(', ') });
-          setLoading(false);
-          isSubmittingRef.current = false;
-          return;
+      try {
+        isSubmittingRef.current = true
+        setLoading(true)
+        setMessage(null)
+        const dataForValidation = values ?? formData
+
+        if (validateForm) {
+          const errors = validateForm(dataForValidation)
+          if (errors && errors.length > 0) {
+            setMessage({ type: 'error', message: errors.join(', ') })
+            setLoading(false)
+            isSubmittingRef.current = false
+            return
+          }
         }
-      }
 
-      // Pre-submission processing (e.g., file upload)
-      let enhancedData = dataForValidation;
-      if (handlePreSubmit) {
-        enhancedData = await handlePreSubmit(dataForValidation);
-      }
+        // Pre-submission processing (e.g., file upload)
+        let enhancedData = dataForValidation
+        if (handlePreSubmit) {
+          enhancedData = await handlePreSubmit(dataForValidation)
+        }
 
-      // Development-only payload logging (input data)
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[AppActionForm] Form data (before transformation):', enhancedData);
-      }
+        // Development-only payload logging (input data)
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[AppActionForm] Form data (before transformation):', enhancedData)
+        }
 
-      const result = await onSubmit(enhancedData);
-      
-      // Create a promise that resolves when process completes OR after timeout
-      const waitForProcessCompletion = new Promise<void>((resolve) => {
-        const TIMEOUT = 10000;
-        const timeoutId = setTimeout(() => {
-          cleanup();
-          resolve();
-        }, TIMEOUT);
+        const result = await onSubmit(enhancedData)
 
-        const handleProcessCompletion = (event: Event) => {
-          const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>;
-          const detail = customEvent?.detail ?? null;
-          // Notify consumer
-          if (onProcessCompletion) {
-            try { onProcessCompletion(detail); } catch (_) {}
+        // Create a promise that resolves when process completes OR after timeout
+        const waitForProcessCompletion = new Promise<void>(resolve => {
+          const TIMEOUT = 10000
+          const timeoutId = setTimeout(() => {
+            cleanup()
+            resolve()
+          }, TIMEOUT)
+
+          const handleProcessCompletion = (event: Event) => {
+            const customEvent = event as CustomEvent<{ resolution: 'success' | 'failure' }>
+            const detail = customEvent?.detail ?? null
+            // Notify consumer
+            if (onProcessCompletion) {
+              try {
+                onProcessCompletion(detail)
+              } catch (_) {}
+            }
+            if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
+              cleanup()
+              resolve()
+            }
           }
-          if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
-            cleanup();
-            resolve();
+
+          const cleanup = () => {
+            clearTimeout(timeoutId)
+            window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+            window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
           }
-        };
 
-        const cleanup = () => {
-          clearTimeout(timeoutId);
-          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
-          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
-        };
+          // Listen for process completion events
+          window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+          window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
+        })
 
-        // Listen for process completion events
-        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion);
-        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion);
-      });
-      
-      // Dispatch the process event
-      dispatchProcessContinueEvent(submitEventType, result);
-      
-      // Wait for the process to complete
-      await waitForProcessCompletion;
-      
-      if (onSuccess) {
-        onSuccess(result);
+        // Dispatch the process event
+        dispatchProcessContinueEvent(submitEventType, result)
+
+        // Wait for the process to complete
+        await waitForProcessCompletion
+
+        if (onSuccess) {
+          onSuccess(result)
+        }
+      } catch (error) {
+        console.error('Submission error:', error)
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+        setMessage({ type: 'error', message: errorMessage })
+      } finally {
+        setLoading(false)
+        isSubmittingRef.current = false
       }
-    } catch (error) {
-      console.error('Submission error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-      setMessage({ type: 'error', message: errorMessage });
-    } finally {
-      setLoading(false);
-      isSubmittingRef.current = false;
-    }
-  }, [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]);
+    },
+    [processType, submitEventType, onSubmit, validateForm, onSuccess, formData, handlePreSubmit]
+  )
 
   const handleCancel = useCallback(() => {
-    dispatchProcessContinueEvent(cancelEventType, {});
-    setMessage(null);
+    dispatchProcessContinueEvent(cancelEventType, {})
+    setMessage(null)
     if (onCancel) {
-      onCancel();
+      onCancel()
     }
-  }, [cancelEventType, onCancel]);
+  }, [cancelEventType, onCancel])
 
   // IMPORTANT: Hooks must not be called conditionally. Always create an internal form instance
   // and choose layout behavior via props. This prevents crashes when disableFormSubmission flips
   // after async prefill/reset operations.
-  const internalForm = useForm<any>({ defaultValues: formData, resolver });
-  const form = externalForm || internalForm;
-
-
+  const internalForm = useForm<any>({ defaultValues: formData, resolver })
+  const form = externalForm || internalForm
 
   // Navigation component for forms (standard forms only show Cancel and Submit)
   const formNavigation = (
@@ -337,12 +340,12 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       submitButtonDataTestId={submitButtonTestId}
       cancelButtonDataTestId={cancelButtonTestId}
     />
-  );
+  )
 
   // Wizard Navigation Component using useWizard hook
   const WizardNavigation: React.FC = () => {
-    const { isFirstStep, isLastStep, nextStep, previousStep } = useWizard();
-    
+    const { isFirstStep, isLastStep, nextStep, previousStep } = useWizard()
+
     return (
       <FormNavigation
         showCancelButton={showCancelButton}
@@ -352,7 +355,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         onCancel={handleCancel}
         onBack={previousStep}
         onNext={() => {
-          nextStep();
+          nextStep()
         }}
         onSubmit={undefined} // Will be handled by WizardForm onSubmit
         cancelButtonText={cancelButtonText}
@@ -363,27 +366,23 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         submitButtonDataTestId={submitButtonTestId}
         cancelButtonDataTestId={cancelButtonTestId}
       />
-    );
-  };
+    )
+  }
 
   return (
     <div className="gba:p-6 gba:h-full gba:flex gba:flex-col" data-testid={dataTestId}>
       {message && message.type === 'error' && (
-        <Alert
-          variant="destructive"
-          className="gba:mb-4"
-          data-testid={`${dataTestId}-message`}
-        >
+        <Alert variant="destructive" className="gba:mb-4" data-testid={`${dataTestId}-message`}>
           {message.message}
         </Alert>
       )}
-      
+
       {formType === 'wizard' && wizardSteps && form ? (
         // Use WizardForm with custom navigation as children
         <WizardForm
           form={form}
           steps={wizardSteps}
-          onSubmit={(data) => handleSubmit(data)}
+          onSubmit={data => handleSubmit(data)}
           showStepIndicator={showStepIndicator}
           allowStepJumping={allowStepJumping}
           className="gba:w-full"
@@ -399,9 +398,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       ) : customFormLayout && form ? (
         // Custom layout: just provide form context and let children handle layout
         <Form {...(form as any)}>
-          <form 
-            onSubmit={form.handleSubmit((vals) => handleSubmit(vals))} 
-            className="gba:flex gba:flex-col gba:w-full gba:h-full" 
+          <form
+            onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
+            className="gba:flex gba:flex-col gba:w-full gba:h-full"
             data-testid={`${dataTestId}-form`}
           >
             {children}
@@ -411,9 +410,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
       ) : form ? (
         // Standard layout
         <Form {...(form as any)}>
-          <form 
-            onSubmit={form.handleSubmit((vals) => handleSubmit(vals))} 
-            className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full" 
+          <form
+            onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
+            className="gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full"
             data-testid={`${dataTestId}-form`}
           >
             <div className="gba:flex-1 gba:space-y-4" data-testid={`${dataTestId}-form-content`}>
@@ -430,7 +429,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default AppActionForm;
+export default AppActionForm

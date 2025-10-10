@@ -1,27 +1,22 @@
-import React, { useState } from "react";
-import {
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  Button,
-} from "@newwork/nw-design-system";
-import { PiPencilSimple } from "react-icons/pi";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { SelectOption } from "../types";
-import EmployeeSearchableSelect from "./EmployeeSearchableSelect";
+import React, { useState } from 'react'
+import { Avatar, AvatarImage, AvatarFallback, Button } from '@newwork/nw-design-system'
+import { PiPencilSimple } from 'react-icons/pi'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { SelectOption } from '../types'
+import EmployeeSearchableSelect from './EmployeeSearchableSelect'
 
-const prefixDataTestId = "OwnerSelector";
+const prefixDataTestId = 'OwnerSelector'
 
 interface OwnerSelectorProps {
-  value: string;
-  onChange: (value: string) => void;
-  employees: SelectOption[];
-  loading: boolean;
-  hasMore: boolean;
-  onLoadMore: () => void;
-  onSearch: (search: string) => void;
-  error: string | null;
-  dataTestId?: string;
+  value: string
+  onChange: (value: string) => void
+  employees: SelectOption[]
+  loading: boolean
+  hasMore: boolean
+  onLoadMore: () => void
+  onSearch: (search: string) => void
+  error: string | null
+  dataTestId?: string
 }
 
 const OwnerSelector: React.FC<OwnerSelectorProps> = ({
@@ -33,25 +28,25 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
   onLoadMore,
   onSearch,
   error,
-  dataTestId,
+  dataTestId
 }) => {
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false)
 
   // Find selected employee
-  const selectedEmployee = employees.find((emp) => emp.value === value);
+  const selectedEmployee = employees.find(emp => emp.value === value)
 
   const handleChangeClick = () => {
-    setShowDropdown(true);
-  };
+    setShowDropdown(true)
+  }
 
   const handleEmployeeSelect = (selectedValue: string) => {
-    onChange(selectedValue);
-    setShowDropdown(false);
-  };
+    onChange(selectedValue)
+    setShowDropdown(false)
+  }
 
   const handleDropdownClose = () => {
-    setShowDropdown(false);
-  };
+    setShowDropdown(false)
+  }
 
   if (showDropdown) {
     return (
@@ -84,15 +79,13 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
           data-testid={dataTestId}
         />
       </div>
-    );
+    )
   }
 
   return (
     <div
       className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-lg gba:p-4 gba:flex gba:items-center gba:justify-between gba:min-h-[60px] gba:transition-colors gba:hover:border-gray-400"
-      data-testid={
-        dataTestId || formatDataTestId(prefixDataTestId, "Container")
-      }
+      data-testid={dataTestId || formatDataTestId(prefixDataTestId, 'Container')}
     >
       {selectedEmployee ? (
         <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
@@ -100,35 +93,31 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
             {selectedEmployee.extraInfo?.pictureThumbnail ? (
               <AvatarImage
                 src={`data:image/jpeg;base64,${selectedEmployee.extraInfo.pictureThumbnail}`}
-                alt={selectedEmployee.name || "Employee"}
+                alt={selectedEmployee.name || 'Employee'}
               />
             ) : null}
             <AvatarFallback>
               {selectedEmployee.name
-                ?.split(" ")
-                .map((n) => n[0])
-                .join("")
+                ?.split(' ')
+                .map(n => n[0])
+                .join('')
                 .toUpperCase()
-                .slice(0, 2) || "??"}
+                .slice(0, 2) || '??'}
             </AvatarFallback>
           </Avatar>
 
           <div className="gba:flex-1 gba:min-w-0">
-            <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:truncate">
-              {selectedEmployee.name}
-            </div>
+            <div className="gba:text-sm gba:font-medium gba:text-gray-900 gba:truncate">{selectedEmployee.name}</div>
             <div className="gba:text-xs gba:text-gray-600 gba:truncate">
-              {selectedEmployee.extraInfo?.jobPosition || "No Position"}
+              {selectedEmployee.extraInfo?.jobPosition || 'No Position'}
             </div>
             <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-              {selectedEmployee.extraInfo?.organizationalUnit || "No Unit"}
+              {selectedEmployee.extraInfo?.organizationalUnit || 'No Unit'}
             </div>
           </div>
         </div>
       ) : (
-        <div className="gba:flex-1 gba:text-gray-500 gba:text-sm">
-          No owner selected
-        </div>
+        <div className="gba:flex-1 gba:text-gray-500 gba:text-sm">No owner selected</div>
       )}
 
       <Button
@@ -136,13 +125,13 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
         size="sm"
         onClick={handleChangeClick}
         className="gba:ml-3 gba:flex gba:items-center gba:gap-1"
-        data-testid={formatDataTestId(prefixDataTestId, "change-button")}
+        data-testid={formatDataTestId(prefixDataTestId, 'change-button')}
       >
         <PiPencilSimple size={14} />
-        {selectedEmployee ? "Change" : "Select"}
+        {selectedEmployee ? 'Change' : 'Select'}
       </Button>
     </div>
-  );
-};
+  )
+}
 
-export default OwnerSelector;
+export default OwnerSelector

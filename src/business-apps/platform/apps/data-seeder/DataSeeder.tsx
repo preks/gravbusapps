@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'
 import {
   PageLayout,
   Card,
@@ -17,72 +17,72 @@ import {
   Spinner,
   Badge,
   Separator
-} from '@newwork/nw-design-system';
-import { Play, Database } from '@phosphor-icons/react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { HttpMethod } from '@/common/network/rest/RestClient';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
+} from '@newwork/nw-design-system'
+import { Play, Database } from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { HttpMethod } from '@/common/network/rest/RestClient'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 interface DataSeederProps extends BusinessAppContextProps {}
 
-const PREFIX = 'DataSeeder';
+const PREFIX = 'DataSeeder'
 
 interface RequestResult {
-  index?: number;
-  success: boolean;
-  status?: number;
-  data?: any;
-  error?: string;
+  index?: number
+  success: boolean
+  status?: number
+  data?: any
+  error?: string
 }
 
-const DataSeeder: React.FC<DataSeederProps> = (context) => {
-  const [url, setUrl] = useState('');
-  const [method, setMethod] = useState<HttpMethod>(HttpMethod.POST);
-  const [bodyJson, setBodyJson] = useState('{\n  "example": "value"\n}');
-  const [mimicBulk, setMimicBulk] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [results, setResults] = useState<RequestResult[]>([]);
-  const [validationError, setValidationError] = useState<string | null>(null);
+const DataSeeder: React.FC<DataSeederProps> = context => {
+  const [url, setUrl] = useState('')
+  const [method, setMethod] = useState<HttpMethod>(HttpMethod.POST)
+  const [bodyJson, setBodyJson] = useState('{\n  "example": "value"\n}')
+  const [mimicBulk, setMimicBulk] = useState(false)
+  const [isExecuting, setIsExecuting] = useState(false)
+  const [results, setResults] = useState<RequestResult[]>([])
+  const [validationError, setValidationError] = useState<string | null>(null)
 
-  const restClient = useRestClient();
-  const dataTestId = (suffix: string) => formatDataTestId(PREFIX, suffix);
+  const restClient = useRestClient()
+  const dataTestId = (suffix: string) => formatDataTestId(PREFIX, suffix)
 
   const validateJson = (json: string): { valid: boolean; parsed?: any; error?: string } => {
     try {
-      const parsed = JSON.parse(json);
-      return { valid: true, parsed };
+      const parsed = JSON.parse(json)
+      return { valid: true, parsed }
     } catch (e) {
-      return { valid: false, error: e instanceof Error ? e.message : 'Invalid JSON' };
+      return { valid: false, error: e instanceof Error ? e.message : 'Invalid JSON' }
     }
-  };
+  }
 
   const executeRequest = async (requestBody?: any, index?: number): Promise<RequestResult> => {
     try {
       const headers = {
         Authorization: `Bearer ${context.accessToken}`
-      };
+      }
 
-      let response: any;
+      let response: any
 
       switch (method) {
         case HttpMethod.GET:
-          response = await restClient.get(url, { headers });
-          break;
+          response = await restClient.get(url, { headers })
+          break
         case HttpMethod.POST:
-          response = await restClient.post(url, requestBody, { headers });
-          break;
+          response = await restClient.post(url, requestBody, { headers })
+          break
         case HttpMethod.PUT:
-          response = await restClient.put(url, requestBody, { headers });
-          break;
+          response = await restClient.put(url, requestBody, { headers })
+          break
         case HttpMethod.PATCH:
-          response = await restClient.patch(url, requestBody, { headers });
-          break;
+          response = await restClient.patch(url, requestBody, { headers })
+          break
         case HttpMethod.DELETE:
-          response = await restClient.delete(url, { headers });
-          break;
+          response = await restClient.delete(url, { headers })
+          break
         default:
-          throw new Error(`Unsupported method: ${method}`);
+          throw new Error(`Unsupported method: ${method}`)
       }
 
       return {
@@ -90,71 +90,71 @@ const DataSeeder: React.FC<DataSeederProps> = (context) => {
         success: true,
         status: 200,
         data: response
-      };
+      }
     } catch (error) {
       return {
         index,
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
-      };
+      }
     }
-  };
+  }
 
   const handleExecute = async () => {
-    setValidationError(null);
-    setResults([]);
+    setValidationError(null)
+    setResults([])
 
     if (!url.trim()) {
-      setValidationError('URL is required');
-      return;
+      setValidationError('URL is required')
+      return
     }
 
-    const bodyValidation = validateJson(bodyJson);
+    const bodyValidation = validateJson(bodyJson)
     if (!bodyValidation.valid && method !== HttpMethod.GET && method !== HttpMethod.DELETE) {
-      setValidationError(`Invalid body JSON: ${bodyValidation.error}`);
-      return;
+      setValidationError(`Invalid body JSON: ${bodyValidation.error}`)
+      return
     }
 
-    setIsExecuting(true);
+    setIsExecuting(true)
 
     try {
       if (mimicBulk) {
         // Bulk mode: body should be an array
         if (!Array.isArray(bodyValidation.parsed)) {
-          setValidationError('In bulk mode, body must be a JSON array');
-          setIsExecuting(false);
-          return;
+          setValidationError('In bulk mode, body must be a JSON array')
+          setIsExecuting(false)
+          return
         }
 
-        const bulkResults: RequestResult[] = [];
+        const bulkResults: RequestResult[] = []
         for (let i = 0; i < bodyValidation.parsed.length; i++) {
-          const item = bodyValidation.parsed[i];
-          const result = await executeRequest(item, i);
-          bulkResults.push(result);
+          const item = bodyValidation.parsed[i]
+          const result = await executeRequest(item, i)
+          bulkResults.push(result)
         }
-        setResults(bulkResults);
+        setResults(bulkResults)
       } else {
         // Single request mode
-        const result = await executeRequest(bodyValidation.parsed);
-        setResults([result]);
+        const result = await executeRequest(bodyValidation.parsed)
+        setResults([result])
       }
     } catch (error) {
-      setValidationError(error instanceof Error ? error.message : 'Request failed');
+      setValidationError(error instanceof Error ? error.message : 'Request failed')
     } finally {
-      setIsExecuting(false);
+      setIsExecuting(false)
     }
-  };
+  }
 
-  const successCount = results.filter(r => r.success).length;
-  const errorCount = results.filter(r => !r.success).length;
+  const successCount = results.filter(r => r.success).length
+  const errorCount = results.filter(r => !r.success).length
 
   return (
     <PageLayout
       headerPhosphorIcon={{
         icon: Database,
-        variant: "default",
-        size: "lg",
-        label: "Data Seeder"
+        variant: 'default',
+        size: 'lg',
+        label: 'Data Seeder'
       }}
       headerTitle="Data Seeder"
       headerDescription="Execute REST API calls for data seeding and testing"
@@ -176,7 +176,7 @@ const DataSeeder: React.FC<DataSeederProps> = (context) => {
                   type="text"
                   placeholder="e.g., /api/v1/resource"
                   value={url}
-                  onChange={(e) => setUrl(e.target.value)}
+                  onChange={e => setUrl(e.target.value)}
                   disabled={isExecuting}
                   data-testid={dataTestId('UrlInput')}
                 />
@@ -186,11 +186,7 @@ const DataSeeder: React.FC<DataSeederProps> = (context) => {
                 <Label htmlFor="method" data-testid={dataTestId('MethodLabel')}>
                   HTTP Method
                 </Label>
-                <Select
-                  value={method}
-                  onValueChange={(value) => setMethod(value as HttpMethod)}
-                  disabled={isExecuting}
-                >
+                <Select value={method} onValueChange={value => setMethod(value as HttpMethod)} disabled={isExecuting}>
                   <SelectTrigger id="method" data-testid={dataTestId('MethodSelect')}>
                     <SelectValue placeholder="Select method" />
                   </SelectTrigger>
@@ -222,7 +218,7 @@ const DataSeeder: React.FC<DataSeederProps> = (context) => {
                   id="body"
                   className="gba:w-full gba:min-h-[200px] gba:p-2 gba:border gba:rounded gba:font-mono gba:text-sm gba:bg-background gba:text-foreground"
                   value={bodyJson}
-                  onChange={(e) => setBodyJson(e.target.value)}
+                  onChange={e => setBodyJson(e.target.value)}
                   disabled={isExecuting}
                   data-testid={dataTestId('BodyInput')}
                 />
@@ -233,7 +229,7 @@ const DataSeeder: React.FC<DataSeederProps> = (context) => {
                   type="checkbox"
                   id="mimicBulk"
                   checked={mimicBulk}
-                  onChange={(e) => setMimicBulk(e.target.checked)}
+                  onChange={e => setMimicBulk(e.target.checked)}
                   disabled={isExecuting}
                   data-testid={dataTestId('MimicBulkSwitch')}
                   className="gba:w-4 gba:h-4"
@@ -312,9 +308,7 @@ const DataSeeder: React.FC<DataSeederProps> = (context) => {
                             Success
                           </Badge>
                           {result.status && (
-                            <span className="gba:text-sm gba:text-muted-foreground">
-                              Status: {result.status}
-                            </span>
+                            <span className="gba:text-sm gba:text-muted-foreground">Status: {result.status}</span>
                           )}
                         </div>
                         <pre
@@ -339,7 +333,7 @@ const DataSeeder: React.FC<DataSeederProps> = (context) => {
         </Card>
       </div>
     </PageLayout>
-  );
-};
+  )
+}
 
-export default DataSeeder;
+export default DataSeeder

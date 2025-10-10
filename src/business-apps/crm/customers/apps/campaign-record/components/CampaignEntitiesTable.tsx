@@ -1,10 +1,10 @@
-import React from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
+import React from 'react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
   TableRow,
   Spinner,
   Alert,
@@ -13,40 +13,33 @@ import {
   Badge,
   Card,
   CardContent
-} from '@newwork/nw-design-system';
-import {
-  PiArrowUp,
-  PiArrowDown,
-  PiUser,
-  PiBuilding,
-  PiUsers,
-  PiTarget
-} from 'react-icons/pi';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { CampaignEntity } from '../types/CampaignRecordTypes';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import dayjs from 'dayjs';
+} from '@newwork/nw-design-system'
+import { PiArrowUp, PiArrowDown, PiUser, PiBuilding, PiUsers, PiTarget } from 'react-icons/pi'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { CampaignEntity } from '../types/CampaignRecordTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import dayjs from 'dayjs'
 
 interface CampaignEntitiesTableProps {
-  entities: CampaignEntity[];
-  isLoading: boolean;
-  error: string | null;
-  totalCount: number;
-  currentPage: number;
-  pageSize: number;
-  sortField: string;
-  sortOrder: "ASC" | "DESC" | "";
-  onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: "ASC" | "DESC" | "") => void;
-  onRowClick?: (entity: CampaignEntity) => void;
-  accessToken: string;
+  entities: CampaignEntity[]
+  isLoading: boolean
+  error: string | null
+  totalCount: number
+  currentPage: number
+  pageSize: number
+  sortField: string
+  sortOrder: 'ASC' | 'DESC' | ''
+  onPaginationChange: (page: number, pageSize?: number) => void
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void
+  onRowClick?: (entity: CampaignEntity) => void
+  accessToken: string
 }
 
 const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
-    entities,
-    isLoading,
-    error,
+  entities,
+  isLoading,
+  error,
   totalCount,
   currentPage,
   pageSize,
@@ -57,13 +50,13 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
   onRowClick,
   accessToken
 }) => {
-  const DATA_TEST_ID_PREFIX = "CampaignEntitiesTable";
+  const DATA_TEST_ID_PREFIX = 'CampaignEntitiesTable'
 
   // Helper function to format date
   const formatDate = (dateString?: string): string => {
-    if (!dateString) return '-';
-    return dayjs(dateString).format('DD/MM/YYYY');
-  };
+    if (!dateString) return '-'
+    return dayjs(dateString).format('DD/MM/YYYY')
+  }
 
   // Helper function to get entity type badge
   const getEntityTypeBadge = (type: string) => {
@@ -72,108 +65,106 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
       account: { label: 'Account', variant: 'secondary' as const, icon: <PiBuilding size={14} /> },
       contact: { label: 'Contact', variant: 'outline' as const, icon: <PiUsers size={14} /> },
       opportunity: { label: 'Opportunity', variant: 'destructive' as const, icon: <PiTarget size={14} /> }
-    };
+    }
 
-    const config = typeConfig[type as keyof typeof typeConfig] || { label: type, variant: 'default' as const, icon: <PiUser size={14} /> };
-    
+    const config = typeConfig[type as keyof typeof typeConfig] || {
+      label: type,
+      variant: 'default' as const,
+      icon: <PiUser size={14} />
+    }
+
     return (
       <Badge variant={config.variant} className="gba:inline-flex gba:items-center gba:gap-1">
         {config.icon}
         {config.label}
       </Badge>
-    );
-  };
+    )
+  }
 
   // Helper function to get entity display name
   const getEntityDisplayName = (entity: CampaignEntity): string => {
     if (entity.type === 'lead' || entity.type === 'contact') {
-      return entity.name || `${entity.firstName || ''} ${entity.lastName || ''}`.trim() || '-';
+      return entity.name || `${entity.firstName || ''} ${entity.lastName || ''}`.trim() || '-'
     }
-    return entity.name || '-';
-  };
+    return entity.name || '-'
+  }
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
       // Cycle through: ASC -> DESC -> clear
-      if (sortOrder === "ASC") {
-        onSortingChange(field, "DESC");
-      } else if (sortOrder === "DESC") {
-        onSortingChange("", "");
+      if (sortOrder === 'ASC') {
+        onSortingChange(field, 'DESC')
+      } else if (sortOrder === 'DESC') {
+        onSortingChange('', '')
       } else {
-        onSortingChange(field, "ASC");
+        onSortingChange(field, 'ASC')
       }
     } else {
-      onSortingChange(field, "ASC");
+      onSortingChange(field, 'ASC')
     }
-  };
+  }
 
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
-    if (sortField !== field || !sortField) return null;
-    if (sortOrder === "ASC")
-      return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === "DESC")
-      return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
-    return null;
-  };
+    if (sortField !== field || !sortField) return null
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    return null
+  }
 
   // Helper function to get flow context for entity type
   const getFlowContext = (entityType: string): FlowContextName[] => {
     switch (entityType) {
       case 'lead':
-        return [FlowContextName.customerLeadEntity];
+        return [FlowContextName.customerLeadEntity]
       case 'account':
-        return [FlowContextName.customerAccountEntity];
+        return [FlowContextName.customerAccountEntity]
       case 'contact':
-        return [FlowContextName.customerAccountEntity];
+        return [FlowContextName.customerAccountEntity]
       case 'opportunity':
-        return [FlowContextName.customerOpportunityEntity];
+        return [FlowContextName.customerOpportunityEntity]
       default:
-        return [FlowContextName.flow];
+        return [FlowContextName.flow]
     }
-  };
+  }
 
   // Helper function to get external context data
   const getExternalContextData = (entity: CampaignEntity) => {
     switch (entity.type) {
       case 'lead':
-        return { leadId: entity.id };
+        return { leadId: entity.id }
       case 'account':
-        return { accountId: entity.id };
+        return { accountId: entity.id }
       case 'contact':
-        return { contactId: entity.id };
+        return { contactId: entity.id }
       case 'opportunity':
-        return { opportunityId: entity.id };
+        return { opportunityId: entity.id }
       default:
-        return { entityId: entity.id };
+        return { entityId: entity.id }
     }
-  };
+  }
 
   // Handle row click
   const handleRowClick = (entity: CampaignEntity) => {
     if (onRowClick) {
-      onRowClick(entity);
+      onRowClick(entity)
     }
-  };
+  }
 
   // Show error state
   if (error) {
     return (
       <Alert className="gba:m-4">
         <AlertDescription>
-          {getTranslationFromI18nKeyAndLabel('campaign.entities.error.message', 'Error loading campaign entities')}: {error}
-          <Button 
-            variant="link" 
-            size="sm"
-            onClick={() => window.location.reload()}
-            className="gba:ml-2"
-          >
+          {getTranslationFromI18nKeyAndLabel('campaign.entities.error.message', 'Error loading campaign entities')}:{' '}
+          {error}
+          <Button variant="link" size="sm" onClick={() => window.location.reload()} className="gba:ml-2">
             {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -182,12 +173,12 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
         {isLoading && (
           <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
             <Spinner size="lg" />
-      </div>
+          </div>
         )}
 
-      <div className="gba:overflow-x-auto">
+        <div className="gba:overflow-x-auto">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
-          <TableHeader>
+            <TableHeader>
               <TableRow className="gba:border-b gba:bg-gray-50">
                 {/* Name Column - Sortable */}
                 <TableHead
@@ -199,7 +190,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                     Name
                     {renderSortIcon('name')}
                   </div>
-              </TableHead>
+                </TableHead>
 
                 {/* Type Column - Sortable */}
                 <TableHead
@@ -223,7 +214,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                     Creation Date
                     {renderSortIcon('createdAt')}
                   </div>
-              </TableHead>
+                </TableHead>
 
                 {/* Owner Column - Sortable */}
                 <TableHead
@@ -235,7 +226,7 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                     Owner
                     {renderSortIcon('ownerEmployeeId')}
                   </div>
-              </TableHead>
+                </TableHead>
 
                 {/* Status Column - Sortable */}
                 <TableHead
@@ -256,95 +247,92 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                 >
                   ACTIONS
                 </TableHead>
-            </TableRow>
-          </TableHeader>
+              </TableRow>
+            </TableHeader>
 
-          <TableBody>
+            <TableBody>
               {entities.length === 0 && !isLoading ? (
                 <TableRow>
                   <TableCell colSpan={6} className="gba:text-center gba:py-8 gba:text-gray-500">
-                    {getTranslationFromI18nKeyAndLabel('campaign.entities.empty', 'No entities found for this campaign')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'campaign.entities.empty',
+                      'No entities found for this campaign'
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
-                entities.map((entity) => (
-                  <TableRow 
+                entities.map(entity => (
+                  <TableRow
                     key={entity.id}
                     className="gba:border-b hover:gba:bg-gray-50 gba:cursor-pointer"
                     onClick={() => handleRowClick(entity)}
                     data-testid={`${DATA_TEST_ID_PREFIX}-row-${entity.id}`}
                   >
-                {/* Name */}
-                <TableCell className="gba:py-4 gba:px-6">
-                      <div className="gba:font-medium gba:text-gray-900">
-                        {getEntityDisplayName(entity)}
-                  </div>
-                </TableCell>
+                    {/* Name */}
+                    <TableCell className="gba:py-4 gba:px-6">
+                      <div className="gba:font-medium gba:text-gray-900">{getEntityDisplayName(entity)}</div>
+                    </TableCell>
 
-                {/* Type */}
-                <TableCell className="gba:py-4 gba:px-6">
-                  {getEntityTypeBadge(entity.type)}
-                </TableCell>
+                    {/* Type */}
+                    <TableCell className="gba:py-4 gba:px-6">{getEntityTypeBadge(entity.type)}</TableCell>
 
-                {/* Creation Date */}
+                    {/* Creation Date */}
                     <TableCell className="gba:py-4 gba:px-6 gba:text-gray-600">
-                  {formatDate(entity.creationDate)}
-                </TableCell>
+                      {formatDate(entity.creationDate)}
+                    </TableCell>
 
-                {/* Owner */}
+                    {/* Owner */}
                     <TableCell className="gba:py-4 gba:px-6 gba:text-gray-600">
-                      {entity.owner?.displayName || 
-                       (entity.owner?.firstName && entity.owner?.lastName 
-                         ? `${entity.owner.firstName} ${entity.owner.lastName}` 
-                         : '-')}
-                </TableCell>
+                      {entity.owner?.displayName ||
+                        (entity.owner?.firstName && entity.owner?.lastName
+                          ? `${entity.owner.firstName} ${entity.owner.lastName}`
+                          : '-')}
+                    </TableCell>
 
-                {/* Status */}
-                <TableCell className="gba:py-4 gba:px-6">
-                  {entity.status ? (
-                    <Badge variant="outline">
-                      {entity.status.value}
-                    </Badge>
-                  ) : (
+                    {/* Status */}
+                    <TableCell className="gba:py-4 gba:px-6">
+                      {entity.status ? (
+                        <Badge variant="outline">{entity.status.value}</Badge>
+                      ) : (
                         <span className="gba:text-gray-500">-</span>
-                  )}
-                </TableCell>
+                      )}
+                    </TableCell>
 
-                {/* Actions */}
-                <TableCell className="gba:py-4 gba:px-6">
-                  <div className="gba:flex gba:justify-start gba:gap-2">
-                    <AppActionButton
+                    {/* Actions */}
+                    <TableCell className="gba:py-4 gba:px-6">
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-${entity.type}-button-${entity.id}`}
-                      size="icon"
-                      contextsArray={getFlowContext(entity.type)}
-                      externalContextData={getExternalContextData(entity)}
+                          size="icon"
+                          contextsArray={getFlowContext(entity.type)}
+                          externalContextData={getExternalContextData(entity)}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-${entity.type}`}
-                      accessToken={accessToken}
-                      emptyStateBehavior="disable"
-                      deferMainContextRequestsUntilClick
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  </div>
-                </TableCell>
-              </TableRow>
+                          accessToken={accessToken}
+                          emptyStateBehavior="disable"
+                          deferMainContextRequestsUntilClick
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-          </TableBody>
-        </Table>
-      </div>
-      
+            </TableBody>
+          </Table>
+        </div>
+
         {/* Pagination */}
         {totalCount > 0 && (
           <div className="gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-t gba:border-gray-200">
             <div className="gba:text-sm gba:text-gray-600">
-              {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount} entities
+              {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount} entities
             </div>
-            
+
             <div className="gba:flex gba:items-center gba:gap-2">
               <label className="gba:text-sm gba:text-gray-600">Rows per page</label>
               <select
                 value={pageSize}
-                onChange={(e) => onPaginationChange(1, parseInt(e.target.value))}
+                onChange={e => onPaginationChange(1, parseInt(e.target.value))}
                 className="gba:border gba:border-gray-300 gba:rounded gba:px-2 gba:py-1 gba:text-sm"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
               >
@@ -352,11 +340,11 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                 <option value={50}>50</option>
                 <option value={100}>100</option>
               </select>
-              
+
               <div className="gba:text-sm gba:text-gray-600">
                 Page {currentPage} of {Math.ceil(totalCount / pageSize)}
               </div>
-              
+
               <div className="gba:flex gba:gap-1">
                 <Button
                   variant="outline"
@@ -378,11 +366,11 @@ const CampaignEntitiesTable: React.FC<CampaignEntitiesTableProps> = ({
                 </Button>
               </div>
             </div>
-        </div>
-      )}
+          </div>
+        )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default CampaignEntitiesTable;
+export default CampaignEntitiesTable

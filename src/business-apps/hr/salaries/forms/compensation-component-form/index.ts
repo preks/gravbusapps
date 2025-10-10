@@ -1,4 +1,4 @@
-import CompensationComponentForm from './CompensationComponentForm';
+import CompensationComponentForm from './CompensationComponentForm'
 
-export { CompensationComponentForm };
-export default CompensationComponentForm;
+export { CompensationComponentForm }
+export default CompensationComponentForm

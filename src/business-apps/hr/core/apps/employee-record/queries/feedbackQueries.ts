@@ -31,7 +31,7 @@ export const employeeFeedbackQuery = `
       }
     }
   }
-`;
+`
 
 // Fetch feedback requests for an employee with reviewers
 export const employeeFeedbackRequestsQuery = `
@@ -60,4 +60,4 @@ export const employeeFeedbackRequestsQuery = `
       }
     }
   }
-`;
+`

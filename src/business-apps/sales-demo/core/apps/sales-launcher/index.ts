@@ -1,4 +1,4 @@
-import SalesLauncher from './SalesLauncher';
+import SalesLauncher from './SalesLauncher'
 
-export { SalesLauncher };
-export default SalesLauncher;
+export { SalesLauncher }
+export default SalesLauncher

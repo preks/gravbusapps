@@ -1,2 +1,2 @@
-export { AiSummaryButton } from './AiSummaryButton';
-export type { AiSummaryButtonProps, AiSummaryConfig, AiSummaryContent, AiSummaryHook } from './AiSummaryTypes';
+export { AiSummaryButton } from './AiSummaryButton'
+export type { AiSummaryButtonProps, AiSummaryConfig, AiSummaryContent, AiSummaryHook } from './AiSummaryTypes'

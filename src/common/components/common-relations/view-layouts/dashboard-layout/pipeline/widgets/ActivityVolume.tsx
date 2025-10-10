@@ -1,60 +1,63 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system';
-import { BarChart3, Phone, Mail, Calendar, TrendingUp, TrendingDown } from 'lucide-react';
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
+import { BarChart3, Phone, Mail, Calendar, TrendingUp, TrendingDown } from 'lucide-react'
 
 export interface ActivityVolumeMetrics {
   last7Days: {
-    total: number;
-    calls: number;
-    emails: number;
-    meetings: number;
-  };
+    total: number
+    calls: number
+    emails: number
+    meetings: number
+  }
   last30Days: {
-    total: number;
-    calls: number;
-    emails: number;
-    meetings: number;
-  };
+    total: number
+    calls: number
+    emails: number
+    meetings: number
+  }
 }
 
 export interface ActivityVolumeProps {
-  activityVolume: ActivityVolumeMetrics;
-  pipelineId: string;
+  activityVolume: ActivityVolumeMetrics
+  pipelineId: string
 }
 
-export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
-  activityVolume,
-  pipelineId
-}) => {
+export const ActivityVolume: React.FC<ActivityVolumeProps> = ({ activityVolume, pipelineId }) => {
   const getTrendIcon = (current: number, previous: number) => {
     if (current > previous) {
-      return <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />;
+      return <TrendingUp className="gba:h-4 gba:w-4 gba:text-green-500" />
     } else if (current < previous) {
-      return <TrendingDown className="gba:h-4 gba:w-4 gba:text-red-500" />;
+      return <TrendingDown className="gba:h-4 gba:w-4 gba:text-red-500" />
     }
-    return null;
-  };
+    return null
+  }
 
   const getTrendPercentage = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return Math.round(((current - previous) / previous) * 100);
-  };
+    if (previous === 0) return current > 0 ? 100 : 0
+    return Math.round(((current - previous) / previous) * 100)
+  }
 
   const getActivityIcon = (type: 'calls' | 'emails' | 'meetings') => {
     switch (type) {
-      case 'calls': return <Phone className="gba:h-4 gba:w-4 gba:text-blue-600" />;
-      case 'emails': return <Mail className="gba:h-4 gba:w-4 gba:text-green-600" />;
-      case 'meetings': return <Calendar className="gba:h-4 gba:w-4 gba:text-orange-600" />;
+      case 'calls':
+        return <Phone className="gba:h-4 gba:w-4 gba:text-blue-600" />
+      case 'emails':
+        return <Mail className="gba:h-4 gba:w-4 gba:text-green-600" />
+      case 'meetings':
+        return <Calendar className="gba:h-4 gba:w-4 gba:text-orange-600" />
     }
-  };
+  }
 
   const getActivityColor = (type: 'calls' | 'emails' | 'meetings') => {
     switch (type) {
-      case 'calls': return 'gba:bg-blue-500';
-      case 'emails': return 'gba:bg-green-500';
-      case 'meetings': return 'gba:bg-orange-500';
+      case 'calls':
+        return 'gba:bg-blue-500'
+      case 'emails':
+        return 'gba:bg-green-500'
+      case 'meetings':
+        return 'gba:bg-orange-500'
     }
-  };
+  }
 
   return (
     <Card data-testid={`activity-volume-${pipelineId}`}>
@@ -77,7 +80,11 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
                 <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
                   {getTrendIcon(activityVolume.last7Days.total, Math.round(activityVolume.last30Days.total / 4.3))}
                   <span className="gba:text-xs">
-                    {getTrendPercentage(activityVolume.last7Days.total, Math.round(activityVolume.last30Days.total / 4.3))}% vs avg
+                    {getTrendPercentage(
+                      activityVolume.last7Days.total,
+                      Math.round(activityVolume.last30Days.total / 4.3)
+                    )}
+                    % vs avg
                   </span>
                 </div>
               </div>
@@ -91,9 +98,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
                 <div className="gba:text-2xl gba:font-bold gba:text-green-600 gba:my-1">
                   {activityVolume.last30Days.total}
                 </div>
-                <span className="gba:text-xs">
-                  Daily Avg: {Math.round(activityVolume.last30Days.total / 30)}
-                </span>
+                <span className="gba:text-xs">Daily Avg: {Math.round(activityVolume.last30Days.total / 30)}</span>
               </div>
             </CardContent>
           </Card>
@@ -101,59 +106,47 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
 
         {/* Activity Breakdown */}
         <div className="gba:mb-4">
-          <span className="gba:font-medium gba:text-sm gba:mb-3 gba:block">
-            Activity Breakdown (7 vs 30 days)
-          </span>
-          
-          {(['calls', 'emails', 'meetings'] as const).map((activityType) => {
-            const current7Days = activityVolume.last7Days[activityType];
-            const total30Days = activityVolume.last30Days[activityType];
-            const avg30Days = Math.round(total30Days / 4.3); // 30 days / 7 days
-            const maxValue = Math.max(current7Days, avg30Days);
-            const progress7Days = maxValue > 0 ? (current7Days / maxValue) * 100 : 0;
-            const progressAvg = maxValue > 0 ? (avg30Days / maxValue) * 100 : 0;
+          <span className="gba:font-medium gba:text-sm gba:mb-3 gba:block">Activity Breakdown (7 vs 30 days)</span>
+
+          {(['calls', 'emails', 'meetings'] as const).map(activityType => {
+            const current7Days = activityVolume.last7Days[activityType]
+            const total30Days = activityVolume.last30Days[activityType]
+            const avg30Days = Math.round(total30Days / 4.3) // 30 days / 7 days
+            const maxValue = Math.max(current7Days, avg30Days)
+            const progress7Days = maxValue > 0 ? (current7Days / maxValue) * 100 : 0
+            const progressAvg = maxValue > 0 ? (avg30Days / maxValue) * 100 : 0
 
             return (
               <div key={activityType} className="gba:mb-4">
                 <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
                   <div className="gba:flex gba:items-center gba:gap-2">
                     {getActivityIcon(activityType)}
-                    <span className="gba:text-sm gba:capitalize">
-                      {activityType}
-                    </span>
+                    <span className="gba:text-sm gba:capitalize">{activityType}</span>
                   </div>
                   <div className="gba:flex gba:gap-3 gba:items-center">
                     <span className="gba:text-xs">
                       7d: <strong>{current7Days}</strong>
                     </span>
-                    <span className="gba:text-xs gba:text-gray-500">
-                      30d avg: {avg30Days}
-                    </span>
+                    <span className="gba:text-xs gba:text-gray-500">30d avg: {avg30Days}</span>
                   </div>
                 </div>
-                
+
                 {/* 7 Days Progress */}
                 <div className="gba:mb-1">
-                  <Progress 
-                    value={progress7Days} 
-                    className={`gba:h-2 ${getActivityColor(activityType)}`}
-                  />
+                  <Progress value={progress7Days} className={`gba:h-2 ${getActivityColor(activityType)}`} />
                 </div>
-                
+
                 {/* 30 Days Average Progress */}
                 <div className="gba:mb-1">
-                  <Progress 
-                    value={progressAvg} 
-                    className="gba:h-2 gba:bg-gray-400"
-                  />
+                  <Progress value={progressAvg} className="gba:h-2 gba:bg-gray-400" />
                 </div>
-                
+
                 <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500">
                   <span>Recent week</span>
                   <span>30-day average</span>
                 </div>
               </div>
-            );
+            )
           })}
         </div>
 
@@ -182,7 +175,7 @@ export const ActivityVolume: React.FC<ActivityVolumeProps> = ({
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ActivityVolume;
+export default ActivityVolume

@@ -1,49 +1,44 @@
-import React from 'react';
-import { Input } from '@newwork/nw-design-system';
-import { Button } from '@newwork/nw-design-system';
-import { RiSearchLine, RiCloseLine } from '@remixicon/react';
-import { useDebounce } from '@/common/hooks/useDebounce';
-import { SearchBarProps } from '../types';
+import React from 'react'
+import { Input } from '@newwork/nw-design-system'
+import { Button } from '@newwork/nw-design-system'
+import { RiSearchLine, RiCloseLine } from '@remixicon/react'
+import { useDebounce } from '@/common/hooks/useDebounce'
+import { SearchBarProps } from '../types'
 
-const SearchBar: React.FC<SearchBarProps> = ({ 
-  value, 
-  onChange, 
-  onClear, 
-  placeholder = "Search CRM areas..." 
-}) => {
-  const [localValue, setLocalValue] = React.useState(value);
-  const debouncedValue = useDebounce(localValue, 300);
+const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, onClear, placeholder = 'Search CRM areas...' }) => {
+  const [localValue, setLocalValue] = React.useState(value)
+  const debouncedValue = useDebounce(localValue, 300)
 
   // Update parent when debounced value changes
   React.useEffect(() => {
-    onChange(debouncedValue);
-  }, [debouncedValue, onChange]);
+    onChange(debouncedValue)
+  }, [debouncedValue, onChange])
 
   // Update local value when prop value changes
   React.useEffect(() => {
-    setLocalValue(value);
-  }, [value]);
+    setLocalValue(value)
+  }, [value])
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setLocalValue(event.target.value);
-  };
+    setLocalValue(event.target.value)
+  }
 
   const handleClear = () => {
-    setLocalValue('');
-    onClear();
-  };
+    setLocalValue('')
+    onClear()
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Escape') {
-      handleClear();
+      handleClear()
     }
-  };
+  }
 
   return (
     <div className="gba:relative gba:w-full" data-testid="search-bar-container">
       <div className="gba:relative">
-        <RiSearchLine 
-          className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-gray-400" 
+        <RiSearchLine
+          className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-gray-400"
           data-testid="search-icon"
         />
         <Input
@@ -70,7 +65,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default SearchBar;
+export default SearchBar

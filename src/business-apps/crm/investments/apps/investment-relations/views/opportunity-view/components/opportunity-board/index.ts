@@ -1,2 +1,1 @@
-export { OpportunityBoard } from './OpportunityBoard';
-
+export { OpportunityBoard } from './OpportunityBoard'

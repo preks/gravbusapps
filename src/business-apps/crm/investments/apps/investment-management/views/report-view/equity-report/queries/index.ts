@@ -1,1 +1,1 @@
-export * from './EquityQueries';
+export * from './EquityQueries'

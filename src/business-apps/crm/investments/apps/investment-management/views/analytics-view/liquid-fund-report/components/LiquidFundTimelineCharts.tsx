@@ -1,120 +1,125 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import React, { useState, useMemo, useEffect } from 'react'
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  BarChart,
-  Bar,
-  ComposedChart,
-  Area
-} from 'recharts';
-import { formatCurrency } from '@/common/data/investment';
-import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react';
-import { LiquidFundInvestmentSummary } from '../../shared/types';
-import dayjs from 'dayjs';
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, BarChart, Bar, ComposedChart, Area } from 'recharts'
+import { formatCurrency } from '@/common/data/investment'
+import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
+import { LiquidFundInvestmentSummary } from '../../shared/types'
+import dayjs from 'dayjs'
 
 interface LiquidFundTimelineChartsProps {
-  chartData: any;
-  rawLiquidFunds: LiquidFundInvestmentSummary[];
+  chartData: any
+  rawLiquidFunds: LiquidFundInvestmentSummary[]
 }
 
-export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> = ({
-  chartData,
-  rawLiquidFunds
-}) => {
+export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> = ({ chartData, rawLiquidFunds }) => {
   // Get available currencies
   const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(rawLiquidFunds.map(fund => fund.currencyCode || 'EUR'))];
-    return currencies.filter(currency => currency).sort();
-  }, [rawLiquidFunds]);
+    const currencies = [...new Set(rawLiquidFunds.map(fund => fund.currencyCode || 'EUR'))]
+    return currencies.filter(currency => currency).sort()
+  }, [rawLiquidFunds])
 
   // Currency filters
-  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useState('EUR');
-  const [valueCurrencyFilter, setValueCurrencyFilter] = useState('EUR');
+  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useState('EUR')
+  const [valueCurrencyFilter, setValueCurrencyFilter] = useState('EUR')
 
   // Update currency filters when currencies become available
   useEffect(() => {
     if (availableCurrencies.length > 0) {
-      const defaultCurrency = availableCurrencies[0];
-      setPerformanceCurrencyFilter(defaultCurrency);
-      setValueCurrencyFilter(defaultCurrency);
+      const defaultCurrency = availableCurrencies[0]
+      setPerformanceCurrencyFilter(defaultCurrency)
+      setValueCurrencyFilter(defaultCurrency)
     }
-  }, [availableCurrencies]);
+  }, [availableCurrencies])
 
   // Investment Performance Timeline (matching Overview pattern)
   const investmentPerformanceData = useMemo(() => {
-    const filteredFunds = rawLiquidFunds.filter(fund => 
-      fund.currencyCode === performanceCurrencyFilter && fund.investment.acquisitionDate
-    );
-    
+    const filteredFunds = rawLiquidFunds.filter(
+      fund => fund.currencyCode === performanceCurrencyFilter && fund.investment.acquisitionDate
+    )
+
     return filteredFunds
       .sort((a, b) => dayjs(a.investment.acquisitionDate).unix() - dayjs(b.investment.acquisitionDate).unix())
       .reduce((acc, fund) => {
-        const date = dayjs(fund.investment.acquisitionDate).format('YYYY-MM');
-        const existing = acc.find((item: any) => item.month === date);
-        const totalInvestmentAmount = fund.investment.totalInvestmentAmount || 0;
-        const marketValue = fund.investment.investmentMarketValue || 0;
-        
+        const date = dayjs(fund.investment.acquisitionDate).format('YYYY-MM')
+        const existing = acc.find((item: any) => item.month === date)
+        const totalInvestmentAmount = fund.investment.totalInvestmentAmount || 0
+        const marketValue = fund.investment.investmentMarketValue || 0
+
         if (existing) {
-          existing.investmentCount += 1;
-          existing.totalInvestmentAmount += totalInvestmentAmount;
-          existing.totalMarketValue += marketValue;
+          existing.investmentCount += 1
+          existing.totalInvestmentAmount += totalInvestmentAmount
+          existing.totalMarketValue += marketValue
         } else {
           acc.push({
             month: date,
             investmentCount: 1,
             totalInvestmentAmount: totalInvestmentAmount,
             totalMarketValue: marketValue
-          });
+          })
         }
-        return acc;
+        return acc
       }, [] as any[])
       .sort((a: any, b: any) => a.month.localeCompare(b.month))
       .map((item: any, index: number, array: any[]) => {
-        let cumulativeCount = 0;
-        let cumulativeTotalInvested = 0;
+        let cumulativeCount = 0
+        let cumulativeTotalInvested = 0
         for (let i = 0; i <= index; i++) {
-          cumulativeCount += array[i].investmentCount;
-          cumulativeTotalInvested += array[i].totalInvestmentAmount;
+          cumulativeCount += array[i].investmentCount
+          cumulativeTotalInvested += array[i].totalInvestmentAmount
         }
         return {
           ...item,
           cumulativeInvestments: cumulativeCount,
           cumulativeTotalInvested: cumulativeTotalInvested
-        };
-      });
-  }, [rawLiquidFunds, performanceCurrencyFilter]);
+        }
+      })
+  }, [rawLiquidFunds, performanceCurrencyFilter])
 
   // Value Trends Over Time (matching Overview pattern)
   const valueTrendsData = useMemo(() => {
-    const filteredFunds = rawLiquidFunds.filter(fund => 
-      fund.currencyCode === valueCurrencyFilter && fund.investment.acquisitionDate
-    );
-    
-    const dataMap = new Map();
-    
+    const filteredFunds = rawLiquidFunds.filter(
+      fund => fund.currencyCode === valueCurrencyFilter && fund.investment.acquisitionDate
+    )
+
+    const dataMap = new Map()
+
     filteredFunds.forEach(fund => {
-      const date = dayjs(fund.investment.acquisitionDate).format('YYYY-MM');
-      const totalInvestmentAmount = fund.investment.totalInvestmentAmount || 0;
-      const marketValue = fund.investment.investmentMarketValue || 0;
-      
+      const date = dayjs(fund.investment.acquisitionDate).format('YYYY-MM')
+      const totalInvestmentAmount = fund.investment.totalInvestmentAmount || 0
+      const marketValue = fund.investment.investmentMarketValue || 0
+
       if (dataMap.has(date)) {
-        const existing = dataMap.get(date);
-        existing.totalInvestmentAmount += totalInvestmentAmount;
-        existing.totalMarketValue += marketValue;
+        const existing = dataMap.get(date)
+        existing.totalInvestmentAmount += totalInvestmentAmount
+        existing.totalMarketValue += marketValue
       } else {
         dataMap.set(date, {
           date,
           totalInvestmentAmount: totalInvestmentAmount,
           totalMarketValue: marketValue
-        });
+        })
       }
-    });
-    
-    return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-  }, [rawLiquidFunds, valueCurrencyFilter]);
+    })
+
+    return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+  }, [rawLiquidFunds, valueCurrencyFilter])
 
   return (
     <div className="gba:space-y-6">
@@ -126,7 +131,9 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
               <IconAvatar icon={ChartLineUpIcon} variant="default" size="md" decorative />
               <div>
                 <CardTitle>Performance Timeline ({performanceCurrencyFilter})</CardTitle>
-                <CardDescription>Investment count, total invested amount, and cumulative investments over time</CardDescription>
+                <CardDescription>
+                  Investment count, total invested amount, and cumulative investments over time
+                </CardDescription>
               </div>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -135,7 +142,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableCurrencies.map((currency) => (
+                  {availableCurrencies.map(currency => (
                     <SelectItem key={currency} value={currency}>
                       {currency}
                     </SelectItem>
@@ -146,90 +153,82 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer 
+          <ChartContainer
             config={useMemo(() => {
               const config = {
-                investmentcount: { label: "New Investments" },
-                totalinvestmentamount: { label: "Total Invested Amount" },
-                cumulativeinvestments: { label: "Cumulative Investments" }
-              };
-              return config;
-            }, [])} 
+                investmentcount: { label: 'New Investments' },
+                totalinvestmentamount: { label: 'Total Invested Amount' },
+                cumulativeinvestments: { label: 'Cumulative Investments' }
+              }
+              return config
+            }, [])}
             className="gba:h-[350px] gba:w-full"
           >
-            <ComposedChart
-              data={investmentPerformanceData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
+            <ComposedChart data={investmentPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-              <ChartTooltip 
+              <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                          {label}
-                        </div>
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
                         {payload.map((entry, index) => {
-                          let formattedValue = '';
-                          let properLabel = '';
-                          let dotColor = '';
-                          
+                          let formattedValue = ''
+                          let properLabel = ''
+                          let dotColor = ''
+
                           if (entry.dataKey === 'investmentCount') {
-                            formattedValue = `${entry.value}`;
-                            properLabel = 'Investment Count';
-                            dotColor = 'var(--color-investmentcount)';
+                            formattedValue = `${entry.value}`
+                            properLabel = 'Investment Count'
+                            dotColor = 'var(--color-investmentcount)'
                           } else if (entry.dataKey === 'totalInvestmentAmount') {
-                            formattedValue = formatCurrency(entry.value as number, performanceCurrencyFilter);
-                            properLabel = 'Total Invested Amount';
-                            dotColor = 'var(--color-totalinvestmentamount)';
+                            formattedValue = formatCurrency(entry.value as number, performanceCurrencyFilter)
+                            properLabel = 'Total Invested Amount'
+                            dotColor = 'var(--color-totalinvestmentamount)'
                           } else if (entry.dataKey === 'cumulativeInvestments') {
-                            formattedValue = `${entry.value}`;
-                            properLabel = 'Cumulative Investments';
-                            dotColor = 'var(--color-cumulativeinvestments)';
+                            formattedValue = `${entry.value}`
+                            properLabel = 'Cumulative Investments'
+                            dotColor = 'var(--color-cumulativeinvestments)'
                           }
-                          
+
                           return (
                             <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div 
-                                className="gba:w-3 gba:h-3 gba:rounded-full" 
-                                style={{ backgroundColor: dotColor }}
-                              />
+                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
                               <span className="gba:font-medium">{properLabel}:</span>
                               <span className="gba:font-semibold">{formattedValue}</span>
                             </div>
-                          );
+                          )
                         })}
                       </div>
-                    );
+                    )
                   }
-                  return null;
+                  return null
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar 
+              <Bar
                 yAxisId="left"
-                dataKey="investmentCount" 
+                dataKey="investmentCount"
                 name="investmentcount"
                 fill="var(--color-investmentcount)"
                 radius={[4, 4, 0, 0]}
               />
-              <Line 
+              <Line
                 yAxisId="right"
-                type="monotone" 
-                dataKey="totalInvestmentAmount" 
+                type="monotone"
+                dataKey="totalInvestmentAmount"
                 name="totalinvestmentamount"
                 stroke="var(--color-totalinvestmentamount)"
                 strokeWidth={3}
                 dot={false}
                 activeDot={{ r: 4 }}
               />
-              <Line 
+              <Line
                 yAxisId="left"
-                type="monotone" 
-                dataKey="cumulativeInvestments" 
+                type="monotone"
+                dataKey="cumulativeInvestments"
                 name="cumulativeinvestments"
                 stroke="var(--color-cumulativeinvestments)"
                 strokeWidth={2}
@@ -258,7 +257,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableCurrencies.map((currency) => (
+                  {availableCurrencies.map(currency => (
                     <SelectItem key={currency} value={currency}>
                       {currency}
                     </SelectItem>
@@ -269,30 +268,20 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer 
+          <ChartContainer
             config={useMemo(() => {
               const config = {
-                totalinvestmentamount: { label: "Total Invested Amount" },
-                totalmarketvalue: { label: "Total Market Value" }
-              };
-              return config;
-            }, [])} 
+                totalinvestmentamount: { label: 'Total Invested Amount' },
+                totalmarketvalue: { label: 'Total Market Value' }
+              }
+              return config
+            }, [])}
             className="gba:h-[350px] gba:w-full"
           >
-            <ComposedChart
-              data={valueTrendsData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
-              <XAxis 
-                dataKey="date" 
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => dayjs(value).format('MMM YY')}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                tickFormatter={(value) => formatCurrency(value, valueCurrencyFilter)}
-              />
-              <ChartTooltip 
+            <ComposedChart data={valueTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={value => dayjs(value).format('MMM YY')} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCurrency(value, valueCurrencyFilter)} />
+              <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
@@ -301,47 +290,46 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                           {dayjs(label).format('MMMM YYYY')}
                         </div>
                         {payload.map((entry, index) => {
-                          let properLabel = '';
-                          let dotColor = '';
-                          
+                          let properLabel = ''
+                          let dotColor = ''
+
                           if (entry.dataKey === 'totalInvestmentAmount') {
-                            properLabel = 'Total Invested Amount';
-                            dotColor = 'var(--color-totalinvestmentamount)';
+                            properLabel = 'Total Invested Amount'
+                            dotColor = 'var(--color-totalinvestmentamount)'
                           } else if (entry.dataKey === 'totalMarketValue') {
-                            properLabel = 'Total Market Value';
-                            dotColor = 'var(--color-totalmarketvalue)';
+                            properLabel = 'Total Market Value'
+                            dotColor = 'var(--color-totalmarketvalue)'
                           }
-                          
+
                           return (
                             <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div 
-                                className="gba:w-3 gba:h-3 gba:rounded-full" 
-                                style={{ backgroundColor: dotColor }}
-                              />
+                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
                               <span className="gba:font-medium">{properLabel}:</span>
-                              <span className="gba:font-semibold">{formatCurrency(entry.value as number, valueCurrencyFilter)}</span>
+                              <span className="gba:font-semibold">
+                                {formatCurrency(entry.value as number, valueCurrencyFilter)}
+                              </span>
                             </div>
-                          );
+                          )
                         })}
                       </div>
-                    );
+                    )
                   }
-                  return null;
+                  return null
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Line 
-                type="monotone" 
-                dataKey="totalInvestmentAmount" 
+              <Line
+                type="monotone"
+                dataKey="totalInvestmentAmount"
                 name="totalinvestmentamount"
                 stroke="var(--color-totalinvestmentamount)"
                 strokeWidth={3}
                 dot={false}
                 activeDot={{ r: 4 }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="totalMarketValue" 
+              <Line
+                type="monotone"
+                dataKey="totalMarketValue"
                 name="totalmarketvalue"
                 stroke="var(--color-totalmarketvalue)"
                 strokeWidth={3}
@@ -353,5 +341,5 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

@@ -1,2 +1,1 @@
-export { useOpportunityView } from './useOpportunityView';
-
+export { useOpportunityView } from './useOpportunityView'

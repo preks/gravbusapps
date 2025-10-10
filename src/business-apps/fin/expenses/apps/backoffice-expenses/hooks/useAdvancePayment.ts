@@ -1,23 +1,20 @@
-import { useState, useCallback } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
-import {
-  GET_ADVANCE_PAYMENTS,
-  GET_ADVANCE_PAYMENT_STATISTICS,
-} from "../queries/advancePayment.queries";
-import { AdvancePaymentItem, AdvancePaymentStatisticsData } from "../types";
+import { useState, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_ADVANCE_PAYMENTS, GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayment.queries'
+import { AdvancePaymentItem, AdvancePaymentStatisticsData } from '../types'
 
 // ⚡ BEST PRACTICE: Query limit enforcement for safety (like leads)
-const MAX_QUERY_LIMIT = 1000;
+const MAX_QUERY_LIMIT = 1000
 const enforceQueryLimit = (limit: number): number => {
-  return Math.min(limit, MAX_QUERY_LIMIT);
-};
+  return Math.min(limit, MAX_QUERY_LIMIT)
+}
 
 export interface AdvancePaymentsResult {
-  payments: AdvancePaymentItem[];
-  isLoading: boolean;
-  error: any;
-  totalCount: number;
+  payments: AdvancePaymentItem[]
+  isLoading: boolean
+  error: any
+  totalCount: number
   fetchPayments: (
     searchTerm?: string,
     page?: number,
@@ -28,29 +25,26 @@ export interface AdvancePaymentsResult {
     advanceMin?: string,
     advanceMax?: string,
     reporter?: string
-  ) => Promise<void>;
-  advancePaymentStats: AdvancePaymentStatisticsData | null;
-  statsLoading: boolean;
-  statsError: any;
-  fetchAdvancePaymentStatistics: () => Promise<void>;
-  searchReporters: (searchTerm: string) => Promise<string[]>;
-  searchStatuses: () => Promise<string[]>;
+  ) => Promise<void>
+  advancePaymentStats: AdvancePaymentStatisticsData | null
+  statsLoading: boolean
+  statsError: any
+  fetchAdvancePaymentStatistics: () => Promise<void>
+  searchReporters: (searchTerm: string) => Promise<string[]>
+  searchStatuses: () => Promise<string[]>
 }
 
-export const useAdvancePayments = (
-  context?: BusinessAppContextProps
-): AdvancePaymentsResult => {
-  const [payments, setPayments] = useState<AdvancePaymentItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<any>(null);
-  const [totalCount, setTotalCount] = useState<number>(0);
+export const useAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsResult => {
+  const [payments, setPayments] = useState<AdvancePaymentItem[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<any>(null)
+  const [totalCount, setTotalCount] = useState<number>(0)
 
-  const [advancePaymentStats, setAdvancePaymentStats] =
-    useState<AdvancePaymentStatisticsData | null>(null);
-  const [statsLoading, setStatsLoading] = useState<boolean>(false);
-  const [statsError, setStatsError] = useState<any>(null);
+  const [advancePaymentStats, setAdvancePaymentStats] = useState<AdvancePaymentStatisticsData | null>(null)
+  const [statsLoading, setStatsLoading] = useState<boolean>(false)
+  const [statsError, setStatsError] = useState<any>(null)
 
-  const client = useGraphqlClient(context?.accessToken ?? "");
+  const client = useGraphqlClient(context?.accessToken ?? '')
 
   // ⚡ OPTIMIZED: Build proper where clause for better performance
   const buildQueryVariables = (
@@ -64,38 +58,38 @@ export const useAdvancePayments = (
     advanceMax?: string,
     reporter?: string
   ) => {
-    const offset = (page - 1) * pageSize;
+    const offset = (page - 1) * pageSize
 
     // Build conditions array like expense requests
-    const conditions: any[] = [];
+    const conditions: any[] = []
 
     // Base conditions
-    conditions.push({ isDeleted: { _eq: false } });
+    conditions.push({ isDeleted: { _eq: false } })
     conditions.push({
       status: {
-        _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"],
-      },
-    });
+        _nin: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
+      }
+    })
 
     // Add status filter if provided
-    if (status && status !== "all" && status !== "") {
+    if (status && status !== 'all' && status !== '') {
       // Check if status contains multiple values (comma-separated)
-      if (status.includes(",")) {
+      if (status.includes(',')) {
         const statusArray = status
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
         if (statusArray.length > 0) {
-          conditions.push({ status: { _in: statusArray } });
+          conditions.push({ status: { _in: statusArray } })
         }
       } else {
-        conditions.push({ status: { _eq: status } });
+        conditions.push({ status: { _eq: status } })
       }
     }
 
     // Add search conditions if provided
-    if (searchTerm && searchTerm.trim() !== "") {
-      const searchValue = `%${searchTerm.trim()}%`;
+    if (searchTerm && searchTerm.trim() !== '') {
+      const searchValue = `%${searchTerm.trim()}%`
       conditions.push({
         _or: [
           { code: { _ilike: searchValue } },
@@ -103,124 +97,118 @@ export const useAdvancePayments = (
           { expensePlan: { code: { _ilike: searchValue } } },
           { expensePlan: { title: { _ilike: searchValue } } },
           { expensePlan: { employee: { firstName: { _ilike: searchValue } } } },
-          { expensePlan: { employee: { lastName: { _ilike: searchValue } } } },
-        ],
-      });
+          { expensePlan: { employee: { lastName: { _ilike: searchValue } } } }
+        ]
+      })
     }
 
     // Add amount min/max filter if provided (using expensePlan.totalAmount)
     if (amountMin || amountMax) {
-      const amountConditions: any = {};
+      const amountConditions: any = {}
       if (amountMin) {
-        amountConditions._gte = parseFloat(amountMin);
+        amountConditions._gte = parseFloat(amountMin)
       }
       if (amountMax) {
-        amountConditions._lte = parseFloat(amountMax);
+        amountConditions._lte = parseFloat(amountMax)
       }
       if (Object.keys(amountConditions).length > 0) {
         conditions.push({
           expensePlan: {
-            totalAmount: amountConditions,
-          },
-        });
+            totalAmount: amountConditions
+          }
+        })
       }
     }
 
     // Add advance min/max filter if provided (using payment amount)
     if (advanceMin || advanceMax) {
-      const advanceConditions: any = {};
+      const advanceConditions: any = {}
       if (advanceMin) {
-        advanceConditions._gte = parseFloat(advanceMin);
+        advanceConditions._gte = parseFloat(advanceMin)
       }
       if (advanceMax) {
-        advanceConditions._lte = parseFloat(advanceMax);
+        advanceConditions._lte = parseFloat(advanceMax)
       }
       if (Object.keys(advanceConditions).length > 0) {
         conditions.push({
-          amount: advanceConditions,
-        });
+          amount: advanceConditions
+        })
       }
     }
 
     // Add reporter filter if provided
-    if (reporter && reporter.trim() !== "") {
+    if (reporter && reporter.trim() !== '') {
       const reporterNames = reporter
-        .split(",")
-        .map((name) => name.trim())
-        .filter(Boolean);
+        .split(',')
+        .map(name => name.trim())
+        .filter(Boolean)
 
       if (reporterNames.length > 0) {
-        const reporterConditions = reporterNames.map((reporterName) => {
+        const reporterConditions = reporterNames.map(reporterName => {
           // Split the full name into parts and search for each part
-          const nameParts = reporterName
-            .split(" ")
-            .filter((part) => part.length > 0);
+          const nameParts = reporterName.split(' ').filter(part => part.length > 0)
 
-          const namePartConditions = nameParts.map((part) => {
-            const partValue = `%${part.trim()}%`;
+          const namePartConditions = nameParts.map(part => {
+            const partValue = `%${part.trim()}%`
             return {
               _or: [
                 {
                   expensePlan: {
-                    employee: { firstName: { _ilike: partValue } },
-                  },
+                    employee: { firstName: { _ilike: partValue } }
+                  }
                 },
                 {
                   expensePlan: {
-                    employee: { lastName: { _ilike: partValue } },
-                  },
+                    employee: { lastName: { _ilike: partValue } }
+                  }
                 },
                 {
                   expensePlan: {
-                    employee: { displayName: { _ilike: partValue } },
-                  },
-                },
-              ],
-            };
-          });
+                    employee: { displayName: { _ilike: partValue } }
+                  }
+                }
+              ]
+            }
+          })
 
           return {
-            _and: namePartConditions,
-          };
-        });
+            _and: namePartConditions
+          }
+        })
 
         conditions.push({
-          _or: reporterConditions,
-        });
+          _or: reporterConditions
+        })
       }
     }
 
     // Build the where clause
-    const whereClause = conditions.length > 0 ? { _and: conditions } : {};
+    const whereClause = conditions.length > 0 ? { _and: conditions } : {}
 
     return {
       where: whereClause,
       limit: enforceQueryLimit(pageSize),
       offset: offset,
-      orderBy: [{ createdAt: "DESC" }], // Default sorting
-    };
-  };
+      orderBy: [{ createdAt: 'DESC' }] // Default sorting
+    }
+  }
 
   const mapResponseToPayments = (data: any): AdvancePaymentItem[] => {
-    const fetchedPayments = data?.AdvancePayment ?? [];
+    const fetchedPayments = data?.AdvancePayment ?? []
     return fetchedPayments.map((payment: any) => ({
       id: payment.id,
       code: payment.expensePlan?.code || payment.code, // Use expense plan code first, fallback to payment code
       description: payment.description,
-      status: payment.status ?? "PENDING",
+      status: payment.status ?? 'PENDING',
       title: payment.expensePlan?.title,
       employeeDisplayName: payment.expensePlan?.employee
-        ? `${payment.expensePlan.employee.firstName || ""} ${
-            payment.expensePlan.employee.lastName || ""
-          }`.trim()
-        : "N/A",
+        ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
+        : 'N/A',
       employeeFullName:
         payment.expensePlan?.employee?.fullName ||
         (payment.expensePlan?.employee
-          ? `${payment.expensePlan.employee.firstName || ""} ${
-              payment.expensePlan.employee.lastName || ""
-            }`.trim()
-          : "N/A"),
+          ? `${payment.expensePlan.employee.firstName || ''} ${payment.expensePlan.employee.lastName || ''}`.trim()
+          : 'N/A'),
       amount: payment.amount,
       startDate: payment.expensePlan?.startDate,
       paymentMethod: payment.paymentMethod,
@@ -246,14 +234,14 @@ export const useAdvancePayments = (
         costCenter: payment.expensePlan?.costCenter,
         project: payment.expensePlan?.project,
         currency: payment.expensePlan?.currency,
-        expenseRequest: payment.expensePlan?.expenseRequest,
-      },
-    }));
-  };
+        expenseRequest: payment.expensePlan?.expenseRequest
+      }
+    }))
+  }
 
   const fetchPayments = useCallback(
     async (
-      searchTerm: string = "",
+      searchTerm: string = '',
       page: number = 1,
       pageSize: number = 10,
       status?: string,
@@ -264,13 +252,13 @@ export const useAdvancePayments = (
       reporter?: string
     ) => {
       if (!context?.accessToken) {
-        setError(new Error("Access token not found."));
-        setIsLoading(false);
-        return;
+        setError(new Error('Access token not found.'))
+        setIsLoading(false)
+        return
       }
 
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       try {
         const variables = buildQueryVariables(
@@ -283,131 +271,131 @@ export const useAdvancePayments = (
           advanceMin,
           advanceMax,
           reporter
-        );
+        )
 
-        const data = await client.request(GET_ADVANCE_PAYMENTS, variables);
+        const data = await client.request(GET_ADVANCE_PAYMENTS, variables)
 
-        const mappedPayments = mapResponseToPayments(data);
-        setPayments(mappedPayments);
-        setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0);
+        const mappedPayments = mapResponseToPayments(data)
+        setPayments(mappedPayments)
+        setTotalCount(data.AdvancePaymentAggregate?.aggregate?.count ?? 0)
       } catch (err: any) {
-        setError(err);
-        setPayments([]);
-        setTotalCount(0);
+        setError(err)
+        setPayments([])
+        setTotalCount(0)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     },
     [client, context?.accessToken]
-  );
+  )
 
   const fetchAdvancePaymentStatistics = useCallback(async () => {
     if (!context?.accessToken) {
-      setStatsError(new Error("Access token not found."));
-      setStatsLoading(false);
-      return;
+      setStatsError(new Error('Access token not found.'))
+      setStatsLoading(false)
+      return
     }
 
-    setStatsLoading(true);
-    setStatsError(null);
+    setStatsLoading(true)
+    setStatsError(null)
 
     try {
-      const data = await client.request(GET_ADVANCE_PAYMENT_STATISTICS, {});
+      const data = await client.request(GET_ADVANCE_PAYMENT_STATISTICS, {})
 
       if (!data?.advancePaymentStats?.aggregate?.sum) {
-        setAdvancePaymentStats({ totalAmount: null });
+        setAdvancePaymentStats({ totalAmount: null })
       } else {
         setAdvancePaymentStats({
-          totalAmount: data.advancePaymentStats.aggregate.sum.amount,
-        });
+          totalAmount: data.advancePaymentStats.aggregate.sum.amount
+        })
       }
     } catch (err: any) {
-      setStatsError(err);
-      setAdvancePaymentStats(null);
+      setStatsError(err)
+      setAdvancePaymentStats(null)
     } finally {
-      setStatsLoading(false);
+      setStatsLoading(false)
     }
-  }, [client, context?.accessToken]);
+  }, [client, context?.accessToken])
 
   const searchReporters = useCallback(
     async (searchTerm: string): Promise<string[]> => {
       if (!context?.accessToken) {
-        throw new Error("Access token not found.");
+        throw new Error('Access token not found.')
       }
 
       if (!searchTerm.trim()) {
-        return [];
+        return []
       }
 
       try {
         // Build search query for reporters
-        const searchValue = `%${searchTerm.trim()}%`;
+        const searchValue = `%${searchTerm.trim()}%`
         const variables = {
           where: {
             _and: [
               { isDeleted: { _eq: false } },
               {
                 status: {
-                  _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"],
-                },
+                  _nin: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
+                }
               },
               {
                 _or: [
                   {
                     expensePlan: {
-                      employee: { firstName: { _ilike: searchValue } },
-                    },
+                      employee: { firstName: { _ilike: searchValue } }
+                    }
                   },
                   {
                     expensePlan: {
-                      employee: { lastName: { _ilike: searchValue } },
-                    },
+                      employee: { lastName: { _ilike: searchValue } }
+                    }
                   },
                   {
                     expensePlan: {
-                      employee: { displayName: { _ilike: searchValue } },
-                    },
-                  },
-                ],
-              },
-            ],
+                      employee: { displayName: { _ilike: searchValue } }
+                    }
+                  }
+                ]
+              }
+            ]
           },
           limit: 1000, // Get more results for better search coverage
-          offset: 0,
-        };
+          offset: 0
+        }
 
-        const data = await client.request(GET_ADVANCE_PAYMENTS, variables);
+        const data = await client.request(GET_ADVANCE_PAYMENTS, variables)
 
         // Extract unique reporter names from the results
-        const reporters = new Set<string>();
+        const reporters = new Set<string>()
         data?.AdvancePayment?.forEach((payment: any) => {
           if (payment.expensePlan?.employee) {
-            const firstName = payment.expensePlan.employee.firstName || "";
-            const lastName = payment.expensePlan.employee.lastName || "";
-            const displayName = payment.expensePlan.employee.displayName || "";
+            const firstName = payment.expensePlan.employee.firstName || ''
+            const lastName = payment.expensePlan.employee.lastName || ''
+            const displayName = payment.expensePlan.employee.displayName || ''
 
-            const fullName = `${firstName} ${lastName}`.trim();
+            const fullName = `${firstName} ${lastName}`.trim()
             if (fullName) {
-              reporters.add(fullName);
+              reporters.add(fullName)
             }
             if (displayName) {
-              reporters.add(displayName);
+              reporters.add(displayName)
             }
           }
-        });
+        })
 
-        return Array.from(reporters).sort();
+        return Array.from(reporters).sort()
       } catch (err: any) {
-        console.error("Error searching reporters:", err);
-        return [];
+        console.error('Error searching reporters:', err)
+        return []
       }
     },
     [client, context?.accessToken]
-  );
+  )
 
   const searchStatuses = useCallback(async (): Promise<string[]> => {
     if (!context?.accessToken) {
-      throw new Error("Access token not found.");
+      throw new Error('Access token not found.')
     }
 
     try {
@@ -418,31 +406,31 @@ export const useAdvancePayments = (
             { isDeleted: { _eq: false } },
             {
               status: {
-                _nin: ["CREATED", "RETURNED", "REJECTED", "DISCARDED"],
-              },
-            },
-          ],
+                _nin: ['CREATED', 'RETURNED', 'REJECTED', 'DISCARDED']
+              }
+            }
+          ]
         },
         limit: 1000, // Get more results for better coverage
-        offset: 0,
-      };
+        offset: 0
+      }
 
-      const data = await client.request(GET_ADVANCE_PAYMENTS, variables);
+      const data = await client.request(GET_ADVANCE_PAYMENTS, variables)
 
       // Extract unique statuses from the results
-      const statuses = new Set<string>();
+      const statuses = new Set<string>()
       data?.AdvancePayment?.forEach((payment: any) => {
         if (payment.status) {
-          statuses.add(payment.status);
+          statuses.add(payment.status)
         }
-      });
+      })
 
-      return Array.from(statuses).sort();
+      return Array.from(statuses).sort()
     } catch (err: any) {
-      console.error("Error searching statuses:", err);
-      return [];
+      console.error('Error searching statuses:', err)
+      return []
     }
-  }, [client, context?.accessToken]);
+  }, [client, context?.accessToken])
 
   return {
     payments,
@@ -455,6 +443,6 @@ export const useAdvancePayments = (
     statsError,
     fetchAdvancePaymentStatistics,
     searchReporters,
-    searchStatuses,
-  };
-};
+    searchStatuses
+  }
+}

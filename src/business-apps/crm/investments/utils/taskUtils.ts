@@ -1,4 +1,4 @@
-import type { InvestmentTask } from '@/common/data/investment/types';
+import type { InvestmentTask } from '@/common/data/investment/types'
 
 /**
  * Helper function to identify approval tasks by type reference, code, or value.
@@ -8,9 +8,9 @@ import type { InvestmentTask } from '@/common/data/investment/types';
  * - typeRef === 'approval' (case insensitive)
  */
 export const isApprovalTask = (task: InvestmentTask | any): boolean => {
-  const typeVal = task?.taskType?.code || task?.taskType?.value || task?.typeRef;
-  if (!typeVal) return false;
+  const typeVal = task?.taskType?.code || task?.taskType?.value || task?.typeRef
+  if (!typeVal) return false
 
-  const val = String(typeVal);
-  return val.toLowerCase() === 'approval' || val.toUpperCase().endsWith(':APPROVAL');
-};
+  const val = String(typeVal)
+  return val.toLowerCase() === 'approval' || val.toUpperCase().endsWith(':APPROVAL')
+}

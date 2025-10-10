@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface NumberOfEmployeesOption {
-  id: string;
-  name: string;
-  code: string;
+  id: string
+  name: string
+  code: string
 }
 
 export interface UseGetNumberOfEmployeesReturn {
-  employeeOptions: NumberOfEmployeesOption[];
-  isLoading: boolean;
-  error: Error | null;
+  employeeOptions: NumberOfEmployeesOption[]
+  isLoading: boolean
+  error: Error | null
 }
 
 const GET_NUMBER_OF_EMPLOYEES_QUERY = `
@@ -36,58 +36,58 @@ const GET_NUMBER_OF_EMPLOYEES_QUERY = `
       code
     }
   }
-`;
+`
 
 export const useGetNumberOfEmployees = (
   context: BusinessAppContextProps,
-  search: string = ""
+  search: string = ''
 ): UseGetNumberOfEmployeesReturn => {
-  const [employeeOptions, setEmployeeOptions] = useState<NumberOfEmployeesOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [employeeOptions, setEmployeeOptions] = useState<NumberOfEmployeesOption[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchNumberOfEmployees = useCallback(async () => {
     if (!context.accessToken) {
-      setIsLoading(false);
-      return;
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const searchPattern = search ? `%${search}%` : "%";
+      const searchPattern = search ? `%${search}%` : '%'
       const result = await graphqlClient.request(GET_NUMBER_OF_EMPLOYEES_QUERY, {
-        search: searchPattern,
-      });
+        search: searchPattern
+      })
 
       if (result?.CatalogEntry) {
         const options = result.CatalogEntry.map((entry: any) => ({
           id: entry.id,
-          name: entry.value || entry.code || "Unknown",
-          code: entry.code || "",
-        }));
-        setEmployeeOptions(options);
+          name: entry.value || entry.code || 'Unknown',
+          code: entry.code || ''
+        }))
+        setEmployeeOptions(options)
       } else {
-        setEmployeeOptions([]);
+        setEmployeeOptions([])
       }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to fetch number of employees options"));
-      console.error("Error fetching number of employees options:", err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch number of employees options'))
+      console.error('Error fetching number of employees options:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, graphqlClient]);
+  }, [context.accessToken, search, graphqlClient])
 
   useEffect(() => {
-    fetchNumberOfEmployees();
-  }, [fetchNumberOfEmployees]);
+    fetchNumberOfEmployees()
+  }, [fetchNumberOfEmployees])
 
   return {
     employeeOptions,
     isLoading,
-    error,
-  };
-}; 
+    error
+  }
+}

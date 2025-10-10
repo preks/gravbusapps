@@ -1,153 +1,163 @@
-import React from "react";
-import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { 
-  UserOutlined, 
-  BankOutlined, 
-  DollarCircleOutlined, 
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import {
+  UserOutlined,
+  BankOutlined,
+  DollarCircleOutlined,
   ContactsOutlined,
   PercentageOutlined,
-  TrophyOutlined 
-} from "@ant-design/icons";
+  TrophyOutlined
+} from '@ant-design/icons'
 
 export interface OverviewCounts {
-  leads: number;
-  accounts: number;
-  opportunities: number;
-  contacts: number;
+  leads: number
+  accounts: number
+  opportunities: number
+  contacts: number
 }
 
 export interface ConversionMetrics {
-  leadToOpportunityRate: number;
-  opportunityWinRate: number;
-  avgDealSize: number;
-  salesCycleLength: number;
+  leadToOpportunityRate: number
+  opportunityWinRate: number
+  avgDealSize: number
+  salesCycleLength: number
 }
 
 export interface TrendData {
-  totalLeadsThisMonth: number;
-  totalLeadsLastMonth: number;
-  totalAccountsThisMonth: number;
-  totalAccountsLastMonth: number;
-  totalOpportunitiesThisMonth: number;
-  totalOpportunitiesLastMonth: number;
-  totalContactsThisMonth: number;
-  totalContactsLastMonth: number;
-  currentMonthWonOpportunities: number;
-  previousMonthWonOpportunities: number;
+  totalLeadsThisMonth: number
+  totalLeadsLastMonth: number
+  totalAccountsThisMonth: number
+  totalAccountsLastMonth: number
+  totalOpportunitiesThisMonth: number
+  totalOpportunitiesLastMonth: number
+  totalContactsThisMonth: number
+  totalContactsLastMonth: number
+  currentMonthWonOpportunities: number
+  previousMonthWonOpportunities: number
   // New trend metrics for conversion rates and performance indicators
-  currentMonthLeadConversionRate: number;
-  previousMonthLeadConversionRate: number;
-  currentMonthAvgDealSize: number;
-  previousMonthAvgDealSize: number;
-  currentMonthSalesCycleLength: number;
-  previousMonthSalesCycleLength: number;
+  currentMonthLeadConversionRate: number
+  previousMonthLeadConversionRate: number
+  currentMonthAvgDealSize: number
+  previousMonthAvgDealSize: number
+  currentMonthSalesCycleLength: number
+  previousMonthSalesCycleLength: number
 }
 
 export interface OverviewMetricsWidgetsProps {
-  counts: OverviewCounts;
-  conversionMetrics: ConversionMetrics;
-  trendData?: TrendData | null;
-  trendLoading?: boolean;
+  counts: OverviewCounts
+  conversionMetrics: ConversionMetrics
+  trendData?: TrendData | null
+  trendLoading?: boolean
 }
 
 const calculateTrend = (current: number, previous: number) => {
-  const change = ((current - previous) / Math.max(previous, 1)) * 100;
+  const change = ((current - previous) / Math.max(previous, 1)) * 100
   return {
     value: `${Math.abs(change).toFixed(1)}%`,
     positive: change >= 0,
-    description: `${change >= 0 ? "Increase" : "Decrease"} from last period`,
-  };
-};
+    description: `${change >= 0 ? 'Increase' : 'Decrease'} from last period`
+  }
+}
 
 export const OverviewMetricsWidgets: React.FC<OverviewMetricsWidgetsProps> = ({
   counts,
   conversionMetrics,
   trendData,
-  trendLoading = false,
+  trendLoading = false
 }) => {
   const keyMetricsWidgets: WidgetItem[] = [
     {
-      key: "total-leads",
-      title: "Total Leads",
+      key: 'total-leads',
+      title: 'Total Leads',
       value: counts.leads,
       prefix: <UserOutlined />,
-      description: "Active leads in system",
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.totalLeadsThisMonth, trendData.totalLeadsLastMonth) } : {}),
+      description: 'Active leads in system',
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.totalLeadsThisMonth, trendData.totalLeadsLastMonth) }
+        : {})
     },
     {
-      key: "total-accounts",
-      title: "Total Accounts",
+      key: 'total-accounts',
+      title: 'Total Accounts',
       value: counts.accounts,
       prefix: <BankOutlined />,
-      description: "Active accounts in system",
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.totalAccountsThisMonth, trendData.totalAccountsLastMonth) } : {}),
+      description: 'Active accounts in system',
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.totalAccountsThisMonth, trendData.totalAccountsLastMonth) }
+        : {})
     },
     {
-      key: "total-opportunities",
-      title: "Total Opportunities",
+      key: 'total-opportunities',
+      title: 'Total Opportunities',
       value: counts.opportunities,
       prefix: <DollarCircleOutlined />,
-      description: "Active opportunities in pipeline",
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.totalOpportunitiesThisMonth, trendData.totalOpportunitiesLastMonth) } : {}),
+      description: 'Active opportunities in pipeline',
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.totalOpportunitiesThisMonth, trendData.totalOpportunitiesLastMonth) }
+        : {})
     },
     {
-      key: "total-contacts",
-      title: "Total Contacts",
+      key: 'total-contacts',
+      title: 'Total Contacts',
       value: counts.contacts,
       prefix: <ContactsOutlined />,
-      description: "Active contacts in system",
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.totalContactsThisMonth, trendData.totalContactsLastMonth) } : {}),
-    },
-  ];
+      description: 'Active contacts in system',
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.totalContactsThisMonth, trendData.totalContactsLastMonth) }
+        : {})
+    }
+  ]
 
   const conversionWidgets: WidgetItem[] = [
     {
-      key: "lead-conversion-rate",
-      title: "Lead to Opportunity Rate",
+      key: 'lead-conversion-rate',
+      title: 'Lead to Opportunity Rate',
       value: `${conversionMetrics.leadToOpportunityRate}%`,
       valueIsString: true,
       prefix: <PercentageOutlined />,
-      description: "Lead conversion efficiency",
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.currentMonthLeadConversionRate, trendData.previousMonthLeadConversionRate) } : {}),
+      description: 'Lead conversion efficiency',
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.currentMonthLeadConversionRate, trendData.previousMonthLeadConversionRate) }
+        : {})
     },
     {
-      key: "opportunity-win-rate",
-      title: "Opportunity Win Rate",
+      key: 'opportunity-win-rate',
+      title: 'Opportunity Win Rate',
       value: `${conversionMetrics.opportunityWinRate}%`,
       valueIsString: true,
       prefix: <TrophyOutlined />,
-      description: "Deal closing success rate",
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.currentMonthWonOpportunities, trendData.previousMonthWonOpportunities) } : {}),
+      description: 'Deal closing success rate',
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.currentMonthWonOpportunities, trendData.previousMonthWonOpportunities) }
+        : {})
     },
     {
-      key: "avg-deal-size",
-      title: "Avg Deal Size",
+      key: 'avg-deal-size',
+      title: 'Avg Deal Size',
       value: conversionMetrics.avgDealSize,
       prefix: <DollarCircleOutlined />,
-      description: "Average opportunity value",
+      description: 'Average opportunity value',
       precision: 0,
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.currentMonthAvgDealSize, trendData.previousMonthAvgDealSize) } : {}),
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.currentMonthAvgDealSize, trendData.previousMonthAvgDealSize) }
+        : {})
     },
     {
-      key: "sales-cycle-length",
-      title: "Sales Cycle Length",
+      key: 'sales-cycle-length',
+      title: 'Sales Cycle Length',
       value: `${conversionMetrics.salesCycleLength} days`,
       valueIsString: true,
       prefix: <UserOutlined />,
-      description: "Average time to close deals",
-      ...(trendData && !trendLoading ? { trend: calculateTrend(trendData.currentMonthSalesCycleLength, trendData.previousMonthSalesCycleLength) } : {}),
-    },
-  ];
+      description: 'Average time to close deals',
+      ...(trendData && !trendLoading
+        ? { trend: calculateTrend(trendData.currentMonthSalesCycleLength, trendData.previousMonthSalesCycleLength) }
+        : {})
+    }
+  ]
 
-  const allKpiWidgets = [...keyMetricsWidgets, ...conversionWidgets];
+  const allKpiWidgets = [...keyMetricsWidgets, ...conversionWidgets]
 
-  return (
-    <WidgetGroup 
-      widgets={allKpiWidgets} 
-      isLoading={trendLoading} 
-      data-testid="overview-all-kpis" 
-    />
-  );
-};
+  return <WidgetGroup widgets={allKpiWidgets} isLoading={trendLoading} data-testid="overview-all-kpis" />
+}
 
-export default OverviewMetricsWidgets;
+export default OverviewMetricsWidgets

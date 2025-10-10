@@ -1,164 +1,169 @@
-import React, { useState, useEffect } from "react";
-import { Button, Alert, AlertTitle, AlertDescription } from "@newwork/nw-design-system";
-import { Spinner } from "@newwork/nw-design-system";
-import { PageLayout } from "@newwork/nw-design-system";
-import { HandshakeIcon, ChartBar, UsersThree, Buildings, Users, CurrencyDollar, List, Megaphone, House } from "@phosphor-icons/react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { LeadList } from "./views/lead-view";
-import { AccountList } from "./views/account-view";
-import { ContactList } from "./views/contact-view";
-import { OpportunityView } from "./views/opportunity-view";
-import { DashboardView } from "./views/dashboard-view";
-import { AnalyticsView } from "./views/analytics-view";
-import { useSalesDashboard } from "./views/dashboard-view/hooks/useSalesDashboard";
-import { DateRange } from "./views/dashboard-view/types/dashboardTypes";
-import CampaignManagement from "./views/campaign-view/CampaignManagement";
-import { TaskView } from "./views/task-view";
-import { MODULE_COLORS } from "@/common/constants/ui";
+import React, { useState, useEffect } from 'react'
+import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { Spinner } from '@newwork/nw-design-system'
+import { PageLayout } from '@newwork/nw-design-system'
+import {
+  HandshakeIcon,
+  ChartBar,
+  UsersThree,
+  Buildings,
+  Users,
+  CurrencyDollar,
+  List,
+  Megaphone,
+  House
+} from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { LeadList } from './views/lead-view'
+import { AccountList } from './views/account-view'
+import { ContactList } from './views/contact-view'
+import { OpportunityView } from './views/opportunity-view'
+import { DashboardView } from './views/dashboard-view'
+import { AnalyticsView } from './views/analytics-view'
+import { useSalesDashboard } from './views/dashboard-view/hooks/useSalesDashboard'
+import { DateRange } from './views/dashboard-view/types/dashboardTypes'
+import CampaignManagement from './views/campaign-view/CampaignManagement'
+import { TaskView } from './views/task-view'
+import { MODULE_COLORS } from '@/common/constants/ui'
 
 export interface CustomerRelationsProps extends BusinessAppContextProps {}
 
-const moduleColor = MODULE_COLORS.CRM;
-export const CustomerRelations: React.FC<CustomerRelationsProps> = (
-  context
-) => {
+const moduleColor = MODULE_COLORS.CRM
+export const CustomerRelations: React.FC<CustomerRelationsProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
       icon: <House />,
-      label: "Dashboard"
+      label: 'Dashboard'
     },
     {
       key: 'tasks',
       icon: <List />,
-      label: "Tasks"
+      label: 'Tasks'
     },
     {
-      key: "leads",
+      key: 'leads',
       icon: <UsersThree />,
-      label: "Leads"
+      label: 'Leads'
     },
     {
-      key: "accounts",
+      key: 'accounts',
       icon: <Buildings />,
-      label: "Accounts"
+      label: 'Accounts'
     },
     {
-      key: "contacts",
+      key: 'contacts',
       icon: <Users />,
-      label: "Contacts"
+      label: 'Contacts'
     },
     {
-      key: "opportunities",
+      key: 'opportunities',
       icon: <CurrencyDollar />,
-      label: "Opportunities"
+      label: 'Opportunities'
     },
     {
-      key: "campaigns",
+      key: 'campaigns',
       icon: <Megaphone />,
-      label: "Campaigns"
+      label: 'Campaigns'
     },
     {
-      key: "analytics",
+      key: 'analytics',
       icon: <ChartBar />,
-      label: "Analytics"
+      label: 'Analytics'
     }
-  ];
+  ]
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewFromUrl = urlParams.get("view");
+    const urlParams = new URLSearchParams(window.location.search)
+    const viewFromUrl = urlParams.get('view')
 
     // Validate that the view exists in our options
-    if (
-      viewFromUrl &&
-      viewOptions.some((option) => option.key === viewFromUrl)
-    ) {
-      return viewFromUrl;
+    if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
+      return viewFromUrl
     }
 
     // Default to first view
-    return viewOptions[0].key;
-  };
+    return viewOptions[0].key
+  }
 
-  const [activeTab, setActiveTab] = useState<string>(getInitialView());
+  const [activeTab, setActiveTab] = useState<string>(getInitialView())
   // Sub-view is now handled inside OpportunityView
   const [dateRange] = useState<DateRange>({
     startDate: new Date(new Date().getFullYear() - 2, 0, 1),
     endDate: new Date()
-  });
-  const { pipelines, isLoading, error, refetch } = useSalesDashboard(
-    context,
-    dateRange
-  );
+  })
+  const { pipelines, isLoading, error, refetch } = useSalesDashboard(context, dateRange)
 
   // Update URL when view changes
   const updateUrl = (view: string, subView?: string) => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search)
 
     // Always set the view parameter (including for default)
-    urlParams.set("view", view);
+    urlParams.set('view', view)
 
     // Handle subView parameter for opportunities
-    if (view === "opportunities" && subView) {
+    if (view === 'opportunities' && subView) {
       // Map internal tab values to URL subView values
-      if (subView === "board") {
-        urlParams.set("subView", "pipeline");
-      } else if (subView === "list") {
-        urlParams.set("subView", "list");
+      if (subView === 'board') {
+        urlParams.set('subView', 'pipeline')
+      } else if (subView === 'list') {
+        urlParams.set('subView', 'list')
       }
     } else {
       // Clear subView parameter when not in opportunities view
-      if (urlParams.has("subView")) {
-        urlParams.delete("subView");
+      if (urlParams.has('subView')) {
+        urlParams.delete('subView')
       }
     }
 
     // Clear leadStatus parameter when switching away from leads view
-    if (view !== "leads" && urlParams.has("leadStatus")) {
-      urlParams.delete("leadStatus");
+    if (view !== 'leads' && urlParams.has('leadStatus')) {
+      urlParams.delete('leadStatus')
     }
 
     // Clear campaign-specific parameters when switching away from campaigns view
-    if (view !== "campaigns" && (urlParams.has("campaignId") || urlParams.has("mainTab") || urlParams.has("recordTab"))) {
-      urlParams.delete("campaignId");
-      urlParams.delete("mainTab");  
-      urlParams.delete("recordTab");
+    if (
+      view !== 'campaigns' &&
+      (urlParams.has('campaignId') || urlParams.has('mainTab') || urlParams.has('recordTab'))
+    ) {
+      urlParams.delete('campaignId')
+      urlParams.delete('mainTab')
+      urlParams.delete('recordTab')
     }
 
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, "", newUrl);
-  };
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }
 
   const handleTabChange = (key: string) => {
     // Allow all valid tab changes including clicking the same tab to ensure proper highlighting
     if (!key) {
-      return;
+      return
     }
-    setActiveTab(key);
-    
-    updateUrl(key);
-  };
+    setActiveTab(key)
+
+    updateUrl(key)
+  }
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (!urlParams.has("view")) {
-      updateUrl(activeTab);
+    const urlParams = new URLSearchParams(window.location.search)
+    if (!urlParams.has('view')) {
+      updateUrl(activeTab)
     }
-  }, []);
+  }, [])
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newView = getInitialView();
-      setActiveTab(newView);
-    };
+      const newView = getInitialView()
+      setActiveTab(newView)
+    }
 
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const renderDashboardContent = () => {
     if (isLoading) {
@@ -166,12 +171,10 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
         <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
           <div className="gba:text-center">
             <Spinner size="lg" />
-            <div className="gba:mt-4 gba:text-gray-600 gba:text-lg">
-              Loading Customer Relations Dashboard...
-            </div>
+            <div className="gba:mt-4 gba:text-gray-600 gba:text-lg">Loading Customer Relations Dashboard...</div>
           </div>
         </div>
-      );
+      )
     }
 
     if (error) {
@@ -185,75 +188,66 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
             </Button>
           </Alert>
         </div>
-      );
+      )
     }
 
-    return (
-      <DashboardView
-        pipelines={pipelines}
-        dateRange={dateRange}
-        moduleColor={moduleColor}
-        {...context}
-      />
-    );
-  };
+    return <DashboardView pipelines={pipelines} dateRange={dateRange} moduleColor={moduleColor} {...context} />
+  }
 
   const renderAnalyticsContent = () => {
     return (
       <div data-testid="analytics-tab-content">
-        <AnalyticsView 
-        moduleColor={moduleColor}
-        {...context} />
+        <AnalyticsView moduleColor={moduleColor} {...context} />
       </div>
-    );
-  };
+    )
+  }
 
   const renderOpportunitiesContent = () => {
-    return <OpportunityView {...context} />;
-  };
+    return <OpportunityView {...context} />
+  }
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case "dashboard":
-        return renderDashboardContent();
-      case "tasks":
+      case 'dashboard':
+        return renderDashboardContent()
+      case 'tasks':
         return (
           <div data-testid="tasks-tab-content">
             <TaskView {...context} />
           </div>
-        );
-      case "leads":
+        )
+      case 'leads':
         return (
           <div data-testid="leads-tab-content">
             <LeadList {...context} sourceApp="CRM" />
           </div>
-        );
-      case "accounts":
+        )
+      case 'accounts':
         return (
           <div data-testid="accounts-tab-content">
             <AccountList {...context} sourceApp="CRM" />
           </div>
-        );
-      case "contacts":
+        )
+      case 'contacts':
         return (
           <div data-testid="contacts-tab-content">
             <ContactList {...context} sourceApp="CRM" />
           </div>
-        );
-      case "campaigns":
+        )
+      case 'campaigns':
         return (
           <div data-testid="campaigns-tab-content">
             <CampaignManagement {...context} />
           </div>
-        );
-      case "opportunities":
-        return renderOpportunitiesContent();
-      case "analytics":
-        return renderAnalyticsContent();
+        )
+      case 'opportunities':
+        return renderOpportunitiesContent()
+      case 'analytics':
+        return renderAnalyticsContent()
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   return (
     <div data-testid="customer-relations-app">
@@ -264,7 +258,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
-          items: viewOptions.map((option) => ({
+          items: viewOptions.map(option => ({
             value: option.key,
             label: option.label,
             icon: option.icon
@@ -276,7 +270,7 @@ export const CustomerRelations: React.FC<CustomerRelationsProps> = (
         <div className="gba:h-full gba:overflow-auto">{renderTabContent()}</div>
       </PageLayout>
     </div>
-  );
-};
+  )
+}
 
-export default CustomerRelations;
+export default CustomerRelations

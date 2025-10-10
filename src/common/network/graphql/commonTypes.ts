@@ -7,20 +7,20 @@
 // ==========================================
 
 export interface BaseQueryVariables {
-  id?: string;
-  search?: string;
-  offset?: number;
-  limit?: number;
-  orderBy?: any[];
-  where?: any;
-  structureId?: string;
+  id?: string
+  search?: string
+  offset?: number
+  limit?: number
+  orderBy?: any[]
+  where?: any
+  structureId?: string
 }
 
 export interface QueryOptions {
-  includeDeleted?: boolean;
-  useCurrentStructure?: boolean;
-  recordState?: string;
-  activeOnly?: boolean;
+  includeDeleted?: boolean
+  useCurrentStructure?: boolean
+  recordState?: string
+  activeOnly?: boolean
 }
 
 // ==========================================
@@ -28,19 +28,19 @@ export interface QueryOptions {
 // ==========================================
 
 export interface QueryResponse<T> {
-  data: T[];
+  data: T[]
   aggregate?: {
-    count: number;
-  };
+    count: number
+  }
 }
 
 export interface FinancialQueryResponse<T> extends QueryResponse<T> {
   aggregate?: {
-    count: number;
+    count: number
     sum?: {
-      [key: string]: number;
-    };
-  };
+      [key: string]: number
+    }
+  }
 }
 
 // ==========================================
@@ -48,31 +48,31 @@ export interface FinancialQueryResponse<T> extends QueryResponse<T> {
 // ==========================================
 
 export interface PaginationInfo {
-  offset: number;
-  limit: number;
-  total: number;
-  hasMore: boolean;
+  offset: number
+  limit: number
+  total: number
+  hasMore: boolean
 }
 
 export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: PaginationInfo;
+  data: T[]
+  pagination: PaginationInfo
 }
 
 // ==========================================
 // ENTITY INTERFACES
 // ==========================================
 
-export interface BaseEntity{
-  createdAt: string;
-  createdBy: string;
-  updatedAt: string;
-  updatedBy: string;
-  isDeleted: boolean;
-  recordState?: string;
-  activeFrom?: string;
-  activeTo?: string;
-  version: number;
+export interface BaseEntity {
+  createdAt: string
+  createdBy: string
+  updatedAt: string
+  updatedBy: string
+  isDeleted: boolean
+  recordState?: string
+  activeFrom?: string
+  activeTo?: string
+  version: number
 }
 
 // Note: activeFrom/activeTo are now included in AuditFields
@@ -85,27 +85,27 @@ export interface BaseEntity{
 // ==========================================
 
 export interface CatalogEntry {
-  id: string;
-  code: string;
-  alternativeCode?: string;
-  value?: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
-  type?: string;
-  objectValue?: any;
-  catalogId?: string;
-  parentEntryId?: string;
-  displayOrder?: number;
-  translations?: CatalogEntryTranslation[];
+  id: string
+  code: string
+  alternativeCode?: string
+  value?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
+  type?: string
+  objectValue?: any
+  catalogId?: string
+  parentEntryId?: string
+  displayOrder?: number
+  translations?: CatalogEntryTranslation[]
 }
 
 export interface CatalogEntryTranslation {
-  id: string;
-  localeCode: string;
-  value: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
-  objectValue?: any;
+  id: string
+  localeCode: string
+  value: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
+  objectValue?: any
 }

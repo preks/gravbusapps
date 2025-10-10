@@ -1,35 +1,33 @@
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface QueryVariablesJobLevel {
-  jobLevelId?: string;
-  jobLevelGroupId?: string;
-  offset?: number;
-  limit?: number;
-  search?: string;
+  jobLevelId?: string
+  jobLevelGroupId?: string
+  offset?: number
+  limit?: number
+  search?: string
 }
 
 const createSearchCondition = (search?: string, jobLevelId?: string): string => {
-  if (jobLevelId) return "";
-  if (!search) return "";
+  if (jobLevelId) return ''
+  if (!search) return ''
   return `
     _or: [
       { name: { _ilike: "%${search}%" } }
     ]
-  `;
-};
+  `
+}
 
 export const GET_JOB_LEVEL_DATA = (variables: QueryVariablesJobLevel): string => {
-  const { offset, limit, search, jobLevelId, jobLevelGroupId } = variables;
+  const { offset, limit, search, jobLevelId, jobLevelGroupId } = variables
 
-  const searchCondition = createSearchCondition(search, jobLevelId);
+  const searchCondition = createSearchCondition(search, jobLevelId)
   const whereJobLevelGroup = jobLevelGroupId
     ? ` jobLevelGroupRef: { _eq: "${jobLevelGroupId}" }, isDeleted: { _eq: false} `
-    : "isDeleted: { _eq: false}";
-  const whereCondition = jobLevelId
-    ? `id: { _eq: "${jobLevelId}" }, isDeleted: { _eq: false} `
-    : whereJobLevelGroup;
-  const whereClause = `${whereCondition} ${searchCondition}`;
+    : 'isDeleted: { _eq: false}'
+  const whereCondition = jobLevelId ? `id: { _eq: "${jobLevelId}" }, isDeleted: { _eq: false} ` : whereJobLevelGroup
+  const whereClause = `${whereCondition} ${searchCondition}`
 
   return `query getJobLevelData {
   jobLevels: JobLevel(
@@ -65,8 +63,8 @@ export const GET_JOB_LEVEL_DATA = (variables: QueryVariablesJobLevel): string =>
       count
     }
   }
-  }`;
-};
+  }`
+}
 
 export type JobLevelByJobLevelGroupIdData = {
   jobLevels?: {
@@ -85,21 +83,21 @@ export type JobLevelByJobLevelGroupIdData = {
   }[]
   JobLevelAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
-};
+      count: number
+    }
+  }
+}
 
 export interface JobLevelDataVariables {
-  offset?: number;
-  limit?: number;
-  search?: string;
-  jobLevelId?: string;
-  jobLevelGroupId?: string;
+  offset?: number
+  limit?: number
+  search?: string
+  jobLevelId?: string
+  jobLevelGroupId?: string
 }
 
 export const useGetJobLevelData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphqlClient(context.accessToken);
+  const graphqlClient = useGraphqlClient(context.accessToken)
 
   const fetchJobLevelData = async (variables: JobLevelDataVariables = {}) => {
     const query = GET_JOB_LEVEL_DATA({
@@ -107,17 +105,17 @@ export const useGetJobLevelData = (context: BusinessAppContextProps) => {
       offset: variables.offset || 0,
       search: variables.search,
       jobLevelId: variables.jobLevelId,
-      jobLevelGroupId: variables.jobLevelGroupId,
-    });
+      jobLevelGroupId: variables.jobLevelGroupId
+    })
 
     try {
-      const result = await graphqlClient.request<JobLevelByJobLevelGroupIdData>(query);
-      return result;
+      const result = await graphqlClient.request<JobLevelByJobLevelGroupIdData>(query)
+      return result
     } catch (error) {
-      console.error("Error fetching job level data:", error);
-      throw error;
+      console.error('Error fetching job level data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchJobLevelData };
-};
+  return { fetchJobLevelData }
+}

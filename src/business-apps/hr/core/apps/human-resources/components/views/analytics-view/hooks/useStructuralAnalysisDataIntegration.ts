@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetStructuralAnalysisData } from '../queries/StructuralAnalysisQueries';
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetStructuralAnalysisData } from '../queries/StructuralAnalysisQueries'
 import {
   processOrganizationalData,
   generateSpanOfControlAnalysis,
@@ -10,7 +10,7 @@ import {
   generateReportingChainSummary,
   generateSunburstData,
   calculateStructuralStatistics
-} from '../components/views/structural-analysis/utils/structuralUtils';
+} from '../components/views/structural-analysis/utils/structuralUtils'
 import {
   OrganizationalNode,
   SpanOfControlData,
@@ -20,50 +20,50 @@ import {
   ReportingChainSummary,
   SunburstNode,
   StructuralStatistics
-} from '../components/views/structural-analysis/types/structuralTypes';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+} from '../components/views/structural-analysis/types/structuralTypes'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 export interface StructuralAnalysisIntegrationData {
-  organizationalNodes: OrganizationalNode[];
-  spanOfControlData: SpanOfControlData[];
-  spanOfControlSummary: SpanOfControlSummary;
-  depthAnalysisData: DepthAnalysisData[];
-  reportingChainData: ReportingChainData[];
-  reportingChainSummary: ReportingChainSummary;
-  sunburstData: SunburstNode;
-  structuralStatistics: StructuralStatistics;
+  organizationalNodes: OrganizationalNode[]
+  spanOfControlData: SpanOfControlData[]
+  spanOfControlSummary: SpanOfControlSummary
+  depthAnalysisData: DepthAnalysisData[]
+  reportingChainData: ReportingChainData[]
+  reportingChainSummary: ReportingChainSummary
+  sunburstData: SunburstNode
+  structuralStatistics: StructuralStatistics
 }
 
 export const useStructuralAnalysisDataIntegration = (context: BusinessAppContextProps) => {
-  const [data, setData] = useState<StructuralAnalysisIntegrationData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<StructuralAnalysisIntegrationData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { fetchStructuralAnalysisData } = useGetStructuralAnalysisData(context);
+  const { fetchStructuralAnalysisData } = useGetStructuralAnalysisData(context)
 
   const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const structureId = getCurrentActiveStructureId();
+      const structureId = getCurrentActiveStructureId()
       if (!structureId) {
-        throw new Error('No structure ID available');
+        throw new Error('No structure ID available')
       }
 
       // Fetch raw data from GraphQL
-      const rawData = await fetchStructuralAnalysisData({ structureId });
+      const rawData = await fetchStructuralAnalysisData({ structureId })
 
       // Process organizational data to build hierarchy
-      const organizationalNodes = processOrganizationalData(rawData);
+      const organizationalNodes = processOrganizationalData(rawData)
 
       // Generate analysis data
-      const spanOfControlData = generateSpanOfControlAnalysis(organizationalNodes);
-      const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData);
-      const depthAnalysisData = generateDepthAnalysis(organizationalNodes);
-      const reportingChainData = generateReportingChainAnalysis(organizationalNodes);
-      const reportingChainSummary = generateReportingChainSummary(reportingChainData);
-      const sunburstData = generateSunburstData(organizationalNodes);
+      const spanOfControlData = generateSpanOfControlAnalysis(organizationalNodes)
+      const spanOfControlSummary = generateSpanOfControlSummary(spanOfControlData)
+      const depthAnalysisData = generateDepthAnalysis(organizationalNodes)
+      const reportingChainData = generateReportingChainAnalysis(organizationalNodes)
+      const reportingChainSummary = generateReportingChainSummary(reportingChainData)
+      const sunburstData = generateSunburstData(organizationalNodes)
 
       // Calculate overall statistics
       const structuralStatistics = calculateStructuralStatistics(
@@ -71,7 +71,7 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         spanOfControlData,
         depthAnalysisData,
         reportingChainSummary
-      );
+      )
 
       const integratedData: StructuralAnalysisIntegrationData = {
         organizationalNodes,
@@ -82,28 +82,28 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
         reportingChainSummary,
         sunburstData,
         structuralStatistics
-      };
+      }
 
-      setData(integratedData);
+      setData(integratedData)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('Error loading structural analysis data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      console.error('Error loading structural analysis data:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [fetchStructuralAnalysisData]);
+  }, [fetchStructuralAnalysisData])
 
   useEffect(() => {
     if (context.accessToken) {
-      loadData();
+      loadData()
     }
-  }, [context.accessToken, loadData]);
+  }, [context.accessToken, loadData])
 
   return {
     data,
     isLoading,
     error,
     refetch: loadData
-  };
-}; 
+  }
+}

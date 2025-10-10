@@ -1,23 +1,23 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCampaignsAnalytics } from '.';
-import CampaignsAnalyticsStatistics from './components/CampaignsAnalyticsStatistics';
-import CampaignsPerformanceComparison from './components/CampaignsPerformanceComparison';
-import CampaignsTimelineAnalysis from './components/CampaignsTimelineAnalysis';
-import CampaignsTopPerformers from './components/CampaignsTopPerformers';
-import CampaignsRevenueAnalysis from './components/CampaignsRevenueAnalysis';
-import CampaignsRevenueEfficiency from './components/CampaignsRevenueEfficiency';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCampaignsAnalytics } from '.'
+import CampaignsAnalyticsStatistics from './components/CampaignsAnalyticsStatistics'
+import CampaignsPerformanceComparison from './components/CampaignsPerformanceComparison'
+import CampaignsTimelineAnalysis from './components/CampaignsTimelineAnalysis'
+import CampaignsTopPerformers from './components/CampaignsTopPerformers'
+import CampaignsRevenueAnalysis from './components/CampaignsRevenueAnalysis'
+import CampaignsRevenueEfficiency from './components/CampaignsRevenueEfficiency'
 
 export interface CampaignsTabProps extends BusinessAppContextProps {}
 
-export const CampaignsTab: React.FC<CampaignsTabProps> = (props) => {
+export const CampaignsTab: React.FC<CampaignsTabProps> = props => {
   // Campaigns analytics data
   const {
     analyticsData,
     isLoading: analyticsLoading,
     error: analyticsError,
     refetch: refetchAnalytics
-  } = useCampaignsAnalytics(props);
+  } = useCampaignsAnalytics(props)
 
   return (
     <div className="gba:space-y-6" data-testid="campaigns-analytics-tab">
@@ -78,5 +78,5 @@ export const CampaignsTab: React.FC<CampaignsTabProps> = (props) => {
         onRetry={refetchAnalytics}
       />
     </div>
-  );
-};
+  )
+}

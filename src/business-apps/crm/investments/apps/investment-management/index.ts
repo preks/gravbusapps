@@ -1,2 +1,2 @@
-export { InvestmentManagement } from "./InvestmentManagement";
-export { default } from "./InvestmentManagement";
+export { InvestmentManagement } from './InvestmentManagement'
+export { default } from './InvestmentManagement'

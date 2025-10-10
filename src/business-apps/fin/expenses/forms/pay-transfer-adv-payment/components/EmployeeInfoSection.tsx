@@ -1,57 +1,49 @@
-import React, { useState } from "react";
-import {
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  Badge,
-} from "@newwork/nw-design-system";
-import { RightOutlined, FileTextOutlined } from "@ant-design/icons";
-import {
-  getTranslationFromI18nKeyAndLabel,
-  formatDate,
-} from "@/common/utils/windowUtils";
-import DocumentPdfModal from "./DocumentPdfModal";
+import React, { useState } from 'react'
+import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
+import { RightOutlined, FileTextOutlined } from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import DocumentPdfModal from './DocumentPdfModal'
 
 interface EmployeeInfoSectionProps {
   employee: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    pictureThumbnail?: string;
+    id: string
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
     employeePosition: {
       jobPosition: {
-        name?: string;
-      };
+        name?: string
+      }
       organizationalUnit: {
-        name?: string;
-      };
-    };
-  };
-  amount: number;
+        name?: string
+      }
+    }
+  }
+  amount: number
   currency: {
-    code: string;
-  };
-  status: string;
+    code: string
+  }
+  status: string
   expensePlan: {
-    title?: string;
-    planDate?: string;
-    decisionDate?: string;
+    title?: string
+    planDate?: string
+    decisionDate?: string
     employeeDocument?: {
-      id: string;
-      file: string;
-      mimeType: string;
-    };
-  };
-  accessToken?: string;
+      id: string
+      file: string
+      mimeType: string
+    }
+  }
+  accessToken?: string
 }
 
 const formatCurrency = (amount: number, currencyCode: string) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
     currency: currencyCode,
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
+    minimumFractionDigits: 2
+  }).format(amount)
+}
 
 const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
   employee,
@@ -59,52 +51,49 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
   currency,
   status,
   expensePlan,
-  accessToken,
+  accessToken
 }) => {
-  const [isPdfModalVisible, setIsPdfModalVisible] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfError, setPdfError] = useState<string>("");
+  const [isPdfModalVisible, setIsPdfModalVisible] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [pdfError, setPdfError] = useState<string>('')
 
   const handleFileClick = () => {
     if (expensePlan.employeeDocument?.file) {
-      setPdfLoading(true);
-      setPdfError("");
-      setIsPdfModalVisible(true);
+      setPdfLoading(true)
+      setPdfError('')
+      setIsPdfModalVisible(true)
 
       // Simulate loading completion since the file is already available
       setTimeout(() => {
-        setPdfLoading(false);
-      }, 500);
+        setPdfLoading(false)
+      }, 500)
     }
-  };
+  }
 
   const handleClosePdfModal = () => {
-    setIsPdfModalVisible(false);
-    setPdfLoading(false);
-    setPdfError("");
-  };
+    setIsPdfModalVisible(false)
+    setPdfLoading(false)
+    setPdfError('')
+  }
 
   const handleExpensePlanClick = () => {
     // Navigate to the expense plan details or open in new tab
     if (expensePlan.title) {
       // You can implement navigation logic here if needed
     }
-  };
+  }
 
   return (
     <>
-      <div
-        className="gba:mb-6 gba:p-3"
-        data-testid="pay-transfer-adv-payment-employee-section"
-      >
+      <div className="gba:mb-6 gba:p-3" data-testid="pay-transfer-adv-payment-employee-section">
         {/* Request Details Header */}
         <h3
           className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-foreground"
           data-testid="pay-transfer-adv-payment-request-details-title"
         >
           {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:confirm_transfer_advance_payment.request_details",
-            "Request Details"
+            'lowcoder:confirm_transfer_advance_payment.request_details',
+            'Request Details'
           )}
         </h3>
 
@@ -113,14 +102,9 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
           className="gba:flex gba:items-center gba:gap-3 gba:mb-4"
           data-testid="pay-transfer-adv-payment-employee-details"
         >
-          <Avatar
-            className="gba:w-10 gba:h-10"
-            data-testid="pay-transfer-adv-payment-employee-avatar"
-          >
+          <Avatar className="gba:w-10 gba:h-10" data-testid="pay-transfer-adv-payment-employee-avatar">
             {employee.pictureThumbnail ? (
-              <AvatarImage
-                src={`data:image/jpeg;base64,${employee.pictureThumbnail}`}
-              />
+              <AvatarImage src={`data:image/jpeg;base64,${employee.pictureThumbnail}`} />
             ) : (
               <AvatarFallback>
                 {employee.firstName?.[0]}
@@ -151,18 +135,12 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
         </div>
 
         {/* Payment details - now in 3-column layout */}
-        <div
-          className="gba:mb-4"
-          data-testid="pay-transfer-adv-payment-payment-details"
-        >
+        <div className="gba:mb-4" data-testid="pay-transfer-adv-payment-payment-details">
           {/* First row: Amount, Request Date, Status */}
           <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-4">
             <div className="gba:flex gba:flex-col">
               <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:expense_item_list.expense_table.amount",
-                  "Amount"
-                )}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.amount', 'Amount')}
               </span>
               <span className="gba:text-lg gba:font-semibold gba:text-foreground">
                 {formatCurrency(amount, currency.code)}
@@ -172,19 +150,17 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
             <div className="gba:flex gba:flex-col">
               <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
                 {getTranslationFromI18nKeyAndLabel(
-                  "lowcoder:confirm_transfer_advance_payment.request_date_label",
-                  "Request Date"
+                  'lowcoder:confirm_transfer_advance_payment.request_date_label',
+                  'Request Date'
                 )}
               </span>
               <span className="gba:text-lg gba:font-semibold gba:text-foreground">
-                {formatDate(expensePlan.decisionDate, "date.short")}
+                {formatDate(expensePlan.decisionDate, 'date.short')}
               </span>
             </div>
 
             <div className="gba:flex gba:flex-col">
-              <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                Status
-              </span>
+              <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">Status</span>
               <Badge
                 variant="secondary"
                 className="gba:bg-warning-100 gba:text-warning-700 gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:w-fit"
@@ -207,17 +183,13 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
             <button
               className={`gba:flex gba:items-center gba:gap-1 gba:text-xs gba:cursor-pointer ${
                 expensePlan.employeeDocument?.file
-                  ? "gba:text-muted-foreground gba:hover:text-foreground gba:hover:scale-105 gba:transition-transform"
-                  : "gba:text-muted-foreground/50 gba:cursor-not-allowed"
+                  ? 'gba:text-muted-foreground gba:hover:text-foreground gba:hover:scale-105 gba:transition-transform'
+                  : 'gba:text-muted-foreground/50 gba:cursor-not-allowed'
               }`}
               onClick={handleFileClick}
               disabled={!expensePlan.employeeDocument?.file}
               data-testid="document-view-button"
-              title={
-                expensePlan.employeeDocument?.file
-                  ? "View Document"
-                  : "No document available"
-              }
+              title={expensePlan.employeeDocument?.file ? 'View Document' : 'No document available'}
             >
               <FileTextOutlined />
             </button>
@@ -228,7 +200,7 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
       {/* PDF Modal */}
       <DocumentPdfModal
         isVisible={isPdfModalVisible}
-        pdfUrl={expensePlan.employeeDocument?.file || ""}
+        pdfUrl={expensePlan.employeeDocument?.file || ''}
         pdfLoading={pdfLoading}
         pdfError={pdfError}
         onClose={handleClosePdfModal}
@@ -236,7 +208,7 @@ const EmployeeInfoSection: React.FC<EmployeeInfoSectionProps> = ({
         employeeId={employee.id}
       />
     </>
-  );
-};
+  )
+}
 
-export default EmployeeInfoSection;
+export default EmployeeInfoSection

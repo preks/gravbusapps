@@ -1,14 +1,14 @@
-import React from "react";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from "@newwork/nw-design-system";
-import { useFormContext } from "react-hook-form";
+import React from 'react'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
 
 interface Props {
-  phoneLabel?: React.ReactNode;
-  emailLabel?: React.ReactNode;
+  phoneLabel?: React.ReactNode
+  emailLabel?: React.ReactNode
 }
 
 const ContactInfoSegment: React.FC<Props> = ({ phoneLabel, emailLabel }) => {
-  const form = useFormContext<any>();
+  const form = useFormContext<any>()
 
   return (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
@@ -46,9 +46,7 @@ const ContactInfoSegment: React.FC<Props> = ({ phoneLabel, emailLabel }) => {
         />
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ContactInfoSegment;
-
-
+export default ContactInfoSegment

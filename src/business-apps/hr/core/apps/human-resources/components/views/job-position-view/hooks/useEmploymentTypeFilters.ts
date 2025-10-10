@@ -1,12 +1,12 @@
-"use client";
+'use client'
 
-import { useEffect, useState } from 'react';
-import { useUserLocale } from '@/common/locale/useUserLocale';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
+import { useEffect, useState } from 'react'
+import { useUserLocale } from '@/common/locale/useUserLocale'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 export interface EmploymentTypeFilterOption {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 /**
@@ -16,59 +16,62 @@ export interface EmploymentTypeFilterOption {
  * @param offset Pagination offset
  */
 export function useEmploymentTypeFilters(accessToken: string, search: string = '', offset: number = 0) {
-  const userLocale = useUserLocale() ?? 'en-US';
-  const [types, setTypes] = useState<EmploymentTypeFilterOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const userLocale = useUserLocale() ?? 'en-US'
+  const [types, setTypes] = useState<EmploymentTypeFilterOption[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  const client = useCatalogManagerClient(accessToken);
+  const client = useCatalogManagerClient(accessToken)
 
   useEffect(() => {
-    if (!client) return;
+    if (!client) return
 
-    setLoading(true);
-    setError(null);
-    
-    client.getCatalogEntriesList({
-      catalogIdentifier: 'EmploymentType',
-      version: 'v1',
-    },
-    {
-      limit: 5,
-      offset,
-      returnTotalRecords: true,
-      localeCode: userLocale,
-      ...(search ? { searchCriteria: search } : {}),
-    })
-    .then((response: any) => {
-      // Handle different possible response structures
-      let entries: any[] = [];
-      if (Array.isArray(response?.data?.data)) {
-        entries = response.data.data;
-      } else if (Array.isArray(response?.data)) {
-        entries = response.data;
-      } else if (Array.isArray(response)) {
-        entries = response;
-      }
-      
-      const typesArr = entries
-        .filter((entry: any) => entry && (entry.id || entry._id))
-        .map((entry: any) => ({
-          id: entry.id || entry._id || '',
-          name: entry.value || entry.name || entry.label || entry.id || ''
-        }));
-      
-      setTypes(typesArr);
-    })
-    .catch((err: any) => {
-      console.error('Error fetching employment types:', err);
-      setError(err);
-      setTypes([]);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-  }, [search, offset, userLocale, client]);
+    setLoading(true)
+    setError(null)
 
-  return { types, loading, error };
-} 
+    client
+      .getCatalogEntriesList(
+        {
+          catalogIdentifier: 'EmploymentType',
+          version: 'v1'
+        },
+        {
+          limit: 5,
+          offset,
+          returnTotalRecords: true,
+          localeCode: userLocale,
+          ...(search ? { searchCriteria: search } : {})
+        }
+      )
+      .then((response: any) => {
+        // Handle different possible response structures
+        let entries: any[] = []
+        if (Array.isArray(response?.data?.data)) {
+          entries = response.data.data
+        } else if (Array.isArray(response?.data)) {
+          entries = response.data
+        } else if (Array.isArray(response)) {
+          entries = response
+        }
+
+        const typesArr = entries
+          .filter((entry: any) => entry && (entry.id || entry._id))
+          .map((entry: any) => ({
+            id: entry.id || entry._id || '',
+            name: entry.value || entry.name || entry.label || entry.id || ''
+          }))
+
+        setTypes(typesArr)
+      })
+      .catch((err: any) => {
+        console.error('Error fetching employment types:', err)
+        setError(err)
+        setTypes([])
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [search, offset, userLocale, client])
+
+  return { types, loading, error }
+}

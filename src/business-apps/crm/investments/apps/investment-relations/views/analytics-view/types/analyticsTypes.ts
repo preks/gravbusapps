@@ -1,176 +1,176 @@
 export interface CrmAnalyticsData {
-  overview: OverviewAnalytics;
-  leads: LeadsAnalytics;
-  accounts: AccountsAnalytics;
-  opportunities: OpportunitiesAnalytics;
-  contacts: ContactsAnalytics;
+  overview: OverviewAnalytics
+  leads: LeadsAnalytics
+  accounts: AccountsAnalytics
+  opportunities: OpportunitiesAnalytics
+  contacts: ContactsAnalytics
 }
 
 export interface OverviewAnalytics {
   totalCounts: {
-    leads: number;
-    accounts: number;
-    opportunities: number;
-    contacts: number;
-  };
+    leads: number
+    accounts: number
+    opportunities: number
+    contacts: number
+  }
   recentActivity: {
-    newLeadsThisWeek: number;
-    convertedLeadsThisWeek: number;
-    newAccountsThisWeek: number;
-    accountsWithWonOpportunitiesThisWeek: number;
-    newOpportunitiesThisWeek: number;
-    wonOpportunitiesThisWeek: number;
-    newContactsThisWeek: number;
-    contactsRelatedToWonAccountsThisWeek: number;
-  };
+    newLeadsThisWeek: number
+    convertedLeadsThisWeek: number
+    newAccountsThisWeek: number
+    accountsWithWonOpportunitiesThisWeek: number
+    newOpportunitiesThisWeek: number
+    wonOpportunitiesThisWeek: number
+    newContactsThisWeek: number
+    contactsRelatedToWonAccountsThisWeek: number
+  }
   conversionMetrics: {
-    leadToOpportunityRate: number;
-    opportunityWinRate: number;
-    avgDealSize: number;
-    salesCycleLength: number;
-  };
+    leadToOpportunityRate: number
+    opportunityWinRate: number
+    avgDealSize: number
+    salesCycleLength: number
+  }
   topPerformers: {
-    employeeId: string;
-    employeeName: string;
-    dealsWon: number;
-    totalValue: number;
-  }[];
+    employeeId: string
+    employeeName: string
+    dealsWon: number
+    totalValue: number
+  }[]
 }
 
 export interface LeadsAnalytics {
-  totalLeads: number;
+  totalLeads: number
   leadsByStatus: {
-    status: string;
-    count: number;
-    percentage: number;
-  }[];
+    status: string
+    count: number
+    percentage: number
+  }[]
   leadsBySource: {
-    source: string;
-    count: number;
-    percentage: number;
-  }[];
+    source: string
+    count: number
+    percentage: number
+  }[]
   leadsBySourceType: {
-    sourceType: string;
-    count: number;
-    percentage: number;
-  }[];
+    sourceType: string
+    count: number
+    percentage: number
+  }[]
   leadsByRating: {
-    rating: string;
-    count: number;
-    percentage: number;
-  }[];
+    rating: string
+    count: number
+    percentage: number
+  }[]
   leadsByCompanySize: {
-    sizeCategory: string;
-    count: number;
-    percentage: number;
-    sampleRevenue?: string;
-  }[];
+    sizeCategory: string
+    count: number
+    percentage: number
+    sampleRevenue?: string
+  }[]
   leadsOverTime: {
-    date: string;
-    count: number; // Keep for backward compatibility
-    leadsCreated: number;
-    leadsConverted: number;
-    leadsLost: number;
-  }[];
-  conversionRate: number;
-  avgTimeToConversion: number;
+    date: string
+    count: number // Keep for backward compatibility
+    leadsCreated: number
+    leadsConverted: number
+    leadsLost: number
+  }[]
+  conversionRate: number
+  avgTimeToConversion: number
   topOwners: {
-    employeeId: string;
-    employeeName: string;
-    leadCount: number;
-    conversionRate: number;
-  }[];
+    employeeId: string
+    employeeName: string
+    leadCount: number
+    conversionRate: number
+  }[]
 }
 
 export interface AccountsAnalytics {
-  totalAccounts: number;
+  totalAccounts: number
   accountsByIndustry: {
-    industry: string;
-    count: number;
-    percentage: number;
-  }[];
+    industry: string
+    count: number
+    percentage: number
+  }[]
   accountsBySize: {
-    sizeRange: string;
-    count: number;
-    percentage: number;
-  }[];
+    sizeRange: string
+    count: number
+    percentage: number
+  }[]
   accountsOverTime: {
-    date: string;
-    count: number;
-    accountsCreated: number;
-    accountsWithOpportunities: number;
-    accountsActive: number;
-  }[];
+    date: string
+    count: number
+    accountsCreated: number
+    accountsWithOpportunities: number
+    accountsActive: number
+  }[]
   topAccounts: {
-    id: string;
-    name: string;
-    industry: string;
-    opportunityCount: number;
-    totalValue: number;
-    revenue: number;
-    wonOpportunities: number;
-  }[];
-  accountsWithOpportunities: number;
-  avgOpportunitiesPerAccount: number;
+    id: string
+    name: string
+    industry: string
+    opportunityCount: number
+    totalValue: number
+    revenue: number
+    wonOpportunities: number
+  }[]
+  accountsWithOpportunities: number
+  avgOpportunitiesPerAccount: number
 }
 
 export interface OpportunitiesAnalytics {
-  totalOpportunities: number;
-  totalValue: number;
+  totalOpportunities: number
+  totalValue: number
   opportunitiesByStage: {
-    stage: string;
-    count: number;
-    value: number;
-    percentage: number;
-  }[];
+    stage: string
+    count: number
+    value: number
+    percentage: number
+  }[]
   opportunitiesByPipeline: {
-    pipeline: string;
-    count: number;
-    value: number;
-    percentage: number;
-  }[];
+    pipeline: string
+    count: number
+    value: number
+    percentage: number
+  }[]
   opportunitiesOverTime: {
-    date: string;
-    count: number;
-    value: number;
-  }[];
-  winRate: number;
-  winRateLastMonthOpportunities: number;
-  avgDealSize: number;
-  avgSalesCycle: number;
-  conversionRate: number;
-  pipelineVelocity: number;
+    date: string
+    count: number
+    value: number
+  }[]
+  winRate: number
+  winRateLastMonthOpportunities: number
+  avgDealSize: number
+  avgSalesCycle: number
+  conversionRate: number
+  pipelineVelocity: number
   topDeals: {
-    id: string;
-    name: string;
-    value: number;
-    stage: string;
-    winChance: number;
-    owner: string;
-  }[];
+    id: string
+    name: string
+    value: number
+    stage: string
+    winChance: number
+    owner: string
+  }[]
 }
 
 export interface ContactsAnalytics {
-  totalContacts: number;
+  totalContacts: number
   contactsByAccount: {
-    accountName: string;
-    contactCount: number;
-  }[];
+    accountName: string
+    contactCount: number
+  }[]
   contactsOverTime: {
-    date: string;
-    count: number;
-  }[];
-  contactsWithOpportunities: number;
+    date: string
+    count: number
+  }[]
+  contactsWithOpportunities: number
   topContactOwners: {
-    employeeId: string;
-    employeeName: string;
-    contactCount: number;
-  }[];
-  contactsWithoutAccounts: number;
-  avgContactsPerAccount: number;
+    employeeId: string
+    employeeName: string
+    contactCount: number
+  }[]
+  contactsWithoutAccounts: number
+  avgContactsPerAccount: number
 }
 
 export interface DateRange {
-  startDate: Date;
-  endDate: Date;
+  startDate: Date
+  endDate: Date
 }

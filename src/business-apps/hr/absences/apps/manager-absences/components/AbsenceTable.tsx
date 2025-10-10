@@ -1,6 +1,6 @@
-'use client';
+'use client'
 
-import React, { useCallback } from 'react';
+import React, { useCallback } from 'react'
 import {
   Table,
   TableHeader,
@@ -23,25 +23,25 @@ import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils
 import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '../../../utils/absenceStatusUtils';
 
 interface AbsenceTableProps extends BusinessAppContextProps {
-  absences: EnhancedAbsence[];
-  loading: boolean;
-  error: Error | null;
-  hasMore: boolean;
-  loadMore: () => void;
-  loadPage: (page: number, pageSize?: number) => Promise<void>;
-  retry: () => void;
-  total: number;
-  currentPage: number;
-  pageSize: number;
-  sortField: string;
-  sortOrder: 'ASC' | 'DESC' | '';
-  onSelectAbsence?: (absence: EnhancedAbsence) => void;
-  onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void;
-  selectedAbsenceId?: string;
+  absences: EnhancedAbsence[]
+  loading: boolean
+  error: Error | null
+  hasMore: boolean
+  loadMore: () => void
+  loadPage: (page: number, pageSize?: number) => Promise<void>
+  retry: () => void
+  total: number
+  currentPage: number
+  pageSize: number
+  sortField: string
+  sortOrder: 'ASC' | 'DESC' | ''
+  onSelectAbsence?: (absence: EnhancedAbsence) => void
+  onPaginationChange: (page: number, pageSize?: number) => void
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void
+  selectedAbsenceId?: string
 }
 
-const DATA_TEST_ID_PREFIX = 'AbsenceTable';
+const DATA_TEST_ID_PREFIX = 'AbsenceTable'
 
 export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   absences,
@@ -62,23 +62,22 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   selectedAbsenceId,
   ...props
 }) => {
-  const { getColorForAbsence } = useAbsenceColors(props);
+  const { getColorForAbsence } = useAbsenceColors(props)
   const getEmployeeName = (absence: EnhancedAbsence) => {
     if (absence.employee.firstName || absence.employee.lastName) {
-      return `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim();
+      return `${absence.employee.firstName || ''} ${absence.employee.lastName || ''}`.trim()
     }
-    return '-';
-  };
+    return '-'
+  }
 
   const getAbsenceGroup = (absence: EnhancedAbsence) => {
-    return absence.groupName || '-';
-  };
-
+    return absence.groupName || '-'
+  }
 
   // Get the original group name for color lookup (before translation)
   const getOriginalGroupName = (absence: EnhancedAbsence) => {
-    return absence.originalGroupName || absence.groupName || '-';
-  };
+    return absence.originalGroupName || absence.groupName || '-'
+  }
 
   // Status mapping functions now use centralized utilities
   const getTranslatedStatus = (status: string) => {
@@ -91,10 +90,10 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
 
   const handleRowClick = useCallback(
     (record: EnhancedAbsence) => {
-      onSelectAbsence?.(record);
+      onSelectAbsence?.(record)
     },
-    [onSelectAbsence],
-  );
+    [onSelectAbsence]
+  )
 
   if (error) {
     return (
@@ -103,43 +102,36 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_table.error_loading_absences',
-            'Error Loading Absences',
-          )}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.error_loading_absences', 'Error Loading Absences')}
         </div>
         <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
-        <Button
-          variant="default"
-          onClick={retry}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-        >
+        <Button variant="default" onClick={retry} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.retry', 'Retry')}
         </Button>
       </div>
-    );
+    )
   }
 
   const handleSort = (field: string) => {
     if (sortField === field) {
       if (sortOrder === 'ASC') {
-        onSortingChange(field, 'DESC');
+        onSortingChange(field, 'DESC')
       } else if (sortOrder === 'DESC') {
-        onSortingChange('', '');
+        onSortingChange('', '')
       } else {
-        onSortingChange(field, 'ASC');
+        onSortingChange(field, 'ASC')
       }
     } else {
-      onSortingChange(field, 'ASC');
+      onSortingChange(field, 'ASC')
     }
-  };
+  }
 
   const renderSortIcon = (field: string) => {
-    if (sortField !== field) return null;
-    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
-    return null;
-  };
+    if (sortField !== field) return null
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    return null
+  }
 
   return (
     <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -160,10 +152,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-employee-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_table.employee',
-                      'Employee',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.employee', 'Employee')}
                     {renderSortIcon('employee.firstName')}
                   </div>
                 </TableHead>
@@ -183,10 +172,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-start-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_table.start_date',
-                      'Start Date',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')}
                     {renderSortIcon('startDate')}
                   </div>
                 </TableHead>
@@ -196,10 +182,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-end-date-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:absence_table.end_date',
-                      'End Date',
-                    )}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
                     {renderSortIcon('endDate')}
                   </div>
                 </TableHead>
@@ -209,7 +192,10 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_request_list.expense_plan_table.status',
+                      'Status'
+                    )}
                     {renderSortIcon('status')}
                   </div>
                 </TableHead>
@@ -229,14 +215,17 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   data-testid={`${DATA_TEST_ID_PREFIX}-created-header`}
                 >
                   <div className="gba:flex gba:items-center">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.create_date', 'Created At')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_plan_list.expense_plan_table.create_date',
+                      'Created At'
+                    )}
                     {renderSortIcon('createdAt')}
                   </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {absences.map((record) => (
+              {absences.map(record => (
                 <TableRow
                   key={record.id}
                   className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedAbsenceId === record.id ? 'gba:bg-blue-50' : ''}`}
@@ -248,17 +237,15 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                   >
                     <div
                       className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick(record);
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleRowClick(record)
                       }}
                       data-testid={`${DATA_TEST_ID_PREFIX}-employee-name-${record.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiUser size={16} className="gba:text-gray-400" />
-                        <span className="gba:font-medium gba:text-sm">
-                          {getEmployeeName(record)}
-                        </span>
+                        <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
                       </div>
                     </div>
                   </TableCell>
@@ -271,7 +258,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                       style={{
                         backgroundColor: getColorForAbsence(getOriginalGroupName(record)),
                         color: 'white',
-                        borderColor: getColorForAbsence(getOriginalGroupName(record)),
+                        borderColor: getColorForAbsence(getOriginalGroupName(record))
                       }}
                     >
                       {getAbsenceGroup(record)}
@@ -299,9 +286,7 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     {record.endDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <PiCalendar size={16} className="gba:text-gray-400" />
-                        <span className="gba:text-sm">
-                          {dayjs(record.endDate).format(getDateFormat('date.short'))}
-                        </span>
+                        <span className="gba:text-sm">{dayjs(record.endDate).format(getDateFormat('date.short'))}</span>
                       </div>
                     ) : (
                       '-'
@@ -311,17 +296,13 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
                   >
-                    <Badge variant={getStatusBadgeVariant(record.status)}>
-                      {getTranslatedStatus(record.status)}
-                    </Badge>
+                    <Badge variant={getStatusBadgeVariant(record.status)}>{getTranslatedStatus(record.status)}</Badge>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"
                     data-testid={`${DATA_TEST_ID_PREFIX}-days-cell-${record.id}`}
                   >
-                    <span className="gba:text-sm gba:font-medium">
-                      {record.effectiveDays || '-'}
-                    </span>
+                    <span className="gba:text-sm gba:font-medium">{record.effectiveDays || '-'}</span>
                   </TableCell>
                   <TableCell
                     className="gba:py-4 gba:px-6"
@@ -350,18 +331,18 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
           className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
           data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
         >
-          <div
-            className="gba:text-sm gba:text-muted-foreground"
-            data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
-          >
+          <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
             {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${total} ${getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.absence_list_screen.title', 'absences')}`}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
             <div className="gba:flex gba:items-center gba:space-x-2">
-              <p className="gba:text-sm gba:font-medium"> {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}</p>
+              <p className="gba:text-sm gba:font-medium">
+                {' '}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}
+              </p>
               <select
                 value={pageSize}
-                onChange={(e) => onPaginationChange(1, Number(e.target.value))}
+                onChange={e => onPaginationChange(1, Number(e.target.value))}
                 className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
               >
@@ -375,7 +356,8 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
               className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium"
               data-testid={`${DATA_TEST_ID_PREFIX}-page-info`}
             >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {Math.ceil(total / pageSize)}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {Math.ceil(total / pageSize)}
             </div>
             <div className="gba:flex gba:items-center gba:space-x-2">
               <Button
@@ -429,14 +411,11 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
           </div>
           <div className="gba:flex gba:items-center gba:space-x-2">
             <p className="gba:text-sm gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_table.rows_per_page',
-                'Rows per page',
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.rows_per_page', 'Rows per page')}
             </p>
             <select
               value={pageSize}
-              onChange={(e) => onPaginationChange(1, Number(e.target.value))}
+              onChange={e => onPaginationChange(1, Number(e.target.value))}
               className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
               data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
             >
@@ -449,5 +428,5 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
         </div>
       )}
     </Card>
-  );
-};
+  )
+}

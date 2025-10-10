@@ -1,2 +1,2 @@
-export { OpportunityBoard } from './OpportunityBoard';
-export { default } from './OpportunityBoard'; 
+export { OpportunityBoard } from './OpportunityBoard'
+export { default } from './OpportunityBoard'

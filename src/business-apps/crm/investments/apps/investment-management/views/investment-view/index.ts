@@ -1,8 +1,8 @@
 // Export the main InvestmentView component as default
-export { default } from './InvestmentView';
+export { default } from './InvestmentView'
 
 // Named export for compatibility
-export { default as InvestmentView } from './InvestmentView';
+export { default as InvestmentView } from './InvestmentView'
 
 // Export components
-export * from './components'; 
+export * from './components'

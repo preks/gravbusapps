@@ -8,21 +8,21 @@ import {
   DialogFooter,
   DialogClose,
   Button,
-  Icon,
-} from "@newwork/nw-design-system";
-import { useState } from "react";
-import { toast } from "sonner";
-import { WarningIcon, TrashIcon } from "@phosphor-icons/react";
+  Icon
+} from '@newwork/nw-design-system'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { WarningIcon, TrashIcon } from '@phosphor-icons/react'
 
 type DeleteButtonProps = {
-  itemName: string;
-  itemTitle: string;
-  onDelete: () => Promise<void>;
-  triggerButtonText?: string;
-  open?: boolean;
-  setOpen?: (open: boolean) => void;
-  showCancelButton?: boolean;
-};
+  itemName: string
+  itemTitle: string
+  onDelete: () => Promise<void>
+  triggerButtonText?: string
+  open?: boolean
+  setOpen?: (open: boolean) => void
+  showCancelButton?: boolean
+}
 
 const DeleteButton = ({
   itemName,
@@ -31,31 +31,31 @@ const DeleteButton = ({
   triggerButtonText,
   open,
   setOpen,
-  showCancelButton = true,
+  showCancelButton = true
 }: DeleteButtonProps) => {
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async () => {
-    setIsDeleting(true);
+    setIsDeleting(true)
 
     try {
-      await onDelete();
+      await onDelete()
     } catch (error) {
-      console.error("Error deleting item:", error);
+      console.error('Error deleting item:', error)
 
-      const defaultErrorMessage = `Failed to delete ${itemName}. Please try again.`;
-      toast.error(defaultErrorMessage);
+      const defaultErrorMessage = `Failed to delete ${itemName}. Please try again.`
+      toast.error(defaultErrorMessage)
     } finally {
-      setIsDeleting(false);
-      setOpen?.(false);
+      setIsDeleting(false)
+      setOpen?.(false)
     }
-  };
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {showCancelButton && (
         <DialogTrigger asChild>
-          <Button size="sm" variant={triggerButtonText ? "outline" : "ghost"}>
+          <Button size="sm" variant={triggerButtonText ? 'outline' : 'ghost'}>
             <Icon icon={TrashIcon} /> {triggerButtonText}
           </Button>
         </DialogTrigger>
@@ -73,12 +73,12 @@ const DeleteButton = ({
             <Button variant="outline">Cancel</Button>
           </DialogClose>
           <Button variant="destructive" onClick={handleDelete}>
-            {isDeleting ? "Deleting..." : "Delete"}
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export { DeleteButton };
+export { DeleteButton }

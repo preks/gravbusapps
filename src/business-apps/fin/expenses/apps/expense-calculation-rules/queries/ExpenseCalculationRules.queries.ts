@@ -1,26 +1,26 @@
-import { useCallback } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { useCallback } from 'react'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export interface ExpenseRuleOrderByInput {
-  field: string;
-  direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
+  field: string
+  direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
 }
 
 export interface FetchExpenseRulesVariables {
-  orderBy?: ExpenseRuleOrderByInput[];
-  limit?: number;
-  offset?: number;
-  search?: string;
-  validityFrom?: string | null;
-  validityTo?: string | null;
-  standard?: boolean | null;
-  calculationTypeCodes?: string[]; // from calculation types filter
+  orderBy?: ExpenseRuleOrderByInput[]
+  limit?: number
+  offset?: number
+  search?: string
+  validityFrom?: string | null
+  validityTo?: string | null
+  standard?: boolean | null
+  calculationTypeCodes?: string[] // from calculation types filter
 }
 
 export const GET_CALCULATION_TYPES = (): string => {
-  const activeUserLocale = getCurrentActiveUserLocale();
+  const activeUserLocale = getCurrentActiveUserLocale()
   return `
   query getCalculationTypes($activeUserLocale: String!) {
     calculationType: CatalogEntry(
@@ -37,8 +37,8 @@ export const GET_CALCULATION_TYPES = (): string => {
       code
     }
   }
-  `;
-};
+  `
+}
 
 export const GET_EXPENSE_RULE_FLAGS = `
 query getRuleFlags($id: uuid!) {
@@ -50,7 +50,7 @@ query getRuleFlags($id: uuid!) {
       name
   }
 }
-`;
+`
 export const buildGetExpenseRulesQuery = (): string => {
   // where conditions are built via variables substituted inline in GraphQL by concatenating fragments
   return `
@@ -95,10 +95,10 @@ export const buildGetExpenseRulesQuery = (): string => {
       aggregate { count }
     }
   }
-  `;
-};
+  `
+}
 
-export const getExpensesWithRulePk=`query ExpenseRuleAggregateByCode($ruleId: uuid) {
+export const getExpensesWithRulePk = `query ExpenseRuleAggregateByCode($ruleId: uuid) {
   ExpenseItemAggregate(where: {expenseRuleId: {_eq: $ruleId}}) {
     aggregate {
       count
@@ -118,38 +118,41 @@ export const getExpensesWithRulePk=`query ExpenseRuleAggregateByCode($ruleId: uu
 `
 
 export interface ExpenseRuleRecord {
-  id: string;
-  version?: string;
-  code?: string;
-  calculationType?: any;
-  standard?: boolean;
-  activeFrom?: string | null;
-  activeTo?: string | null;
-  name?: string;
-  currency?: any;
+  id: string
+  version?: string
+  code?: string
+  calculationType?: any
+  standard?: boolean
+  activeFrom?: string | null
+  activeTo?: string | null
+  name?: string
+  currency?: any
 }
 
 export interface ExpenseRuleQueryResponse {
-  ExpenseRule: ExpenseRuleRecord[];
-  ExpenseRuleAggregate: { aggregate: { count: number } };
+  ExpenseRule: ExpenseRuleRecord[]
+  ExpenseRuleAggregate: { aggregate: { count: number } }
 }
 
 export const useExpenseCalculationRulesQueries = (context: BusinessAppContextProps) => {
-  const client = useGraphqlClient(context.accessToken);
+  const client = useGraphqlClient(context.accessToken)
 
   const fetchCalculationTypes = useCallback(async () => {
-    const query = GET_CALCULATION_TYPES();
-    const result = await client.request<{ calculationType: any[] }>(query, { activeUserLocale: getCurrentActiveUserLocale() });
-    return result.calculationType;
-  }, [client]);
+    const query = GET_CALCULATION_TYPES()
+    const result = await client.request<{ calculationType: any[] }>(query, {
+      activeUserLocale: getCurrentActiveUserLocale()
+    })
+    return result.calculationType
+  }, [client])
 
-  const fetchExpenseRules = useCallback(async (variables: { orderBy?: any[]; limit?: number; offset?: number; where?: any; activeUserLocale: string }) => {
-    const query = buildGetExpenseRulesQuery();
-    const result = await client.request<ExpenseRuleQueryResponse>(query, variables);
-    return result;
-  }, [client]);
+  const fetchExpenseRules = useCallback(
+    async (variables: { orderBy?: any[]; limit?: number; offset?: number; where?: any; activeUserLocale: string }) => {
+      const query = buildGetExpenseRulesQuery()
+      const result = await client.request<ExpenseRuleQueryResponse>(query, variables)
+      return result
+    },
+    [client]
+  )
 
-  return { fetchCalculationTypes, fetchExpenseRules };
-};
-
-
+  return { fetchCalculationTypes, fetchExpenseRules }
+}

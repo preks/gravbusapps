@@ -1,27 +1,22 @@
-import React from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { InvestmentTypesTab } from "./components";
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { InvestmentTypesTab } from './components'
 
 interface DashboardViewProps extends BusinessAppContextProps {
-  onNavigateToInvestments?: (subTab?: string) => void;
+  onNavigateToInvestments?: (subTab?: string) => void
 }
 
 /**
  * Main dashboard component for IRM Investments management
  * Provides overview of all investments with filtering, sorting, and metrics
  */
-const DashboardView: React.FC<DashboardViewProps> = ({
-  accessToken,
-  userInfo,
-  onNavigateToInvestments,
-}) => {
-
+const DashboardView: React.FC<DashboardViewProps> = ({ accessToken, userInfo, onNavigateToInvestments }) => {
   const handleNavigateToInvestmentType = (investmentType: string) => {
     // Navigate to the investments tab with the specific subtab
     if (onNavigateToInvestments) {
-      onNavigateToInvestments(investmentType);
+      onNavigateToInvestments(investmentType)
     }
-  };
+  }
 
   return (
     <div data-testid="dashboard-view">
@@ -42,7 +37,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         onNavigateToInvestmentType={handleNavigateToInvestmentType}
       />
     </div>
-  );
-};
+  )
+}
 
-export default DashboardView;
+export default DashboardView

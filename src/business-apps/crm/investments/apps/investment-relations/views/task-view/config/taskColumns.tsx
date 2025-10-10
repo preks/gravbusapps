@@ -1,18 +1,18 @@
-import type { ColumnDef } from '@tanstack/react-table';
-import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system';
-import { Clock, Calendar } from 'lucide-react';
-import { OwnerDisplay } from '../../../../../components/shared';
-import { Task, TaskEmployee } from '@/common/components/common-relations/detail-sheets/task-detail-sheet';
-import { 
+import type { ColumnDef } from '@tanstack/react-table'
+import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
+import { Clock, Calendar } from 'lucide-react'
+import { OwnerDisplay } from '../../../../../components/shared'
+import { Task, TaskEmployee } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
   getTaskTypeBadgeVariant,
   getReferenceTypeBadgeVariant
-} from '../utils/taskBadgeUtils';
-import dayjs from 'dayjs';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+} from '../utils/taskBadgeUtils'
+import dayjs from 'dayjs'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY');
+const formatDate = (dateString: string) => dayjs(dateString).format('MM/DD/YYYY')
 
 // Helper function to convert TaskEmployee to OwnerEmployee format
 const convertToOwnerEmployee = (taskEmployee: TaskEmployee) => ({
@@ -21,35 +21,53 @@ const convertToOwnerEmployee = (taskEmployee: TaskEmployee) => ({
   firstName: taskEmployee.firstName,
   lastName: taskEmployee.lastName,
   pictureThumbnail: taskEmployee.pictureThumbnail
-});
+})
 
 const getTimingTypeIcon = (timingType?: string) => {
-  if (!timingType) return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'No timing type specified' };
+  if (!timingType)
+    return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'No timing type specified' }
   switch (timingType.toUpperCase()) {
     case 'DEADLINE':
-      return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-red-500" />, tooltip: 'Deadline - Complete by this date' };
+      return {
+        icon: <Clock className="gba:h-4 gba:w-4 gba:text-red-500" />,
+        tooltip: 'Deadline - Complete by this date'
+      }
     case 'SCHEDULED':
-      return { icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />, tooltip: 'Scheduled - Execute on this specific date' };
+      return {
+        icon: <Calendar className="gba:h-4 gba:w-4 gba:text-blue-500" />,
+        tooltip: 'Scheduled - Execute on this specific date'
+      }
     default:
-      return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'Unknown timing type' };
+      return { icon: <Clock className="gba:h-4 gba:w-4 gba:text-gray-400" />, tooltip: 'Unknown timing type' }
   }
-};
+}
 
 const handleReferenceClick = (reference: Task['reference']) => {
-  if (!reference) return;
-  
+  if (!reference) return
+
   // Use IRM paths for investment relations
-  let url = '';
+  let url = ''
   switch (reference.type) {
-    case 'lead': url = buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id }); break;
-    case 'account': url = buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id }); break;
-    case 'contact': url = buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id }); break;
-    case 'opportunity': url = buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id }); break;
-    case 'investment': url = buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id }); break;
-    default: return;
+    case 'lead':
+      url = buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
+      break
+    case 'account':
+      url = buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id })
+      break
+    case 'contact':
+      url = buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id })
+      break
+    case 'opportunity':
+      url = buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id })
+      break
+    case 'investment':
+      url = buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id })
+      break
+    default:
+      return
   }
-  navigateTo(url);
-};
+  navigateTo(url)
+}
 
 export const createTaskColumns = (): ColumnDef<Task>[] => [
   {
@@ -69,7 +87,7 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     header: 'Assigned To',
     size: 180,
     cell: ({ row }) => (
-      <OwnerDisplay 
+      <OwnerDisplay
         ownerEmployee={convertToOwnerEmployee(row.original.assignedTo)}
         entityId={row.original.id}
         testIdPrefix="task-assigned-to"
@@ -105,7 +123,9 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     size: 120,
     cell: ({ row }) => (
       <Badge variant={getTaskStatusBadgeVariant(row.original.status)}>
-        {row.original.status === 'in_progress' ? 'In Progress' : row.original.status.charAt(0).toUpperCase() + row.original.status.slice(1)}
+        {row.original.status === 'in_progress'
+          ? 'In Progress'
+          : row.original.status.charAt(0).toUpperCase() + row.original.status.slice(1)}
       </Badge>
     )
   },
@@ -116,29 +136,29 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     size: 200,
     cell: ({ row }) => {
       if (!row.original.reference) {
-        return <span className="gba:text-gray-400">No reference</span>;
+        return <span className="gba:text-gray-400">No reference</span>
       }
-      
+
       return (
-        <div 
-          className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors" 
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            handleReferenceClick(row.original.reference); 
+        <div
+          className="gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+          onClick={e => {
+            e.stopPropagation()
+            handleReferenceClick(row.original.reference)
           }}
           data-testid={`task-reference-link-${row.original.id}`}
         >
-            <div className="gba:font-medium gba:text-sm">{row.original.reference.name}</div>
-            <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
-              <Badge variant={getReferenceTypeBadgeVariant(row.original.reference.type)} className="gba:text-xs">
-                {row.original.reference.type.charAt(0).toUpperCase() + row.original.reference.type.slice(1)}
-              </Badge>
-              {row.original.reference.description && (
-                <span className="gba:text-xs gba:text-gray-500">{row.original.reference.description}</span>
-              )}
-            </div>
+          <div className="gba:font-medium gba:text-sm">{row.original.reference.name}</div>
+          <div className="gba:flex gba:items-center gba:gap-1 gba:mt-1">
+            <Badge variant={getReferenceTypeBadgeVariant(row.original.reference.type)} className="gba:text-xs">
+              {row.original.reference.type.charAt(0).toUpperCase() + row.original.reference.type.slice(1)}
+            </Badge>
+            {row.original.reference.description && (
+              <span className="gba:text-xs gba:text-gray-500">{row.original.reference.description}</span>
+            )}
           </div>
-      );
+        </div>
+      )
     }
   },
   {
@@ -151,9 +171,7 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="gba:flex gba:items-center">
-                {getTimingTypeIcon(row.original.timingType).icon}
-              </div>
+              <div className="gba:flex gba:items-center">{getTimingTypeIcon(row.original.timingType).icon}</div>
             </TooltipTrigger>
             <TooltipContent>
               <p>{getTimingTypeIcon(row.original.timingType).tooltip}</p>
@@ -169,9 +187,9 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
     accessorKey: 'createdBy',
     header: 'Created By',
     size: 150,
-    cell: ({ row }) => (
+    cell: ({ row }) =>
       row.original.creatorEmployee ? (
-        <OwnerDisplay 
+        <OwnerDisplay
           ownerEmployee={convertToOwnerEmployee(row.original.creatorEmployee)}
           entityId={row.original.id}
           testIdPrefix="task-creator"
@@ -179,7 +197,6 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
       ) : (
         <span className="gba:text-sm gba:text-gray-400">Unknown</span>
       )
-    )
   },
   {
     id: 'createdAt',
@@ -192,12 +209,12 @@ export const createTaskColumns = (): ColumnDef<Task>[] => [
       </div>
     )
   }
-];
+]
 
 export const createTaskSortableColumns = () => {
-  const columns = createTaskColumns();
+  const columns = createTaskColumns()
   return columns.map(col => ({
     id: col.id!,
     label: col.header as string
-  }));
-};
+  }))
+}

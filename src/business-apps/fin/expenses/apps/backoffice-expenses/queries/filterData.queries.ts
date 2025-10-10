@@ -25,7 +25,7 @@ export const GET_ORGANIZATIONAL_UNITS = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_CURRENCIES = `
   query GetExpenseCurrencies {
@@ -45,4 +45,4 @@ export const GET_EXPENSE_CURRENCIES = `
       }
     }
   }
-`;
+`

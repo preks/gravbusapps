@@ -1,54 +1,54 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface GetAccountByIdQueryVariables {
-  id: string;
+  id: string
 }
 
 export interface GetAccountByIdResponse {
   Account: Array<{
-    id: string;
-    version: string;
-    name: string;
-    email: string;
-    phone: string;
-    website: string;
+    id: string
+    version: string
+    name: string
+    email: string
+    phone: string
+    website: string
     ownerEmployee?: {
-      firstName: string;
-      lastName: string;
-    };
-    createdAt: string;
+      firstName: string
+      lastName: string
+    }
+    createdAt: string
     legalForm?: {
-      id: string;
-      value: string;
-    };
+      id: string
+      value: string
+    }
     industry?: {
-      id: string;
-      value: string;
-    };
+      id: string
+      value: string
+    }
     addresses?: Array<{
-      addressLine?: any;
-      city?: string;
+      addressLine?: any
+      city?: string
       country?: {
-        id: string;
-        value: string;
-        code: string;
-      };
+        id: string
+        value: string
+        code: string
+      }
       region?: {
-        id: string;
-        value: string;
-        code: string;
-      };
-    }>;
+        id: string
+        value: string
+        code: string
+      }
+    }>
     numberOfEmployees?: {
-      id: string;
-      value: string;
-    };
+      id: string
+      value: string
+    }
     annualRevenue?: {
-      id: string;
-      value: string;
-    };
-  }>;
+      id: string
+      value: string
+    }
+  }>
 }
 
 export const GET_ACCOUNT_BY_ID = `
@@ -97,21 +97,21 @@ export const GET_ACCOUNT_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const useGetAccountById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchAccountById = async (variables: GetAccountByIdQueryVariables) => {
-    const query = GET_ACCOUNT_BY_ID;
-    try {
-      const result = await graphqlClient.request<GetAccountByIdResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching account by ID:', error);
-      throw error;
-    }
-  };
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchAccountById };
-}; 
+  const fetchAccountById = async (variables: GetAccountByIdQueryVariables) => {
+    const query = GET_ACCOUNT_BY_ID
+    try {
+      const result = await graphqlClient.request<GetAccountByIdResponse>(query, variables)
+      return result
+    } catch (error) {
+      console.error('Error fetching account by ID:', error)
+      throw error
+    }
+  }
+
+  return { fetchAccountById }
+}

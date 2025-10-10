@@ -41,4 +41,4 @@ export const GET_PROBATION_RATE_BY_ORG_UNIT = `
       employeeId
     }
   }
-`;
+`

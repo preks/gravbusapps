@@ -1,2 +1,2 @@
-export { SalesPerformanceTab } from './SalesPerformanceTab';
-export { SalesActivitiesTab } from './SalesActivitiesTab'; 
+export { SalesPerformanceTab } from './SalesPerformanceTab'
+export { SalesActivitiesTab } from './SalesActivitiesTab'

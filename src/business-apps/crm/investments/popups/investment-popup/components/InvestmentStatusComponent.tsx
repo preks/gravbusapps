@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { 
+import React, { useEffect, useMemo } from 'react'
+import {
   FormField,
   FormItem,
   FormLabel,
@@ -12,23 +12,23 @@ import {
   SelectValue,
   Alert,
   Spinner
-} from '@newwork/nw-design-system';
-import { AppActionForm } from '@/components/app-action-form';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData';
-import { InvestmentStatusComponentProps, StatusFormData } from '../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads';
+} from '@newwork/nw-design-system'
+import { AppActionForm } from '@/components/app-action-form'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useInvestmentPopupData } from '../hooks/useInvestmentPopupData'
+import { InvestmentStatusComponentProps, StatusFormData } from '../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
 
-const prefixDataTestId = 'investment-status-component';
+const prefixDataTestId = 'investment-status-component'
 
 // Form validation schema builder
 const buildStatusFormSchema = (requiredMessage: string) =>
   z.object({
-    statusRef: z.string().min(1, requiredMessage),
-  });
+    statusRef: z.string().min(1, requiredMessage)
+  })
 
 export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps> = ({
   onClose,
@@ -42,19 +42,20 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   // Extract investmentId from additionalData
-  const investmentId = additionalData?.investmentId || 
+  const investmentId =
+    additionalData?.investmentId ||
     additionalData?.psi_taskPayload?.psi_initialParameters?.investmentId ||
-    additionalData?.id;
+    additionalData?.id
 
   // Use the hook for data loading (always call hooks first)
   const { investment, statusOptions, loading, error } = useInvestmentPopupData({
     context: businessAppContext,
     investmentId,
     scope: 'status'
-  });
+  })
 
   // Form setup with current status
   const form = useForm<StatusFormData>({
@@ -62,10 +63,7 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
       useMemo(
         () =>
           buildStatusFormSchema(
-            getTranslationFromI18nKeyAndLabel(
-              'investment.status.validation.required',
-              'Please select a status'
-            )
+            getTranslationFromI18nKeyAndLabel('investment.status.validation.required', 'Please select a status')
           ),
         []
       )
@@ -73,54 +71,56 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
     defaultValues: {
       statusRef: ''
     }
-  });
+  })
 
   // Sync form with loaded status
   useEffect(() => {
     if (investment?.investmentStatus?.id) {
       form.reset({
         statusRef: investment.investmentStatus.id
-      });
+      })
     }
-  }, [investment?.investmentStatus?.id, form]);
-
+  }, [investment?.investmentStatus?.id, form])
 
   // Validate required data after hooks have been called
   if (!investmentId) {
     return (
-      <Alert
-        variant="destructive"
-        data-testid={`${prefixDataTestId}-missing-investment-id`}
-      >
-        {getTranslationFromI18nKeyAndLabel('investment.status.error.missingId', 'No investment ID found in context data')}
+      <Alert variant="destructive" data-testid={`${prefixDataTestId}-missing-investment-id`}>
+        {getTranslationFromI18nKeyAndLabel(
+          'investment.status.error.missingId',
+          'No investment ID found in context data'
+        )}
       </Alert>
-    );
+    )
   }
 
   // Handle form submission - create payload for AppActionForm
   const handleSubmit = async (formData: StatusFormData) => {
     if (!investment) {
-      throw new Error(getTranslationFromI18nKeyAndLabel('investment.status.error.dataNotLoaded', 'Investment data not loaded'));
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel('investment.status.error.dataNotLoaded', 'Investment data not loaded')
+      )
     }
 
     // Find the selected status catalog entry
-    const selectedStatus = statusOptions.find(status => status.id === formData.statusRef);
+    const selectedStatus = statusOptions.find(status => status.id === formData.statusRef)
     if (!selectedStatus) {
-      throw new Error(getTranslationFromI18nKeyAndLabel('investment.status.error.statusNotFound', 'Selected status not found'));
+      throw new Error(
+        getTranslationFromI18nKeyAndLabel('investment.status.error.statusNotFound', 'Selected status not found')
+      )
     }
-
 
     // Create business app context
     const businessAppContext = {
       accessToken,
       userInfo,
       additionalData
-    };
+    }
 
     // Determine investment group type
-    const groupRef = investment.investmentGroup?.id || '';
-    const groupType = groupRef.split(':').pop();
-    
+    const groupRef = investment.investmentGroup?.id || ''
+    const groupType = groupRef.split(':').pop()
+
     // Create investment form data using new nested structure with full objects
     const investmentFormData: any = {
       investment: {
@@ -130,7 +130,7 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
         initialInvestmentAmount: investment.initialInvestmentAmount || 0,
         investmentGroup: investment.investmentGroup, // Full object
         ownerEmployee: investment.ownerEmployee, // Full object
-        
+
         // Include ALL existing investment fields to preserve them
         code: investment.code,
         isin: investment.isin,
@@ -167,76 +167,71 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
         loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount?.id,
         additionalProperties: investment.additionalProperties
       }
-    };
-    
+    }
+
     // CRITICAL: Add the appropriate subtype based on investment group (required by API)
     if (groupType === 'EQUITY') {
-      const existingEquity = Array.isArray((investment as any).equityInvestment) 
-        ? (investment as any).equityInvestment[0] 
-        : (investment as any).equityInvestment;
-      investmentFormData.equityInvestment = existingEquity || {};
+      const existingEquity = Array.isArray((investment as any).equityInvestment)
+        ? (investment as any).equityInvestment[0]
+        : (investment as any).equityInvestment
+      investmentFormData.equityInvestment = existingEquity || {}
     } else if (groupType === 'REAL_ESTATE') {
       const existingRealEstate = Array.isArray((investment as any).realEstateInvestment)
         ? (investment as any).realEstateInvestment[0]
-        : (investment as any).realEstateInvestment;
-      investmentFormData.realEstateInvestment = existingRealEstate || {};
+        : (investment as any).realEstateInvestment
+      investmentFormData.realEstateInvestment = existingRealEstate || {}
     } else if (groupType === 'LIQUID_FUND') {
       const existingLiquidFund = Array.isArray((investment as any).liquidFundInvestment)
         ? (investment as any).liquidFundInvestment[0]
-        : (investment as any).liquidFundInvestment;
-      investmentFormData.liquidFundInvestment = existingLiquidFund || {};
+        : (investment as any).liquidFundInvestment
+      investmentFormData.liquidFundInvestment = existingLiquidFund || {}
     }
 
     // Use the central payload builder to preserve all existing data
-    const payload = buildInvestmentPayload(
-      investmentFormData,
-      businessAppContext,
-      {
-        isUpdate: true,
-        rawInvestmentData: investment
-      }
-    );
+    const payload = buildInvestmentPayload(investmentFormData, businessAppContext, {
+      isUpdate: true,
+      rawInvestmentData: investment
+    })
 
     // Add changeMode to the payload
-    (payload as any).changeMode = 'UPDATE';
+    ;(payload as any).changeMode = 'UPDATE'
 
     // Call success callback with updated values
     if (onSave) {
-      onSave(selectedStatus.id as string);
+      onSave(selectedStatus.id as string)
     }
 
     // Return the payload for AppActionForm to handle
-    return payload;
-  };
+    return payload
+  }
 
   // Show loading state
   if (loading) {
     return (
-      <div 
+      <div
         className="gba:flex gba:items-center gba:justify-center gba:py-8"
         data-testid={`${prefixDataTestId}-loading`}
       >
         <Spinner size="lg" />
-        <span className="gba:ml-2">{getTranslationFromI18nKeyAndLabel('investment.status.loading', 'Loading investment data...')}</span>
+        <span className="gba:ml-2">
+          {getTranslationFromI18nKeyAndLabel('investment.status.loading', 'Loading investment data...')}
+        </span>
       </div>
-    );
+    )
   }
 
   // Show error state
   if (error) {
     return (
-      <Alert
-        variant="destructive"
-        data-testid={`${prefixDataTestId}-error`}
-      >
+      <Alert variant="destructive" data-testid={`${prefixDataTestId}-error`}>
         {error}
       </Alert>
-    );
+    )
   }
 
   // Show form when investment data is loaded
   if (!investment) {
-    return null;
+    return null
   }
 
   return (
@@ -252,7 +247,6 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
     >
       <div className="gba:space-y-4" data-testid={`${prefixDataTestId}-form-content`}>
-        
         {/* Status Selection Field */}
         <FormField
           control={form.control}
@@ -263,12 +257,17 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
               <FormControl>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger data-testid={`${prefixDataTestId}-status-select`}>
-                    <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('investment.status.placeholder.select', 'Select investment status')} />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'investment.status.placeholder.select',
+                        'Select investment status'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map((status) => (
-                      <SelectItem 
-                        key={status.id} 
+                    {statusOptions.map(status => (
+                      <SelectItem
+                        key={status.id}
                         value={status.id}
                         data-testid={`${prefixDataTestId}-status-option-${status.id}`}
                       >
@@ -286,11 +285,11 @@ export const InvestmentStatusComponent: React.FC<InvestmentStatusComponentProps>
         {/* Current status display */}
         {investment.investmentStatus && (
           <div className="gba:text-sm gba:text-gray-600" data-testid={`${prefixDataTestId}-current-status`}>
-            {getTranslationFromI18nKeyAndLabel('investment.status.current', 'Current status')}: {investment.investmentStatus.value}
+            {getTranslationFromI18nKeyAndLabel('investment.status.current', 'Current status')}:{' '}
+            {investment.investmentStatus.value}
           </div>
         )}
-
       </div>
     </AppActionForm>
-  );
-};
+  )
+}

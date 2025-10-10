@@ -1,16 +1,16 @@
-import React, { useCallback } from 'react';
-import { DatePicker } from 'antd';
-import dayjs, { Dayjs } from 'dayjs';
+import React, { useCallback } from 'react'
+import { DatePicker } from 'antd'
+import dayjs, { Dayjs } from 'dayjs'
 
-const { RangePicker } = DatePicker;
+const { RangePicker } = DatePicker
 
 interface CampaignDateRangeFilterProps {
-  afterDate?: string;
-  beforeDate?: string;
-  onDateRangeChange: (afterDate?: string, beforeDate?: string) => void;
-  placeholder?: [string, string];
-  className?: string;
-  dataTestId?: string;
+  afterDate?: string
+  beforeDate?: string
+  onDateRangeChange: (afterDate?: string, beforeDate?: string) => void
+  placeholder?: [string, string]
+  className?: string
+  dataTestId?: string
 }
 
 export const CampaignDateRangeFilter: React.FC<CampaignDateRangeFilterProps> = ({
@@ -26,25 +26,26 @@ export const CampaignDateRangeFilter: React.FC<CampaignDateRangeFilterProps> = (
   const dateRange: [Dayjs | null, Dayjs | null] = [
     beforeDate ? dayjs(beforeDate) : null,
     afterDate ? dayjs(afterDate) : null
-  ];
+  ]
 
-  const handleDateRangeChange = useCallback((
-    dates: [Dayjs | null, Dayjs | null] | null
-  ) => {
-    if (!dates) {
-      // Clear the date range
-      onDateRangeChange(undefined, undefined);
-    } else {
-      // Convert to ISO strings for the API, mapping correctly:
-      // dates[0] = before date (upper bound), dates[1] = after date (lower bound)
-      const beforeDate = dates[0] ? dates[0].endOf('day').toISOString() : undefined;
-      const afterDate = dates[1] ? dates[1].startOf('day').toISOString() : undefined;
-      onDateRangeChange(afterDate, beforeDate);
-    }
-  }, [onDateRangeChange]);
+  const handleDateRangeChange = useCallback(
+    (dates: [Dayjs | null, Dayjs | null] | null) => {
+      if (!dates) {
+        // Clear the date range
+        onDateRangeChange(undefined, undefined)
+      } else {
+        // Convert to ISO strings for the API, mapping correctly:
+        // dates[0] = before date (upper bound), dates[1] = after date (lower bound)
+        const beforeDate = dates[0] ? dates[0].endOf('day').toISOString() : undefined
+        const afterDate = dates[1] ? dates[1].startOf('day').toISOString() : undefined
+        onDateRangeChange(afterDate, beforeDate)
+      }
+    },
+    [onDateRangeChange]
+  )
 
   return (
-    <div 
+    <div
       className={`gba:flex gba:items-center gba:gap-2 gba:p-3 gba:rounded-lg gba:shadow-sm ${className}`}
       style={{
         backgroundColor: 'var(--color-surface-primary)',
@@ -63,5 +64,5 @@ export const CampaignDateRangeFilter: React.FC<CampaignDateRangeFilterProps> = (
         data-testid={dataTestId}
       />
     </div>
-  );
-};
+  )
+}

@@ -1,27 +1,16 @@
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@newwork/nw-design-system";
-import { CaretRightIcon } from "@phosphor-icons/react";
+import { Card, CardHeader, CardTitle, CardDescription } from '@newwork/nw-design-system'
+import { CaretRightIcon } from '@phosphor-icons/react'
 
 export type NavigationLinkCardsProps = {
-  redirectLink: string;
-  color: string;
-  icon: React.ElementType;
-  title: string;
-  description: string;
-};
+  redirectLink: string
+  color: string
+  icon: React.ElementType
+  title: string
+  description: string
+}
 
-const NavigationLinkCards = ({
-  redirectLink,
-  color,
-  icon,
-  title,
-  description,
-}: NavigationLinkCardsProps) => {
-  const Icon = icon;
+const NavigationLinkCards = ({ redirectLink, color, icon, title, description }: NavigationLinkCardsProps) => {
+  const Icon = icon
 
   return (
     <Card className="gba:!p-3 gba:shadow-sm gba:hover:shadow-md gba:transition-shadow">
@@ -39,15 +28,13 @@ const NavigationLinkCards = ({
           </div>
           <div className="gba:flex-grow">
             <CardTitle>{title}</CardTitle>
-            <CardDescription className="gba:!text-xs">
-              {description}
-            </CardDescription>
+            <CardDescription className="gba:!text-xs">{description}</CardDescription>
           </div>
           <CaretRightIcon className="gba:!text-gray-400" />
         </a>
       </CardHeader>
     </Card>
-  );
-};
+  )
+}
 
-export { NavigationLinkCards };
+export { NavigationLinkCards }

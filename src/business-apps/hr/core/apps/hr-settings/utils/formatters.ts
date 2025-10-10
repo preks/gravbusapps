@@ -24,4 +24,4 @@ export const validateSettingValue = (value: string, type: string): boolean => {
     default:
       return true
   }
-} 
+}

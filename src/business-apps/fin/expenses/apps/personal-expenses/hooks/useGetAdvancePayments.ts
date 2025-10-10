@@ -1,318 +1,330 @@
-import { useCallback, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { env } from '@/common/env/EnvUtils';
+import { useCallback, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { env } from '@/common/env/EnvUtils'
 import {
   buildAdvancePaymentsQuery,
   validateFilters,
   AdvancePaymentFilters
-} from '../../personal-expenses/utils/advancePaymentsQueryBuilder';
+} from '../../personal-expenses/utils/advancePaymentsQueryBuilder'
 
 export interface AdvancePayment {
-  id: string;
-  code: string;
-  description: string | null;
-  amount: number;
-  currencyRef: string;
+  id: string
+  code: string
+  description: string | null
+  amount: number
+  currencyRef: string
   currency: {
-    code: string;
-  };
+    code: string
+  }
   costCenter: {
-    name: string;
-  };
-  status: string;
-  paymentMethod: string;
+    name: string
+  }
+  status: string
+  paymentMethod: string
   expensePlan: {
-    id: string;
-    code: string;
-    reimbursableAmount: number;
-    startDate: string | null;
-    endDate: string | null;
-    planDate: string | null;
-    decisionDate: string | null;
-    status: string;
-    title: string;
-    totalAmount: number;
-    requestTypeRef: any;
-    createdAt: string;
-    employeeDocumentId: string | null;
-    advancePaymentPaidAmount: number;
-    advancePaymentInTransitAmount: number;
-    currencyRef: any;
-    description: string;
+    id: string
+    code: string
+    reimbursableAmount: number
+    startDate: string | null
+    endDate: string | null
+    planDate: string | null
+    decisionDate: string | null
+    status: string
+    title: string
+    totalAmount: number
+    requestTypeRef: any
+    createdAt: string
+    employeeDocumentId: string | null
+    advancePaymentPaidAmount: number
+    advancePaymentInTransitAmount: number
+    currencyRef: any
+    description: string
     currency: {
-      type: string;
+      type: string
       translations: Array<{
-        localeCode: string;
-        value: string;
-      }>;
+        localeCode: string
+        value: string
+      }>
       catalog: {
-        defaultLocale: string;
-      };
-      value: string;
-      id: string;
-      code: string;
-    };
+        defaultLocale: string
+      }
+      value: string
+      id: string
+      code: string
+    }
     requestType: {
-      value: string;
+      value: string
       translations: Array<{
-        localeCode: string;
-        value: string;
-      }>;
+        localeCode: string
+        value: string
+      }>
       catalog: {
-        defaultLocale: string;
-      };
-    };
+        defaultLocale: string
+      }
+    }
     expensePlanItem: Array<{
-      title: string;
-      status: string;
-      totalAmount: number;
-      expenseDate: string;
-    }>;
+      title: string
+      status: string
+      totalAmount: number
+      expenseDate: string
+    }>
     advancePayment: Array<{
-      id: string;
-      amount: number;
-      status: string;
+      id: string
+      amount: number
+      status: string
       currency: {
-        code: string;
+        code: string
         translations: Array<{
-          localeCode: string;
-          value: string;
-        }>;
+          localeCode: string
+          value: string
+        }>
         catalog: {
-          defaultLocale: string;
-        };
-      };
-    }>;
+          defaultLocale: string
+        }
+      }
+    }>
     expenseRequestTrip: Array<{
-      tripDateTime: string;
-    }>;
+      tripDateTime: string
+    }>
     expenseRequest?: Array<{
-      id: string;
-      code: string;
-      title: string;
-      description: string;
-      startDate: string | null;
-      endDate: string | null;
-      requestDate: string | null;
-      decisionDate: string | null;
-      totalAmount: number;
-      currencyRef: string;
-      status: string;
-      reimbursableAmount: number;
-      nonReimbursableAmount: number;
-      additionalProperties: any;
+      id: string
+      code: string
+      title: string
+      description: string
+      startDate: string | null
+      endDate: string | null
+      requestDate: string | null
+      decisionDate: string | null
+      totalAmount: number
+      currencyRef: string
+      status: string
+      reimbursableAmount: number
+      nonReimbursableAmount: number
+      additionalProperties: any
       currency: {
-        value: string;
+        value: string
         translations: Array<{
-          localeCode: string;
-          value: string;
-        }>;
+          localeCode: string
+          value: string
+        }>
         catalog: {
-          defaultLocale: string;
-        };
-      };
+          defaultLocale: string
+        }
+      }
       requestType: {
-        value: string;
+        value: string
         translations: Array<{
-          localeCode: string;
-          value: string;
-        }>;
+          localeCode: string
+          value: string
+        }>
         catalog: {
-          defaultLocale: string;
-        };
-      };
+          defaultLocale: string
+        }
+      }
       costCenter: {
-        name: string;
-      };
+        name: string
+      }
       project: {
-        name: string;
-      };
+        name: string
+      }
       employee: {
-        fullName: string;
+        fullName: string
         employeePosition: {
           supervisor: {
-            fullName: string;
-          };
-        };
-      };
-    }>;
+            fullName: string
+          }
+        }
+      }
+    }>
     employee: {
-      id: string;
-      code: string;
-      firstName: string;
-      lastName: string;
+      id: string
+      code: string
+      firstName: string
+      lastName: string
       employeePosition: {
         siteLocation: {
-          name: string;
-        };
+          name: string
+        }
         organizationalUnit: {
-          name: string;
-        };
-        firstName: string;
-        lastName: string;
-      };
-    };
-  } | null;
-  expensePlanId: string;
+          name: string
+        }
+        firstName: string
+        lastName: string
+      }
+    }
+  } | null
+  expensePlanId: string
 }
 
 export interface AdvancePaymentsDataView {
-  items: AdvancePayment[];
-  isLoading: boolean;
-  error: string | null;
-  totalCount: number;
-  fetchItems: (searchTerm?: string, page?: number, pageSize?: number, statusFilter?: string[], amountRange?: { min?: number; max?: number } | null, advanceRange?: { min?: number; max?: number } | null, sortField?: string | null, sortOrder?: 'ascend' | 'descend' | null, currencyRef?: string | null) => Promise<void>;
-}
-
-export const useGetAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsDataView => {
-  const [items, setItems] = useState<AdvancePayment[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [totalCount, setTotalCount] = useState(0);
-
-  const fetchItems = useCallback(async (
-    searchTerm: string = '',
-    page: number = 1,
-    pageSize: number = 20,
-    statusFilter: string[] = [],
-    amountRange: { min?: number; max?: number } | null = null,
-    advanceRange: { min?: number; max?: number } | null = null,
+  items: AdvancePayment[]
+  isLoading: boolean
+  error: string | null
+  totalCount: number
+  fetchItems: (
+    searchTerm?: string,
+    page?: number,
+    pageSize?: number,
+    statusFilter?: string[],
+    amountRange?: { min?: number; max?: number } | null,
+    advanceRange?: { min?: number; max?: number } | null,
     sortField?: string | null,
     sortOrder?: 'ascend' | 'descend' | null,
     currencyRef?: string | null
-  ) => {
-    const employeeId = context?.userInfo?.employeeDetails?.employeeId;
-    const accessToken = context?.accessToken;
+  ) => Promise<void>
+}
 
-    if (!employeeId || !accessToken) {
-      console.warn('Missing employeeId or accessToken for advance payments query');
-      return;
-    }
+export const useGetAdvancePayments = (context?: BusinessAppContextProps): AdvancePaymentsDataView => {
+  const [items, setItems] = useState<AdvancePayment[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const [totalCount, setTotalCount] = useState(0)
 
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Add % wildcard for LIKE query if not already present
-      const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`;
-      const offset = (page - 1) * pageSize;
-      
-      // Create filters object
-      const filters: AdvancePaymentFilters = {
-        statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
-        amountRange: amountRange || undefined,
-        advanceRange: advanceRange || undefined,
-        currencyRef: currencyRef || undefined
-      };
-      
-      // Get active filters using utility function
-      const filterState = validateFilters(filters);
-      
-      // Use dynamic query builder for better error handling
-      const query = buildAdvancePaymentsQuery(filters);
-      
-      let variables: any = {
-        employeeId,
-        searchTerm: formattedSearchTerm,
-        limit: pageSize,
-        offset: offset,
-      };
+  const fetchItems = useCallback(
+    async (
+      searchTerm: string = '',
+      page: number = 1,
+      pageSize: number = 20,
+      statusFilter: string[] = [],
+      amountRange: { min?: number; max?: number } | null = null,
+      advanceRange: { min?: number; max?: number } | null = null,
+      sortField?: string | null,
+      sortOrder?: 'ascend' | 'descend' | null,
+      currencyRef?: string | null
+    ) => {
+      const employeeId = context?.userInfo?.employeeDetails?.employeeId
+      const accessToken = context?.accessToken
 
-      // Add orderBy for server-side sorting
-      if (sortField && sortOrder) {
-        // Map UI sort field to GraphQL field names - only include fields that exist directly on AdvancePayment
-        const fieldMap: Record<string, string> = {
-          status: 'status',
-          amount: 'amount',
-          paymentMethod: 'paymentMethod',
-          createdAt: 'createdAt',
-          updatedAt: 'updatedAt',
-          description: 'description',
-          currencyRef: 'currencyRef'
-        };
-        const gqlField = fieldMap[sortField] || sortField;
-        // Use proper null handling for better sorting, especially for numeric fields that can be null
-        const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST';
-        variables.orderBy = [{ [gqlField]: direction }];
-      } else {
-        // Default sorting by creation date descending
-        variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }];
+      if (!employeeId || !accessToken) {
+        console.warn('Missing employeeId or accessToken for advance payments query')
+        return
       }
 
-      // Add filter variables only if they exist
-      if (filterState.hasStatusFilter && filters.statusFilter) {
-        variables.statusFilter = filters.statusFilter;
-      }
-      
-      if (filterState.hasAmountRange && filters.amountRange) {
-        const { min, max } = filters.amountRange;
-        if (min !== undefined) {
-          variables.amountMin = min;
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        // Add % wildcard for LIKE query if not already present
+        const formattedSearchTerm = searchTerm === '' ? '%' : `%${searchTerm}%`
+        const offset = (page - 1) * pageSize
+
+        // Create filters object
+        const filters: AdvancePaymentFilters = {
+          statusFilter: statusFilter.length > 0 ? statusFilter : undefined,
+          amountRange: amountRange || undefined,
+          advanceRange: advanceRange || undefined,
+          currencyRef: currencyRef || undefined
         }
-        if (max !== undefined) {
-          variables.amountMax = max;
-        }
-      }
-      
-      if (filterState.hasAdvanceRange && filters.advanceRange) {
-        const { min, max } = filters.advanceRange;
-        if (min !== undefined) {
-          variables.advanceMin = min;
-        }
-        if (max !== undefined) {
-          variables.advanceMax = max;
-        }
-      }
-      
-      if (filterState.hasCurrencyRef && filters.currencyRef) {
-        variables.currencyRef = filters.currencyRef;
-      }
-      
-      
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          query,
-          variables,
-        }),
-      });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
-      }
+        // Get active filters using utility function
+        const filterState = validateFilters(filters)
 
-      const result = await response.json();
+        // Use dynamic query builder for better error handling
+        const query = buildAdvancePaymentsQuery(filters)
 
-      if (result.errors && result.errors.length > 0) {
-        console.error('GraphQL Errors:', result.errors);
-        throw new Error(result.errors.map((e: any) => e.message).join(', '));
+        const variables: any = {
+          employeeId,
+          searchTerm: formattedSearchTerm,
+          limit: pageSize,
+          offset: offset
+        }
+
+        // Add orderBy for server-side sorting
+        if (sortField && sortOrder) {
+          // Map UI sort field to GraphQL field names - only include fields that exist directly on AdvancePayment
+          const fieldMap: Record<string, string> = {
+            status: 'status',
+            amount: 'amount',
+            paymentMethod: 'paymentMethod',
+            createdAt: 'createdAt',
+            updatedAt: 'updatedAt',
+            description: 'description',
+            currencyRef: 'currencyRef'
+          }
+          const gqlField = fieldMap[sortField] || sortField
+          // Use proper null handling for better sorting, especially for numeric fields that can be null
+          const direction = sortOrder === 'ascend' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
+          variables.orderBy = [{ [gqlField]: direction }]
+        } else {
+          // Default sorting by creation date descending
+          variables.orderBy = [{ createdAt: 'DESC_NULLS_LAST' }]
+        }
+
+        // Add filter variables only if they exist
+        if (filterState.hasStatusFilter && filters.statusFilter) {
+          variables.statusFilter = filters.statusFilter
+        }
+
+        if (filterState.hasAmountRange && filters.amountRange) {
+          const { min, max } = filters.amountRange
+          if (min !== undefined) {
+            variables.amountMin = min
+          }
+          if (max !== undefined) {
+            variables.amountMax = max
+          }
+        }
+
+        if (filterState.hasAdvanceRange && filters.advanceRange) {
+          const { min, max } = filters.advanceRange
+          if (min !== undefined) {
+            variables.advanceMin = min
+          }
+          if (max !== undefined) {
+            variables.advanceMax = max
+          }
+        }
+
+        if (filterState.hasCurrencyRef && filters.currencyRef) {
+          variables.currencyRef = filters.currencyRef
+        }
+
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          },
+          body: JSON.stringify({
+            query,
+            variables
+          })
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
+        }
+
+        const result = await response.json()
+
+        if (result.errors && result.errors.length > 0) {
+          console.error('GraphQL Errors:', result.errors)
+          throw new Error(result.errors.map((e: any) => e.message).join(', '))
+        }
+
+        // Get the items and count
+        const fetchedItems = result.data?.AdvancePayment ?? []
+        const count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0
+
+        setTotalCount(count)
+        setItems(fetchedItems)
+      } catch (err) {
+        console.error('Error fetching advance payments:', err)
+        setError(err instanceof Error ? err : new Error(String(err)))
+        setItems([]) // Clear items on error
+        setTotalCount(0)
+      } finally {
+        setIsLoading(false)
       }
-      
-      // Get the items and count
-      let fetchedItems = result.data?.AdvancePayment ?? [];
-      let count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0;
-      
-      setTotalCount(count);
-      setItems(fetchedItems);
-    } catch (err) {
-      console.error('Error fetching advance payments:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setItems([]); // Clear items on error
-      setTotalCount(0);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]);
+    },
+    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken]
+  )
 
   return {
     items,
     isLoading,
     error: error?.message || null,
     totalCount,
-    fetchItems,
-  };
-};
+    fetchItems
+  }
+}

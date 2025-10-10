@@ -1,47 +1,42 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import {
-  executeStatisticsRequests,
-  executeSickAbsencesByMonthRequest,
-} from '../utils/graphqlRequests';
-import { processStatisticsData } from '../utils/statisticsProcessor';
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { executeStatisticsRequests, executeSickAbsencesByMonthRequest } from '../utils/graphqlRequests'
+import { processStatisticsData } from '../utils/statisticsProcessor'
 
 interface AbsenceStatistics {
-  pendingRequests: number;
-  approvedAbsences: number;
-  teamMembersAway: number;
-  upcomingAbsences: number;
-  vacationCount: number;
-  sickLeaveCount: number;
-  averageDaysPerRequest: string;
-  approvalRate: number;
-  averageWorkStreak: string;
+  pendingRequests: number
+  approvedAbsences: number
+  teamMembersAway: number
+  upcomingAbsences: number
+  vacationCount: number
+  sickLeaveCount: number
+  averageDaysPerRequest: string
+  approvalRate: number
+  averageWorkStreak: string
   sickAbsencesByMonth: {
-    month: string;
-    count: number;
-  };
+    month: string
+    count: number
+  }
 
-  plannedAbsences: number;
-  plannedAbsencesDays: number;
-  unplannedAbsences: number;
-  unplannedAbsencesDays: number;
-  absences: any[];
-  yearOverYearData: any[];
+  plannedAbsences: number
+  plannedAbsencesDays: number
+  unplannedAbsences: number
+  unplannedAbsencesDays: number
+  absences: any[]
+  yearOverYearData: any[]
 }
 
 interface UseAbsenceStatisticsSimpleReturn {
-  statistics: AbsenceStatistics;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
+  statistics: AbsenceStatistics
+  isLoading: boolean
+  error: string | null
+  refetch: () => Promise<void>
 }
 
-export const useAbsenceStatisticsSimple = (
-  context: BusinessAppContextProps,
-): UseAbsenceStatisticsSimpleReturn => {
-  const { accessToken, userInfo } = context;
-  const supervisorId = userInfo?.employeeDetails?.employeeId;
+export const useAbsenceStatisticsSimple = (context: BusinessAppContextProps): UseAbsenceStatisticsSimpleReturn => {
+  const { accessToken, userInfo } = context
+  const supervisorId = userInfo?.employeeDetails?.employeeId
 
   const [statistics, setStatistics] = useState<AbsenceStatistics>({
     pendingRequests: 0,
@@ -55,78 +50,67 @@ export const useAbsenceStatisticsSimple = (
     averageWorkStreak: '0.0',
     sickAbsencesByMonth: {
       month: 'None',
-      count: 0,
+      count: 0
     },
     plannedAbsences: 0,
     plannedAbsencesDays: 0,
     unplannedAbsences: 0,
     unplannedAbsencesDays: 0,
     absences: [],
-    yearOverYearData: [],
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    yearOverYearData: []
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchStatistics = useCallback(async () => {
     if (!supervisorId) {
-      setError('Supervisor ID is required');
-      setIsLoading(false);
-      return;
+      setError('Supervisor ID is required')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const currentYear = new Date().getFullYear();
-      const previousYear = currentYear - 1;
-      const currentYearStart = `${currentYear}-01-01 00:00:00+00`;
-      const currentYearEnd = `${currentYear}-12-31 23:59:59+00`;
-      const previousYearStart = `${previousYear}-01-01 00:00:00+00`;
+      const currentYear = new Date().getFullYear()
+      const previousYear = currentYear - 1
+      const currentYearStart = `${currentYear}-01-01 00:00:00+00`
+      const currentYearEnd = `${currentYear}-12-31 23:59:59+00`
+      const previousYearStart = `${previousYear}-01-01 00:00:00+00`
 
       const [apiResults, sickAbsencesByMonthResult] = await Promise.all([
-        executeStatisticsRequests(
-          graphqlClient,
-          supervisorId,
-          currentYearStart,
-          currentYearEnd,
-          previousYearStart,
-        ),
-        executeSickAbsencesByMonthRequest(
-          graphqlClient,
-          supervisorId,
-          currentYearStart,
-          currentYearEnd,
-        ),
-      ]);
+        executeStatisticsRequests(graphqlClient, supervisorId, currentYearStart, currentYearEnd, previousYearStart),
+        executeSickAbsencesByMonthRequest(graphqlClient, supervisorId, currentYearStart, currentYearEnd)
+      ])
 
       const finalStatistics = processStatisticsData(
         { ...apiResults, sickAbsencesByMonthResult },
         currentYear,
-        previousYear,
-      );
+        previousYear
+      )
 
-      setStatistics(finalStatistics);
+      setStatistics(finalStatistics)
     } catch (err) {
-      console.error('Error fetching absence statistics:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch statistics');
+      console.error('Error fetching absence statistics:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch statistics')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [supervisorId, accessToken, graphqlClient]);
+  }, [supervisorId, accessToken, graphqlClient])
 
   useEffect(() => {
     if (accessToken && supervisorId) {
-      fetchStatistics();
+      fetchStatistics()
     }
-  }, [accessToken, supervisorId, fetchStatistics]);
+  }, [accessToken, supervisorId, fetchStatistics])
 
   return {
     statistics,
     isLoading,
     error,
-    refetch: fetchStatistics,
-  };
-};
+    refetch: fetchStatistics
+  }
+}

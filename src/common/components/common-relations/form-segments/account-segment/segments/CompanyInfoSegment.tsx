@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import {
   FormField,
   FormItem,
@@ -12,24 +12,24 @@ import {
   SelectValue,
   Input,
   Textarea,
-  Spinner,
-} from "@newwork/nw-design-system";
-import { useFormContext } from "react-hook-form";
-import { useCatalogOptions } from "../../shared/hooks/useCatalogOptions";
+  Spinner
+} from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
+import { useCatalogOptions } from '../../shared/hooks/useCatalogOptions'
 
 interface Props {
-  legalFormLabel?: React.ReactNode;
-  industryLabel?: React.ReactNode;
-  websiteLabel?: React.ReactNode;
-  descriptionLabel?: React.ReactNode;
-  accessToken?: string;
+  legalFormLabel?: React.ReactNode
+  industryLabel?: React.ReactNode
+  websiteLabel?: React.ReactNode
+  descriptionLabel?: React.ReactNode
+  accessToken?: string
   // Catalogs/options
-  legalFormOptions?: Array<{ value: string; label: string }>;
-  legalFormCatalog?: { identifier: string; version: string };
-  fetchLegalFormOptions?: (q?: string) => Promise<Array<{ value: string; label: string }>>;
-  industryOptions?: Array<{ value: string; label: string }>;
-  industryCatalog?: { identifier: string; version: string };
-  fetchIndustryOptions?: (q?: string) => Promise<Array<{ value: string; label: string }>>;
+  legalFormOptions?: Array<{ value: string; label: string }>
+  legalFormCatalog?: { identifier: string; version: string }
+  fetchLegalFormOptions?: (q?: string) => Promise<Array<{ value: string; label: string }>>
+  industryOptions?: Array<{ value: string; label: string }>
+  industryCatalog?: { identifier: string; version: string }
+  fetchIndustryOptions?: (q?: string) => Promise<Array<{ value: string; label: string }>>
 }
 
 const CompanyInfoSegment: React.FC<Props> = ({
@@ -43,22 +43,22 @@ const CompanyInfoSegment: React.FC<Props> = ({
   fetchLegalFormOptions,
   industryOptions,
   industryCatalog,
-  fetchIndustryOptions,
+  fetchIndustryOptions
 }) => {
-  const form = useFormContext<any>();
+  const form = useFormContext<any>()
 
   const legalFormState = useCatalogOptions({
     accessToken,
     catalog: legalFormCatalog,
     providedOptions: legalFormOptions,
-    fetchOptions: fetchLegalFormOptions,
-  });
+    fetchOptions: fetchLegalFormOptions
+  })
   const industryState = useCatalogOptions({
     accessToken,
     catalog: industryCatalog,
     providedOptions: industryOptions,
-    fetchOptions: fetchIndustryOptions,
-  });
+    fetchOptions: fetchIndustryOptions
+  })
 
   return (
     <>
@@ -78,7 +78,7 @@ const CompanyInfoSegment: React.FC<Props> = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {legalFormState.options.map((opt) => (
+                    {legalFormState.options.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -106,7 +106,7 @@ const CompanyInfoSegment: React.FC<Props> = ({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {industryState.options.map((opt) => (
+                    {industryState.options.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -156,9 +156,7 @@ const CompanyInfoSegment: React.FC<Props> = ({
         )}
       </div>
     </>
-  );
-};
+  )
+}
 
-export default CompanyInfoSegment;
-
-
+export default CompanyInfoSegment

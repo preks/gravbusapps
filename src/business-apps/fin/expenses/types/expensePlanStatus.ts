@@ -7,11 +7,11 @@ export enum ExpensePlanStatus {
   SUBMITTED = 'SUBMITTED',
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
-  CANCELLED = 'CANCELLED',
+  CANCELLED = 'CANCELLED'
 }
 
 /**
  * Array of all expense plan statuses.
  * Useful for iterating over all possible statuses.
  */
-export const ALL_EXPENSE_PLAN_STATUSES = Object.values(ExpensePlanStatus);
+export const ALL_EXPENSE_PLAN_STATUSES = Object.values(ExpensePlanStatus)

@@ -1,29 +1,45 @@
-import React, { useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DocumentPopup } from '../document-popup/DocumentPopup';
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DocumentPopup } from '../document-popup/DocumentPopup'
 
 export interface DocumentUpdatePopupProps extends BusinessAppContextProps {
-  initialValues?: any;
+  initialValues?: any
 }
 
 const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({ initialValues = {}, ...props }) => {
   // Extract document information from the context to pass to DocumentPopup
   const documentUpdateInitialValues = useMemo(() => {
-    const src = { ...(props as any), ...(initialValues as any) } as any;
-    const ad = src?.additionalData || {};
-    const payload = ad?.payload || ad?.psi_taskPayload?.psi_initialParameters?.payload || ad?.psi_taskPayload?.initialParameters?.payload || {};
-    const docFromAd = ad?.investmentDocument || ad?.psi_taskPayload?.psi_initialParameters?.investmentDocument || ad?.psi_taskPayload?.initialParameters?.investmentDocument || payload?.investmentDocument;
-    
+    const src = { ...(props as any), ...(initialValues as any) } as any
+    const ad = src?.additionalData || {}
+    const payload =
+      ad?.payload ||
+      ad?.psi_taskPayload?.psi_initialParameters?.payload ||
+      ad?.psi_taskPayload?.initialParameters?.payload ||
+      {}
+    const docFromAd =
+      ad?.investmentDocument ||
+      ad?.psi_taskPayload?.psi_initialParameters?.investmentDocument ||
+      ad?.psi_taskPayload?.initialParameters?.investmentDocument ||
+      payload?.investmentDocument
+
     // Extract document ID and other data
-    const documentId = src?.documentId || src?.investmentDocumentId || docFromAd?.id || payload?.documentId || payload?.investmentDocumentId || '';
-    
+    const documentId =
+      src?.documentId ||
+      src?.investmentDocumentId ||
+      docFromAd?.id ||
+      payload?.documentId ||
+      payload?.investmentDocumentId ||
+      ''
+
     // Extract entity information
-    const urlParams = new URLSearchParams(window.location.search);
-    const accountId = src?.accountId || src?.account || docFromAd?.account || urlParams.get('accountId') || '';
-    const contactId = src?.contactId || src?.contact || docFromAd?.contact || urlParams.get('contactId') || '';
-    const leadId = src?.leadId || src?.lead || docFromAd?.lead || urlParams.get('leadId') || '';
-    const opportunityId = src?.opportunityId || src?.opportunity || docFromAd?.opportunity || urlParams.get('opportunityId') || '';
-    const investmentId = src?.investmentId || src?.investment || docFromAd?.investment || urlParams.get('investmentId') || '';
+    const urlParams = new URLSearchParams(window.location.search)
+    const accountId = src?.accountId || src?.account || docFromAd?.account || urlParams.get('accountId') || ''
+    const contactId = src?.contactId || src?.contact || docFromAd?.contact || urlParams.get('contactId') || ''
+    const leadId = src?.leadId || src?.lead || docFromAd?.lead || urlParams.get('leadId') || ''
+    const opportunityId =
+      src?.opportunityId || src?.opportunity || docFromAd?.opportunity || urlParams.get('opportunityId') || ''
+    const investmentId =
+      src?.investmentId || src?.investment || docFromAd?.investment || urlParams.get('investmentId') || ''
 
     // Prepare the initial values for DocumentPopup in update mode
     return {
@@ -43,7 +59,7 @@ const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({ initialValues
         contact: contactId,
         lead: leadId,
         opportunity: opportunityId,
-        investment: investmentId,
+        investment: investmentId
       },
       // Pass through entity IDs
       accountId,
@@ -52,10 +68,9 @@ const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({ initialValues
       opportunityId,
       investmentId,
       // Pass through any additional data
-      ...src,
-    };
-  }, [initialValues, props]);
-
+      ...src
+    }
+  }, [initialValues, props])
 
   // Force the form to have the correct values by ensuring they're not undefined
   const forcedInitialValues = {
@@ -63,17 +78,12 @@ const DocumentUpdatePopup: React.FC<DocumentUpdatePopupProps> = ({ initialValues
     investmentDocument: {
       ...documentUpdateInitialValues?.investmentDocument,
       documentGroupRef: documentUpdateInitialValues?.investmentDocument?.documentGroupRef || '',
-      documentTypeRef: documentUpdateInitialValues?.investmentDocument?.documentTypeRef || '',
+      documentTypeRef: documentUpdateInitialValues?.investmentDocument?.documentTypeRef || ''
     }
-  };
+  }
 
   // Use DocumentPopup in update mode
-  return (
-    <DocumentPopup
-      {...props}
-      initialValues={forcedInitialValues}
-    />
-  );
-};
+  return <DocumentPopup {...props} initialValues={forcedInitialValues} />
+}
 
-export default DocumentUpdatePopup;
+export default DocumentUpdatePopup

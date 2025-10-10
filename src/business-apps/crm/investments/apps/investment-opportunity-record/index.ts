@@ -1,3 +1,3 @@
-import { OpportunityRecord } from './OpportunityRecord';
-export { OpportunityRecord };
-export default OpportunityRecord;
+import { OpportunityRecord } from './OpportunityRecord'
+export { OpportunityRecord }
+export default OpportunityRecord

@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Progress, Card, Steps, Tag, Typography, Space, Button, Tooltip, Spin, Alert } from 'antd';
-import { 
-  CheckCircleOutlined, 
-  ClockCircleOutlined, 
+import React, { useState, useEffect } from 'react'
+import { Progress, Card, Steps, Tag, Typography, Space, Button, Tooltip, Spin, Alert } from 'antd'
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
   PlayCircleOutlined,
   DownloadOutlined,
   ReloadOutlined
-} from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useFlowProgressClient, FlowOverview } from '@/common/network/flows/useFlowProgressClient';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { PreviousStepData } from './PreviousStepData';
+} from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useFlowProgressClient, FlowOverview } from '@/common/network/flows/useFlowProgressClient'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { PreviousStepData } from './PreviousStepData'
 
-const { Title, Text } = Typography;
-const { Step } = Steps;
+const { Title, Text } = Typography
+const { Step } = Steps
 
 interface FlowProgressProps extends BusinessAppContextProps {
-  flowId: string;
-  showExport?: boolean;
-  compact?: boolean;
-  refreshInterval?: number; // Auto-refresh in milliseconds
-  'data-testid'?: string;
+  flowId: string
+  showExport?: boolean
+  compact?: boolean
+  refreshInterval?: number // Auto-refresh in milliseconds
+  'data-testid'?: string
 }
 
 export const FlowProgress: React.FC<FlowProgressProps> = ({
@@ -31,82 +31,82 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
   'data-testid': testId = 'flow-progress',
   ...context
 }) => {
-  const [flowData, setFlowData] = useState<FlowOverview | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
-  
-  const flowClient = useFlowProgressClient(context);
-  const prefixDataTestId = formatDataTestId(testId);
+  const [flowData, setFlowData] = useState<FlowOverview | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set())
+
+  const flowClient = useFlowProgressClient(context)
+  const prefixDataTestId = formatDataTestId(testId)
 
   useEffect(() => {
-    loadFlowData();
-    
+    loadFlowData()
+
     // Set up auto-refresh if specified
-    let interval: NodeJS.Timeout | undefined;
+    let interval: NodeJS.Timeout | undefined
     if (refreshInterval && refreshInterval > 0) {
-      interval = setInterval(loadFlowData, refreshInterval);
+      interval = setInterval(loadFlowData, refreshInterval)
     }
-    
+
     return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [flowId, refreshInterval]);
+      if (interval) clearInterval(interval)
+    }
+  }, [flowId, refreshInterval])
 
   const loadFlowData = async () => {
     try {
-      if (!loading) setLoading(true);
-      setError(null);
-      const data = await flowClient.getFlowOverview(flowId);
-      setFlowData(data);
+      if (!loading) setLoading(true)
+      setError(null)
+      const data = await flowClient.getFlowOverview(flowId)
+      setFlowData(data)
     } catch (err) {
-      console.error('Error loading flow data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load flow data');
+      console.error('Error loading flow data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load flow data')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const getStepIcon = (status: string) => {
     switch (status) {
       case 'COMPLETED':
-        return <CheckCircleOutlined className="gba:text-green-500" />;
+        return <CheckCircleOutlined className="gba:text-green-500" />
       case 'IN_PROGRESS':
-        return <PlayCircleOutlined className="gba:text-blue-500" />;
+        return <PlayCircleOutlined className="gba:text-blue-500" />
       case 'SCHEDULED':
-        return <ClockCircleOutlined className="gba:text-orange-500" />;
+        return <ClockCircleOutlined className="gba:text-orange-500" />
       case 'QUEUED':
-        return <ClockCircleOutlined className="gba:text-gray-400" />;
+        return <ClockCircleOutlined className="gba:text-gray-400" />
       default:
-        return <ClockCircleOutlined className="gba:text-gray-400" />;
+        return <ClockCircleOutlined className="gba:text-gray-400" />
     }
-  };
+  }
 
   const getStepStatus = (status: string) => {
     switch (status) {
       case 'COMPLETED':
-        return 'finish';
+        return 'finish'
       case 'IN_PROGRESS':
       case 'SCHEDULED':
-        return 'process';
+        return 'process'
       case 'QUEUED':
-        return 'wait';
+        return 'wait'
       default:
-        return 'wait';
+        return 'wait'
     }
-  };
+  }
 
   const handleExport = () => {
-    const exportUrl = flowClient.getExportUrl(flowId);
-    window.open(exportUrl, '_blank');
-  };
+    const exportUrl = flowClient.getExportUrl(flowId)
+    window.open(exportUrl, '_blank')
+  }
 
   if (loading && !flowData) {
     return (
       <Card loading={true} data-testid={prefixDataTestId}>
         <div style={{ height: compact ? '100px' : '200px' }} />
       </Card>
-    );
+    )
   }
 
   if (error || !flowData) {
@@ -124,7 +124,7 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
           }
         />
       </Card>
-    );
+    )
   }
 
   if (compact) {
@@ -132,18 +132,18 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
       <Card size="small" data-testid={prefixDataTestId}>
         <div className="gba:space-y-3">
           <div className="gba:flex gba:justify-between gba:items-center">
-            <Text strong className="gba:text-sm">{flowData.name}</Text>
-            <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'}>
-              {flowData.status}
-            </Tag>
+            <Text strong className="gba:text-sm">
+              {flowData.name}
+            </Text>
+            <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'}>{flowData.status}</Tag>
           </div>
-          
+
           <div>
             <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
               <Text className="gba:text-xs">Progress</Text>
               <Text className="gba:text-xs">{flowData.progress.percentage}%</Text>
             </div>
-            <Progress 
+            <Progress
               percent={flowData.progress.percentage}
               size="small"
               status={flowData.status === 'RUNNING' ? 'active' : 'normal'}
@@ -154,34 +154,31 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
           </div>
         </div>
       </Card>
-    );
+    )
   }
 
   return (
-    <Card 
+    <Card
       title={
         <Space className="gba:w-full gba:justify-between">
           <div>
-            <Title level={4} className="gba:mb-0">{flowData.name}</Title>
-            <Text type="secondary" className="gba:text-sm">Flow ID: {flowData.id}</Text>
+            <Title level={4} className="gba:mb-0">
+              {flowData.name}
+            </Title>
+            <Text type="secondary" className="gba:text-sm">
+              Flow ID: {flowData.id}
+            </Text>
           </div>
           <Space>
-            <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'}>
-              {flowData.status}
-            </Tag>
+            <Tag color={flowData.status === 'RUNNING' ? 'processing' : 'default'}>{flowData.status}</Tag>
             {refreshInterval && (
               <Tooltip title="Auto-refreshing">
-                <Button 
-                  icon={<ReloadOutlined spin={loading} />} 
-                  size="small"
-                  type="text"
-                  onClick={loadFlowData}
-                />
+                <Button icon={<ReloadOutlined spin={loading} />} size="small" type="text" onClick={loadFlowData} />
               </Tooltip>
             )}
             {showExport && (
-              <Button 
-                icon={<DownloadOutlined />} 
+              <Button
+                icon={<DownloadOutlined />}
                 onClick={handleExport}
                 size="small"
                 data-testid={`${prefixDataTestId}-export-button`}
@@ -201,12 +198,12 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
             <Text strong>Overall Progress</Text>
             <Text>{flowData.progress.percentage}%</Text>
           </div>
-          <Progress 
+          <Progress
             percent={flowData.progress.percentage}
             status={flowData.status === 'RUNNING' ? 'active' : 'normal'}
             strokeColor={{
               '0%': '#108ee9',
-              '100%': '#87d068',
+              '100%': '#87d068'
             }}
           />
           <div className="gba:mt-2">
@@ -221,8 +218,8 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
           <div data-testid={`${prefixDataTestId}-steps`}>
             <Title level={5}>Step Progress</Title>
             <div className="gba:space-y-3">
-              {flowData.steps.map((step) => (
-                <div 
+              {flowData.steps.map(step => (
+                <div
                   key={step.stepIndex}
                   className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3"
                   data-testid={`${prefixDataTestId}-step-${step.stepIndex}`}
@@ -233,19 +230,21 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
                       {getStepIcon(step.status)}
                       <Text strong>{step.title}</Text>
                       <Tag color="blue">{step.type}</Tag>
-                      <Tag 
+                      <Tag
                         color={
-                          step.status === 'COMPLETED' ? 'success' :
-                          step.status === 'IN_PROGRESS' ? 'processing' :
-                          step.status === 'SCHEDULED' ? 'warning' : 'default'
+                          step.status === 'COMPLETED'
+                            ? 'success'
+                            : step.status === 'IN_PROGRESS'
+                              ? 'processing'
+                              : step.status === 'SCHEDULED'
+                                ? 'warning'
+                                : 'default'
                         }
                       >
                         {step.status}
                       </Tag>
                     </div>
-                    <Text className="gba:text-xs gba:text-gray-500">
-                      Step {step.stepIndex + 1}
-                    </Text>
+                    <Text className="gba:text-xs gba:text-gray-500">Step {step.stepIndex + 1}</Text>
                   </div>
                 </div>
               ))}
@@ -254,5 +253,5 @@ export const FlowProgress: React.FC<FlowProgressProps> = ({
         )}
       </div>
     </Card>
-  );
-};
+  )
+}

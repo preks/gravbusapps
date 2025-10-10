@@ -1,71 +1,74 @@
-import { useEffect, useState } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useEffect, useState } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export type TimeFilter = "month" | "quarter" | "sixMonths" | "year" | "historical";
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 export interface LeadsTrendData {
-  currentMonthLeads: number;
-  previousMonthLeads: number;
-  currentMonthConvertedLeads: number;
-  previousMonthConvertedLeads: number;
-  totalLeadsThisMonth: number;
-  totalLeadsLastMonth: number;
-  actualConversionRateThisMonth: number;
-  actualConversionRateLastMonth: number;
-  actualAvgConversionTimeThisMonth: number;
-  actualAvgConversionTimeLastMonth: number;
-  currentPeriodLeads: number;
-  previousPeriodLeads: number;
+  currentMonthLeads: number
+  previousMonthLeads: number
+  currentMonthConvertedLeads: number
+  previousMonthConvertedLeads: number
+  totalLeadsThisMonth: number
+  totalLeadsLastMonth: number
+  actualConversionRateThisMonth: number
+  actualConversionRateLastMonth: number
+  actualAvgConversionTimeThisMonth: number
+  actualAvgConversionTimeLastMonth: number
+  currentPeriodLeads: number
+  previousPeriodLeads: number
 }
 
 export const useLeadsTrendData = (accessToken: string, selectedTimeFilter: TimeFilter) => {
-  const [trendData, setTrendData] = useState<LeadsTrendData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const graphqlClient = useGraphQLClient(accessToken);
+  const [trendData, setTrendData] = useState<LeadsTrendData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setIsLoading(true);
+        setIsLoading(true)
 
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1;
+        const currentDate = new Date()
+        const currentYear = currentDate.getFullYear()
+        const currentMonth = currentDate.getMonth() + 1
 
-        const pad2 = (n: number) => String(n).padStart(2, "0");
-        const currentMonthStart = `${currentYear}-${pad2(currentMonth)}-01T00:00:00Z`;
-        const nextMonthStart = currentMonth === 12
-          ? `${currentYear + 1}-01-01T00:00:00Z`
-          : `${currentYear}-${pad2(currentMonth + 1)}-01T00:00:00Z`;
-        const previousMonthStart = currentMonth === 1
-          ? `${currentYear - 1}-12-01T00:00:00Z`
-          : `${currentYear}-${pad2(currentMonth - 1)}-01T00:00:00Z`;
+        const pad2 = (n: number) => String(n).padStart(2, '0')
+        const currentMonthStart = `${currentYear}-${pad2(currentMonth)}-01T00:00:00Z`
+        const nextMonthStart =
+          currentMonth === 12
+            ? `${currentYear + 1}-01-01T00:00:00Z`
+            : `${currentYear}-${pad2(currentMonth + 1)}-01T00:00:00Z`
+        const previousMonthStart =
+          currentMonth === 1
+            ? `${currentYear - 1}-12-01T00:00:00Z`
+            : `${currentYear}-${pad2(currentMonth - 1)}-01T00:00:00Z`
 
-        let currentPeriodStart: string, previousPeriodStart: string, previousPeriodEnd: string;
+        let currentPeriodStart: string, previousPeriodStart: string, previousPeriodEnd: string
         switch (selectedTimeFilter) {
-          case "month":
-            currentPeriodStart = currentMonthStart;
-            previousPeriodStart = previousMonthStart;
-            previousPeriodEnd = currentMonthStart;
-            break;
-          case "quarter": {
-            const quarterStartMonth = Math.floor((currentMonth - 1) / 3) * 3 + 1;
-            currentPeriodStart = `${currentYear}-${pad2(quarterStartMonth)}-01T00:00:00Z`;
-            previousPeriodStart = quarterStartMonth > 3
-              ? `${currentYear}-${pad2(quarterStartMonth - 3)}-01T00:00:00Z`
-              : `${currentYear - 1}-${pad2(quarterStartMonth + 9)}-01T00:00:00Z`;
-            previousPeriodEnd = currentPeriodStart;
-            break;
+          case 'month':
+            currentPeriodStart = currentMonthStart
+            previousPeriodStart = previousMonthStart
+            previousPeriodEnd = currentMonthStart
+            break
+          case 'quarter': {
+            const quarterStartMonth = Math.floor((currentMonth - 1) / 3) * 3 + 1
+            currentPeriodStart = `${currentYear}-${pad2(quarterStartMonth)}-01T00:00:00Z`
+            previousPeriodStart =
+              quarterStartMonth > 3
+                ? `${currentYear}-${pad2(quarterStartMonth - 3)}-01T00:00:00Z`
+                : `${currentYear - 1}-${pad2(quarterStartMonth + 9)}-01T00:00:00Z`
+            previousPeriodEnd = currentPeriodStart
+            break
           }
-          case "year":
-            currentPeriodStart = `${currentYear}-01-01T00:00:00Z`;
-            previousPeriodStart = `${currentYear - 1}-01-01T00:00:00Z`;
-            previousPeriodEnd = currentPeriodStart;
-            break;
+          case 'year':
+            currentPeriodStart = `${currentYear}-01-01T00:00:00Z`
+            previousPeriodStart = `${currentYear - 1}-01-01T00:00:00Z`
+            previousPeriodEnd = currentPeriodStart
+            break
           default:
-            currentPeriodStart = currentMonthStart;
-            previousPeriodStart = previousMonthStart;
-            previousPeriodEnd = currentMonthStart;
+            currentPeriodStart = currentMonthStart
+            previousPeriodStart = previousMonthStart
+            previousPeriodEnd = currentMonthStart
         }
 
         const query = `
@@ -79,16 +82,18 @@ export const useLeadsTrendData = (accessToken: string, selectedTimeFilter: TimeF
             currentPeriodLeads: LeadAggregate(where: {isDeleted: {_eq: false}, createdAt: {_gte: "${currentPeriodStart}", _lt: "${nextMonthStart}"}}) { aggregate { count } }
             previousPeriodLeads: LeadAggregate(where: {isDeleted: {_eq: false}, createdAt: {_gte: "${previousPeriodStart}", _lt: "${previousPeriodEnd}"}}) { aggregate { count } }
           }
-        `;
+        `
 
-        const result = await graphqlClient.request<any>(query);
+        const result = await graphqlClient.request<any>(query)
 
-        const currentMonthConversionRate = result.currentMonthLeads.aggregate.count > 0
-          ? (result.currentMonthConvertedLeads.aggregate.count / result.currentMonthLeads.aggregate.count) * 100
-          : 0;
-        const previousMonthConversionRate = result.previousMonthLeads.aggregate.count > 0
-          ? (result.previousMonthConvertedLeads.aggregate.count / result.previousMonthLeads.aggregate.count) * 100
-          : 0;
+        const currentMonthConversionRate =
+          result.currentMonthLeads.aggregate.count > 0
+            ? (result.currentMonthConvertedLeads.aggregate.count / result.currentMonthLeads.aggregate.count) * 100
+            : 0
+        const previousMonthConversionRate =
+          result.previousMonthLeads.aggregate.count > 0
+            ? (result.previousMonthConvertedLeads.aggregate.count / result.previousMonthLeads.aggregate.count) * 100
+            : 0
 
         setTrendData({
           currentMonthLeads: result.currentMonthLeads.aggregate.count,
@@ -102,19 +107,17 @@ export const useLeadsTrendData = (accessToken: string, selectedTimeFilter: TimeF
           actualAvgConversionTimeThisMonth: 0,
           actualAvgConversionTimeLastMonth: 0,
           currentPeriodLeads: result.currentPeriodLeads.aggregate.count,
-          previousPeriodLeads: result.previousPeriodLeads.aggregate.count,
-        });
+          previousPeriodLeads: result.previousPeriodLeads.aggregate.count
+        })
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
     if (accessToken) {
-      fetchData();
+      fetchData()
     }
-  }, [accessToken, graphqlClient, selectedTimeFilter]);
+  }, [accessToken, graphqlClient, selectedTimeFilter])
 
-  return { trendData, isLoading };
-};
-
-
+  return { trendData, isLoading }
+}

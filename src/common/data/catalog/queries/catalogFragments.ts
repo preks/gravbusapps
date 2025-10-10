@@ -1,4 +1,3 @@
-
 /**
  * GraphQL Fragments for Catalog Management
  * Structured like REST API responses with conditional includes
@@ -10,7 +9,7 @@ export const CATALOG_AUDIT_FIELDS = `
   createdBy
   updatedAt
   updatedBy
-`;
+`
 
 // Base catalog reference (minimal fields)
 export const CATALOG_REF = `
@@ -27,7 +26,7 @@ export const CATALOG_REF = `
   validFrom
   validTo
   ${CATALOG_AUDIT_FIELDS}
-`;
+`
 
 // Base catalog entry reference (minimal fields)
 export const CATALOG_ENTRY_REF = `
@@ -58,7 +57,7 @@ export const CATALOG_ENTRY_REF = `
   isDeleted
   recordState
   ${CATALOG_AUDIT_FIELDS}
-`;
+`
 
 // Parent catalog entry fragment (for conditional include)
 export const PARENT_CATALOG_ENTRY = `
@@ -68,7 +67,7 @@ export const PARENT_CATALOG_ENTRY = `
       ${CATALOG_REF}
     }
   }
-`;
+`
 
 // Child catalog entries fragment (for conditional include)
 export const CHILD_CATALOG_ENTRIES = `
@@ -78,6 +77,4 @@ export const CHILD_CATALOG_ENTRIES = `
       ${CATALOG_REF}
     }
   }
-`;
-
-
+`

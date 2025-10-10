@@ -1,15 +1,15 @@
-import React, { useState, useRef } from "react";
-import { Button, Input, Label, Spinner } from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
-import { useContactFormContext } from "../context/ContactFormContext";
-import OwnerInformationSection from "./OwnerInformationSection";
-import PersonalInformationSection from "./PersonalInformationSection";
-import ProfessionalInformationSection from "./ProfessionalInformationSection";
-import AdditionalInformationSection from "./AdditionalInformationSection";
-import SearchableSelect from "../../opportunity-form/components/SearchableSelect";
+import React, { useState, useRef } from 'react'
+import { Button, Input, Label, Spinner } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { useContactFormContext } from '../context/ContactFormContext'
+import OwnerInformationSection from './OwnerInformationSection'
+import PersonalInformationSection from './PersonalInformationSection'
+import ProfessionalInformationSection from './ProfessionalInformationSection'
+import AdditionalInformationSection from './AdditionalInformationSection'
+import SearchableSelect from '../../opportunity-form/components/SearchableSelect'
 
-const prefixDataTestId = "ContactForm";
+const prefixDataTestId = 'ContactForm'
 
 const ContactFormComponent: React.FC = () => {
   const {
@@ -29,18 +29,16 @@ const ContactFormComponent: React.FC = () => {
     searchCampaigns,
     loadMoreCampaigns,
     campaignsHasMore,
-    campaignsLoading,
-  } = useContactFormContext();
+    campaignsLoading
+  } = useContactFormContext()
 
   // Safety check - if context is not properly initialized, show error
   if (!formValues) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
-          Error: Form context not properly initialized. Please refresh the page.
-        </div>
+        <div className="gba:text-red-500">Error: Form context not properly initialized. Please refresh the page.</div>
       </div>
-    );
+    )
   }
 
   // Check if all mandatory fields are filled
@@ -49,24 +47,24 @@ const ContactFormComponent: React.FC = () => {
     formValues.lastName &&
     formValues.email &&
     formValues.accountId &&
-    formValues.ownerEmployeeId;
+    formValues.ownerEmployeeId
 
   // Helper function to convert values to strings safely
   const toStringOrUndefined = (value: string): string | undefined => {
-    return value && value.trim() ? value.trim() : undefined;
-  };
+    return value && value.trim() ? value.trim() : undefined
+  }
 
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      await onSubmit(formValues);
+      await onSubmit(formValues)
 
       // Determine if this is an update or create operation
-      const isUpdate = formValues.id;
+      const isUpdate = formValues.id
 
       // Prepare comprehensive contact payload following the API structure
       const contactPayload: any = {
-        sourceApp: "CRM",
+        sourceApp: 'CRM',
         firstName: toStringOrUndefined(formValues.firstName),
         lastName: toStringOrUndefined(formValues.lastName),
         academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
@@ -76,74 +74,65 @@ const ContactFormComponent: React.FC = () => {
         pictureUrl: toStringOrUndefined(formValues.pictureUrl),
         jobTitle: toStringOrUndefined(formValues.jobTitle),
         department: toStringOrUndefined(formValues.department),
-        contactType: formValues.contactType || "", // Always include
-        workExperienceYears: formValues.workExperienceYears
-          ? parseInt(formValues.workExperienceYears)
-          : undefined,
+        contactType: formValues.contactType || '', // Always include
+        workExperienceYears: formValues.workExperienceYears ? parseInt(formValues.workExperienceYears) : undefined,
         email: toStringOrUndefined(formValues.email),
         phone: toStringOrUndefined(formValues.phone),
         fax: toStringOrUndefined(formValues.fax),
         linkedinUrl: toStringOrUndefined(formValues.linkedinUrl),
         xingUrl: toStringOrUndefined(formValues.xingUrl),
-        companyName: formValues.companyName
-          ? toStringOrUndefined(formValues.companyName)
-          : undefined,
+        companyName: formValues.companyName ? toStringOrUndefined(formValues.companyName) : undefined,
         account: toStringOrUndefined(formValues.accountId), // Backend expects 'account' field
         salesCampaign: toStringOrUndefined(formValues.salesCampaignId),
-        ownerEmployee:
-          toStringOrUndefined(formValues.owner) ||
-          toStringOrUndefined(formValues.ownerEmployeeId),
+        ownerEmployee: toStringOrUndefined(formValues.owner) || toStringOrUndefined(formValues.ownerEmployeeId),
         ownerOrganization: undefined, // Will be set by backend based on owner employee
         notesSummary: toStringOrUndefined(formValues.notesSummary),
-        recordState: formValues.recordState || "ACTIVE",
-      };
+        recordState: formValues.recordState || 'ACTIVE'
+      }
 
       // For updates, include the contact ID and version
       if (isUpdate) {
-        contactPayload.id = formValues.id;
+        contactPayload.id = formValues.id
         if (formValues.version !== undefined) {
-          contactPayload.version = formValues.version;
+          contactPayload.version = formValues.version
         }
       }
 
       // Initialize empty arrays for relationships
-      contactPayload.addresses = [];
-      contactPayload.communicationChannels = [];
-      contactPayload.tags = [];
+      contactPayload.addresses = []
+      contactPayload.communicationChannels = []
+      contactPayload.tags = []
 
       // Determine change mode based on whether we have an ID
-      const changeMode = isUpdate ? "UPDATE" : "INSERT";
+      const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
       const payload = {
         contact: contactPayload,
-        changeMode: changeMode,
-      };
+        changeMode: changeMode
+      }
 
       // Dispatch process continue event on successful submission
-      dispatchProcessContinueEvent("pse_submit", payload);
+      dispatchProcessContinueEvent('pse_submit', payload)
     } catch (err) {
-      console.error("Error submitting contact form:", err);
+      console.error('Error submitting contact form:', err)
     }
-  };
+  }
 
   // Handle form cancellation
   const handleCancel = async () => {
     try {
-      await onCancel();
+      await onCancel()
 
       // Dispatch process continue event for cancellation (pause)
-      dispatchProcessContinueEvent("pse_pause", null);
+      dispatchProcessContinueEvent('pse_pause', null)
     } catch (err) {
-      console.error("Error cancelling contact form:", err);
+      console.error('Error cancelling contact form:', err)
     }
-  };
+  }
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col gba:max-w-md gba:mx-auto gba:p-6">
-      <div
-        className="gba:h-full gba:flex gba:flex-col"
-        data-testid={formatDataTestId(prefixDataTestId, "Form")}
-      >
+      <div className="gba:h-full gba:flex gba:flex-col" data-testid={formatDataTestId(prefixDataTestId, 'Form')}>
         {/* Form Fields Container - Takes up available space */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-8">
           {/* Contact Owner Section - First and most important */}
@@ -161,22 +150,22 @@ const ContactFormComponent: React.FC = () => {
               hasMore={accountsHasMore}
               onSearch={searchAccounts}
               onLoadMore={loadMoreAccounts}
-              onChange={(value) => {
+              onChange={value => {
                 // Find the selected account to get both ID and name
                 const selectedAccount = accountSuggestions.find(
-                  (account) => account.value === value || account.id === value
-                );
+                  account => account.value === value || account.id === value
+                )
                 if (selectedAccount) {
                   setFormValues({
                     companyName: selectedAccount.name, // Store name for display
                     accountId: selectedAccount.value, // Store ID for backend AND SearchableSelect value
-                    account: selectedAccount.value, // Store ID for selection
-                  });
+                    account: selectedAccount.value // Store ID for selection
+                  })
                 }
               }}
               error={null}
               className="gba:w-full gba:min-w-[300px]"
-              data-testid={formatDataTestId(prefixDataTestId, "CompanySelect")}
+              data-testid={formatDataTestId(prefixDataTestId, 'CompanySelect')}
             />
           </div>
 
@@ -192,14 +181,14 @@ const ContactFormComponent: React.FC = () => {
               hasMore={campaignsHasMore}
               onSearch={searchCampaigns}
               onLoadMore={loadMoreCampaigns}
-              onChange={(value) => {
+              onChange={value => {
                 setFormValues({
-                  salesCampaignId: value, // Store only ID for backend
-                });
+                  salesCampaignId: value // Store only ID for backend
+                })
               }}
               error={null}
               className="gba:w-full gba:min-w-[300px]"
-              data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
+              data-testid={formatDataTestId(prefixDataTestId, 'CampaignSelect')}
             />
           </div>
 
@@ -216,7 +205,7 @@ const ContactFormComponent: React.FC = () => {
           {error && (
             <div
               className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md gba:p-4 gba:mb-4"
-              data-testid={formatDataTestId(prefixDataTestId, "ErrorAlert")}
+              data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}
             >
               <p className="gba:text-red-800 gba:font-medium">{error}</p>
             </div>
@@ -230,7 +219,7 @@ const ContactFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleCancel}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
           >
             Cancel
           </Button>
@@ -240,15 +229,15 @@ const ContactFormComponent: React.FC = () => {
             className="gba:flex-1"
             size="lg"
             onClick={handleSubmit}
-            data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+            data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
           >
             {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {formValues.id ? "Update Contact" : "Create Contact"}
+            {formValues.id ? 'Update Contact' : 'Create Contact'}
           </Button>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ContactFormComponent;
+export default ContactFormComponent

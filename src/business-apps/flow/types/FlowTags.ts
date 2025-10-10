@@ -4,10 +4,10 @@
  */
 
 export interface FlowTag {
-  key: string;
-  value: string;
+  key: string
+  value: string
 }
 
 export interface FlowTags {
-  [key: string]: string;
+  [key: string]: string
 }

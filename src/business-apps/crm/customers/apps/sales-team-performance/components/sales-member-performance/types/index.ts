@@ -1,2 +1,2 @@
-export * from './performanceTypes';
-export * from './activitiesTypes'; 
+export * from './performanceTypes'
+export * from './activitiesTypes'

@@ -1,43 +1,43 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface SalesTaskQueryVariables {
-  opportunityId: string;
+  opportunityId: string
 }
 
 export interface SalesTaskData {
-  id: string;
-  name: string;
-  version: number;
-  description: string;
-  dueDate?: string | null;
-  createdAt: string;
-  typeRef?: string;
+  id: string
+  name: string
+  version: number
+  description: string
+  dueDate?: string | null
+  createdAt: string
+  typeRef?: string
   type: {
-    value: string;
-  };
+    value: string
+  }
   priority: {
-    value: string;
-  };
-  createdBy: string;
+    value: string
+  }
+  createdBy: string
   creatorEmployee?: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    displayName?: string;
-    fullName?: string;
-  };
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    fullName?: string
+  }
   assignedEmployee?: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    displayName?: string;
-    fullName?: string;
-  };
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    fullName?: string
+  }
 }
 
 export interface SalesTaskResponse {
-  SalesTask: SalesTaskData[];
+  SalesTask: SalesTaskData[]
 }
 
 export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
@@ -74,22 +74,22 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetSalesTasks = (context: BusinessAppContextProps) => {
-  const graphQLClient = useGraphQLClient(context.accessToken);
-  
-  const fetchSalesTasks = async (variables: SalesTaskQueryVariables) => {
-    const query = GET_SALES_TASKS(variables);
-    try {
-      const result = await graphQLClient.request<SalesTaskResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching sales tasks:', error);
-      throw error;
-    }
-  };
+  const graphQLClient = useGraphQLClient(context.accessToken)
 
-  return { fetchSalesTasks };
-}; 
+  const fetchSalesTasks = async (variables: SalesTaskQueryVariables) => {
+    const query = GET_SALES_TASKS(variables)
+    try {
+      const result = await graphQLClient.request<SalesTaskResponse>(query, variables)
+      return result
+    } catch (error) {
+      console.error('Error fetching sales tasks:', error)
+      throw error
+    }
+  }
+
+  return { fetchSalesTasks }
+}

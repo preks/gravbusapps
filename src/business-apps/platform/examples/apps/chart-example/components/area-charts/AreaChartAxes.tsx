@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,26 +9,30 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import areaChartData from "../../data/areaChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import areaChartData from '../../data/areaChartData.json'
 
 interface AreaChartAxesProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const AreaChartAxes: React.FC<AreaChartAxesProps> = ({ moduleColor }) => {
-  const chartData = areaChartData.axes;
+  const chartData = areaChartData.axes
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - used for area sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - used for area sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="area-chart-axes">
@@ -45,7 +49,7 @@ const AreaChartAxes: React.FC<AreaChartAxesProps> = ({ moduleColor }) => {
             data={chartData}
             margin={{
               left: 12,
-              right: 12,
+              right: 12
             }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -55,14 +59,14 @@ const AreaChartAxes: React.FC<AreaChartAxesProps> = ({ moduleColor }) => {
               axisLine={true}
               tickMargin={8}
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis
               tickLine={true}
               axisLine={true}
               tickMargin={8}
               tick={{ fontSize: 12 }}
-              tickFormatter={(value) => `${value}`}
+              tickFormatter={value => `${value}`}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Area
@@ -87,7 +91,7 @@ const AreaChartAxes: React.FC<AreaChartAxesProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default AreaChartAxes;
+export default AreaChartAxes

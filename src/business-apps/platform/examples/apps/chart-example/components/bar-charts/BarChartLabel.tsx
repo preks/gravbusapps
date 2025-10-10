@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,22 +9,26 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from "recharts";
-import { ChartBarIcon } from "@phosphor-icons/react";
-import barChartData from "../../data/barChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList } from 'recharts'
+import { ChartBarIcon } from '@phosphor-icons/react'
+import barChartData from '../../data/barChartData.json'
 
 interface BarChartLabelProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const BarChartLabel: React.FC<BarChartLabelProps> = ({ moduleColor }) => {
-  const chartData = barChartData.label;
+  const chartData = barChartData.label
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="bar-chart-label">
@@ -44,26 +48,18 @@ const BarChartLabel: React.FC<BarChartLabelProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="dashed" />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
             <Bar dataKey="desktop" fill="var(--color-desktop)" radius={8}>
-              <LabelList
-                position="top"
-                offset={12}
-                className="gba:fill-foreground"
-                fontSize={12}
-              />
+              <LabelList position="top" offset={12} className="gba:fill-foreground" fontSize={12} />
             </Bar>
           </BarChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default BarChartLabel;
+export default BarChartLabel

@@ -1,56 +1,64 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
+import React, { useState, useMemo, useEffect } from 'react'
 import {
-  PieChart,
-  Pie,
-  Cell
-} from 'recharts';
-import { formatCurrency } from '@/common/data/investment';
-import { 
-  ChartPieSliceIcon, 
-  ChartDonutIcon, 
-  PercentIcon, 
-  CurrencyCircleDollarIcon 
-} from '@phosphor-icons/react';
-import { EquityInvestmentSummary } from '../../shared/types';
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  CardDescription,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { PieChart, Pie, Cell } from 'recharts'
+import { formatCurrency } from '@/common/data/investment'
+import { ChartPieSliceIcon, ChartDonutIcon, PercentIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
+import { EquityInvestmentSummary } from '../../shared/types'
 
 // Design system chart colors using CSS variables
 const CHART_COLORS = [
-  'var(--nw-color-primary-500)',      // Blue
-  'var(--nw-color-success-500)',      // Green  
-  'var(--nw-color-warning-500)',      // Yellow/Orange
-  'var(--nw-color-danger-500)',       // Red
-  'var(--nw-color-info-500)'          // Light Blue
-];
+  'var(--nw-color-primary-500)', // Blue
+  'var(--nw-color-success-500)', // Green
+  'var(--nw-color-warning-500)', // Yellow/Orange
+  'var(--nw-color-danger-500)', // Red
+  'var(--nw-color-info-500)' // Light Blue
+]
 
 // Custom label renderer for pie charts
 const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
-  const RADIAN = Math.PI / 180;
-  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  const RADIAN = Math.PI / 180
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5
+  const x = cx + radius * Math.cos(-midAngle * RADIAN)
+  const y = cy + radius * Math.sin(-midAngle * RADIAN)
 
   return (
-    <text 
-      x={x} 
-      y={y} 
-      fill="white" 
-      textAnchor={x > cx ? 'start' : 'end'} 
+    <text
+      x={x}
+      y={y}
+      fill="white"
+      textAnchor={x > cx ? 'start' : 'end'}
       dominantBaseline="central"
       fontSize={12}
       fontWeight="bold"
     >
       {`${(percent * 100).toFixed(0)}%`}
     </text>
-  );
-};
+  )
+}
 
 interface EquityDistributionChartsProps {
-  roleData: any[];
-  statusData: any[];
-  stakeTypeData: any[];
-  investmentTypeData: any[];
-  rawInvestments: EquityInvestmentSummary[];
+  roleData: any[]
+  statusData: any[]
+  stakeTypeData: any[]
+  investmentTypeData: any[]
+  rawInvestments: EquityInvestmentSummary[]
 }
 
 export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> = ({
@@ -62,121 +70,125 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
 }) => {
   // Get available currencies
   const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(rawInvestments.map(inv => inv.currencyCode || 'EUR'))];
-    return currencies.filter(currency => currency).sort();
-  }, [rawInvestments]);
+    const currencies = [...new Set(rawInvestments.map(inv => inv.currencyCode || 'EUR'))]
+    return currencies.filter(currency => currency).sort()
+  }, [rawInvestments])
 
   // Currency filters for value charts
-  const [roleCurrencyFilter, setRoleCurrencyFilter] = useState('EUR');
-  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState('EUR');
-  const [stakeTypeCurrencyFilter, setStakeTypeCurrencyFilter] = useState('EUR');
-  const [investmentTypeCurrencyFilter, setInvestmentTypeCurrencyFilter] = useState('EUR');
+  const [roleCurrencyFilter, setRoleCurrencyFilter] = useState('EUR')
+  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState('EUR')
+  const [stakeTypeCurrencyFilter, setStakeTypeCurrencyFilter] = useState('EUR')
+  const [investmentTypeCurrencyFilter, setInvestmentTypeCurrencyFilter] = useState('EUR')
 
   // Update currency filters when currencies become available
   useEffect(() => {
     if (availableCurrencies.length > 0) {
-      const defaultCurrency = availableCurrencies[0];
-      setRoleCurrencyFilter(defaultCurrency);
-      setStatusCurrencyFilter(defaultCurrency);
-      setStakeTypeCurrencyFilter(defaultCurrency);
-      setInvestmentTypeCurrencyFilter(defaultCurrency);
+      const defaultCurrency = availableCurrencies[0]
+      setRoleCurrencyFilter(defaultCurrency)
+      setStatusCurrencyFilter(defaultCurrency)
+      setStakeTypeCurrencyFilter(defaultCurrency)
+      setInvestmentTypeCurrencyFilter(defaultCurrency)
     }
-  }, [availableCurrencies]);
+  }, [availableCurrencies])
 
   // Set default currency if available
   React.useEffect(() => {
     if (availableCurrencies.length > 0 && !availableCurrencies.includes(roleCurrencyFilter)) {
-      setRoleCurrencyFilter(availableCurrencies[0]);
+      setRoleCurrencyFilter(availableCurrencies[0])
     }
     if (availableCurrencies.length > 0 && !availableCurrencies.includes(statusCurrencyFilter)) {
-      setStatusCurrencyFilter(availableCurrencies[0]);
+      setStatusCurrencyFilter(availableCurrencies[0])
     }
     if (availableCurrencies.length > 0 && !availableCurrencies.includes(stakeTypeCurrencyFilter)) {
-      setStakeTypeCurrencyFilter(availableCurrencies[0]);
+      setStakeTypeCurrencyFilter(availableCurrencies[0])
     }
     if (availableCurrencies.length > 0 && !availableCurrencies.includes(investmentTypeCurrencyFilter)) {
-      setInvestmentTypeCurrencyFilter(availableCurrencies[0]);
+      setInvestmentTypeCurrencyFilter(availableCurrencies[0])
     }
-  }, [availableCurrencies, roleCurrencyFilter, statusCurrencyFilter, stakeTypeCurrencyFilter, investmentTypeCurrencyFilter]);
+  }, [
+    availableCurrencies,
+    roleCurrencyFilter,
+    statusCurrencyFilter,
+    stakeTypeCurrencyFilter,
+    investmentTypeCurrencyFilter
+  ])
 
   // Filtered data for role value chart
   const filteredRoleData = useMemo(() => {
-    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === roleCurrencyFilter);
+    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === roleCurrencyFilter)
     return filteredInvestments.reduce((acc: any[], equity: any) => {
       // Get role from investmentRole array (same logic as hook)
-      const roles = equity.investment.investmentRole || [];
-      const role = roles.length > 0 && roles[0]?.investmentRole?.value 
-        ? roles[0].investmentRole.value 
-        : 'Unknown';
-      
-      const existing = acc.find(item => item.role === role);
+      const roles = equity.investment.investmentRole || []
+      const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
+
+      const existing = acc.find(item => item.role === role)
       if (existing) {
-        existing.totalAmount += equity.investment.investmentMarketValue || 0;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0
       } else {
         acc.push({
           role,
           totalAmount: equity.investment.investmentMarketValue || 0,
           name: role.toLowerCase().replace(/\s+/g, '')
-        });
+        })
       }
-      return acc;
-    }, []);
-  }, [rawInvestments, roleCurrencyFilter]);
+      return acc
+    }, [])
+  }, [rawInvestments, roleCurrencyFilter])
 
   // Filtered data for status value chart
   const filteredStatusData = useMemo(() => {
-    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === statusCurrencyFilter);
+    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === statusCurrencyFilter)
     return filteredInvestments.reduce((acc: any[], equity: any) => {
-      const status = equity.investment.investmentStatus?.value || 'Unknown';
-      const existing = acc.find(item => item.status === status);
+      const status = equity.investment.investmentStatus?.value || 'Unknown'
+      const existing = acc.find(item => item.status === status)
       if (existing) {
-        existing.totalAmount += equity.investment.investmentMarketValue || 0;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0
       } else {
         acc.push({
           status,
           totalAmount: equity.investment.investmentMarketValue || 0,
           name: status.toLowerCase().replace(/\s+/g, '')
-        });
+        })
       }
-      return acc;
-    }, []);
-  }, [rawInvestments, statusCurrencyFilter]);
+      return acc
+    }, [])
+  }, [rawInvestments, statusCurrencyFilter])
 
   // Filtered data for stake type value chart
   const filteredStakeTypeData = useMemo(() => {
-    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === stakeTypeCurrencyFilter);
+    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === stakeTypeCurrencyFilter)
     return filteredInvestments.reduce((acc: any[], equity: any) => {
-      const stakeType = equity.investment.investmentStakeType?.value || 'Unknown';
-      const existing = acc.find(item => item.stakeType === stakeType);
+      const stakeType = equity.investment.investmentStakeType?.value || 'Unknown'
+      const existing = acc.find(item => item.stakeType === stakeType)
       if (existing) {
-        existing.totalAmount += equity.investment.investmentMarketValue || 0;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0
       } else {
         acc.push({
           stakeType,
           totalAmount: equity.investment.investmentMarketValue || 0
-        });
+        })
       }
-      return acc;
-    }, []);
-  }, [rawInvestments, stakeTypeCurrencyFilter]);
+      return acc
+    }, [])
+  }, [rawInvestments, stakeTypeCurrencyFilter])
 
   // Filtered data for investment type value chart
   const filteredInvestmentTypeData = useMemo(() => {
-    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === investmentTypeCurrencyFilter);
+    const filteredInvestments = rawInvestments.filter(inv => inv.currencyCode === investmentTypeCurrencyFilter)
     return filteredInvestments.reduce((acc: any[], equity: any) => {
-      const investmentType = equity.investment.investmentType?.value || 'Unknown';
-      const existing = acc.find(item => item.investmentType === investmentType);
+      const investmentType = equity.investment.investmentType?.value || 'Unknown'
+      const existing = acc.find(item => item.investmentType === investmentType)
       if (existing) {
-        existing.totalAmount += equity.investment.investmentMarketValue || 0;
+        existing.totalAmount += equity.investment.investmentMarketValue || 0
       } else {
         acc.push({
           investmentType,
           totalAmount: equity.investment.investmentMarketValue || 0
-        });
+        })
       }
-      return acc;
-    }, []);
-  }, [rawInvestments, investmentTypeCurrencyFilter]);
+      return acc
+    }, [])
+  }, [rawInvestments, investmentTypeCurrencyFilter])
 
   return (
     <>
@@ -196,65 +208,61 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 roleData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '');
-                  config[key] = { label: item.type };
-                });
-                return config;
-              }, [roleData])} 
+                  const key = item.type.toLowerCase().replace(/\s+/g, '')
+                  config[key] = { label: item.type }
+                })
+                return config
+              }, [roleData])}
               className="gba:h-[350px] gba:w-full"
             >
-          <PieChart>
-            <Pie
-                  data={roleData.map((item: any) => ({ 
-                    ...item, 
+              <PieChart>
+                <Pie
+                  data={roleData.map((item: any) => ({
+                    ...item,
                     name: item.type.toLowerCase().replace(/\s+/g, ''),
                     value: item.count
                   }))}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
                   fill="var(--color-default)"
-              dataKey="value"
+                  dataKey="value"
                   nameKey="name"
                 >
                   {roleData.map((entry: any, index: number) => {
-                    const key = entry.type.toLowerCase().replace(/\s+/g, '');
-                    return (
-                      <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    );
+                    const key = entry.type.toLowerCase().replace(/\s+/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
-            </Pie>
-                <ChartTooltip 
+                </Pie>
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
+                      const data = payload[0]
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${data.payload.name})` }}
                             />
                             <span className="gba:font-medium">{data.payload.type}</span>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {data.value} investments
-                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} investments</div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
-          </PieChart>
+              </PieChart>
             </ChartContainer>
           </CardContent>
-      </Card>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -281,39 +289,39 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 filteredRoleData.forEach((item: any) => {
-                  config[item.name] = { label: item.role };
-                });
-                return config;
-              }, [filteredRoleData])} 
+                  config[item.name] = { label: item.role }
+                })
+                return config
+              }, [filteredRoleData])}
               className="gba:h-[350px] gba:w-full"
             >
-          <PieChart>
-            <Pie
+              <PieChart>
+                <Pie
                   data={filteredRoleData}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
                   fill="var(--color-default)"
                   dataKey="totalAmount"
                   nameKey="name"
-            >
+                >
                   {filteredRoleData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
-              ))}
-            </Pie>
-                <ChartTooltip 
+                  ))}
+                </Pie>
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
+                      const data = payload[0]
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${data.payload.name})` }}
                             />
                             <span className="gba:font-medium">{data.payload.role}</span>
@@ -322,16 +330,16 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                             {formatCurrency(data.value as number, roleCurrencyFilter)}
                           </div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
-          </PieChart>
+              </PieChart>
             </ChartContainer>
           </CardContent>
-      </Card>
+        </Card>
       </div>
 
       {/* Status Distribution - Side by Side */}
@@ -350,65 +358,61 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 statusData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '');
-                  config[key] = { label: item.type };
-                });
-                return config;
-              }, [statusData])} 
+                  const key = item.type.toLowerCase().replace(/\s+/g, '')
+                  config[key] = { label: item.type }
+                })
+                return config
+              }, [statusData])}
               className="gba:h-[350px] gba:w-full"
             >
-          <PieChart>
-            <Pie
-                  data={statusData.map((item: any) => ({ 
-                    ...item, 
+              <PieChart>
+                <Pie
+                  data={statusData.map((item: any) => ({
+                    ...item,
                     name: item.type.toLowerCase().replace(/\s+/g, ''),
                     value: item.count
                   }))}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
                   fill="var(--color-default)"
-              dataKey="value"
+                  dataKey="value"
                   nameKey="name"
                 >
                   {statusData.map((entry: any, index: number) => {
-                    const key = entry.type.toLowerCase().replace(/\s+/g, '');
-                    return (
-                      <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    );
+                    const key = entry.type.toLowerCase().replace(/\s+/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
-            </Pie>
-                <ChartTooltip 
+                </Pie>
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
+                      const data = payload[0]
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${data.payload.name})` }}
                             />
                             <span className="gba:font-medium">{data.payload.type}</span>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {data.value} investments
-                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} investments</div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
-          </PieChart>
+              </PieChart>
             </ChartContainer>
           </CardContent>
-      </Card>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -435,39 +439,39 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 filteredStatusData.forEach((item: any) => {
-                  config[item.name] = { label: item.status };
-                });
-                return config;
-              }, [filteredStatusData])} 
+                  config[item.name] = { label: item.status }
+                })
+                return config
+              }, [filteredStatusData])}
               className="gba:h-[350px] gba:w-full"
             >
-          <PieChart>
-            <Pie
+              <PieChart>
+                <Pie
                   data={filteredStatusData}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
                   fill="var(--color-default)"
                   dataKey="totalAmount"
                   nameKey="name"
-            >
+                >
                   {filteredStatusData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
-              ))}
-            </Pie>
-                <ChartTooltip 
+                  ))}
+                </Pie>
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
+                      const data = payload[0]
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${data.payload.name})` }}
                             />
                             <span className="gba:font-medium">{data.payload.status}</span>
@@ -476,16 +480,16 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                             {formatCurrency(data.value as number, statusCurrencyFilter)}
                           </div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
-          </PieChart>
+              </PieChart>
             </ChartContainer>
           </CardContent>
-      </Card>
+        </Card>
       </div>
 
       {/* Stake Type Distribution - Side by Side */}
@@ -504,63 +508,71 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 stakeTypeData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
-                  config[key] = { label: item.type };
-                });
-                return config;
-              }, [stakeTypeData])} 
+                  const key = item.type
+                    .toLowerCase()
+                    .replace(/\s+/g, '')
+                    .replace(/[()<>≥%]/g, '')
+                  config[key] = { label: item.type }
+                })
+                return config
+              }, [stakeTypeData])}
               className="gba:h-[350px] gba:w-full"
             >
-            <PieChart>
-              <Pie
-                  data={stakeTypeData.map((item: any) => ({ 
-                    ...item, 
-                    name: item.type.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, ''),
+              <PieChart>
+                <Pie
+                  data={stakeTypeData.map((item: any) => ({
+                    ...item,
+                    name: item.type
+                      .toLowerCase()
+                      .replace(/\s+/g, '')
+                      .replace(/[()<>≥%]/g, ''),
                     value: item.count
                   }))}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
                   fill="var(--color-default)"
-                dataKey="value"
+                  dataKey="value"
                   nameKey="name"
                 >
                   {stakeTypeData.map((entry: any, index: number) => {
-                    const key = entry.type.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
-                    return (
-                      <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    );
+                    const key = entry.type
+                      .toLowerCase()
+                      .replace(/\s+/g, '')
+                      .replace(/[()<>≥%]/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
-              </Pie>
-                <ChartTooltip 
+                </Pie>
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
-                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
+                      const data = payload[0]
+                      const typeKey = data.payload.type
+                        .toLowerCase()
+                        .replace(/\s+/g, '')
+                        .replace(/[()<>≥%]/g, '')
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${typeKey})` }}
                             />
                             <span className="gba:font-medium">{data.payload.type}</span>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {data.value} positions
-                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} positions</div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
-            </PieChart>
+              </PieChart>
             </ChartContainer>
           </CardContent>
         </Card>
@@ -590,22 +602,28 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 filteredStakeTypeData.forEach((item: any) => {
-                  const key = item.stakeType.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
-                  config[key] = { label: item.stakeType };
-                });
-                return config;
-              }, [filteredStakeTypeData])} 
+                  const key = item.stakeType
+                    .toLowerCase()
+                    .replace(/\s+/g, '')
+                    .replace(/[()<>≥%]/g, '')
+                  config[key] = { label: item.stakeType }
+                })
+                return config
+              }, [filteredStakeTypeData])}
               className="gba:h-[350px] gba:w-full"
             >
               <PieChart>
                 <Pie
-                  data={filteredStakeTypeData.map((item: any) => ({ 
-                    ...item, 
-                    name: item.stakeType.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, ''),
+                  data={filteredStakeTypeData.map((item: any) => ({
+                    ...item,
+                    name: item.stakeType
+                      .toLowerCase()
+                      .replace(/\s+/g, '')
+                      .replace(/[()<>≥%]/g, ''),
                     value: item.totalAmount
                   }))}
                   cx="50%"
@@ -616,22 +634,26 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                   nameKey="name"
                 >
                   {filteredStakeTypeData.map((entry: any, index: number) => {
-                    const key = entry.stakeType.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
-                    return (
-                      <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    );
+                    const key = entry.stakeType
+                      .toLowerCase()
+                      .replace(/\s+/g, '')
+                      .replace(/[()<>≥%]/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip 
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
-                      const stakeKey = data.payload.stakeType.toLowerCase().replace(/\s+/g, '').replace(/[()<>≥%]/g, '');
+                      const data = payload[0]
+                      const stakeKey = data.payload.stakeType
+                        .toLowerCase()
+                        .replace(/\s+/g, '')
+                        .replace(/[()<>≥%]/g, '')
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${stakeKey})` }}
                             />
                             <span className="gba:font-medium">{data.payload.stakeType}</span>
@@ -640,9 +662,9 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                             {formatCurrency(data.value as number, stakeTypeCurrencyFilter)}
                           </div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
@@ -668,21 +690,21 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 investmentTypeData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '');
-                  config[key] = { label: item.type };
-                });
-                return config;
-              }, [investmentTypeData])} 
+                  const key = item.type.toLowerCase().replace(/\s+/g, '')
+                  config[key] = { label: item.type }
+                })
+                return config
+              }, [investmentTypeData])}
               className="gba:h-[350px] gba:w-full"
             >
               <PieChart>
                 <Pie
-                  data={investmentTypeData.map((item: any) => ({ 
-                    ...item, 
+                  data={investmentTypeData.map((item: any) => ({
+                    ...item,
                     name: item.type.toLowerCase().replace(/\s+/g, ''),
                     value: item.count
                   }))}
@@ -694,33 +716,29 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                   nameKey="name"
                 >
                   {investmentTypeData.map((entry: any, index: number) => {
-                    const key = entry.type.toLowerCase().replace(/\s+/g, '');
-                    return (
-                      <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    );
+                    const key = entry.type.toLowerCase().replace(/\s+/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip 
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
-                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '');
+                      const data = payload[0]
+                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '')
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${typeKey})` }}
                             />
                             <span className="gba:font-medium">{data.payload.type}</span>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {data.value} investments
-                          </div>
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} investments</div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
@@ -754,21 +772,21 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer 
+            <ChartContainer
               config={useMemo(() => {
-                const config: Record<string, { label: string }> = {};
+                const config: Record<string, { label: string }> = {}
                 filteredInvestmentTypeData.forEach((item: any) => {
-                  const key = item.investmentType.toLowerCase().replace(/\s+/g, '');
-                  config[key] = { label: item.investmentType };
-                });
-                return config;
-              }, [filteredInvestmentTypeData])} 
+                  const key = item.investmentType.toLowerCase().replace(/\s+/g, '')
+                  config[key] = { label: item.investmentType }
+                })
+                return config
+              }, [filteredInvestmentTypeData])}
               className="gba:h-[350px] gba:w-full"
             >
               <PieChart>
                 <Pie
-                  data={filteredInvestmentTypeData.map((item: any) => ({ 
-                    ...item, 
+                  data={filteredInvestmentTypeData.map((item: any) => ({
+                    ...item,
                     name: item.investmentType.toLowerCase().replace(/\s+/g, ''),
                     value: item.totalAmount
                   }))}
@@ -780,22 +798,20 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                   nameKey="name"
                 >
                   {filteredInvestmentTypeData.map((entry: any, index: number) => {
-                    const key = entry.investmentType.toLowerCase().replace(/\s+/g, '');
-                    return (
-                      <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    );
+                    const key = entry.investmentType.toLowerCase().replace(/\s+/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip 
+                <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const data = payload[0];
-                      const typeKey = data.payload.investmentType.toLowerCase().replace(/\s+/g, '');
+                      const data = payload[0]
+                      const typeKey = data.payload.investmentType.toLowerCase().replace(/\s+/g, '')
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full" 
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
                               style={{ backgroundColor: `var(--color-${typeKey})` }}
                             />
                             <span className="gba:font-medium">{data.payload.investmentType}</span>
@@ -804,9 +820,9 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
                             {formatCurrency(data.value as number, investmentTypeCurrencyFilter)}
                           </div>
                         </div>
-                      );
+                      )
                     }
-                    return null;
+                    return null
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
@@ -816,5 +832,5 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
         </Card>
       </div>
     </>
-  );
-}; 
+  )
+}

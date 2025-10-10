@@ -1,38 +1,38 @@
-import React from 'react';
+import React from 'react'
 import {
   Button,
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
-} from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel as t } from '@/common/utils/windowUtils';
-import { env } from '@/common/env/EnvUtils';
-import { LightningIcon } from '@phosphor-icons/react';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+  DropdownMenuItem
+} from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel as t } from '@/common/utils/windowUtils'
+import { env } from '@/common/env/EnvUtils'
+import { LightningIcon } from '@phosphor-icons/react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 export interface FlowActionItem {
-  nameKey: string;
-  nameFallback: string;
-  iconRelative?: string;
-  disabled?: boolean;
-  hidden?: boolean;
-  link?: string;
-  modalKey?: string;
+  nameKey: string
+  nameFallback: string
+  iconRelative?: string
+  disabled?: boolean
+  hidden?: boolean
+  link?: string
+  modalKey?: string
 }
 
 interface FlowActionsButtonProps {
-  actions: FlowActionItem[];
-  onAction?: (action: FlowActionItem) => void;
-  dataTestId?: string;
+  actions: FlowActionItem[]
+  onAction?: (action: FlowActionItem) => void
+  dataTestId?: string
 }
 
 const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction, dataTestId }) => {
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL') || '';
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
 
-  const visibleActions = React.useMemo(() => actions.filter(a => !a.hidden), [actions]);
+  const visibleActions = React.useMemo(() => actions.filter(a => !a.hidden), [actions])
 
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(false)
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -43,7 +43,6 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
           style={{ border: '2px solid #EFEFEF' }}
           data-testid={dataTestId ? `${dataTestId}-flows-button` : 'flows-button'}
           onMouseEnter={() => setOpen(true)}
-          
         >
           {/* <img
             src={`${baseUrl}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`}
@@ -51,7 +50,9 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
             className="gba:w-4 gba:h-4"
           /> */}
           <LightningIcon color={open ? '#6c7fee' : '#000000'} weight={open ? 'fill' : 'regular'}></LightningIcon>
-          <span className="gba:font-bold gba:text-xs">{t('lowcoder:employee_list.flows_button.actions', 'Actions')}</span>
+          <span className="gba:font-bold gba:text-xs">
+            {t('lowcoder:employee_list.flows_button.actions', 'Actions')}
+          </span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -63,8 +64,8 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
       >
         <div className="gba:py-1">
           {visibleActions.map((action, idx) => {
-            const label = t(action.nameKey, action.nameFallback);
-            const iconUrl = action.iconRelative ? `${baseUrl}${action.iconRelative}` : '';
+            const label = t(action.nameKey, action.nameFallback)
+            const iconUrl = action.iconRelative ? `${baseUrl}${action.iconRelative}` : ''
             return (
               <DropdownMenuItem
                 key={`${label}-${idx}`}
@@ -76,32 +77,35 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
                 tabIndex={action.disabled ? -1 : 0}
                 style={action.disabled ? { backgroundColor: '#FFFFFF' } : undefined}
                 // Use onSelect to prevent closing/triggering when "disabled" semantics apply
-                onSelect={(e) => {
-                  if (action.disabled) { e.preventDefault(); return; }
-                  setOpen(false);
-                  if (action.link) {
-                    const link = action.link;
-                    if (link.startsWith('/platform/')) {
-                      navigateTo(link);
-                      return;
-                    }
-                    navigateTo(buildPlatformUrl(link));
-                    return;
+                onSelect={e => {
+                  if (action.disabled) {
+                    e.preventDefault()
+                    return
                   }
-                  setTimeout(() => { onAction?.(action); }, 0);
+                  setOpen(false)
+                  if (action.link) {
+                    const link = action.link
+                    if (link.startsWith('/platform/')) {
+                      navigateTo(link)
+                      return
+                    }
+                    navigateTo(buildPlatformUrl(link))
+                    return
+                  }
+                  setTimeout(() => {
+                    onAction?.(action)
+                  }, 0)
                 }}
               >
                 {/* {iconUrl ? <img src={iconUrl} alt="icon" className="gba:w-4 gba:h-4" /> : <span className="gba:w-4" />} */}
                 <span className={action.disabled ? 'gba:font-bold gba:text-black' : ''}>{label}</span>
               </DropdownMenuItem>
-            );
+            )
           })}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-};
+  )
+}
 
-export default FlowActionsButton;
-
-
+export default FlowActionsButton

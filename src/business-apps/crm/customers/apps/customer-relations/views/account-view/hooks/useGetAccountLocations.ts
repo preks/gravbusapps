@@ -1,19 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface LocationOption {
-  id: string;
-  name: string;
-  code?: string;
+  id: string
+  name: string
+  code?: string
 }
 
 export interface UseGetAccountLocationsReturn {
-  countryOptions: LocationOption[];
-  regionOptions: LocationOption[];
-  cityOptions: LocationOption[];
-  isLoading: boolean;
-  error: Error | null;
+  countryOptions: LocationOption[]
+  regionOptions: LocationOption[]
+  cityOptions: LocationOption[]
+  isLoading: boolean
+  error: Error | null
 }
 
 const GET_ACCOUNT_LOCATIONS_QUERY = `
@@ -69,34 +69,34 @@ const GET_ACCOUNT_LOCATIONS_QUERY = `
       city
     }
   }
-`;
+`
 
 export const useGetAccountLocations = (
   context: BusinessAppContextProps,
-  search: string = ""
+  search: string = ''
 ): UseGetAccountLocationsReturn => {
-  const [countryOptions, setCountryOptions] = useState<LocationOption[]>([]);
-  const [regionOptions, setRegionOptions] = useState<LocationOption[]>([]);
-  const [cityOptions, setCityOptions] = useState<LocationOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [countryOptions, setCountryOptions] = useState<LocationOption[]>([])
+  const [regionOptions, setRegionOptions] = useState<LocationOption[]>([])
+  const [cityOptions, setCityOptions] = useState<LocationOption[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchAccountLocations = useCallback(async () => {
     if (!context.accessToken) {
-      setIsLoading(false);
-      return;
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const searchPattern = search ? `%${search}%` : "%";
+      const searchPattern = search ? `%${search}%` : '%'
       const result = await graphqlClient.request(GET_ACCOUNT_LOCATIONS_QUERY, {
-        search: searchPattern,
-      });
+        search: searchPattern
+      })
 
       // Process countries
       if (result?.countries) {
@@ -105,12 +105,12 @@ export const useGetAccountLocations = (
           .map((item: any) => ({
             id: item.country.id,
             name: item.country.value,
-            code: item.country.code || "",
+            code: item.country.code || ''
           }))
-          .sort((a: LocationOption, b: LocationOption) => a.name.localeCompare(b.name));
-        setCountryOptions(countries);
+          .sort((a: LocationOption, b: LocationOption) => a.name.localeCompare(b.name))
+        setCountryOptions(countries)
       } else {
-        setCountryOptions([]);
+        setCountryOptions([])
       }
 
       // Process regions
@@ -120,12 +120,12 @@ export const useGetAccountLocations = (
           .map((item: any) => ({
             id: item.region.id,
             name: item.region.value,
-            code: item.region.code || "",
+            code: item.region.code || ''
           }))
-          .sort((a: LocationOption, b: LocationOption) => a.name.localeCompare(b.name));
-        setRegionOptions(regions);
+          .sort((a: LocationOption, b: LocationOption) => a.name.localeCompare(b.name))
+        setRegionOptions(regions)
       } else {
-        setRegionOptions([]);
+        setRegionOptions([])
       }
 
       // Process cities
@@ -134,30 +134,30 @@ export const useGetAccountLocations = (
           .filter((item: any) => item.city)
           .map((item: any, index: number) => ({
             id: `city-${item.city}-${index}`, // Create unique ID since cities don't have IDs
-            name: item.city,
+            name: item.city
           }))
-          .sort((a: LocationOption, b: LocationOption) => a.name.localeCompare(b.name));
-        setCityOptions(cities);
+          .sort((a: LocationOption, b: LocationOption) => a.name.localeCompare(b.name))
+        setCityOptions(cities)
       } else {
-        setCityOptions([]);
+        setCityOptions([])
       }
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to fetch account locations"));
-      console.error("Error fetching account locations:", err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch account locations'))
+      console.error('Error fetching account locations:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, graphqlClient]);
+  }, [context.accessToken, search, graphqlClient])
 
   useEffect(() => {
-    fetchAccountLocations();
-  }, [fetchAccountLocations]);
+    fetchAccountLocations()
+  }, [fetchAccountLocations])
 
   return {
     countryOptions,
     regionOptions,
     cityOptions,
     isLoading,
-    error,
-  };
-}; 
+    error
+  }
+}

@@ -63,6 +63,8 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
         id
         code
         createdAt
+        startDate
+        requestTypeRef
         currencyRef
         status
       }
@@ -74,4 +76,4 @@ export const GET_EXPENSE_ITEMS_BY_MANAGER = `
       }
     }
   }
-`;
+`

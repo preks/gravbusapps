@@ -1,4 +1,4 @@
-import { LeadRecord } from './LeadRecord';
+import { LeadRecord } from './LeadRecord'
 
-export { LeadRecord };
-export default LeadRecord; 
+export { LeadRecord }
+export default LeadRecord

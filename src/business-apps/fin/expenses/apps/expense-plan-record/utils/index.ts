@@ -1,6 +1,6 @@
 // PillType is used for status display configuration
-import { PillType } from '@/components/pill/Pill';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { PillType } from '@/components/pill/Pill'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Enum representing the technical statuses for expenses
@@ -25,8 +25,8 @@ export enum ExpenseStatus {
  * Type for status display configuration
  */
 export interface StatusDisplayConfig {
-  label: string;
-  type: PillType;
+  label: string
+  type: PillType
 }
 
 /**
@@ -39,48 +39,48 @@ export const getExpenseItemStatusDisplay = (status: string): StatusDisplayConfig
     case ExpenseStatus.CREATED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: "draft"
-      };
+        type: 'draft'
+      }
     case ExpenseStatus.ASSIGNED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-        type: "waiting"
-      };
+        type: 'waiting'
+      }
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: "waiting"
-      };
+        type: 'waiting'
+      }
     case ExpenseStatus.APPROVED:
     case ExpenseStatus.VERIFIED:
     case ExpenseStatus.BOOKED:
     case ExpenseStatus.TRANSFERRED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit'),
-        type: "waiting"
-      };
+        type: 'waiting'
+      }
     case ExpenseStatus.PAID:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-        type: "completed"
-      };
+        type: 'completed'
+      }
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required'),
-        type: "task"
-      };
+        type: 'task'
+      }
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-        type: "completed"
-      };
+        type: 'completed'
+      }
     default:
       return {
         label: status,
-        type: "error"
-      };
+        type: 'error'
+      }
   }
-};
+}
 
 /**
  * Maps technical expense plan statuses to user-friendly display configurations
@@ -92,45 +92,45 @@ export const getExpensePlanStatusDisplay = (status: string): StatusDisplayConfig
     case ExpenseStatus.CREATED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: "draft"
-      };
+        type: 'draft'
+      }
     case ExpenseStatus.ASSIGNED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-        type: "waiting"
-      };
+        type: 'waiting'
+      }
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: "waiting"
-      };
+        type: 'waiting'
+      }
     case ExpenseStatus.APPROVED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        type: "completed"
-      };
+        type: 'completed'
+      }
     case ExpenseStatus.RETURNED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required'),
-        type: "task"
-      };
+        type: 'task'
+      }
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-        type: "completed"
-      };
+        type: 'completed'
+      }
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        type: "error"
-      };
+        type: 'error'
+      }
     default:
       return {
         label: status,
-        type: "draft"
-      };
+        type: 'draft'
+      }
   }
-};
+}
 
 /**
  * Maps technical expense request statuses to user-friendly display configurations
@@ -142,48 +142,48 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
     case ExpenseStatus.CREATED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: "draft"
-      };
+        type: 'draft'
+      }
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: "waiting"
-      };
+        type: 'waiting'
+      }
     case ExpenseStatus.APPROVED:
     case ExpenseStatus.VERIFIED:
     case ExpenseStatus.BOOKED:
     case ExpenseStatus.TRANSFERRED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_transit', 'In Transit'),
-        type: "waiting"
-      };
+        type: 'waiting'
+      }
     case ExpenseStatus.PAID:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-        type: "completed"
-      };
+        type: 'completed'
+      }
     case ExpenseStatus.RETURNED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.revision_required', 'Revision Required'),
-        type: "task"
-      };
+        type: 'task'
+      }
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-        type: "completed"
-      };
+        type: 'completed'
+      }
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        type: "error"
-      };
+        type: 'error'
+      }
     default:
       return {
         label: status,
-        type: "draft"
-      };
+        type: 'draft'
+      }
   }
-};
+}
 
 /**
  * Maps technical advance payment statuses to user-friendly display configurations
@@ -192,5 +192,5 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
  */
 export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayConfig => {
   // Advance payments use the same status display configuration as expense requests
-  return getExpenseRequestStatusDisplay(status);
-};
+  return getExpenseRequestStatusDisplay(status)
+}

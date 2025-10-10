@@ -1,24 +1,24 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { useCallback } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCallback } from 'react'
 
 export interface UseLeadStatisticsQueriesProps extends BusinessAppContextProps {
-  sourceApp?: string;
+  sourceApp?: string
 }
 
 interface TrendData {
-  current: number;
-  previous: number;
-  change: number;
-  changePercent: number;
-  isPositive: boolean;
+  current: number
+  previous: number
+  change: number
+  changePercent: number
+  isPositive: boolean
 }
 
 interface ConversionTrendData extends TrendData {
-  currentRate: number;
-  previousRate: number;
-  currentTotal: number;
-  previousTotal: number;
+  currentRate: number
+  previousRate: number
+  currentTotal: number
+  previousTotal: number
 }
 
 // Text-based queries (keep these as they don't have trend versions)
@@ -40,7 +40,7 @@ export const GET_MOST_COMMON_LEAD_SOURCE = `
       leadSourceRef
     }
   }
-`;
+`
 
 // Query to get most common industry in recent leads
 export const GET_MOST_COMMON_INDUSTRY = `
@@ -59,9 +59,7 @@ export const GET_MOST_COMMON_INDUSTRY = `
       industryRef
     }
   }
-`;
-
-
+`
 
 // Enhanced queries that fetch both current and previous period data for trend calculations
 
@@ -87,7 +85,7 @@ export const GET_RECENT_LEADS_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Query to get hot leads with trend (current vs last month)
 export const GET_HOT_LEADS_WITH_TREND = `
@@ -112,7 +110,7 @@ export const GET_HOT_LEADS_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Query to get conversion rate with trend (this year vs last year)
 export const GET_CONVERSION_RATE_WITH_TREND = `
@@ -156,32 +154,37 @@ export const GET_CONVERSION_RATE_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Keep existing queries for backward compatibility
 
 export const useLeadStatisticsQueries = (context: UseLeadStatisticsQueriesProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  const { sourceApp } = context;
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const { sourceApp } = context
 
   const calculateTrend = (current: number, previous: number): TrendData => {
-    const change = current - previous;
-    const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
+    const change = current - previous
+    const changePercent = previous > 0 ? (change / previous) * 100 : current > 0 ? 100 : 0
     return {
       current,
       previous,
       change,
       changePercent,
       isPositive: change >= 0
-    };
-  };
+    }
+  }
 
-  const calculateConversionTrend = (currentTotal: number, currentConverted: number, previousTotal: number, previousConverted: number): ConversionTrendData => {
-    const currentRate = currentTotal > 0 ? (currentConverted / currentTotal) * 100 : 0;
-    const previousRate = previousTotal > 0 ? (previousConverted / previousTotal) * 100 : 0;
-    const change = currentRate - previousRate;
-    const changePercent = previousRate > 0 ? (change / previousRate) * 100 : (currentRate > 0 ? 100 : 0);
-    
+  const calculateConversionTrend = (
+    currentTotal: number,
+    currentConverted: number,
+    previousTotal: number,
+    previousConverted: number
+  ): ConversionTrendData => {
+    const currentRate = currentTotal > 0 ? (currentConverted / currentTotal) * 100 : 0
+    const previousRate = previousTotal > 0 ? (previousConverted / previousTotal) * 100 : 0
+    const change = currentRate - previousRate
+    const changePercent = previousRate > 0 ? (change / previousRate) * 100 : currentRate > 0 ? 100 : 0
+
     return {
       current: currentConverted,
       previous: previousConverted,
@@ -192,170 +195,160 @@ export const useLeadStatisticsQueries = (context: UseLeadStatisticsQueriesProps)
       previousRate,
       currentTotal,
       previousTotal
-    };
-  };
+    }
+  }
 
   // Enhanced methods with trend data
   const fetchRecentLeadsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const currentStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
-      const previousEnd = currentStart;
-      const previousStart = new Date(currentStart.getTime() - (14 * 24 * 60 * 60 * 1000));
-      
+      const now = new Date()
+      const currentStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const previousEnd = currentStart
+      const previousStart = new Date(currentStart.getTime() - 14 * 24 * 60 * 60 * 1000)
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_RECENT_LEADS_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_RECENT_LEADS_WITH_TREND, {
         currentStart: currentStart.toISOString(),
         previousStart: previousStart.toISOString(),
         previousEnd: previousEnd.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching recent leads with trend:', error);
-      throw error;
+      console.error('Error fetching recent leads with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchHotLeadsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      
+      const now = new Date()
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_HOT_LEADS_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_HOT_LEADS_WITH_TREND, {
         lastMonth: lastMonth.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching hot leads with trend:', error);
-      throw error;
+      console.error('Error fetching hot leads with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchConversionRateWithTrend = useCallback(async (): Promise<ConversionTrendData> => {
     try {
-      const now = new Date();
-      const thisYearStart = new Date(now.getFullYear(), 0, 1);
-      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
-      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-      
+      const now = new Date()
+      const thisYearStart = new Date(now.getFullYear(), 0, 1)
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
+      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+
       const result = await graphqlClient.request<{
-        currentTotal: { aggregate: { count: number } };
-        currentConverted: { aggregate: { count: number } };
-        previousTotal: { aggregate: { count: number } };
-        previousConverted: { aggregate: { count: number } };
-      }>(GET_CONVERSION_RATE_WITH_TREND, { 
+        currentTotal: { aggregate: { count: number } }
+        currentConverted: { aggregate: { count: number } }
+        previousTotal: { aggregate: { count: number } }
+        previousConverted: { aggregate: { count: number } }
+      }>(GET_CONVERSION_RATE_WITH_TREND, {
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
         lastYearEnd: lastYearEnd.toISOString(),
-        sourceApp 
-      });
-      
+        sourceApp
+      })
+
       return calculateConversionTrend(
         result.currentTotal.aggregate.count,
         result.currentConverted.aggregate.count,
         result.previousTotal.aggregate.count,
         result.previousConverted.aggregate.count
-      );
+      )
     } catch (error) {
-      console.error('Error fetching conversion rate with trend:', error);
-      throw error;
+      console.error('Error fetching conversion rate with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
-
-
+  }, [graphqlClient, sourceApp])
 
   const fetchMostCommonLeadSource = useCallback(async (): Promise<string> => {
     try {
-      const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
-      
+      const now = new Date()
+      const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
+
       const result = await graphqlClient.request<{
-        Lead: Array<{ 
-          leadSource: { value: string; code: string } | null;
-          leadSourceRef: string | null;
+        Lead: Array<{
+          leadSource: { value: string; code: string } | null
+          leadSourceRef: string | null
         }>
-      }>(GET_MOST_COMMON_LEAD_SOURCE, { twoWeeksAgo, sourceApp });
+      }>(GET_MOST_COMMON_LEAD_SOURCE, { twoWeeksAgo, sourceApp })
 
       // Count occurrences of each lead source
-      const sourceCounts: Record<string, number> = {};
+      const sourceCounts: Record<string, number> = {}
       result.Lead.forEach(lead => {
-        const source = lead.leadSource?.value;
+        const source = lead.leadSource?.value
         if (source) {
-          sourceCounts[source] = (sourceCounts[source] || 0) + 1;
+          sourceCounts[source] = (sourceCounts[source] || 0) + 1
         }
-      });
+      })
 
       // Find the most common source
-      let mostCommon = 'N/A';
-      let maxCount = 0;
+      let mostCommon = 'N/A'
+      let maxCount = 0
       Object.entries(sourceCounts).forEach(([source, count]) => {
         if (count > maxCount) {
-          maxCount = count;
-          mostCommon = source;
+          maxCount = count
+          mostCommon = source
         }
-      });
+      })
 
-      return mostCommon;
+      return mostCommon
     } catch (error) {
-      console.error('Error fetching most common lead source:', error);
-      return 'N/A';
+      console.error('Error fetching most common lead source:', error)
+      return 'N/A'
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchMostCommonIndustry = useCallback(async (): Promise<string> => {
     try {
-      const now = new Date();
-      const twoWeeksAgo = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000)).toISOString();
-      
+      const now = new Date()
+      const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
+
       const result = await graphqlClient.request<{
-        Lead: Array<{ 
-          industry: { value: string; code: string } | null;
-          industryRef: string | null;
+        Lead: Array<{
+          industry: { value: string; code: string } | null
+          industryRef: string | null
         }>
-      }>(GET_MOST_COMMON_INDUSTRY, { twoWeeksAgo, sourceApp });
+      }>(GET_MOST_COMMON_INDUSTRY, { twoWeeksAgo, sourceApp })
 
       // Count occurrences of each industry
-      const industryCounts: Record<string, number> = {};
+      const industryCounts: Record<string, number> = {}
       result.Lead.forEach(lead => {
-        const industry = lead.industry?.value;
+        const industry = lead.industry?.value
         if (industry) {
-          industryCounts[industry] = (industryCounts[industry] || 0) + 1;
+          industryCounts[industry] = (industryCounts[industry] || 0) + 1
         }
-      });
+      })
 
       // Find the most common industry
-      let mostCommon = 'N/A';
-      let maxCount = 0;
+      let mostCommon = 'N/A'
+      let maxCount = 0
       Object.entries(industryCounts).forEach(([industry, count]) => {
         if (count > maxCount) {
-          maxCount = count;
-          mostCommon = industry;
+          maxCount = count
+          mostCommon = industry
         }
-      });
+      })
 
-      return mostCommon;
+      return mostCommon
     } catch (error) {
-      console.error('Error fetching most common industry:', error);
-      return 'N/A';
+      console.error('Error fetching most common industry:', error)
+      return 'N/A'
     }
-  }, [graphqlClient, sourceApp]);
-
-
+  }, [graphqlClient, sourceApp])
 
   return {
     // Enhanced methods with trend data
@@ -365,5 +358,5 @@ export const useLeadStatisticsQueries = (context: UseLeadStatisticsQueriesProps)
     // Text-based queries (no trend versions needed)
     fetchMostCommonLeadSource,
     fetchMostCommonIndustry
-  };
-}; 
+  }
+}

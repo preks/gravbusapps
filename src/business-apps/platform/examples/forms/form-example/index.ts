@@ -1,4 +1,4 @@
-import FormExample from './FormExample';
+import FormExample from './FormExample'
 
-export { FormExample };
-export default FormExample;
+export { FormExample }
+export default FormExample

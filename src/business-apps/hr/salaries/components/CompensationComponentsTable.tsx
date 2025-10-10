@@ -1,19 +1,19 @@
-import React from 'react';
-import { Table, Tag } from 'antd';
-import type { TableProps } from 'antd';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { CompensationComponent, CompensationComponentType, PaymentFrequency } from '../types/salaryTypes';
-import { formatCurrency } from '../utils/salaryCalculations';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Table, Tag } from 'antd'
+import type { TableProps } from 'antd'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { CompensationComponent, CompensationComponentType, PaymentFrequency } from '../types/salaryTypes'
+import { formatCurrency } from '../utils/salaryCalculations'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface CompensationComponentsTableProps {
-  components: CompensationComponent[];
-  loading?: boolean;
-  accessToken: string;
-  pagination?: TableProps<CompensationComponent>['pagination'];
-  onChange?: TableProps<CompensationComponent>['onChange'];
+  components: CompensationComponent[]
+  loading?: boolean
+  accessToken: string
+  pagination?: TableProps<CompensationComponent>['pagination']
+  onChange?: TableProps<CompensationComponent>['onChange']
 }
 
 /**
@@ -25,50 +25,50 @@ const CompensationComponentsTable: React.FC<CompensationComponentsTableProps> = 
   loading = false,
   accessToken,
   pagination,
-  onChange,
+  onChange
 }) => {
-  const locale = getCurrentActiveUserLocale();
-  const PREFIX = 'compensation-component-table';
+  const locale = getCurrentActiveUserLocale()
+  const PREFIX = 'compensation-component-table'
 
   // Helper function to get color for component type tag
   const getComponentTypeColor = (type: CompensationComponentType) => {
     switch (type) {
       case CompensationComponentType.BONUS:
-        return 'green';
+        return 'green'
       case CompensationComponentType.ALLOWANCE:
-        return 'blue';
+        return 'blue'
       case CompensationComponentType.COMMISSION:
-        return 'purple';
+        return 'purple'
       case CompensationComponentType.BENEFIT:
-        return 'cyan';
+        return 'cyan'
       case CompensationComponentType.DEDUCTION:
-        return 'red';
+        return 'red'
       case CompensationComponentType.OTHER:
-        return 'orange';
+        return 'orange'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   // Helper function to get color for payment frequency tag
   const getFrequencyColor = (frequency: PaymentFrequency) => {
     switch (frequency) {
       case PaymentFrequency.MONTHLY:
-        return 'purple';
+        return 'purple'
       case PaymentFrequency.BI_WEEKLY:
-        return 'cyan';
+        return 'cyan'
       case PaymentFrequency.WEEKLY:
-        return 'geekblue';
+        return 'geekblue'
       case PaymentFrequency.QUARTERLY:
-        return 'orange';
+        return 'orange'
       case PaymentFrequency.ANNUALLY:
-        return 'magenta';
+        return 'magenta'
       case PaymentFrequency.ONE_TIME:
-        return 'volcano';
+        return 'volcano'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   const columns = [
     {
@@ -86,21 +86,19 @@ const CompensationComponentsTable: React.FC<CompensationComponentsTableProps> = 
             accessToken={accessToken}
             emptyStateBehavior="disable"
             deferMainContextRequestsUntilClick
-            onClick={(e) => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
           />
         </div>
-      ),
+      )
     },
     {
       title: getTranslationFromI18nKeyAndLabel('compensation.table.name', 'Name'),
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: CompensationComponent) => (
-        <span data-testid={`${PREFIX}-name-${record.id}`}>
-          {name}
-        </span>
+        <span data-testid={`${PREFIX}-name-${record.id}`}>{name}</span>
       ),
-      sorter: (a: CompensationComponent, b: CompensationComponent) => a.name.localeCompare(b.name),
+      sorter: (a: CompensationComponent, b: CompensationComponent) => a.name.localeCompare(b.name)
     },
     {
       title: getTranslationFromI18nKeyAndLabel('compensation.table.type', 'Type'),
@@ -115,18 +113,16 @@ const CompensationComponentsTable: React.FC<CompensationComponentsTableProps> = 
         text: type.replace('_', ' '),
         value: type
       })),
-      onFilter: (value: string, record: CompensationComponent) => record.type === value,
+      onFilter: (value: string, record: CompensationComponent) => record.type === value
     },
     {
       title: getTranslationFromI18nKeyAndLabel('compensation.table.amount', 'Amount'),
       dataIndex: 'amount',
       key: 'amount',
       render: (amount: number, record: CompensationComponent) => (
-        <span data-testid={`${PREFIX}-amount-${record.id}`}>
-          {formatCurrency(amount, record.currency, locale)}
-        </span>
+        <span data-testid={`${PREFIX}-amount-${record.id}`}>{formatCurrency(amount, record.currency, locale)}</span>
       ),
-      sorter: (a: CompensationComponent, b: CompensationComponent) => a.amount - b.amount,
+      sorter: (a: CompensationComponent, b: CompensationComponent) => a.amount - b.amount
     },
     {
       title: getTranslationFromI18nKeyAndLabel('compensation.table.frequency', 'Frequency'),
@@ -136,17 +132,15 @@ const CompensationComponentsTable: React.FC<CompensationComponentsTableProps> = 
         <Tag color={getFrequencyColor(frequency)} data-testid={`${PREFIX}-frequency-${frequency}`}>
           {frequency.replace('_', ' ')}
         </Tag>
-      ),
+      )
     },
     {
       title: getTranslationFromI18nKeyAndLabel('compensation.table.effectiveDate', 'Effective Date'),
       dataIndex: 'effectiveDate',
       key: 'effectiveDate',
-      render: (date: string) => (
-        <span>{new Date(date).toLocaleDateString(locale)}</span>
-      ),
-      sorter: (a: CompensationComponent, b: CompensationComponent) => 
-        new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime(),
+      render: (date: string) => <span>{new Date(date).toLocaleDateString(locale)}</span>,
+      sorter: (a: CompensationComponent, b: CompensationComponent) =>
+        new Date(a.effectiveDate).getTime() - new Date(b.effectiveDate).getTime()
     },
     {
       title: getTranslationFromI18nKeyAndLabel('compensation.table.status', 'Status'),
@@ -154,19 +148,18 @@ const CompensationComponentsTable: React.FC<CompensationComponentsTableProps> = 
       key: 'isActive',
       render: (isActive: boolean) => (
         <Tag color={isActive ? 'success' : 'default'}>
-          {isActive 
+          {isActive
             ? getTranslationFromI18nKeyAndLabel('compensation.status.active', 'Active')
-            : getTranslationFromI18nKeyAndLabel('compensation.status.inactive', 'Inactive')
-          }
+            : getTranslationFromI18nKeyAndLabel('compensation.status.inactive', 'Inactive')}
         </Tag>
       ),
       filters: [
         { text: 'Active', value: true },
-        { text: 'Inactive', value: false },
+        { text: 'Inactive', value: false }
       ],
-      onFilter: (value: boolean, record: CompensationComponent) => record.isActive === value,
-    },
-  ];
+      onFilter: (value: boolean, record: CompensationComponent) => record.isActive === value
+    }
+  ]
 
   return (
     <div data-testid="compensation-components-table-container">
@@ -180,7 +173,7 @@ const CompensationComponentsTable: React.FC<CompensationComponentsTableProps> = 
         data-testid="compensation-components-table"
       />
     </div>
-  );
-};
+  )
+}
 
-export default CompensationComponentsTable;
+export default CompensationComponentsTable

@@ -156,14 +156,17 @@ const AdminComponent: React.FC<BusinessAppContextProps> = (context) => {
 ## Types
 
 ### Query Types
+
 - `QueryType.DATASET`: For dataset queries
 - `QueryType.TIMESERIES`: For timeseries queries
 
 ### Query Status
+
 - `QueryStatus.ACTIVE`: Active queries (can be executed)
 - `QueryStatus.DRAFT`: Draft queries (cannot be executed)
 
 ### Parameter Types
+
 - `ParameterType.STRING`: Text value
 - `ParameterType.NUMBER`: Numeric value
 - `ParameterType.DATE`: Date (YYYY-MM-DD)
@@ -187,10 +190,10 @@ All client methods can throw errors. Make sure to wrap API calls in try-catch bl
 
 ```typescript
 try {
-  const result = await queryClient.executeDatasetQuery('myQuery', params);
+  const result = await queryClient.executeDatasetQuery('myQuery', params)
   // Handle success
 } catch (error) {
-  console.error('Query execution failed:', error);
+  console.error('Query execution failed:', error)
   // Handle error
 }
 ```
@@ -200,8 +203,8 @@ try {
 Query management endpoints require admin permissions via the authorization system. Specific permissions required:
 
 - `create`: For creating new query definitions
-- `read`: For viewing query definitions  
+- `read`: For viewing query definitions
 - `update`: For updating query definitions and changing status
 - `delete`: For deleting query definitions
 
-These permissions are granted to the default masterdata admin role per service called `<domain>-admin`, e.g., `employee-time-admin`. 
+These permissions are granted to the default masterdata admin role per service called `<domain>-admin`, e.g., `employee-time-admin`.

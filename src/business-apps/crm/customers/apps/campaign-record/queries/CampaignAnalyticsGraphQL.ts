@@ -96,8 +96,8 @@ export const GET_CAMPAIGN_ANALYTICS_METRICS = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_CAMPAIGN_CONVERSION_FUNNEL = (): string => {
   return `
@@ -176,8 +176,8 @@ export const GET_CAMPAIGN_CONVERSION_FUNNEL = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_CAMPAIGN_TIMELINE_ANALYSIS = (): string => {
   return `
@@ -228,8 +228,8 @@ export const GET_CAMPAIGN_TIMELINE_ANALYSIS = (): string => {
         closeDate
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_CAMPAIGN_TOP_PERFORMERS = (): string => {
   return `
@@ -301,5 +301,5 @@ export const GET_CAMPAIGN_TOP_PERFORMERS = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}

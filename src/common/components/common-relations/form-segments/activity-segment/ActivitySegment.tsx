@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   FormField,
   FormItem,
@@ -12,99 +12,122 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-  Spinner,
-} from '@newwork/nw-design-system';
-import { useFormContext } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useCatalogOptions } from '../shared/hooks/useCatalogOptions';
-import EntitySelect from '../shared/components/EntitySelect';
-import { EmployeeSelect } from '@/components/employee-select';
+  Spinner
+} from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useCatalogOptions } from '../shared/hooks/useCatalogOptions'
+import EntitySelect from '../shared/components/EntitySelect'
+import { EmployeeSelect } from '@/components/employee-select'
 
 export interface ActivityTypeOption {
-  value: string;
-  label: string;
+  value: string
+  label: string
 }
 
 export interface EntityOption {
-  id: string;
-  name: string;
-  type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment';
-  subtitle?: string;
-  pictureThumbnail?: string;
+  id: string
+  name: string
+  type: 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
+  subtitle?: string
+  pictureThumbnail?: string
 }
 
 // Base Activity interface with all common fields
 export interface Activity {
-  id?: string;
-  title: string;
-  activityTypeRef: string;
-  occurredAt: string;
-  description: string;
-  files: File[];
-  account?: { id: string };
-  contact?: { id: string };
-  opportunity?: { id: string };
-  lead?: { id: string };
-  ownerEmployee?: { id: string };
-  ownerEmployeeId?: string; // Added to support form field
-  version?: string;
+  id?: string
+  title: string
+  activityTypeRef: string
+  occurredAt: string
+  description: string
+  files: File[]
+  account?: { id: string }
+  contact?: { id: string }
+  opportunity?: { id: string }
+  lead?: { id: string }
+  ownerEmployee?: { id: string }
+  ownerEmployeeId?: string // Added to support form field
+  version?: string
 }
 
 export interface ActivitySegmentProps {
   // Type options for the select field (or let the segment load them)
-  typeOptions?: ActivityTypeOption[];
-  typeLoading?: boolean;
-  accessToken?: string;
-  typeCatalog?: { identifier: string; version: string };
-  fetchTypeOptions?: () => Promise<ActivityTypeOption[]>;
-  onTypeSearch?: (searchTerm: string) => void;
+  typeOptions?: ActivityTypeOption[]
+  typeLoading?: boolean
+  accessToken?: string
+  typeCatalog?: { identifier: string; version: string }
+  fetchTypeOptions?: () => Promise<ActivityTypeOption[]>
+  onTypeSearch?: (searchTerm: string) => void
 
   // Entity selection
-  showEntitySelection?: boolean;
-  entities?: EntityOption[];
-  entitiesLoading?: boolean;
-  onEntitySearch?: (searchTerm: string) => void;
-  entitiesHasMore?: boolean;
-  onEntityLoadMore?: () => void;
-  initialEntityFromContext?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string };
+  showEntitySelection?: boolean
+  entities?: EntityOption[]
+  entitiesLoading?: boolean
+  onEntitySearch?: (searchTerm: string) => void
+  entitiesHasMore?: boolean
+  onEntityLoadMore?: () => void
+  initialEntityFromContext?: { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string }
 
   // Assignees (owner employee)
   // Toggle owner/assignee selection visibility; default is true
-  showOwnerSelection?: boolean;
+  showOwnerSelection?: boolean
   assignees?: Array<{
-    id: string;
-    displayName: string;
-    userId?: string;
-    pictureThumbnail?: string;
-    organizationalUnitName?: string;
-    jobPositionName?: string;
-  }>;
-  assigneesLoading?: boolean;
-  onAssigneeSearch?: (q: string) => void;
-  assigneesHasMore?: boolean;
-  onAssigneeLoadMore?: () => void;
+    id: string
+    displayName: string
+    userId?: string
+    pictureThumbnail?: string
+    organizationalUnitName?: string
+    jobPositionName?: string
+  }>
+  assigneesLoading?: boolean
+  onAssigneeSearch?: (q: string) => void
+  assigneesHasMore?: boolean
+  onAssigneeLoadMore?: () => void
 
   // Labels
-  titleLabel: React.ReactNode;
-  typeLabel: React.ReactNode;
-  dateLabel: React.ReactNode;
-  descriptionLabel: React.ReactNode;
-  uploadFileLabel?: React.ReactNode;
-  entityLabel?: React.ReactNode;
+  titleLabel: React.ReactNode
+  typeLabel: React.ReactNode
+  dateLabel: React.ReactNode
+  descriptionLabel: React.ReactNode
+  uploadFileLabel?: React.ReactNode
+  entityLabel?: React.ReactNode
 
   // Callbacks
-  onFilesChange?: (files: File[]) => void;
+  onFilesChange?: (files: File[]) => void
 
   // Render props for Ant Design compatibility
-  renderTextField?: (props: { name: string; label: React.ReactNode; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
-  renderSelectField?: (props: { name: string; label: React.ReactNode; options: ActivityTypeOption[]; loading?: boolean; onSearch?: (searchTerm: string) => void; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
-  renderDateField?: (props: { name: string; label: React.ReactNode; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
-  renderTextareaField?: (props: { name: string; label: React.ReactNode; required?: boolean; 'data-testid'?: string }) => React.ReactNode;
-  renderFileField?: (props: { 'data-testid'?: string }) => React.ReactNode;
+  renderTextField?: (props: {
+    name: string
+    label: React.ReactNode
+    required?: boolean
+    'data-testid'?: string
+  }) => React.ReactNode
+  renderSelectField?: (props: {
+    name: string
+    label: React.ReactNode
+    options: ActivityTypeOption[]
+    loading?: boolean
+    onSearch?: (searchTerm: string) => void
+    required?: boolean
+    'data-testid'?: string
+  }) => React.ReactNode
+  renderDateField?: (props: {
+    name: string
+    label: React.ReactNode
+    required?: boolean
+    'data-testid'?: string
+  }) => React.ReactNode
+  renderTextareaField?: (props: {
+    name: string
+    label: React.ReactNode
+    required?: boolean
+    'data-testid'?: string
+  }) => React.ReactNode
+  renderFileField?: (props: { 'data-testid'?: string }) => React.ReactNode
 
   // TestId prefix for container
-  ['data-testid']?: string;
+  ['data-testid']?: string
 }
 
 const ActivitySegment: React.FC<ActivitySegmentProps> = ({
@@ -139,70 +162,70 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   renderDateField,
   renderTextareaField,
   renderFileField,
-  'data-testid': dataTestId = 'activity-segment',
+  'data-testid': dataTestId = 'activity-segment'
 }) => {
   // Try to get form context, but don't require it if using render props
-  let form: any = null;
+  let form: any = null
   try {
-    form = useFormContext<any>();
+    form = useFormContext<any>()
   } catch {
     // Form context not available, using render props mode
   }
-  
+
   // Check if we're in render props mode (Ant Design)
-  const isRenderPropsMode = Boolean(renderTextField || renderSelectField || renderDateField || renderTextareaField || renderFileField);
+  const isRenderPropsMode = Boolean(
+    renderTextField || renderSelectField || renderDateField || renderTextareaField || renderFileField
+  )
 
   const typeOptionsState = useCatalogOptions({
     accessToken,
     catalog: typeCatalog,
     providedOptions: typeOptions,
     providedLoading: typeLoading,
-    fetchOptions: fetchTypeOptions,
-  });
-
-
+    fetchOptions: fetchTypeOptions
+  })
 
   const normalizeDateTimeLocalValue = React.useCallback((v: string | undefined | null) => {
-    if (!v) return '';
-    const s = v.replace('Z', '');
-    return s.length >= 16 ? s.slice(0, 16) : s;
-  }, []);
+    if (!v) return ''
+    const s = v.replace('Z', '')
+    return s.length >= 16 ? s.slice(0, 16) : s
+  }, [])
 
   // Prime entity search on mount if needed
   React.useEffect(() => {
     if (showEntitySelection && onEntitySearch && (!entities || entities.length === 0)) {
-      onEntitySearch('');
+      onEntitySearch('')
     }
-  }, [showEntitySelection, onEntitySearch, entities]);
+  }, [showEntitySelection, onEntitySearch, entities])
 
   // Apply initial entity from context when none is set yet
   React.useEffect(() => {
-    if (!showEntitySelection || !initialEntityFromContext || !form) return;
+    if (!showEntitySelection || !initialEntityFromContext || !form) return
     const hasEntity = Boolean(
       form.getValues('account') || form.getValues('contact') || form.getValues('opportunity') || form.getValues('lead')
-    );
-    if (hasEntity) return;
+    )
+    if (hasEntity) return
 
-    const { accountId, contactId, opportunityId, leadId } = initialEntityFromContext;
+    const { accountId, contactId, opportunityId, leadId } = initialEntityFromContext
     const map: Array<{ key: 'account' | 'contact' | 'opportunity' | 'lead'; id?: string }> = [
       { key: 'account', id: accountId },
       { key: 'contact', id: contactId },
       { key: 'opportunity', id: opportunityId },
-      { key: 'lead', id: leadId },
-    ];
-    const found = map.find((m) => m.id);
+      { key: 'lead', id: leadId }
+    ]
+    const found = map.find(m => m.id)
     if (found?.id) {
-      form.setValue(found.key, { id: found.id });
-      form.setValue('relatedEntityId', found.id);
+      form.setValue(found.key, { id: found.id })
+      form.setValue('relatedEntityId', found.id)
     }
-  }, [showEntitySelection, initialEntityFromContext, form]);
+  }, [showEntitySelection, initialEntityFromContext, form])
 
   // Prime assignee search when empty (similar to TaskSegment)
   React.useEffect(() => {
     if (showOwnerSelection && onAssigneeSearch && assignees.length === 0) {
-      onAssigneeSearch('');
+      onAssigneeSearch('')
     }
-  }, [showOwnerSelection, onAssigneeSearch, assignees.length]);
+  }, [showOwnerSelection, onAssigneeSearch, assignees.length])
 
   // Render in Ant Design mode using render props
   if (isRenderPropsMode) {
@@ -244,16 +267,17 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         })}
 
         {/* File Upload Field */}
-        {uploadFileLabel && renderFileField?.({
-          'data-testid': `${dataTestId}-file`
-        })}
+        {uploadFileLabel &&
+          renderFileField?.({
+            'data-testid': `${dataTestId}-file`
+          })}
       </>
-    );
+    )
   }
 
   // Original React Hook Form mode
   if (!form?.control) {
-    return <div>Error: Form context not available. Please use render props or provide form context.</div>;
+    return <div>Error: Form context not available. Please use render props or provide form context.</div>
   }
 
   return (
@@ -291,7 +315,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                 </SelectTrigger>
               </FormControl>
               <SelectContent>
-                {typeOptionsState.options.map((opt) => (
+                {typeOptionsState.options.map(opt => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
                   </SelectItem>
@@ -341,17 +365,17 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                   entities={entities}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v);
+                    field.onChange(v)
                     if (form) {
-                      const id = String(v || '');
-                      const e = (entities || []).find((x) => x.id === id);
-                      form.setValue('account', undefined);
-                      form.setValue('contact', undefined);
-                      form.setValue('opportunity', undefined);
-                      form.setValue('lead', undefined);
+                      const id = String(v || '')
+                      const e = (entities || []).find(x => x.id === id)
+                      form.setValue('account', undefined)
+                      form.setValue('contact', undefined)
+                      form.setValue('opportunity', undefined)
+                      form.setValue('lead', undefined)
                       if (e) {
-                        form.setValue(e.type, { id: e.id });
-                        form.setValue('relatedEntityId', e.id);
+                        form.setValue(e.type, { id: e.id })
+                        form.setValue('relatedEntityId', e.id)
                       }
                     }
                   }}
@@ -401,7 +425,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
                   employees={assignees as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v);
+                    field.onChange(v)
                     // Optionally set owner user id if provided later
                   }}
                   onSearch={onAssigneeSearch}
@@ -420,23 +444,22 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       {/* TODO: File upload field is intentionally hidden for now; review its necessity and integration. */}
       {false && uploadFileLabel && onFilesChange && <div />}
     </>
-  );
-};
+  )
+}
 
-export default ActivitySegment;
+export default ActivitySegment
 
 // Zod schema colocated with ActivitySegment for convenient reuse/override
 export const activitySegmentSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   activityTypeRef: z.string().min(1, 'Activity type is required'),
-  occurredAt: z.preprocess((val) => (val == null ? '' : val), z.string().min(1, 'Date is required')),
+  occurredAt: z.preprocess(val => (val == null ? '' : val), z.string().min(1, 'Date is required')),
   description: z.string().min(1, 'Description is required'),
   files: z.any().optional(),
   relatedEntityId: z.string().optional(),
-  ownerEmployeeId: z.string().optional(), // Added to support owner selection
-});
+  ownerEmployeeId: z.string().optional() // Added to support owner selection
+})
 
-export type ActivitySegmentSchema = z.infer<typeof activitySegmentSchema>;
+export type ActivitySegmentSchema = z.infer<typeof activitySegmentSchema>
 
-export const createActivitySegmentResolver = () => zodResolver(activitySegmentSchema);
-
+export const createActivitySegmentResolver = () => zodResolver(activitySegmentSchema)

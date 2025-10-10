@@ -1,1 +1,1 @@
-export { default } from './InvestmentReportApproveForm';
+export { default } from './InvestmentReportApproveForm'

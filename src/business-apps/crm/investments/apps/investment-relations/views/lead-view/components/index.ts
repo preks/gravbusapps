@@ -1,3 +1,2 @@
-export { LeadStatistics } from './LeadStatistics';
-export { LeadList } from './LeadList';
-
+export { LeadStatistics } from './LeadStatistics'
+export { LeadList } from './LeadList'

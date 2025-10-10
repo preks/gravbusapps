@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import React, { useEffect } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   Table,
   TableBody,
@@ -12,26 +12,26 @@ import {
   TableRow,
   Badge,
   Button
-} from '@newwork/nw-design-system';
-import { TrendingUp, Calendar, DollarSign, Percent, Plus } from 'lucide-react';
-import { AppAction } from '@/components/app-action/AppAction';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatCurrencyString, extractCurrencyCode, formatPercentage } from '@/common/utils/numberFormatter';
-import type { BaseEquityInvestmentRound } from '@/common/data/investment';
+} from '@newwork/nw-design-system'
+import { TrendingUp, Calendar, DollarSign, Percent, Plus } from 'lucide-react'
+import { AppAction } from '@/components/app-action/AppAction'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatCurrencyString, extractCurrencyCode, formatPercentage } from '@/common/utils/numberFormatter'
+import type { BaseEquityInvestmentRound } from '@/common/data/investment'
 
 interface EquityInvestmentRoundsProps extends BusinessAppContextProps {
   equityData?: {
-    investment?: any;
-    equityInvestment?: any;
-    documents?: any[];
-  } | null;
-  isLoading?: boolean;
-  onRefresh?: () => void;
-  'data-testid'?: string;
+    investment?: any
+    equityInvestment?: any
+    documents?: any[]
+  } | null
+  isLoading?: boolean
+  onRefresh?: () => void
+  'data-testid'?: string
 }
 
 const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
@@ -42,42 +42,45 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
   'data-testid': dataTestId = 'investment-rounds'
 }) => {
   // Helper function to format currency using centralized utilities
-  const formatCurrency = (amount: number | null, currency?: { value?: string; code?: string; id?: string } | null): string => {
-    if (!amount && amount !== 0) return getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A');
-    
+  const formatCurrency = (
+    amount: number | null,
+    currency?: { value?: string; code?: string; id?: string } | null
+  ): string => {
+    if (!amount && amount !== 0) return getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A')
+
     // Extract currency code using centralized utility
-    const currencyCode = extractCurrencyCode(currency?.id || currency?.code || currency?.value);
-    
+    const currencyCode = extractCurrencyCode(currency?.id || currency?.code || currency?.value)
+
     return formatCurrencyString(amount, {
       currency: currencyCode,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    });
-  };
+    })
+  }
 
   // Helper function to format year from timestamp
   const formatYear = (yearTimestamp: string | null): string => {
-    if (!yearTimestamp) return getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A');
+    if (!yearTimestamp) return getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A')
     try {
       // Extract year from timestamp format (e.g., "2025-01-01T00:00:00.000Z" -> "2025")
-      return new Date(yearTimestamp).getFullYear().toString();
+      return new Date(yearTimestamp).getFullYear().toString()
     } catch (error) {
-      return yearTimestamp; // Fallback to original value if parsing fails
+      return yearTimestamp // Fallback to original value if parsing fails
     }
-  };
+  }
 
   // Get equity investment ID for action button context (this is what the form needs, not the main investment ID)
-  const equityInvestmentId = equityData?.equityInvestment?.id;
-  const mainInvestmentId = equityData?.investment?.id;
-  
+  const equityInvestmentId = equityData?.equityInvestment?.id
+  const mainInvestmentId = equityData?.investment?.id
+
   // For the form, we need to pass the equity investment ID specifically
-  const actionContextId = equityInvestmentId;
-  
+  const actionContextId = equityInvestmentId
 
   // Get investment rounds from equity data
   // Note: The equityInvestmentRound property exists in the GraphQL response but isn't in the TypeScript interface
-  const investmentRounds = (equityData?.equityInvestment as any)?.equityInvestmentRound as BaseEquityInvestmentRound[] || [];
-  
+  const investmentRounds =
+    ((equityData?.equityInvestment as any)?.equityInvestmentRound as BaseEquityInvestmentRound[]) || []
+
   // Investment rounds loaded
 
   // Listen for process completion events and refresh data when equity round processes complete
@@ -85,42 +88,42 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
     onSuccess: () => {
       // Process completed successfully, refreshing data
       if (onRefresh) {
-        onRefresh();
+        onRefresh()
       }
     },
     onFailure: () => {
       // Process failed, but still refreshing data to check for changes
       // Even on failure, refresh to check if the delete actually succeeded
       if (onRefresh) {
-        onRefresh();
+        onRefresh()
       }
-    },
-  });
+    }
+  })
 
   // Fallback: also listen for 'continue' events from AppActionForm to trigger a refresh
   useEffect(() => {
     const handleContinue = (event: Event) => {
       try {
-        const customEvent = event as CustomEvent<any>;
-        const payload = customEvent?.detail?.payload;
-        const round = payload?.equityInvestmentRound;
-        if (!round) return;
+        const customEvent = event as CustomEvent<any>
+        const payload = customEvent?.detail?.payload
+        const round = payload?.equityInvestmentRound
+        if (!round) return
 
         // If the payload contains our entity, refresh
         // This handles create, update, and delete operations
         if (!equityInvestmentId || round.equityInvestment === equityInvestmentId || round.id) {
           if (onRefresh) {
-            onRefresh();
+            onRefresh()
           }
         }
       } catch (err) {
         // no-op
       }
-    };
+    }
 
-    window.addEventListener('com.newwork.process.continue', handleContinue);
-    return () => window.removeEventListener('com.newwork.process.continue', handleContinue);
-  }, [onRefresh, equityInvestmentId]);
+    window.addEventListener('com.newwork.process.continue', handleContinue)
+    return () => window.removeEventListener('com.newwork.process.continue', handleContinue)
+  }, [onRefresh, equityInvestmentId])
 
   if (isLoading) {
     return (
@@ -142,7 +145,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -153,13 +156,13 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
             <TrendingUp className="gba:h-5 gba:w-5" style={{ color: 'var(--nw-color-primary-500)' }} />
             {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentRounds', 'Investment Rounds')}
             <Badge variant="outline" className="gba:ml-2">
-{investmentRounds.length} {getTranslationFromI18nKeyAndLabel('investment.rounds.rounds', 'rounds')}
+              {investmentRounds.length} {getTranslationFromI18nKeyAndLabel('investment.rounds.rounds', 'rounds')}
             </Badge>
           </CardTitle>
           {accessToken && actionContextId ? (
             <AppAction
               contextsArray={[FlowContextName.investmentEquityInvestmentRoundCreate]}
-              externalContextData={{ 
+              externalContextData={{
                 equityInvestmentId: actionContextId,
                 targetEquityInvestmentId: actionContextId,
                 customEquityId: actionContextId,
@@ -186,12 +189,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
             </AppAction>
           ) : (
             <div data-testid="equity-round-add-button-disabled" className="gba:opacity-50 gba:cursor-not-allowed">
-              <Button
-                disabled
-                variant="outline"
-                size="default"
-                className="gba:flex gba:items-center gba:gap-2"
-              >
+              <Button disabled variant="outline" size="default" className="gba:flex gba:items-center gba:gap-2">
                 <Plus className="gba:h-4 gba:w-4" />
                 {getTranslationFromI18nKeyAndLabel('investment.rounds.addRound', 'Add Round')}
               </Button>
@@ -202,58 +200,68 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
       <CardContent>
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${dataTestId}-table`}>
-              <TableHeader>
-                <TableRow className="gba:border-b gba:bg-gray-50">
-                  <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">
-                    {getTranslationFromI18nKeyAndLabel('investment.rounds.actions', 'ACTIONS')}
-                  </TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <Calendar className="gba:h-4 gba:w-4" />
-                      {getTranslationFromI18nKeyAndLabel('investment.rounds.name', 'Name')}
+            <TableHeader>
+              <TableRow className="gba:border-b gba:bg-gray-50">
+                <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">
+                  {getTranslationFromI18nKeyAndLabel('investment.rounds.actions', 'ACTIONS')}
+                </TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-left gba:py-3 gba:px-4">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Calendar className="gba:h-4 gba:w-4" />
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.name', 'Name')}
+                  </div>
+                </TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                    <Calendar className="gba:h-4 gba:w-4" />
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.year', 'Year')}
+                  </div>
+                </TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
+                    <DollarSign className="gba:h-4 gba:w-4" />
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.preValue', 'Pre Value')}
+                  </div>
+                </TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
+                    <DollarSign className="gba:h-4 gba:w-4" />
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentVolume', 'Investment Volume')}
+                  </div>
+                </TableHead>
+                <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                    <Percent className="gba:h-4 gba:w-4" />
+                    {getTranslationFromI18nKeyAndLabel('investment.rounds.sharePercentage', 'Share Percentage')}
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {investmentRounds.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="gba:text-center gba:py-12 gba:text-gray-500">
+                    <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
+                      <TrendingUp className="gba:h-12 gba:w-12 gba:text-gray-300" />
+                      <p className="gba:text-lg gba:font-medium">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'investment.rounds.noInvestmentRounds',
+                          'No Investment Rounds'
+                        )}
+                      </p>
+                      <p className="gba:text-sm">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'investment.rounds.noRoundsMessage',
+                          'No investment rounds have been recorded for this equity investment.'
+                        )}
+                      </p>
                     </div>
-                  </TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                      <Calendar className="gba:h-4 gba:w-4" />
-                      {getTranslationFromI18nKeyAndLabel('investment.rounds.year', 'Year')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
-                      <DollarSign className="gba:h-4 gba:w-4" />
-                      {getTranslationFromI18nKeyAndLabel('investment.rounds.preValue', 'Pre Value')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-right gba:py-3 gba:px-4">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:justify-end">
-                      <DollarSign className="gba:h-4 gba:w-4" />
-                      {getTranslationFromI18nKeyAndLabel('investment.rounds.investmentVolume', 'Investment Volume')}
-                    </div>
-                  </TableHead>
-                  <TableHead className="gba:font-semibold gba:text-gray-700 gba:text-center gba:py-3 gba:px-4">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
-                      <Percent className="gba:h-4 gba:w-4" />
-                      {getTranslationFromI18nKeyAndLabel('investment.rounds.sharePercentage', 'Share Percentage')}
-                    </div>
-                  </TableHead>
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {investmentRounds.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="gba:text-center gba:py-12 gba:text-gray-500">
-                      <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                        <TrendingUp className="gba:h-12 gba:w-12 gba:text-gray-300" />
-                        <p className="gba:text-lg gba:font-medium">{getTranslationFromI18nKeyAndLabel('investment.rounds.noInvestmentRounds', 'No Investment Rounds')}</p>
-                        <p className="gba:text-sm">{getTranslationFromI18nKeyAndLabel('investment.rounds.noRoundsMessage', 'No investment rounds have been recorded for this equity investment.')}</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  investmentRounds.map((round: BaseEquityInvestmentRound, index: number) => (
-                  <TableRow 
-                    key={round.id || index} 
+              ) : (
+                investmentRounds.map((round: BaseEquityInvestmentRound, index: number) => (
+                  <TableRow
+                    key={round.id || index}
                     className="gba:border-b gba:hover:bg-gray-50"
                     data-testid={`${dataTestId}-row-${index}`}
                   >
@@ -267,7 +275,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
                             FlowContextName.investmentEquityInvestmentRoundUpdate,
                             FlowContextName.investmentEquityInvestmentRoundDelete
                           ]}
-                          externalContextData={{ 
+                          externalContextData={{
                             // Primary ID for the round
                             equityInvestmentRoundId: round.id,
                             entityId: round.id,
@@ -286,7 +294,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                           onDropdownOpen={() => {
                             // Combined actions dropdown opened
                           }}
@@ -295,13 +303,12 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4">
                       <div className="gba:font-medium gba:text-gray-900">
-{round.name || `${getTranslationFromI18nKeyAndLabel('investment.rounds.round', 'Round')} ${index + 1}`}
+                        {round.name ||
+                          `${getTranslationFromI18nKeyAndLabel('investment.rounds.round', 'Round')} ${index + 1}`}
                       </div>
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-center">
-                      <span className="gba:font-medium gba:text-gray-900">
-                        {formatYear(round.year || null)}
-                      </span>
+                      <span className="gba:font-medium gba:text-gray-900">{formatYear(round.year || null)}</span>
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-right">
                       <span className="gba:font-medium gba:text-gray-900">
@@ -315,20 +322,20 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
                     </TableCell>
                     <TableCell className="gba:py-3 gba:px-4 gba:text-center">
                       <Badge variant="secondary" className="gba:font-medium">
-                        {round.roundSharePercentage !== null && round.roundSharePercentage !== undefined 
+                        {round.roundSharePercentage !== null && round.roundSharePercentage !== undefined
                           ? formatPercentage(round.roundSharePercentage, 1)
                           : getTranslationFromI18nKeyAndLabel('common.notAvailable', 'N/A')}
                       </Badge>
                     </TableCell>
                   </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default EquityInvestmentRounds;
+export default EquityInvestmentRounds

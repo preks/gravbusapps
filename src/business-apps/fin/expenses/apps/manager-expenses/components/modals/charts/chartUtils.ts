@@ -12,35 +12,35 @@
  * resolveCssVar("#ff0000") // "#ff0000"
  */
 export const resolveCssVar = (color?: string | null): string => {
-  const input = (color ?? '').trim();
-  if (!input) return '';
+  const input = (color ?? '').trim()
+  if (!input) return ''
 
   // Not a CSS variable: return normalized input
-  if (!input.startsWith('var(')) return input;
+  if (!input.startsWith('var(')) return input
 
   // Extract inside of var(...)
-  const inner = input.slice(4, -1).trim();
+  const inner = input.slice(4, -1).trim()
 
   // Parse optional fallback: var(--token, fallback)
-  let varName = inner;
-  let fallback: string | undefined;
+  let varName = inner
+  let fallback: string | undefined
 
   // Find the first comma not nested in additional parentheses
-  let depth = 0;
-  let commaIndex = -1;
+  let depth = 0
+  let commaIndex = -1
   for (let i = 0; i < inner.length; i++) {
-    const ch = inner[i];
-    if (ch === '(') depth++;
-    else if (ch === ')') depth = Math.max(0, depth - 1);
+    const ch = inner[i]
+    if (ch === '(') depth++
+    else if (ch === ')') depth = Math.max(0, depth - 1)
     else if (ch === ',' && depth === 0) {
-      commaIndex = i;
-      break;
+      commaIndex = i
+      break
     }
   }
 
   if (commaIndex !== -1) {
-    varName = inner.slice(0, commaIndex).trim();
-    fallback = inner.slice(commaIndex + 1).trim();
+    varName = inner.slice(0, commaIndex).trim()
+    fallback = inner.slice(commaIndex + 1).trim()
   }
 
   // SSR or environments without DOM → return original input (can't resolve),
@@ -50,19 +50,19 @@ export const resolveCssVar = (color?: string | null): string => {
     globalThis.document === undefined ||
     typeof globalThis.window.getComputedStyle !== 'function'
   ) {
-    return fallback ? resolveCssVar(fallback) : input;
+    return fallback ? resolveCssVar(fallback) : input
   }
 
   // Get computed value from document root element
   const resolved = globalThis.window
     .getComputedStyle(globalThis.document.documentElement)
     .getPropertyValue(varName)
-    .trim();
+    .trim()
 
   // If unresolved or empty, use fallback if provided; otherwise return original input
   if (!resolved) {
-    return fallback ? resolveCssVar(fallback) : input;
+    return fallback ? resolveCssVar(fallback) : input
   }
 
-  return resolved;
-};
+  return resolved
+}

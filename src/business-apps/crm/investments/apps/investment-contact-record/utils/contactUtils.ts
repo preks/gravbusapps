@@ -1,6 +1,6 @@
 // Contact utility functions for investment contact records
-import { getContactTypeLabel } from "@/common/data/investment/types/investmentEnums";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import { getContactTypeLabel } from '@/common/data/investment/types/investmentEnums'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Get human-readable contact type display value
@@ -9,9 +9,9 @@ import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
  * @returns Human-readable contact type string
  */
 export const getContactTypeDisplayValue = (contactData: any, contact: any): string => {
-  const contactType = contactData?.type || contact?.contactType;
-  return getContactTypeLabel(contactType);
-};
+  const contactType = contactData?.type || contact?.contactType
+  return getContactTypeLabel(contactType)
+}
 
 /**
  * Get human-readable language display value
@@ -21,8 +21,12 @@ export const getContactTypeDisplayValue = (contactData: any, contact: any): stri
  */
 export const getLanguageDisplayValue = (contactData: any, contact: any): string => {
   // Try enhanced data first (with languageLabel), then raw data
-  return contactData?.languageLabel || contact?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set');
-};
+  return (
+    contactData?.languageLabel ||
+    contact?.language?.value ||
+    getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
+  )
+}
 
 /**
  * Get full contact name with proper fallbacks
@@ -31,9 +35,9 @@ export const getLanguageDisplayValue = (contactData: any, contact: any): string 
  * @returns Full contact name string
  */
 export const getContactFullName = (contactData: any, contact: any): string => {
-  const firstName = contactData?.firstName || contact?.firstName || '';
-  const lastName = contactData?.lastName || contact?.lastName || '';
-  const fullName = `${firstName} ${lastName}`.trim();
-  
-  return fullName || getTranslationFromI18nKeyAndLabel('crm.common.unknownContact', 'Unknown Contact');
-};
+  const firstName = contactData?.firstName || contact?.firstName || ''
+  const lastName = contactData?.lastName || contact?.lastName || ''
+  const fullName = `${firstName} ${lastName}`.trim()
+
+  return fullName || getTranslationFromI18nKeyAndLabel('crm.common.unknownContact', 'Unknown Contact')
+}

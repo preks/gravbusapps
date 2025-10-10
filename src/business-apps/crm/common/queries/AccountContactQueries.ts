@@ -1,25 +1,25 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface AccountContactData {
-  createdAt: string;
-  contactType: string;
+  createdAt: string
+  contactType: string
   contact: {
-    firstName: string;
-    lastName: string;
-    jobTitle: string;
-    email: string;
-    phone: string;
-  };
+    firstName: string
+    lastName: string
+    jobTitle: string
+    email: string
+    phone: string
+  }
 }
 
 export interface GetAccountContactResponse {
-  AccountContact: AccountContactData[];
+  AccountContact: AccountContactData[]
 }
 
 export interface GetAccountContactQueryVariables {
-  accountId: string;
-  contactType?: string;
+  accountId: string
+  contactType?: string
 }
 
 // Query to fetch AccountContact data with primary contact filter
@@ -40,23 +40,20 @@ export const GET_ACCOUNT_CONTACT = `
       }
     }
   }
-`;
+`
 
 export const useGetAccountContact = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
   const fetchAccountContact = async (variables: GetAccountContactQueryVariables) => {
     try {
-      const result = await graphqlClient.request<GetAccountContactResponse>(
-        GET_ACCOUNT_CONTACT,
-        variables
-      );
-      return result;
+      const result = await graphqlClient.request<GetAccountContactResponse>(GET_ACCOUNT_CONTACT, variables)
+      return result
     } catch (error) {
-      console.error('Error fetching account contact:', error);
-      throw error;
+      console.error('Error fetching account contact:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchAccountContact };
-}; 
+  return { fetchAccountContact }
+}

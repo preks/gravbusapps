@@ -1,19 +1,19 @@
-import CampaignRecord from './CampaignRecord';
+import CampaignRecord from './CampaignRecord'
 
 // Export main component
-export { CampaignRecord };
+export { CampaignRecord }
 
 // Export types
-export * from './types';
+export * from './types'
 
 // Export hooks
-export * from './hooks';
+export * from './hooks'
 
 // Export queries
-export * from './queries';
+export * from './queries'
 
 // Export components (with explicit re-export to avoid conflicts)
-export { 
+export {
   CampaignHeader,
   CampaignChart,
   CampaignEntitiesTable,
@@ -22,9 +22,9 @@ export {
   CampaignConversionFunnel,
   CampaignRevenueAnalysis,
   CampaignTopPerformers
-} from './components';
+} from './components'
 
 // Export CampaignKPIs component with alias to avoid conflict with CampaignKPIs interface
-export { CampaignKPIs as CampaignKPIsComponent } from './components';
+export { CampaignKPIs as CampaignKPIsComponent } from './components'
 
-export default CampaignRecord;
+export default CampaignRecord

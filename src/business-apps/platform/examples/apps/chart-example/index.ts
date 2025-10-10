@@ -1,4 +1,4 @@
-import ChartExample from './ChartExample';
+import ChartExample from './ChartExample'
 
-export { ChartExample };
-export default ChartExample;
+export { ChartExample }
+export default ChartExample

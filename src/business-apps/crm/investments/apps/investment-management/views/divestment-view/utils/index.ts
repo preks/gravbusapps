@@ -5,21 +5,21 @@ export const formatCurrency = (amount: number): string => {
     style: 'currency',
     currency: 'EUR',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
+    maximumFractionDigits: 2
+  }).format(amount)
+}
 
 export const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return 'N/A';
-  
+  if (!dateString) return 'N/A'
+
   try {
-    const date = new Date(dateString);
+    const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric',
-    });
+      day: 'numeric'
+    })
   } catch {
-    return 'Invalid Date';
+    return 'Invalid Date'
   }
-};
+}

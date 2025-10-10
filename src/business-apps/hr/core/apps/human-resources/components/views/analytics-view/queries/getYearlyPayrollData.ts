@@ -1,9 +1,9 @@
 /**
  * GraphQL query to get yearly payroll data using aggregation
- * 
+ *
  * This query uses the EmployeeWorkingCondition.annualGrossSalary field to calculate
  * the total payroll for all current employees.
- * 
+ *
  * Instead of trying to filter historically, we use the same approach as getTotalPayroll
  * to get current data, which we know works correctly.
  */
@@ -27,4 +27,4 @@ export const getYearlyPayrollQuery = `
       }
     }
   }
-`;
+`

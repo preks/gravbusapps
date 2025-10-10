@@ -9,7 +9,7 @@ export {
   SEARCH_INVESTMENT_REPORTS,
   buildInvestmentReportWhereCondition,
   type InvestmentReportQueryVariables
-} from './investmentReportQueries';
+} from './investmentReportQueries'
 
 // Export fragments for reuse
 export {
@@ -17,4 +17,4 @@ export {
   EQUITY_INVESTMENT_REPORT,
   LIQUID_FUND_INVESTMENT_REPORT,
   REAL_ESTATE_INVESTMENT_REPORT
-} from './fragments/investmentReportFragments';
+} from './fragments/investmentReportFragments'

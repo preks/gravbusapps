@@ -1,24 +1,24 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Card, Badge, Button } from '@newwork/nw-design-system';
-import { GuardianFilter } from '../../types/guardianTypes';
+import React, { useEffect, useState, useCallback } from 'react'
+import { Card, Badge, Button } from '@newwork/nw-design-system'
+import { GuardianFilter } from '../../types/guardianTypes'
 
 interface SLAViolation {
-  id: string;
-  flowName: string;
-  stepName: string;
-  department: string;
-  violationRate: number;
-  avgOverdueHours: number;
-  totalTasks: number;
-  slaViolations: number;
+  id: string
+  flowName: string
+  stepName: string
+  department: string
+  violationRate: number
+  avgOverdueHours: number
+  totalTasks: number
+  slaViolations: number
 }
 
 interface D3SLAViolationListProps {
-  workflowData: any;
-  dimensions: { width: number; height: number };
-  filters: GuardianFilter;
-  grouping?: 'flow' | 'task';
-  prefixDataTestId: string;
+  workflowData: any
+  dimensions: { width: number; height: number }
+  filters: GuardianFilter
+  grouping?: 'flow' | 'task'
+  prefixDataTestId: string
 }
 
 export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
@@ -28,11 +28,11 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
   grouping = 'flow',
   prefixDataTestId
 }) => {
-  const [items, setItems] = useState<SLAViolation[]>([]);
+  const [items, setItems] = useState<SLAViolation[]>([])
 
   const extract = useCallback((data: any): SLAViolation[] => {
-    const analytics = data?.analytics || {};
-    const killers = analytics.flowManagement?.slaKillers || [];
+    const analytics = data?.analytics || {}
+    const killers = analytics.flowManagement?.slaKillers || []
 
     const mapped: SLAViolation[] = killers.map((k: any, idx: number) => ({
       id: `sla-${idx}`,
@@ -43,53 +43,63 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
       avgOverdueHours: k.avg_overdue_hours || 0,
       totalTasks: k.total_tasks || 0,
       slaViolations: k.sla_violations || 0
-    }));
+    }))
 
-    return mapped.slice(0, 10);
-  }, []);
+    return mapped.slice(0, 10)
+  }, [])
 
   useEffect(() => {
-    if (!workflowData) return;
-    setItems(extract(workflowData));
-  }, [workflowData, extract]);
+    if (!workflowData) return
+    setItems(extract(workflowData))
+  }, [workflowData, extract])
 
   const rowTint = (rate: number): { border: string; bg: string; chip: string } => {
-    if (rate > 50) return { border: '#7f1d1d', bg: '#1a0f12', chip: '#ef4444' };
-    if (rate > 20) return { border: '#7c2d12', bg: '#1a1308', chip: '#f59e0b' };
-    return { border: '#374151', bg: '#111827', chip: '#eab308' };
-  };
+    if (rate > 50) return { border: '#7f1d1d', bg: '#1a0f12', chip: '#ef4444' }
+    if (rate > 20) return { border: '#7c2d12', bg: '#1a1308', chip: '#f59e0b' }
+    return { border: '#374151', bg: '#111827', chip: '#eab308' }
+  }
 
   return (
-    <div 
+    <div
       data-testid={`${prefixDataTestId}-container`}
-      style={{ 
-        width: '100%', height: '100%', padding: 16,
+      style={{
+        width: '100%',
+        height: '100%',
+        padding: 16,
         background: 'rgba(15, 23, 42, 0.3)', // Match card background
         overflow: 'auto'
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {items.map((it) => {
-          const tint = rowTint(it.violationRate);
+        {items.map(it => {
+          const tint = rowTint(it.violationRate)
           return (
             <div
               key={it.id}
               data-testid={`${prefixDataTestId}-row-${it.id}`}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
                 border: `1px solid ${tint.border}`,
                 background: tint.bg,
                 borderRadius: 8,
                 padding: 12
               }}
             >
-              <div style={{
-                width: 48, height: 48,
-                borderRadius: 8,
-                background: tint.chip + '22',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: tint.chip, fontWeight: 700
-              }}>
+              <div
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 8,
+                  background: tint.chip + '22',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: tint.chip,
+                  fontWeight: 700
+                }}
+              >
                 {Math.round(it.violationRate)}%
               </div>
 
@@ -103,7 +113,8 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
                   </Badge>
                 </div>
                 <div style={{ color: '#9ca3af', fontSize: 12, marginTop: 2 }}>
-                  {it.department} • Avg overdue {it.avgOverdueHours}h • {it.totalTasks} tasks • {it.slaViolations} breaches
+                  {it.department} • Avg overdue {it.avgOverdueHours}h • {it.totalTasks} tasks • {it.slaViolations}{' '}
+                  breaches
                 </div>
               </div>
 
@@ -116,9 +127,9 @@ export const D3SLAViolationList: React.FC<D3SLAViolationListProps> = ({
                 </Button>
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}

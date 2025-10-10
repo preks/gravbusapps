@@ -1,5 +1,5 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { AdvancePaymentData } from "./types";
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { AdvancePaymentData } from './types'
 
 export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
   query GetAdvancePaymentForApproval($paymentId: uuid!) {
@@ -40,24 +40,22 @@ export const GET_ADVANCE_PAYMENT_FOR_APPROVAL = `
       }
     }
   }
-`;
+`
 
 export const useGetAdvancePaymentForApproval = (accessToken: string) => {
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
-  const fetchAdvancePaymentData = async (
-    paymentId: string
-  ): Promise<AdvancePaymentData | null> => {
+  const fetchAdvancePaymentData = async (paymentId: string): Promise<AdvancePaymentData | null> => {
     try {
       const result = await graphqlClient.request<{
-        AdvancePaymentByPk: AdvancePaymentData;
-      }>(GET_ADVANCE_PAYMENT_FOR_APPROVAL, { paymentId });
-      return result.AdvancePaymentByPk;
+        AdvancePaymentByPk: AdvancePaymentData
+      }>(GET_ADVANCE_PAYMENT_FOR_APPROVAL, { paymentId })
+      return result.AdvancePaymentByPk
     } catch (error) {
-      console.error("Error fetching advance payment data:", error);
-      throw error;
+      console.error('Error fetching advance payment data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchAdvancePaymentData };
-};
+  return { fetchAdvancePaymentData }
+}

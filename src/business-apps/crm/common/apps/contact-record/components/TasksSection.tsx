@@ -1,107 +1,107 @@
-import React, { useState, useEffect } from 'react';
-import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd';
-import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons';
-import { Clock, Calendar } from 'lucide-react';
-import { AppAction } from '@/components/app-action/AppAction';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetContactTasks, ContactTaskData } from '../queries/ContactTaskQueries';
-import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
-import dayjs from 'dayjs';
+import React, { useState, useEffect } from 'react'
+import { Spin, Alert, Button, Timeline, Typography, message, Modal } from 'antd'
+import { PlusCircleOutlined, CloseOutlined, EditOutlined } from '@ant-design/icons'
+import { Clock, Calendar } from 'lucide-react'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetContactTasks, ContactTaskData } from '../queries/ContactTaskQueries'
+import { useEmployeeData } from '@/business-apps/crm/common/hooks/useEmployeeData'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import dayjs from 'dayjs'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 interface TasksSectionProps {
-  contactId?: string;
-  context: BusinessAppContextProps;
+  contactId?: string
+  context: BusinessAppContextProps
 }
 
 export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }) => {
-  const [tasks, setTasks] = useState<ContactTaskData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { fetchContactTasks } = useGetContactTasks(context);
-  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken);
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const [tasks, setTasks] = useState<ContactTaskData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { fetchContactTasks } = useGetContactTasks(context)
+  const { getEmployeeDisplayName } = useEmployeeData(context.accessToken)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const loadTasks = async () => {
-    if (!contactId) return;
-    
-    setLoading(true);
-    setError(null);
-    
+    if (!contactId) return
+
+    setLoading(true)
+    setError(null)
+
     try {
-      const result = await fetchContactTasks({ contactId });
-      
+      const result = await fetchContactTasks({ contactId })
+
       // Filter out approval tasks - they should only appear in the Approvals tab
       const nonApprovalTasks = (result.SalesTask || []).filter(task => {
-        const isApprovalTask = task.type?.value?.toLowerCase() === 'approval';
-        return !isApprovalTask;
-      });
-      
+        const isApprovalTask = task.type?.value?.toLowerCase() === 'approval'
+        return !isApprovalTask
+      })
+
       // Sort tasks by createdAt in descending order (newest first)
-      const sortedTasks = nonApprovalTasks.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      
-      setTasks(sortedTasks);
+      const sortedTasks = nonApprovalTasks.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      setTasks(sortedTasks)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tasks');
+      setError(err instanceof Error ? err.message : 'Failed to load tasks')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    loadTasks();
-  }, [contactId]);
+    loadTasks()
+  }, [contactId])
 
   // Add focus event listener to refresh data when user returns to the tab
   useEffect(() => {
     const handleFocus = () => {
-      loadTasks();
-    };
+      loadTasks()
+    }
 
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener('focus', handleFocus)
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        handleFocus();
+        handleFocus()
       }
-    });
+    })
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-    };
-  }, [contactId]);
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleFocus)
+    }
+  }, [contactId])
 
   // Listen for process completion events to refresh tasks
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          loadTasks();
-          return;
+          loadTasks()
+          return
         }
-        
+
         // Also check for different event structure
-        const response = event.detail?.response;
+        const response = event.detail?.response
         if (response?.detail?.resolution === 'success') {
-          loadTasks();
+          loadTasks()
         }
       } catch (err) {
-        console.error('Error handling process completion:', err);
+        console.error('Error handling process completion:', err)
       }
-    };
+    }
 
     // Universal event listener to capture all events
     const handleAllEvents = (event: any) => {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleProcessCompletion(event);
+        handleProcessCompletion(event)
       }
-    };
+    }
 
     // Listen to multiple possible event names (comprehensive list like opportunity record)
     const eventNames = [
@@ -115,29 +115,27 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
       'processCompleted',
       'task-completion',
       'process-completion'
-    ];
+    ]
 
     eventNames.forEach(eventName => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
-    const originalDispatchEvent = window.dispatchEvent;
-    window.dispatchEvent = function(event: Event) {
+    const originalDispatchEvent = window.dispatchEvent
+    window.dispatchEvent = function (event: Event) {
       if (event.type && (event.type.includes('process') || event.type.includes('task'))) {
-        handleAllEvents(event);
+        handleAllEvents(event)
       }
-      return originalDispatchEvent.call(this, event);
-    };
+      return originalDispatchEvent.call(this, event)
+    }
 
     return () => {
       eventNames.forEach(eventName => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-      window.dispatchEvent = originalDispatchEvent;
-    };
-  }, [contactId]);
-
-
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+      window.dispatchEvent = originalDispatchEvent
+    }
+  }, [contactId])
 
   const handleDeleteTask = (task: ContactTaskData) => {
     Modal.confirm({
@@ -148,50 +146,58 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
       cancelText: 'Cancel',
       onOk: async () => {
         try {
-          await restClient.post('/customer-relations/saveSalesTask', {
-            changeMode: "DELETE",
-            salesTask: {
-              id: task.id,
-              version: task.version,
-              contact: contactId
+          await restClient.post(
+            '/customer-relations/saveSalesTask',
+            {
+              changeMode: 'DELETE',
+              salesTask: {
+                id: task.id,
+                version: task.version,
+                contact: contactId
+              }
+            },
+            {
+              headers: { Authorization: `Bearer ${context.accessToken}` }
             }
-          }, {
-            headers: { Authorization: `Bearer ${context.accessToken}` }
-          });
-          
+          )
+
           // Remove the task from local state
-          setTasks(prevTasks => prevTasks.filter(t => t.id !== task.id));
-          
-          message.success('Task deleted successfully');
+          setTasks(prevTasks => prevTasks.filter(t => t.id !== task.id))
+
+          message.success('Task deleted successfully')
         } catch (error) {
-          console.error('Error deleting task:', error);
-          message.error('Failed to delete task');
+          console.error('Error deleting task:', error)
+          message.error('Failed to delete task')
         }
-      },
-    });
-  };
+      }
+    })
+  }
 
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
-      case 'high': return 'red';
-      case 'medium': return 'orange';
-      case 'low': return 'green';
-      default: return 'blue';
+      case 'high':
+        return 'red'
+      case 'medium':
+        return 'orange'
+      case 'low':
+        return 'green'
+      default:
+        return 'blue'
     }
-  };
+  }
 
   const getPriorityValue = (priority: any): string => {
-    if (typeof priority === 'string') return priority;
-    return priority?.value || 'Medium';
-  };
+    if (typeof priority === 'string') return priority
+    return priority?.value || 'Medium'
+  }
 
   const getTypeValue = (type: any): string => {
-    if (typeof type === 'string') return type;
-    return type?.value || 'General';
-  };
+    if (typeof type === 'string') return type
+    return type?.value || 'General'
+  }
 
   return (
-    <div 
+    <div
       style={{
         backgroundColor: 'white',
         borderRadius: '8px',
@@ -202,7 +208,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
       }}
       data-testid="contact-tasks-section"
     >
-      <div 
+      <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -211,10 +217,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
           borderBottom: '1px solid #f0f0f0'
         }}
       >
-        <div 
-          className="gba:tasks-title" 
-          style={{ fontSize: '18px', fontWeight: '500' }}
-        >
+        <div className="gba:tasks-title" style={{ fontSize: '18px', fontWeight: '500' }}>
           Tasks
         </div>
         <AppAction
@@ -224,11 +227,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
           prefixDataTestId="contact-tasks"
           emptyStateBehavior="enable"
         >
-          <Button 
-            type="primary"
-            icon={<PlusCircleOutlined />}
-            data-testid="add-task-button"
-          >
+          <Button type="primary" icon={<PlusCircleOutlined />} data-testid="add-task-button">
             Add Task
           </Button>
         </AppAction>
@@ -258,9 +257,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
 
         {!loading && !error && tasks.length === 0 && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
-              No tasks yet
-            </div>
+            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>No tasks yet</div>
           </div>
         )}
 
@@ -274,12 +271,13 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
                   </div>
                   <div>
                     <Text type="secondary">
-                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} - {getEmployeeDisplayName(task.createdBy)}
+                      {dayjs(task.createdAt).format('MMM D, YYYY [at] h:mm A')} -{' '}
+                      {getEmployeeDisplayName(task.createdBy)}
                     </Text>
                     {task.dueDate && (
-                      <Text 
-                        type="secondary" 
-                        style={{ 
+                      <Text
+                        type="secondary"
+                        style={{
                           marginLeft: '16px',
                           color: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '#ff4d4f' : undefined,
                           fontWeight: dayjs(task.dueDate).isBefore(dayjs(), 'day') ? '500' : undefined
@@ -293,33 +291,37 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
                   <div style={{ marginTop: '4px' }}>
                     <div>{task.description}</div>
                     <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
-                      <span style={{ 
-                        backgroundColor: getPriorityColor(getPriorityValue(task.priority)), 
-                        color: 'white', 
-                        padding: '2px 8px', 
-                        borderRadius: '4px', 
-                        fontSize: '12px' 
-                      }}>
+                      <span
+                        style={{
+                          backgroundColor: getPriorityColor(getPriorityValue(task.priority)),
+                          color: 'white',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px'
+                        }}
+                      >
                         {getPriorityValue(task.priority)}
                       </span>
-                      <span style={{ 
-                        backgroundColor: '#f0f0f0', 
-                        color: '#333', 
-                        padding: '2px 8px', 
-                        borderRadius: '4px', 
-                        fontSize: '12px' 
-                      }}>
+                      <span
+                        style={{
+                          backgroundColor: '#f0f0f0',
+                          color: '#333',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '12px'
+                        }}
+                      >
                         {getTypeValue(task.type)}
                       </span>
                     </div>
                   </div>
-                  <Button 
-                    type="text" 
-                    icon={<CloseOutlined />} 
+                  <Button
+                    type="text"
+                    icon={<CloseOutlined />}
                     size="small"
-                    style={{ 
-                      position: 'absolute', 
-                      right: 0, 
+                    style={{
+                      position: 'absolute',
+                      right: 0,
                       top: 0,
                       padding: '4px',
                       lineHeight: 1
@@ -334,5 +336,5 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ contactId, context }
         )}
       </div>
     </div>
-  );
-}; 
+  )
+}

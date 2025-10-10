@@ -1,11 +1,11 @@
-import { SalesTaskQueryVariables } from '../types/SalesTaskTypes';
-import { buildQueryArguments, buildCountQueryArguments } from '../utils/salesTaskQueryBuilder';
+import { SalesTaskQueryVariables } from '../types/SalesTaskTypes'
+import { buildQueryArguments, buildCountQueryArguments } from '../utils/salesTaskQueryBuilder'
 
 /**
  * GraphQL query to fetch sales tasks with full details
  */
 export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): { query: string; variables: any } => {
-  const args = buildQueryArguments(variables);
+  const args = buildQueryArguments(variables)
 
   const query = `
     query GetSalesTasks($where: SalesTaskBoolExp, $orderBy: [SalesTaskOrderBy!], $limit: Int, $offset: Int) {
@@ -57,25 +57,25 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): { query: st
         recordState
       }
     }
-  `;
+  `
 
-  return { 
-    query, 
+  return {
+    query,
     variables: {
       where: args.where,
       orderBy: args.orderBy,
       limit: args.limit,
       offset: args.offset
     }
-  };
-};
+  }
+}
 
 /**
  * Combined GraphQL query to fetch sales tasks with full details AND count in one call
  */
 export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): { query: string; variables: any } => {
-  const args = buildQueryArguments(variables);
-  const countArgs = buildCountQueryArguments(variables);
+  const args = buildQueryArguments(variables)
+  const countArgs = buildCountQueryArguments(variables)
 
   const query = `
     query GetSalesTasksWithCount(
@@ -140,10 +140,10 @@ export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): 
         }
       }
     }
-  `;
+  `
 
-  return { 
-    query, 
+  return {
+    query,
     variables: {
       where: args.where,
       orderBy: args.orderBy,
@@ -151,14 +151,14 @@ export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): 
       offset: args.offset,
       countWhere: countArgs.where
     }
-  };
-};
+  }
+}
 
 /**
  * GraphQL query to count sales tasks (for pagination)
  */
 export const GET_SALES_TASKS_COUNT = (variables: SalesTaskQueryVariables): { query: string; variables: any } => {
-  const args = buildCountQueryArguments(variables);
+  const args = buildCountQueryArguments(variables)
 
   const query = `
     query GetSalesTasksCount($where: SalesTaskBoolExp, $limit: Int) {
@@ -169,58 +169,54 @@ export const GET_SALES_TASKS_COUNT = (variables: SalesTaskQueryVariables): { que
         id
       }
     }
-  `;
+  `
 
-  return { 
-    query, 
+  return {
+    query,
     variables: {
       where: args.where,
       limit: args.limit
     }
-  };
-};
+  }
+}
 
 /**
  * GraphQL query to fetch historical task statistics for growth comparison
  */
-export const GET_HISTORICAL_TASK_STATISTICS = (filterVariables?: SalesTaskQueryVariables): { query: string; variables: any } => {
+export const GET_HISTORICAL_TASK_STATISTICS = (
+  filterVariables?: SalesTaskQueryVariables
+): { query: string; variables: any } => {
   // Build additional where conditions from filter variables
-  const additionalWhere: any = {};
-  
+  const additionalWhere: any = {}
+
   if (filterVariables?.assignedEmployeeIds?.length) {
     additionalWhere.assignedEmployeeId = {
       _in: filterVariables.assignedEmployeeIds
-    };
+    }
   }
-  
+
   if (filterVariables?.statusRefs?.length) {
-    additionalWhere.statusRef = { _in: filterVariables.statusRefs };
+    additionalWhere.statusRef = { _in: filterVariables.statusRefs }
   }
-  
+
   if (filterVariables?.priorityRefs?.length) {
-    additionalWhere.priorityRef = { _in: filterVariables.priorityRefs };
+    additionalWhere.priorityRef = { _in: filterVariables.priorityRefs }
   }
-  
+
   if (filterVariables?.taskTypes?.length) {
-    additionalWhere.typeRef = { _in: filterVariables.taskTypes };
+    additionalWhere.typeRef = { _in: filterVariables.taskTypes }
   }
 
   // Build the where clause conditionally
-  const hasAdditionalFilters = Object.keys(additionalWhere).length > 0;
-  const baseWhere = { recordState: { _neq: "DELETED" } };
-  
-  const currentWhere = hasAdditionalFilters 
-    ? { ...baseWhere, _and: [additionalWhere] }
-    : baseWhere;
-    
-  const previousWhere = hasAdditionalFilters 
-    ? { ...baseWhere, _and: [additionalWhere] }
-    : baseWhere;
-    
-  const allWhere = hasAdditionalFilters 
-    ? { ...baseWhere, _and: [additionalWhere] }
-    : baseWhere;
-  
+  const hasAdditionalFilters = Object.keys(additionalWhere).length > 0
+  const baseWhere = { recordState: { _neq: 'DELETED' } }
+
+  const currentWhere = hasAdditionalFilters ? { ...baseWhere, _and: [additionalWhere] } : baseWhere
+
+  const previousWhere = hasAdditionalFilters ? { ...baseWhere, _and: [additionalWhere] } : baseWhere
+
+  const allWhere = hasAdditionalFilters ? { ...baseWhere, _and: [additionalWhere] } : baseWhere
+
   const query = `
     query GetHistoricalTaskStatistics(
       $fromDate: timestamptz!, 
@@ -268,21 +264,21 @@ export const GET_HISTORICAL_TASK_STATISTICS = (filterVariables?: SalesTaskQueryV
         createdAt
       }
     }
-  `;
+  `
 
-  const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - 30);
-  
-  const previousFromDate = new Date(fromDate.getTime() - (30 * 24 * 60 * 60 * 1000));
+  const fromDate = new Date()
+  fromDate.setDate(fromDate.getDate() - 30)
 
-  return { 
-    query, 
-    variables: { 
+  const previousFromDate = new Date(fromDate.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+  return {
+    query,
+    variables: {
       fromDate: fromDate.toISOString(),
       previousFromDate: previousFromDate.toISOString(),
       currentWhere,
       previousWhere,
       allWhere
     }
-  };
-}; 
+  }
+}

@@ -1,23 +1,23 @@
-import React from "react";
-import { Button } from "@newwork/nw-design-system";
-import { Plus, Download, Upload, RefreshCw, Save } from "lucide-react";
-import { DebouncedInput } from "@/components/debounced-input";
+import React from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { Plus, Download, Upload, RefreshCw, Save } from 'lucide-react'
+import { DebouncedInput } from '@/components/debounced-input'
 
 interface CatalogTableToolbarProps {
-  searchTerm: string;
-  onSearchChange: (value: string) => void;
-  onCreateEntry: () => void;
-  onImportCsv: () => void;
-  onExportCsv: () => void;
-  onRefresh: () => void;
-  onSaveAll: () => void;
-  onDiscardChanges: () => void;
-  onDeleteSelected?: () => void;
-  anySelectedCount?: number;
-  hasUnsavedChanges: boolean;
-  isSaving: boolean;
-  totalCount: number;
-  dataTestId: string;
+  searchTerm: string
+  onSearchChange: (value: string) => void
+  onCreateEntry: () => void
+  onImportCsv: () => void
+  onExportCsv: () => void
+  onRefresh: () => void
+  onSaveAll: () => void
+  onDiscardChanges: () => void
+  onDeleteSelected?: () => void
+  anySelectedCount?: number
+  hasUnsavedChanges: boolean
+  isSaving: boolean
+  totalCount: number
+  dataTestId: string
 }
 
 export const CatalogTableToolbar: React.FC<CatalogTableToolbarProps> = ({
@@ -34,7 +34,7 @@ export const CatalogTableToolbar: React.FC<CatalogTableToolbarProps> = ({
   hasUnsavedChanges,
   isSaving,
   totalCount,
-  dataTestId,
+  dataTestId
 }) => {
   return (
     <div className="gba:space-y-4">
@@ -48,7 +48,7 @@ export const CatalogTableToolbar: React.FC<CatalogTableToolbarProps> = ({
             className="gba:flex-1 gba:max-w-md"
             data-testid={`${dataTestId}-SearchInput`}
           />
-          <div className="gba:text-sm" style={{ color: "var(--nw-color-text-secondary)" }}>
+          <div className="gba:text-sm" style={{ color: 'var(--nw-color-text-secondary)' }}>
             {totalCount} entries
           </div>
         </div>
@@ -56,13 +56,9 @@ export const CatalogTableToolbar: React.FC<CatalogTableToolbarProps> = ({
         <div className="gba:flex gba:items-center gba:gap-2">
           {hasUnsavedChanges && (
             <>
-              <Button
-                onClick={onSaveAll}
-                disabled={isSaving}
-                data-testid={`${dataTestId}-SaveAllButton`}
-              >
+              <Button onClick={onSaveAll} disabled={isSaving} data-testid={`${dataTestId}-SaveAllButton`}>
                 <Save className="gba:h-4 gba:w-4 gba:mr-2" />
-                {isSaving ? "Saving..." : "Save All"}
+                {isSaving ? 'Saving...' : 'Save All'}
               </Button>
               <Button
                 variant="outline"
@@ -75,11 +71,7 @@ export const CatalogTableToolbar: React.FC<CatalogTableToolbarProps> = ({
             </>
           )}
           {anySelectedCount > 0 && (
-            <Button
-              variant="destructive"
-              onClick={onDeleteSelected}
-              data-testid={`${dataTestId}-DeleteSelectedButton`}
-            >
+            <Button variant="destructive" onClick={onDeleteSelected} data-testid={`${dataTestId}-DeleteSelectedButton`}>
               Delete Selected ({anySelectedCount})
             </Button>
           )}
@@ -87,21 +79,11 @@ export const CatalogTableToolbar: React.FC<CatalogTableToolbarProps> = ({
             <RefreshCw className="gba:h-4 gba:w-4 gba:mr-2" />
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            onClick={onImportCsv}
-            disabled={true}
-            data-testid={`${dataTestId}-ImportButton`}
-          >
+          <Button variant="outline" onClick={onImportCsv} disabled={true} data-testid={`${dataTestId}-ImportButton`}>
             <Upload className="gba:h-4 gba:w-4 gba:mr-2" />
             Import CSV
           </Button>
-          <Button
-            variant="outline"
-            onClick={onExportCsv}
-            disabled={true}
-            data-testid={`${dataTestId}-ExportButton`}
-          >
+          <Button variant="outline" onClick={onExportCsv} disabled={true} data-testid={`${dataTestId}-ExportButton`}>
             <Download className="gba:h-4 gba:w-4 gba:mr-2" />
             Export CSV
           </Button>
@@ -112,7 +94,7 @@ export const CatalogTableToolbar: React.FC<CatalogTableToolbarProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default CatalogTableToolbar;
+export default CatalogTableToolbar

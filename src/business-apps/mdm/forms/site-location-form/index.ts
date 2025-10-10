@@ -1,4 +1,4 @@
-import SiteLocationForm from "./SiteLocationForm";
+import SiteLocationForm from './SiteLocationForm'
 
-export { SiteLocationForm };
-export default SiteLocationForm;
+export { SiteLocationForm }
+export default SiteLocationForm

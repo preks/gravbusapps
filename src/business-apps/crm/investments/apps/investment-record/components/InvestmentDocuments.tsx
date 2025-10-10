@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Trash2, Edit, Download } from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { startProcess } from '@/common/utils/start-process';
-import { useGetInvestmentDocumentsByInvestmentId } from '../hooks/useInvestmentDocumentsByInvestmentId';
-import type { InvestmentDocument } from '@/common/data/investment/types';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { env } from '@/common/env/EnvUtils';
-import { toast } from 'sonner';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React, { useState, useEffect, useMemo } from 'react'
+import { Trash2, Edit, Download } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { startProcess } from '@/common/utils/start-process'
+import { useGetInvestmentDocumentsByInvestmentId } from '../hooks/useInvestmentDocumentsByInvestmentId'
+import type { InvestmentDocument } from '@/common/data/investment/types'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { env } from '@/common/env/EnvUtils'
+import { toast } from 'sonner'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Use the actual investment document type
-type Document = InvestmentDocument;
+type Document = InvestmentDocument
 
 // MIME type to file extension mapping
 const MIME_TYPE_EXTENSIONS: Record<string, string> = {
@@ -24,34 +24,38 @@ const MIME_TYPE_EXTENSIONS: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'text/plain': 'txt'
-};
+}
 
 interface InvestmentDocumentsProps {
-  investmentId: string;
-  context: BusinessAppContextProps;
+  investmentId: string
+  context: BusinessAppContextProps
 }
 
 const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId, context }) => {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Fetch documents using the existing hook
-  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(context);
+  const { fetchInvestmentDocumentsByInvestmentId } = useGetInvestmentDocumentsByInvestmentId(context)
 
   // Function to load documents
   const loadDocuments = async () => {
     try {
-      setIsLoading(true);
-      setError(null);
-      const documentsData = await fetchInvestmentDocumentsByInvestmentId(investmentId);
-      setDocuments(documentsData);
+      setIsLoading(true)
+      setError(null)
+      const documentsData = await fetchInvestmentDocumentsByInvestmentId(investmentId)
+      setDocuments(documentsData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents'));
+      setError(
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
+      )
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Transform documents to match DocumentItem interface
   const transformedDocuments = useMemo(() => {
@@ -61,68 +65,82 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
       description: doc.description,
       createdAt: doc.createdAt,
       expirationDate: doc.expirationDate,
-      documentType: doc.documentType ? {
-        id: doc.documentType.id,
-        value: doc.documentType.value || '',
-        code: doc.documentType.code
-      } : null,
-      documentGroup: doc.documentGroup ? {
-        id: doc.documentGroup.id,
-        value: doc.documentGroup.value || '',
-        code: doc.documentGroup.code
-      } : null,
+      documentType: doc.documentType
+        ? {
+            id: doc.documentType.id,
+            value: doc.documentType.value || '',
+            code: doc.documentType.code
+          }
+        : null,
+      documentGroup: doc.documentGroup
+        ? {
+            id: doc.documentGroup.id,
+            value: doc.documentGroup.value || '',
+            code: doc.documentGroup.code
+          }
+        : null,
       file: doc.file,
       mimeType: doc.mimeType,
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,
-      parentDocument: typeof doc.parentDocument === 'object' ? doc.parentDocument?.id ?? null : doc.parentDocument ?? null,
+      parentDocument:
+        typeof doc.parentDocument === 'object' ? (doc.parentDocument?.id ?? null) : (doc.parentDocument ?? null),
       folder: doc.folder === true, // Use direct folder property like opportunity documents
       version: doc.version,
       updatedAt: doc.updatedAt,
       updatedBy: doc.updatedBy
-    }));
-  }, [documents]);
+    }))
+  }, [documents])
 
   // Load documents on mount and when investmentId changes
   useEffect(() => {
     if (investmentId && context.accessToken) {
-      loadDocuments();
+      loadDocuments()
     }
-  }, [investmentId, context.accessToken]);
+  }, [investmentId, context.accessToken])
 
   // Process completion handler for refreshing documents after operations
   useProcessCompletion({
     onSuccess: () => {
-      loadDocuments();
+      loadDocuments()
     }
-  });
+  })
 
   // Memoized action props for document operations - EXACTLY like opportunity record
-  const documentCreateFolderActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentCreate],
-    externalContextData: { 
-      investmentId,
-      folder: true
-    },
-    prefixDataTestId: 'investment-document-create-folder'
-  }), [investmentId]);
+  const documentCreateFolderActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentCreate],
+      externalContextData: {
+        investmentId,
+        folder: true
+      },
+      prefixDataTestId: 'investment-document-create-folder'
+    }),
+    [investmentId]
+  )
 
-  const documentUploadActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentCreate],
-    externalContextData: { 
-      investmentId
-    },
-    prefixDataTestId: 'investment-document-upload'
-  }), [investmentId]);
+  const documentUploadActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentCreate],
+      externalContextData: {
+        investmentId
+      },
+      prefixDataTestId: 'investment-document-upload'
+    }),
+    [investmentId]
+  )
 
-  const documentDeleteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentDelete],
-    externalContextData: { 
-      investmentId,
-      entityType: 'investment'
-    },
-    prefixDataTestId: 'investment-document-delete'
-  }), [investmentId]);
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      externalContextData: {
+        investmentId,
+        entityType: 'investment'
+      },
+      prefixDataTestId: 'investment-document-delete'
+    }),
+    [investmentId]
+  )
 
   return (
     <DocumentSection
@@ -148,40 +166,42 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
           onClick: (_documentId: string, document: any, entityId: string) => {
             // Handle document download using the same pattern as OpportunityDocuments
             if (!document.file) {
-              toast.warning(getTranslationFromI18nKeyAndLabel('warning.no.file.available', 'No file available to download'));
-              return;
+              toast.warning(
+                getTranslationFromI18nKeyAndLabel('warning.no.file.available', 'No file available to download')
+              )
+              return
             }
-            
+
             try {
-              const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || '';
+              const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || ''
               const getFileExtension = (doc: any): string => {
                 if (doc.name && doc.name.includes('.')) {
-                  return doc.name.split('.').pop() || 'pdf';
+                  return doc.name.split('.').pop() || 'pdf'
                 }
-                return (doc.mimeType && MIME_TYPE_EXTENSIONS[doc.mimeType]) || 'pdf';
-              };
-
-              const fileExtension = getFileExtension(document);
-              const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/investments/${entityId}/documents/`;
-              
-              let fileUrl: string;
-              if (document.file.includes('.')) {
-                fileUrl = `${baseUrl}${document.file}`;
-              } else {
-                fileUrl = `${baseUrl}${document.file}.${fileExtension}`;
+                return (doc.mimeType && MIME_TYPE_EXTENSIONS[doc.mimeType]) || 'pdf'
               }
-              
-              const downloadFilename = document.name || `document.${fileExtension}`;
-              
-              const link = window.document.createElement('a');
-              link.href = fileUrl;
-              link.download = downloadFilename;
-              window.document.body.appendChild(link);
-              link.click();
-              window.document.body.removeChild(link);
+
+              const fileExtension = getFileExtension(document)
+              const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/investments/${entityId}/documents/`
+
+              let fileUrl: string
+              if (document.file.includes('.')) {
+                fileUrl = `${baseUrl}${document.file}`
+              } else {
+                fileUrl = `${baseUrl}${document.file}.${fileExtension}`
+              }
+
+              const downloadFilename = document.name || `document.${fileExtension}`
+
+              const link = window.document.createElement('a')
+              link.href = fileUrl
+              link.download = downloadFilename
+              window.document.body.appendChild(link)
+              link.click()
+              window.document.body.removeChild(link)
             } catch (error) {
-              console.error('Error downloading document:', error);
-              toast.error(getTranslationFromI18nKeyAndLabel('error.download.failed', 'Failed to download document'));
+              console.error('Error downloading document:', error)
+              toast.error(getTranslationFromI18nKeyAndLabel('error.download.failed', 'Failed to download document'))
             }
           }
         },
@@ -201,16 +221,20 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
                   id: documentId,
                   version: document.version,
                   name: document.name,
-                  documentGroupRef: document.documentGroup?.id ? `InvestmentDocumentGroup:v1:${document.documentGroup.code}` : '',
-                  documentTypeRef: document.documentType?.id ? `InvestmentDocumentType:v1:${document.documentType.code}` : '',
+                  documentGroupRef: document.documentGroup?.id
+                    ? `InvestmentDocumentGroup:v1:${document.documentGroup.code}`
+                    : '',
+                  documentTypeRef: document.documentType?.id
+                    ? `InvestmentDocumentType:v1:${document.documentType.code}`
+                    : '',
                   expirationDate: document.expirationDate || null,
                   description: document.description,
                   folder: document.folder || false,
-                  investment: entityId, 
-                },
+                  investment: entityId
+                }
               },
-              builderType: 'NATIVE_SCREEN',
-            });
+              builderType: 'NATIVE_SCREEN'
+            })
           }
         },
         {
@@ -218,7 +242,10 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
           label: getTranslationFromI18nKeyAndLabel('action.delete', 'Delete'),
           icon: <Trash2 className="gba:h-4 gba:w-4" />,
           apiEndpoint: '/investment-relations/deleteInvestmentDocument',
-          confirmMessage: getTranslationFromI18nKeyAndLabel('confirm.delete.document', 'Are you sure you want to delete this document? This action cannot be undone.')
+          confirmMessage: getTranslationFromI18nKeyAndLabel(
+            'confirm.delete.document',
+            'Are you sure you want to delete this document? This action cannot be undone.'
+          )
         }
       ]}
       createFolderActionProps={documentCreateFolderActionProps}
@@ -229,8 +256,8 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
       userInfo={context.userInfo}
       additionalData={context.additionalData}
     />
-  );
-};
+  )
+}
 
-export { InvestmentDocuments };
-export default InvestmentDocuments;
+export { InvestmentDocuments }
+export default InvestmentDocuments

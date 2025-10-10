@@ -1,2 +1,1 @@
-export { default as NoteSection } from './NoteSection';
-
+export { default as NoteSection } from './NoteSection'

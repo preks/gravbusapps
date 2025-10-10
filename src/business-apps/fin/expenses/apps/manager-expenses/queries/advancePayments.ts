@@ -73,7 +73,7 @@ export const GET_ADVANCE_PAYMENTS_BY_MANAGER = `
       }
     }
   }
-`;
+`
 
 // Payments-centric report query with server-side pagination and search
 export const GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER = `
@@ -133,7 +133,7 @@ export const GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER = `
       }
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENT_STATISTICS = `
   query GetAdvancePaymentStatistics($employeeId: uuid!) {
@@ -155,4 +155,4 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       }
     }
   }
-`;
+`

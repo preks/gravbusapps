@@ -17,8 +17,16 @@ export interface CatalogSettingsState {
   isLoading: boolean
   error: string | null
   onRetry: () => Promise<void>
-  onCreate: (data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string }) => Promise<void>
-  onUpdate: (id: string, data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string }) => Promise<void>
+  onCreate: (data: {
+    code: string
+    value: string
+    alternativeCode?: string
+    additionalValue1?: string
+  }) => Promise<void>
+  onUpdate: (
+    id: string,
+    data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string }
+  ) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onSearchChange: (value: string) => void
 }
@@ -37,14 +45,22 @@ export function useCatalogSettings(accessToken: string, catalogIdentifier: strin
       setError(null)
       const response = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier, version: 'v1' },
-        { limit: 100, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: false, ...(search && { searchCriteria: search }) }
+        {
+          limit: 100,
+          offset: 0,
+          returnTotalRecords: true,
+          includeChildCatalogEntries: false,
+          ...(search && { searchCriteria: search })
+        }
       )
       const entries = (response.data || []).map((entry: any) => ({
         id: entry.id,
         code: entry.code,
         value: entry.value,
         alternativeCode: entry.alternativeCode,
-        displayOrder: (entry.displayOrder ?? (entry.alternativeCode ? parseInt(entry.alternativeCode, 10) : undefined)) || undefined,
+        displayOrder:
+          (entry.displayOrder ?? (entry.alternativeCode ? parseInt(entry.alternativeCode, 10) : undefined)) ||
+          undefined,
         additionalValue1: entry.additionalValue1,
         additionalValue2: entry.additionalValue2,
         additionalValue3: entry.additionalValue3
@@ -57,38 +73,58 @@ export function useCatalogSettings(accessToken: string, catalogIdentifier: strin
     }
   }, [catalogClient, catalogIdentifier, search])
 
-  React.useEffect(() => { load() }, [load])
+  React.useEffect(() => {
+    load()
+  }, [load])
 
-  const create = React.useCallback(async (data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string; displayOrder?: number }) => {
-    await catalogClient.createCatalogEntry(catalogIdentifier, 'v1', {
-      code: data.code,
-      value: data.value,
-      alternativeCode: data.alternativeCode ?? (data.displayOrder != null ? String(data.displayOrder) : undefined),
-      displayOrder: data.displayOrder,
-      additionalValue1: data.additionalValue1,
-      objectValue: {},
-      translations: []
-    });
-    await load()
-  }, [catalogClient, catalogIdentifier, load])
+  const create = React.useCallback(
+    async (data: {
+      code: string
+      value: string
+      alternativeCode?: string
+      additionalValue1?: string
+      displayOrder?: number
+    }) => {
+      await catalogClient.createCatalogEntry(catalogIdentifier, 'v1', {
+        code: data.code,
+        value: data.value,
+        alternativeCode: data.alternativeCode ?? (data.displayOrder != null ? String(data.displayOrder) : undefined),
+        displayOrder: data.displayOrder,
+        additionalValue1: data.additionalValue1,
+        objectValue: {},
+        translations: []
+      })
+      await load()
+    },
+    [catalogClient, catalogIdentifier, load]
+  )
 
-  const update = React.useCallback(async (id: string, data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string; displayOrder?: number }) => {
-    await catalogClient.updateCatalogEntry(id, {
-      code: data.code,
-      value: data.value,
-      alternativeCode: data.alternativeCode ?? (data.displayOrder != null ? String(data.displayOrder) : undefined),
-      displayOrder: data.displayOrder,
-      additionalValue1: data.additionalValue1,
-      objectValue: {},
-      translations: []
-    });
-    await load()
-  }, [catalogClient, load])
+  const update = React.useCallback(
+    async (
+      id: string,
+      data: { code: string; value: string; alternativeCode?: string; additionalValue1?: string; displayOrder?: number }
+    ) => {
+      await catalogClient.updateCatalogEntry(id, {
+        code: data.code,
+        value: data.value,
+        alternativeCode: data.alternativeCode ?? (data.displayOrder != null ? String(data.displayOrder) : undefined),
+        displayOrder: data.displayOrder,
+        additionalValue1: data.additionalValue1,
+        objectValue: {},
+        translations: []
+      })
+      await load()
+    },
+    [catalogClient, load]
+  )
 
-  const remove = React.useCallback(async (id: string) => {
-    await catalogClient.deleteCatalogEntry(id)
-    await load()
-  }, [catalogClient, load])
+  const remove = React.useCallback(
+    async (id: string) => {
+      await catalogClient.deleteCatalogEntry(id)
+      await load()
+    },
+    [catalogClient, load]
+  )
 
   return {
     items,
@@ -101,5 +137,3 @@ export function useCatalogSettings(accessToken: string, catalogIdentifier: strin
     onSearchChange: setSearch
   }
 }
-
-

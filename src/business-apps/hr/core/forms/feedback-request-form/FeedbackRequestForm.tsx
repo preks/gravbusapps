@@ -1,8 +1,8 @@
-import React from 'react';
-import { FeedbackRequestFormProvider } from './context/FeedbackRequestFormContext';
-import FeedbackRequestFormComponent from './components/FeedbackRequestFormComponent';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { FeedbackRequestFormProps } from './types';
+import React from 'react'
+import { FeedbackRequestFormProvider } from './context/FeedbackRequestFormContext'
+import FeedbackRequestFormComponent from './components/FeedbackRequestFormComponent'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FeedbackRequestFormProps } from './types'
 
 const FeedbackRequestForm: React.FC<BusinessAppContextProps & FeedbackRequestFormProps> = ({
   initialValues,
@@ -20,14 +20,14 @@ const FeedbackRequestForm: React.FC<BusinessAppContextProps & FeedbackRequestFor
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   return (
     <FeedbackRequestFormProvider
@@ -39,7 +39,7 @@ const FeedbackRequestForm: React.FC<BusinessAppContextProps & FeedbackRequestFor
     >
       <FeedbackRequestFormComponent />
     </FeedbackRequestFormProvider>
-  );
-};
+  )
+}
 
-export default FeedbackRequestForm;
+export default FeedbackRequestForm

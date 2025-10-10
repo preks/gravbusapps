@@ -1,4 +1,4 @@
-import { FormScreenComponent } from './FormScreenComponent';
+import { FormScreenComponent } from './FormScreenComponent'
 
-export { FormScreenComponent };
-export default FormScreenComponent;
+export { FormScreenComponent }
+export default FormScreenComponent

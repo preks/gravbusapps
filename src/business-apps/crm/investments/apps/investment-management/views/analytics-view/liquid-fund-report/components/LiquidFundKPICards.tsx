@@ -1,39 +1,42 @@
-import React from 'react';
-import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { formatCurrency, formatNumber } from '@/common/data/investment';
-import { LiquidFundInvestmentKPIs } from '../LiquidFundInvestmentsReport';
+import React from 'react'
+import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { formatCurrency, formatNumber } from '@/common/data/investment'
+import { LiquidFundInvestmentKPIs } from '../LiquidFundInvestmentsReport'
 
 interface LiquidFundKPICardsProps {
-  kpis: LiquidFundInvestmentKPIs;
-  isLoading?: boolean;
-  error?: Error | null;
-  onRetry?: () => void;
-  prefixDataTestId?: string;
+  kpis: LiquidFundInvestmentKPIs
+  isLoading?: boolean
+  error?: Error | null
+  onRetry?: () => void
+  prefixDataTestId?: string
 }
 
 // Calculate percentage change for comparison
 const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-  if (previous === 0) return { value: "N/A", positive: true };
-  const change = ((current - previous) / previous) * 100;
+  if (previous === 0) return { value: 'N/A', positive: true }
+  const change = ((current - previous) / previous) * 100
   return {
-    value: `${change >= 0 ? "+" : ""}${change.toFixed(1)}%`,
+    value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
     positive: change >= 0
-  };
-};
+  }
+}
 
-export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({ 
-  kpis, 
+export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
+  kpis,
   isLoading = false,
   error = null,
   onRetry,
-  prefixDataTestId = 'LiquidFundKPICards' 
+  prefixDataTestId = 'LiquidFundKPICards'
 }) => {
   // Calculate trends for each KPI
-  const totalInvestmentsChange = calculateChange(kpis.totalInvestments, kpis.previousTotalInvestments || 0);
-  const averageInvestmentValueChange = calculateChange(kpis.averageInvestmentValue, kpis.previousAverageInvestmentValue || 0);
-  const averageMarketValueChange = calculateChange(kpis.averageMarketValue, kpis.previousAverageMarketValue || 0);
-  const totalFundValueChange = calculateChange(kpis.totalFundValue, kpis.previousTotalFundValue || 0);
+  const totalInvestmentsChange = calculateChange(kpis.totalInvestments, kpis.previousTotalInvestments || 0)
+  const averageInvestmentValueChange = calculateChange(
+    kpis.averageInvestmentValue,
+    kpis.previousAverageInvestmentValue || 0
+  )
+  const averageMarketValueChange = calculateChange(kpis.averageMarketValue, kpis.previousAverageMarketValue || 0)
+  const totalFundValueChange = calculateChange(kpis.totalFundValue, kpis.previousTotalFundValue || 0)
 
   const widgets: WidgetItem[] = [
     {
@@ -47,8 +50,8 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: totalInvestmentsChange.value,
         positive: totalInvestmentsChange.positive,
-        description: "vs 7 days ago",
-      },
+        description: 'vs 7 days ago'
+      }
     },
     {
       key: 'average-investment-value',
@@ -62,8 +65,8 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: averageInvestmentValueChange.value,
         positive: averageInvestmentValueChange.positive,
-        description: "vs 7 days ago",
-      },
+        description: 'vs 7 days ago'
+      }
     },
     {
       key: 'average-market-value',
@@ -77,8 +80,8 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: averageMarketValueChange.value,
         positive: averageMarketValueChange.positive,
-        description: "vs 7 days ago",
-      },
+        description: 'vs 7 days ago'
+      }
     },
     {
       key: 'total-fund-value',
@@ -92,10 +95,10 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: totalFundValueChange.value,
         positive: totalFundValueChange.positive,
-        description: "vs 7 days ago",
-      },
+        description: 'vs 7 days ago'
+      }
     }
-  ];
+  ]
 
   return (
     <div data-testid={`${prefixDataTestId}-container`}>
@@ -109,5 +112,5 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
         data-testid={prefixDataTestId}
       />
     </div>
-  );
-}; 
+  )
+}

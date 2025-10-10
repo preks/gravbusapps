@@ -1,173 +1,157 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useMemo,
-} from "react";
-import {
-  AccountFormValues,
-  SelectOption,
-  AccountContextState,
-  Address,
-} from "../types";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useEmployeeById } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById";
-import { useEmployeePositions } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions";
-import { useSearchableCatalog } from "../../lead-form/hooks/useSearchableCatalog";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { AccountFormValues, SelectOption, AccountContextState, Address } from '../types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useEmployeeById } from '@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById'
+import { useEmployeePositions } from '@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions'
+import { useSearchableCatalog } from '../../lead-form/hooks/useSearchableCatalog'
 import {
   LEGAL_FORM_CATALOG,
   INDUSTRY_CATALOG,
   EMPLOYEE_SIZE_CATALOG,
   REVENUE_SIZE_CATALOG,
-  TIMEZONE_CATALOG,
-} from "@/business-apps/crm/common/forms/lead-form/hooks/useLeadCatalogs";
-import { useCurrenciesGraphQL } from "../hooks/useCurrenciesGraphQL";
-import { useCountriesGraphQL } from "../hooks/useCountriesGraphQL";
-import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
-import {
-  useAccountData,
-  mapAccountToFormValues,
-} from "../hooks/useAccountData";
+  TIMEZONE_CATALOG
+} from '@/business-apps/crm/common/forms/lead-form/hooks/useLeadCatalogs'
+import { useCurrenciesGraphQL } from '../hooks/useCurrenciesGraphQL'
+import { useCountriesGraphQL } from '../hooks/useCountriesGraphQL'
+import { useSalesCampaignsGraphQL } from '../../../hooks/useSalesCampaignsGraphQL'
+import { useAccountData, mapAccountToFormValues } from '../hooks/useAccountData'
 
 interface AccountFormContextValue extends AccountContextState {
-  formValues: AccountFormValues;
-  setFormValues: (updates: Partial<AccountFormValues>) => void;
-  onSubmit: (values: AccountFormValues) => Promise<void>;
-  onCancel: () => Promise<void>;
+  formValues: AccountFormValues
+  setFormValues: (updates: Partial<AccountFormValues>) => void
+  onSubmit: (values: AccountFormValues) => Promise<void>
+  onCancel: () => Promise<void>
 
   // Business app context for hooks
-  businessAppContext: BusinessAppContextProps;
+  businessAppContext: BusinessAppContextProps
 
   // Employee positions (for owner selection)
-  employeePositions: SelectOption[];
-  employeePositionsLoading: boolean;
-  employeePositionsError: string | null;
-  employeePositionsHasMore: boolean;
-  loadMoreEmployeePositions: () => void;
-  searchEmployeePositions: (search: string) => void;
+  employeePositions: SelectOption[]
+  employeePositionsLoading: boolean
+  employeePositionsError: string | null
+  employeePositionsHasMore: boolean
+  loadMoreEmployeePositions: () => void
+  searchEmployeePositions: (search: string) => void
 
   // Legal Forms with search and pagination
-  legalForms: SelectOption[];
-  legalFormsLoading: boolean;
-  legalFormsError: string | null;
-  legalFormsHasMore: boolean;
-  legalFormsNeedsMoreData: boolean;
-  legalFormsDisplayCount: number;
-  legalFormsTotalFetched: number;
-  searchLegalForms: (search: string) => void;
-  loadMoreLegalForms: () => void;
-  showMoreLegalForms: () => void;
+  legalForms: SelectOption[]
+  legalFormsLoading: boolean
+  legalFormsError: string | null
+  legalFormsHasMore: boolean
+  legalFormsNeedsMoreData: boolean
+  legalFormsDisplayCount: number
+  legalFormsTotalFetched: number
+  searchLegalForms: (search: string) => void
+  loadMoreLegalForms: () => void
+  showMoreLegalForms: () => void
 
   // Industries with search and pagination
-  industries: SelectOption[];
-  industriesLoading: boolean;
-  industriesError: string | null;
-  industriesHasMore: boolean;
-  industriesNeedsMoreData: boolean;
-  industriesDisplayCount: number;
-  industriesTotalFetched: number;
-  searchIndustries: (search: string) => void;
-  loadMoreIndustries: () => void;
-  showMoreIndustries: () => void;
+  industries: SelectOption[]
+  industriesLoading: boolean
+  industriesError: string | null
+  industriesHasMore: boolean
+  industriesNeedsMoreData: boolean
+  industriesDisplayCount: number
+  industriesTotalFetched: number
+  searchIndustries: (search: string) => void
+  loadMoreIndustries: () => void
+  showMoreIndustries: () => void
 
   // Employee Sizes with search and pagination
-  employeeSizes: SelectOption[];
-  employeeSizesLoading: boolean;
-  employeeSizesError: string | null;
-  employeeSizesHasMore: boolean;
-  employeeSizesNeedsMoreData: boolean;
-  employeeSizesDisplayCount: number;
-  employeeSizesTotalFetched: number;
-  searchEmployeeSizes: (search: string) => void;
-  loadMoreEmployeeSizes: () => void;
-  showMoreEmployeeSizes: () => void;
+  employeeSizes: SelectOption[]
+  employeeSizesLoading: boolean
+  employeeSizesError: string | null
+  employeeSizesHasMore: boolean
+  employeeSizesNeedsMoreData: boolean
+  employeeSizesDisplayCount: number
+  employeeSizesTotalFetched: number
+  searchEmployeeSizes: (search: string) => void
+  loadMoreEmployeeSizes: () => void
+  showMoreEmployeeSizes: () => void
 
   // Revenue Sizes with search and pagination
-  revenueSizes: SelectOption[];
-  revenueSizesLoading: boolean;
-  revenueSizesError: string | null;
-  revenueSizesHasMore: boolean;
-  revenueSizesNeedsMoreData: boolean;
-  revenueSizesDisplayCount: number;
-  revenueSizesTotalFetched: number;
-  searchRevenueSizes: (search: string) => void;
-  loadMoreRevenueSizes: () => void;
-  showMoreRevenueSizes: () => void;
+  revenueSizes: SelectOption[]
+  revenueSizesLoading: boolean
+  revenueSizesError: string | null
+  revenueSizesHasMore: boolean
+  revenueSizesNeedsMoreData: boolean
+  revenueSizesDisplayCount: number
+  revenueSizesTotalFetched: number
+  searchRevenueSizes: (search: string) => void
+  loadMoreRevenueSizes: () => void
+  showMoreRevenueSizes: () => void
 
   // Currencies with search and pagination
-  currencies: SelectOption[];
-  currenciesLoading: boolean;
-  currenciesError: string | null;
-  currenciesHasMore: boolean;
-  currenciesNeedsMoreData: boolean;
-  currenciesDisplayCount: number;
-  currenciesTotalFetched: number;
-  searchCurrencies: (search: string) => void;
-  loadMoreCurrencies: () => void;
-  showMoreCurrencies: () => void;
+  currencies: SelectOption[]
+  currenciesLoading: boolean
+  currenciesError: string | null
+  currenciesHasMore: boolean
+  currenciesNeedsMoreData: boolean
+  currenciesDisplayCount: number
+  currenciesTotalFetched: number
+  searchCurrencies: (search: string) => void
+  loadMoreCurrencies: () => void
+  showMoreCurrencies: () => void
 
   // TimeZones with search and pagination
-  timeZones: SelectOption[];
-  timeZonesLoading: boolean;
-  timeZonesError: string | null;
-  timeZonesHasMore: boolean;
-  timeZonesNeedsMoreData: boolean;
-  timeZonesDisplayCount: number;
-  timeZonesTotalFetched: number;
-  searchTimeZones: (search: string) => void;
-  loadMoreTimeZones: () => void;
-  showMoreTimeZones: () => void;
+  timeZones: SelectOption[]
+  timeZonesLoading: boolean
+  timeZonesError: string | null
+  timeZonesHasMore: boolean
+  timeZonesNeedsMoreData: boolean
+  timeZonesDisplayCount: number
+  timeZonesTotalFetched: number
+  searchTimeZones: (search: string) => void
+  loadMoreTimeZones: () => void
+  showMoreTimeZones: () => void
 
   // Countries with search and pagination
-  countries: SelectOption[];
-  countriesLoading: boolean;
-  countriesError: string | null;
-  countriesHasMore: boolean;
-  searchCountries: (searchTerm: string) => void;
-  loadMoreCountries: () => void;
+  countries: SelectOption[]
+  countriesLoading: boolean
+  countriesError: string | null
+  countriesHasMore: boolean
+  searchCountries: (searchTerm: string) => void
+  loadMoreCountries: () => void
 
   // Parent account autocomplete
-  parentAccountSuggestions: SelectOption[];
-  searchParentAccounts: (search: string) => Promise<SelectOption[]>;
-  isSearchingParentAccounts: boolean;
-  setIsSearchingParentAccounts: (loading: boolean) => void;
-  setParentAccountSuggestions: (suggestions: SelectOption[]) => void;
+  parentAccountSuggestions: SelectOption[]
+  searchParentAccounts: (search: string) => Promise<SelectOption[]>
+  isSearchingParentAccounts: boolean
+  setIsSearchingParentAccounts: (loading: boolean) => void
+  setParentAccountSuggestions: (suggestions: SelectOption[]) => void
 
   // Sales Campaigns
-  salesCampaigns: SelectOption[];
-  salesCampaignsLoading: boolean;
-  salesCampaignsError: string | null;
-  salesCampaignsHasMore: boolean;
-  searchSalesCampaigns: (searchTerm: string) => void;
-  loadMoreSalesCampaigns: () => void;
+  salesCampaigns: SelectOption[]
+  salesCampaignsLoading: boolean
+  salesCampaignsError: string | null
+  salesCampaignsHasMore: boolean
+  searchSalesCampaigns: (searchTerm: string) => void
+  loadMoreSalesCampaigns: () => void
 
   // Address lines management (legacy)
-  addressLineCount: number;
-  addAddressLine: () => void;
-  removeAddressLine: () => void;
+  addressLineCount: number
+  addAddressLine: () => void
+  removeAddressLine: () => void
 
   // Dynamic addresses management
-  addAddress: () => void;
-  removeAddress: (addressId: string) => void;
-  updateAddress: (addressId: string, updates: Partial<Address>) => void;
-  addAddressLineToAddress: (addressId: string) => void;
-  removeAddressLineFromAddress: (addressId: string, lineIndex: number) => void;
+  addAddress: () => void
+  removeAddress: (addressId: string) => void
+  updateAddress: (addressId: string, updates: Partial<Address>) => void
+  addAddressLineToAddress: (addressId: string) => void
+  removeAddressLineFromAddress: (addressId: string, lineIndex: number) => void
 
   // Legacy compatibility (using employeeSizes data)
-  numberOfEmployeesOptions: SelectOption[];
+  numberOfEmployeesOptions: SelectOption[]
 }
 
-const AccountFormContext = createContext<AccountFormContextValue | null>(null);
+const AccountFormContext = createContext<AccountFormContextValue | null>(null)
 
 interface AccountFormProviderProps {
-  children: React.ReactNode;
-  businessAppContext: BusinessAppContextProps;
-  initialValues?: Partial<AccountFormValues>;
-  onSubmit?: (values: AccountFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  children: React.ReactNode
+  businessAppContext: BusinessAppContextProps
+  initialValues?: Partial<AccountFormValues>
+  onSubmit?: (values: AccountFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
@@ -175,108 +159,101 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   businessAppContext,
   initialValues = {},
   onSubmit = async () => {},
-  onCancel = async () => {},
+  onCancel = async () => {}
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<AccountFormValues>({
     // Account Information
-    owner: "",
+    owner: '',
 
     // Company Information
-    accountName: "",
-    parentAccount: "",
-    legalForm: "",
-    industry: "",
-    website: "",
-    description: "",
+    accountName: '',
+    parentAccount: '',
+    legalForm: '',
+    industry: '',
+    website: '',
+    description: '',
 
     // Campaign Information
-    salesCampaignId: "",
+    salesCampaignId: '',
 
     // Contact Information
-    phone: "",
-    email: "",
-    fax: "",
+    phone: '',
+    email: '',
+    fax: '',
 
     // Dynamic Addresses
     addresses: [
       {
-        id: "default-address",
-        addressType: "UNKNOWN_ADDRESS",
-        addressLines: [""],
-        postalCode: "",
-        city: "",
-        region: "",
-        country: "",
-      },
+        id: 'default-address',
+        addressType: 'UNKNOWN_ADDRESS',
+        addressLines: [''],
+        postalCode: '',
+        city: '',
+        region: '',
+        country: ''
+      }
     ],
 
     // Legacy Address Information (for backward compatibility)
-    country: "",
-    region: "",
-    addressLine1: "",
-    addressLine2: "",
-    addressLine3: "",
-    addressLine4: "",
-    postalCode: "",
-    city: "",
+    country: '',
+    region: '',
+    addressLine1: '',
+    addressLine2: '',
+    addressLine3: '',
+    addressLine4: '',
+    postalCode: '',
+    city: '',
 
     // Financial Information
-    annualRevenue: "",
-    numberOfEmployees: "",
-    currency: "",
+    annualRevenue: '',
+    numberOfEmployees: '',
+    currency: '',
 
     // Additional Information
-    timeZone: "",
-    foundationDate: "",
-    tickerSymbol: "",
-    sicCode: "",
+    timeZone: '',
+    foundationDate: '',
+    tickerSymbol: '',
+    sicCode: '',
 
     // System fields
     id: undefined,
     version: undefined,
 
     // Legacy fields
-    address: "",
-    state: "",
+    address: '',
+    state: '',
 
-    ...initialValues,
-  });
+    ...initialValues
+  })
 
   // Global state
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [addressLineCount, setAddressLineCount] = useState(1);
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [addressLineCount, setAddressLineCount] = useState(1)
 
   // Parent account autocomplete state
-  const [parentAccountSuggestions, setParentAccountSuggestions] = useState<
-    SelectOption[]
-  >([]);
-  const [isSearchingParentAccounts, setIsSearchingParentAccounts] =
-    useState(false);
+  const [parentAccountSuggestions, setParentAccountSuggestions] = useState<SelectOption[]>([])
+  const [isSearchingParentAccounts, setIsSearchingParentAccounts] = useState(false)
 
   // Auto-selection tracking
-  const autoSelectionDone = useRef(false);
+  const autoSelectionDone = useRef(false)
 
   // Catalog initialization tracking
-  const hasInitialized = useRef(false);
+  const hasInitialized = useRef(false)
 
   // Account data hook for fetching existing account data
-  const {
-    accountData,
-    loading: accountDataLoading,
-    error: accountDataError,
-  } = useAccountData(businessAppContext);
+  const { accountData, loading: accountDataLoading, error: accountDataError } = useAccountData(businessAppContext)
 
   // Current user employee hook for auto-selection
   const {
     employee: currentUserEmployee,
     loading: currentUserLoading,
-    error: currentUserError,
+    error: currentUserError
   } = useEmployeeById({
     accessToken: businessAppContext.accessToken,
-    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId,
-  });
+    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId
+  })
 
   // Employee positions hook
   const {
@@ -285,8 +262,8 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     error: employeePositionsError,
     hasMore: employeePositionsHasMore,
     searchEmployees,
-    loadMore: loadMoreEmployeePositions,
-  } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
+    loadMore: loadMoreEmployeePositions
+  } = useEmployeePositions({ accessToken: businessAppContext.accessToken })
 
   // Sales Campaigns hook
   const {
@@ -295,24 +272,24 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     error: salesCampaignsError,
     hasMore: salesCampaignsHasMore,
     search: searchSalesCampaigns,
-    loadMore: loadMoreSalesCampaigns,
-  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+    loadMore: loadMoreSalesCampaigns
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken)
 
   // Create search wrapper for campaign autocomplete
   const searchSalesCampaignsWrapper = useCallback(
     (searchTerm: string) => {
       // Allow empty search to load all campaigns, or search with 3+ characters
       if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
-        searchSalesCampaigns(searchTerm);
+        searchSalesCampaigns(searchTerm)
       }
     },
     [searchSalesCampaigns]
-  );
+  )
 
   // Create wrapper function for campaigns to match interface
   const loadMoreSalesCampaignsWrapper = useCallback((): void => {
-    loadMoreSalesCampaigns();
-  }, [loadMoreSalesCampaigns]);
+    loadMoreSalesCampaigns()
+  }, [loadMoreSalesCampaigns])
 
   // Countries hook
   const {
@@ -321,10 +298,10 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     error: countriesError,
     hasMore: countriesHasMore,
     search: searchCountries,
-    loadMore: loadMoreCountries,
+    loadMore: loadMoreCountries
   } = useCountriesGraphQL({
-    accessToken: businessAppContext.accessToken,
-  });
+    accessToken: businessAppContext.accessToken
+  })
 
   // Currencies hook (simple like countries)
   const {
@@ -333,107 +310,104 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     error: currenciesError,
     hasMore: currenciesHasMore,
     search: searchCurrencies,
-    loadMore: loadMoreCurrencies,
+    loadMore: loadMoreCurrencies
   } = useCurrenciesGraphQL({
-    accessToken: businessAppContext.accessToken,
-  });
+    accessToken: businessAppContext.accessToken
+  })
 
   // Legal form catalog hook - using searchable catalog like lead form
   const legalFormsConfig = useMemo(
     () => ({
       accessToken: businessAppContext.accessToken,
-      catalogIdentifier: LEGAL_FORM_CATALOG,
+      catalogIdentifier: LEGAL_FORM_CATALOG
     }),
     [businessAppContext.accessToken]
-  );
+  )
 
-  const legalFormsHook = useSearchableCatalog(legalFormsConfig);
+  const legalFormsHook = useSearchableCatalog(legalFormsConfig)
 
   // Industries catalog hook - using searchable catalog like lead form
   const industriesConfig = useMemo(
     () => ({
       accessToken: businessAppContext.accessToken,
-      catalogIdentifier: INDUSTRY_CATALOG,
+      catalogIdentifier: INDUSTRY_CATALOG
     }),
     [businessAppContext.accessToken]
-  );
+  )
 
-  const industriesHook = useSearchableCatalog(industriesConfig);
+  const industriesHook = useSearchableCatalog(industriesConfig)
 
   // Employee sizes catalog hook - using searchable catalog like lead form
   const employeeSizesConfig = useMemo(
     () => ({
       accessToken: businessAppContext.accessToken,
-      catalogIdentifier: EMPLOYEE_SIZE_CATALOG,
+      catalogIdentifier: EMPLOYEE_SIZE_CATALOG
     }),
     [businessAppContext.accessToken]
-  );
+  )
 
-  const employeeSizesHook = useSearchableCatalog(employeeSizesConfig);
+  const employeeSizesHook = useSearchableCatalog(employeeSizesConfig)
 
   // Revenue sizes catalog hook - using searchable catalog like lead form
   const revenueSizesConfig = useMemo(
     () => ({
       accessToken: businessAppContext.accessToken,
-      catalogIdentifier: REVENUE_SIZE_CATALOG,
+      catalogIdentifier: REVENUE_SIZE_CATALOG
     }),
     [businessAppContext.accessToken]
-  );
+  )
 
-  const revenueSizesHook = useSearchableCatalog(revenueSizesConfig);
+  const revenueSizesHook = useSearchableCatalog(revenueSizesConfig)
 
   // TimeZones catalog hook - using searchable catalog like opportunity form
   const timeZonesConfig = useMemo(
     () => ({
       accessToken: businessAppContext.accessToken,
-      catalogIdentifier: TIMEZONE_CATALOG,
+      catalogIdentifier: TIMEZONE_CATALOG
     }),
     [businessAppContext.accessToken]
-  );
+  )
 
-  const timeZonesHook = useSearchableCatalog(timeZonesConfig);
+  const timeZonesHook = useSearchableCatalog(timeZonesConfig)
 
   // Initialize all catalog hooks on mount
   useEffect(() => {
-    legalFormsHook.initialize();
-    industriesHook.initialize();
-    employeeSizesHook.initialize();
-    revenueSizesHook.initialize();
-    timeZonesHook.initialize();
+    legalFormsHook.initialize()
+    industriesHook.initialize()
+    employeeSizesHook.initialize()
+    revenueSizesHook.initialize()
+    timeZonesHook.initialize()
   }, [
     legalFormsHook.initialize,
     industriesHook.initialize,
     employeeSizesHook.initialize,
     revenueSizesHook.initialize,
-    timeZonesHook.initialize,
-  ]);
+    timeZonesHook.initialize
+  ])
 
   // Custom transformation for timeZones to preserve the code field
   const transformedTimeZones = useMemo(() => {
     return timeZonesHook.options.map((option: SelectOption) => {
       // Extract code from catalog ID: "TimeZone:v1:UTC-07:00" → "UTC-07:00"
-      const catalogId = option.id as string;
-      const code = catalogId.includes(":")
-        ? catalogId.split(":")[2]
-        : option.label;
+      const catalogId = option.id as string
+      const code = catalogId.includes(':') ? catalogId.split(':')[2] : option.label
 
       return {
         ...option,
         code: code,
         value: catalogId, // ✅ Store full ID: "TimeZone:v1:UTC-07:00" for database
         label: code, // ✅ Display code: "UTC-07:00" to users
-        name: code,
-      };
-    });
-  }, [timeZonesHook.options]);
+        name: code
+      }
+    })
+  }, [timeZonesHook.options])
 
   // Convert employee position data to SelectOption format
   const employeePositions: SelectOption[] = useMemo(() => {
-    const regularEmployees = employeePositionData.map((emp) => {
-      const displayName =
-        emp.employee.displayName || `${emp.firstName} ${emp.lastName}`.trim();
-      const jobTitle = emp.jobPosition?.name || "No Position";
-      const orgUnit = emp.organizationalUnit?.name || "No Unit";
+    const regularEmployees = employeePositionData.map(emp => {
+      const displayName = emp.employee.displayName || `${emp.firstName} ${emp.lastName}`.trim()
+      const jobTitle = emp.jobPosition?.name || 'No Position'
+      const orgUnit = emp.organizationalUnit?.name || 'No Unit'
 
       return {
         id: emp.employeeId,
@@ -445,22 +419,20 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
           pictureThumbnail: emp.employee.pictureThumbnail,
           jobPosition: jobTitle,
           organizationalUnit: orgUnit,
-          userId: emp.employee.userId,
-        },
-      };
-    });
+          userId: emp.employee.userId
+        }
+      }
+    })
 
-    let finalEmployees: SelectOption[] = [...regularEmployees];
+    const finalEmployees: SelectOption[] = [...regularEmployees]
 
     // Add current user to the beginning if they're not already in the list
     if (currentUserEmployee) {
       const currentUserDisplayName =
         currentUserEmployee.employee.displayName ||
-        `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`.trim();
-      const currentUserJobTitle =
-        currentUserEmployee.jobPosition?.name || "No Position";
-      const currentUserOrgUnit =
-        currentUserEmployee.organizationalUnit?.name || "No Unit";
+        `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`.trim()
+      const currentUserJobTitle = currentUserEmployee.jobPosition?.name || 'No Position'
+      const currentUserOrgUnit = currentUserEmployee.organizationalUnit?.name || 'No Unit'
 
       const currentUserOption: SelectOption = {
         id: currentUserEmployee.employeeId,
@@ -472,30 +444,26 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
           pictureThumbnail: currentUserEmployee.employee.pictureThumbnail,
           jobPosition: currentUserJobTitle,
           organizationalUnit: currentUserOrgUnit,
-          userId: currentUserEmployee.employee.userId,
-        },
-      };
+          userId: currentUserEmployee.employee.userId
+        }
+      }
 
-      const isCurrentUserInList = finalEmployees.some(
-        (emp) => emp.value === currentUserEmployee.employeeId
-      );
+      const isCurrentUserInList = finalEmployees.some(emp => emp.value === currentUserEmployee.employeeId)
 
       if (!isCurrentUserInList) {
-        finalEmployees.unshift(currentUserOption);
+        finalEmployees.unshift(currentUserOption)
       }
     }
 
     // Add account's owner employee if we have account data and owner is not in the list
     if (accountData && accountData.Account?.[0]?.ownerEmployee) {
-      const accountOwner = accountData.Account[0];
-      const ownerEmployeeId = accountOwner?.ownerEmployee?.id;
-      const isAccountOwnerInList = finalEmployees.some(
-        (emp) => emp.value === ownerEmployeeId
-      );
+      const accountOwner = accountData.Account[0]
+      const ownerEmployeeId = accountOwner?.ownerEmployee?.id
+      const isAccountOwnerInList = finalEmployees.some(emp => emp.value === ownerEmployeeId)
 
       if (!isAccountOwnerInList) {
         const accountOwnerDisplayName =
-          `${accountOwner?.ownerEmployee?.firstName} ${accountOwner?.ownerEmployee?.lastName}`.trim();
+          `${accountOwner?.ownerEmployee?.firstName} ${accountOwner?.ownerEmployee?.lastName}`.trim()
 
         const accountOwnerOption: SelectOption = {
           id: ownerEmployeeId,
@@ -505,151 +473,135 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
           extraInfo: {
             picture: undefined, // We don't have this from account query
             pictureThumbnail: accountOwner?.ownerEmployee?.pictureThumbnail,
-            jobPosition: "Account Owner", // Default since we don't have job position from account query
-            organizationalUnit: "Unknown", // Default since we don't have org unit from account query
-            userId: undefined,
-          },
-        };
+            jobPosition: 'Account Owner', // Default since we don't have job position from account query
+            organizationalUnit: 'Unknown', // Default since we don't have org unit from account query
+            userId: undefined
+          }
+        }
 
-        finalEmployees.unshift(accountOwnerOption);
+        finalEmployees.unshift(accountOwnerOption)
       }
     }
 
-    return finalEmployees;
-  }, [employeePositionData, currentUserEmployee, accountData]);
+    return finalEmployees
+  }, [employeePositionData, currentUserEmployee, accountData])
 
   // Use dynamic forms from catalog (same as lead form)
   const legalForms: SelectOption[] = useMemo(() => {
-    return legalFormsHook.allOptions;
-  }, [legalFormsHook.allOptions]);
+    return legalFormsHook.allOptions
+  }, [legalFormsHook.allOptions])
 
   const industries: SelectOption[] = useMemo(() => {
-    return industriesHook.allOptions;
-  }, [industriesHook.allOptions]);
+    return industriesHook.allOptions
+  }, [industriesHook.allOptions])
 
   const timeZones: SelectOption[] = useMemo(() => {
-    return transformedTimeZones;
-  }, [transformedTimeZones]);
+    return transformedTimeZones
+  }, [transformedTimeZones])
 
   // Form value setter
   const setFormValues = useCallback((updates: Partial<AccountFormValues>) => {
-    setFormValuesState((prev) => ({ ...prev, ...updates }));
-  }, []);
+    setFormValuesState(prev => ({ ...prev, ...updates }))
+  }, [])
 
   // Parent account search function
-  const searchParentAccounts = useCallback(
-    async (search: string): Promise<SelectOption[]> => {
-      // TODO: Implement actual search API call
-      setIsSearchingParentAccounts(true);
-      try {
-        // Mock implementation - replace with actual API call
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        const mockResults: SelectOption[] = [
-          {
-            id: "1",
-            value: "1",
-            label: `${search} Corp`,
-            name: `${search} Corp`,
-          },
-          {
-            id: "2",
-            value: "2",
-            label: `${search} Industries`,
-            name: `${search} Industries`,
-          },
-        ];
-        setParentAccountSuggestions(mockResults);
-        return mockResults;
-      } finally {
-        setIsSearchingParentAccounts(false);
-      }
-    },
-    []
-  );
+  const searchParentAccounts = useCallback(async (search: string): Promise<SelectOption[]> => {
+    // TODO: Implement actual search API call
+    setIsSearchingParentAccounts(true)
+    try {
+      // Mock implementation - replace with actual API call
+      await new Promise(resolve => setTimeout(resolve, 300))
+      const mockResults: SelectOption[] = [
+        {
+          id: '1',
+          value: '1',
+          label: `${search} Corp`,
+          name: `${search} Corp`
+        },
+        {
+          id: '2',
+          value: '2',
+          label: `${search} Industries`,
+          name: `${search} Industries`
+        }
+      ]
+      setParentAccountSuggestions(mockResults)
+      return mockResults
+    } finally {
+      setIsSearchingParentAccounts(false)
+    }
+  }, [])
 
   // Address line management (legacy)
   const addAddressLine = useCallback(() => {
     if (addressLineCount < 4) {
-      setAddressLineCount((prev) => prev + 1);
+      setAddressLineCount(prev => prev + 1)
     }
-  }, [addressLineCount]);
+  }, [addressLineCount])
 
   const removeAddressLine = useCallback(() => {
     if (addressLineCount > 1) {
-      setAddressLineCount((prev) => prev - 1);
+      setAddressLineCount(prev => prev - 1)
       // Clear the last address line value
-      const lineKey =
-        `addressLine${addressLineCount}` as keyof AccountFormValues;
-      setFormValues({ [lineKey]: "" });
+      const lineKey = `addressLine${addressLineCount}` as keyof AccountFormValues
+      setFormValues({ [lineKey]: '' })
     }
-  }, [addressLineCount, setFormValues]);
+  }, [addressLineCount, setFormValues])
 
   // Dynamic addresses management
   const addAddress = useCallback(() => {
     const newAddress: Address = {
       id: `address-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      addressType: "UNKNOWN_ADDRESS",
-      addressLines: [""],
-      postalCode: "",
-      city: "",
-      region: "",
-      country: "",
-    };
+      addressType: 'UNKNOWN_ADDRESS',
+      addressLines: [''],
+      postalCode: '',
+      city: '',
+      region: '',
+      country: ''
+    }
 
-    setFormValuesState((prev) => ({
+    setFormValuesState(prev => ({
       ...prev,
-      addresses: [...prev.addresses, newAddress],
-    }));
-  }, []);
+      addresses: [...prev.addresses, newAddress]
+    }))
+  }, [])
 
   const removeAddress = useCallback((addressId: string) => {
-    setFormValuesState((prev) => ({
+    setFormValuesState(prev => ({
       ...prev,
-      addresses: prev.addresses.filter((addr) => addr.id !== addressId),
-    }));
-  }, []);
+      addresses: prev.addresses.filter(addr => addr.id !== addressId)
+    }))
+  }, [])
 
-  const updateAddress = useCallback(
-    (addressId: string, updates: Partial<Address>) => {
-      setFormValuesState((prev) => ({
-        ...prev,
-        addresses: prev.addresses.map((addr) =>
-          addr.id === addressId ? { ...addr, ...updates } : addr
-        ),
-      }));
-    },
-    []
-  );
+  const updateAddress = useCallback((addressId: string, updates: Partial<Address>) => {
+    setFormValuesState(prev => ({
+      ...prev,
+      addresses: prev.addresses.map(addr => (addr.id === addressId ? { ...addr, ...updates } : addr))
+    }))
+  }, [])
 
   const addAddressLineToAddress = useCallback((addressId: string) => {
-    setFormValuesState((prev) => ({
+    setFormValuesState(prev => ({
       ...prev,
-      addresses: prev.addresses.map((addr) =>
-        addr.id === addressId
-          ? { ...addr, addressLines: [...addr.addressLines, ""] }
-          : addr
-      ),
-    }));
-  }, []);
+      addresses: prev.addresses.map(addr =>
+        addr.id === addressId ? { ...addr, addressLines: [...addr.addressLines, ''] } : addr
+      )
+    }))
+  }, [])
 
-  const removeAddressLineFromAddress = useCallback(
-    (addressId: string, lineIndex: number) => {
-      setFormValuesState((prev) => ({
-        ...prev,
-        addresses: prev.addresses.map((addr) =>
-          addr.id === addressId
-            ? {
-                ...addr,
-                addressLines: addr.addressLines.filter(
-                  (_, index) => index !== lineIndex
-                ),
-              }
-            : addr
-        ),
-      }));
-    },
-    []
-  );
+  const removeAddressLineFromAddress = useCallback((addressId: string, lineIndex: number) => {
+    setFormValuesState(prev => ({
+      ...prev,
+      addresses: prev.addresses.map(addr =>
+        addr.id === addressId
+          ? {
+              ...addr,
+              addressLines: addr.addressLines.filter((_, index) => index !== lineIndex)
+            }
+          : addr
+      )
+    }))
+  }, [])
 
   // Populate form values when account data is loaded (for editing existing accounts)
   useEffect(() => {
@@ -659,28 +611,26 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       accountData.Account?.[0]?.id &&
       (!formValues.id || formValues.id !== accountData.Account[0].id)
     ) {
-      const mappedValues = mapAccountToFormValues(accountData);
-      setFormValuesState((prev) => ({
+      const mappedValues = mapAccountToFormValues(accountData)
+      setFormValuesState(prev => ({
         ...prev,
-        ...mappedValues,
-      }));
+        ...mappedValues
+      }))
 
       // Don't auto-select current user if we're editing an existing account
-      autoSelectionDone.current = true;
+      autoSelectionDone.current = true
     }
   }, [
     accountData,
     businessAppContext.additionalData?.accountId,
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.accountId,
-  ]);
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
+  ])
 
   // Auto-select current user once their employee data has loaded (only for new accounts, not editing)
   useEffect(() => {
     const currentAccountId =
       businessAppContext.additionalData?.accountId ||
-      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-        ?.accountId;
+      businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
 
     // Only auto-select if:
     // 1. We have current user employee data
@@ -695,20 +645,19 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       !currentAccountId && // Don't auto-select when editing existing account
       !accountData // Don't auto-select when we have account data
     ) {
-      setFormValuesState((prev) => ({
+      setFormValuesState(prev => ({
         ...prev,
-        owner: currentUserEmployee.employeeId,
-      }));
-      autoSelectionDone.current = true;
+        owner: currentUserEmployee.employeeId
+      }))
+      autoSelectionDone.current = true
     }
   }, [
     currentUserEmployee,
     formValues.owner,
     businessAppContext.additionalData?.accountId,
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.accountId,
-    accountData,
-  ]);
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.accountId,
+    accountData
+  ])
 
   // Context value
   const value: AccountFormContextValue = {
@@ -837,22 +786,16 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     removeAddressLineFromAddress,
 
     // Legacy compatibility (using employeeSizes data)
-    numberOfEmployeesOptions: employeeSizesHook.allOptions,
-  };
+    numberOfEmployeesOptions: employeeSizesHook.allOptions
+  }
 
-  return (
-    <AccountFormContext.Provider value={value}>
-      {children}
-    </AccountFormContext.Provider>
-  );
-};
+  return <AccountFormContext.Provider value={value}>{children}</AccountFormContext.Provider>
+}
 
 export const useAccountFormContext = (): AccountFormContextValue => {
-  const context = useContext(AccountFormContext);
+  const context = useContext(AccountFormContext)
   if (!context) {
-    throw new Error(
-      "useAccountFormContext must be used within AccountFormProvider"
-    );
+    throw new Error('useAccountFormContext must be used within AccountFormProvider')
   }
-  return context;
-};
+  return context
+}

@@ -1,147 +1,128 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-} from "react";
-import { message } from "antd";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useEmployeeById } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById";
-import { useEmployeePositions } from "@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions";
-import { useAccountsData } from "../hooks/useAccountsData";
-import {
-  opportunityClient,
-  OpportunityPayload,
-} from "@/common/network/opportunity/OpportunityClient";
-import { dispatchProcessContinueEvent } from "@/common/utils/processEventUtils";
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { message } from 'antd'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useEmployeeById } from '@/business-apps/crm/common/forms/lead-form/hooks/useEmployeeById'
+import { useEmployeePositions } from '@/business-apps/crm/common/forms/lead-form/hooks/useEmployeePositions'
+import { useAccountsData } from '../hooks/useAccountsData'
+import { opportunityClient, OpportunityPayload } from '@/common/network/opportunity/OpportunityClient'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import {
   OpportunityFormValues,
   SelectOption,
   OpportunityContextState,
   ADDRESS_TYPES,
   COMMUNICATION_CHANNEL_TYPES,
-  RECORD_STATES,
-} from "../types";
-import {
-  useOpportunityStatusCatalog,
-  usePipelineCatalogs,
-  useCurrencyCatalog,
-  useOpportunityData,
-} from "../hooks";
-import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
+  RECORD_STATES
+} from '../types'
+import { useOpportunityStatusCatalog, usePipelineCatalogs, useCurrencyCatalog, useOpportunityData } from '../hooks'
+import { useSalesCampaignsGraphQL } from '../../../hooks/useSalesCampaignsGraphQL'
 
 interface OpportunityFormContextValue {
-  formValues: OpportunityFormValues;
-  setFormValues: (updates: Partial<OpportunityFormValues>) => void;
-  onSubmit: (values: OpportunityFormValues) => Promise<void>;
-  onCancel: () => Promise<void>;
-  isLoading: boolean;
-  error: string | null;
+  formValues: OpportunityFormValues
+  setFormValues: (updates: Partial<OpportunityFormValues>) => void
+  onSubmit: (values: OpportunityFormValues) => Promise<void>
+  onCancel: () => Promise<void>
+  isLoading: boolean
+  error: string | null
 
   // Employee positions (for owner selection)
-  employeePositions: SelectOption[];
-  employeePositionsLoading: boolean;
-  employeePositionsError: string | null;
-  employeePositionsHasMore: boolean;
-  loadMoreEmployeePositions: () => void;
-  searchEmployeePositions: (search: string) => void;
+  employeePositions: SelectOption[]
+  employeePositionsLoading: boolean
+  employeePositionsError: string | null
+  employeePositionsHasMore: boolean
+  loadMoreEmployeePositions: () => void
+  searchEmployeePositions: (search: string) => void
 
   // Static data
-  opportunityStatuses: SelectOption[];
-  pipelines: SelectOption[];
-  salesPipelineStages: SelectOption[];
-  addressTypes: SelectOption[];
-  communicationChannelTypes: SelectOption[];
-  recordStates: SelectOption[];
+  opportunityStatuses: SelectOption[]
+  pipelines: SelectOption[]
+  salesPipelineStages: SelectOption[]
+  addressTypes: SelectOption[]
+  communicationChannelTypes: SelectOption[]
+  recordStates: SelectOption[]
 
   // Currencies (using Currency catalog)
-  currencies: SelectOption[];
-  currenciesLoading: boolean;
-  currenciesError: string | null;
-  currenciesHasMore: boolean;
-  currenciesNeedsMoreData: boolean;
-  currenciesDisplayCount: number;
-  currenciesTotalFetched: number;
-  loadMoreCurrencies: () => void;
-  showMoreCurrencies: () => void;
-  searchCurrencies: (search: string) => void;
+  currencies: SelectOption[]
+  currenciesLoading: boolean
+  currenciesError: string | null
+  currenciesHasMore: boolean
+  currenciesNeedsMoreData: boolean
+  currenciesDisplayCount: number
+  currenciesTotalFetched: number
+  loadMoreCurrencies: () => void
+  showMoreCurrencies: () => void
+  searchCurrencies: (search: string) => void
 
   // Sales Campaigns
-  salesCampaigns: SelectOption[];
-  salesCampaignsLoading: boolean;
-  salesCampaignsError: string | null;
-  salesCampaignsHasMore: boolean;
-  searchSalesCampaigns: (searchTerm: string) => void;
-  loadMoreSalesCampaigns: () => void;
+  salesCampaigns: SelectOption[]
+  salesCampaignsLoading: boolean
+  salesCampaignsError: string | null
+  salesCampaignsHasMore: boolean
+  searchSalesCampaigns: (searchTerm: string) => void
+  loadMoreSalesCampaigns: () => void
 
   // Catalog refresh functions
-  refetchStages: (selectedPipelineId?: string) => void;
+  refetchStages: (selectedPipelineId?: string) => void
 
   // Company autocomplete
-  accountSuggestions: SelectOption[];
-  searchAccounts: (search: string) => void;
-  loadMoreAccounts: () => Promise<void>;
-  accountsHasMore: boolean;
-  accountsLoading: boolean;
+  accountSuggestions: SelectOption[]
+  searchAccounts: (search: string) => void
+  loadMoreAccounts: () => Promise<void>
+  accountsHasMore: boolean
+  accountsLoading: boolean
 
   // Business app context for child components
-  businessAppContext: BusinessAppContextProps;
+  businessAppContext: BusinessAppContextProps
 }
 
-const OpportunityFormContext =
-  createContext<OpportunityFormContextValue | null>(null);
+const OpportunityFormContext = createContext<OpportunityFormContextValue | null>(null)
 
 interface OpportunityFormProviderProps {
-  children: React.ReactNode;
-  businessAppContext: BusinessAppContextProps;
-  initialValues?: Partial<OpportunityFormValues>;
-  onSubmit?: (values: OpportunityFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  children: React.ReactNode
+  businessAppContext: BusinessAppContextProps
+  initialValues?: Partial<OpportunityFormValues>
+  onSubmit?: (values: OpportunityFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
-export const OpportunityFormProvider: React.FC<
-  OpportunityFormProviderProps
-> = ({
+export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = ({
   children,
   businessAppContext,
   initialValues = {},
   onSubmit: customOnSubmit,
-  onCancel = async () => {},
+  onCancel = async () => {}
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<OpportunityFormValues>({
     // Opportunity Information
-    owner: "",
-    name: "",
-    opportunityStatus: "",
-    pipeline: "",
-    salesPipelineStage: "",
-    stage: "",
-    status: "",
+    owner: '',
+    name: '',
+    opportunityStatus: '',
+    pipeline: '',
+    salesPipelineStage: '',
+    stage: '',
+    status: '',
 
     // Sales Information
-    estimatedAmount: "",
-    currency: "",
-    winningChance: "",
-    closeDate: "",
+    estimatedAmount: '',
+    currency: '',
+    winningChance: '',
+    closeDate: '',
 
     // Relationship Information
-    account: "",
-    lead: "",
+    account: '',
+    lead: '',
 
     // Business Information
-    businessKey: "",
-    code: "",
-    sourceApp: "CRM",
+    businessKey: '',
+    code: '',
+    sourceApp: 'CRM',
     personal: false,
-    companyName: "",
+    companyName: '',
 
     // Additional Information
-    notesSummary: "",
-    lastInteraction: "",
+    notesSummary: '',
+    lastInteraction: '',
 
     // Address Information
     addresses: [],
@@ -160,50 +141,48 @@ export const OpportunityFormProvider: React.FC<
     express2: {},
 
     // Process and system fields
-    processInstanceId: "",
-    recordState: "DRAFT",
+    processInstanceId: '',
+    recordState: 'DRAFT',
 
     // Audit information (readonly, for display)
-    activeFrom: "",
-    activeTo: "",
-    createdAt: "",
-    createdBy: "",
-    updatedAt: "",
-    updatedBy: "",
-    synchronizedAt: "",
+    activeFrom: '',
+    activeTo: '',
+    createdAt: '',
+    createdBy: '',
+    updatedAt: '',
+    updatedBy: '',
+    synchronizedAt: '',
 
     // System fields
     id: undefined,
     version: undefined,
 
     // Legacy fields (for backward compatibility)
-    accountId: "",
-    leadId: "",
-    ownerEmployeeId: "",
-    ownerOrganizationId: "",
+    accountId: '',
+    leadId: '',
+    ownerEmployeeId: '',
+    ownerOrganizationId: '',
 
     // Sales Campaign
-    salesCampaignId: "",
+    salesCampaignId: '',
 
-    ...initialValues,
-  });
+    ...initialValues
+  })
 
   // Global state
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Account autocomplete state
-  const [accountSuggestions, setAccountSuggestions] = useState<SelectOption[]>(
-    []
-  );
-  const [isSearchingAccounts, setIsSearchingAccounts] = useState(false);
+  const [accountSuggestions, setAccountSuggestions] = useState<SelectOption[]>([])
+  const [isSearchingAccounts, setIsSearchingAccounts] = useState(false)
 
   // Lead autocomplete state
-  const [leadSuggestions, setLeadSuggestions] = useState<SelectOption[]>([]);
-  const [isSearchingLeads, setIsSearchingLeads] = useState(false);
+  const [leadSuggestions, setLeadSuggestions] = useState<SelectOption[]>([])
+  const [isSearchingLeads, setIsSearchingLeads] = useState(false)
 
   // Refs for auto-selection control
-  const autoSelectionDone = useRef(false);
+  const autoSelectionDone = useRef(false)
 
   // Employee positions hook
   const {
@@ -212,8 +191,8 @@ export const OpportunityFormProvider: React.FC<
     error: employeePositionsError,
     hasMore: employeePositionsHasMore,
     loadMore: loadMoreEmployeePositions,
-    searchEmployees,
-  } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
+    searchEmployees
+  } = useEmployeePositions({ accessToken: businessAppContext.accessToken })
 
   // Sales Campaigns hook
   const {
@@ -222,55 +201,54 @@ export const OpportunityFormProvider: React.FC<
     error: salesCampaignsError,
     hasMore: salesCampaignsHasMore,
     search: searchSalesCampaigns,
-    loadMore: loadMoreSalesCampaigns,
-  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+    loadMore: loadMoreSalesCampaigns
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken)
 
   // Create search wrapper for campaign autocomplete
   const searchSalesCampaignsWrapper = useCallback(
     (searchTerm: string) => {
       // Allow empty search to load all campaigns, or search with 3+ characters
       if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
-        searchSalesCampaigns(searchTerm);
+        searchSalesCampaigns(searchTerm)
       }
     },
     [searchSalesCampaigns]
-  );
+  )
 
   // Create wrapper function for campaigns to match interface
   const loadMoreSalesCampaignsWrapper = useCallback((): void => {
-    loadMoreSalesCampaigns();
-  }, [loadMoreSalesCampaigns]);
+    loadMoreSalesCampaigns()
+  }, [loadMoreSalesCampaigns])
 
   // Current user employee hook
   const { employee: currentUserEmployee } = useEmployeeById({
     accessToken: businessAppContext.accessToken,
-    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId,
-  });
+    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId
+  })
 
   // Opportunity data fetching hook for pre-filling form when updating existing opportunity
   const {
     opportunityData,
     loading: opportunityDataLoading,
     error: opportunityDataError,
-    mapOpportunityToFormValues,
-  } = useOpportunityData({ businessAppContext });
+    mapOpportunityToFormValues
+  } = useOpportunityData({ businessAppContext })
 
   // Extract opportunityId for tracking changes
   const opportunityId =
     businessAppContext.additionalData?.opportunityId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.opportunityId;
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
 
   // Reset auto-selection flag when opportunity changes or when creating new opportunity
   useEffect(() => {
-    autoSelectionDone.current = false;
-  }, [opportunityId]);
+    autoSelectionDone.current = false
+  }, [opportunityId])
 
   // Default submit function - saves opportunity via API
   const defaultOnSubmit = useCallback(
     async (values: OpportunityFormValues) => {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       try {
         // Convert form values to API payload
@@ -283,18 +261,10 @@ export const OpportunityFormProvider: React.FC<
           code: values.code,
 
           // Core opportunity fields
-          estimatedAmount: values.estimatedAmount
-            ? parseFloat(values.estimatedAmount)
-            : undefined,
-          winningChance: values.winningChance
-            ? parseFloat(values.winningChance)
-            : undefined,
-          closeDate: values.closeDate
-            ? new Date(values.closeDate).toISOString()
-            : undefined,
-          lastInteraction: values.lastInteraction
-            ? new Date(values.lastInteraction).toISOString()
-            : undefined,
+          estimatedAmount: values.estimatedAmount ? parseFloat(values.estimatedAmount) : undefined,
+          winningChance: values.winningChance ? parseFloat(values.winningChance) : undefined,
+          closeDate: values.closeDate ? new Date(values.closeDate).toISOString() : undefined,
+          lastInteraction: values.lastInteraction ? new Date(values.lastInteraction).toISOString() : undefined,
           notesSummary: values.notesSummary,
 
           // Status and pipeline fields
@@ -328,107 +298,100 @@ export const OpportunityFormProvider: React.FC<
           recordState: values.recordState,
 
           // Addresses
-          addresses: values.addresses?.map((addr) => ({
+          addresses: values.addresses?.map(addr => ({
             id: addr.id,
             version: addr.version || 0,
-            addressType: addr.addressType || "BUSINESS",
+            addressType: addr.addressType || 'BUSINESS',
             addressLine: addr.addressLine,
             postalCode: addr.postalCode,
             city: addr.city,
             regionRef: addr.region,
-            countryRef: addr.country,
+            countryRef: addr.country
           })),
 
           // Communication channels
-          communicationChannels: values.communicationChannels?.map(
-            (channel) => ({
-              id: channel.id,
-              version: channel.version || 0,
-              channelType: channel.channelType,
-              channelValue: channel.channelValue,
-              isPrimary: channel.isPrimary,
-            })
-          ),
+          communicationChannels: values.communicationChannels?.map(channel => ({
+            id: channel.id,
+            version: channel.version || 0,
+            channelType: channel.channelType,
+            channelValue: channel.channelValue,
+            isPrimary: channel.isPrimary
+          })),
 
           // Tags
-          tags: values.tags?.map((tag) => ({
+          tags: values.tags?.map(tag => ({
             id: tag.id,
             version: tag.version || 0,
             tagName: tag.tagName,
-            tagValue: tag.tagValue,
-          })),
-        };
+            tagValue: tag.tagValue
+          }))
+        }
 
         // Determine change mode based on whether we have an ID
-        const changeMode = values.id ? "UPDATE" : "INSERT";
+        const changeMode = values.id ? 'UPDATE' : 'INSERT'
 
         // Save via API
         const result = await opportunityClient.saveOpportunity(
           opportunityPayload,
           businessAppContext.accessToken,
           changeMode
-        );
+        )
 
-        message.success("Opportunity saved successfully");
+        message.success('Opportunity saved successfully')
 
         // Prepare payload in the same format as other forms (lead, contact, account)
         const payload = {
           opportunity: {
             ...opportunityPayload,
-            id: result?.opportunity?.id || values.id,
+            id: result?.opportunity?.id || values.id
           },
-          changeMode: changeMode,
-        };
+          changeMode: changeMode
+        }
 
         // Dispatch process continue event on successful submission
-        dispatchProcessContinueEvent("pse_submit", payload);
+        dispatchProcessContinueEvent('pse_submit', payload)
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error occurred";
-        setError(`Failed to save opportunity: ${errorMessage}`);
-        message.error(`Failed to save opportunity: ${errorMessage}`);
-        throw error;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+        setError(`Failed to save opportunity: ${errorMessage}`)
+        message.error(`Failed to save opportunity: ${errorMessage}`)
+        throw error
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
     },
     [businessAppContext.accessToken]
-  );
+  )
 
   // Use custom submit function if provided, otherwise use default
-  const onSubmit = customOnSubmit || defaultOnSubmit;
+  const onSubmit = customOnSubmit || defaultOnSubmit
 
   // Computed employee positions with current user prioritized
   const employeePositions = useMemo(() => {
     // Convert employee position data to SelectOption format
-    const regularEmployees: SelectOption[] = (employeePositionData || []).map(
-      (emp) => {
-        const displayName = `${emp.firstName} ${emp.lastName}`;
-        const jobTitle = emp.jobPosition?.name || "No Position";
-        const orgUnit = emp.organizationalUnit?.name || "No Unit";
+    const regularEmployees: SelectOption[] = (employeePositionData || []).map(emp => {
+      const displayName = `${emp.firstName} ${emp.lastName}`
+      const jobTitle = emp.jobPosition?.name || 'No Position'
+      const orgUnit = emp.organizationalUnit?.name || 'No Unit'
 
-        return {
-          id: emp.employeeId,
-          value: emp.employeeId,
-          label: `${displayName} - ${jobTitle}`,
-          name: displayName,
-          extraInfo: {
-            picture: emp.employee.picture || undefined,
-            pictureThumbnail: emp.employee.pictureThumbnail || undefined,
-            jobPosition: jobTitle,
-            organizationalUnit: orgUnit,
-            userId: emp.employee.userId || undefined,
-          },
-        };
+      return {
+        id: emp.employeeId,
+        value: emp.employeeId,
+        label: `${displayName} - ${jobTitle}`,
+        name: displayName,
+        extraInfo: {
+          picture: emp.employee.picture || undefined,
+          pictureThumbnail: emp.employee.pictureThumbnail || undefined,
+          jobPosition: jobTitle,
+          organizationalUnit: orgUnit,
+          userId: emp.employee.userId || undefined
+        }
       }
-    );
+    })
 
     if (currentUserEmployee) {
-      const currentUserDisplayName = `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`;
-      const currentUserJobTitle =
-        currentUserEmployee.jobPosition?.name || "No Position";
-      const currentUserOrgUnit =
-        currentUserEmployee.organizationalUnit?.name || "No Unit";
+      const currentUserDisplayName = `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`
+      const currentUserJobTitle = currentUserEmployee.jobPosition?.name || 'No Position'
+      const currentUserOrgUnit = currentUserEmployee.organizationalUnit?.name || 'No Unit'
 
       const currentUserOption: SelectOption = {
         id: currentUserEmployee.employeeId,
@@ -437,32 +400,25 @@ export const OpportunityFormProvider: React.FC<
         name: currentUserDisplayName,
         extraInfo: {
           picture: currentUserEmployee.employee.picture || undefined,
-          pictureThumbnail:
-            currentUserEmployee.employee.pictureThumbnail || undefined,
+          pictureThumbnail: currentUserEmployee.employee.pictureThumbnail || undefined,
           jobPosition: currentUserJobTitle,
           organizationalUnit: currentUserOrgUnit,
-          userId: currentUserEmployee.employee.userId || undefined,
-        },
-      };
+          userId: currentUserEmployee.employee.userId || undefined
+        }
+      }
 
-      const isCurrentUserAlreadyInList = regularEmployees.some(
-        (emp) => emp.id === currentUserEmployee.employeeId
-      );
+      const isCurrentUserAlreadyInList = regularEmployees.some(emp => emp.id === currentUserEmployee.employeeId)
       if (!isCurrentUserAlreadyInList) {
-        regularEmployees.unshift(currentUserOption);
+        regularEmployees.unshift(currentUserOption)
       }
     }
 
     // Add opportunity owner employee if they exist and are not already in the list
     if (opportunityData?.ownerEmployee) {
-      const ownerEmployee = opportunityData.ownerEmployee;
-      const ownerDisplayName =
-        ownerEmployee.displayName ||
-        `${ownerEmployee.firstName} ${ownerEmployee.lastName}`;
+      const ownerEmployee = opportunityData.ownerEmployee
+      const ownerDisplayName = ownerEmployee.displayName || `${ownerEmployee.firstName} ${ownerEmployee.lastName}`
 
-      const isOwnerAlreadyInList = regularEmployees.some(
-        (emp) => emp.id === ownerEmployee.id
-      );
+      const isOwnerAlreadyInList = regularEmployees.some(emp => emp.id === ownerEmployee.id)
 
       if (!isOwnerAlreadyInList) {
         const ownerOption: SelectOption = {
@@ -473,37 +429,35 @@ export const OpportunityFormProvider: React.FC<
           extraInfo: {
             picture: undefined,
             pictureThumbnail: ownerEmployee.pictureThumbnail || undefined,
-            jobPosition: "Owner",
-            organizationalUnit: "N/A",
-            userId: undefined,
-          },
-        };
+            jobPosition: 'Owner',
+            organizationalUnit: 'N/A',
+            userId: undefined
+          }
+        }
 
         // Add owner at the beginning (but after current user if present)
         const currentUserIndex = regularEmployees.findIndex(
-          (emp) =>
-            currentUserEmployee && emp.id === currentUserEmployee.employeeId
-        );
+          emp => currentUserEmployee && emp.id === currentUserEmployee.employeeId
+        )
 
         if (currentUserIndex >= 0) {
-          regularEmployees.splice(currentUserIndex + 1, 0, ownerOption);
+          regularEmployees.splice(currentUserIndex + 1, 0, ownerOption)
         } else {
-          regularEmployees.unshift(ownerOption);
+          regularEmployees.unshift(ownerOption)
         }
       }
     }
 
-    return regularEmployees;
-  }, [employeePositionData, currentUserEmployee, opportunityData]);
+    return regularEmployees
+  }, [employeePositionData, currentUserEmployee, opportunityData])
 
   // Catalog hooks for dynamic data
-  const { opportunityStatusOptions } =
-    useOpportunityStatusCatalog(businessAppContext);
+  const { opportunityStatusOptions } = useOpportunityStatusCatalog(businessAppContext)
   const {
     pipelineOptions,
     pipelineStageOptions,
-    refetchStages: refetchPipelineStages,
-  } = usePipelineCatalogs(businessAppContext, formValues.pipeline);
+    refetchStages: refetchPipelineStages
+  } = usePipelineCatalogs(businessAppContext, formValues.pipeline)
 
   // Currency catalog hook with all pagination properties
   const {
@@ -517,59 +471,45 @@ export const OpportunityFormProvider: React.FC<
     loadMore: loadMoreCurrencies,
     showMore: showMoreCurrencies,
     search: searchCurrencies,
-    initialize: initializeCurrencies,
-  } = useCurrencyCatalog(businessAppContext);
+    initialize: initializeCurrencies
+  } = useCurrencyCatalog(businessAppContext)
 
   // Initialize currencies catalog on mount
   useEffect(() => {
-    initializeCurrencies();
-  }, [initializeCurrencies]);
+    initializeCurrencies()
+  }, [initializeCurrencies])
 
   // Static data arrays - Memoized to prevent unnecessary re-renders
-  const opportunityStatuses: SelectOption[] = useMemo(
-    () => opportunityStatusOptions,
-    [opportunityStatusOptions]
-  );
+  const opportunityStatuses: SelectOption[] = useMemo(() => opportunityStatusOptions, [opportunityStatusOptions])
 
-  const pipelines: SelectOption[] = useMemo(
-    () => pipelineOptions as SelectOption[],
-    [pipelineOptions]
-  );
+  const pipelines: SelectOption[] = useMemo(() => pipelineOptions as SelectOption[], [pipelineOptions])
 
   const salesPipelineStages: SelectOption[] = useMemo(
     () => pipelineStageOptions as SelectOption[],
     [pipelineStageOptions]
-  );
+  )
 
-  const currencies: SelectOption[] = useMemo(
-    () => currencyOptions,
-    [currencyOptions]
-  );
+  const currencies: SelectOption[] = useMemo(() => currencyOptions, [currencyOptions])
 
   // Populate form values when opportunity data is loaded (for editing existing opportunities)
   useEffect(() => {
     // Only populate if we have opportunity data and the form doesn't already have this opportunity's data
-    if (
-      opportunityData &&
-      opportunityData.id &&
-      (!formValues.id || formValues.id !== opportunityData.id)
-    ) {
-      const mappedValues = mapOpportunityToFormValues(opportunityData);
-      setFormValuesState((prev) => ({
+    if (opportunityData && opportunityData.id && (!formValues.id || formValues.id !== opportunityData.id)) {
+      const mappedValues = mapOpportunityToFormValues(opportunityData)
+      setFormValuesState(prev => ({
         ...prev,
-        ...mappedValues,
-      }));
+        ...mappedValues
+      }))
 
       // Don't auto-select current user if we're editing an existing opportunity
-      autoSelectionDone.current = true;
+      autoSelectionDone.current = true
     }
   }, [
     opportunityData,
     mapOpportunityToFormValues,
     businessAppContext.additionalData?.opportunityId,
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.opportunityId,
-  ]);
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+  ])
 
   // Auto-select current user as owner (only if not editing existing opportunity)
   useEffect(() => {
@@ -579,59 +519,55 @@ export const OpportunityFormProvider: React.FC<
       !formValues.owner &&
       !formValues.id // Only auto-select for new opportunities
     ) {
-      setFormValuesState((prev) => ({
+      setFormValuesState(prev => ({
         ...prev,
         owner: currentUserEmployee.employeeId,
-        ownerEmployeeId: currentUserEmployee.employeeId, // Update legacy field too
-      }));
-      autoSelectionDone.current = true;
+        ownerEmployeeId: currentUserEmployee.employeeId // Update legacy field too
+      }))
+      autoSelectionDone.current = true
     }
   }, [
     currentUserEmployee,
     formValues.owner,
     businessAppContext.additionalData?.opportunityId,
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.opportunityId,
-  ]);
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.opportunityId
+  ])
 
   // Accounts data hook for company autocomplete with pagination
   const {
     searchAccounts: searchAccountsHook,
     loadMoreAccounts,
-    accountState,
-  } = useAccountsData({ accessToken: businessAppContext.accessToken });
+    accountState
+  } = useAccountsData({ accessToken: businessAppContext.accessToken })
 
   // Create search wrapper for company autocomplete
   const searchAccountsWrapper = useCallback(
     (searchTerm: string) => {
       // Allow empty search to load all companies, or search with 3+ characters
       if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
-        searchAccountsHook(searchTerm);
+        searchAccountsHook(searchTerm)
       }
     },
     [searchAccountsHook]
-  );
+  )
 
   // Create wrapper function to match interface
   const loadMoreAccountsWrapper = useCallback(async (): Promise<void> => {
-    await loadMoreAccounts();
-  }, [loadMoreAccounts]);
+    await loadMoreAccounts()
+  }, [loadMoreAccounts])
 
   // Form value setter
-  const setFormValues = useCallback(
-    (updates: Partial<OpportunityFormValues>) => {
-      setFormValuesState((prev) => ({ ...prev, ...updates }));
-    },
-    []
-  );
+  const setFormValues = useCallback((updates: Partial<OpportunityFormValues>) => {
+    setFormValuesState(prev => ({ ...prev, ...updates }))
+  }, [])
 
   // Search functions
   const searchEmployeePositions = useCallback(
     (search: string) => {
-      searchEmployees(search);
+      searchEmployees(search)
     },
     [searchEmployees]
-  );
+  )
 
   const contextValue: OpportunityFormContextValue = useMemo(
     () => ({
@@ -692,7 +628,7 @@ export const OpportunityFormProvider: React.FC<
       accountsLoading: accountState.isLoading,
 
       // Business app context for child components
-      businessAppContext,
+      businessAppContext
     }),
     [
       // Form state
@@ -749,23 +685,17 @@ export const OpportunityFormProvider: React.FC<
       accountState.isLoading,
 
       // Business app context
-      businessAppContext,
+      businessAppContext
     ]
-  );
+  )
 
-  return (
-    <OpportunityFormContext.Provider value={contextValue}>
-      {children}
-    </OpportunityFormContext.Provider>
-  );
-};
+  return <OpportunityFormContext.Provider value={contextValue}>{children}</OpportunityFormContext.Provider>
+}
 
 export const useOpportunityFormContext = (): OpportunityFormContextValue => {
-  const context = useContext(OpportunityFormContext);
+  const context = useContext(OpportunityFormContext)
   if (!context) {
-    throw new Error(
-      "useOpportunityFormContext must be used within an OpportunityFormProvider"
-    );
+    throw new Error('useOpportunityFormContext must be used within an OpportunityFormProvider')
   }
-  return context;
-};
+  return context
+}

@@ -1,21 +1,21 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface CrmNoteQueryVariables {
-  opportunityId: string;
+  opportunityId: string
 }
 
 export interface CrmNoteData {
-  id: string;
-  version: number;
-  noteText: string;
-  noteTitle: string;
-  createdAt: string;
-  createdBy: string;
+  id: string
+  version: number
+  noteText: string
+  noteTitle: string
+  createdAt: string
+  createdBy: string
 }
 
 export interface CrmNoteResponse {
-  CrmNote: CrmNoteData[];
+  CrmNote: CrmNoteData[]
 }
 
 export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
@@ -30,22 +30,22 @@ export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
         noteTitle
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetCrmNotes = (context: BusinessAppContextProps) => {
-  const graphQLClient = useGraphQLClient(context.accessToken);
-  
-  const fetchCrmNotes = async (variables: CrmNoteQueryVariables) => {
-    const query = GET_CRM_NOTES(variables);
-    try {
-      const result = await graphQLClient.request<CrmNoteResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching CRM notes:', error);
-      throw error;
-    }
-  };
+  const graphQLClient = useGraphQLClient(context.accessToken)
 
-  return { fetchCrmNotes };
-}; 
+  const fetchCrmNotes = async (variables: CrmNoteQueryVariables) => {
+    const query = GET_CRM_NOTES(variables)
+    try {
+      const result = await graphQLClient.request<CrmNoteResponse>(query, variables)
+      return result
+    } catch (error) {
+      console.error('Error fetching CRM notes:', error)
+      throw error
+    }
+  }
+
+  return { fetchCrmNotes }
+}

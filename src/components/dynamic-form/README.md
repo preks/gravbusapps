@@ -16,11 +16,11 @@ A centralized form orchestration component that handles JSON-based form configur
 ### Basic Example
 
 ```tsx
-import { DynamicForm } from '@/components/dynamic-form';
-import { useForm } from 'react-hook-form';
+import { DynamicForm } from '@/components/dynamic-form'
+import { useForm } from 'react-hook-form'
 
 function MyForm() {
-  const form = useForm();
+  const form = useForm()
 
   const configuration = {
     formFields: [
@@ -34,19 +34,19 @@ function MyForm() {
             label: 'Company Name',
             property: 'companyName',
             required: true,
-            displayOrder: '1',
+            displayOrder: '1'
           },
           {
             type: 'DATE',
             label: 'Founded Date',
             property: 'foundedDate',
             required: false,
-            displayOrder: '2',
-          },
-        ],
-      },
-    ],
-  };
+            displayOrder: '2'
+          }
+        ]
+      }
+    ]
+  }
 
   return (
     <DynamicForm
@@ -55,7 +55,7 @@ function MyForm() {
       accessToken={accessToken}
       testIdPrefix="CompanyForm"
     />
-  );
+  )
 }
 ```
 
@@ -77,14 +77,14 @@ const configuration = {
           label: 'Width',
           property: 'width',
           required: true,
-          displayOrder: '1.1', // Same base number (1)
+          displayOrder: '1.1' // Same base number (1)
         },
         {
           type: 'NUMBER',
           label: 'Height',
           property: 'height',
           required: true,
-          displayOrder: '1.2', // Same base number (1)
+          displayOrder: '1.2' // Same base number (1)
         },
         // This one will be full width
         {
@@ -92,12 +92,12 @@ const configuration = {
           label: 'Description',
           property: 'description',
           required: false,
-          displayOrder: '2', // Different base number
-        },
-      ],
-    },
-  ],
-};
+          displayOrder: '2' // Different base number
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### With Catalog Fields
@@ -115,30 +115,25 @@ const configuration = {
           label: 'Industry',
           property: 'industryTypeRef',
           required: true,
-          displayOrder: '1',
+          displayOrder: '1'
         },
         {
           type: 'CATALOG_CompanySize',
           label: 'Company Size',
           property: 'companySizeRef',
           required: false,
-          displayOrder: '2',
-        },
-      ],
-    },
-  ],
-};
+          displayOrder: '2'
+        }
+      ]
+    }
+  ]
+}
 ```
 
 ### With Loading State
 
 ```tsx
-<DynamicForm
-  configuration={configuration}
-  control={form.control}
-  accessToken={accessToken}
-  isLoading={true}
-/>
+<DynamicForm configuration={configuration} control={form.control} accessToken={accessToken} isLoading={true} />
 // Displays: "Loading form fields..."
 ```
 
@@ -156,17 +151,17 @@ const configuration = {
 
 ## Props
 
-| Prop | Type | Required | Default | Description |
-|------|------|----------|---------|-------------|
-| `configuration` | `DynamicFormConfiguration` | Yes | - | Form configuration with groups and fields |
-| `control` | `Control<TFieldValues>` | Yes | - | React Hook Form control |
-| `accessToken` | `string` | Yes | - | Access token for API requests |
-| `testIdPrefix` | `string` | No | `'DynamicForm'` | Prefix for data-testid attributes |
-| `renderReferenceField` | `function` | No | - | Custom renderer for REF_ fields |
-| `FormattedNumberInput` | `ComponentType` | No | - | Custom number input component |
-| `isLoading` | `boolean` | No | `false` | Loading state |
-| `error` | `string \| null` | No | `null` | Error message |
-| `emptyMessage` | `string` | No | `'No form fields available'` | Empty state message |
+| Prop                   | Type                       | Required | Default                      | Description                               |
+| ---------------------- | -------------------------- | -------- | ---------------------------- | ----------------------------------------- |
+| `configuration`        | `DynamicFormConfiguration` | Yes      | -                            | Form configuration with groups and fields |
+| `control`              | `Control<TFieldValues>`    | Yes      | -                            | React Hook Form control                   |
+| `accessToken`          | `string`                   | Yes      | -                            | Access token for API requests             |
+| `testIdPrefix`         | `string`                   | No       | `'DynamicForm'`              | Prefix for data-testid attributes         |
+| `renderReferenceField` | `function`                 | No       | -                            | Custom renderer for REF\_ fields          |
+| `FormattedNumberInput` | `ComponentType`            | No       | -                            | Custom number input component             |
+| `isLoading`            | `boolean`                  | No       | `false`                      | Loading state                             |
+| `error`                | `string \| null`           | No       | `null`                       | Error message                             |
+| `emptyMessage`         | `string`                   | No       | `'No form fields available'` | Empty state message                       |
 
 ## Configuration Structure
 
@@ -174,7 +169,7 @@ const configuration = {
 
 ```typescript
 interface DynamicFormConfiguration {
-  formFields: DynamicFormFieldGroup[];
+  formFields: DynamicFormFieldGroup[]
 }
 ```
 
@@ -182,10 +177,10 @@ interface DynamicFormConfiguration {
 
 ```typescript
 interface DynamicFormFieldGroup {
-  groupId: string;           // Unique identifier
-  groupLabel: string;        // Display label for the group
-  displayOrder: number;      // Order of this group
-  fields: DynamicFormFieldDefinition[];
+  groupId: string // Unique identifier
+  groupLabel: string // Display label for the group
+  displayOrder: number // Order of this group
+  fields: DynamicFormFieldDefinition[]
 }
 ```
 
@@ -193,11 +188,11 @@ interface DynamicFormFieldGroup {
 
 ```typescript
 interface DynamicFormFieldDefinition {
-  type: string;              // DATE, TEXT, CATALOG_*, REF_*, etc.
-  label: string;             // Display label
-  property: string;          // Property path (e.g., "investment.name")
-  required: boolean;         // Whether field is required
-  displayOrder: string | number;  // Display order (e.g., "1", "1.1", "1.2")
+  type: string // DATE, TEXT, CATALOG_*, REF_*, etc.
+  label: string // Display label
+  property: string // Property path (e.g., "investment.name")
+  required: boolean // Whether field is required
+  displayOrder: string | number // Display order (e.g., "1", "1.1", "1.2")
 }
 ```
 
@@ -209,6 +204,7 @@ The `displayOrder` field controls both field order and layout:
 - **Decimal notation** (e.g., `"1.1"`, `"1.2"`): Fields with same base number are placed in the same row
 
 Examples:
+
 - `displayOrder: "1"` → Full width row
 - `displayOrder: "2.1"`, `displayOrder: "2.2"` → Two columns in same row
 - `displayOrder: "3"` → Full width row
@@ -217,11 +213,13 @@ Examples:
 ## Field Name Extraction
 
 Field names use the FULL property path as-is (no transformations):
+
 - `"investment.name"` → `"investment.name"`
 - `"equityInvestment.marketValue"` → `"equityInvestment.marketValue"`
 - `"size"` → `"size"`
 
 **Catalog Fields**: Property paths are used WITHOUT `Ref` suffix:
+
 - `"investment.investmentType"` with type `CATALOG_InvestmentType` → `"investment.investmentType"`
 - `"equityInvestment.investmentStakeType"` with type `CATALOG_InvestmentStakeType` → `"equityInvestment.investmentStakeType"`
 
@@ -230,21 +228,27 @@ Field names use the FULL property path as-is (no transformations):
 ## States
 
 ### Loading
+
 ```tsx
 <DynamicForm isLoading={true} {...props} />
 ```
+
 Displays centered loading message.
 
 ### Error
+
 ```tsx
 <DynamicForm error="Error message" {...props} />
 ```
+
 Displays error in destructive-styled box.
 
 ### Empty
+
 ```tsx
 <DynamicForm configuration={{ formFields: [] }} {...props} />
 ```
+
 Displays empty state message.
 
 ## Integration with DynamicFormField
@@ -252,12 +256,13 @@ Displays empty state message.
 `DynamicForm` uses `DynamicFormField` internally for rendering individual fields. All field types supported by `DynamicFormField` are automatically supported:
 
 - Standard: DATE, DATETIME, TEXT, TEXTAREA, NUMBER, AMOUNT, PERCENTAGE
-- Catalog: CATALOG_* (with automatic Combobox)
-- Reference: REF_* (requires custom renderer)
+- Catalog: CATALOG\_\* (with automatic Combobox)
+- Reference: REF\_\* (requires custom renderer)
 
 ## Testing
 
 All rendered elements include `data-testid` attributes:
+
 - Container: `{testIdPrefix}-Container`
 - Loading: `{testIdPrefix}-Loading`
 - Error: `{testIdPrefix}-Error`
@@ -265,6 +270,7 @@ All rendered elements include `data-testid` attributes:
 - Group: `{testIdPrefix}-{groupId}Group`
 
 Example:
+
 ```tsx
 <DynamicForm testIdPrefix="InvestmentForm" {...props} />
 // Renders: data-testid="InvestmentForm-Container"
@@ -277,4 +283,3 @@ Example:
 - Uses design tokens (`gba:text-muted-foreground`, `gba:bg-destructive-secondary`)
 - No inline styles
 - Follows spacing and layout conventions
-
