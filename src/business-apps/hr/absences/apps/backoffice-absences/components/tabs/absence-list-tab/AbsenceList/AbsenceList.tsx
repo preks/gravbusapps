@@ -20,7 +20,7 @@ interface StatusOption {
 
 // Status options using centralized status mapping
 const ABSENCE_STATUSES: StatusOption[] = getAllAbsenceStatusConfigs().map((config: AbsenceStatusConfig) => ({
-  id: config.type.toUpperCase(),
+  id: config.status,
   name: config.label
 }));
 

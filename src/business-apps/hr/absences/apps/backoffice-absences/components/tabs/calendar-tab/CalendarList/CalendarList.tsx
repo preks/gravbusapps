@@ -162,10 +162,6 @@ const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
   }
 `
 
-interface OrganizationalUnit {
-  id: string
-  name: string
-}
 
 const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphQLClient(accessToken)

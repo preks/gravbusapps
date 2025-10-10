@@ -5,7 +5,7 @@ import { useAbsenceCatalogs } from './useAbsenceCatalogs';
 import { DateRangeFilter } from '../components/DateRangeFilter';
 import { CreationDateFilter } from '../components/CreationDateFilter';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
 import { getAbsenceStatusLabel, getAllAbsenceStatusConfigs, AbsenceStatusConfig } from '../../../utils/absenceStatusUtils';
 
 // DataFilter interfaces to match DataContainer expectations
@@ -51,7 +51,7 @@ interface StatusOption {
 
 // Status options using centralized status mapping
 const ABSENCE_STATUSES: StatusOption[] = getAllAbsenceStatusConfigs().map((config: AbsenceStatusConfig) => ({
-  id: config.type.toUpperCase(),
+  id: config.status,
   name: config.label
 }));
 
@@ -64,7 +64,8 @@ const getTranslatedStatus = (status: string) => {
 const formatDateForDisplay = (dateString: string) => {
   try {
     const date = new Date(dateString);
-    return date.toLocaleDateString('ro-RO', {
+    const userLocale = getCurrentActiveUserLocale();
+    return date.toLocaleDateString(userLocale, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'

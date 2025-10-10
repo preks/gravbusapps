@@ -14,6 +14,7 @@ export interface AbsenceStatusConfig {
   variant: BadgeProps["variant"];
   color: string;
   type: string;
+  status: string; // Original status value (e.g., "PLANNED", "PENDING")
 }
 
 /**
@@ -30,7 +31,8 @@ export function getAbsenceStatusConfig(
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown'), 
       variant: "outline",
       color: '#6b7280',
-      type: 'unknown'
+      type: 'unknown',
+      status: 'UNKNOWN'
     };
   }
 
@@ -40,7 +42,8 @@ export function getAbsenceStatusConfig(
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
         variant: "secondary", // Gray - indicates draft/planned state
         color: '#6b7280',
-        type: 'draft'
+        type: 'draft',
+        status: 'PLANNED'
       };
 
     case "PENDING":
@@ -48,7 +51,8 @@ export function getAbsenceStatusConfig(
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
         variant: "warning", // Orange - indicates pending approval
         color: '#f59e0b',
-        type: 'pending'
+        type: 'pending',
+        status: 'PENDING'
       };
 
     case "APPROVED":
@@ -56,7 +60,8 @@ export function getAbsenceStatusConfig(
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
         variant: "success", // Green - indicates approved
         color: '#10b981',
-        type: 'approved'
+        type: 'approved',
+        status: 'APPROVED'
       };
 
     case "REJECTED":
@@ -64,7 +69,8 @@ export function getAbsenceStatusConfig(
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
         variant: "destructive", // Red - indicates rejected
         color: '#ef4444',
-        type: 'rejected'
+        type: 'rejected',
+        status: 'REJECTED'
       };
 
     case "CANCELLED":
@@ -72,7 +78,8 @@ export function getAbsenceStatusConfig(
         label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'),
         variant: "secondary", // Gray - indicates cancelled
         color: '#6b7280',
-        type: 'cancelled'
+        type: 'cancelled',
+        status: 'CANCELLED'
       };
 
     default:
@@ -80,7 +87,8 @@ export function getAbsenceStatusConfig(
         label: status,
         variant: "secondary",
         color: '#6b7280',
-        type: 'unknown'
+        type: 'unknown',
+        status: status.toUpperCase()
       };
   }
 }
@@ -132,7 +140,7 @@ export function getAbsenceStatusDisplay(status?: string): AbsenceStatusConfig {
 
 /**
  * Get all available absence statuses with their configurations
- * @returns Array of all status configurations
+ * @returns Array of all status configurations with original status values
  */
 export function getAllAbsenceStatusConfigs(): AbsenceStatusConfig[] {
   const statuses = ['PLANNED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
