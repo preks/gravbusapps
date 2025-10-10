@@ -38,9 +38,34 @@ dotenv.config({ path: path.resolve(__dirname, '..', '.env') })
 const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_PROD
 const AZURE_STORAGE_SAS_TOKEN = process.env.AZURE_STORAGE_SAS_TOKEN_PROD
 const AZURE_CONTAINER_NAME = process.env.AZURE_BLOB_CONTAINER_NAME_PROD
+// Optional secondary target (deploy to a 2nd system)
+const AZURE_STORAGE_ACCOUNT_NAME_SECONDARY =
+  process.env.AZURE_STORAGE_ACCOUNT_PROD_SECONDARY ||
+  process.env.AZURE_STORAGE_ACCOUNT_SECOND ||
+  process.env.AZURE_STORAGE_ACCOUNT_PROD_2 ||
+  null
+const AZURE_STORAGE_SAS_TOKEN_SECONDARY =
+  process.env.AZURE_STORAGE_SAS_TOKEN_PROD_SECONDARY ||
+  process.env.AZURE_STORAGE_SAS_TOKEN_SECOND ||
+  process.env.AZURE_STORAGE_SAS_TOKEN_PROD_2 ||
+  null
+const AZURE_CONTAINER_NAME_SECONDARY =
+  process.env.AZURE_BLOB_CONTAINER_NAME_PROD_SECONDARY ||
+  process.env.AZURE_BLOB_CONTAINER_NAME_SECOND ||
+  process.env.AZURE_BLOB_CONTAINER_NAME_PROD_2 ||
+  null
 const BITBUCKET_BUILD_NUMBER = process.env.BITBUCKET_BUILD_NUMBER
 const SCREEN_MANAGEMENT_SERVICE_API_PROD = process.env.SCREEN_MANAGEMENT_SERVICE_API_PROD
 const NAVIGATION_SERVICE_API_PROD = process.env.NAVIGATION_SERVICE_API_PROD
+// Optional secondary target services
+const SCREEN_MANAGEMENT_SERVICE_API_PROD_SECONDARY =
+  process.env.SCREEN_MANAGEMENT_SERVICE_API_PROD_SECONDARY ||
+  process.env.SCREEN_MANAGEMENT_SERVICE_API_SECOND ||
+  process.env.SCREEN_MANAGEMENT_SERVICE_API_PROD_2
+const NAVIGATION_SERVICE_API_PROD_SECONDARY =
+  process.env.NAVIGATION_SERVICE_API_PROD_SECONDARY ||
+  process.env.NAVIGATION_SERVICE_API_SECOND ||
+  process.env.NAVIGATION_SERVICE_API_PROD_2
 
 // Use only the Bitbucket build number as the publish version
 const PUBLISH_VERSION = BITBUCKET_BUILD_NUMBER
@@ -53,6 +78,17 @@ const OAUTH_CLIENT_ID_PROD = process.env.OAUTH_CLIENT_ID_PROD
 const OAUTH_CLIENT_SECRET_PROD = process.env.OAUTH_CLIENT_SECRET_PROD
 const OAUTH_URL_PROD = process.env.OAUTH_URL_PROD
 const OAUTH_REALM_PROD = process.env.OAUTH_REALM_PROD
+// Optional secondary target OAuth
+const OAUTH_CLIENT_ID_PROD_SECONDARY =
+  process.env.OAUTH_CLIENT_ID_PROD_SECONDARY || process.env.OAUTH_CLIENT_ID_SECOND || process.env.OAUTH_CLIENT_ID_PROD_2
+const OAUTH_CLIENT_SECRET_PROD_SECONDARY =
+  process.env.OAUTH_CLIENT_SECRET_PROD_SECONDARY ||
+  process.env.OAUTH_CLIENT_SECRET_SECOND ||
+  process.env.OAUTH_CLIENT_SECRET_PROD_2
+const OAUTH_URL_PROD_SECONDARY =
+  process.env.OAUTH_URL_PROD_SECONDARY || process.env.OAUTH_URL_SECOND || process.env.OAUTH_URL_PROD_2
+const OAUTH_REALM_PROD_SECONDARY =
+  process.env.OAUTH_REALM_PROD_SECONDARY || process.env.OAUTH_REALM_SECOND || process.env.OAUTH_REALM_PROD_2
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -77,6 +113,56 @@ if (missingVars.length > 0) {
   console.error('Please ensure your Bitbucket pipeline has the necessary environment variables configured.')
   process.exit(1)
 }
+
+// Compose target configs (primary is required, secondary optional)
+const PRIMARY_TARGET = {
+  label: 'primary',
+  azure: {
+    accountName: AZURE_STORAGE_ACCOUNT_NAME,
+    sasToken: AZURE_STORAGE_SAS_TOKEN,
+    containerName: AZURE_CONTAINER_NAME
+  },
+  services: {
+    screenManagementApi: SCREEN_MANAGEMENT_SERVICE_API_PROD,
+    navigationApi: NAVIGATION_SERVICE_API_PROD
+  },
+  oauth: {
+    clientId: OAUTH_CLIENT_ID_PROD,
+    clientSecret: OAUTH_CLIENT_SECRET_PROD,
+    oauthUrl: OAUTH_URL_PROD,
+    realm: OAUTH_REALM_PROD
+  }
+}
+
+const SECONDARY_TARGET =
+  SCREEN_MANAGEMENT_SERVICE_API_PROD_SECONDARY &&
+  NAVIGATION_SERVICE_API_PROD_SECONDARY &&
+  OAUTH_CLIENT_ID_PROD_SECONDARY &&
+  OAUTH_CLIENT_SECRET_PROD_SECONDARY &&
+  OAUTH_URL_PROD_SECONDARY &&
+  OAUTH_REALM_PROD_SECONDARY
+    ? {
+        label: 'secondary',
+        azure:
+          AZURE_STORAGE_ACCOUNT_NAME_SECONDARY && AZURE_STORAGE_SAS_TOKEN_SECONDARY && AZURE_CONTAINER_NAME_SECONDARY
+            ? {
+                accountName: AZURE_STORAGE_ACCOUNT_NAME_SECONDARY,
+                sasToken: AZURE_STORAGE_SAS_TOKEN_SECONDARY,
+                containerName: AZURE_CONTAINER_NAME_SECONDARY
+              }
+            : null,
+        services: {
+          screenManagementApi: SCREEN_MANAGEMENT_SERVICE_API_PROD_SECONDARY,
+          navigationApi: NAVIGATION_SERVICE_API_PROD_SECONDARY
+        },
+        oauth: {
+          clientId: OAUTH_CLIENT_ID_PROD_SECONDARY,
+          clientSecret: OAUTH_CLIENT_SECRET_PROD_SECONDARY,
+          oauthUrl: OAUTH_URL_PROD_SECONDARY,
+          realm: OAUTH_REALM_PROD_SECONDARY
+        }
+      }
+    : null
 
 // Helper function to detect if the screen is a form
 function isFormScreen(screenPath) {
@@ -260,32 +346,6 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
     }
   } catch (error) {
     console.error('❌ Error during resource URL synchronization:', error.message)
-    return { success: false, operation: 'error', error: error.message, resourceUrl: null }
-  }
-}
-
-// Helper function to read resource URL from dev only (no sync to prod)
-async function handleResourceUrlSynchronizationReadOnly(screenPath, azureDestinationPath) {
-  console.log('🔍 Reading resource URL from dev (no synchronization to prod)...')
-
-  // Create OAuth configuration for dev only
-  const devOauthConfig = {} // Use dev environment variables (default)
-
-  try {
-    // Search for resource URL in dev using progressive strategy
-    const devResourceUrl = await searchResourceUrlInDev(azureDestinationPath, devOauthConfig)
-
-    if (!devResourceUrl) {
-      console.log('   No resource URL found in dev with any strategy')
-      return { success: true, operation: 'skip_read_only', resourceUrl: null }
-    }
-
-    console.log(`   ✅ Found resource URL in dev: ${devResourceUrl.url} (code: ${devResourceUrl.code})`)
-    console.log('   📋 Resource URL info will be used for correct screen key generation')
-
-    return { success: true, operation: 'read_only', resourceUrl: devResourceUrl }
-  } catch (error) {
-    console.error('❌ Error during resource URL read from dev:', error.message)
     return { success: false, operation: 'error', error: error.message, resourceUrl: null }
   }
 }
@@ -597,21 +657,18 @@ function getContentType(fileName) {
   }
 }
 
-async function uploadDirectory(buildOutputDir, azureDestinationPath) {
-  if (!AZURE_STORAGE_ACCOUNT_NAME || !AZURE_STORAGE_SAS_TOKEN) {
-    console.error(
-      'Error: AZURE_STORAGE_ACCOUNT_PROD and AZURE_STORAGE_SAS_TOKEN_PROD must be set in .env for production upload.'
-    )
+async function uploadDirectory(buildOutputDir, azureDestinationPath, azureTarget) {
+  const { accountName, sasToken, containerName } = azureTarget
+  if (!accountName || !sasToken) {
+    console.error('Error: Missing Azure Storage account or SAS token for the target upload.')
     process.exit(1)
   }
 
-  const blobServiceUrl = `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/?${AZURE_STORAGE_SAS_TOKEN}`
+  const blobServiceUrl = `https://${accountName}.blob.core.windows.net/?${sasToken}`
   const blobServiceClient = new BlobServiceClient(blobServiceUrl)
-  const containerClient = blobServiceClient.getContainerClient(AZURE_CONTAINER_NAME)
+  const containerClient = blobServiceClient.getContainerClient(containerName)
 
-  console.log(
-    `☁️  Uploading to Azure Storage account: ${AZURE_STORAGE_ACCOUNT_NAME}, container: ${AZURE_CONTAINER_NAME}`
-  )
+  console.log(`☁️  Uploading to Azure Storage account: ${accountName}, container: ${containerName}`)
   console.log(`   Source: ${buildOutputDir}`)
   console.log(`   Destination base path: ${azureDestinationPath}`)
 
@@ -658,7 +715,6 @@ async function publishScreen(screenPath, options = {}) {
   console.log(`   Source Entry File: ${sourceEntryFile}`)
   console.log(`   Vite Entry Key: ${viteEntryKey}`)
   console.log(`   Build Output Dir: ${buildOutputDir}`)
-  console.log(`   Azure Destination: ${AZURE_CONTAINER_NAME}/${azureDestinationPath}`)
 
   console.log('\n⚙️  Building screen with Vite...')
 
@@ -763,8 +819,12 @@ async function publishScreen(screenPath, options = {}) {
   }
 
   await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION)
-  await uploadDirectory(buildOutputDir, azureDestinationPath)
-  console.log('✅ Screen JS published successfully to Azure!')
+  const azureTargets =
+    options.azureTargets && options.azureTargets.length > 0 ? options.azureTargets : [PRIMARY_TARGET.azure]
+  for (const target of azureTargets) {
+    await uploadDirectory(buildOutputDir, azureDestinationPath, target)
+  }
+  console.log('✅ Screen JS published successfully to Azure targets!')
 
   // Handle CSS files - check both screen directory and global assets directory
   console.log('🎨 Handling CSS files...')
@@ -816,9 +876,11 @@ async function publishScreen(screenPath, options = {}) {
       fs.copyFileSync(globalCssPath, targetPath)
     }
 
-    // Upload the CSS files
-    await uploadDirectory(buildOutputDir, azureDestinationPath)
-    console.log('✅ Global CSS moved to screen directory and uploaded!')
+    // Upload the CSS files to all targets
+    for (const target of azureTargets) {
+      await uploadDirectory(buildOutputDir, azureDestinationPath, target)
+    }
+    console.log('✅ Global CSS moved to screen directory and uploaded to all targets!')
   }
 
   if (screenCssFiles.length === 0 && globalCssFiles.length === 0) {
@@ -860,7 +922,10 @@ async function publishScreen(screenPath, options = {}) {
   return {
     success: true,
     outputPath: buildOutputDir,
-    azureUrl: `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${AZURE_CONTAINER_NAME}/${azureDestinationPath}/index.js`
+    azureUrls: azureTargets.map(
+      t =>
+        `https://${t.accountName}.blob.core.windows.net/${t.containerName}/${azureDestinationPath}/index-${PUBLISH_VERSION}.js`
+    )
   }
 }
 
@@ -907,17 +972,17 @@ async function renameCssFilesInDirectory(targetDir, version) {
 }
 
 // Helper function to handle comprehensive screen and resource URL synchronization
-async function handleComprehensiveScreenSync(changedScreens) {
+async function handleComprehensiveScreenSyncForTarget(changedScreens, target) {
   console.log('🔄 Starting comprehensive screen synchronization from dev to prod...')
   console.log(`📋 Changed screens to process: ${changedScreens.length}`)
 
   // Create OAuth configurations
   const devOauthConfig = {} // Use dev environment variables (default)
   const prodOauthConfig = {
-    clientId: OAUTH_CLIENT_ID_PROD,
-    clientSecret: OAUTH_CLIENT_SECRET_PROD,
-    oauthUrl: OAUTH_URL_PROD,
-    realm: OAUTH_REALM_PROD
+    clientId: target.oauth.clientId,
+    clientSecret: target.oauth.clientSecret,
+    oauthUrl: target.oauth.oauthUrl,
+    realm: target.oauth.realm
   }
 
   try {
@@ -1032,7 +1097,7 @@ async function handleComprehensiveScreenSync(changedScreens) {
             // Sync resource URL to prod with same ID
             const resourceSyncResult = await syncResourceUrlWithSameId(
               devResourceUrl,
-              NAVIGATION_SERVICE_API_PROD,
+              target.services.navigationApi,
               prodOauthConfig
             )
 
@@ -1054,7 +1119,7 @@ async function handleComprehensiveScreenSync(changedScreens) {
         // Sync screen to prod
         const screenSyncResult = await syncScreenFromDevToProd(
           screen,
-          SCREEN_MANAGEMENT_SERVICE_API_PROD,
+          target.services.screenManagementApi,
           prodOauthConfig,
           PUBLISH_VERSION
         )
@@ -1112,6 +1177,7 @@ async function main() {
   console.log(`🔢 Build number: ${BITBUCKET_BUILD_NUMBER}`)
   console.log(`🎯 Publish version: ${PUBLISH_VERSION}`)
   console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`)
+  console.log(`🌐 Secondary target ${SECONDARY_TARGET ? 'DETECTED' : 'NOT configured'}`)
 
   // Check if manual screen list file is provided as command line argument
   const manualScreensFile = process.argv[2]
@@ -1171,21 +1237,29 @@ async function main() {
 
   const changedScreens = existingScreens
 
-  // NEW: Comprehensive Screen Synchronization Step
+  // NEW: Comprehensive Screen Synchronization Step (run per target)
   console.log(`\n${'='.repeat(80)}`)
   console.log(`🔄 COMPREHENSIVE SCREEN SYNCHRONIZATION`)
   console.log(`${'='.repeat(80)}`)
+  const targets = [PRIMARY_TARGET]
+  if (SECONDARY_TARGET) targets.push(SECONDARY_TARGET)
 
-  const comprehensiveSyncResult = await handleComprehensiveScreenSync(changedScreens)
-
-  if (comprehensiveSyncResult.success) {
-    console.log(`✅ Comprehensive sync completed successfully!`)
-    console.log(`   📋 Processed screens: ${comprehensiveSyncResult.processedScreens}`)
-    console.log(`   🔗 Synced resource URLs: ${comprehensiveSyncResult.syncedResources}`)
-    console.log(`   📱 Synced screens: ${comprehensiveSyncResult.syncedScreens}`)
-  } else {
-    console.error(`❌ Comprehensive sync failed: ${comprehensiveSyncResult.error}`)
-    console.log('⚠️  Continuing with individual screen publishing as fallback...')
+  const comprehensiveSyncResults = []
+  for (const target of targets) {
+    console.log(
+      `\n▶️ Target: ${target.label.toUpperCase()} | ScreenMgmt: ${target.services.screenManagementApi} | Nav: ${target.services.navigationApi}`
+    )
+    const result = await handleComprehensiveScreenSyncForTarget(changedScreens, target)
+    comprehensiveSyncResults.push({ label: target.label, result })
+    if (result.success) {
+      console.log(`✅ [${target.label}] Comprehensive sync completed successfully!`)
+      console.log(`   📋 Processed screens: ${result.processedScreens}`)
+      console.log(`   🔗 Synced resource URLs: ${result.syncedResources}`)
+      console.log(`   📱 Synced screens: ${result.syncedScreens}`)
+    } else {
+      console.error(`❌ [${target.label}] Comprehensive sync failed: ${result.error}`)
+      console.log('⚠️  Continuing with individual screen publishing as fallback for uploads...')
+    }
   }
 
   // STREAMLINED: Individual Screen Building and Azure Upload
@@ -1194,14 +1268,14 @@ async function main() {
   console.log(`🔨 INDIVIDUAL SCREEN BUILDING AND AZURE UPLOAD`)
   console.log(`${'='.repeat(80)}`)
 
-  const buildResults = []
-  let successCount = 0
   const failedScreens = []
 
-  // Add comprehensive sync failures to failed screens list
-  if (comprehensiveSyncResult.failedSyncScreens && comprehensiveSyncResult.failedSyncScreens.length > 0) {
-    failedScreens.push(...comprehensiveSyncResult.failedSyncScreens)
-    console.log(`⚠️  ${comprehensiveSyncResult.failedSyncScreens.length} screen(s) failed during comprehensive sync`)
+  // Add comprehensive sync failures to failed screens list (aggregate)
+  for (const { result, label } of comprehensiveSyncResults) {
+    if (result.failedSyncScreens && result.failedSyncScreens.length > 0) {
+      failedScreens.push(...result.failedSyncScreens.map(f => ({ ...f, target: label })))
+      console.log(`⚠️  [${label}] ${result.failedSyncScreens.length} screen(s) failed during comprehensive sync`)
+    }
   }
 
   for (const screen of changedScreens) {
@@ -1209,20 +1283,16 @@ async function main() {
 
     try {
       // Use existing publishScreen function but skip resource URL and screen registration
-      // since those are handled by comprehensive sync above
-      const result = await publishScreen(screen, {
+      // since those are handled by comprehensive sync above; upload to all Azure targets
+      const azureTargets = targets.map(t => t.azure).filter(t => t !== null)
+      await publishScreen(screen, {
         skipResourceUrlSync: true,
         skipScreenRegistration: true,
-        buildOnly: true
+        buildOnly: true,
+        azureTargets
       })
 
       console.log(`   ✅ Screen built and uploaded successfully`)
-      buildResults.push({
-        screen,
-        success: true,
-        result
-      })
-      successCount++
     } catch (error) {
       console.error(`   ❌ Error building/uploading ${screen}: ${error.message}`)
       failedScreens.push({ screen, error: error.message, stage: 'build_upload' })
@@ -1238,31 +1308,27 @@ async function main() {
   console.log(`🔗 Resource URL sync: ${process.env.SKIP_RESOURCE_URL_SYNC === 'true' ? 'DISABLED' : 'ENABLED'}`)
   console.log(`📈 Total screens processed: ${changedScreens.length}`)
 
-  // Calculate success count considering comprehensive sync failures
-  const comprehensiveSyncFailures = comprehensiveSyncResult.failedSyncScreens?.length || 0
-  const buildUploadFailures = failedScreens.filter(f => f.stage === 'build_upload').length
   const totalFailures = failedScreens.length
   const actualSuccessCount = changedScreens.length - totalFailures
 
   console.log(`✅ Successfully published: ${actualSuccessCount}`)
   console.log(`❌ Failed: ${totalFailures}`)
 
-  // Add comprehensive sync summary
-  console.log(`\n🔄 COMPREHENSIVE SYNC RESULTS:`)
-  console.log(`   📋 Total screens processed: ${comprehensiveSyncResult.processedScreens || 0}`)
-  console.log(`   📝 Form screens processed: ${comprehensiveSyncResult.formScreens || 0} (no resource URL sync)`)
-  console.log(`   📱 App screens processed: ${comprehensiveSyncResult.appScreens || 0} (with resource URL sync)`)
-  console.log(`   🔗 Resource URLs synced: ${comprehensiveSyncResult.syncedResources || 0}`)
-  console.log(`   📱 Screen configs synced: ${comprehensiveSyncResult.syncedScreens || 0}`)
-  console.log(`   ❌ Screen sync failures: ${comprehensiveSyncFailures}`)
-
-  // Show comprehensive sync status
-  if (comprehensiveSyncResult.success) {
-    console.log(`   ✅ Comprehensive sync: SUCCESSFUL`)
-  } else {
-    console.log(
-      `   ❌ Comprehensive sync: FAILED${comprehensiveSyncResult.error ? ` (${comprehensiveSyncResult.error})` : ''}`
-    )
+  // Add comprehensive sync summary per target
+  console.log(`\n🔄 COMPREHENSIVE SYNC RESULTS (per target):`)
+  for (const { label, result } of comprehensiveSyncResults) {
+    console.log(`\n   ▶️ Target: ${label}`)
+    console.log(`   📋 Total screens processed: ${result.processedScreens || 0}`)
+    console.log(`   📝 Form screens processed: ${result.formScreens || 0} (no resource URL sync)`)
+    console.log(`   📱 App screens processed: ${result.appScreens || 0} (with resource URL sync)`)
+    console.log(`   🔗 Resource URLs synced: ${result.syncedResources || 0}`)
+    console.log(`   📱 Screen configs synced: ${result.syncedScreens || 0}`)
+    console.log(`   ❌ Screen sync failures: ${result.failedSyncScreens?.length || 0}`)
+    if (result.success) {
+      console.log(`   ✅ Comprehensive sync: SUCCESSFUL`)
+    } else {
+      console.log(`   ❌ Comprehensive sync: FAILED${result.error ? ` (${result.error})` : ''}`)
+    }
   }
 
   if (failedScreens.length > 0) {
