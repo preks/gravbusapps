@@ -84,8 +84,8 @@ export const useInvestmentReportPortalIntegration = (context: BusinessAppContext
     (filters: PortalFilters): FilteredData => {
       let filteredReports = [...reports]
       let filteredInvestments = [...investments]
-      let filteredAccounts = [...accounts]
-      let filteredContacts = [...contacts]
+      const filteredAccounts = [...accounts]
+      const filteredContacts = [...contacts]
 
       // Apply search filter
       if (filters.search?.trim()) {

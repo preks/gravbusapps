@@ -274,17 +274,17 @@ function generateScreenKeyFromUrl(url) {
   return `url_${cleanUrl.replace(/\//g, '~')}`
 }
 
-// Helper function to synchronize resource URLs from dev to prod
-async function handleResourceUrlSynchronization(screenPath, azureDestinationPath) {
+// Helper function to synchronize resource URLs from dev to a specific target
+async function handleResourceUrlSynchronization(screenPath, azureDestinationPath, target) {
   console.log('🔗 Checking resource URL synchronization from dev to prod...')
 
   // Create OAuth configurations
   const devOauthConfig = {} // Use dev environment variables (default)
   const prodOauthConfig = {
-    clientId: OAUTH_CLIENT_ID_PROD,
-    clientSecret: OAUTH_CLIENT_SECRET_PROD,
-    oauthUrl: OAUTH_URL_PROD,
-    realm: OAUTH_REALM_PROD
+    clientId: target.oauth.clientId,
+    clientSecret: target.oauth.clientSecret,
+    oauthUrl: target.oauth.oauthUrl,
+    realm: target.oauth.realm
   }
 
   try {
@@ -300,7 +300,11 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
 
     // Check if the same resource URL already exists in prod
     console.log('   Checking if resource URL already exists in prod...')
-    const prodResourceUrl = await getResourceUrlByPath(devResourceUrl.url, NAVIGATION_SERVICE_API_PROD, prodOauthConfig)
+    const prodResourceUrl = await getResourceUrlByPath(
+      devResourceUrl.url,
+      target.services.navigationApi,
+      prodOauthConfig
+    )
 
     if (prodResourceUrl) {
       console.log(`   ✅ Resource URL already exists in prod (ID: ${prodResourceUrl.id || 'unknown'})`)
@@ -312,7 +316,7 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
     console.log('   Resource URL not found in prod, proceeding with registration...')
 
     try {
-      const prodNavigationApi = NAVIGATION_SERVICE_API_PROD
+      const prodNavigationApi = target.services.navigationApi
       const oauthClient = new OAuthClient(prodOauthConfig)
       const accessToken = await oauthClient.getAccessToken()
 
@@ -351,15 +355,15 @@ async function handleResourceUrlSynchronization(screenPath, azureDestinationPath
 }
 
 // Helper function to handle screen management registration for production
-async function handleScreenManagement(screenPath, azureDestinationPath, resourceUrlInfo = null) {
+async function handleScreenManagement(screenPath, azureDestinationPath, resourceUrlInfo = null, target) {
   console.log('📋 Registering screen in Screen Management system...')
 
   // Create OAuth configuration for production
   const oauthConfig = {
-    clientId: OAUTH_CLIENT_ID_PROD,
-    clientSecret: OAUTH_CLIENT_SECRET_PROD,
-    oauthUrl: OAUTH_URL_PROD,
-    realm: OAUTH_REALM_PROD
+    clientId: target.oauth.clientId,
+    clientSecret: target.oauth.clientSecret,
+    oauthUrl: target.oauth.oauthUrl,
+    realm: target.oauth.realm
   }
 
   try {
@@ -390,7 +394,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
       // First, check if the form already exists
       console.log(`🔍 Checking if form exists with key: ${screenKey}`)
       try {
-        const existingForm = await getScreenByKey(screenKey, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig)
+        const existingForm = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
 
         if (existingForm && existingForm.id) {
           // Form exists, update it
@@ -415,7 +419,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
           const updateSuccess = await updateScreenConfigInScreenManagement(
             existingForm.id,
             updateData,
-            SCREEN_MANAGEMENT_SERVICE_API_PROD,
+            target.services.screenManagementApi,
             oauthConfig
           )
           if (updateSuccess) {
@@ -437,7 +441,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
               azureDestinationPath,
               customUrlPath,
               PUBLISH_VERSION,
-              SCREEN_MANAGEMENT_SERVICE_API_PROD,
+              target.services.screenManagementApi,
               oauthConfig
             )
 
@@ -454,7 +458,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
               processName,
               azureDestinationPath,
               PUBLISH_VERSION,
-              SCREEN_MANAGEMENT_SERVICE_API_PROD,
+              target.services.screenManagementApi,
               oauthConfig
             )
             if (result.success) {
@@ -478,7 +482,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
             azureDestinationPath,
             customUrlPath,
             PUBLISH_VERSION,
-            SCREEN_MANAGEMENT_SERVICE_API_PROD,
+            target.services.screenManagementApi,
             oauthConfig
           )
 
@@ -495,7 +499,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
             processName,
             azureDestinationPath,
             PUBLISH_VERSION,
-            SCREEN_MANAGEMENT_SERVICE_API_PROD,
+            target.services.screenManagementApi,
             oauthConfig
           )
           if (result.success) {
@@ -530,7 +534,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
       // First, check if the screen already exists
       console.log(`🔍 Checking if screen exists with key: ${screenKey}`)
       try {
-        const existingScreen = await getScreenByKey(screenKey, SCREEN_MANAGEMENT_SERVICE_API_PROD, oauthConfig)
+        const existingScreen = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
 
         if (existingScreen && existingScreen.id) {
           // Screen exists, update it
@@ -555,7 +559,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
           const updateSuccess = await updateScreenConfigInScreenManagement(
             existingScreen.id,
             updateData,
-            SCREEN_MANAGEMENT_SERVICE_API_PROD,
+            target.services.screenManagementApi,
             oauthConfig
           )
           if (updateSuccess) {
@@ -583,7 +587,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
             azureDestinationPath,
             customUrlPathForCreation,
             PUBLISH_VERSION,
-            SCREEN_MANAGEMENT_SERVICE_API_PROD,
+            target.services.screenManagementApi,
             oauthConfig
           )
 
@@ -613,7 +617,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
           azureDestinationPath,
           customUrlPathForCreation,
           PUBLISH_VERSION,
-          SCREEN_MANAGEMENT_SERVICE_API_PROD,
+          target.services.screenManagementApi,
           oauthConfig
         )
 
@@ -887,36 +891,44 @@ async function publishScreen(screenPath, options = {}) {
     console.log('   No CSS files found')
   }
 
-  // Handle both forms and regular screens with resource URL synchronization
+  // Handle both forms and regular screens with resource URL synchronization across targets
 
   // Check if resource URL sync should be skipped
   const skipResourceUrlSync = options.skipResourceUrlSync || process.env.SKIP_RESOURCE_URL_SYNC === 'true'
   const skipScreenRegistration = options.skipScreenRegistration || false
 
-  let resourceUrlResult
+  const targets = options.targets && options.targets.length > 0 ? options.targets : [PRIMARY_TARGET]
 
-  if (!skipResourceUrlSync) {
-    console.log(`🔗 Step 3: Handling resource URL synchronization...`)
-    resourceUrlResult = await handleResourceUrlSynchronization(screenPath, azureDestinationPath)
-  } else {
-    console.log(`🔗 Step 3: Skipping resource URL synchronization (handled by comprehensive sync)`)
-    resourceUrlResult = { success: true, operation: 'skip_comprehensive_sync', resourceUrl: null }
-  }
-
-  if (!resourceUrlResult.success) {
-    throw new Error(`Resource URL synchronization failed: ${resourceUrlResult.error}`)
-  }
-
-  console.log(`📱 Step 4: Registering screen in Screen Management...`)
-
-  if (!skipScreenRegistration) {
-    const registrationResult = await handleScreenManagement(screenPath, azureDestinationPath, resourceUrlResult)
-
-    if (!registrationResult.success) {
-      throw new Error(`Screen Management registration failed: ${registrationResult.error}`)
+  for (const target of targets) {
+    let resourceUrlResult
+    if (!skipResourceUrlSync) {
+      console.log(`🔗 Step 3 [${target.label}]: Handling resource URL synchronization...`)
+      resourceUrlResult = await handleResourceUrlSynchronization(screenPath, azureDestinationPath, target)
+    } else {
+      console.log(`🔗 Step 3 [${target.label}]: Skipping resource URL synchronization (handled by comprehensive sync)`)
+      resourceUrlResult = { success: true, operation: 'skip_comprehensive_sync', resourceUrl: null }
     }
-  } else {
-    console.log(`📱 Skipping screen registration (handled by comprehensive sync)`)
+
+    if (!resourceUrlResult.success) {
+      throw new Error(`[${target.label}] Resource URL synchronization failed: ${resourceUrlResult.error}`)
+    }
+
+    console.log(`📱 Step 4 [${target.label}]: Registering screen in Screen Management...`)
+
+    if (!skipScreenRegistration) {
+      const registrationResult = await handleScreenManagement(
+        screenPath,
+        azureDestinationPath,
+        resourceUrlResult,
+        target
+      )
+
+      if (!registrationResult.success) {
+        throw new Error(`[${target.label}] Screen Management registration failed: ${registrationResult.error}`)
+      }
+    } else {
+      console.log(`📱 Step 4 [${target.label}]: Skipping screen registration (handled by comprehensive sync)`)
+    }
   }
 
   return {
@@ -1289,7 +1301,8 @@ async function main() {
         skipResourceUrlSync: true,
         skipScreenRegistration: true,
         buildOnly: true,
-        azureTargets
+        azureTargets,
+        targets
       })
 
       console.log(`   ✅ Screen built and uploaded successfully`)

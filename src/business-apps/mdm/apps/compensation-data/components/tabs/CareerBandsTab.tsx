@@ -62,7 +62,7 @@ const CareerBandsTab: React.FC<CareerBandsTabProps> = context => {
   const [accordionValue, setAccordionValue] = useState<string | string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const [selectedRows, setSelectedRows] = useState<any[]>([])
 
   // Use real data integration

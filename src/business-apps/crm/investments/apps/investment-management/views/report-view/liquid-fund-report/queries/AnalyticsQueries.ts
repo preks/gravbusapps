@@ -127,7 +127,7 @@ export const useGetLiquidFundAnalyticsData = (context: BusinessAppContextProps) 
       }
     ) => {
       // Build where clause for portfolios - filter by investment type "Bank Deposits"
-      let portfolioWhere: any = {
+      const portfolioWhere: any = {
         _and: []
       }
 
@@ -250,7 +250,7 @@ export const useGetLiquidFundAnalyticsData = (context: BusinessAppContextProps) 
   const fetchLiquidFundAnalyticsCount = useCallback(
     async (filters: AnalyticsFilters) => {
       // Build same where clause as main query
-      let portfolioWhere: any = {
+      const portfolioWhere: any = {
         _and: []
       }
 

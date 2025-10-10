@@ -46,7 +46,7 @@ export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryR
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     )
 
-    let inputData = `Lead Info: ${JSON.stringify(lead)}
+    const inputData = `Lead Info: ${JSON.stringify(lead)}
 Activities: ${JSON.stringify(sortedActivities)}
 Notes: ${JSON.stringify(sortedNotes)}
 Tasks: ${JSON.stringify(sortedTasks)}`

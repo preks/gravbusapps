@@ -226,7 +226,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
         </div>
       )
 
-    let errorMessages = []
+    const errorMessages = []
     if (overview.error) errorMessages.push(`Error loading calendar data: ${overview.error}`)
     if (errorMessages.length > 0)
       return (

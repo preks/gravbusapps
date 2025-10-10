@@ -222,7 +222,7 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         // Use dynamic query builder for better error handling
         const query = buildAdvancePaymentsQuery(filters)
 
-        let variables: any = {
+        const variables: any = {
           employeeId,
           searchTerm: formattedSearchTerm,
           limit: pageSize,
@@ -303,8 +303,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         }
 
         // Get the items and count
-        let fetchedItems = result.data?.AdvancePayment ?? []
-        let count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0
+        const fetchedItems = result.data?.AdvancePayment ?? []
+        const count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0
 
         setTotalCount(count)
         setItems(fetchedItems)

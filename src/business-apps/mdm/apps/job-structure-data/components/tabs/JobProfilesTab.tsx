@@ -66,7 +66,7 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [selectedProfile, setSelectedProfile] = useState<JobProfile | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const [selectedRows, setSelectedRows] = useState<any[]>([])
 
   const { fetchEmploymentTypes } = useGetEmploymentTypesData(catalogClient, userLocale)

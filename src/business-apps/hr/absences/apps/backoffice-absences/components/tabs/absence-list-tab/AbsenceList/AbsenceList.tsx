@@ -118,7 +118,7 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
       const conditions: any = buildWhereConditions()
 
       // Build order by clause
-      let orderBy: any[] = []
+      const orderBy: any[] = []
       if (sortField && sortOrder) {
         const graphqlSortOrder = sortOrder.toUpperCase() // Convert to uppercase for GraphQL
         if (sortField === 'employeeName') {

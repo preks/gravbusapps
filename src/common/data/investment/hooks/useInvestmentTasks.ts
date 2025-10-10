@@ -79,7 +79,7 @@ export const useInvestmentTasks = (context: BusinessAppContextProps) => {
         const priorityMap = new Map<string, { id: string; code?: string; value: string }>()
         const typeMap = new Map<string, { id: string; code?: string; value: string }>()
         const assigneeMap = new Map<string, { id: string; displayName: string }>()
-        let counts = { opportunity: 0, account: 0, lead: 0, contact: 0 } as {
+        const counts = { opportunity: 0, account: 0, lead: 0, contact: 0 } as {
           opportunity: number
           account: number
           lead: number

@@ -95,7 +95,7 @@ export function useInvestmentAiSummary(investmentId: string, accessToken: string
         console.warn('No activities, notes, or tasks found for investment', investmentId)
       }
 
-      let inputData = `Investment Context: ${JSON.stringify(investmentContext, null, 2)}
+      const inputData = `Investment Context: ${JSON.stringify(investmentContext, null, 2)}
 
 Recent Activities (${sortedActivities.length} items): ${JSON.stringify(sortedActivities, null, 2)}
 
