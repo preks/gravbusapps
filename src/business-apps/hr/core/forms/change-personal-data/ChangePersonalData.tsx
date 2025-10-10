@@ -184,10 +184,6 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
           form={form as any}
           formData={normalizedDefaults}
           submitEventType="pse_submit"
-          onCancel={() => {
-            form.reset(normalizedDefaults)
-            initialRef.current = normalizedDefaults
-          }}
           cancelEventType="pse_abort"
           cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}

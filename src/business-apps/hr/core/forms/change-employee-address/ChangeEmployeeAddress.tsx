@@ -442,8 +442,6 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                         )
                       }
                     })
-                    form.reset(normalizedDefaults)
-                    initialRef.current = normalizedDefaults
                   }
                 }}
                 data-testid={

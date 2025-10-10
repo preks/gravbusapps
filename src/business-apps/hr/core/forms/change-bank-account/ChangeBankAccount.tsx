@@ -178,9 +178,6 @@ const ChangeBankAccountContent: React.FC<ChangeBankAccountFormProps> = ({ userIn
           submitButtonTestId="flw_changeBankAccount_submitButton"
           cancelButtonTestId="flw_changeBankAccount_cancelButton"
           isSubmitDisabled={isSubmitDisabledFinal}
-          onCancel={() => {
-            form.reset(normalizedDefaults);
-          }}
           cancelEventType="pse_abort"
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
           cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
