@@ -1,4 +1,4 @@
-import { DetailedSalesOrder, SalesOrderItem } from '../types';
+import { DetailedSalesOrder, SalesOrderItem } from '../types'
 
 /**
  * Generates realistic demo data for sales order details
@@ -56,8 +56,8 @@ export const generateDemoSalesOrder = (orderId: string): DetailedSalesOrder => {
       quantityCancelled: 0,
       pricePerUnit: 99.99,
       unitPrice: 99.99,
-      manualDiscountAmount: 10.00,
-      taxAmount: 14.40,
+      manualDiscountAmount: 10.0,
+      taxAmount: 14.4,
       baseAmount: 199.98,
       extendedAmount: 189.98,
       status: 'Pending',
@@ -96,7 +96,8 @@ export const generateDemoSalesOrder = (orderId: string): DetailedSalesOrder => {
       status: 'Active',
       type: 'comment',
       commentShort: 'Special Delivery Instructions',
-      commentLong: 'Please deliver to the main reception desk during business hours (9 AM - 5 PM). Contact John Smith at extension 1234 upon arrival.',
+      commentLong:
+        'Please deliver to the main reception desk during business hours (9 AM - 5 PM). Contact John Smith at extension 1234 upon arrival.',
       sequenceNumber: 3,
       createdAt: '2024-01-15T10:40:00Z',
       updatedAt: '2024-01-15T10:40:00Z'
@@ -113,8 +114,8 @@ export const generateDemoSalesOrder = (orderId: string): DetailedSalesOrder => {
       quantityCancelled: 0,
       pricePerUnit: 249.99,
       unitPrice: 249.99,
-      manualDiscountAmount: 25.00,
-      taxAmount: 18.00,
+      manualDiscountAmount: 25.0,
+      taxAmount: 18.0,
       baseAmount: 249.99,
       extendedAmount: 224.99,
       status: 'Pending',
@@ -139,19 +140,19 @@ export const generateDemoSalesOrder = (orderId: string): DetailedSalesOrder => {
       createdAt: '2024-01-15T10:45:00Z',
       updatedAt: '2024-01-15T10:45:00Z'
     }
-  ];
+  ]
 
   const totalAmount = demoLineItems
     .filter(item => item.type !== 'comment')
-    .reduce((sum, item) => sum + item.extendedAmount, 0);
+    .reduce((sum, item) => sum + item.extendedAmount, 0)
 
   const totalTaxAmount = demoLineItems
     .filter(item => item.type !== 'comment')
-    .reduce((sum, item) => sum + (item.taxAmount || 0), 0);
+    .reduce((sum, item) => sum + (item.taxAmount || 0), 0)
 
   const totalDiscountAmount = demoLineItems
     .filter(item => item.type !== 'comment')
-    .reduce((sum, item) => sum + (item.manualDiscountAmount || 0), 0);
+    .reduce((sum, item) => sum + (item.manualDiscountAmount || 0), 0)
 
   return {
     id: orderId,
@@ -235,5 +236,5 @@ export const generateDemoSalesOrder = (orderId: string): DetailedSalesOrder => {
     taxAmount: totalTaxAmount,
     freightAmount: 0,
     totalLineItemAmount: totalAmount
-  };
-};
+  }
+}

@@ -1,42 +1,37 @@
-import { useState, useEffect } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export type TimeFilter =
-  | "month"
-  | "quarter"
-  | "sixMonths"
-  | "year"
-  | "historical";
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 interface OpportunityTrendData {
   // Current month counts (newly created)
-  currentMonthOpportunities: number;
-  previousMonthOpportunities: number;
-  currentMonthClosedOpportunities: number;
-  previousMonthClosedOpportunities: number;
+  currentMonthOpportunities: number
+  previousMonthOpportunities: number
+  currentMonthClosedOpportunities: number
+  previousMonthClosedOpportunities: number
 
   // Total opportunities counts (existing as of month end)
-  totalOpportunitiesThisMonth: number;
-  totalOpportunitiesLastMonth: number;
+  totalOpportunitiesThisMonth: number
+  totalOpportunitiesLastMonth: number
 
   // Actual KPI values for this month
-  actualWinRateThisMonth: number;
-  actualWinRateLastMonth: number;
-  actualAvgDealSizeThisMonth: number;
-  actualAvgDealSizeLastMonth: number;
-  actualAvgSalesCycleThisMonth: number;
-  actualAvgSalesCycleLastMonth: number;
-  actualConversionRateThisMonth: number;
-  actualConversionRateLastMonth: number;
-  actualPipelineVelocityLastMonth: number;
+  actualWinRateThisMonth: number
+  actualWinRateLastMonth: number
+  actualAvgDealSizeThisMonth: number
+  actualAvgDealSizeLastMonth: number
+  actualAvgSalesCycleThisMonth: number
+  actualAvgSalesCycleLastMonth: number
+  actualConversionRateThisMonth: number
+  actualConversionRateLastMonth: number
+  actualPipelineVelocityLastMonth: number
 
   // Period-based data (based on selected filter)
-  currentPeriodOpportunities: number;
-  previousPeriodOpportunities: number;
+  currentPeriodOpportunities: number
+  previousPeriodOpportunities: number
 
   // Pipeline value data
-  currentPeriodPipelineValue: number;
-  previousPeriodPipelineValue: number;
+  currentPeriodPipelineValue: number
+  previousPeriodPipelineValue: number
 }
 
 export const useOpportunityTrendData = (
@@ -44,106 +39,85 @@ export const useOpportunityTrendData = (
   selectedTimeFilter: TimeFilter,
   selectedPipelineId?: string
 ) => {
-  const [trendData, setTrendData] = useState<OpportunityTrendData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const graphqlClient = useGraphQLClient(accessToken);
+  const [trendData, setTrendData] = useState<OpportunityTrendData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   useEffect(() => {
     const fetchOpportunityTrendData = async () => {
       try {
-        setIsLoading(true);
+        setIsLoading(true)
 
-        const currentDate = new Date();
-        const currentYear = currentDate.getFullYear();
-        const currentMonth = currentDate.getMonth() + 1;
+        const currentDate = new Date()
+        const currentYear = currentDate.getFullYear()
+        const currentMonth = currentDate.getMonth() + 1
 
         // Date ranges calculation starting
 
         // Current month ranges
-        const currentMonthStart = `${currentYear}-${String(
-          currentMonth
-        ).padStart(2, "0")}-01T00:00:00Z`;
+        const currentMonthStart = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01T00:00:00Z`
         const nextMonthStart =
           currentMonth === 12
             ? `${currentYear + 1}-01-01T00:00:00Z`
-            : `${currentYear}-${String(currentMonth + 1).padStart(
-                2,
-                "0"
-              )}-01T00:00:00Z`;
+            : `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01T00:00:00Z`
 
         // Previous month ranges
         const previousMonthStart =
           currentMonth === 1
             ? `${currentYear - 1}-12-01T00:00:00Z`
-            : `${currentYear}-${String(currentMonth - 1).padStart(
-                2,
-                "0"
-              )}-01T00:00:00Z`;
+            : `${currentYear}-${String(currentMonth - 1).padStart(2, '0')}-01T00:00:00Z`
 
         // Period-based ranges (based on time filter)
-        let currentPeriodStart: string,
-          currentPeriodEnd: string,
-          previousPeriodStart: string,
-          previousPeriodEnd: string;
+        let currentPeriodStart: string, currentPeriodEnd: string, previousPeriodStart: string, previousPeriodEnd: string
 
         switch (selectedTimeFilter) {
-          case "month":
-            currentPeriodStart = currentMonthStart;
-            currentPeriodEnd = nextMonthStart;
-            previousPeriodStart = previousMonthStart;
-            previousPeriodEnd = currentMonthStart;
-            break;
-          case "quarter":
-            const quarterStartMonth =
-              Math.floor((currentMonth - 1) / 3) * 3 + 1;
-            const quarterEndMonth = quarterStartMonth + 3;
-            currentPeriodStart = `${currentYear}-${String(
-              quarterStartMonth
-            ).padStart(2, "0")}-01T00:00:00Z`;
+          case 'month':
+            currentPeriodStart = currentMonthStart
+            currentPeriodEnd = nextMonthStart
+            previousPeriodStart = previousMonthStart
+            previousPeriodEnd = currentMonthStart
+            break
+          case 'quarter':
+            const quarterStartMonth = Math.floor((currentMonth - 1) / 3) * 3 + 1
+            const quarterEndMonth = quarterStartMonth + 3
+            currentPeriodStart = `${currentYear}-${String(quarterStartMonth).padStart(2, '0')}-01T00:00:00Z`
             currentPeriodEnd =
               quarterEndMonth > 12
                 ? `${currentYear + 1}-01-01T00:00:00Z`
-                : `${currentYear}-${String(quarterEndMonth).padStart(
-                    2,
-                    "0"
-                  )}-01T00:00:00Z`;
+                : `${currentYear}-${String(quarterEndMonth).padStart(2, '0')}-01T00:00:00Z`
             previousPeriodStart =
               quarterStartMonth > 3
-                ? `${currentYear}-${String(quarterStartMonth - 3).padStart(
-                    2,
-                    "0"
-                  )}-01T00:00:00Z`
-                : `${currentYear - 1}-${String(quarterStartMonth + 9).padStart(
-                    2,
-                    "0"
-                  )}-01T00:00:00Z`;
-            previousPeriodEnd = currentPeriodStart;
-            break;
-          case "sixMonths":
-            const sixMonthsAgo = new Date(currentDate);
-            sixMonthsAgo.setMonth(currentDate.getMonth() - 6);
-            currentPeriodStart = `${sixMonthsAgo.getFullYear()}-${String(
-              sixMonthsAgo.getMonth() + 1
-            ).padStart(2, "0")}-01T00:00:00Z`;
-            currentPeriodEnd = nextMonthStart;
-            const twelveMonthsAgo = new Date(currentDate);
-            twelveMonthsAgo.setMonth(currentDate.getMonth() - 12);
-            previousPeriodStart = `${twelveMonthsAgo.getFullYear()}-${String(
-              twelveMonthsAgo.getMonth() + 1
-            ).padStart(2, "0")}-01T00:00:00Z`;
-            previousPeriodEnd = currentPeriodStart;
-            break;
-          case "year":
-            currentPeriodStart = `${currentYear}-01-01T00:00:00Z`;
-            currentPeriodEnd = `${currentYear + 1}-01-01T00:00:00Z`;
-            previousPeriodStart = `${currentYear - 1}-01-01T00:00:00Z`;
-            previousPeriodEnd = currentPeriodStart;
-            break;
+                ? `${currentYear}-${String(quarterStartMonth - 3).padStart(2, '0')}-01T00:00:00Z`
+                : `${currentYear - 1}-${String(quarterStartMonth + 9).padStart(2, '0')}-01T00:00:00Z`
+            previousPeriodEnd = currentPeriodStart
+            break
+          case 'sixMonths':
+            const sixMonthsAgo = new Date(currentDate)
+            sixMonthsAgo.setMonth(currentDate.getMonth() - 6)
+            currentPeriodStart = `${sixMonthsAgo.getFullYear()}-${String(sixMonthsAgo.getMonth() + 1).padStart(
+              2,
+              '0'
+            )}-01T00:00:00Z`
+            currentPeriodEnd = nextMonthStart
+            const twelveMonthsAgo = new Date(currentDate)
+            twelveMonthsAgo.setMonth(currentDate.getMonth() - 12)
+            previousPeriodStart = `${twelveMonthsAgo.getFullYear()}-${String(twelveMonthsAgo.getMonth() + 1).padStart(
+              2,
+              '0'
+            )}-01T00:00:00Z`
+            previousPeriodEnd = currentPeriodStart
+            break
+          case 'year':
+            currentPeriodStart = `${currentYear}-01-01T00:00:00Z`
+            currentPeriodEnd = `${currentYear + 1}-01-01T00:00:00Z`
+            previousPeriodStart = `${currentYear - 1}-01-01T00:00:00Z`
+            previousPeriodEnd = currentPeriodStart
+            break
           default:
-            currentPeriodStart = currentMonthStart;
-            currentPeriodEnd = nextMonthStart;
-            previousPeriodStart = previousMonthStart;
-            previousPeriodEnd = currentMonthStart;
+            currentPeriodStart = currentMonthStart
+            currentPeriodEnd = nextMonthStart
+            previousPeriodStart = previousMonthStart
+            previousPeriodEnd = currentMonthStart
         }
 
         // Debug: Log period ranges
@@ -151,7 +125,7 @@ export const useOpportunityTrendData = (
         // Simple, clean query for debugging
         const query = `
           query GetOpportunityTrendData {
-            currentPeriodOpportunities: OpportunityAggregate(
+            currentPeriodOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
@@ -163,7 +137,7 @@ export const useOpportunityTrendData = (
               } 
             }
             
-            currentPeriodLeads: LeadAggregate(
+            currentPeriodLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
@@ -172,7 +146,7 @@ export const useOpportunityTrendData = (
               aggregate { count }
             }
             
-            previousPeriodOpportunities: OpportunityAggregate(
+            previousPeriodOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousPeriodStart}", _lt: "${previousPeriodEnd}"}
@@ -184,7 +158,7 @@ export const useOpportunityTrendData = (
               } 
             }
             
-            previousPeriodLeads: LeadAggregate(
+            previousPeriodLeads: InvestmentLeadAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${previousPeriodStart}", _lt: "${previousPeriodEnd}"}
@@ -193,7 +167,7 @@ export const useOpportunityTrendData = (
               aggregate { count }
             }
             
-            currentPeriodWonOpportunities: OpportunityAggregate(
+            currentPeriodWonOpportunities: InvestmentOpportunityAggregate(
               where: {
                 isDeleted: {_eq: false}
                 createdAt: {_gte: "${currentPeriodStart}", _lt: "${currentPeriodEnd}"}
@@ -206,14 +180,11 @@ export const useOpportunityTrendData = (
               } 
             }
           }
-        `;
+        `
 
         // Debug: Log the query
 
-        const result = await graphqlClient.request(query);
-
-
-
+        const result = await graphqlClient.request(query)
 
         // Calculate win rates (period-based only for now)
         const currentPeriodWinRate =
@@ -221,71 +192,56 @@ export const useOpportunityTrendData = (
             ? (result.currentPeriodWonOpportunities.aggregate.count /
                 result.currentPeriodOpportunities.aggregate.count) *
               100
-            : 0;
+            : 0
 
         // Calculate average deal sizes (period-based)
         const currentPeriodAvgDealSize =
           result.currentPeriodOpportunities.aggregate.count > 0
-            ? (result.currentPeriodOpportunities.aggregate.sum
-                ?.estimatedAmount || 0) /
+            ? (result.currentPeriodOpportunities.aggregate.sum?.estimatedAmount || 0) /
               result.currentPeriodOpportunities.aggregate.count
-            : 0;
+            : 0
         const previousPeriodAvgDealSize =
           result.previousPeriodOpportunities.aggregate.count > 0
-            ? (result.previousPeriodOpportunities.aggregate.sum
-                ?.estimatedAmount || 0) /
+            ? (result.previousPeriodOpportunities.aggregate.sum?.estimatedAmount || 0) /
               result.previousPeriodOpportunities.aggregate.count
-            : 0;
+            : 0
 
         // Calculate average sales cycle (close date - created date in days)
         const calculateAvgSalesCycle = (opportunities: any[]) => {
-          if (opportunities.length === 0) return 0;
+          if (opportunities.length === 0) return 0
 
           const validCycles = opportunities
-            .map((opp) => {
-              const created = new Date(opp.createdAt);
-              const closed = new Date(opp.closeDate);
+            .map(opp => {
+              const created = new Date(opp.createdAt)
+              const closed = new Date(opp.closeDate)
 
               // Only validate that dates exist and closeDate is after createdAt
-              if (
-                isNaN(created.getTime()) ||
-                isNaN(closed.getTime()) ||
-                closed <= created
-              ) {
-                return null; // Invalid date or negative cycle
+              if (isNaN(created.getTime()) || isNaN(closed.getTime()) || closed <= created) {
+                return null // Invalid date or negative cycle
               }
 
               // Calculate days difference (close date - created date)
-              const daysDiff = Math.ceil(
-                (closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
-              );
+              const daysDiff = Math.ceil((closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
 
-              return daysDiff;
+              return daysDiff
             })
-            .filter((days) => days !== null && days > 0);
+            .filter(days => days !== null && days > 0)
 
-          if (validCycles.length === 0) return 0;
+          if (validCycles.length === 0) return 0
 
-          const totalDays = validCycles.reduce(
-            (sum: number, days: number) => sum + days,
-            0
-          );
-          return Math.round(totalDays / validCycles.length);
-        };
+          const totalDays = validCycles.reduce((sum: number, days: number) => sum + days, 0)
+          return Math.round(totalDays / validCycles.length)
+        }
 
         // Calculate period-based conversion rate (simplified)
         const currentPeriodConversionRate =
           result.currentPeriodLeads.aggregate.count > 0
-            ? (result.currentPeriodOpportunities.aggregate.count /
-                result.currentPeriodLeads.aggregate.count) *
-              100
-            : 0;
+            ? (result.currentPeriodOpportunities.aggregate.count / result.currentPeriodLeads.aggregate.count) * 100
+            : 0
         const previousPeriodConversionRate =
           result.previousPeriodLeads.aggregate.count > 0
-            ? (result.previousPeriodOpportunities.aggregate.count /
-                result.previousPeriodLeads.aggregate.count) *
-              100
-            : 0;
+            ? (result.previousPeriodOpportunities.aggregate.count / result.previousPeriodLeads.aggregate.count) * 100
+            : 0
 
         // Debug: Log conversion rate calculations
 
@@ -307,37 +263,27 @@ export const useOpportunityTrendData = (
           actualAvgDealSizeLastMonth: Math.round(previousPeriodAvgDealSize),
           actualAvgSalesCycleThisMonth: 0, // Will add later
           actualAvgSalesCycleLastMonth: 0, // Will add later
-          actualConversionRateThisMonth: Math.round(
-            currentPeriodConversionRate
-          ),
-          actualConversionRateLastMonth: Math.round(
-            previousPeriodConversionRate
-          ),
+          actualConversionRateThisMonth: Math.round(currentPeriodConversionRate),
+          actualConversionRateLastMonth: Math.round(previousPeriodConversionRate),
           actualPipelineVelocityLastMonth: 0, // Will add later
 
           // Period-based data (the important ones)
-          currentPeriodOpportunities:
-            result.currentPeriodOpportunities.aggregate.count,
-          previousPeriodOpportunities:
-            result.previousPeriodOpportunities.aggregate.count,
-          currentPeriodPipelineValue:
-            result.currentPeriodOpportunities.aggregate.sum?.estimatedAmount ||
-            0,
-          previousPeriodPipelineValue:
-            result.previousPeriodOpportunities.aggregate.sum?.estimatedAmount ||
-            0,
-        });
+          currentPeriodOpportunities: result.currentPeriodOpportunities.aggregate.count,
+          previousPeriodOpportunities: result.previousPeriodOpportunities.aggregate.count,
+          currentPeriodPipelineValue: result.currentPeriodOpportunities.aggregate.sum?.estimatedAmount || 0,
+          previousPeriodPipelineValue: result.previousPeriodOpportunities.aggregate.sum?.estimatedAmount || 0
+        })
       } catch (err) {
         // console.error("Error fetching opportunity trend data:", err);
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
     if (accessToken) {
-      fetchOpportunityTrendData();
+      fetchOpportunityTrendData()
     }
-  }, [accessToken, graphqlClient, selectedTimeFilter, selectedPipelineId]);
+  }, [accessToken, graphqlClient, selectedTimeFilter, selectedPipelineId])
 
-  return { trendData, isLoading };
-};
+  return { trendData, isLoading }
+}

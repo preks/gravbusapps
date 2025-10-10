@@ -1,46 +1,60 @@
-import React, { useState } from 'react';
-import { 
-  Card, CardContent, CardHeader, CardTitle, Alert, Button,
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+import React, { useState } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Alert,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   Badge
-} from '@newwork/nw-design-system';
-import { Spinner } from '@newwork/nw-design-system';
-import { 
-  AlertTriangle, Clock, TrendingDown, 
-  FileText, AlertCircle,
-  CheckCircle2, XCircle, Eye, BarChart3
-} from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { useFlowManagementAnalytics } from '../../hooks/useFlowAnalytics';
+} from '@newwork/nw-design-system'
+import { Spinner } from '@newwork/nw-design-system'
+import {
+  AlertTriangle,
+  Clock,
+  TrendingDown,
+  FileText,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  BarChart3
+} from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { useFlowManagementAnalytics } from '../../hooks/useFlowAnalytics'
 
 interface SLATabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-export const SLATab: React.FC<SLATabProps> = ({
-  prefixDataTestId = 'sla-tab',
-  accessToken,
-  ..._context
-}) => {
-  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd');
-  
-  const { 
-    data: analytics, 
-    isLoading, 
-    error, 
-    refetch 
+export const SLATab: React.FC<SLATabProps> = ({ prefixDataTestId = 'sla-tab', accessToken, ..._context }) => {
+  const [timeframe, setTimeframe] = useState<'wtd' | 'mtd' | 'qtd' | 'ytd'>('mtd')
+
+  const {
+    data: analytics,
+    isLoading,
+    error,
+    refetch
   } = useFlowManagementAnalytics({
     timeframe,
     accessToken
-  });
+  })
 
   if (isLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64" data-testid={`${prefixDataTestId}-loading`}>
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:h-64"
+        data-testid={`${prefixDataTestId}-loading`}
+      >
         <Spinner />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -55,13 +69,11 @@ export const SLATab: React.FC<SLATabProps> = ({
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
-  const statusMetrics = analytics?.statusMetrics;
-  const slaKillers = analytics?.slaKillers || [];
-
-
+  const statusMetrics = analytics?.statusMetrics
+  const slaKillers = analytics?.slaKillers || []
 
   // SLA Alert Metrics Widgets
   const slaAlertWidgets: WidgetItem[] = [
@@ -99,7 +111,7 @@ export const SLATab: React.FC<SLATabProps> = ({
       color: '#7c2d12',
       description: 'Flow types where >20% of completed tasks finished late'
     }
-  ];
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid={prefixDataTestId}>
@@ -109,7 +121,7 @@ export const SLATab: React.FC<SLATabProps> = ({
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">SLA Monitoring & Alerts</h2>
           <p className="gba:text-gray-600">Real-time SLA compliance tracking and violation alerts</p>
         </div>
-        
+
         <Select value={timeframe} onValueChange={(value: any) => setTimeframe(value)}>
           <SelectTrigger className="gba:w-[180px]" data-testid={`${prefixDataTestId}-timeframe-select`}>
             <SelectValue placeholder="Select timeframe" />
@@ -155,13 +167,13 @@ export const SLATab: React.FC<SLATabProps> = ({
                 <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-lg gba:bg-red-200">
                   <AlertTriangle className="gba:h-6 gba:w-6 gba:text-red-700" />
                 </div>
-                
+
                 <div className="gba:flex-1">
                   <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
                     <h4 className="gba:font-semibold gba:text-gray-900">
                       {statusMetrics?.overdue_tasks} Overdue Tasks
                     </h4>
-                    <Badge 
+                    <Badge
                       variant="outline"
                       className="gba:text-xs gba:font-medium gba:border-red-500 gba:text-red-700"
                     >
@@ -182,10 +194,10 @@ export const SLATab: React.FC<SLATabProps> = ({
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="gba:flex gba:flex-col gba:gap-2">
-                  <Button 
-                    size="sm" 
+                  <Button
+                    size="sm"
                     variant="outline"
                     className="gba:text-xs"
                     data-testid={`${prefixDataTestId}-view-overdue-tasks`}
@@ -212,38 +224,48 @@ export const SLATab: React.FC<SLATabProps> = ({
           <CardContent>
             <div className="gba:space-y-4">
               {slaKillers.map((killer, index) => (
-                <div 
+                <div
                   key={index}
                   className={`gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:rounded-lg ${
-                    killer.violation_rate > 50 ? 'gba:border-red-300 gba:bg-red-50' :
-                    killer.violation_rate > 20 ? 'gba:border-orange-300 gba:bg-orange-50' :
-                    'gba:border-yellow-300 gba:bg-yellow-50'
+                    killer.violation_rate > 50
+                      ? 'gba:border-red-300 gba:bg-red-50'
+                      : killer.violation_rate > 20
+                        ? 'gba:border-orange-300 gba:bg-orange-50'
+                        : 'gba:border-yellow-300 gba:bg-yellow-50'
                   }`}
                   data-testid={`${prefixDataTestId}-sla-performance-${index}`}
                 >
-                  <div className={`gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-lg ${
-                    killer.violation_rate > 50 ? 'gba:bg-red-200' :
-                    killer.violation_rate > 20 ? 'gba:bg-orange-200' :
-                    'gba:bg-yellow-200'
-                  }`}>
-                    <BarChart3 className={`gba:h-6 gba:w-6 ${
-                      killer.violation_rate > 50 ? 'gba:text-red-700' :
-                      killer.violation_rate > 20 ? 'gba:text-orange-700' :
-                      'gba:text-yellow-700'
-                    }`} />
+                  <div
+                    className={`gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:rounded-lg ${
+                      killer.violation_rate > 50
+                        ? 'gba:bg-red-200'
+                        : killer.violation_rate > 20
+                          ? 'gba:bg-orange-200'
+                          : 'gba:bg-yellow-200'
+                    }`}
+                  >
+                    <BarChart3
+                      className={`gba:h-6 gba:w-6 ${
+                        killer.violation_rate > 50
+                          ? 'gba:text-red-700'
+                          : killer.violation_rate > 20
+                            ? 'gba:text-orange-700'
+                            : 'gba:text-yellow-700'
+                      }`}
+                    />
                   </div>
-                  
+
                   <div className="gba:flex-1">
                     <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
-                      <h4 className="gba:font-semibold gba:text-gray-900">
-                        {killer.flow_name}
-                      </h4>
-                      <Badge 
+                      <h4 className="gba:font-semibold gba:text-gray-900">{killer.flow_name}</h4>
+                      <Badge
                         variant="outline"
                         className={`gba:text-xs gba:font-medium ${
-                          killer.violation_rate > 50 ? 'gba:border-red-500 gba:text-red-700' :
-                          killer.violation_rate > 20 ? 'gba:border-orange-500 gba:text-orange-700' :
-                          'gba:border-yellow-500 gba:text-yellow-700'
+                          killer.violation_rate > 50
+                            ? 'gba:border-red-500 gba:text-red-700'
+                            : killer.violation_rate > 20
+                              ? 'gba:border-orange-500 gba:text-orange-700'
+                              : 'gba:border-yellow-500 gba:text-yellow-700'
                         }`}
                       >
                         {killer.violation_rate.toFixed(1)}% violation rate
@@ -267,10 +289,10 @@ export const SLATab: React.FC<SLATabProps> = ({
                       </span>
                     </div>
                   </div>
-                  
+
                   <div className="gba:flex gba:flex-col gba:gap-2">
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       variant="outline"
                       className="gba:text-xs"
                       data-testid={`${prefixDataTestId}-analyze-${index}`}
@@ -285,7 +307,6 @@ export const SLATab: React.FC<SLATabProps> = ({
           </CardContent>
         </Card>
       )}
-
     </div>
-  );
-};
+  )
+}

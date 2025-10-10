@@ -58,9 +58,10 @@ export const GET_MAIN_VIEW_EXPENSE_PLANS = `
           }
         }
       }
+      expenseRequest { id code }
     }
   }
-`;
+`
 
 // Query for expense plan statistics in the main view
 export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
@@ -130,4 +131,4 @@ export const GET_MAIN_VIEW_EXPENSE_PLAN_STATISTICS = `
       }
     }
   }
-`;
+`

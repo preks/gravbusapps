@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 // Removed PageLayout usage for this screen per requirement
-import { Tabs } from 'antd';
-import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks';
-import { 
-  CampaignKPIs as CampaignKPIsComponent, 
-  CampaignChart, 
+import { Tabs } from 'antd'
+import { useCampaignRecord, useCampaignKPIs, useCampaignAnalytics } from './hooks'
+import {
+  CampaignKPIs as CampaignKPIsComponent,
+  CampaignChart,
   CampaignEntitiesSection,
   CampaignHeader
-} from './components';
-import CampaignAnalyticsStatistics from './components/analytics/CampaignAnalyticsStatistics';
-import CampaignConversionFunnel from './components/analytics/CampaignConversionFunnel';
-import CampaignRevenueAnalysis from './components/analytics/CampaignRevenueAnalysis';
-import CampaignTopPerformers from './components/analytics/CampaignTopPerformers';
-import { CampaignRecordProps } from './types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { navigateTo } from '@/common/utils/navigationUtils';
-import { Eye, ChartLine, ArrowLeft } from '@phosphor-icons/react';
+} from './components'
+import CampaignAnalyticsStatistics from './components/analytics/CampaignAnalyticsStatistics'
+import CampaignConversionFunnel from './components/analytics/CampaignConversionFunnel'
+import CampaignRevenueAnalysis from './components/analytics/CampaignRevenueAnalysis'
+import CampaignTopPerformers from './components/analytics/CampaignTopPerformers'
+import { CampaignRecordProps } from './types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { Eye, ChartLine, ArrowLeft } from '@phosphor-icons/react'
 // dayjs no longer needed in this file after removing PageLayout inline info
 
 interface CampaignRecordComponentProps extends CampaignRecordProps {}
@@ -28,39 +28,39 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   onTabChange,
   ...props
 }) => {
-  const [activeTab, setActiveTab] = useState(initialActiveTab);
+  const [activeTab, setActiveTab] = useState(initialActiveTab)
 
   // Get campaignId from props or URL parameters
   const getCampaignIdFromUrl = useCallback(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('campaignId');
-  }, []);
-  
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('campaignId')
+  }, [])
+
   // Get source parameter for proper back navigation
   const source = useMemo(() => {
-    return propSource || new URLSearchParams(window.location.search).get('source');
-  }, [propSource]);
-  
-  const campaignId = propCampaignId || getCampaignIdFromUrl();
+    return propSource || new URLSearchParams(window.location.search).get('source')
+  }, [propSource])
+
+  const campaignId = propCampaignId || getCampaignIdFromUrl()
 
   // Back button functionality
   const getBackButtonText = () => {
-    return 'Back to Campaigns';
-  };
+    return 'Back to Campaigns'
+  }
 
   const handleBack = useCallback(() => {
     if (onBack) {
-      onBack();
+      onBack()
     } else {
       // Navigate back based on source parameter (similar to other record components)
       switch (source) {
         case 'customer-relations':
         default:
-          navigateTo('/platform/crm/customer-relations?view=campaigns');
-          break;
+          navigateTo('/platform/crm/customer-relations?view=campaigns')
+          break
       }
     }
-  }, [onBack, source]);
+  }, [onBack, source])
 
   // Handle missing campaignId
   if (!campaignId) {
@@ -68,10 +68,10 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
       <div data-testid="campaign-record-error" style={{ padding: '24px', textAlign: 'center' }}>
         <h2>Campaign Not Found</h2>
         <p>No campaign ID provided. Please navigate back to the campaign list.</p>
-        <button 
-          onClick={handleBack} 
-          style={{ 
-            marginTop: '16px', 
+        <button
+          onClick={handleBack}
+          style={{
+            marginTop: '16px',
             padding: '8px 16px',
             backgroundColor: '#1890ff',
             color: 'white',
@@ -83,28 +83,27 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
           {getBackButtonText()}
         </button>
       </div>
-    );
+    )
   }
 
   // Update local state when prop changes
   useEffect(() => {
-    setActiveTab(initialActiveTab);
-  }, [initialActiveTab]);
+    setActiveTab(initialActiveTab)
+  }, [initialActiveTab])
 
   // Handle tab change
-  const handleTabChange = useCallback((tab: string) => {
-    setActiveTab(tab);
-    if (onTabChange) {
-      onTabChange(tab);
-    }
-  }, [onTabChange]);
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab)
+      if (onTabChange) {
+        onTabChange(tab)
+      }
+    },
+    [onTabChange]
+  )
 
   // Fetch campaign record data
-  const {
-    campaign,
-    isLoading: campaignLoading,
-    error: campaignError
-  } = useCampaignRecord(props, campaignId);
+  const { campaign, isLoading: campaignLoading, error: campaignError } = useCampaignRecord(props, campaignId)
 
   // Fetch campaign KPIs data
   const {
@@ -113,7 +112,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     isLoading: kpisLoading,
     error: kpisError,
     refetch: refetchKPIs
-  } = useCampaignKPIs(props, campaignId);
+  } = useCampaignKPIs(props, campaignId)
 
   // Fetch campaign analytics data
   const {
@@ -121,7 +120,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     isLoading: analyticsLoading,
     error: analyticsError,
     refetch: refetchAnalytics
-  } = useCampaignAnalytics(props, campaignId);
+  } = useCampaignAnalytics(props, campaignId)
 
   // Handle campaign error
   if (campaignError) {
@@ -139,7 +138,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   // Overview Tab Content
@@ -147,7 +146,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
     <div className="gba:space-y-6" data-testid="campaign-overview-container">
       {/* Campaign KPIs */}
       <div data-testid="campaign-kpis-section">
-                    <CampaignKPIsComponent
+        <CampaignKPIsComponent
           kpis={kpis}
           kpisWithTrends={kpisWithTrends}
           isLoading={kpisLoading}
@@ -158,22 +157,15 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
 
       {/* Campaign Chart */}
       <div data-testid="campaign-chart-section">
-        <CampaignChart
-          campaignId={campaignId}
-          campaign={campaign}
-          {...props}
-        />
+        <CampaignChart campaignId={campaignId} campaign={campaign} {...props} />
       </div>
 
       {/* Campaign Entities Section */}
       <div className="gba:pb-6" data-testid="campaign-entities-section">
-        <CampaignEntitiesSection
-          campaignId={campaignId}
-          {...props}
-        />
+        <CampaignEntitiesSection campaignId={campaignId} {...props} />
       </div>
     </div>
-  );
+  )
 
   // Analytics Tab Content
   const AnalyticsTab = () => (
@@ -215,7 +207,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
         />
       </div>
     </div>
-  );
+  )
 
   return (
     <div className="gba:w-full" style={{ backgroundColor: 'white', padding: '16px' }}>
@@ -275,7 +267,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
         />
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default CampaignRecord;
+export default CampaignRecord

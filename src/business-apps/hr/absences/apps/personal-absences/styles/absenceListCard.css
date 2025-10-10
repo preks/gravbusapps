@@ -54,7 +54,7 @@
 }
 
 .gba\:absenceType::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background: var(--gba-pill-bg, #eafff3);
@@ -102,7 +102,7 @@
 }
 
 .gba\:absenceStatus::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background: var(--gba-pill-bg, #eafff3);
@@ -142,9 +142,12 @@
   font-weight: 500;
   cursor: pointer;
   margin-left: 12px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
-.gba\:viewDetailsBtn:hover, .gba\:viewDetailsBtn:focus {
+.gba\:viewDetailsBtn:hover,
+.gba\:viewDetailsBtn:focus {
   background: #f7f7fa;
   color: #18181a;
 }

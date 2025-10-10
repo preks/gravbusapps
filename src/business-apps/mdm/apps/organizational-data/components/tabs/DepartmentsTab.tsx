@@ -1,878 +1,540 @@
-import React, { useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import {
-  Tree,
-  Button,
-  Input,
-  Space,
-  Typography,
-  message,
-  Modal,
-  Tag,
-  Spin,
-  Alert,
-  Tooltip,
-  Empty,
-  Descriptions,
+  EyeIcon,
+  FolderIcon,
+  PencilSimpleLineIcon,
+  PlusIcon,
+  TrashIcon,
+  XCircleIcon,
+  InfoIcon,
+  BankIcon,
+  UsersIcon,
+  CrownSimpleIcon,
+  TreeStructureIcon,
+  ChartBarIcon
+} from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useDepartments } from '../../hooks'
+import {
+  Spinner,
   Card,
-  Avatar,
-  Progress,
-} from "antd";
-import { startProcess } from "@/common/utils/start-process";
-import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ApartmentOutlined,
-  ExpandAltOutlined,
-  CompressOutlined,
-  FolderOutlined,
-  FolderOpenOutlined,
-  TeamOutlined,
-  UserOutlined,
-  CrownOutlined,
-  BankOutlined,
-  InfoCircleOutlined,
-  BuildOutlined,
-  BarChartOutlined,
-  DollarOutlined,
-  PartitionOutlined,
-} from "@ant-design/icons";
-import type { DataNode } from "antd/es/tree";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useDepartments } from "../../hooks";
-import { Department } from "../../types";
-
-const { Title, Text } = Typography;
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  CardContent,
+  Badge,
+  TreeView,
+  TreeNode,
+  TreeViewAction,
+  Button,
+  Icon
+} from '@newwork/nw-design-system'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import DepartmentForm from '@/business-apps/mdm/forms/department-form'
+import { Department } from '../../types'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 
 export interface DepartmentsTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DepartmentsTab: React.FC<DepartmentsTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId, userInfo } = context;
+const DATA_TEST_ID_PREFIX = 'DepartmentsTab'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
-  const {
-    rootDepartments,
-    allDepartments,
-    expandedIds,
-    isLoading,
-    error,
-    refetch,
-    setExpandedIds,
-    expandToLevel,
-    collapseAll,
-    getDepartmentByNodeId,
-    searchDepartments,
-    totalDepartments,
-    teams,
-    departments,
-    activeDepartments,
-    departmentsWithSupervisors,
-    totalEmployeeCount,
-  } = useDepartments(context);
+const DepartmentsTab: React.FC<DepartmentsTabProps> = context => {
+  const { prefixDataTestId } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [editingDepartment, setEditingDepartment] = useState<Department | null>(
-    null
-  );
-  const [selectedDepartment, setSelectedDepartment] =
-    useState<Department | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
+  const { rootDepartments, allDepartments, isLoading, error, refetch, totalDepartments, structureId } =
+    useDepartments(context)
 
-  // Convert Department to Ant Design Tree DataNode
-  const convertToTreeData = (departments: Department[]): DataNode[] => {
-    return departments.map((department) => ({
-      key: department.nodeId,
-      title: (
-        <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
-          <div className="gba:flex gba:items-center gba:space-x-3">
-            <div className="gba:flex gba:items-center gba:space-x-2">
-              <ApartmentOutlined
-                className={
-                  department.type === "DEPARTMENT"
-                    ? "gba:text-blue-500"
-                    : "gba:text-purple-500"
-                }
-              />
-              <Tag
-                color={department.type === "DEPARTMENT" ? "blue" : "purple"}
-                className="gba:text-xs"
-              >
-                {department.type}
-              </Tag>
-            </div>
-            <div>
-              <Text strong className="gba:text-base">
-                {department.name}
-              </Text>
-              {department.code && (
-                <Tag color="cyan" className="gba:ml-2 gba:text-xs">
-                  {department.code}
-                </Tag>
-              )}
-              <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-1">
-                <Tag
-                  color="green"
-                  className="gba:text-xs"
-                  icon={<UserOutlined />}
-                >
-                  {department.numberOfAssignedEmployees} employees
-                </Tag>
-                {department.numberOfChildUnits > 0 && (
-                  <Tag
-                    color="orange"
-                    className="gba:text-xs"
-                    icon={<TeamOutlined />}
-                  >
-                    {department.numberOfChildUnits} sub-units
-                  </Tag>
-                )}
-                {department.numberOfOpenJobPositions > 0 && (
-                  <Tag color="red" className="gba:text-xs">
-                    {department.numberOfOpenJobPositions} open positions
-                  </Tag>
-                )}
-                <Tag color="default" className="gba:text-xs">
-                  Level {department.level}
-                </Tag>
-              </div>
-              {department.description && (
-                <Text
-                  type="secondary"
-                  className="gba:text-sm gba:block gba:mt-1"
-                >
-                  {department.description}
-                </Text>
-              )}
-              <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-2">
-                {department.supervisorName && (
-                  <div className="gba:flex gba:items-center gba:space-x-1 gba:text-xs gba:text-gray-600">
-                    <CrownOutlined />
-                    <Text type="secondary">
-                      {department.supervisorName} ({department.supervisorRole})
-                    </Text>
-                  </div>
-                )}
-                {department.companyName && (
-                  <div className="gba:flex gba:items-center gba:space-x-1 gba:text-xs gba:text-gray-600">
-                    <BankOutlined />
-                    <Text type="secondary">{department.companyName}</Text>
-                  </div>
-                )}
-                {department.costCenterName && (
-                  <Tag color="gold" className="gba:text-xs">
-                    Cost Center: {department.costCenterName}
-                  </Tag>
-                )}
-              </div>
-              {department.parentDepartmentName && (
-                <Text type="secondary" className="gba:text-xs gba:block">
-                  Parent: {department.parentDepartmentName}
-                </Text>
-              )}
-            </div>
-          </div>
-          <Space size="small" onClick={(e) => e.stopPropagation()}>
-            <Tooltip title="Add Sub-Department">
-              <Button
-                type="text"
-                size="small"
-                icon={<PlusOutlined />}
-                onClick={() => handleAddSubDepartment(department.nodeId)}
-                data-testid={`${prefixDataTestId}-add-sub-department-${department.nodeId}`}
-              />
-            </Tooltip>
-            <Tooltip title="Edit Department">
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => handleEditDepartment(department)}
-                data-testid={`${prefixDataTestId}-edit-department-${department.nodeId}`}
-              />
-            </Tooltip>
-            <Tooltip title="Delete Department">
-              <Button
-                type="text"
-                size="small"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => handleDeleteDepartment(department)}
-                data-testid={`${prefixDataTestId}-delete-department-${department.nodeId}`}
-              />
-            </Tooltip>
-          </Space>
-        </div>
-      ),
-      icon:
-        department.children.length > 0 ? (
-          expandedIds.has(department.nodeId) ? (
-            <FolderOpenOutlined />
-          ) : (
-            <FolderOutlined />
-          )
-        ) : (
-          <ApartmentOutlined />
-        ),
-      children:
-        department.children.length > 0
-          ? convertToTreeData(department.children)
-          : undefined,
-      isLeaf: department.children.length === 0,
-    }));
-  };
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [isAddDepartmentOpen, setIsAddDepartmentOpen] = useState(false)
+  const [isEditDepartmentOpen, setIsEditDepartmentOpen] = useState(false)
+  const [isRemoveDepartmentOpen, setIsRemoveDepartmentOpen] = useState(false)
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
 
-  const handleAddRoot = () => {
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeDepartment",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+  useEffect(() => {
+    if (selectedDepartment) {
+      const updatedSelectedDepartment = allDepartments.find(department => department.id === selectedDepartment.id)
 
-  const handleAddSubDepartment = (parentNodeId: string) => {
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeDepartment",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        parentNodeId: parentNodeId
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+      if (updatedSelectedDepartment) {
+        setSelectedDepartment(updatedSelectedDepartment)
+      }
+    }
+  }, [allDepartments])
 
-  const handleEditDepartment = (department: Department) => {
-    // When edit is triggered from the tree, just set the selected department and show the drawer
-    setSelectedDepartment(department);
-    setDrawerVisible(true);
-  };
-  
-  const handleDrawerEdit = (department: Department) => {
-    // When edit is triggered from inside the drawer, start the process
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeDepartment",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        department: department,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+  const handleViewDepartment = (nodeId: string) => {
+    const department = allDepartments.find(department => department.id === nodeId)
 
-  const handleDeleteDepartment = (department: Department) => {
-    const hasChildren = department.children.length > 0;
-    const title = "Delete Department";
-    const content = hasChildren
-      ? `Are you sure you want to delete "${department.name}"? This will also delete all sub-departments.`
-      : `Are you sure you want to delete department "${department.name}"?`;
+    if (department) {
+      setSelectedDepartment(department)
+      setDrawerVisible(true)
+    }
+  }
 
-    Modal.confirm({
-      title,
-      content,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        message.warning(
-          "Delete functionality will be implemented with process API integration"
-        );
-        await refetch();
-      },
-    });
-  };
+  // Find parent node IDs for a given department ID
+  const findParentNodeIds = useCallback((departmentId: string, departments: Department[]): string[] => {
+    const parentIds: string[] = []
 
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
-  };
+    const findParents = (departmentList: Department[], targetId: string, currentPath: string[] = []): boolean => {
+      for (const department of departmentList) {
+        const newPath = [...currentPath, department.id]
 
-  const handleExpand = (expandedKeys: React.Key[]) => {
-    setExpandedIds(new Set(expandedKeys.map((key) => String(key))));
-  };
+        if (department.id === targetId) {
+          parentIds.push(...currentPath)
+          return true
+        }
 
-  const handleNodeSelect = useCallback(
-    (selectedKeys: React.Key[], info: any) => {
-      if (selectedKeys.length > 0) {
-        const nodeId = selectedKeys[0].toString();
-        const department = getDepartmentByNodeId(nodeId);
-        if (department) {
-          setSelectedDepartment(department);
-          setDrawerVisible(true);
+        if (department.children.length > 0) {
+          if (findParents(department.children, targetId, newPath)) {
+            return true
+          }
         }
       }
+      return false
+    }
+
+    findParents(departments, departmentId)
+    return parentIds
+  }, [])
+
+  // Find matching departments based on search term
+  const findMatchingDepartments = useCallback((searchTerm: string, departments: Department[]): Department[] => {
+    const matches: Department[] = []
+    const searchLower = searchTerm.toLowerCase()
+
+    const searchInDepartments = (departmentList: Department[]) => {
+      for (const department of departmentList) {
+        const matchesSearch =
+          department.name.toLowerCase().includes(searchLower) ||
+          (department.code && department.code.toLowerCase().includes(searchLower)) ||
+          (department.description && department.description.toLowerCase().includes(searchLower)) ||
+          (department.supervisorName && department.supervisorName.toLowerCase().includes(searchLower)) ||
+          (department.companyName && department.companyName.toLowerCase().includes(searchLower)) ||
+          (department.costCenterName && department.costCenterName.toLowerCase().includes(searchLower))
+
+        if (matchesSearch) {
+          matches.push(department)
+        }
+
+        if (department.children.length > 0) {
+          searchInDepartments(department.children)
+        }
+      }
+    }
+
+    searchInDepartments(departments)
+    return matches
+  }, [])
+
+  // Handle search with auto-expansion
+  const handleSearch = useCallback(
+    (query: string) => {
+      if (query.trim()) {
+        const matchingDepartments = findMatchingDepartments(query, rootDepartments)
+        const newExpandedKeys = new Set<string>()
+
+        // For each matching department, expand all its parent nodes
+        matchingDepartments.forEach(department => {
+          const parentIds = findParentNodeIds(department.id, rootDepartments)
+          parentIds.forEach(id => newExpandedKeys.add(id))
+        })
+
+        setExpandedKeys(newExpandedKeys)
+      } else {
+        setExpandedKeys(new Set())
+      }
     },
-    [getDepartmentByNodeId]
-  );
+    [rootDepartments, findMatchingDepartments, findParentNodeIds]
+  )
 
-  const handleCloseDrawer = useCallback(() => {
-    setDrawerVisible(false);
-    setTimeout(() => {
-      setSelectedDepartment(null);
-    }, 300); // Clear selected department after drawer close animation completes
-  }, []);
+  // Handle expand/collapse
+  const handleExpand = useCallback((expandedIds: string[]) => {
+    setExpandedKeys(new Set(expandedIds))
+  }, [])
 
-  const getFilteredTreeData = () => {
-    if (!searchQuery) {
-      return convertToTreeData(rootDepartments);
+  const formatDepartmentNodes = useCallback((departments: Department[]): TreeNode[] => {
+    return departments.map(department => ({
+      id: department.id,
+      values: {
+        code: <Badge variant="info">{department.code ?? '-'}</Badge>,
+        numberOfAssignedEmployees: department.numberOfAssignedEmployees ?? '-',
+        numberOfOpenJobPositions: department.numberOfOpenJobPositions ?? '-',
+        supervisorName: <h1 className="gba:font-semibold">{department.supervisorName ?? '-'}</h1>,
+        name: department.name ?? '-',
+        type: (
+          <Badge variant={department.type === 'DEPARTMENT' ? 'info' : 'ext7'}>
+            {department.type ? department.type.charAt(0).toUpperCase() + department.type.slice(1).toLowerCase() : '-'}
+          </Badge>
+        ),
+        companyName: department.companyName ?? '-',
+        costCenterName: department.costCenterName ?? '-'
+      },
+      icon: FolderIcon,
+      children: department.children.length > 0 ? formatDepartmentNodes(department.children) : []
+    }))
+  }, [])
+
+  const childRank = useMemo(() => {
+    if (selectedDepartment?.children.length === 0) {
+      return 0
     }
+    const positiveRank = selectedDepartment?.children.filter(child => child.rank >= 0)?.length
+    return positiveRank
+  }, [selectedDepartment])
 
-    const filteredDepartments = searchDepartments(searchQuery);
-    return convertToTreeData(filteredDepartments);
-  };
+  const nodes = useMemo(() => formatDepartmentNodes(rootDepartments), [rootDepartments, formatDepartmentNodes])
 
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case "DEPARTMENT":
-        return "blue";
-      case "TEAM":
-        return "purple";
-      default:
-        return "default";
+  const treeColumns = useMemo(
+    () => [
+      { key: 'name', header: 'Name', sortable: true, align: 'left' as const },
+      { key: 'type', header: 'Type', sortable: true, align: 'center' as const },
+      {
+        key: 'numberOfAssignedEmployees',
+        header: 'Employees',
+        sortable: true,
+        align: 'center' as const
+      },
+      {
+        key: 'numberOfOpenJobPositions',
+        header: 'Open Positions',
+        sortable: true,
+        align: 'center' as const
+      },
+      {
+        key: 'supervisorName',
+        header: 'Supervisor',
+        sortable: true,
+        align: 'center' as const
+      },
+      { key: 'companyName', header: 'Company', sortable: true, align: 'center' as const },
+      { key: 'costCenterName', header: 'Cost Center', sortable: true, align: 'center' as const }
+    ],
+
+    []
+  )
+
+  const handleDeleteDepartment = async (department: Department) => {
+    await restClient.delete(`/organizational-units/${department.id}`, {
+      headers: { Authorization: `Bearer ${context.accessToken}` }
+    })
+
+    refetch()
+    setIsRemoveDepartmentOpen(false)
+    setSelectedDepartment(null)
+  }
+
+  const treeActions: TreeViewAction[] = [
+    {
+      id: 'view-department',
+      label: 'View Department',
+      icon: EyeIcon,
+      onClick: node => {
+        handleViewDepartment(node?.id ?? '')
+      },
+      variant: 'ghost' as const,
+      size: 'sm' as const
+    },
+    {
+      id: 'add-sub-department',
+      label: 'Add Sub-Department',
+      icon: PlusIcon,
+      onClick: node => {
+        const department = allDepartments.find(department => department.id === node?.id)
+        if (!department) return
+
+        setSelectedDepartment(department)
+        setIsAddDepartmentOpen(true)
+      },
+      variant: 'ghost' as const,
+      size: 'sm' as const
+    },
+    {
+      id: 'edit-department',
+      label: 'Edit Department',
+      icon: PencilSimpleLineIcon,
+      onClick: node => {
+        const department = allDepartments.find(department => department.id === node?.id)
+
+        if (!department) return
+
+        setSelectedDepartment(department)
+        setIsEditDepartmentOpen(true)
+      },
+      variant: 'ghost' as const,
+      size: 'sm' as const
+    },
+    {
+      id: 'delete-department',
+      label: 'Delete Department',
+      icon: TrashIcon,
+      onClick: node => {
+        const department = allDepartments.find(department => department.id === node?.id)
+        if (!department) return
+
+        setSelectedDepartment(department)
+        setIsRemoveDepartmentOpen(true)
+      },
+      variant: 'ghost' as const,
+      size: 'sm' as const
     }
-  };
+  ]
 
-  if (isLoading) {
+  const drawerItems = useMemo(() => {
+    if (!selectedDepartment) return []
+
+    const items = [
+      {
+        icon: <InfoIcon />,
+        title: 'Basic Information',
+        items: [
+          {
+            label: 'Name',
+            value: selectedDepartment.name ?? '-'
+          },
+          {
+            label: 'Type',
+            value: selectedDepartment.type
+              ? selectedDepartment.type.charAt(0).toUpperCase() + selectedDepartment.type.slice(1).toLowerCase()
+              : '-'
+          },
+          {
+            label: 'Description',
+            value: selectedDepartment.description ?? '-'
+          }
+        ]
+      },
+      {
+        icon: <TreeStructureIcon />,
+        title: 'Parent Department',
+        items: [
+          {
+            label: 'Name',
+            value: selectedDepartment.parentDepartmentName ?? '-'
+          }
+        ]
+      },
+      {
+        icon: <BankIcon />,
+        title: 'Company & Cost Center',
+        verticalTable: true,
+        items: [
+          {
+            label: 'Company Name',
+            value: selectedDepartment.companyName ?? '-'
+          },
+          {
+            label: 'Cost Center Name',
+            value: selectedDepartment.costCenterName ?? '-'
+          }
+        ]
+      },
+      {
+        icon: <CrownSimpleIcon />,
+        title: 'Supervisor',
+        verticalTable: true,
+        items: [
+          {
+            label: 'Supervisor Name',
+            value: selectedDepartment.supervisorName ?? '-'
+          },
+          {
+            label: 'Supervisor Job Position',
+            value: selectedDepartment.supervisorJobPosition ?? '-'
+          }
+        ]
+      },
+      {
+        icon: <ChartBarIcon />,
+        title: 'Statistics',
+        items: [
+          {
+            label: 'Assigned Job Positions',
+            value: selectedDepartment.numberOfAssignedJobPositions ?? '-'
+          },
+          {
+            label: 'Open Job Positions',
+            value: selectedDepartment.numberOfOpenJobPositions ?? '-'
+          },
+          {
+            label: 'Total Job Positions',
+            value: selectedDepartment.numberOfTotalJobPositions ?? '-'
+          },
+          {
+            label: 'Child Units',
+            value: selectedDepartment.numberOfChildUnits ?? '-'
+          },
+          {
+            label: 'Assigned Employees',
+            value: selectedDepartment.numberOfAssignedEmployees ?? '-'
+          },
+          {
+            label: 'Rank',
+            value: selectedDepartment.rank ?? '-'
+          }
+        ]
+      }
+    ]
+
+    return items
+  }, [selectedDepartment])
+
+  if (isLoading && allDepartments.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Departments"
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={refetch}>
-            Retry
-          </Button>
-        }
-      />
-    );
+      <div className="gba:p-6 gba:text-center">
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
+          <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+            <Icon icon={XCircleIcon} />
+            Error Loading Departments
+          </AlertTitle>
+          <AlertDescription>
+            <Button size="sm" variant="destructive" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   return (
-    <div
-      data-testid={`${prefixDataTestId || ""}-DepartmentsTab`}
-      style={{
-        background: "linear-gradient(to bottom, #f9fafb, #f3f4f6)",
-        minHeight: "100%",
-        padding: "24px",
-        borderRadius: "8px",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "16px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <Title level={4} style={{ margin: 0, color: "#1f2937" }}>
-            Departments & Teams
-          </Title>
-          <Tag color="blue">{totalDepartments} total</Tag>
-          <Tag color="blue">{departments} departments</Tag>
-          <Tag color="purple">{teams} teams</Tag>
-          <Tag color="green">{activeDepartments} active</Tag>
-          <Tag color="orange">{departmentsWithSupervisors} with supervisor</Tag>
-          <Tag color="cyan">{totalEmployeeCount} employees</Tag>
-        </div>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleAddRoot}
-          data-testid={`${prefixDataTestId || ""}-DepartmentsTab-AddButton`}
-        >
-          Add Department
-        </Button>
-      </div>
-
-      {/* Controls */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "16px",
-          gap: "16px",
-        }}
-      >
-        <Input
-          placeholder={t(
-            "hr.search_departments",
-            "Search departments and teams..."
-          )}
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
-          prefix={<ApartmentOutlined />}
-          style={{ maxWidth: 400 }}
-          allowClear
-          data-testid={`${prefixDataTestId || ""}-DepartmentsTab-SearchInput`}
+    <Card data-testid={`${prefixDataTestId || ''}-DepartmentsTab`} className="gba:overflow-hidden">
+      {!isLoading && (
+        <CardTabHeaderComponent
+          cardTitle={`Departments & Teams (${totalDepartments})`}
+          cardDescription="Manage departments and teams in a hierarchical structure.."
         />
-
-        <Space>
-          <Button
-            icon={<ExpandAltOutlined />}
-            onClick={() => expandToLevel(2)}
-            data-testid={`${
-              prefixDataTestId || ""
-            }-DepartmentsTab-ExpandAllButton`}
-          >
-            Expand All
-          </Button>
-          <Button
-            icon={<CompressOutlined />}
-            onClick={collapseAll}
-            data-testid={`${
-              prefixDataTestId || ""
-            }-DepartmentsTab-CollapseAllButton`}
-          >
-            Collapse All
-          </Button>
-        </Space>
-      </div>
-
-      {/* Tree */}
-      {rootDepartments.length > 0 ? (
-        <div
-          style={{
-            background: "white",
-            borderRadius: "8px",
-            padding: "16px",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          }}
-        >
-          <Tree
-            treeData={getFilteredTreeData()}
-            expandedKeys={Array.from(expandedIds)}
-            onExpand={handleExpand}
-            onSelect={handleNodeSelect}
-            showIcon
-            blockNode
-            data-testid={`${prefixDataTestId || ""}-DepartmentsTab-Tree`}
-          />
-        </div>
-      ) : (
-        <Empty
-          description="No departments found"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        >
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAddRoot}
-          >
-            Add First Department
-          </Button>
-        </Empty>
       )}
 
-      {/* Department Details Drawer */}
-      <DataDetailsDrawer
-        title={`${
-          selectedDepartment?.type === "DEPARTMENT" ? "Department" : "Team"
-        } Details`}
-        icon={
-          selectedDepartment?.type === "DEPARTMENT" ? (
-            <ApartmentOutlined className="gba:text-blue-500" />
-          ) : (
-            <TeamOutlined className="gba:text-purple-500" />
-          )
-        }
-        placement="right"
-        onClose={handleCloseDrawer}
-        open={drawerVisible}
-        width={450}
-        dataTestId={`${prefixDataTestId || ""}-DepartmentsTab-Drawer`}
-        className="gba:text-base"
-      >
-        {selectedDepartment && (
-          <div className="gba:space-y-6">
-            {/* Basic Information */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <InfoCircleOutlined /> Basic Information
-                </span>
+      <CardContent>
+        {rootDepartments.length > 0 ? (
+          <TreeView
+            data={nodes}
+            columns={treeColumns}
+            className="gba:px-6"
+            searchPlaceholder="Search departments"
+            showSelectColumn={false}
+            actions={treeActions}
+            multipleSelection={false}
+            expandedNodes={Array.from(expandedKeys)}
+            onExpandItem={handleExpand}
+            onSearch={handleSearch}
+          />
+        ) : (
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-4">
+            <h1 className="gba:text-base gba:text-gray-500">No departments found</h1>
+
+            <DepartmentForm
+              onCancel={() => setIsEditDepartmentOpen(false)}
+              refetch={refetch}
+              structureId={structureId}
+              accessToken={context.accessToken}
+              childAddButton={
+                <Button
+                  variant="default"
+                  onClick={event => event.stopPropagation()}
+                  data-testid={`${prefixDataTestId || ''}-DepartmentsTab-AddButton`}
+                >
+                  <PlusIcon /> Add First Department
+                </Button>
               }
-              className="gba:shadow-sm"
-            >
-              <Descriptions column={1} size="small" layout="vertical">
-                <Descriptions.Item label="Name">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Text strong className="gba:text-lg">
-                      {selectedDepartment.name || "-"}
-                    </Text>
-                  </div>
-                </Descriptions.Item>
-
-                {selectedDepartment.code && (
-                  <Descriptions.Item label="Code">
-                    <Tag color="blue">{selectedDepartment.code}</Tag>
-                  </Descriptions.Item>
-                )}
-
-                <Descriptions.Item label="Type">
-                  <Tag color={getTypeColor(selectedDepartment.type)}>
-                    {selectedDepartment.type}
-                  </Tag>
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Status">
-                  <Tag
-                    color={
-                      selectedDepartment.status === "Active" ? "green" : "red"
-                    }
-                  >
-                    {selectedDepartment.status}
-                  </Tag>
-                </Descriptions.Item>
-
-                {selectedDepartment.description && (
-                  <Descriptions.Item label="Description">
-                    {selectedDepartment.description}
-                  </Descriptions.Item>
-                )}
-              </Descriptions>
-            </Card>
-
-            {/* Parent Department Information (if available) */}
-            {selectedDepartment.parentDepartmentName && (
-              <Card
-                title={
-                  <span className="gba:flex gba:items-center gba:gap-2">
-                    <PartitionOutlined /> Parent Department
-                  </span>
-                }
-                className="gba:shadow-sm"
-              >
-                <div className="gba:p-2 gba:bg-gray-50 gba:rounded gba:space-y-2">
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Parent Department
-                    </div>
-                    <Text strong>
-                      {selectedDepartment.parentDepartmentName}
-                    </Text>
-                  </div>
-                  {selectedDepartment.parentNodeId && (
-                    <div>
-                      <div className="gba:text-sm gba:text-gray-500">
-                        Parent Node ID
-                      </div>
-                      <Text copyable>{selectedDepartment.parentNodeId}</Text>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            )}
-
-            {/* Company & Cost Center */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <BankOutlined /> Company & Cost Center
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:space-y-4">
-                {selectedDepartment.companyName ? (
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">Company</div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <BankOutlined className="gba:text-blue-500" />
-                      <Text strong>{selectedDepartment.companyName}</Text>
-                    </div>
-                    {selectedDepartment.companyId && (
-                      <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
-                        ID: <Text copyable>{selectedDepartment.companyId}</Text>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Empty description="No company assigned" />
-                )}
-
-                {selectedDepartment.costCenterName ? (
-                  <div className="gba:mt-2">
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Cost Center
-                    </div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <DollarOutlined className="gba:text-green-500" />
-                      <Text strong>{selectedDepartment.costCenterName}</Text>
-                    </div>
-                    {selectedDepartment.costCenterId && (
-                      <div className="gba:text-sm gba:text-gray-500 gba:mt-1">
-                        ID:{" "}
-                        <Text copyable>{selectedDepartment.costCenterId}</Text>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <Empty
-                    description="No cost center assigned"
-                    className="gba:mt-2"
-                  />
-                )}
-              </div>
-            </Card>
-
-            {/* Supervisor Information */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <CrownOutlined /> Supervisor
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              {selectedDepartment.supervisorName ? (
-                <div className="gba:space-y-2">
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <Avatar icon={<UserOutlined />} size="large" />
-                    <div>
-                      <Text strong className="gba:text-lg">
-                        {selectedDepartment.supervisorName}
-                      </Text>
-                      {selectedDepartment.supervisorRole && (
-                        <div className="gba:text-sm gba:text-gray-500">
-                          {selectedDepartment.supervisorRole}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedDepartment.supervisorJobPosition && (
-                    <div className="gba:mt-2">
-                      <div className="gba:text-sm gba:text-gray-500">
-                        Job Position
-                      </div>
-                      <Text>{selectedDepartment.supervisorJobPosition}</Text>
-                    </div>
-                  )}
-
-                  {selectedDepartment.supervisorId && (
-                    <div className="gba:mt-1">
-                      <div className="gba:text-sm gba:text-gray-500">
-                        Supervisor ID
-                      </div>
-                      <Text copyable>{selectedDepartment.supervisorId}</Text>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Empty description="No supervisor assigned" />
-              )}
-            </Card>
-
-            {/* Job Positions & Employees Statistics */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <BarChartOutlined /> Statistics
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:space-y-4">
-                {/* Job Positions */}
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500 gba:mb-1">
-                    Job Positions
-                  </div>
-                  <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                    <div>
-                      <div className="gba:text-xs gba:text-gray-500">
-                        Assigned
-                      </div>
-                      <div className="gba:text-lg gba:font-semibold">
-                        {selectedDepartment.numberOfAssignedJobPositions}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="gba:text-xs gba:text-gray-500">Open</div>
-                      <div className="gba:text-lg gba:font-semibold">
-                        {selectedDepartment.numberOfOpenJobPositions}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="gba:text-xs gba:text-gray-500">Total</div>
-                      <div className="gba:text-lg gba:font-semibold">
-                        {selectedDepartment.numberOfTotalJobPositions}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="gba:text-xs gba:text-gray-500">
-                        Child Units
-                      </div>
-                      <div className="gba:text-lg gba:font-semibold">
-                        {selectedDepartment.numberOfChildUnits}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fill rate visualization */}
-                  <div className="gba:mt-3">
-                    <div className="gba:flex gba:justify-between gba:items-center gba:mb-1">
-                      <div className="gba:text-xs gba:text-gray-500">
-                        Fill Rate
-                      </div>
-                      <div className="gba:text-xs gba:font-medium">
-                        {selectedDepartment.numberOfTotalJobPositions > 0
-                          ? Math.round(
-                              (selectedDepartment.numberOfAssignedJobPositions /
-                                selectedDepartment.numberOfTotalJobPositions) *
-                                100
-                            )
-                          : 0}
-                        %
-                      </div>
-                    </div>
-                    <Progress
-                      percent={
-                        selectedDepartment.numberOfTotalJobPositions > 0
-                          ? Math.round(
-                              (selectedDepartment.numberOfAssignedJobPositions /
-                                selectedDepartment.numberOfTotalJobPositions) *
-                                100
-                            )
-                          : 0
-                      }
-                      size="small"
-                      status={
-                        selectedDepartment.numberOfOpenJobPositions > 0
-                          ? "active"
-                          : "success"
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Employees */}
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500 gba:mb-2">
-                    Employee Count
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Avatar
-                      icon={<UserOutlined />}
-                      style={{ backgroundColor: "#1677ff" }}
-                    />
-                    <Text strong className="gba:text-lg">
-                      {selectedDepartment.numberOfAssignedEmployees}
-                    </Text>
-                    <Text type="secondary" className="gba:text-sm">
-                      employees assigned
-                    </Text>
-                  </div>
-                </div>
-
-                {/* Hierarch Level */}
-                <div className="gba:flex gba:items-center gba:gap-4">
-                  <div>
-                    <div className="gba:text-xs gba:text-gray-500">
-                      Hierarchy Level
-                    </div>
-                    <div className="gba:text-lg gba:font-semibold">
-                      Level {selectedDepartment.level}
-                    </div>
-                  </div>
-
-                  {selectedDepartment.rank !== undefined && (
-                    <div>
-                      <div className="gba:text-xs gba:text-gray-500">Rank</div>
-                      <div className="gba:text-lg gba:font-semibold">
-                        {selectedDepartment.rank}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Card>
-
-            {/* Technical Information */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <BuildOutlined /> Technical Information
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:space-y-3">
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">
-                    Organization Unit ID
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Text copyable>
-                      {selectedDepartment.organizationUnitId}
-                    </Text>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">Node ID</div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Text copyable>{selectedDepartment.nodeId}</Text>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Action Buttons */}
-            <div className="gba:flex gba:gap-2">
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  handleCloseDrawer();
-                  if (selectedDepartment) {
-                    handleDrawerEdit(selectedDepartment);
-                  }
-                }}
-                data-testid={`${
-                  prefixDataTestId || ""
-                }-DepartmentsTab-EditButton`}
-              >
-                Edit
-              </Button>
-              <Button
-                icon={<DeleteOutlined />}
-                danger
-                onClick={() => {
-                  handleCloseDrawer();
-                  handleDeleteDepartment(selectedDepartment);
-                }}
-                data-testid={`${
-                  prefixDataTestId || ""
-                }-DepartmentsTab-DeleteButton`}
-              >
-                Delete
-              </Button>
-            </div>
+            />
           </div>
         )}
-      </DataDetailsDrawer>
-    </div>
-  );
-};
 
-export default DepartmentsTab;
-export { DepartmentsTab };
+        {selectedDepartment && isEditDepartmentOpen && (
+          <DepartmentForm
+            refetch={refetch}
+            structureId={structureId}
+            accessToken={context.accessToken}
+            parentNodeId={selectedDepartment.parentNodeId}
+            department={selectedDepartment}
+            open={isEditDepartmentOpen}
+            setOpen={setIsEditDepartmentOpen}
+            rank={selectedDepartment.rank}
+            isEditDepartment={true}
+            onCancel={() => setSelectedDepartment(null)}
+          />
+        )}
+
+        {selectedDepartment && isAddDepartmentOpen && (
+          <DepartmentForm
+            refetch={refetch}
+            structureId={structureId}
+            accessToken={context.accessToken}
+            parentNodeId={selectedDepartment.nodeId}
+            open={isAddDepartmentOpen}
+            setOpen={setIsAddDepartmentOpen}
+            rank={childRank}
+            onCancel={() => setSelectedDepartment(null)}
+          />
+        )}
+
+        {selectedDepartment && isRemoveDepartmentOpen && (
+          <DeleteButton
+            onDelete={() => handleDeleteDepartment(selectedDepartment)}
+            itemName={selectedDepartment?.name}
+            itemTitle="Department"
+            open={isRemoveDepartmentOpen}
+            setOpen={setIsRemoveDepartmentOpen}
+            showCancelButton={false}
+          />
+        )}
+
+        {selectedDepartment && (
+          <SheetWrapperComponent
+            prefixDataTestId={dataTestId}
+            isDrawerVisible={drawerVisible}
+            onOpenChange={openStatus => {
+              if (!openStatus) {
+                setSelectedDepartment(null)
+              }
+              setDrawerVisible(openStatus)
+            }}
+            title="Department Details"
+            titleIcon={selectedDepartment?.type === 'DEPARTMENT' ? TreeStructureIcon : UsersIcon}
+            drawerItems={drawerItems}
+            footerButtons={[
+              <DepartmentForm
+                childAddButton={
+                  <Button variant="default" data-testid={`${prefixDataTestId || ''}-DepartmentsTab-EditButton`}>
+                    <Icon icon={PencilSimpleLineIcon} /> Edit
+                  </Button>
+                }
+                refetch={refetch}
+                structureId={structureId}
+                accessToken={context.accessToken}
+                parentNodeId={selectedDepartment.parentNodeId}
+                department={selectedDepartment}
+                open={isEditDepartmentOpen}
+                setOpen={setIsEditDepartmentOpen}
+                rank={selectedDepartment.rank}
+                isEditDepartment={true}
+                isDrawerActive={true}
+                onCancel={() => setSelectedDepartment(null)}
+              />
+            ]}
+          />
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+export default DepartmentsTab
+export { DepartmentsTab }

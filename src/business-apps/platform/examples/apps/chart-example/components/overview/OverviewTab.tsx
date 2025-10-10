@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import {
   Card,
   CardContent,
@@ -7,12 +7,12 @@ import {
   CardDescription,
   Alert,
   AlertDescription,
-  Badge,
-} from "@newwork/nw-design-system";
-import { InfoIcon, CheckCircleIcon, WarningIcon } from "@phosphor-icons/react";
+  Badge
+} from '@newwork/nw-design-system'
+import { InfoIcon, CheckCircleIcon, WarningIcon } from '@phosphor-icons/react'
 
 interface OverviewTabProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const OverviewTab: React.FC<OverviewTabProps> = () => {
@@ -42,20 +42,38 @@ const OverviewTab: React.FC<OverviewTabProps> = () => {
             <div>
               <h4 className="gba:font-semibold gba:mb-2">Required Components</h4>
               <ul className="gba:space-y-1 gba:text-sm">
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">ChartContainer</code> - Wrapper with config</li>
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">ChartTooltip</code> - Interactive tooltips</li>
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">ChartLegend</code> - Legend display</li>
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">Card</code> - Chart container</li>
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">IconAvatar</code> - Header icons</li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">ChartContainer</code> - Wrapper with config
+                </li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">ChartTooltip</code> - Interactive tooltips
+                </li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">ChartLegend</code> - Legend display
+                </li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">Card</code> - Chart container
+                </li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">IconAvatar</code> - Header icons
+                </li>
               </ul>
             </div>
             <div>
               <h4 className="gba:font-semibold gba:mb-2">Chart Configuration</h4>
               <ul className="gba:space-y-1 gba:text-sm">
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">chartConfig</code> - Labels and metadata</li>
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">chartData</code> - Data structure</li>
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">moduleColor</code> - Theme integration</li>
-                <li>• <code className="gba:bg-muted gba:px-1 gba:rounded">data-testid</code> - Testing attributes</li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">chartConfig</code> - Labels and metadata
+                </li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">chartData</code> - Data structure
+                </li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">moduleColor</code> - Theme integration
+                </li>
+                <li>
+                  • <code className="gba:bg-muted gba:px-1 gba:rounded">data-testid</code> - Testing attributes
+                </li>
               </ul>
             </div>
           </div>
@@ -69,15 +87,14 @@ const OverviewTab: React.FC<OverviewTabProps> = () => {
             <CheckCircleIcon className="gba:h-5 gba:w-5 gba:text-green-600" />
             Automatic Color Generation
           </CardTitle>
-          <CardDescription>
-            Our design system automatically generates colors for chart data
-          </CardDescription>
+          <CardDescription>Our design system automatically generates colors for chart data</CardDescription>
         </CardHeader>
         <CardContent className="gba:space-y-4">
           <Alert>
             <InfoIcon className="gba:h-4 gba:w-4" />
             <AlertDescription>
-              <strong>Preferred Approach:</strong> Let the design system automatically assign colors using CSS custom properties like <code>var(--color-keyname)</code> or <code>var(--chart-1)</code>.
+              <strong>Preferred Approach:</strong> Let the design system automatically assign colors using CSS custom
+              properties like <code>var(--color-keyname)</code> or <code>var(--chart-1)</code>.
             </AlertDescription>
           </Alert>
 
@@ -169,7 +186,8 @@ const chartConfig = {
           <Alert>
             <InfoIcon className="gba:h-4 gba:w-4" />
             <AlertDescription>
-              <strong>Key Rule:</strong> Data dimensions (used in dataKey/nameKey) should have <code>color: "none"</code> in chartConfig. Visual categories get automatic colors.
+              <strong>Key Rule:</strong> Data dimensions (used in dataKey/nameKey) should have{' '}
+              <code>color: "none"</code> in chartConfig. Visual categories get automatic colors.
             </AlertDescription>
           </Alert>
 
@@ -206,35 +224,35 @@ const chartConfig = {
             <WarningIcon className="gba:h-5 gba:w-5 gba:text-amber-600" />
             When to Use Semantic Colors
           </CardTitle>
-          <CardDescription>
-            Use specific colors only when they serve a meaningful purpose
-          </CardDescription>
+          <CardDescription>Use specific colors only when they serve a meaningful purpose</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="gba:grid gba:gap-4 gba:md:grid-cols-2 gba:lg:grid-cols-4">
             <div>
-              <Badge variant="destructive" className="gba:mb-2">Destructive</Badge>
+              <Badge variant="destructive" className="gba:mb-2">
+                Destructive
+              </Badge>
               <p className="gba:text-sm gba:text-muted-foreground">
                 Errors, failures, critical issues, negative values
               </p>
             </div>
             <div>
-              <Badge variant="success" className="gba:mb-2">Success</Badge>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Completed tasks, achievements, positive outcomes
-              </p>
+              <Badge variant="success" className="gba:mb-2">
+                Success
+              </Badge>
+              <p className="gba:text-sm gba:text-muted-foreground">Completed tasks, achievements, positive outcomes</p>
             </div>
             <div>
-              <Badge variant="warning" className="gba:mb-2">Warning</Badge>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Caution, pending states, moderate risk
-              </p>
+              <Badge variant="warning" className="gba:mb-2">
+                Warning
+              </Badge>
+              <p className="gba:text-sm gba:text-muted-foreground">Caution, pending states, moderate risk</p>
             </div>
             <div>
-              <Badge variant="info" className="gba:mb-2">Info</Badge>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Informational content, neutral states
-              </p>
+              <Badge variant="info" className="gba:mb-2">
+                Info
+              </Badge>
+              <p className="gba:text-sm gba:text-muted-foreground">Informational content, neutral states</p>
             </div>
           </div>
         </CardContent>
@@ -244,20 +262,24 @@ const chartConfig = {
       <Card>
         <CardHeader>
           <CardTitle>Best Practices</CardTitle>
-          <CardDescription>
-            Guidelines for implementing charts in your applications
-          </CardDescription>
+          <CardDescription>Guidelines for implementing charts in your applications</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="gba:grid gba:gap-6 gba:md:grid-cols-2">
             <div>
               <h4 className="gba:font-semibold gba:mb-3 gba:text-green-700">✓ Do</h4>
               <ul className="gba:space-y-2 gba:text-sm">
-                <li>• Use <code>ChartContainer</code> for all charts</li>
+                <li>
+                  • Use <code>ChartContainer</code> for all charts
+                </li>
                 <li>• Include legends for multi-series charts</li>
                 <li>• Add meaningful tooltips with proper formatting</li>
-                <li>• Use <code>moduleColor</code> for theme consistency</li>
-                <li>• Include <code>data-testid</code> attributes</li>
+                <li>
+                  • Use <code>moduleColor</code> for theme consistency
+                </li>
+                <li>
+                  • Include <code>data-testid</code> attributes
+                </li>
                 <li>• Follow responsive design patterns</li>
                 <li>• Use IconAvatar in card headers</li>
               </ul>
@@ -282,9 +304,7 @@ const chartConfig = {
       <Card>
         <CardHeader>
           <CardTitle>Quick Start Template</CardTitle>
-          <CardDescription>
-            Basic template for creating a new chart component
-          </CardDescription>
+          <CardDescription>Basic template for creating a new chart component</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="gba:bg-muted gba:p-4 gba:rounded gba:text-sm gba:overflow-x-auto">
@@ -348,7 +368,7 @@ const MyChart = ({ moduleColor, data }) => {
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default OverviewTab;
+export default OverviewTab

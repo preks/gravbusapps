@@ -1,4 +1,2 @@
-export { default } from './NoteForm';
-export { default as NoteForm } from './NoteForm';
-
-
+export { default } from './NoteForm'
+export { default as NoteForm } from './NoteForm'

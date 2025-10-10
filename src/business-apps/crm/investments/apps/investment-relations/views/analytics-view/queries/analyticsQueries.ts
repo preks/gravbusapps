@@ -51,7 +51,7 @@ export const GET_CRM_OVERVIEW_ANALYTICS = `
       }
     }
   }
-`;
+`
 
 // Leads Analytics Query
 export const GET_LEADS_ANALYTICS = `
@@ -61,7 +61,7 @@ export const GET_LEADS_ANALYTICS = `
         count
       }
     }
-    convertedLeads: InvestmentLeadAggregate(where: {isDeleted: {_eq: false}, leadStatus: {code: {_eq: "CONVERTED"}}}) {
+    convertedLeads: InvestmentLeadAggregate(where: {isDeleted: {_eq: false}, leadStatus: {value: {_in: ["Converted", "Qualified"]}}}) {
       aggregate {
         count
       }
@@ -101,7 +101,7 @@ export const GET_LEADS_ANALYTICS = `
       }
     }
   }
-`;
+`
 
 // Accounts Analytics Query
 export const GET_ACCOUNTS_ANALYTICS = `
@@ -134,25 +134,17 @@ export const GET_ACCOUNTS_ANALYTICS = `
       }
     }
   }
-`;
+`
 
 // Opportunities Analytics Query
 export const GET_OPPORTUNITIES_ANALYTICS = (() => {
-  const now = new Date();
-  const previousMonthStart = new Date(
-    now.getFullYear(),
-    now.getMonth() - 1,
-    1
-  ).toISOString();
-  const currentMonthStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1
-  ).toISOString();
+  const now = new Date()
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   return `
   query GetOpportunitiesAnalytics {
-    totalEstimatedAmount: InvestmentOpportunityAggregate {
+    totalEstimatedAmount: InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
       aggregate {
         sum {
           estimatedAmount
@@ -162,6 +154,18 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
     InvestmentOpportunityAggregate(where: { isDeleted: { _eq: false } }) {
       aggregate {
         count
+      }
+    }
+    WonOpportunitiesValue: InvestmentOpportunityAggregate(
+      where: { 
+        isDeleted: { _eq: false },
+        opportunityStatus: { code: { _eq: "WON" } }
+      }
+    ) {
+      aggregate {
+        sum {
+          estimatedAmount
+        }
       }
     }
     InvestmentOpportunity(where: { isDeleted: { _eq: false } }) {
@@ -183,6 +187,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       opportunityStatus {
         id
         code
+        alternativeCode
         value
       }
       currency {
@@ -227,6 +232,7 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       opportunityStatus {
         id
         code
+        alternativeCode
         value
       }
       currency {
@@ -282,8 +288,8 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       }
     }
   }
-`;
-})();
+`
+})()
 
 // Contacts Analytics Query
 export const GET_CONTACTS_ANALYTICS = `
@@ -318,4 +324,4 @@ export const GET_CONTACTS_ANALYTICS = `
       }
     }
   }
-`;
+`

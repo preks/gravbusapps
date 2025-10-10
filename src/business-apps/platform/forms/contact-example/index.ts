@@ -1,6 +1,4 @@
-import ContactExampleForm from './ContactExampleForm';
+import ContactExampleForm from './ContactExampleForm'
 
-export { ContactExampleForm };
-export default ContactExampleForm;
-
-
+export { ContactExampleForm }
+export default ContactExampleForm

@@ -1,19 +1,19 @@
-import React, { useCallback, useMemo } from "react";
-import { WidgetGroup, WidgetItem } from "@/components/widget-group";
-import { PiCalendar, PiFileText } from "react-icons/pi";
-import { ExpenseStatus } from "../../../utils";
-import { formatCurrencyDisplay } from "../../../../personal-expenses/utils";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { ExpensePlanStatistics } from "../../../hooks/useGetExpensePlans"; // Assuming this type is exported from your hook
+import React, { useCallback, useMemo } from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { CalendarOutlined, FileTextOutlined } from '@ant-design/icons'
+import { ExpenseStatus } from '../../../utils'
+import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ExpensePlanStatistics } from '../../../hooks/useGetExpensePlans' // Assuming this type is exported from your hook
 
 interface ExpensePlanStatisticsProps {
-  planStats: ExpensePlanStatistics | null;
-  statsLoading: boolean;
-  statsError: Error | null;
-  fetchPlanStatistics: () => void;
-  activeFilter: ExpenseStatus[] | null;
-  onFilterChange: (filter: ExpenseStatus[] | null) => void;
-  currencyFilter?: string | null;
+  planStats: ExpensePlanStatistics | null
+  statsLoading: boolean
+  statsError: Error | null
+  fetchPlanStatistics: () => void
+  activeFilter: ExpenseStatus[] | null
+  onFilterChange: (filter: ExpenseStatus[] | null) => void
+  currencyFilter?: string | null
 }
 
 const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
@@ -23,36 +23,36 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
   fetchPlanStatistics,
   activeFilter,
   onFilterChange,
-  currencyFilter,
+  currencyFilter
 }) => {
   // Use only the currency filter passed from parent - no global store dependency
-  const displayCurrency = currencyFilter || "EUR";
+  const displayCurrency = currencyFilter || 'EUR'
   // Handle card click
   const handleCardClick = useCallback(
     (filterKey: ExpenseStatus | null) => {
       if (filterKey === null) {
-        onFilterChange(null); // Clear all filters
+        onFilterChange(null) // Clear all filters
       } else {
         // Check if this status is currently active
-        const isActive = activeFilter?.includes(filterKey) || false;
+        const isActive = activeFilter?.includes(filterKey) || false
         if (isActive) {
-          onFilterChange(null); // Clear all filters if clicking active status
+          onFilterChange(null) // Clear all filters if clicking active status
         } else {
-          onFilterChange([filterKey]); // Set single filter
+          onFilterChange([filterKey]) // Set single filter
         }
       }
     },
-    [activeFilter, onFilterChange],
-  );
+    [activeFilter, onFilterChange]
+  )
 
   // Handle widget clicks from WidgetGroup
   const handleWidgetClick = useCallback(
     (widgetKey: string) => {
       switch (widgetKey) {
-        case "pending-approval":
-          handleCardClick(ExpenseStatus.PENDING);
-          break;
-        case "total-plans":
+        case 'pending-approval':
+          handleCardClick(ExpenseStatus.PENDING)
+          break
+        case 'total-plans':
           // Filter for all statuses except DISCARDED
           const allStatusesExceptDiscarded = [
             ExpenseStatus.PREPARED,
@@ -66,68 +66,66 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.BOOKED,
             ExpenseStatus.PAID,
             ExpenseStatus.CLOSED,
-            ExpenseStatus.TRANSFERRED,
-          ];
+            ExpenseStatus.TRANSFERRED
+          ]
           // Check if this filter is already active, if so clear it
           const isTotalPlansFilterActive =
             activeFilter &&
             activeFilter.length === 12 &&
-            allStatusesExceptDiscarded.every((status) => activeFilter.includes(status)) &&
-            !activeFilter.includes(ExpenseStatus.DISCARDED);
+            allStatusesExceptDiscarded.every(status => activeFilter.includes(status)) &&
+            !activeFilter.includes(ExpenseStatus.DISCARDED)
 
           if (isTotalPlansFilterActive) {
-            onFilterChange(null);
+            onFilterChange(null)
           } else {
-            onFilterChange(allStatusesExceptDiscarded);
+            onFilterChange(allStatusesExceptDiscarded)
           }
-          break;
-        case "total-amount":
+          break
+        case 'total-amount':
           // No filtering for total amount card
-          break;
+          break
         default:
-          break;
+          break
       }
     },
-    [activeFilter, onFilterChange, handleCardClick],
-  );
+    [activeFilter, onFilterChange, handleCardClick]
+  )
 
   // Transform the stats data into widgets format
   const widgets: WidgetItem[] = useMemo(() => {
-    if (!planStats) return [];
+    if (!planStats) return []
 
     return [
       {
-        key: "pending-approval",
+        key: 'pending-approval',
         title: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.expense_plans_tab.pending_approval",
-          "Pending Approval",
+          'lowcoder:team_expenses_page.expense_plans_tab.pending_approval',
+          'Pending Approval'
         ),
         value: planStats.pendingCount.toString(),
-        prefix: <PiCalendar />,
-        color: activeFilter?.includes(ExpenseStatus.PENDING) ? "#1890ff" : "#faad14",
+        prefix: <CalendarOutlined />,
+        color: 'var(--nw-warning)',
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.expense_plans_tab.requires_action",
-          "Requires action",
+          'lowcoder:team_expenses_page.expense_plans_tab.requires_action',
+          'Requires action'
         ),
         active: activeFilter?.includes(ExpenseStatus.PENDING) || false,
-        onClick: () => handleCardClick(ExpenseStatus.PENDING),
+        onClick: () => handleCardClick(ExpenseStatus.PENDING)
       },
       {
-        key: "total-plans",
+        key: 'total-plans',
         title: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted",
-          "Total Plans (Submitted)",
+          'lowcoder:team_expenses_page.expense_plans_tab.total_plans_submitted',
+          'Total Plans (Submitted)'
         ),
         value: planStats.totalCount.toString(),
-        prefix: <PiFileText />,
-        color: "#1890ff",
+        prefix: <FileTextOutlined />,
+        color: 'var(--nw-primary)',
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
         description: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans",
-          "All submitted plans",
+          'lowcoder:team_expenses_page.expense_plans_tab.all_submitted_plans',
+          'All submitted plans'
         ),
         active: !!(
           activeFilter &&
@@ -144,8 +142,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.BOOKED,
             ExpenseStatus.PAID,
             ExpenseStatus.CLOSED,
-            ExpenseStatus.TRANSFERRED,
-          ].every((status) => activeFilter.includes(status)) &&
+            ExpenseStatus.TRANSFERRED
+          ].every(status => activeFilter.includes(status)) &&
           !activeFilter.includes(ExpenseStatus.DISCARDED)
         ),
         onClick: () => {
@@ -162,27 +160,27 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.BOOKED,
             ExpenseStatus.PAID,
             ExpenseStatus.CLOSED,
-            ExpenseStatus.TRANSFERRED,
-          ];
+            ExpenseStatus.TRANSFERRED
+          ]
           // Check if this filter is already active, if so clear it
           const isTotalPlansFilterActive =
             activeFilter &&
             activeFilter.length === 12 &&
-            allStatusesExceptDiscarded.every((status) => activeFilter.includes(status)) &&
-            !activeFilter.includes(ExpenseStatus.DISCARDED);
+            allStatusesExceptDiscarded.every(status => activeFilter.includes(status)) &&
+            !activeFilter.includes(ExpenseStatus.DISCARDED)
 
           if (isTotalPlansFilterActive) {
-            onFilterChange(null);
+            onFilterChange(null)
           } else {
-            onFilterChange(allStatusesExceptDiscarded);
+            onFilterChange(allStatusesExceptDiscarded)
           }
-        },
+        }
       },
       {
-        key: "total-amount",
+        key: 'total-amount',
         title: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted",
-          "Total Amount (Submitted)",
+          'lowcoder:team_expenses_page.expense_plans_tab.total_amount_submitted',
+          'Total Amount (Submitted)'
         ),
         value: planStats.sumTotalAmount
           ? formatCurrencyDisplay(planStats.sumTotalAmount, displayCurrency)
@@ -192,38 +190,34 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             {displayCurrency}
           </span>
         ),
-        color: "#3f8600",
+        color: 'var(--nw-success)',
         valueIsString: true,
-        span: { xs: 24, sm: 6 },
-        description: getTranslationFromI18nKeyAndLabel(
-          "lowcoder:team_expenses_page.expense_plans_tab.across_all_plans",
-          "Across all plans",
-        ),
-      },
-    ];
-  }, [planStats, activeFilter, handleCardClick, displayCurrency]);
 
-  if (statsError) {
-    console.error("Error loading expense plan statistics:", statsError);
-  }
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:team_expenses_page.expense_plans_tab.across_all_plans',
+          'Across all plans'
+        )
+      }
+    ]
+  }, [planStats, activeFilter, handleCardClick, displayCurrency])
 
   return (
     <WidgetGroup
       widgets={widgets}
       isLoading={statsLoading}
-      error={statsError ? "Failed to load statistics" : undefined}
+      error={statsError ? 'Failed to load statistics' : undefined}
       onRetry={fetchPlanStatistics}
-      skeletonCount={4}
+      skeletonCount={3}
       emptyText={getTranslationFromI18nKeyAndLabel(
-        "lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available",
-        "No expense plan statistics available.",
+        'lowcoder:team_expenses_page.expense_plans_tab.no_expense_plan_statistics_available',
+        'No expense plan statistics available.'
       )}
       cardBackground="transparent"
       className="gba:py-0 gba:bg-transparent"
       onWidgetClick={handleWidgetClick}
       hoverable={true}
     />
-  );
-};
+  )
+}
 
-export default ExpensePlanStatisticsDisplay;
+export default ExpensePlanStatisticsDisplay

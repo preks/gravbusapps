@@ -1,2 +1,1 @@
-export { useLeadView } from './useLeadView';
-
+export { useLeadView } from './useLeadView'

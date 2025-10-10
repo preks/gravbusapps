@@ -1,119 +1,141 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { 
-  Table, 
-  TableHeader, 
-  TableBody, 
-  TableHead, 
-  TableRow, 
-  TableCell, 
-  Card, 
-  CardContent, 
-  Spinner, 
-  Button, 
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Card,
+  CardContent,
+  Spinner,
+  Button,
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle
-} from '@newwork/nw-design-system';
-import Pill from '@/components/pill';
-import { message } from 'antd';
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { startProcess } from '@/common/utils/start-process';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments';
-import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies';
-import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils';
-import AdvancePaymentDetails from './AdvancePaymentDetails';
-import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails';
-import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+} from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
+import { message } from 'antd'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { startProcess } from '@/common/utils/start-process'
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetAdvancePayments, AdvancePayment } from '../../../hooks/useGetAdvancePayments'
+import { useAdvancePaymentCurrencies } from '../../../hooks/useAdvancePaymentCurrencies'
+import { getAdvancePaymentStatusDisplay, formatCurrencyDisplay } from '../../../utils'
+import AdvancePaymentDetails from './AdvancePaymentDetails'
+import ExpensePlanDetails from '../expense-plans-tab/ExpensePlanDetails'
+import ExpenseRequestDetails from '../expense-requests-tab/ExpenseRequestDetails'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-
-const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable';
+const DATA_TEST_ID_PREFIX = 'AdvancePaymentsTable'
 
 export interface AdvancePaymentsTableProps extends BusinessAppContextProps {
-  search?: string;
-  onSearchChange?: (search: string) => void;
-  activeFilter?: string[];
-  onFilterChange?: (filter: string[]) => void;
-  onClearFilters?: () => void;
-  filterGroups?: any[];
-  handleFilterChange?: (filterId: string, selected: boolean) => void;
-  filterLabelMap?: Record<string, string>;
-  amountRange?: { min?: number; max?: number } | null;
-  advanceRange?: { min?: number; max?: number } | null;
-  selectedFilters?: string[];
-  removeFilter?: (filterId: string) => void;
-  tableRefreshTrigger?: number;
+  search?: string
+  onSearchChange?: (search: string) => void
+  activeFilter?: string[]
+  onFilterChange?: (filter: string[]) => void
+  onClearFilters?: () => void
+  filterGroups?: any[]
+  handleFilterChange?: (filterId: string, selected: boolean) => void
+  filterLabelMap?: Record<string, string>
+  amountRange?: { min?: number; max?: number } | null
+  advanceRange?: { min?: number; max?: number } | null
+  selectedFilters?: string[]
+  removeFilter?: (filterId: string) => void
+  tableRefreshTrigger?: number
 }
 
 const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTableProps>((props, ref) => {
   // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(() => ({
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }), [props.accessToken, props.userInfo]);
-  
-  const { items, isLoading, totalCount, fetchItems } = useGetAdvancePayments(contextProps);
-  const { currencyStats, selectedCurrencyRef } = useAdvancePaymentCurrencies(contextProps, props.selectedFilters || [], props.onFilterChange as any);
-  const [searchText, setSearchText] = useState<string>(props.search ?? '');
-  const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null);
-  const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null);
-  const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null);
-  
+  const contextProps = useMemo(
+    () => ({
+      accessToken: props.accessToken,
+      userInfo: props.userInfo
+    }),
+    [props.accessToken, props.userInfo]
+  )
+
+  const { items, isLoading, totalCount, fetchItems } = useGetAdvancePayments(contextProps)
+  const { currencyStats, selectedCurrencyRef } = useAdvancePaymentCurrencies(
+    contextProps,
+    props.selectedFilters || [],
+    props.onFilterChange as any
+  )
+  const [searchText, setSearchText] = useState<string>(props.search ?? '')
+  const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null)
+  const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null)
+  const [selectedExpenseRequest, setSelectedExpenseRequest] = useState<any>(null)
+
   // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   // Preserve the page before search to restore after clearing
-  const savedPageBeforeSearchRef = useRef<number | null>(null);
+  const savedPageBeforeSearchRef = useRef<number | null>(null)
 
   // Server-side sorting state - managed by parent component
-  const [sortField, setSortField] = useState<string>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend');
+  const [sortField, setSortField] = useState<string>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>('descend')
 
   // Use filter props from parent with stable references
-  const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter]);
-  const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange]);
-  const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange]);
-  const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups]);
-  const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap]);
+  const currentStatusFilter = useMemo(() => props.activeFilter || [], [props.activeFilter])
+  const currentAmountRange = useMemo(() => props.amountRange || null, [props.amountRange])
+  const currentAdvanceRange = useMemo(() => props.advanceRange || null, [props.advanceRange])
+  const filterGroups = useMemo(() => props.filterGroups || [], [props.filterGroups])
+  const filterLabelMap = useMemo(() => props.filterLabelMap || {}, [props.filterLabelMap])
   const currencyLabelMap = useMemo(() => {
-    const map: Record<string, string> = {};
+    const map: Record<string, string> = {}
     currencyStats.forEach(cs => {
-      map[`currency:${cs.ref}`] = cs.code;
-    });
-    return map;
-  }, [currencyStats]);
+      map[`currency:${cs.ref}`] = cs.code
+    })
+    return map
+  }, [currencyStats])
 
   // Track if any filters are active to show conditional messages
   const hasActiveFilters = useMemo(() => {
-    return searchText || currentStatusFilter.length > 0 || 
-           (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) ||
-           (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined));
-  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange]);
+    return (
+      searchText ||
+      currentStatusFilter.length > 0 ||
+      (currentAmountRange && (currentAmountRange.min !== undefined || currentAmountRange.max !== undefined)) ||
+      (currentAdvanceRange && (currentAdvanceRange.min !== undefined || currentAdvanceRange.max !== undefined))
+    )
+  }, [searchText, currentStatusFilter, currentAmountRange, currentAdvanceRange])
 
   // Build fetch parameters
-  const fetchParams = useMemo(() => ({
-    searchText,
-    currentPage,
-    pageSize,
-    currentStatusFilter,
-    currentAmountRange,
-    currentAdvanceRange,
-    sortField,
-    sortOrder,
-    selectedCurrencyRef
-  }), [searchText, currentPage, pageSize, currentStatusFilter, currentAmountRange, currentAdvanceRange, sortField, sortOrder, selectedCurrencyRef]);
+  const fetchParams = useMemo(
+    () => ({
+      searchText,
+      currentPage,
+      pageSize,
+      currentStatusFilter,
+      currentAmountRange,
+      currentAdvanceRange,
+      sortField,
+      sortOrder,
+      selectedCurrencyRef
+    }),
+    [
+      searchText,
+      currentPage,
+      pageSize,
+      currentStatusFilter,
+      currentAmountRange,
+      currentAdvanceRange,
+      sortField,
+      sortOrder,
+      selectedCurrencyRef
+    ]
+  )
 
   // Sync search with parent prop
   useEffect(() => {
     if (props.search !== undefined && props.search !== searchText) {
-      setSearchText(props.search);
+      setSearchText(props.search)
     }
-  }, [props.search, searchText]);
+  }, [props.search, searchText])
 
   // Trigger fetch when dependencies change
   useEffect(() => {
@@ -128,11 +150,11 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         fetchParams.sortField,
         fetchParams.sortOrder,
         fetchParams.selectedCurrencyRef
-      );
+      )
     } else {
-      console.warn('Cannot fetch advance payments: Missing accessToken or employeeId');
+      console.warn('Cannot fetch advance payments: Missing accessToken or employeeId')
     }
-  }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, fetchParams]);
+  }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, fetchParams])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {
@@ -149,45 +171,54 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           fetchParams.sortField,
           fetchParams.sortOrder,
           fetchParams.selectedCurrencyRef
-        );
+        )
       }
     }
-  }, [props.tableRefreshTrigger, contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, fetchParams]);
+  }, [
+    props.tableRefreshTrigger,
+    contextProps.accessToken,
+    contextProps.userInfo?.employeeDetails?.employeeId,
+    fetchItems,
+    fetchParams
+  ])
 
   // Create a memoized setSearch function to prevent re-renders
-  const handleSearchChange = useCallback((value: string) => {
-    const trimmedNext = (value || '').trim();
-    const trimmedPrev = (searchText || '').trim();
-    setSearchText(value);
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      const trimmedNext = (value || '').trim()
+      const trimmedPrev = (searchText || '').trim()
+      setSearchText(value)
 
-    if (trimmedPrev === '' && trimmedNext !== '') {
-      // starting search → save current page and go to 1
-      savedPageBeforeSearchRef.current = currentPage;
-      setCurrentPage(1);
-    } else if (trimmedPrev !== '' && trimmedNext === '') {
-      // clearing search → restore saved page
-      setCurrentPage(savedPageBeforeSearchRef.current || 1);
-      savedPageBeforeSearchRef.current = null;
-    } else if (trimmedNext !== '') {
-      // stay on page 1 while refining search
-      setCurrentPage(1);
-    }
+      if (trimmedPrev === '' && trimmedNext !== '') {
+        // starting search → save current page and go to 1
+        savedPageBeforeSearchRef.current = currentPage
+        setCurrentPage(1)
+      } else if (trimmedPrev !== '' && trimmedNext === '') {
+        // clearing search → restore saved page
+        setCurrentPage(savedPageBeforeSearchRef.current || 1)
+        savedPageBeforeSearchRef.current = null
+      } else if (trimmedNext !== '') {
+        // stay on page 1 while refining search
+        setCurrentPage(1)
+      }
 
-    // Notify parent component of search change
-    if (props.onSearchChange) {
-      props.onSearchChange(value);
-    }
-  }, [props.onSearchChange, searchText, currentPage]);
+      // Notify parent component of search change
+      if (props.onSearchChange) {
+        props.onSearchChange(value)
+      }
+    },
+    [props.onSearchChange, searchText, currentPage]
+  )
 
   // Handle adding a new advance payment
   const handleAddAdvancePayment = useCallback(() => {
-    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId;
+    const employeeId = contextProps.userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
-      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.');
-      message.warning('User information not loaded yet. Please wait a moment and try again.');
-      return;
+      console.warn('Cannot start process: Employee ID not available. User info may not be fully loaded.')
+      message.warning('User information not loaded yet. Please wait a moment and try again.')
+      return
     }
-    
+
     startProcess({
       domain: 'employee-expense',
       processName: 'changeAdvancePayment',
@@ -195,75 +226,82 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         employeeId: employeeId
       },
       builderType: 'NATIVE_SCREEN'
-    });
-  }, [contextProps.userInfo?.employeeDetails?.employeeId]);
+    })
+  }, [contextProps.userInfo?.employeeDetails?.employeeId])
 
   // Handle clicking on a row to view details
   const handleSelectItem = useCallback((item: AdvancePayment) => {
-    setSelectedItem(item);
-  }, []);
+    setSelectedItem(item)
+  }, [])
 
   // Pagination handlers
   const handlePageChange = useCallback((newPage: number) => {
-    setCurrentPage(newPage);
-  }, []);
+    setCurrentPage(newPage)
+  }, [])
 
   const handlePageSizeChange = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize);
-    setCurrentPage(1); // Reset to first page when page size changes
-  }, []);
+    setPageSize(newPageSize)
+    setCurrentPage(1) // Reset to first page when page size changes
+  }, [])
 
   // Handle closing the details panel
   const handleCloseDetails = useCallback(() => {
-    setSelectedItem(null);
-    setSelectedExpensePlan(null);
-    setSelectedExpenseRequest(null);
-  }, []);
+    setSelectedItem(null)
+    setSelectedExpensePlan(null)
+    setSelectedExpenseRequest(null)
+  }, [])
 
   // Handle viewing expense plan details
   const handleViewExpensePlanDetails = useCallback((record: AdvancePayment) => {
-    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', { 
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
       expensePlanId: record.expensePlan && record.expensePlan.id ? record.expensePlan.id : ''
-    });
-    navigateTo(url);
-  }, []);
+    })
+    navigateTo(url)
+  }, [])
 
   // Handle viewing expense request details
   const handleViewExpenseRequestDetails = useCallback((record: AdvancePayment) => {
     // For advance payments, we need to get the expense request from the expense plan
-    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', { 
-      expenseRequestId: record.expensePlan && record.expensePlan.expenseRequest ? record?.expensePlan?.expenseRequest[0].id : ''
-    });
-    navigateTo(url);
-  }, []);
+    const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
+      expenseRequestId:
+        record.expensePlan && record.expensePlan.expenseRequest ? record?.expensePlan?.expenseRequest[0].id : ''
+    })
+    navigateTo(url)
+  }, [])
 
   // Enhanced server-side sorting handler
-  const handleSort = useCallback((field: string) => {
-    if (sortField === field) {
-      // Cycle through: ascend -> descend -> clear
-      if (sortOrder === 'ascend') {
-        setSortOrder('descend');
-      } else if (sortOrder === 'descend') {
-        setSortField('');
-        setSortOrder(undefined);
+  const handleSort = useCallback(
+    (field: string) => {
+      if (sortField === field) {
+        // Cycle through: ascend -> descend -> clear
+        if (sortOrder === 'ascend') {
+          setSortOrder('descend')
+        } else if (sortOrder === 'descend') {
+          setSortField('')
+          setSortOrder(undefined)
+        } else {
+          setSortOrder('ascend')
+        }
       } else {
-        setSortOrder('ascend');
+        setSortField(field)
+        setSortOrder('ascend')
       }
-    } else {
-      setSortField(field);
-      setSortOrder('ascend');
-    }
-    // Reset to first page when sorting changes
-    setCurrentPage(1);
-  }, [sortField, sortOrder]);
+      // Reset to first page when sorting changes
+      setCurrentPage(1)
+    },
+    [sortField, sortOrder]
+  )
 
   // Helper function to render sort icon
-  const renderSortIcon = useCallback((field: string) => {
-    if (sortField !== field) return null;
-    if (sortOrder === 'ascend') return <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" />;
-    if (sortOrder === 'descend') return <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />;
-    return null;
-  }, [sortField, sortOrder]);
+  const renderSortIcon = useCallback(
+    (field: string) => {
+      if (sortField !== field) return null
+      if (sortOrder === 'ascend') return <PiArrowUp className="gba:ml-1 gba:h-3 gba:w-3" />
+      if (sortOrder === 'descend') return <PiArrowDown className="gba:ml-1 gba:h-3 gba:w-3" />
+      return null
+    },
+    [sortField, sortOrder]
+  )
 
   // Render the data body with memoization
   const renderDataBody = useCallback(() => {
@@ -276,7 +314,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 <Spinner />
               </div>
             )}
-            
+
             <div className="gba:overflow-x-auto">
               <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
                 <TableHeader>
@@ -290,7 +328,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-header`}
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initial_expense_plan_select_label', 'Expense Plan')}
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:create_expense_request.initial_expense_plan_select_label',
+                          'Expense Plan'
+                        )}
                       </div>
                     </TableHead>
                     <TableHead
@@ -298,7 +339,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-header`}
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.plan_number_input', 'Plan Number')}
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_request_list.expense_request_filter.plan_number_input',
+                          'Plan Number'
+                        )}
                       </div>
                     </TableHead>
                     <TableHead
@@ -316,7 +360,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                     >
                       <div className="gba:flex gba:items-center gba:justify-end">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_table.amount', 'Amount')}
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_plan_list.expense_plan_table.amount',
+                          'Amount'
+                        )}
                       </div>
                     </TableHead>
                     <TableHead
@@ -325,7 +372,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       data-testid={`${DATA_TEST_ID_PREFIX}-advance-header`}
                     >
                       <div className="gba:flex gba:items-center gba:justify-end">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expense_request_list.expense_table.advance', 'Advance')}
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:manager_expense_request_list.expense_table.advance',
+                          'Advance'
+                        )}
                         {renderSortIcon('amount')}
                       </div>
                     </TableHead>
@@ -335,7 +385,10 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-header`}
                     >
                       <div className="gba:flex gba:items-center">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.payment_method', 'Payment Method')}
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+                          'Payment Method'
+                        )}
                         {renderSortIcon('paymentMethod')}
                       </div>
                     </TableHead>
@@ -346,15 +399,20 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                     <TableRow>
                       <TableCell colSpan={7} className="gba:py-8 gba:text-center">
                         <div className="gba:text-gray-500">
-                          {hasActiveFilters 
-                            ? getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found','No data available')
-                            : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_advance_payments_found', 'No advance payments found. Create your first advance payment to get started.')
-                          }
+                          {hasActiveFilters
+                            ? getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:team_expenses_page.dashboard_tab.no_data_found',
+                                'No data available'
+                              )
+                            : getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:personal_expenses.no_advance_payments_found',
+                                'No advance payments found. Create your first advance payment to get started.'
+                              )}
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    items?.map((record) => (
+                    items?.map(record => (
                       <TableRow
                         key={record.id}
                         className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors gba:cursor-pointer ${selectedItem?.id === record.id ? 'gba:bg-blue-50' : ''}`}
@@ -365,41 +423,66 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                           className="gba:py-4 gba:px-3"
                           data-testid={`${DATA_TEST_ID_PREFIX}-actions-cell-${record.id}`}
                         >
-                          <div 
-                            className="gba:flex gba:justify-start gba:gap-2"
-                            onClick={(e) => e.stopPropagation()}
-                          >
+                          <div className="gba:flex gba:justify-start gba:gap-2" onClick={e => e.stopPropagation()}>
                             <AppActionButton
                               data-testid={`${DATA_TEST_ID_PREFIX}-action-button-${record.id}`}
                               size="icon"
                               staticFlowData={[
                                 {
-                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
+                                  category: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:employee_list.flows_button.navigations',
+                                    'Navigations'
+                                  ),
                                   key: 'view-advance-payment',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.view_advance_payment_details', 'View Advance Payment Details'),
+                                  label: getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:personal_expenses.view_advance_payment_details',
+                                    'View Advance Payment Details'
+                                  ),
                                   onClick: (e?: React.MouseEvent) => {
-                                    e?.stopPropagation();
-                                    handleSelectItem(record);
+                                    e?.stopPropagation()
+                                    handleSelectItem(record)
                                   }
                                 },
-                                ...(record.expensePlanId ? [{
-                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
-                                  key: 'view-plan-details',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_plan_list.expense_plan_flows.view_plan_details', 'View Plan Details'),
-                                  onClick: (e?: React.MouseEvent) => {
-                                    e?.stopPropagation();
-                                    handleViewExpensePlanDetails(record);
-                                  }
-                                }] : []),
-                                ...(record.expensePlan?.expenseRequest && (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 && (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null ? [{
-                                  category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations','Navigations'),
-                                  key: 'view-request-details',
-                                  label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'View Request Details'),
-                                  onClick: (e?: React.MouseEvent) => {
-                                    e?.stopPropagation();
-                                    handleViewExpenseRequestDetails(record);
-                                  }
-                                }] : [])
+                                ...(record.expensePlanId
+                                  ? [
+                                      {
+                                        category: getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:employee_list.flows_button.navigations',
+                                          'Navigations'
+                                        ),
+                                        key: 'view-plan-details',
+                                        label: getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
+                                          'View Plan Details'
+                                        ),
+                                        onClick: (e?: React.MouseEvent) => {
+                                          e?.stopPropagation()
+                                          handleViewExpensePlanDetails(record)
+                                        }
+                                      }
+                                    ]
+                                  : []),
+                                ...(record.expensePlan?.expenseRequest &&
+                                (record.expensePlan?.expenseRequest as unknown as any[]).length > 0 &&
+                                (record.expensePlan?.expenseRequest as unknown as any[])[0].id !== null
+                                  ? [
+                                      {
+                                        category: getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:employee_list.flows_button.navigations',
+                                          'Navigations'
+                                        ),
+                                        key: 'view-request-details',
+                                        label: getTranslationFromI18nKeyAndLabel(
+                                          'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                                          'View Request Details'
+                                        ),
+                                        onClick: (e?: React.MouseEvent) => {
+                                          e?.stopPropagation()
+                                          handleViewExpenseRequestDetails(record)
+                                        }
+                                      }
+                                    ]
+                                  : [])
                               ]}
                               accessToken={contextProps.accessToken}
                               emptyStateBehavior="enable"
@@ -407,38 +490,74 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                             />
                           </div>
                         </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-cell-${record.id}`}>
+                        <TableCell
+                          className="gba:py-4 gba:px-6"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-expense-plan-cell-${record.id}`}
+                        >
                           <div className="gba:font-medium gba:text-sm" data-testid="advance-payment-expense-plan-cell">
-                            {record.expensePlan?.title ?? getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_expense_plan', 'No expense plan')}
+                            {record.expensePlan?.title ??
+                              getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:personal_expenses.no_expense_plan',
+                                'No expense plan'
+                              )}
                           </div>
                         </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-cell-${record.id}`}>
+                        <TableCell
+                          className="gba:py-4 gba:px-6"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-plan-number-cell-${record.id}`}
+                        >
                           <div className="gba:font-medium gba:text-sm" data-testid="advance-payment-plan-number-cell">
                             {record.expensePlan?.code ?? 'N/A'}
                           </div>
                         </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}>
+                        <TableCell
+                          className="gba:py-4 gba:px-6"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-status-cell-${record.id}`}
+                        >
                           {(() => {
-                            const statusConfig = getAdvancePaymentStatusDisplay(record.status);
-                            return <Pill type={statusConfig.type} label={statusConfig.label} color={statusConfig.color} data-testid="advance-payment-status-cell" />;
+                            const statusConfig = getAdvancePaymentStatusDisplay(record.status)
+                            return (
+                              <Badge
+                                variant={(statusConfig as any).badgeVariant || 'outline'}
+                                data-testid="advance-payment-status-cell"
+                              >
+                                {statusConfig.label}
+                              </Badge>
+                            )
                           })()}
                         </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}>
+                        <TableCell
+                          className="gba:py-4 gba:px-6 gba:text-right"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-amount-cell-${record.id}`}
+                        >
                           <div className="gba:text-sm gba:font-medium" data-testid="advance-payment-amount-cell">
-                            {record.expensePlan?.totalAmount ? 
-                              formatCurrencyDisplay(record.expensePlan.totalAmount, record.expensePlan?.currency?.code ?? 'EUR') : 
-                                                              formatCurrencyDisplay(0, 'EUR')
-                            }
+                            {record.expensePlan?.totalAmount
+                              ? formatCurrencyDisplay(
+                                  record.expensePlan.totalAmount,
+                                  record.expensePlan?.currency?.code ?? 'EUR'
+                                )
+                              : formatCurrencyDisplay(0, 'EUR')}
                           </div>
                         </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6 gba:text-right" data-testid={`${DATA_TEST_ID_PREFIX}-advance-cell-${record.id}`}>
+                        <TableCell
+                          className="gba:py-4 gba:px-6 gba:text-right"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-advance-cell-${record.id}`}
+                        >
                           <div className="gba:text-sm gba:font-medium" data-testid="advance-payment-advance-cell">
                             {formatCurrencyDisplay(record.amount, record.currency?.code ?? 'EUR')}
                           </div>
                         </TableCell>
-                        <TableCell className="gba:py-4 gba:px-6" data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-cell-${record.id}`}>
+                        <TableCell
+                          className="gba:py-4 gba:px-6"
+                          data-testid={`${DATA_TEST_ID_PREFIX}-payment-method-cell-${record.id}`}
+                        >
                           <div className="gba:text-sm" data-testid="advance-payment-method-cell">
-                            {record.paymentMethod ? record.paymentMethod.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'N/A'}
+                            {record.paymentMethod
+                              ? record.paymentMethod
+                                  .toLowerCase()
+                                  .replace(/_/g, ' ')
+                                  .replace(/\b\w/g, (c: string) => c.toUpperCase())
+                              : 'N/A'}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -450,18 +569,32 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
             {/* Pagination */}
             {totalCount > pageSize ? (
-              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}>
+              <div
+                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
+                data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
+              >
                 <div className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')} {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount} {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payments', getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments'))}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.showing', 'Showing')}{' '}
+                  {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)}`}{' '}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalCount}{' '}
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:personal_expenses.advance_payments',
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:backoffice_expense_landing_page.advance_title',
+                      'Advance Payments'
+                    )
+                  )}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
                   <div className="gba:flex gba:items-center gba:space-x-2">
-                    <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
+                    <p className="gba:text-sm gba:font-medium">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+                    </p>
                     <select
                       value={pageSize}
-                      onChange={(e) => {
-                        const newPageSize = Number(e.target.value);
-                        handlePageSizeChange(newPageSize);
+                      onChange={e => {
+                        const newPageSize = Number(e.target.value)
+                        handlePageSizeChange(newPageSize)
                       }}
                       className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                       data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
@@ -483,8 +616,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       disabled={currentPage === 1}
                       data-testid={`${DATA_TEST_ID_PREFIX}-first-page-button`}
                     >
-                      <span className="gba:sr-only">Go to first page</span>
-                      ⟪
+                      <span className="gba:sr-only">Go to first page</span>⟪
                     </Button>
                     <Button
                       variant="outline"
@@ -493,8 +625,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       disabled={currentPage === 1}
                       data-testid={`${DATA_TEST_ID_PREFIX}-previous-page-button`}
                     >
-                      <span className="gba:sr-only">Go to previous page</span>
-                      ⟨
+                      <span className="gba:sr-only">Go to previous page</span>⟨
                     </Button>
                     <Button
                       variant="outline"
@@ -503,8 +634,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                       disabled={currentPage >= Math.ceil(totalCount / pageSize)}
                       data-testid={`${DATA_TEST_ID_PREFIX}-next-page-button`}
                     >
-                      <span className="gba:sr-only">Go to next page</span>
-                      ⟩
+                      <span className="gba:sr-only">Go to next page</span>⟩
                     </Button>
                     <Button
                       variant="outline"
@@ -520,17 +650,22 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 </div>
               </div>
             ) : (
-              <div className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}>
+              <div
+                className="gba:flex gba:items-center gba:justify-between gba:px-6 gba:py-4"
+                data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info-single-page`}
+              >
                 <div className="gba:text-sm gba:text-muted-foreground">
                   {`${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title', 'Advance Payments')}`}
                 </div>
                 <div className="gba:flex gba:items-center gba:space-x-2">
-                  <p className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}</p>
+                  <p className="gba:text-sm gba:font-medium">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+                  </p>
                   <select
                     value={pageSize}
-                    onChange={(e) => {
-                      const newPageSize = Number(e.target.value);
-                      handlePageSizeChange(newPageSize);
+                    onChange={e => {
+                      const newPageSize = Number(e.target.value)
+                      handlePageSizeChange(newPageSize)
                     }}
                     className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                     data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select-single`}
@@ -546,52 +681,94 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           </CardContent>
         </Card>
       </div>
-    );
-  }, [items, isLoading, selectedItem, handleSelectItem, contextProps.accessToken, totalCount, pageSize, currentPage, handlePageChange, handlePageSizeChange, sortField, sortOrder, handleSort, renderSortIcon]);
+    )
+  }, [
+    items,
+    isLoading,
+    selectedItem,
+    handleSelectItem,
+    contextProps.accessToken,
+    totalCount,
+    pageSize,
+    currentPage,
+    handlePageChange,
+    handlePageSizeChange,
+    sortField,
+    sortOrder,
+    handleSort,
+    renderSortIcon
+  ])
 
   // Memoize DataContainer props to prevent unnecessary re-renders
-  const dataControllerProps = useMemo(() => ({
-    search: searchText,
-    filter: props.selectedFilters || currentStatusFilter,
-    setSearch: handleSearchChange,
-    setFilter: (newFilters: any) => {
-      // Handle filter changes
-      if (props.onFilterChange) {
-        props.onFilterChange(newFilters as string[]);
-      }
-    },
-    addButton: {
-      onClick: handleAddAdvancePayment,
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.btn_add', 'Add'),
-      'data-testid': 'add-advance-payment-button'
-    },
-    listTitle: getTranslationFromI18nKeyAndLabel('lowcoder:advance_lists.my_advance_payments.title', 'My Advance Payments'),
-    listAmount: totalCount ? `${totalCount}` : undefined,
-    filterLabelMap: { ...filterLabelMap, ...currencyLabelMap },
-  }), [searchText, props.selectedFilters, currentStatusFilter, handleSearchChange, props.onFilterChange, handleAddAdvancePayment, totalCount, filterLabelMap, currencyLabelMap]);
+  const dataControllerProps = useMemo(
+    () => ({
+      search: searchText,
+      filter: props.selectedFilters || currentStatusFilter,
+      setSearch: handleSearchChange,
+      setFilter: (newFilters: any) => {
+        // Handle filter changes
+        if (props.onFilterChange) {
+          props.onFilterChange(newFilters as string[])
+        }
+      },
+      addButton: {
+        onClick: handleAddAdvancePayment,
+        label: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_calculation_rule_details.calculation_allowance_code_list.calculation_allowance_code_modal.btn_add',
+          'Add'
+        ),
+        'data-testid': 'add-advance-payment-button'
+      },
+      listTitle: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:advance_lists.my_advance_payments.title',
+        'My Advance Payments'
+      ),
+      listAmount: totalCount ? `${totalCount}` : undefined,
+      filterLabelMap: { ...filterLabelMap, ...currencyLabelMap }
+    }),
+    [
+      searchText,
+      props.selectedFilters,
+      currentStatusFilter,
+      handleSearchChange,
+      props.onFilterChange,
+      handleAddAdvancePayment,
+      totalCount,
+      filterLabelMap,
+      currencyLabelMap
+    ]
+  )
 
   const currencyAugmentedFilterGroups = useMemo(() => {
-    const currencyGroup = currencyStats.length > 0 ? [{
-      id: 'currency',
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency','Currency'),
-      filters: currencyStats.map(cs => ({
-        id: `currency:${cs.ref}`,
-        label: cs.code,
-        selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
-      })),
-      selectionMode: 'single'
-    }] : [];
-    return [...currencyGroup, ...filterGroups];
-  }, [currencyStats, filterGroups, props.selectedFilters]);
+    const currencyGroup =
+      currencyStats.length > 0
+        ? [
+            {
+              id: 'currency',
+              title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.currency', 'Currency'),
+              filters: currencyStats.map(cs => ({
+                id: `currency:${cs.ref}`,
+                label: cs.code,
+                selected: (props.selectedFilters || []).includes(`currency:${cs.ref}`)
+              })),
+              selectionMode: 'single'
+            }
+          ]
+        : []
+    return [...currencyGroup, ...filterGroups]
+  }, [currencyStats, filterGroups, props.selectedFilters])
 
-  const dataFilterProps = useMemo(() => ({
-    filterGroups: currencyAugmentedFilterGroups,
-    onFilterChange: (filterId: string, selected: boolean) => {
-      if (props.handleFilterChange) {
-        props.handleFilterChange(filterId, selected);
+  const dataFilterProps = useMemo(
+    () => ({
+      filterGroups: currencyAugmentedFilterGroups,
+      onFilterChange: (filterId: string, selected: boolean) => {
+        if (props.handleFilterChange) {
+          props.handleFilterChange(filterId, selected)
+        }
       }
-    }
-  }), [currencyAugmentedFilterGroups, props.handleFilterChange]);
+    }),
+    [currencyAugmentedFilterGroups, props.handleFilterChange]
+  )
 
   return (
     <div ref={ref}>
@@ -605,31 +782,55 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       />
 
       {/* Advance Payment Details Sheet */}
-      <Sheet open={!!selectedItem} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedItem?.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payment_details', 'Advance Payment Details')}>
+      <Sheet
+        open={!!selectedItem}
+        onOpenChange={open => !open && handleCloseDetails()}
+        title={
+          selectedItem?.expensePlan?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:personal_expenses.advance_payment_details',
+            'Advance Payment Details'
+          )
+        }
+      >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedItem?.expensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.advance_payment_details', 'Advance Payment Details')}
+              {selectedItem?.expensePlan?.title ||
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:personal_expenses.advance_payment_details',
+                  'Advance Payment Details'
+                )}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
             {selectedItem && (
-              <AdvancePaymentDetails 
-                payment={selectedItem} 
-                onClose={handleCloseDetails} 
-                {...contextProps} 
-              />
+              <AdvancePaymentDetails payment={selectedItem} onClose={handleCloseDetails} {...contextProps} />
             )}
           </div>
         </SheetContent>
       </Sheet>
 
       {/* Expense Plan Details Sheet */}
-      <Sheet open={!!selectedExpensePlan} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedExpensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details', 'Expense Plan Details')}>
+      <Sheet
+        open={!!selectedExpensePlan}
+        onOpenChange={open => !open && handleCloseDetails()}
+        title={
+          selectedExpensePlan?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:approve_expense_plan.expense_subtitle_details',
+            'Expense Plan Details'
+          )
+        }
+      >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpensePlan?.title || getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.expense_subtitle_details', 'Expense Plan Details')}
+              {selectedExpensePlan?.title ||
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:approve_expense_plan.expense_subtitle_details',
+                  'Expense Plan Details'
+                )}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
@@ -639,9 +840,15 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
-                planTypeLabel={(selectedExpensePlan.requestType && (selectedExpensePlan.requestType as any).value) 
-                  || (selectedExpensePlan.type && (selectedExpensePlan.type as any).value)
-                  || (selectedExpensePlan.requestType ? String(selectedExpensePlan.requestType) : (selectedExpensePlan.type ? String(selectedExpensePlan.type) : undefined))}
+                planTypeLabel={
+                  (selectedExpensePlan.requestType && (selectedExpensePlan.requestType as any).value) ||
+                  (selectedExpensePlan.type && (selectedExpensePlan.type as any).value) ||
+                  (selectedExpensePlan.requestType
+                    ? String(selectedExpensePlan.requestType)
+                    : selectedExpensePlan.type
+                      ? String(selectedExpensePlan.type)
+                      : undefined)
+                }
               />
             )}
           </div>
@@ -649,11 +856,25 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       </Sheet>
 
       {/* Expense Request Details Sheet */}
-      <Sheet open={!!selectedExpenseRequest} onOpenChange={(open) => !open && handleCloseDetails()} title={selectedExpenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'Expense Request Details')}>
+      <Sheet
+        open={!!selectedExpenseRequest}
+        onOpenChange={open => !open && handleCloseDetails()}
+        title={
+          selectedExpenseRequest?.title ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+            'Expense Request Details'
+          )
+        }
+      >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpenseRequest?.title || getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details', 'Expense Request Details')}
+              {selectedExpenseRequest?.title ||
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                  'Expense Request Details'
+                )}
             </SheetTitle>
           </SheetHeader>
           <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
@@ -669,8 +890,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         </SheetContent>
       </Sheet>
     </div>
-  );
-});
+  )
+})
 
-export default React.memo(AdvancePaymentsTable);
-
+export default React.memo(AdvancePaymentsTable)

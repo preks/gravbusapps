@@ -1,4 +1,4 @@
-import { DepartmentForm } from './DepartmentForm';
+import DepartmentForm from './DepartmentForm'
 
-export { DepartmentForm };
-export default DepartmentForm;
+export { DepartmentForm }
+export default DepartmentForm

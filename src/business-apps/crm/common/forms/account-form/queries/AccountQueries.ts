@@ -1,68 +1,68 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface AccountQueryVariables {
-  accountId: string;
+  accountId: string
 }
 
 export interface AccountDataResponse {
   Account: Array<{
-    id: string;
-    version: string;
-    name: string;
-    email?: string;
-    phone?: string;
-    website?: string;
-    foundationDate?: string;
+    id: string
+    version: string
+    name: string
+    email?: string
+    phone?: string
+    website?: string
+    foundationDate?: string
     ownerEmployee?: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      pictureThumbnail?: string;
-    };
+      id: string
+      firstName: string
+      lastName: string
+      pictureThumbnail?: string
+    }
     legalForm?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
     industry?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
     numberOfEmployees?: {
-      value: string;
-    };
+      value: string
+    }
     annualRevenue?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
     addresses?: Array<{
-      city?: string;
+      city?: string
       country?: {
-        id: string;
-        value: string;
-        code: string;
-      };
+        id: string
+        value: string
+        code: string
+      }
       region?: {
-        id: string;
-        value: string;
-        code: string;
-      };
-    }>;
+        id: string
+        value: string
+        code: string
+      }
+    }>
     // Campaign Information
     salesCampaign?: {
-      id: string;
-      name: string;
-    };
-    salesCampaignId?: string;
-    createdAt?: string;
-    updatedAt?: string;
-  }>;
+      id: string
+      name: string
+    }
+    salesCampaignId?: string
+    createdAt?: string
+    updatedAt?: string
+  }>
 }
 
 export const GET_ACCOUNT_BY_ID = `
@@ -124,24 +124,21 @@ export const GET_ACCOUNT_BY_ID = `
       updatedAt
     }
   }
-`;
+`
 
 export const useGetAccountData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchAccountData = async (variables: AccountQueryVariables) => {
-    const query = GET_ACCOUNT_BY_ID;
+    const query = GET_ACCOUNT_BY_ID
     try {
-      const result = await graphqlClient.request<AccountDataResponse>(
-        query,
-        variables
-      );
-      return result;
+      const result = await graphqlClient.request<AccountDataResponse>(query, variables)
+      return result
     } catch (error) {
-      console.error("Error fetching account data:", error);
-      throw error;
+      console.error('Error fetching account data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchAccountData };
-};
+  return { fetchAccountData }
+}

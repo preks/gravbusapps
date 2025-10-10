@@ -1,10 +1,16 @@
 import { useTranslation } from 'react-i18next'
-import { RiUserSettingsLine, RiMoneyDollarCircleLine, RiOrganizationChart, RiBuilding2Line, RiDeleteBin6Line } from '@remixicon/react'
+import {
+  RiUserSettingsLine,
+  RiMoneyDollarCircleLine,
+  RiOrganizationChart,
+  RiBuilding2Line,
+  RiDeleteBin6Line
+} from '@remixicon/react'
 import { HrSettingsCardProps } from '../components/HrSettingsCard'
 
 export function useHrSettingsCards(): HrSettingsCardProps[] {
   const { t } = useTranslation()
-  
+
   return [
     {
       title: t('hr.employment_data', 'Employment Data'),
@@ -26,7 +32,6 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       description: t('hr.compensation_data_description', 'Manage compensation bands and salary structures'),
       icon: <RiMoneyDollarCircleLine />,
       entries: [
-        
         {
           label: t('hr.pay_grades', 'Pay Grades'),
           url: '/platform/mdm/compensation-data?tab=pay-grades'
@@ -66,7 +71,10 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
     },
     {
       title: t('hr.organizational_data', 'Organizational Data'),
-      description: t('hr.organizational_data_description', 'Manage company information, projects, site locations, capabilities, cost centers, departments, and teams'),
+      description: t(
+        'hr.organizational_data_description',
+        'Manage company information, projects, site locations, capabilities, cost centers, departments, and teams'
+      ),
       icon: <RiBuilding2Line />,
       entries: [
         {
@@ -111,4 +119,4 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
       ]
     }
   ]
-} 
+}

@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface AccountOption {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 const GET_ACCOUNTS_QUERY = `
@@ -20,26 +20,22 @@ const GET_ACCOUNTS_QUERY = `
       name
     }
   }
-`;
+`
 
-export const useGetAccounts = (
-  context: BusinessAppContextProps,
-  search: string = "",
-  offset: number = 0
-) => {
-  const [accounts, setAccounts] = useState<AccountOption[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+export const useGetAccounts = (context: BusinessAppContextProps, search: string = '', offset: number = 0) => {
+  const [accounts, setAccounts] = useState<AccountOption[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchAccounts = useCallback(async () => {
     if (!context.accessToken) {
-      return;
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Build where condition with account search
@@ -49,46 +45,43 @@ export const useGetAccounts = (
           ? {
               name: { _ilike: `%${search.trim()}%` }
             }
-          : {}),
-      };
+          : {})
+      }
 
       const variables = {
         where: whereCondition,
         limit: 20,
-        offset,
-      };
+        offset
+      }
 
-      const result = await graphqlClient.request(
-        GET_ACCOUNTS_QUERY,
-        variables
-      );
+      const result = await graphqlClient.request(GET_ACCOUNTS_QUERY, variables)
 
       if (result?.Account) {
         const accountOptions = result.Account.map((account: any) => ({
           id: account.id,
-          name: account.name || "Unnamed Account",
-        }));
+          name: account.name || 'Unnamed Account'
+        }))
 
-        setAccounts(accountOptions);
+        setAccounts(accountOptions)
       } else {
-        setAccounts([]);
+        setAccounts([])
       }
     } catch (err) {
-      console.error("Error fetching accounts:", err);
-      setError(err);
-      setAccounts([]);
+      console.error('Error fetching accounts:', err)
+      setError(err)
+      setAccounts([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, offset, graphqlClient]);
+  }, [context.accessToken, search, offset, graphqlClient])
 
   useEffect(() => {
-    fetchAccounts();
-  }, [fetchAccounts]);
+    fetchAccounts()
+  }, [fetchAccounts])
 
   return {
     accounts,
     isLoading,
-    error,
-  };
-}; 
+    error
+  }
+}

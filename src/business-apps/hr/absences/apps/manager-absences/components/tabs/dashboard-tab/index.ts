@@ -1,1 +1,1 @@
-export { AbsenceStatisticsSimple } from './AbsenceStatisticsSimple'; 
+export { AbsenceStatisticsSimple } from './AbsenceStatisticsSimple'

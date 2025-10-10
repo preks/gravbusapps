@@ -1,14 +1,14 @@
-import React from "react";
-import { AccountFormProvider } from "./context/AccountFormContext";
-import AccountFormComponent from "./components/AccountFormComponent";
-import { AccountFormValues } from "./types";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import React from 'react'
+import { AccountFormProvider } from './context/AccountFormContext'
+import AccountFormComponent from './components/AccountFormComponent'
+import { AccountFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface AccountFormProps {
-  initialValues?: Partial<AccountFormValues>;
-  onSubmit?: (values: AccountFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
-  hideActions?: boolean; // Hide submit/cancel buttons when embedded
+  initialValues?: Partial<AccountFormValues>
+  onSubmit?: (values: AccountFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
+  hideActions?: boolean // Hide submit/cancel buttons when embedded
 }
 
 const AccountForm: React.FC<BusinessAppContextProps & AccountFormProps> = ({
@@ -18,24 +18,23 @@ const AccountForm: React.FC<BusinessAppContextProps & AccountFormProps> = ({
   hideActions = false,
   accessToken,
   userInfo,
-  additionalData,
+  additionalData
 }) => {
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
         <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly
-          authenticated.
+          Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
-    additionalData,
-  };
+    additionalData
+  }
 
   return (
     <AccountFormProvider
@@ -47,7 +46,7 @@ const AccountForm: React.FC<BusinessAppContextProps & AccountFormProps> = ({
     >
       <AccountFormComponent />
     </AccountFormProvider>
-  );
-};
+  )
+}
 
-export default AccountForm;
+export default AccountForm

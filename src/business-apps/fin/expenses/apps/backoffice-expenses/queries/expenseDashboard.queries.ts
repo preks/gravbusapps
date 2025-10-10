@@ -36,7 +36,7 @@ export const GET_TOTAL_COMPANY_SPEND_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
   query GetTotalCompanySpendQuarterly($selectedCurrency: String, $quarterStart: timestamp, $currentDate: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -73,7 +73,7 @@ export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
       }
     }
   }
-`;
+`
 
 export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
   query GetTotalCompanySpendYearly($selectedCurrency: String, $yearStart: timestamp, $currentDate: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp, $selectedDepartment: uuid) {
@@ -110,7 +110,7 @@ export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ACTUAL_VS_PLANNED_YEARLY = `
   query GetActualVsPlannedYearly($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp, $selectedDepartment: uuid) {
@@ -165,7 +165,7 @@ export const GET_ACTUAL_VS_PLANNED_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
   query GetActualVsPlannedQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -220,7 +220,7 @@ export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
   query GetActualVsPlannedMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
@@ -275,7 +275,7 @@ export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_MONTHLY_EXPENSE_TRENDS = `
   query GetMonthlyExpenseTrend($selectedCurrency: String, $startDate: timestamp!, $endDate: timestamp!, $selectedDepartment: uuid) {
@@ -300,7 +300,7 @@ export const GET_MONTHLY_EXPENSE_TRENDS = `
       }
     }
   }
-`;
+`
 
 export const GET_SPEND_COMPARISON_YEARLY = `
   query GetSpendComparisonYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp, $selectedDepartment: uuid) {
@@ -337,7 +337,7 @@ export const GET_SPEND_COMPARISON_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_SPEND_COMPARISON_QUARTERLY = `
   query GetSpendComparisonQuarterly($selectedCurrency: String, $currentQuarterStart: timestamp, $currentQuarterEnd: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -374,7 +374,7 @@ export const GET_SPEND_COMPARISON_QUARTERLY = `
       }
     }
   }
-`;
+`
 
 export const GET_MONTHLY_SPEND_COMPARISON = `
   query GetMonthlySpendComparison($currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $previousMonthStart: timestamp!, $previousMonthEnd: timestamp!, $selectedCurrency: String, $selectedDepartment: uuid) {
@@ -413,7 +413,7 @@ export const GET_MONTHLY_SPEND_COMPARISON = `
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS = `
   query GetAdditionalDashboardMetrics($selectedCurrency: String, $currentYearStart: timestamp, $currentMonthStart: timestamp, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -445,7 +445,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS = `
       }
     }
   }
-`;
+`
 
 export const GET_YTD_STATS = `
   query GetYTDStats($currentYearStart: timestamp!, $currentYTD: timestamp!, $previousYearStart: timestamp!, $previousYTD: timestamp!, $selectedDepartment: uuid) {
@@ -476,7 +476,7 @@ export const GET_YTD_STATS = `
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
   query GetAdditionalDashboardMetricsYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $selectedDepartment: uuid) {
@@ -512,7 +512,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
   query GetAdditionalDashboardMetricsMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp, $selectedDepartment: uuid) {
@@ -547,7 +547,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
   query GetAdditionalDashboardMetricsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -582,7 +582,7 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENTS_APPROVED_YEARLY = `
   query GetAdvancePaymentsApprovedYearly($selectedCurrency: String, $currentYearStart: timestamptz, $currentYearEnd: timestamptz) {
@@ -602,7 +602,7 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY = `
   query GetAdvancePaymentsApprovedMonthly($selectedCurrency: String, $currentMonthStart: timestamptz, $currentMonthEnd: timestamptz) {
@@ -622,7 +622,7 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY = `
   query GetAdvancePaymentsApprovedQuarterly($selectedCurrency: String, $quarterStart: timestamptz, $quarterEnd: timestamptz) {
@@ -642,7 +642,7 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY = `
       }
     }
   }
-`;
+`
 
 export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
   query GetAvgSpendPerTripYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $selectedDepartment: uuid) {
@@ -665,7 +665,7 @@ export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
   query GetAvgSpendPerTripMonthly($selectedCurrency: String, $currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $selectedDepartment: uuid) {
@@ -687,7 +687,7 @@ export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_AVG_SPEND_PER_TRIP_QUARTERLY = `
   query GetAvgSpendPerTripQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -710,4 +710,4 @@ export const GET_AVG_SPEND_PER_TRIP_QUARTERLY = `
       }
     }
   }
-`;
+`

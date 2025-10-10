@@ -1,43 +1,43 @@
-import type { Investment, RealEstateInvestment } from '@/common/data/investment';
+import type { Investment, RealEstateInvestment } from '@/common/data/investment'
 
 // Re-export the centralized types for convenience
-export type { Investment, RealEstateInvestment } from '@/common/data/investment';
+export type { Investment, RealEstateInvestment } from '@/common/data/investment'
 
 export interface RealEstateInvestmentSummary {
-  id: string;
-  investment: Investment;
-  realEstateInvestment?: RealEstateInvestment;
+  id: string
+  investment: Investment
+  realEstateInvestment?: RealEstateInvestment
 }
 
 export interface RealEstateInvestmentKPIs {
-  totalPropertyValue: number;
-  averageOccupancyRate: number;
-  totalUnits: number;
-  totalAnnualExpenses: number;
+  totalPropertyValue: number
+  averageOccupancyRate: number
+  totalUnits: number
+  totalAnnualExpenses: number
 }
 
 export interface RealEstateInvestmentQueryVariables {
-  limit?: number;
-  offset?: number;
-  search?: string;
-  orderBy?: any;
+  limit?: number
+  offset?: number
+  search?: string
+  orderBy?: any
 }
 
 export interface RealEstateInvestmentResponse {
-  RealEstateInvestment: RealEstateInvestmentSummary[];
+  RealEstateInvestment: RealEstateInvestmentSummary[]
   RealEstateInvestmentAggregate: {
     aggregate: {
-      count: number;
+      count: number
       sum: {
-        numberOfUnits: number | null;
-        occupancyPercent: number | null;
-        annualExpenses: number | null;
-      };
+        numberOfUnits: number | null
+        occupancyPercent: number | null
+        annualExpenses: number | null
+      }
       avg: {
-        numberOfUnits: number | null;
-        occupancyPercent: number | null;
-        annualExpenses: number | null;
-      };
-    };
-  };
-} 
+        numberOfUnits: number | null
+        occupancyPercent: number | null
+        annualExpenses: number | null
+      }
+    }
+  }
+}

@@ -1,27 +1,20 @@
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@newwork/nw-design-system';
-import { Control, FieldValues, Path } from 'react-hook-form';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { DynamicFieldDefinition } from '../DynamicFormField';
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { Control, FieldValues, Path } from 'react-hook-form'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { DynamicFieldDefinition } from '../DynamicFormField'
 
 interface DateTimeFieldProps<TFieldValues extends FieldValues = FieldValues> {
-  field: DynamicFieldDefinition;
-  fieldName: string;
-  control: Control<TFieldValues>;
-  testIdPrefix: string;
+  field: DynamicFieldDefinition
+  fieldName: string
+  control: Control<TFieldValues>
+  testIdPrefix: string
 }
 
 export function DateTimeField<TFieldValues extends FieldValues = FieldValues>({
   field,
   fieldName,
   control,
-  testIdPrefix,
+  testIdPrefix
 }: DateTimeFieldProps<TFieldValues>) {
   return (
     <FormField
@@ -44,8 +37,8 @@ export function DateTimeField<TFieldValues extends FieldValues = FieldValues>({
                   type="date"
                   value={formField.value ? formField.value.split('T')[0] : ''}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const timeValue = formField.value ? formField.value.split('T')[1] || '00:00' : '00:00';
-                    formField.onChange(`${e.target.value}T${timeValue}`);
+                    const timeValue = formField.value ? formField.value.split('T')[1] || '00:00' : '00:00'
+                    formField.onChange(`${e.target.value}T${timeValue}`)
                   }}
                   data-testid={formatDataTestId(testIdPrefix, `${fieldName}DateInput`)}
                 />
@@ -61,8 +54,8 @@ export function DateTimeField<TFieldValues extends FieldValues = FieldValues>({
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const dateValue = formField.value
                       ? formField.value.split('T')[0]
-                      : new Date().toISOString().split('T')[0];
-                    formField.onChange(`${dateValue}T${e.target.value}`);
+                      : new Date().toISOString().split('T')[0]
+                    formField.onChange(`${dateValue}T${e.target.value}`)
                   }}
                   data-testid={formatDataTestId(testIdPrefix, `${fieldName}TimeInput`)}
                 />
@@ -73,6 +66,5 @@ export function DateTimeField<TFieldValues extends FieldValues = FieldValues>({
         </FormItem>
       )}
     />
-  );
+  )
 }
-

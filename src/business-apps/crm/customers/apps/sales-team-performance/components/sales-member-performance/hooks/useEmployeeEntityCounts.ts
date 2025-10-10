@@ -1,18 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface EntityCounts {
-  leads: number;
-  contacts: number;
-  opportunities: number;
-  accounts: number;
+  leads: number
+  contacts: number
+  opportunities: number
+  accounts: number
 }
 
 interface UseEmployeeEntityCountsReturn {
-  counts: EntityCounts;
-  loading: boolean;
-  error: Error | null;
-  refetch: () => void;
+  counts: EntityCounts
+  loading: boolean
+  error: Error | null
+  refetch: () => void
 }
 
 // GraphQL query to get all entity counts for an employee
@@ -39,92 +39,84 @@ const GET_EMPLOYEE_ENTITY_COUNTS_QUERY = `
       }
     }
   }
-`;
+`
 
 interface EntityCountsResponse {
   LeadAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   ContactAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   OpportunityAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   AccountAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
-export const useEmployeeEntityCounts = (
-  employeeId: string,
-  accessToken: string
-): UseEmployeeEntityCountsReturn => {
+export const useEmployeeEntityCounts = (employeeId: string, accessToken: string): UseEmployeeEntityCountsReturn => {
   const [counts, setCounts] = useState<EntityCounts>({
     leads: 0,
     contacts: 0,
     opportunities: 0,
-    accounts: 0,
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+    accounts: 0
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchEntityCounts = useCallback(async () => {
     if (!employeeId || !accessToken) {
-      return;
+      return
     }
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
-      const result = await graphqlClient.request<EntityCountsResponse>(
-        GET_EMPLOYEE_ENTITY_COUNTS_QUERY,
-        { employeeId }
-      );
+      const result = await graphqlClient.request<EntityCountsResponse>(GET_EMPLOYEE_ENTITY_COUNTS_QUERY, { employeeId })
 
       setCounts({
         leads: result.LeadAggregate?.aggregate?.count || 0,
         contacts: result.ContactAggregate?.aggregate?.count || 0,
         opportunities: result.OpportunityAggregate?.aggregate?.count || 0,
-        accounts: result.AccountAggregate?.aggregate?.count || 0,
-      });
+        accounts: result.AccountAggregate?.aggregate?.count || 0
+      })
     } catch (err) {
-      setError(
-        err instanceof Error ? err : new Error("Failed to load entity counts")
-      );
+      setError(err instanceof Error ? err : new Error('Failed to load entity counts'))
 
       // Reset counts on error
       setCounts({
         leads: 0,
         contacts: 0,
         opportunities: 0,
-        accounts: 0,
-      });
+        accounts: 0
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [employeeId, accessToken, graphqlClient]);
+  }, [employeeId, accessToken, graphqlClient])
 
   // Load counts when employee or access token changes
   useEffect(() => {
-    fetchEntityCounts();
-  }, [fetchEntityCounts]);
+    fetchEntityCounts()
+  }, [fetchEntityCounts])
 
   return {
     counts,
     loading,
     error,
-    refetch: fetchEntityCounts,
-  };
-};
+    refetch: fetchEntityCounts
+  }
+}

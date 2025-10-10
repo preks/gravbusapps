@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,23 +11,27 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import areaChartData from "../../data/areaChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import areaChartData from '../../data/areaChartData.json'
 
 interface AreaChartLegendProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const AreaChartLegend: React.FC<AreaChartLegendProps> = ({ moduleColor }) => {
-  const chartData = areaChartData.legend;
+  const chartData = areaChartData.legend
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="area-chart-legend">
@@ -47,13 +51,10 @@ const AreaChartLegend: React.FC<AreaChartLegendProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="line" />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
             <Area
               dataKey="desktop"
               type="natural"
@@ -75,7 +76,7 @@ const AreaChartLegend: React.FC<AreaChartLegendProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default AreaChartLegend;
+export default AreaChartLegend

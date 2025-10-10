@@ -1,1 +1,1 @@
-export { LeadView } from './LeadView';
+export { LeadView } from './LeadView'

@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
+import React, { useState, useEffect } from 'react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
   TableRow,
   Button,
   Dialog,
@@ -24,77 +24,73 @@ import {
   Alert,
   AlertDescription,
   Spinner
-} from '@newwork/nw-design-system';
-import { Plus, Edit, Trash2, Star } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { useForm } from 'react-hook-form';
+} from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2, Star } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { useForm } from 'react-hook-form'
 
 export interface RatingsTabProps extends BusinessAppContextProps {
-  sourceApp: 'CRM' | 'IRM';
-  prefixDataTestId?: string;
+  sourceApp: 'CRM' | 'IRM'
+  prefixDataTestId?: string
 }
 
 interface Rating {
-  id: string;
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
 }
 
 interface RatingFormData {
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
 }
 
-const DATA_TEST_ID = 'RatingsTab';
+const DATA_TEST_ID = 'RatingsTab'
 
 const getRatingColor = (code: string) => {
-  const lowerCode = code.toLowerCase();
+  const lowerCode = code.toLowerCase()
   if (lowerCode.includes('high') || lowerCode.includes('hot') || lowerCode.includes('5')) {
-    return 'destructive';
+    return 'destructive'
   }
   if (lowerCode.includes('warm') || lowerCode.includes('4')) {
-    return 'warning';
+    return 'warning'
   }
   if (lowerCode.includes('cold') || lowerCode.includes('low') || lowerCode.includes('3')) {
-    return 'running';
+    return 'running'
   }
-  return 'outline';
-};
+  return 'outline'
+}
 
-export const RatingsTab: React.FC<RatingsTabProps> = ({
-  accessToken,
-  sourceApp,
-  prefixDataTestId
-}) => {
-  const { t } = useTranslation();
-  const [ratings, setRatings] = useState<Rating[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRating, setEditingRating] = useState<Rating | null>(null);
+export const RatingsTab: React.FC<RatingsTabProps> = ({ accessToken, sourceApp, prefixDataTestId }) => {
+  const { t } = useTranslation()
+  const [ratings, setRatings] = useState<Rating[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingRating, setEditingRating] = useState<Rating | null>(null)
 
-  const form = useForm<RatingFormData>();
-  const catalogClient = useCatalogManagerClient(accessToken);
-  
+  const form = useForm<RatingFormData>()
+  const catalogClient = useCatalogManagerClient(accessToken)
+
   // Determine catalog name based on source app
-  const catalogName = sourceApp === 'CRM' ? 'SalesLeadRating' : 'InvestmentLeadRating';
+  const catalogName = sourceApp === 'CRM' ? 'SalesLeadRating' : 'InvestmentLeadRating'
 
   // Load ratings
   const loadRatings = async () => {
     try {
-      setLoading(true);
-      setError(null);
-      
+      setLoading(true)
+      setError(null)
+
       const response = await catalogClient.getCatalogEntriesList(
         {
           catalogIdentifier: catalogName,
@@ -107,100 +103,97 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
           includeChildCatalogEntries: false,
           ...(searchTerm && { searchCriteria: searchTerm })
         }
-      );
+      )
 
-      const entries = response.data?.map((entry: any) => ({
-        id: entry.id,
-        code: entry.code,
-        value: entry.value,
-        alternativeCode: entry.alternativeCode,
-        additionalValue1: entry.additionalValue1,
-        additionalValue2: entry.additionalValue2,
-        additionalValue3: entry.additionalValue3,
-      })) || [];
+      const entries =
+        response.data?.map((entry: any) => ({
+          id: entry.id,
+          code: entry.code,
+          value: entry.value,
+          alternativeCode: entry.alternativeCode,
+          additionalValue1: entry.additionalValue1,
+          additionalValue2: entry.additionalValue2,
+          additionalValue3: entry.additionalValue3
+        })) || []
 
-      setRatings(entries);
+      setRatings(entries)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load ratings';
-      setError(errorMessage);
-      console.error('Error loading ratings:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load ratings'
+      setError(errorMessage)
+      console.error('Error loading ratings:', err)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
     if (accessToken) {
-      loadRatings();
+      loadRatings()
     }
-  }, [accessToken, searchTerm, catalogName]);
+  }, [accessToken, searchTerm, catalogName])
 
   const handleAdd = () => {
-    setEditingRating(null);
-    form.reset();
-    setIsModalOpen(true);
-  };
+    setEditingRating(null)
+    form.reset()
+    setIsModalOpen(true)
+  }
 
   const handleEdit = (rating: Rating) => {
-    setEditingRating(rating);
+    setEditingRating(rating)
     form.reset({
       code: rating.code,
       value: rating.value,
       alternativeCode: rating.alternativeCode || '',
       additionalValue1: rating.additionalValue1 || ''
-    });
-    setIsModalOpen(true);
-  };
+    })
+    setIsModalOpen(true)
+  }
 
   const handleDelete = async (id: string) => {
     try {
       // TODO: Implement actual delete operation with catalog API
-      console.log('Delete rating:', id);
-      loadRatings();
+      console.log('Delete rating:', id)
+      loadRatings()
     } catch (err) {
-      console.error('Failed to delete rating:', err);
+      console.error('Failed to delete rating:', err)
     }
-  };
+  }
 
   const handleSubmit = async (data: RatingFormData) => {
     try {
       if (editingRating) {
         // TODO: Implement actual update operation with catalog API
-        console.log('Update rating:', data);
+        console.log('Update rating:', data)
       } else {
         // TODO: Implement actual create operation with catalog API
-        console.log('Create rating:', data);
+        console.log('Create rating:', data)
       }
-      
-      setIsModalOpen(false);
-      loadRatings();
-    } catch (err) {
-      console.error('Failed to save rating:', err);
-    }
-  };
 
-  const filteredRatings = ratings.filter(item =>
-    item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+      setIsModalOpen(false)
+      loadRatings()
+    } catch (err) {
+      console.error('Failed to save rating:', err)
+    }
+  }
+
+  const filteredRatings = ratings.filter(
+    item =>
+      item.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.alternativeCode && item.alternativeCode.toLowerCase().includes(searchTerm.toLowerCase()))
+  )
 
   if (error) {
     return (
       <Alert className="gba:border-red-200 gba:bg-red-50">
         <AlertDescription>
           {t('mdm.ratings.error', 'Error Loading Ratings')}: {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={loadRatings}
-            className="gba:ml-2"
-          >
+          <Button variant="outline" size="sm" onClick={loadRatings} className="gba:ml-2">
             {t('common.retry', 'Retry')}
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -210,16 +203,14 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:flex gba:items-center gba:gap-2">
             <Star className="gba:h-5 gba:w-5" />
-            {t('mdm.lead_ratings', 'Lead Ratings')} 
-            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>
-              {sourceApp}
-            </Badge>
+            {t('mdm.lead_ratings', 'Lead Ratings')}
+            <Badge variant={sourceApp === 'CRM' ? 'default' : 'secondary'}>{sourceApp}</Badge>
           </h3>
           <p className="gba:text-sm gba:text-gray-600">
             {t('mdm.lead_ratings.description', 'Manage rating levels for lead qualification')}
           </p>
         </div>
-        
+
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogTrigger asChild>
             <Button onClick={handleAdd} data-testid={`${prefixDataTestId}-${DATA_TEST_ID}-Add-Button`}>
@@ -233,13 +224,12 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
                 {editingRating ? t('mdm.rating.edit', 'Edit Rating') : t('mdm.rating.add', 'Add Rating')}
               </DialogTitle>
               <DialogDescription>
-                {editingRating 
+                {editingRating
                   ? t('mdm.rating.edit.description', 'Update the rating details below.')
-                  : t('mdm.rating.add.description', 'Add a new rating to the catalog.')
-                }
+                  : t('mdm.rating.add.description', 'Add a new rating to the catalog.')}
               </DialogDescription>
             </DialogHeader>
-            
+
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)} className="gba:space-y-4">
                 <FormField
@@ -279,7 +269,10 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.alternative_code', 'Alternative Code')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.alternative_code.placeholder', 'Enter alternative code')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -293,7 +286,10 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
                     <FormItem>
                       <FormLabel>{t('mdm.additional_value_1', 'Additional Value 1')}</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')} />
+                        <Input
+                          {...field}
+                          placeholder={t('mdm.additional_value_1.placeholder', 'Enter additional value 1')}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -304,9 +300,7 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
                   <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
                     {t('common.cancel', 'Cancel')}
                   </Button>
-                  <Button type="submit">
-                    {t('common.save', 'Save')}
-                  </Button>
+                  <Button type="submit">{t('common.save', 'Save')}</Button>
                 </div>
               </form>
             </Form>
@@ -348,7 +342,7 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredRatings.map((item) => (
+                filteredRatings.map(item => (
                   <TableRow key={item.id}>
                     <TableCell>
                       <Badge variant={getRatingColor(item.code) as any}>{item.code}</Badge>
@@ -389,5 +383,5 @@ export const RatingsTab: React.FC<RatingsTabProps> = ({
         )}
       </div>
     </div>
-  );
-}; 
+  )
+}

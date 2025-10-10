@@ -1,76 +1,76 @@
 export interface CompanyData {
-    id: string;
-    name: string;
-    email?: string;
-    phone?: string;
-    version:number;
-    website:string;
-    legalForm: {
-      value: string;
-      code: string;
-      id: string;
-    };
-    numberOfEmployees: {
-      value: string;
-    };
-    annualRevenue?: {
-      id: string;
-      value: string;
-    };
-    contact: {
-      firstName: string;
-      lastName: string;
-      email:string;
-      phone:string;
-    }[];
-    addresses: {
-      city: string;
-      countryRef: string;
-      version: number;
-      regionRef: string;
-      postalCode: string;
-      id: string;
-      addressType: string;
-      addressLine: string;
-      country: {
-        id: string;
-        value: string;
-        code: string;
-      };
-      region: {
-        id: string;
-        value: string;
-        code: string;
-      };
-    }[];
-    numberOfEmployeesRef: string;
-    foundationDate: string;
-    createdAt?: string;
-    addressLine?: string;
-    industry: {
-      id: string;
-      code: string;
-      value: string;
-    };
-    ownerEmployee: {
-      id: string;
-      lastName: string;
-      firstName: string;
-    };
+  id: string
+  name: string
+  email?: string
+  phone?: string
+  version: number
+  website: string
+  legalForm: {
+    value: string
+    code: string
+    id: string
   }
-  
-  export interface GetCompaniesResponse {
-    Account: CompanyData[];
-    AccountAggregate: {
-      aggregate: {
-        count: number;
-      };
-    };
+  numberOfEmployees: {
+    value: string
   }
+  annualRevenue?: {
+    id: string
+    value: string
+  }
+  contact: {
+    firstName: string
+    lastName: string
+    email: string
+    phone: string
+  }[]
+  addresses: {
+    city: string
+    countryRef: string
+    version: number
+    regionRef: string
+    postalCode: string
+    id: string
+    addressType: string
+    addressLine: string
+    country: {
+      id: string
+      value: string
+      code: string
+    }
+    region: {
+      id: string
+      value: string
+      code: string
+    }
+  }[]
+  numberOfEmployeesRef: string
+  foundationDate: string
+  createdAt?: string
+  addressLine?: string
+  industry: {
+    id: string
+    code: string
+    value: string
+  }
+  ownerEmployee: {
+    id: string
+    lastName: string
+    firstName: string
+  }
+}
 
-  export interface GetCompanyByIdResponse {
-    Account: CompanyData[];
+export interface GetCompaniesResponse {
+  Account: CompanyData[]
+  AccountAggregate: {
+    aggregate: {
+      count: number
+    }
   }
+}
+
+export interface GetCompanyByIdResponse {
+  Account: CompanyData[]
+}
 
 export const GET_COMPANIES = `
   query MyQuery (
@@ -128,7 +128,7 @@ export const GET_COMPANIES = `
     }
   }
 }
-`;
+`
 
 export const GET_COMPANY_BY_ID = `
   query GetCompanyById(
@@ -166,4 +166,4 @@ export const GET_COMPANY_BY_ID = `
       }
     }
   }
-`;
+`

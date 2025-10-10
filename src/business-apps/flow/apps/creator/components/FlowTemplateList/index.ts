@@ -1,4 +1,4 @@
-import { FlowTemplateList } from './FlowTemplateList';
+import { FlowTemplateList } from './FlowTemplateList'
 
-export { FlowTemplateList };
-export default FlowTemplateList;
+export { FlowTemplateList }
+export default FlowTemplateList

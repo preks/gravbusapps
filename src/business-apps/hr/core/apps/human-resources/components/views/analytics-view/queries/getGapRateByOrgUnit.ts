@@ -46,4 +46,4 @@ export const GET_GAP_RATE_BY_ORG_UNIT = `
       }
     }
   }
-`;
+`

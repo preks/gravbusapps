@@ -1,63 +1,63 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 // Types for the GraphQL response
 export interface CatalogEntryTranslation {
-  localeCode: string;
-  value: string;
+  localeCode: string
+  value: string
 }
 
 export interface FormFieldDefinition {
-  type: 'DATE' | 'DATETIME' | 'AMOUNT' | 'TEXT' | 'TEXTAREA' | string; // string for CATALOG_<name> or REF_<name>
-  label: string;
-  property: string; // e.g., "investment.acquisitionDate" or "equityInvestment.marketValue"
-  required: boolean;
-  displayOrder: string; // e.g., "1.1", "1.2", "2"
+  type: 'DATE' | 'DATETIME' | 'AMOUNT' | 'TEXT' | 'TEXTAREA' | string // string for CATALOG_<name> or REF_<name>
+  label: string
+  property: string // e.g., "investment.acquisitionDate" or "equityInvestment.marketValue"
+  required: boolean
+  displayOrder: string // e.g., "1.1", "1.2", "2"
 }
 
 export interface FormFieldGroup {
-  groupId: string;
-  groupLabel: string;
-  displayOrder: number;
-  fields: FormFieldDefinition[];
+  groupId: string
+  groupLabel: string
+  displayOrder: number
+  fields: FormFieldDefinition[]
 }
 
 export interface FormFieldsDefinition {
-  formFields: FormFieldGroup[];
+  formFields: FormFieldGroup[]
 }
 
 export interface InvestmentGroupEntry {
-  id: string;
-  code: string;
-  value: string;
-  translations: CatalogEntryTranslation[];
-  objectValue: FormFieldsDefinition;
+  id: string
+  code: string
+  value: string
+  translations: CatalogEntryTranslation[]
+  objectValue: FormFieldsDefinition
 }
 
 export interface InvestmentTypeEntry {
-  id: string;
-  code: string;
-  parentEntryId: string;
-  value: string;
-  translations: CatalogEntryTranslation[];
-  objectValue: FormFieldsDefinition;
+  id: string
+  code: string
+  parentEntryId: string
+  value: string
+  translations: CatalogEntryTranslation[]
+  objectValue: FormFieldsDefinition
 }
 
 export interface InvestmentLiquidFundTypeEntry {
-  id: string;
-  code: string;
-  parentEntryId: string;
-  value: string;
-  translations: CatalogEntryTranslation[];
-  objectValue: FormFieldsDefinition;
+  id: string
+  code: string
+  parentEntryId: string
+  value: string
+  translations: CatalogEntryTranslation[]
+  objectValue: FormFieldsDefinition
 }
 
 export interface InvestmentCatalogData {
-  investmentGroups: InvestmentGroupEntry[];
-  investmentTypes: InvestmentTypeEntry[];
-  investmentLiquidFundTypes: InvestmentLiquidFundTypeEntry[];
+  investmentGroups: InvestmentGroupEntry[]
+  investmentTypes: InvestmentTypeEntry[]
+  investmentLiquidFundTypes: InvestmentLiquidFundTypeEntry[]
 }
 
 // GraphQL query to fetch all investment groups and types with their form fields
@@ -141,26 +141,26 @@ export const GET_INVESTMENT_CATALOG_DATA = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Hook to fetch all investment catalog data
 export const useGetInvestmentCatalogData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchInvestmentCatalogData = useCallback(async (): Promise<InvestmentCatalogData> => {
-    const activeUserLocale = getCurrentActiveUserLocale() || "en";
-    const query = GET_INVESTMENT_CATALOG_DATA();
+    const activeUserLocale = getCurrentActiveUserLocale() || 'en'
+    const query = GET_INVESTMENT_CATALOG_DATA()
     try {
       const result = await graphqlClient.request<InvestmentCatalogData>(query, {
         activeUserLocale
-      });
-      return result;
+      })
+      return result
     } catch (error) {
-      console.error('Error fetching investment catalog data:', error);
-      throw error;
+      console.error('Error fetching investment catalog data:', error)
+      throw error
     }
-  }, [graphqlClient]);
+  }, [graphqlClient])
 
-  return { fetchInvestmentCatalogData };
-};
+  return { fetchInvestmentCatalogData }
+}

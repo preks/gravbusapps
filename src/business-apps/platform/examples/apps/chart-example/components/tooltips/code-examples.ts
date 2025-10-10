@@ -70,7 +70,7 @@ const DefaultTooltip = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const customTooltipCode = `import React, { useMemo } from "react";
 import {
@@ -135,7 +135,7 @@ const CustomTooltip = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const advancedTooltipCode = `import React, { useMemo } from "react";
 import {
@@ -220,7 +220,7 @@ const AdvancedTooltip = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const noTooltipCode = `import React, { useMemo } from "react";
 import {
@@ -281,7 +281,7 @@ const NoTooltip = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const interactiveTooltipCode = `import React, { useMemo } from "react";
 import {
@@ -372,7 +372,7 @@ const InteractiveTooltip = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
 export const multilineTooltipCode = `import React, { useMemo } from "react";
 import {
@@ -436,4 +436,4 @@ const MultilineTooltip = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`

@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useJobFunctions } from '../../hooks/useJobFunctions';
-import { JobFunction } from '../../types';
+import React, { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useJobFunctions } from '../../hooks/useJobFunctions'
+import { JobFunction } from '../../types'
 import {
   Card,
   CardContent,
@@ -13,11 +13,11 @@ import {
   AlertDescription,
   DataTable,
   Badge,
-  Spinner,
-} from '@newwork/nw-design-system';
-import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { ColumnDef, SortingState } from '@tanstack/react-table';
+  Spinner
+} from '@newwork/nw-design-system'
+import { CardTabHeaderComponent } from '../../../generic-components/card/CardTabHeaderComponent'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import {
   EyeIcon,
   UsersIcon,
@@ -29,64 +29,55 @@ import {
   InfoIcon,
   UserListIcon,
   PlusIcon,
-  PencilSimpleLineIcon,
-} from '@phosphor-icons/react';
-import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent';
-import JobFunctionForm from '@/business-apps/mdm/forms/job-function-form';
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+  PencilSimpleLineIcon
+} from '@phosphor-icons/react'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import JobFunctionForm from '@/business-apps/mdm/forms/job-function-form'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface JobFunctionsTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId } = context;
-  const dataTestId = formatDataTestId(prefixDataTestId, '');
+const JobFunctionsTab: React.FC<JobFunctionsTabProps> = context => {
+  const { t } = useTranslation()
+  const { prefixDataTestId } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, '')
 
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'));
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
-  const {
-    jobFunctions,
-    jobFamilies,
-    jobLevelGroups,
-    isLoading,
-    error,
-    refetch,
-    searchJobFunctions,
-  } = useJobFunctions(context);
+  const { jobFunctions, jobFamilies, jobLevelGroups, isLoading, error, refetch, searchJobFunctions } =
+    useJobFunctions(context)
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(null)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedRows, setSelectedRows] = useState<any[]>([]);
+  const [selectedRows, setSelectedRows] = useState<any[]>([])
 
   useEffect(() => {
     if (selectedFunction) {
-      const newJobFunction = jobFunctions.find(
-        (jobFunction) => jobFunction.id === selectedFunction.id,
-      );
+      const newJobFunction = jobFunctions.find(jobFunction => jobFunction.id === selectedFunction.id)
 
       if (newJobFunction) {
-        setSelectedFunction(newJobFunction);
+        setSelectedFunction(newJobFunction)
       }
     }
-  }, [jobFunctions]);
+  }, [jobFunctions])
 
-  const filteredFunctions = searchTerm ? searchJobFunctions(searchTerm) : jobFunctions;
+  const filteredFunctions = searchTerm ? searchJobFunctions(searchTerm) : jobFunctions
 
   const handleView = (record: JobFunction) => {
-    const targetJobFunction = jobFunctions.find((jobFunction) => jobFunction.id === record.id);
+    const targetJobFunction = jobFunctions.find(jobFunction => jobFunction.id === record.id)
 
     if (targetJobFunction) {
-      setSelectedFunction(targetJobFunction);
-      setIsDrawerOpen(true);
+      setSelectedFunction(targetJobFunction)
+      setIsDrawerOpen(true)
     }
-  };
+  }
 
   const handleDelete = async (item: JobFunction) => {
     await restClient.post(
@@ -95,16 +86,16 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         changeMode: 'DELETE',
         jobFunction: {
           id: item.id,
-          version: item.version ?? 0,
-        },
+          version: item.version ?? 0
+        }
       },
       {
-        headers: { Authorization: `Bearer ${context.accessToken}` },
-      },
-    );
+        headers: { Authorization: `Bearer ${context.accessToken}` }
+      }
+    )
 
-    await refetch();
-  };
+    await refetch()
+  }
 
   const renderJobFunctionsTable = () => {
     const columns: ColumnDef<JobFunction>[] = [
@@ -122,13 +113,13 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const code = getValue();
+          const code = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
-          );
-        },
+          )
+        }
       },
       {
         accessorKey: 'name',
@@ -144,13 +135,13 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue();
+          const name = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:font-semibold">{name as string}</div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
         accessorKey: 'jobFamily',
@@ -166,9 +157,9 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const jobFamily = row.original.jobFamily?.value;
-          return jobFamily ?? 'Not assigned';
-        },
+          const jobFamily = row.original.jobFamily?.value
+          return jobFamily ?? 'Not assigned'
+        }
       },
       {
         accessorKey: 'jobLevelGroup',
@@ -184,9 +175,9 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ row }) => {
-          const jobLevelGroup = row.original.jobLevelGroup?.value;
-          return jobLevelGroup ?? 'Not assigned';
-        },
+          const jobLevelGroup = row.original.jobLevelGroup?.value
+          return jobLevelGroup ?? 'Not assigned'
+        }
       },
       {
         accessorKey: 'description',
@@ -202,15 +193,15 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const description = getValue();
+          const description = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:max-w-xs gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
         id: 'actions',
@@ -248,11 +239,11 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
               itemTitle={'Job Function'}
             />
           </div>
-        ),
-      },
-    ];
+        )
+      }
+    ]
 
-    const dataTable = filteredFunctions.map((jobFunction) => ({
+    const dataTable = filteredFunctions.map(jobFunction => ({
       id: jobFunction.id,
       code: jobFunction.code,
       name: jobFunction.name,
@@ -261,8 +252,8 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
       jobLevelGroup: jobFunction.jobLevelGroup,
       version: jobFunction.version,
       nameI18n: jobFunction.nameI18n,
-      descriptionI18n: jobFunction.descriptionI18n,
-    }));
+      descriptionI18n: jobFunction.descriptionI18n
+    }))
 
     return (
       <DataTable
@@ -276,13 +267,13 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         enableSelection
         enablePagination
       />
-    );
-  };
+    )
+  }
 
   const navigationItems = useMemo(() => {
-    if (!selectedFunction) return [];
+    if (!selectedFunction) return []
 
-    const items = [];
+    const items = []
 
     // Conditionally add Job Family Details if jobFamilyRef exists
     if (selectedFunction.jobFamilyRef) {
@@ -291,8 +282,8 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         color: 'green',
         icon: UsersIcon,
         title: selectedFunction.jobFamily?.value ?? 'Job Family Details',
-        description: 'View complete job family information, structure and related positions',
-      });
+        description: 'View complete job family information, structure and related positions'
+      })
     }
 
     // Conditionally add Level Group Details if jobLevelGroupRef exists
@@ -302,8 +293,8 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         color: 'blue',
         icon: UserListIcon,
         title: selectedFunction.jobLevelGroup?.value ?? 'Level Group Details',
-        description: 'View job level grouping, career progression paths and categorization',
-      });
+        description: 'View job level grouping, career progression paths and categorization'
+      })
     }
 
     items.push(
@@ -312,22 +303,22 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         color: 'purple',
         icon: BookOpenIcon,
         title: 'Related Job Profiles',
-        description: `View all job profiles using the ${selectedFunction.name} function`,
+        description: `View all job profiles using the ${selectedFunction.name} function`
       },
       {
         redirectLink: `/platform/mdm/competencies-data/skills?jobFunction=${selectedFunction.id}`,
         color: 'orange',
         icon: WrenchIcon,
         title: 'Skills & Competencies',
-        description: `Explore skills and competencies associated with ${selectedFunction.name}`,
-      },
-    );
+        description: `Explore skills and competencies associated with ${selectedFunction.name}`
+      }
+    )
 
-    return items;
-  }, [selectedFunction]);
+    return items
+  }, [selectedFunction])
 
   const drawerItems = useMemo(() => {
-    if (!selectedFunction) return [];
+    if (!selectedFunction) return []
 
     return [
       {
@@ -337,17 +328,17 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         items: [
           {
             label: 'Name',
-            value: selectedFunction.name,
+            value: selectedFunction.name
           },
           {
             label: 'Code',
-            value: selectedFunction.code ?? '-',
+            value: selectedFunction.code ?? '-'
           },
           {
             label: 'Description',
-            value: selectedFunction.description ?? '-',
-          },
-        ],
+            value: selectedFunction.description ?? '-'
+          }
+        ]
       },
       {
         icon: <InfoIcon />,
@@ -355,24 +346,21 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         items: [
           {
             label: 'Job Family',
-            value: selectedFunction.jobFamily?.value ?? '-',
+            value: selectedFunction.jobFamily?.value ?? '-'
           },
           {
             label: 'Job Level Group',
-            value: selectedFunction.jobLevelGroup?.value ?? '-',
-          },
-        ],
-      },
-    ];
-  }, [selectedFunction]);
+            value: selectedFunction.jobLevelGroup?.value ?? '-'
+          }
+        ]
+      }
+    ]
+  }, [selectedFunction])
 
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <Alert
-          className="gba:w-full gba:!flex gba:justify-between gba:!items-center"
-          variant="destructive"
-        >
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <XCircleIcon className="h-4 w-4" />
             Error Loading Job Functions
@@ -384,18 +372,15 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           </AlertDescription>
         </Alert>
       </div>
-    );
+    )
   }
 
   if (isLoading && jobFunctions.length === 0) {
     return (
-      <div
-        data-testid={`${dataTestId}`}
-        className="gba:flex gba:justify-center gba:items-center gba:h-64"
-      >
+      <div data-testid={`${dataTestId}`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
         <Spinner />
       </div>
-    );
+    )
   }
 
   return (
@@ -427,7 +412,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
           <Input
             placeholder="Search job functions..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="gba:pl-10"
             data-testid={`${dataTestId}-search-input`}
           />
@@ -447,11 +432,11 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
         <SheetWrapperComponent
           prefixDataTestId={dataTestId}
           isDrawerVisible={isDrawerOpen}
-          onOpenChange={(openStatus) => {
+          onOpenChange={openStatus => {
             if (!openStatus) {
-              setSelectedFunction(null);
+              setSelectedFunction(null)
             }
-            setIsDrawerOpen(openStatus);
+            setIsDrawerOpen(openStatus)
           }}
           title="Job Function Details"
           titleIcon={FileCodeIcon}
@@ -471,12 +456,12 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = (context) => {
               jobLevelGroups={jobLevelGroups}
               jobFunction={selectedFunction}
               isDrawerActive={isDrawerOpen}
-            />,
+            />
           ]}
         />
       )}
     </Card>
-  );
-};
+  )
+}
 
-export { JobFunctionsTab };
+export { JobFunctionsTab }

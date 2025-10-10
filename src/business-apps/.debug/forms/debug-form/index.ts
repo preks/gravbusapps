@@ -1,1 +1,1 @@
-export { DebugForm, default } from './DebugForm';
+export { DebugForm, default } from './DebugForm'

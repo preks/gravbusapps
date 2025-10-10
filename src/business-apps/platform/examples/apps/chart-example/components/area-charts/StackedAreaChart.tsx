@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,24 +9,28 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import areaChartData from "../../data/areaChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import areaChartData from '../../data/areaChartData.json'
 
 interface StackedAreaChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ moduleColor }) => {
-  const chartData = areaChartData.stacked;
+  const chartData = areaChartData.stacked
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-    tablet: { label: "Tablet" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' },
+        tablet: { label: 'Tablet' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="stacked-area-chart">
@@ -46,7 +50,7 @@ const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
@@ -78,7 +82,7 @@ const StackedAreaChart: React.FC<StackedAreaChartProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default StackedAreaChart;
+export default StackedAreaChart

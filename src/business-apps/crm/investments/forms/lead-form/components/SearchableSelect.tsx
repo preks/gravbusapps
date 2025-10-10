@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Select,
   SelectContent,
@@ -8,210 +8,193 @@ import {
   Label,
   Spinner,
   Alert,
-  AlertDescription,
-} from "@newwork/nw-design-system";
-import { PiMagnifyingGlass } from "react-icons/pi";
-import { debounce, DEFAULT_SEARCH_DEBOUNCE_DELAY } from "@/common/data/investment";
-import { SelectOption } from "../types";
+  AlertDescription
+} from '@newwork/nw-design-system'
+import { PiMagnifyingGlass } from 'react-icons/pi'
+import { debounce, DEFAULT_SEARCH_DEBOUNCE_DELAY } from '@/common/data/investment'
+import { SelectOption } from '../types'
 
 interface SearchableSelectProps {
-  label?: string;
-  name: string;
-  value?: string;
-  placeholder?: string;
-  options: SelectOption[];
-  loading?: boolean;
-  hasMore?: boolean;
-  onSearch?: (searchTerm: string) => void;
-  onLoadMore?: () => void;
-  onChange?: (value: string) => void;
-  "data-testid"?: string;
-  className?: string;
-  disabled?: boolean;
-  error?: string | null;
-  required?: boolean;
+  label?: string
+  name: string
+  value?: string
+  placeholder?: string
+  options: SelectOption[]
+  loading?: boolean
+  hasMore?: boolean
+  onSearch?: (searchTerm: string) => void
+  onLoadMore?: () => void
+  onChange?: (value: string) => void
+  'data-testid'?: string
+  className?: string
+  disabled?: boolean
+  error?: string | null
+  required?: boolean
 }
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
   label,
   name,
   value,
-  placeholder = "Search and select...",
+  placeholder = 'Search and select...',
   options,
   loading = false,
   hasMore = false,
   onSearch,
   onLoadMore,
   onChange,
-  "data-testid": dataTestId,
-  className = "",
+  'data-testid': dataTestId,
+  className = '',
   disabled = false,
   error,
-  required = false,
+  required = false
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isOpen, setIsOpen] = useState(false);
-  const [cachedSelectedOption, setCachedSelectedOption] =
-    useState<SelectOption | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const [searchTerm, setSearchTerm] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const [cachedSelectedOption, setCachedSelectedOption] = useState<SelectOption | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
 
   // Find the selected option in current options
   const selectedOption =
-    value && value.trim()
-      ? options.find((option) => option.value === value || option.id === value)
-      : undefined;
-
+    value && value.trim() ? options.find(option => option.value === value || option.id === value) : undefined
 
   // Update cached selected option when found in current options
   useEffect(() => {
     if (selectedOption) {
-      setCachedSelectedOption(selectedOption);
+      setCachedSelectedOption(selectedOption)
     }
-  }, [selectedOption]);
+  }, [selectedOption])
 
   // Clear cached option when value is cleared
   useEffect(() => {
-    if (!value || (typeof value === "string" && !value.trim())) {
-      setCachedSelectedOption(null);
+    if (!value || (typeof value === 'string' && !value.trim())) {
+      setCachedSelectedOption(null)
     }
-  }, [value]);
+  }, [value])
 
   // Use either the current selected option or the cached one
-  const displayOption = selectedOption || cachedSelectedOption;
-  const displayValue = displayOption ? displayOption.label : undefined;
+  const displayOption = selectedOption || cachedSelectedOption
+  const displayValue = displayOption ? displayOption.label : undefined
 
   // Create enhanced options that always include the selected option
   const enhancedOptions = React.useMemo(() => {
-    if (!cachedSelectedOption || !value || !value.trim()) return options;
+    if (!cachedSelectedOption || !value || !value.trim()) return options
 
     // Check if the cached selected option is already in the current options
     const isSelectedInOptions = options.some(
-      (option) =>
-        option.value === cachedSelectedOption.value ||
-        option.id === cachedSelectedOption.id
-    );
+      option => option.value === cachedSelectedOption.value || option.id === cachedSelectedOption.id
+    )
 
     if (isSelectedInOptions) {
-      return options;
+      return options
     }
 
     // Add the cached selected option to the beginning of the list
-    return [cachedSelectedOption, ...options];
-  }, [options, cachedSelectedOption, value]);
+    return [cachedSelectedOption, ...options]
+  }, [options, cachedSelectedOption, value])
 
   // Debounced search
   const debouncedSearch = useCallback(
     debounce((term: string) => {
       if (onSearch) {
-        onSearch(term);
+        onSearch(term)
       }
     }, DEFAULT_SEARCH_DEBOUNCE_DELAY),
     [onSearch]
-  );
+  )
 
   // Handle search input change
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      e.stopPropagation();
-      const term = e.target.value;
-      setSearchTerm(term);
-      debouncedSearch(term);
+      e.stopPropagation()
+      const term = e.target.value
+      setSearchTerm(term)
+      debouncedSearch(term)
     },
     [debouncedSearch]
-  );
+  )
 
   // Prevent search input from affecting Select
   const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
-    e.stopPropagation();
-  }, []);
+    e.stopPropagation()
+  }, [])
 
   const handleSearchClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
+    e.stopPropagation()
+  }, [])
 
   // Handle scroll to load more
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
-      const { target } = e;
+      const { target } = e
       if (target instanceof HTMLDivElement) {
-        const { scrollTop, scrollHeight, clientHeight } = target;
-        if (
-          scrollTop + clientHeight >= scrollHeight - 10 &&
-          hasMore &&
-          !loading &&
-          onLoadMore
-        ) {
-          onLoadMore();
+        const { scrollTop, scrollHeight, clientHeight } = target
+        if (scrollTop + clientHeight >= scrollHeight - 10 && hasMore && !loading && onLoadMore) {
+          onLoadMore()
         }
       }
     },
     [hasMore, loading, onLoadMore]
-  );
+  )
 
   // Handle selection change
   const handleChange = useCallback(
     (selectedValue: string) => {
       // Find the selected option to cache it
       const newSelectedOption = enhancedOptions.find(
-        (option) =>
-          option.value === selectedValue || option.id === selectedValue
-      );
+        option => option.value === selectedValue || option.id === selectedValue
+      )
 
       if (newSelectedOption) {
-        setCachedSelectedOption(newSelectedOption);
+        setCachedSelectedOption(newSelectedOption)
       }
 
       if (onChange) {
-        onChange(selectedValue);
+        onChange(selectedValue)
       }
 
       // Clear search after selection
-      setSearchTerm("");
+      setSearchTerm('')
       if (onSearch) {
-        onSearch("");
+        onSearch('')
       }
-      setIsOpen(false);
+      setIsOpen(false)
     },
     [onChange, onSearch, enhancedOptions]
-  );
+  )
 
   // Handle dropdown open/close
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      setIsOpen(open);
+      setIsOpen(open)
       if (!open) {
         // Reset search when closing dropdown
-        setSearchTerm("");
+        setSearchTerm('')
         if (onSearch) {
-          onSearch("");
+          onSearch('')
         }
       }
     },
     [onSearch]
-  );
+  )
 
   // Reset search when options change (but preserve selected option)
   useEffect(() => {
     if (!isOpen) {
-      setSearchTerm("");
+      setSearchTerm('')
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   return (
-    <div
-      className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className}`}
-    >
+    <div className={`gba:w-full gba:max-w-full gba:overflow-hidden ${className}`}>
       {label && (
-        <Label
-          htmlFor={name}
-          className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2 gba:truncate"
-        >
+        <Label htmlFor={name} className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2 gba:truncate">
           {label} {required && <span className="gba:text-red-500">*</span>}
         </Label>
       )}
       <div className="gba:relative gba:w-full gba:max-w-full gba:overflow-hidden">
         <Select
-          value={value || ""}
+          value={value || ''}
           onValueChange={handleChange}
           onOpenChange={handleOpenChange}
           disabled={disabled}
@@ -219,16 +202,11 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           open={isOpen}
         >
           <SelectTrigger className="gba:w-full gba:max-w-full gba:border-gray-300 gba:bg-white">
-            <div className="gba:truncate gba:overflow-hidden">
-              {displayValue || placeholder}
-            </div>
+            <div className="gba:truncate gba:overflow-hidden">{displayValue || placeholder}</div>
           </SelectTrigger>
           <SelectContent className="gba:w-full gba:min-w-[200px] gba:max-w-[400px] gba:border-gray-300 gba:bg-white">
             {/* Search input */}
-            <div
-              className="gba:p-2 gba:border-b gba:border-gray-200"
-              onClick={handleSearchClick}
-            >
+            <div className="gba:p-2 gba:border-b gba:border-gray-200" onClick={handleSearchClick}>
               <div className="gba:relative">
                 <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-2 gba:flex gba:items-center gba:pointer-events-none gba:z-10">
                   <PiMagnifyingGlass className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -241,7 +219,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   placeholder="Search..."
                   className="gba:border-gray-300 gba:bg-white gba:text-sm"
                   style={{
-                    paddingLeft: "28px",
+                    paddingLeft: '28px'
                   }}
                   autoFocus
                 />
@@ -249,36 +227,22 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
             </div>
 
             {/* Options list */}
-            <div
-              ref={listRef}
-              onScroll={handleScroll}
-              className="gba:max-h-48 gba:overflow-y-auto"
-            >
+            <div ref={listRef} onScroll={handleScroll} className="gba:max-h-48 gba:overflow-y-auto">
               {enhancedOptions.length > 0
                 ? enhancedOptions.map((option, index) => (
-                    <SelectItem
-                      key={`${option.id}-${index}`}
-                      value={String(option.value)}
-                    >
+                    <SelectItem key={`${option.id}-${index}`} value={String(option.value)}>
                       <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
-                        <span className="gba:truncate">
-                          {option.name || option.label}
-                        </span>
+                        <span className="gba:truncate">{option.name || option.label}</span>
                         {cachedSelectedOption &&
-                          (cachedSelectedOption.value === option.value ||
-                            cachedSelectedOption.id === option.id) && (
-                            <span className="gba:text-xs gba:text-blue-600 gba:font-medium gba:ml-2">
-                              ✓
-                            </span>
+                          (cachedSelectedOption.value === option.value || cachedSelectedOption.id === option.id) && (
+                            <span className="gba:text-xs gba:text-blue-600 gba:font-medium gba:ml-2">✓</span>
                           )}
                       </div>
                     </SelectItem>
                   ))
                 : !loading &&
                   searchTerm && (
-                    <div className="gba:p-4 gba:text-center gba:text-gray-500">
-                      No results found for "{searchTerm}"
-                    </div>
+                    <div className="gba:p-4 gba:text-center gba:text-gray-500">No results found for "{searchTerm}"</div>
                   )}
 
               {/* Load more indicator */}
@@ -295,7 +259,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   Scroll down to load more...
                 </div>
               )}
-
             </div>
           </SelectContent>
         </Select>
@@ -306,9 +269,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
         </Alert>
       )}
     </div>
-  );
-};
+  )
+}
 
-
-
-export default SearchableSelect;
+export default SearchableSelect

@@ -1,2 +1,2 @@
-export { AbsenceDetails } from './AbsenceDetails';
-export { EntitlementsDetails } from './EntitlementsDetails'; 
+export { AbsenceDetails } from './AbsenceDetails'
+export { EntitlementsDetails } from './EntitlementsDetails'

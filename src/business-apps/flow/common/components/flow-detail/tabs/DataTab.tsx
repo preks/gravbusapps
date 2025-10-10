@@ -1,245 +1,224 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  Button,
-  Badge,
-  Alert,
-  Spinner
-} from '@newwork/nw-design-system';
-import { 
-  FileText,
-  Download,
-  Table,
-  Copy,
-  User,
-  AlertCircle,
-  Clock
-} from 'lucide-react';
-import { useFlowProgressClient } from '@/common/network/flows/useFlowProgressClient';
+import React, { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Button, Badge, Alert, Spinner } from '@newwork/nw-design-system'
+import { FileText, Download, Table, Copy, User, AlertCircle, Clock } from 'lucide-react'
+import { useFlowProgressClient } from '@/common/network/flows/useFlowProgressClient'
 
 // Interfaces for the Data tab
 interface StepStatus {
-  completed: number;
-  total: number;
-  remaining: number;
+  completed: number
+  total: number
+  remaining: number
 }
 
 interface ProcessHealth {
-  isOnTrack: boolean;
-  hasFailures: boolean;
-  isStalled: boolean;
-  statusMessage: string;
+  isOnTrack: boolean
+  hasFailures: boolean
+  isStalled: boolean
+  statusMessage: string
 }
 
 interface TimeInsights {
-  avgStepDurationMinutes?: number;
-  avgTaskCompletionMinutes?: number;
-  estimatedCompletionDate?: string;
-  isOverdue: boolean;
-  minutesRunning: number;
-  minutesSinceLastUpdate: number;
-  workflowStartTime: string;
-  lastActivityTime?: string;
+  avgStepDurationMinutes?: number
+  avgTaskCompletionMinutes?: number
+  estimatedCompletionDate?: string
+  isOverdue: boolean
+  minutesRunning: number
+  minutesSinceLastUpdate: number
+  workflowStartTime: string
+  lastActivityTime?: string
 }
 
 interface StepDataRow {
-  flowId: string;
-  taskId: string;
-  userId: string;
-  userName: string;
-  timestamp: string;
-  stepTitle: string;
-  formData: { [key: string]: any };
+  flowId: string
+  taskId: string
+  userId: string
+  userName: string
+  timestamp: string
+  stepTitle: string
+  formData: { [key: string]: any }
 }
 
 interface StepDataResponse {
-  data: StepDataRow[];
-  totalCount: number;
-  hasMore: boolean;
-  stepIndex: number;
-  flowId: string;
+  data: StepDataRow[]
+  totalCount: number
+  hasMore: boolean
+  stepIndex: number
+  flowId: string
   pagination: {
-    offset: number;
-    limit: number;
-  };
+    offset: number
+    limit: number
+  }
 }
 
 interface FlowDetailData {
-  flowId: string;
-  flowName: string;
-  templateId: string;
-  status: string;
-  startTime: string;
-  updateTime: string;
-  endTime?: string;
-  progressPercentage: number;
-  stepStatus: StepStatus;
-  currentStep: number;
-  processHealth: ProcessHealth;
-  timeInsights: TimeInsights;
-  durationHours?: number;
-  durationMinutes?: number;
+  flowId: string
+  flowName: string
+  templateId: string
+  status: string
+  startTime: string
+  updateTime: string
+  endTime?: string
+  progressPercentage: number
+  stepStatus: StepStatus
+  currentStep: number
+  processHealth: ProcessHealth
+  timeInsights: TimeInsights
+  durationHours?: number
+  durationMinutes?: number
 }
 
 interface FlowStep {
-  id: string;
-  title: string;
-  status: string;
-  stepIndex: number;
-  assignedTo?: string;
-  dueDate?: string;
-  completedAt?: string;
-  completionTimeMinutes?: number;
+  id: string
+  title: string
+  status: string
+  stepIndex: number
+  assignedTo?: string
+  dueDate?: string
+  completedAt?: string
+  completionTimeMinutes?: number
 }
 
 interface DataTabProps {
-  flowData: FlowDetailData;
-  flowSteps: FlowStep[];
-  accessToken: string;
+  flowData: FlowDetailData
+  flowSteps: FlowStep[]
+  accessToken: string
 }
 
-export const DataTab: React.FC<DataTabProps> = ({
-  flowData,
-  flowSteps,
-  accessToken
-}) => {
-  const [stepDataMap, setStepDataMap] = useState<Map<number, StepDataResponse>>(new Map());
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasLoaded, setHasLoaded] = useState(false);
-  
+export const DataTab: React.FC<DataTabProps> = ({ flowData, flowSteps, accessToken }) => {
+  const [stepDataMap, setStepDataMap] = useState<Map<number, StepDataResponse>>(new Map())
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [hasLoaded, setHasLoaded] = useState(false)
+
   const contextForClient = {
-    accessToken,
+    accessToken
     // Add other required properties as needed
-  } as any; // Temporary type assertion - ideally we'd get the full context from parent
-  const { getStepDataByReference, getStepDataJson } = useFlowProgressClient(contextForClient);
+  } as any // Temporary type assertion - ideally we'd get the full context from parent
+  const { getStepDataByReference, getStepDataJson } = useFlowProgressClient(contextForClient)
 
   // Load step data for completed steps - only on tab selection
   const loadStepData = async () => {
-    if (hasLoaded || isLoading) return;
-    
-    setIsLoading(true);
-    setError(null);
-    
+    if (hasLoaded || isLoading) return
+
+    setIsLoading(true)
+    setError(null)
+
     try {
       const stepDataPromises = flowSteps
         .filter(step => step.status === 'COMPLETED')
-        .map(async (step) => {
+        .map(async step => {
           try {
             // Use new clean API with step reference
-            const stepReference = `step_${step.stepIndex}`;
-            const stepData = await getStepDataByReference(flowData.flowId, stepReference, { limit: 20 });
-            return { stepIndex: step.stepIndex, data: stepData };
+            const stepReference = `step_${step.stepIndex}`
+            const stepData = await getStepDataByReference(flowData.flowId, stepReference, { limit: 20 })
+            return { stepIndex: step.stepIndex, data: stepData }
           } catch (err) {
-            console.warn(`Failed to load data for step ${step.stepIndex}:`, err);
-            return null;
+            console.warn(`Failed to load data for step ${step.stepIndex}:`, err)
+            return null
           }
-        });
+        })
 
-      const stepDataResults = await Promise.all(stepDataPromises);
-      const newStepDataMap = new Map<number, StepDataResponse>();
-      
+      const stepDataResults = await Promise.all(stepDataPromises)
+      const newStepDataMap = new Map<number, StepDataResponse>()
+
       stepDataResults.forEach(result => {
         if (result) {
-          newStepDataMap.set(result.stepIndex, result.data);
+          newStepDataMap.set(result.stepIndex, result.data)
         }
-      });
-      
-      setStepDataMap(newStepDataMap);
-      setHasLoaded(true);
+      })
+
+      setStepDataMap(newStepDataMap)
+      setHasLoaded(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load step data');
+      setError(err instanceof Error ? err.message : 'Failed to load step data')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Load data when component mounts (tab is selected)
   useEffect(() => {
     if (flowData.flowId && accessToken && flowSteps.length > 0) {
-      loadStepData();
+      loadStepData()
     }
-  }, []); // Empty dependency array - load once on mount
+  }, []) // Empty dependency array - load once on mount
   // Helper function to format time duration
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) {
-      return `${minutes} min`;
+      return `${minutes} min`
     } else if (minutes < 1440) {
-      const hours = Math.floor(minutes / 60);
-      const remainingMinutes = minutes % 60;
-      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+      const hours = Math.floor(minutes / 60)
+      const remainingMinutes = minutes % 60
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`
     } else {
-      const days = Math.floor(minutes / 1440);
-      const hours = Math.floor((minutes % 1440) / 60);
-      return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+      const days = Math.floor(minutes / 1440)
+      const hours = Math.floor((minutes % 1440) / 60)
+      return hours > 0 ? `${days}d ${hours}h` : `${days}d`
     }
-  };
+  }
 
   // Helper function to generate human-readable labels from field names
   const generateFieldLabel = (fieldName: string): string => {
     // Handle common field patterns
     const labelMap: { [key: string]: string } = {
-      'startDate': 'Start Date',
-      'endDate': 'End Date',
-      'employeeName': 'Employee Name',
-      'laptopType': 'Laptop Type',
-      'accessories': 'Accessories',
-      'firstName': 'First Name',
-      'lastName': 'Last Name',
-      'email': 'Email Address',
-      'phone': 'Phone Number',
-      'department': 'Department',
-      'position': 'Position',
-      'manager': 'Manager',
-      'requestType': 'Request Type',
-      'priority': 'Priority',
-      'description': 'Description',
-      'comments': 'Comments',
-      'approvalStatus': 'Approval Status',
-      'dueDate': 'Due Date',
-      'completedDate': 'Completed Date',
-      'assignedTo': 'Assigned To',
-      'createdBy': 'Created By',
-      'modifiedBy': 'Modified By',
-      'status': 'Status',
-      'amount': 'Amount',
-      'currency': 'Currency',
-      'category': 'Category',
-      'subcategory': 'Subcategory'
-    };
+      startDate: 'Start Date',
+      endDate: 'End Date',
+      employeeName: 'Employee Name',
+      laptopType: 'Laptop Type',
+      accessories: 'Accessories',
+      firstName: 'First Name',
+      lastName: 'Last Name',
+      email: 'Email Address',
+      phone: 'Phone Number',
+      department: 'Department',
+      position: 'Position',
+      manager: 'Manager',
+      requestType: 'Request Type',
+      priority: 'Priority',
+      description: 'Description',
+      comments: 'Comments',
+      approvalStatus: 'Approval Status',
+      dueDate: 'Due Date',
+      completedDate: 'Completed Date',
+      assignedTo: 'Assigned To',
+      createdBy: 'Created By',
+      modifiedBy: 'Modified By',
+      status: 'Status',
+      amount: 'Amount',
+      currency: 'Currency',
+      category: 'Category',
+      subcategory: 'Subcategory'
+    }
 
     if (labelMap[fieldName]) {
-      return labelMap[fieldName];
+      return labelMap[fieldName]
     }
 
     // Convert camelCase to Title Case
     return fieldName
       .replace(/([A-Z])/g, ' $1') // Add space before capital letters
       .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
-      .trim();
-  };
+      .trim()
+  }
 
   // Helper function to format field values for display
   const formatFieldValue = (key: string, value: any): string => {
     if (value === null || value === undefined) {
-      return '-';
+      return '-'
     }
 
     // Handle arrays
     if (Array.isArray(value)) {
-      if (value.length === 0) return 'None';
-      return value.map(item => typeof item === 'string' ? item : JSON.stringify(item)).join(', ');
+      if (value.length === 0) return 'None'
+      return value.map(item => (typeof item === 'string' ? item : JSON.stringify(item))).join(', ')
     }
 
     // Handle dates
     if (key.toLowerCase().includes('date') || key.toLowerCase().includes('time')) {
       try {
-        const date = new Date(value);
+        const date = new Date(value)
         if (!isNaN(date.getTime())) {
-          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+          return date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
         }
       } catch (e) {
         // Not a valid date, fall through to default handling
@@ -248,29 +227,29 @@ export const DataTab: React.FC<DataTabProps> = ({
 
     // Handle booleans
     if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
+      return value ? 'Yes' : 'No'
     }
 
     // Handle objects (stringify)
     if (typeof value === 'object') {
-      return JSON.stringify(value, null, 2);
+      return JSON.stringify(value, null, 2)
     }
 
     // Convert to string and handle special cases
-    const stringValue = String(value);
-    
+    const stringValue = String(value)
+
     // Format common field types
     if (key.toLowerCase().includes('email')) {
-      return stringValue.toLowerCase();
-    }
-    
-    if (key.toLowerCase().includes('phone')) {
-      // Simple phone formatting (you can enhance this)
-      return stringValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+      return stringValue.toLowerCase()
     }
 
-    return stringValue;
-  };
+    if (key.toLowerCase().includes('phone')) {
+      // Simple phone formatting (you can enhance this)
+      return stringValue.replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3')
+    }
+
+    return stringValue
+  }
 
   return (
     <div className="gba:mt-0 gba:space-y-4">
@@ -294,24 +273,26 @@ export const DataTab: React.FC<DataTabProps> = ({
                 onClick={() => {
                   const csvContent = [
                     ['Step ID', 'Title', 'Status', 'Assigned To', 'Due Date', 'Completed At', 'Data Records'].join(','),
-                    ...flowSteps.map(step => [
-                      step.id,
-                      `"${step.title}"`,
-                      step.status,
-                      step.assignedTo || '',
-                      step.dueDate || '',
-                      step.completedAt || '',
-                      stepDataMap.get(step.stepIndex)?.totalCount || 0
-                    ].join(','))
-                  ].join('\n');
-                  
-                  const blob = new Blob([csvContent], { type: 'text/csv' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `flow-${flowData.flowId}-steps.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
+                    ...flowSteps.map(step =>
+                      [
+                        step.id,
+                        `"${step.title}"`,
+                        step.status,
+                        step.assignedTo || '',
+                        step.dueDate || '',
+                        step.completedAt || '',
+                        stepDataMap.get(step.stepIndex)?.totalCount || 0
+                      ].join(',')
+                    )
+                  ].join('\n')
+
+                  const blob = new Blob([csvContent], { type: 'text/csv' })
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `flow-${flowData.flowId}-steps.csv`
+                  a.click()
+                  URL.revokeObjectURL(url)
                 }}
               >
                 <Download className="gba:h-4 gba:w-4" />
@@ -330,7 +311,7 @@ export const DataTab: React.FC<DataTabProps> = ({
               </div>
             </Alert>
           )}
-          
+
           {isLoading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
               <Spinner className="gba:h-8 gba:w-8" />
@@ -339,9 +320,9 @@ export const DataTab: React.FC<DataTabProps> = ({
           ) : (
             <div className="gba:relative">
               {flowSteps.map((step, index) => {
-                const stepData = stepDataMap.get(step.stepIndex);
-                const isLast = index === flowSteps.length - 1;
-                
+                const stepData = stepDataMap.get(step.stepIndex)
+                const isLast = index === flowSteps.length - 1
+
                 return (
                   <div key={step.id} className="gba:relative gba:py-6">
                     {/* Vertical connector line */}
@@ -349,14 +330,24 @@ export const DataTab: React.FC<DataTabProps> = ({
                       <div className="gba:absolute gba:left-3 gba:top-12 gba:bottom-0 gba:w-0.5 gba:bg-gray-200"></div>
                     )}
                     <div className="gba:flex gba:items-center gba:gap-3 gba:mb-4">
-                      <div className="gba:relative gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-full gba:text-xs gba:font-medium gba:border-2 gba:bg-white"
-                           style={{
-                             borderColor: step.status === 'COMPLETED' ? '#10b981' : 
-                                         step.status === 'IN_PROGRESS' ? '#3b82f6' : '#e5e7eb',
-                             backgroundColor: step.status === 'COMPLETED' ? '#10b981' : 
-                                            step.status === 'IN_PROGRESS' ? '#3b82f6' : '#e5e7eb',
-                             color: step.status === 'COMPLETED' || step.status === 'IN_PROGRESS' ? 'white' : '#6b7280'
-                           }}>
+                      <div
+                        className="gba:relative gba:flex gba:items-center gba:justify-center gba:w-6 gba:h-6 gba:rounded-full gba:text-xs gba:font-medium gba:border-2 gba:bg-white"
+                        style={{
+                          borderColor:
+                            step.status === 'COMPLETED'
+                              ? '#10b981'
+                              : step.status === 'IN_PROGRESS'
+                                ? '#3b82f6'
+                                : '#e5e7eb',
+                          backgroundColor:
+                            step.status === 'COMPLETED'
+                              ? '#10b981'
+                              : step.status === 'IN_PROGRESS'
+                                ? '#3b82f6'
+                                : '#e5e7eb',
+                          color: step.status === 'COMPLETED' || step.status === 'IN_PROGRESS' ? 'white' : '#6b7280'
+                        }}
+                      >
                         {index + 1}
                       </div>
                       <div className="gba:flex-1">
@@ -379,7 +370,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                         )}
                       </div>
                     </div>
-                    
+
                     {/* Step Data Display */}
                     {step.status === 'COMPLETED' ? (
                       stepData ? (
@@ -409,7 +400,7 @@ export const DataTab: React.FC<DataTabProps> = ({
                         ) : (
                           // Multiple data entries - clean layout
                           <div className="gba:mt-3 gba:ml-9 gba:space-y-6">
-                            {stepData.data.map((dataRow) => (
+                            {stepData.data.map(dataRow => (
                               <div key={dataRow.taskId}>
                                 {/* User identifier */}
                                 <div className="gba:flex gba:items-center gba:justify-between gba:mb-3 gba:pb-2 gba:border-b gba:border-gray-200">
@@ -424,21 +415,22 @@ export const DataTab: React.FC<DataTabProps> = ({
                                   </div>
                                   <div className="gba:flex gba:items-center gba:gap-2">
                                     <div className="gba:text-xs gba:text-gray-500">
-                                      {new Date(dataRow.timestamp).toLocaleDateString()} • {new Date(dataRow.timestamp).toLocaleTimeString()}
+                                      {new Date(dataRow.timestamp).toLocaleDateString()} •{' '}
+                                      {new Date(dataRow.timestamp).toLocaleTimeString()}
                                     </div>
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       className="gba:h-6 gba:w-6 gba:p-0 gba:text-gray-400 hover:gba:text-gray-600"
                                       onClick={() => {
-                                        navigator.clipboard.writeText(JSON.stringify(dataRow, null, 2));
+                                        navigator.clipboard.writeText(JSON.stringify(dataRow, null, 2))
                                       }}
                                     >
                                       <Copy className="gba:h-3 gba:w-3" />
                                     </Button>
                                   </div>
                                 </div>
-                                
+
                                 {/* Form-like grid layout */}
                                 {dataRow.formData && Object.keys(dataRow.formData).length > 0 ? (
                                   <div className="gba:grid gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 xl:gba:grid-cols-5 gba:gap-4">
@@ -481,12 +473,12 @@ export const DataTab: React.FC<DataTabProps> = ({
                       </div>
                     )}
                   </div>
-                );
+                )
               })}
             </div>
           )}
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

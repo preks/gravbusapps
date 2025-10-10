@@ -24,41 +24,47 @@ src/business-apps/crm/common/forms/contact-form/
 ## Available Fields
 
 ### Personal Information Section
+
 - **Academic Title** (academicTitleRef) - Dropdown: Dr., Prof., MBA, etc.
-- **First Name*** (firstName) - Required text field
-- **Last Name*** (lastName) - Required text field
+- **First Name\*** (firstName) - Required text field
+- **Last Name\*** (lastName) - Required text field
 - **Birth Date** (birthDate) - Date picker
 - **Preferred Language** (languageRef) - Dropdown: English, German, French, etc.
 - **Profile Picture URL** (pictureUrl) - URL input
 - **Biography** (bio) - Multi-line text area
 
 ### Professional Information Section
+
 - **Job Title** (jobTitle) - Text input
 - **Department** (department) - Dropdown: Sales, Marketing, Engineering, etc.
 - **Contact Type** (contactType) - Dropdown: Primary, Secondary, Technical, etc.
 - **Work Experience Years** (workExperienceYears) - Number input
 
 ### Contact Information Section
-- **Email Address*** (email) - Required email input
+
+- **Email Address\*** (email) - Required email input
 - **Phone Number** (phone) - Tel input
 - **Fax Number** (fax) - Tel input
 - **LinkedIn Profile** (linkedinUrl) - URL input
 - **XING Profile** (xingUrl) - URL input
 
 ### Account & Ownership Information Section
+
 - **Related Account** (accountId) - Text input (TODO: Account search)
-- **Contact Owner*** (ownerEmployeeId) - Required employee dropdown with auto-selection
+- **Contact Owner\*** (ownerEmployeeId) - Required employee dropdown with auto-selection
 - **Owner Organization** (ownerOrganizationId) - Text input (auto-populated)
 
 ### Additional Information Section
+
 - **Notes Summary** (notesSummary) - Multi-line text area
 - **System Information** - Display-only (ID, version, source, state)
 
 ## Required Fields
 
 The form validates that these fields are filled before submission:
+
 - ✅ **First Name** (firstName)
-- ✅ **Last Name** (lastName) 
+- ✅ **Last Name** (lastName)
 - ✅ **Email Address** (email)
 - ✅ **Contact Owner** (ownerEmployeeId)
 
@@ -95,6 +101,7 @@ Based on the Contact entity from GraphQL schema, the form maps to these key fiel
 ## Usage Examples
 
 ### Basic Usage
+
 ```typescript
 import { ContactForm } from '@/business-apps/crm/common/forms/contact-form';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -121,6 +128,7 @@ const MyComponent: React.FC<BusinessAppContextProps> = (context) => {
 ```
 
 ### With Initial Values (Edit Mode)
+
 ```typescript
 const editContact = {
   id: "existing-contact-id",
@@ -147,6 +155,7 @@ return (
 ## Features
 
 ### ✅ Implemented
+
 - Complete form structure with 5 organized sections
 - Form validation for required fields
 - Context-based state management
@@ -158,6 +167,7 @@ return (
 - TypeScript interfaces with proper typing
 
 ### 🔄 TODO
+
 - **Account Search Integration**: Implement GraphQL-based account search
 - **Catalog API Integration**: Replace static dropdowns with real catalog data
 - **Address Management**: Add address form sections
@@ -169,6 +179,7 @@ return (
 ## Pattern Consistency
 
 This ContactForm follows the exact same architectural patterns as AccountForm:
+
 - ✅ Same folder structure and naming conventions
 - ✅ Same context provider pattern for state management
 - ✅ Same section-based component organization
@@ -180,7 +191,8 @@ This ContactForm follows the exact same architectural patterns as AccountForm:
 ## Integration
 
 The form is ready to be integrated into:
+
 - CRM contact creation workflows
 - Contact editing screens
 - Kogito business processes
-- Modal dialogs or full-page forms 
+- Modal dialogs or full-page forms

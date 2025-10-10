@@ -11,4 +11,4 @@ export const EMPLOYEE_REF = `
       jobPosition { name }
       organizationalUnit { id name }
     }
-`;
+`

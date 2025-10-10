@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,27 +9,31 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import areaChartData from "../../data/areaChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import areaChartData from '../../data/areaChartData.json'
 
 interface StackedExpandedAreaChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const StackedExpandedAreaChart: React.FC<StackedExpandedAreaChartProps> = ({ moduleColor }) => {
-  const chartData = areaChartData.stackedExpanded;
+  const chartData = areaChartData.stackedExpanded
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - used for area sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-    tablet: { label: "Tablet" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - used for area sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' },
+        tablet: { label: 'Tablet' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="stacked-expanded-area-chart">
@@ -47,7 +51,7 @@ const StackedExpandedAreaChart: React.FC<StackedExpandedAreaChartProps> = ({ mod
             stackOffset="expand"
             margin={{
               left: 12,
-              right: 12,
+              right: 12
             }}
           >
             <CartesianGrid vertical={false} />
@@ -56,16 +60,13 @@ const StackedExpandedAreaChart: React.FC<StackedExpandedAreaChartProps> = ({ mod
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
-            <YAxis tickFormatter={(value) => `${(value * 100).toFixed(0)}%`} />
+            <YAxis tickFormatter={value => `${(value * 100).toFixed(0)}%`} />
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent />}
-              formatter={(value, name) => [
-                `${((value as number) * 100).toFixed(1)}%`,
-                name,
-              ]}
+              formatter={(value, name) => [`${((value as number) * 100).toFixed(1)}%`, name]}
             />
             <Area
               dataKey="mobile"
@@ -95,7 +96,7 @@ const StackedExpandedAreaChart: React.FC<StackedExpandedAreaChartProps> = ({ mod
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default StackedExpandedAreaChart;
+export default StackedExpandedAreaChart

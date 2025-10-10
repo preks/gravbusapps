@@ -1,50 +1,49 @@
-import React from 'react';
-import { Card, Spin } from 'antd';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast';
+import React from 'react'
+import { Card, Spin } from 'antd'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
 
-import { useTotalPayroll } from '../../../../../hooks/useTotalPayroll';
+import { useTotalPayroll } from '../../../../../hooks/useTotalPayroll'
 
 interface KpiCardsRowProps extends BusinessAppContextProps {
-  kpiData: WorkingConditionKpiResult;
+  kpiData: WorkingConditionKpiResult
 }
 
 const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
-  const { loading: payrollLoading } = useTotalPayroll(accessToken);
-  const { loading, data } = kpiData;
-  const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[];
+  const { loading: payrollLoading } = useTotalPayroll(accessToken)
+  const { loading, data } = kpiData
+  const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[]
 
-  const today = new Date();
-  const activeEmployees = employees.filter(wc => !wc.exitDate || new Date(wc.exitDate) > today);
+  const today = new Date()
+  const activeEmployees = employees.filter(wc => !wc.exitDate || new Date(wc.exitDate) > today)
 
-  const totalMonthlySalary = activeEmployees.reduce((sum, wc) => sum + (wc.monthlyGrossSalary || 0), 0);
-  const totalAnnualSalary = activeEmployees.reduce((sum, wc) => sum + (wc.annualGrossSalary || 0), 0);
-  const headcount = activeEmployees.length;
+  const totalMonthlySalary = activeEmployees.reduce((sum, wc) => sum + (wc.monthlyGrossSalary || 0), 0)
+  const totalAnnualSalary = activeEmployees.reduce((sum, wc) => sum + (wc.annualGrossSalary || 0), 0)
+  const headcount = activeEmployees.length
 
-  const currencyCode = activeEmployees.length && activeEmployees[0].currency && (activeEmployees[0].currency as any).code ? (activeEmployees[0].currency as any).code : '';
+  const currencyCode =
+    activeEmployees.length && activeEmployees[0].currency && (activeEmployees[0].currency as any).code
+      ? (activeEmployees[0].currency as any).code
+      : ''
 
   const formatSalary = (value: number) => {
     if (value >= 1_000_000) {
-      return `${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`;
+      return `${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`
     }
-    return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  };
+    return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  }
 
-  const currentYear = today.getFullYear();
-  const startOfYear = new Date(currentYear, 0, 1);
-  const ytdHires = employees.filter(wc =>
-    wc.hireDate &&
-    new Date(wc.hireDate) >= startOfYear &&
-    new Date(wc.hireDate) <= today
-  ).length;
-  const ytdDepartures = employees.filter(wc =>
-    wc.exitDate &&
-    new Date(wc.exitDate) >= startOfYear &&
-    new Date(wc.exitDate) <= today
-  ).length;
-  const nextMonthForecast = totalMonthlySalary * 1.05;
-  const sixMonthForecast = totalMonthlySalary * 1.17;
+  const currentYear = today.getFullYear()
+  const startOfYear = new Date(currentYear, 0, 1)
+  const ytdHires = employees.filter(
+    wc => wc.hireDate && new Date(wc.hireDate) >= startOfYear && new Date(wc.hireDate) <= today
+  ).length
+  const ytdDepartures = employees.filter(
+    wc => wc.exitDate && new Date(wc.exitDate) >= startOfYear && new Date(wc.exitDate) <= today
+  ).length
+  const nextMonthForecast = totalMonthlySalary * 1.05
+  const sixMonthForecast = totalMonthlySalary * 1.17
 
   return (
     <Spin spinning={loading || payrollLoading}>
@@ -107,17 +106,15 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
                 {formatSalary(nextMonthForecast)} {currencyCode}
                 {/* Difference from current month */}
                 {(() => {
-                  const diff = nextMonthForecast - totalMonthlySalary;
-                  if (diff === 0) return null;
-                  const diffClass = diff > 0 ? 'gba:text-green-600' : 'gba:text-red-600';
+                  const diff = nextMonthForecast - totalMonthlySalary
+                  if (diff === 0) return null
+                  const diffClass = diff > 0 ? 'gba:text-green-600' : 'gba:text-red-600'
                   return (
-                    <div
-                      className={`gba:text-xs ${diffClass} gba:mt-1`}
-                      data-testid="kpi-next-month-diff"
-                    >
-                      {diff > 0 ? '+' : ''}{formatSalary(diff)} {currencyCode}
+                    <div className={`gba:text-xs ${diffClass} gba:mt-1`} data-testid="kpi-next-month-diff">
+                      {diff > 0 ? '+' : ''}
+                      {formatSalary(diff)} {currencyCode}
                     </div>
-                  );
+                  )
                 })()}
               </>
             )}
@@ -139,8 +136,8 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
         </Card>
       </div>
     </Spin>
-  );
-};
+  )
+}
 
-export default KpiCardsRow;
-export { KpiCardsRow };
+export default KpiCardsRow
+export { KpiCardsRow }

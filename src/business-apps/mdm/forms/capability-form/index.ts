@@ -1,4 +1,4 @@
-import { CapabilityForm } from './CapabilityForm';
+import CapabilityForm from './CapabilityForm'
 
-export { CapabilityForm };
-export default CapabilityForm;
+export { CapabilityForm }
+export default CapabilityForm

@@ -1,4 +1,4 @@
-import { ProjectForm } from './ProjectForm';
+import ProjectForm from './ProjectForm'
 
-export { ProjectForm };
-export default ProjectForm;
+export { ProjectForm }
+export default ProjectForm

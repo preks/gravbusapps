@@ -1,2 +1,2 @@
-export { useDashboardQueries } from './DashboardQueries';
-export * from './DashboardQueries';
+export { useDashboardQueries } from './DashboardQueries'
+export * from './DashboardQueries'

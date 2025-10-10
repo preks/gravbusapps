@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Card,
   Button,
@@ -8,46 +8,35 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   Separator
-} from '@newwork/nw-design-system';
-import {
-  Play,
-  SkipForward,
-  SkipBack,
-  Eye,
-  User,
-  PlayCircle,
-  CheckCircle,
-  Settings,
-  Workflow
-} from 'lucide-react';
-import { FlowVisualization } from './FlowVisualization';
-import { AssignmentTargetCounter } from './AssignmentTargetCounter';
-import { StepSimulationForm } from './StepSimulationForm';
-import { SimulationPreview } from './SimulationPreview';
-import { FlowTemplate, ExecutionAssignment } from '../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+} from '@newwork/nw-design-system'
+import { Play, SkipForward, SkipBack, Eye, User, PlayCircle, CheckCircle, Settings, Workflow } from 'lucide-react'
+import { FlowVisualization } from './FlowVisualization'
+import { AssignmentTargetCounter } from './AssignmentTargetCounter'
+import { StepSimulationForm } from './StepSimulationForm'
+import { SimulationPreview } from './SimulationPreview'
+import { FlowTemplate, ExecutionAssignment } from '../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SimulationData {
-  stepIndex: number;
-  formData: { [key: string]: any };
-  completedBy: string;
-  completedAt: string;
-  result: 'APPROVED' | 'REJECTED' | 'COMPLETED';
+  stepIndex: number
+  formData: { [key: string]: any }
+  completedBy: string
+  completedAt: string
+  result: 'APPROVED' | 'REJECTED' | 'COMPLETED'
 }
 
 interface SimulationWizardProps {
-  template: FlowTemplate;
-  accessToken: string;
-  userInfo?: any;
-  onExecute: (executionConfig: any) => Promise<void>;
-  onCancel: () => void;
-  'data-testid'?: string;
+  template: FlowTemplate
+  accessToken: string
+  userInfo?: any
+  onExecute: (executionConfig: any) => Promise<void>
+  onCancel: () => void
+  'data-testid'?: string
 }
 
 export const SimulationWizard: React.FC<SimulationWizardProps> = ({
@@ -58,14 +47,14 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
   onCancel,
   'data-testid': testId = 'simulation-wizard'
 }) => {
-  const [currentStep, setCurrentStep] = useState(0);
-  const simulationMode = true; // Always in simulation mode
-  const [simulationData, setSimulationData] = useState<{ [stepIndex: number]: SimulationData }>({});
-  const [executionAssignments, setExecutionAssignments] = useState<ExecutionAssignment[]>([]);
-  const [assignmentCounts, setAssignmentCounts] = useState<{ [stepIndex: number]: number }>({});
-  const [userPerspective, setUserPerspective] = useState<string>('current-user');
-  const [showPreview, setShowPreview] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0)
+  const simulationMode = true // Always in simulation mode
+  const [simulationData, setSimulationData] = useState<{ [stepIndex: number]: SimulationData }>({})
+  const [executionAssignments, setExecutionAssignments] = useState<ExecutionAssignment[]>([])
+  const [assignmentCounts, setAssignmentCounts] = useState<{ [stepIndex: number]: number }>({})
+  const [userPerspective, setUserPerspective] = useState<string>('current-user')
+  const [showPreview, setShowPreview] = useState(false)
+  const [isExecuting, setIsExecuting] = useState(false)
 
   // Available users for perspective simulation (mock data)
   const availableUsers = [
@@ -74,79 +63,79 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
     { id: 'user2', name: 'Sarah Johnson', role: 'Engineering Manager' },
     { id: 'user3', name: 'Mike Chen', role: 'QA Lead' },
     { id: 'user4', name: 'Emma Wilson', role: 'Product Manager' }
-  ];
+  ]
 
   // Initialize execution assignments for steps that need them
   useEffect(() => {
     const assignments: ExecutionAssignment[] = template.steps
       .map((step, index) => {
-        const assignment = step.assignment;
-        const needsAssignment = assignment && (
-          assignment.targets === null || 
-          assignment.targets === undefined ||
-          Object.keys(assignment.targets || {}).length === 0
-        );
-        
+        const assignment = step.assignment
+        const needsAssignment =
+          assignment &&
+          (assignment.targets === null ||
+            assignment.targets === undefined ||
+            Object.keys(assignment.targets || {}).length === 0)
+
         if (needsAssignment) {
           return {
             stepIndex: index,
             stepTitle: step.title || `Step ${index + 1}`,
             assignmentMode: assignment.assignmentMode || 'CLAIM',
             assignedUsers: []
-          };
+          }
         }
-        return null;
+        return null
       })
-      .filter(Boolean) as ExecutionAssignment[];
-    
-    setExecutionAssignments(assignments);
-  }, [template]);
+      .filter(Boolean) as ExecutionAssignment[]
+
+    setExecutionAssignments(assignments)
+  }, [template])
 
   const handleStepComplete = useCallback((stepIndex: number, data: SimulationData) => {
     setSimulationData(prev => ({
       ...prev,
       [stepIndex]: data
-    }));
-  }, []);
+    }))
+  }, [])
 
   const handleNext = () => {
     if (currentStep < template.steps.length - 1) {
-      setCurrentStep(currentStep + 1);
+      setCurrentStep(currentStep + 1)
     }
-  };
+  }
 
   const handlePrevious = () => {
     if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+      setCurrentStep(currentStep - 1)
     }
-  };
+  }
 
   const handlePreview = () => {
-    setShowPreview(true);
-  };
+    setShowPreview(true)
+  }
 
   const handleExecute = async () => {
     try {
-      setIsExecuting(true);
-      
+      setIsExecuting(true)
+
       // Build execution configuration
-      const runtimeAssignments: any = {};
+      const runtimeAssignments: any = {}
       executionAssignments.forEach(assignment => {
-        const stepId = `step_${assignment.stepIndex}`;
+        const stepId = `step_${assignment.stepIndex}`
         runtimeAssignments[stepId] = {
           assignmentMode: assignment.assignmentMode,
           targets: {
             users: assignment.assignedUsers
           },
           allowReassignment: true
-        };
-      });
+        }
+      })
 
       // Include simulation data as initial input values
-      const inputValues: any = {};
+      const inputValues: any = {}
       Object.entries(simulationData).forEach(([stepIndex, data]) => {
-        inputValues[`step_${stepIndex}`] = data.formData;
-      });
+        inputValues[`step_${stepIndex}`] = data.formData
+      })
 
       const executionConfig = {
         runtimeParameters: {},
@@ -161,22 +150,22 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
         },
         inputValues,
         runtimeAssignments
-      };
+      }
 
-      await onExecute(executionConfig);
+      await onExecute(executionConfig)
     } catch (error) {
-      console.error('Execution error:', error);
+      console.error('Execution error:', error)
     } finally {
-      setIsExecuting(false);
+      setIsExecuting(false)
     }
-  };
+  }
 
-  const currentStepData = template.steps[currentStep];
-  const canExecute = executionAssignments.every(assignment => assignment.assignedUsers.length > 0);
-  const hasSimulationData = Object.keys(simulationData).length > 0;
+  const currentStepData = template.steps[currentStep]
+  const canExecute = executionAssignments.every(assignment => assignment.assignedUsers.length > 0)
+  const hasSimulationData = Object.keys(simulationData).length > 0
 
   return (
-    <div 
+    <div
       className="gba:min-h-full gba:w-full gba:flex gba:flex-col"
       style={{
         gap: 'var(--spacing-lg)',
@@ -186,36 +175,33 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
       data-testid={testId}
     >
       {/* Main Content */}
-      <div 
-        className="gba:flex-1 gba:flex gba:flex-col gba:overflow-auto"
-        style={{ gap: 'var(--spacing-lg)' }}
-      >
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-auto" style={{ gap: 'var(--spacing-lg)' }}>
         {/* Header */}
         <div style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <div 
+          <div
             className="gba:flex gba:items-center"
-            style={{ 
-              gap: 'var(--spacing-xl)', 
-              marginBottom: 'var(--spacing-lg)' 
+            style={{
+              gap: 'var(--spacing-xl)',
+              marginBottom: 'var(--spacing-lg)'
             }}
           >
-            <div 
+            <div
               className="gba:bg-gradient-to-r gba:from-green-600 gba:to-blue-600 gba:rounded-xl"
               style={{
                 padding: 'var(--spacing-lg)',
                 boxShadow: 'var(--shadow-lg)'
               }}
             >
-              <PlayCircle 
-                className="gba:text-white" 
-                style={{ 
-                  height: '2rem', 
-                  width: '2rem' 
-                }} 
+              <PlayCircle
+                className="gba:text-white"
+                style={{
+                  height: '2rem',
+                  width: '2rem'
+                }}
               />
             </div>
             <div>
-              <h1 
+              <h1
                 style={{
                   fontSize: '2rem',
                   fontWeight: '700',
@@ -226,7 +212,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
               >
                 {template.name}
               </h1>
-              <p 
+              <p
                 style={{
                   fontSize: '1.125rem',
                   lineHeight: '1.75rem',
@@ -239,7 +225,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
           </div>
 
           {/* Controls Card */}
-          <Card 
+          <Card
             style={{
               boxShadow: 'var(--shadow-sm)',
               border: `1px solid var(--color-border-default)`,
@@ -247,25 +233,19 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
             }}
           >
             <div style={{ padding: 'var(--spacing-xl)' }}>
-              <div 
+              <div
                 className="gba:flex gba:items-center gba:justify-between"
                 style={{ marginBottom: 'var(--spacing-xl)' }}
               >
-                <div 
-                  className="gba:flex gba:items-center"
-                  style={{ gap: 'var(--spacing-2xl)' }}
-                >
+                <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-2xl)' }}>
                   {/* User Perspective Selector - Always shown since we're always in simulation mode */}
-                  <div 
-                    className="gba:flex gba:items-center"
-                    style={{ gap: 'var(--spacing-sm)' }}
-                  >
-                    <User 
-                      style={{ 
-                        width: '1rem', 
+                  <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-sm)' }}>
+                    <User
+                      style={{
+                        width: '1rem',
                         height: '1rem',
-                        color: 'var(--color-success-500)' 
-                      }} 
+                        color: 'var(--color-success-500)'
+                      }}
                     />
                     <Select value={userPerspective} onValueChange={setUserPerspective}>
                       <SelectTrigger style={{ width: '12rem' }}>
@@ -283,10 +263,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                 </div>
 
                 {/* Progress Indicator */}
-                <div 
-                  className="gba:flex gba:items-center"
-                  style={{ gap: 'var(--spacing-sm)' }}
-                >
+                <div className="gba:flex gba:items-center" style={{ gap: 'var(--spacing-sm)' }}>
                   <Badge
                     variant="outline"
                     style={{
@@ -307,7 +284,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                   >
                     Step {currentStep + 1} of {template.steps.length}
                   </Badge>
-                  
+
                   {hasSimulationData && (
                     <Badge
                       variant="outline"
@@ -327,15 +304,12 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
         </div>
 
         {/* Step Configuration Content */}
-        <div 
-          className="gba:flex-1 gba:grid gba:grid-cols-1 gba:lg:grid-cols-2"
-          style={{ gap: 'var(--spacing-lg)' }}
-        >
+        <div className="gba:flex-1 gba:grid gba:grid-cols-1 gba:lg:grid-cols-2" style={{ gap: 'var(--spacing-lg)' }}>
           {/* Left Column - Step Configuration */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
             {/* Current Step */}
             {currentStepData && (
-              <Card 
+              <Card
                 className="gba:transition-all gba:duration-200"
                 style={{
                   boxShadow: 'var(--shadow-sm)',
@@ -343,11 +317,11 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                   backgroundColor: 'var(--color-surface-primary)',
                   '--hover-shadow': 'var(--shadow-md)'
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
-                onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
+                onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md)')}
+                onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
               >
                 <div style={{ padding: 'var(--spacing-lg)' }}>
-                  <h3 
+                  <h3
                     style={{
                       fontSize: '1.125rem',
                       fontWeight: '600',
@@ -374,15 +348,15 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
 
           {/* Right Column - Assignment Information */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-lg)' }}>
-            <Card 
+            <Card
               className="gba:transition-all gba:duration-200"
               style={{
                 boxShadow: 'var(--shadow-sm)',
                 border: `1px solid var(--color-border-default)`,
                 backgroundColor: 'var(--color-surface-primary)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
-              onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
             >
               <div style={{ padding: 'var(--spacing-lg)' }}>
                 <AssignmentTargetCounter
@@ -396,18 +370,18 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
             </Card>
 
             {/* Flow Preview */}
-            <Card 
+            <Card
               className="gba:transition-all gba:duration-200"
               style={{
                 boxShadow: 'var(--shadow-sm)',
                 border: `1px solid var(--color-border-default)`,
                 backgroundColor: 'var(--color-surface-primary)'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
-              onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}
+              onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow-md)')}
+              onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
             >
               <div style={{ padding: 'var(--spacing-lg)' }}>
-                <h3 
+                <h3
                   style={{
                     fontSize: '1.125rem',
                     fontWeight: '600',
@@ -433,7 +407,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
         </div>
 
         {/* Navigation Footer */}
-        <Card 
+        <Card
           style={{
             boxShadow: 'var(--shadow-sm)',
             border: `1px solid var(--color-border-default)`,
@@ -442,18 +416,11 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
         >
           <div style={{ padding: 'var(--spacing-xl)' }}>
             <div className="gba:flex gba:justify-between gba:items-center">
-              <Button
-                variant="outline"
-                onClick={onCancel}
-                data-testid={`${testId}-cancel-button`}
-              >
+              <Button variant="outline" onClick={onCancel} data-testid={`${testId}-cancel-button`}>
                 {getTranslationFromI18nKeyAndLabel('flow.execution.cancel', 'Cancel')}
               </Button>
-              
-              <div 
-                className="gba:flex"
-                style={{ gap: 'var(--spacing-md)' }}
-              >
+
+              <div className="gba:flex" style={{ gap: 'var(--spacing-md)' }}>
                 <Button
                   variant="outline"
                   onClick={handlePrevious}
@@ -464,7 +431,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                   <SkipBack className="gba:w-4 gba:h-4" />
                   {getTranslationFromI18nKeyAndLabel('flow.execution.previous', 'Previous')}
                 </Button>
-                
+
                 {currentStep < template.steps.length - 1 ? (
                   <Button
                     variant="default"
@@ -482,22 +449,19 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                     disabled={!canExecute}
                     className="gba:gap-2"
                     style={{
-                      backgroundColor: isExecuting 
-                        ? 'var(--color-primary-400)' 
-                        : canExecute 
-                          ? 'var(--color-primary-500)' 
+                      backgroundColor: isExecuting
+                        ? 'var(--color-primary-400)'
+                        : canExecute
+                          ? 'var(--color-primary-500)'
                           : 'var(--color-surface-disabled)',
-                      color: canExecute 
-                        ? 'var(--color-on-primary)' 
-                        : 'var(--color-text-disabled)'
+                      color: canExecute ? 'var(--color-on-primary)' : 'var(--color-text-disabled)'
                     }}
                     data-testid={`${testId}-execute-button`}
                   >
                     <PlayCircle className="gba:w-4 gba:h-4" />
-                    {isExecuting 
-                      ? getTranslationFromI18nKeyAndLabel('flow.execution.launching', 'Launching...') 
-                      : getTranslationFromI18nKeyAndLabel('flow.execution.execute', 'Execute Flow')
-                    }
+                    {isExecuting
+                      ? getTranslationFromI18nKeyAndLabel('flow.execution.launching', 'Launching...')
+                      : getTranslationFromI18nKeyAndLabel('flow.execution.execute', 'Execute Flow')}
                   </Button>
                 )}
               </div>
@@ -516,7 +480,7 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
                 {getTranslationFromI18nKeyAndLabel('flow.execution.stepPreview', 'Step Preview')}
               </DialogTitle>
             </DialogHeader>
-            
+
             <SimulationPreview
               step={currentStepData}
               stepIndex={currentStep}
@@ -530,5 +494,5 @@ export const SimulationWizard: React.FC<SimulationWizardProps> = ({
         </Dialog>
       )}
     </div>
-  );
-};
+  )
+}

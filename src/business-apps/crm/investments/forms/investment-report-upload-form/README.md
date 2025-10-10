@@ -78,18 +78,19 @@ const MyComponent = () => {
 
 ### InvestmentDocumentUploadFormProps
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `onSuccess` | `(fileIds: string[]) => void` | - | Called when upload succeeds |
-| `onCancel` | `() => void` | - | Called when form is cancelled |
-| `investmentId` | `string` | - | Pre-selected investment ID |
-| `showInvestmentSelector` | `boolean` | `true` | Show investment dropdown |
-| `title` | `string` | Auto-translated | Custom form title |
-| `description` | `string` | Auto-translated | Custom form description |
-| `maxFiles` | `number` | `5` | Maximum number of files |
-| `allowedFileTypes` | `string[]` | PDF, DOC, etc. | Allowed file extensions |
+| Prop                     | Type                          | Default         | Description                   |
+| ------------------------ | ----------------------------- | --------------- | ----------------------------- |
+| `onSuccess`              | `(fileIds: string[]) => void` | -               | Called when upload succeeds   |
+| `onCancel`               | `() => void`                  | -               | Called when form is cancelled |
+| `investmentId`           | `string`                      | -               | Pre-selected investment ID    |
+| `showInvestmentSelector` | `boolean`                     | `true`          | Show investment dropdown      |
+| `title`                  | `string`                      | Auto-translated | Custom form title             |
+| `description`            | `string`                      | Auto-translated | Custom form description       |
+| `maxFiles`               | `number`                      | `5`             | Maximum number of files       |
+| `allowedFileTypes`       | `string[]`                    | PDF, DOC, etc.  | Allowed file extensions       |
 
 Plus all `BusinessAppContextProps`:
+
 - `accessToken` (required)
 - `userInfo`
 - `additionalData`
@@ -143,6 +144,7 @@ The form uses the following folder structure for uploaded files:
 ```
 
 Where:
+
 - `investmentId`: The selected investment's ID
 - `financial`: Document group (camelCase alternativeCode from InvestmentDocumentGroup catalog)
 - `fundPerformanceReport`: Document type (camelCase alternativeCode from InvestmentDocumentType catalog)
@@ -152,6 +154,7 @@ Where:
 After successful upload, the form displays file IDs which can be used to reference the uploaded files:
 
 **Response Structure:**
+
 ```typescript
 {
   fileInfo: {
@@ -165,6 +168,7 @@ After successful upload, the form displays file IDs which can be used to referen
 ```
 
 **ID Extraction Priority:**
+
 1. `response.fileInfo.fileId` (primary)
 2. `response.fileId` (fallback)
 3. `response.id` (fallback)
@@ -184,5 +188,3 @@ npm run publish:screen -- /crm/investments/forms/investment-document-upload-form
 - **Component**: `src/business-apps/crm/investments/forms/investment-document-upload-form/InvestmentDocumentUploadForm.tsx`
 - **Types**: `src/business-apps/crm/investments/forms/investment-document-upload-form/types.ts`
 - **Upload Hook**: `src/business-apps/crm/investments/forms/investment-document-upload-form/hooks/useInvestmentFileUpload.ts`
-
-

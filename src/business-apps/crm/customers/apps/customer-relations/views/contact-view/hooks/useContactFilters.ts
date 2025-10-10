@@ -1,217 +1,215 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-import { useGetContactAccounts } from "./useGetContactAccounts";
-import { useGetContactOwners } from "./useGetContactOwners";
-import { useGetContacts } from "./useGetContacts";
-import { useGetContactInfoFilters } from "./useGetContactInfoFilters";
-import { useGetContactTypes } from "./useGetContactTypes";
-import { useGetContactDepartments } from "./useGetContactDepartments";
+import { useGetContactAccounts } from './useGetContactAccounts'
+import { useGetContactOwners } from './useGetContactOwners'
+import { useGetContacts } from './useGetContacts'
+import { useGetContactInfoFilters } from './useGetContactInfoFilters'
+import { useGetContactTypes } from './useGetContactTypes'
+import { useGetContactDepartments } from './useGetContactDepartments'
 
 export interface FilterGroup {
-  id: string;
-  title: string; // Changed from label to title to match DataFilterGroup
-  filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
+  id: string
+  title: string // Changed from label to title to match DataFilterGroup
+  filters: Array<{ id: string; label: string; value: any; selected: boolean }>
   backendSearch?: (search: string) => {
-    filters: Array<{ id: string; label: string; value: any; selected: boolean }>;
-    loading: boolean;
-    error: any;
-  };
+    filters: Array<{ id: string; label: string; value: any; selected: boolean }>
+    loading: boolean
+    error: any
+  }
 }
 
 export interface ContactFilters {
-  search: string;
-  setSearch: (search: string) => void;
-  selectedFilters: string[];
-  filterGroups: FilterGroup[];
-  filterLabelMap: Record<string, string>;
-  addFilter: (filterId: string) => void;
-  removeFilter: (filterId: string) => void;
-  clearAllFilters: () => void;
-  getFilters: () => any;
-  createdAfter?: string;
-  createdBefore?: string;
-  handleDateRangeChange: (after?: string, before?: string) => void;
-  contactSearch: string;
-  setContactSearch: (search: string) => void;
-  accountSearch: string;
-  setAccountSearch: (search: string) => void;
-  ownerSearch: string;
-  setOwnerSearch: (search: string) => void;
-  filtersInitialized: boolean;
+  search: string
+  setSearch: (search: string) => void
+  selectedFilters: string[]
+  filterGroups: FilterGroup[]
+  filterLabelMap: Record<string, string>
+  addFilter: (filterId: string) => void
+  removeFilter: (filterId: string) => void
+  clearAllFilters: () => void
+  getFilters: () => any
+  createdAfter?: string
+  createdBefore?: string
+  handleDateRangeChange: (after?: string, before?: string) => void
+  contactSearch: string
+  setContactSearch: (search: string) => void
+  accountSearch: string
+  setAccountSearch: (search: string) => void
+  ownerSearch: string
+  setOwnerSearch: (search: string) => void
+  filtersInitialized: boolean
 }
 
-export const useContactFilters = (
-  context: BusinessAppContextProps
-): ContactFilters => {
-  const [search, setSearch] = useState("");
-  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
-  const [createdAfter, setCreatedAfter] = useState<string | undefined>();
-  const [createdBefore, setCreatedBefore] = useState<string | undefined>();
+export const useContactFilters = (context: BusinessAppContextProps): ContactFilters => {
+  const [search, setSearch] = useState('')
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([])
+  const [createdAfter, setCreatedAfter] = useState<string | undefined>()
+  const [createdBefore, setCreatedBefore] = useState<string | undefined>()
   // Search state for new filter types
-  const [contactSearch, setContactSearch] = useState("");
-  const [accountSearch, setAccountSearch] = useState("");
-  const [ownerSearch, setOwnerSearch] = useState("");
-  const [contactTypeSearch, setContactTypeSearch] = useState("");
-  const [departmentSearch, setDepartmentSearch] = useState("");
-  const [filtersInitialized, setFiltersInitialized] = useState(false);
-
-
+  const [contactSearch, setContactSearch] = useState('')
+  const [accountSearch, setAccountSearch] = useState('')
+  const [ownerSearch, setOwnerSearch] = useState('')
+  const [contactTypeSearch, setContactTypeSearch] = useState('')
+  const [departmentSearch, setDepartmentSearch] = useState('')
+  const [filtersInitialized, setFiltersInitialized] = useState(false)
 
   // New filter hooks
-  const {
-    contacts,
-    isLoading: isContactsLoading,
-    error: contactsError,
-  } = useGetContacts(context, contactSearch);
+  const { contacts, isLoading: isContactsLoading, error: contactsError } = useGetContacts(context, contactSearch)
 
   const {
     contactAccounts,
     isLoading: isAccountsLoading,
-    error: accountsError,
-  } = useGetContactAccounts(context, accountSearch);
+    error: accountsError
+  } = useGetContactAccounts(context, accountSearch)
 
-  const {
-    contactOwners,
-    isLoading: isOwnersLoading,
-    error: ownersError,
-  } = useGetContactOwners(context, ownerSearch);
+  const { contactOwners, isLoading: isOwnersLoading, error: ownersError } = useGetContactOwners(context, ownerSearch)
 
-  const {
-    contactInfoFilters,
-    isLoading: isContactInfoLoading,
-    error: contactInfoError,
-  } = useGetContactInfoFilters();
+  const { contactInfoFilters, isLoading: isContactInfoLoading, error: contactInfoError } = useGetContactInfoFilters()
 
   const {
     contactTypeOptions,
     isLoading: isContactTypesLoading,
-    error: contactTypesError,
-  } = useGetContactTypes(context, contactTypeSearch);
-
+    error: contactTypesError
+  } = useGetContactTypes(context, contactTypeSearch)
 
   const {
     departmentOptions,
     isLoading: isDepartmentsLoading,
-    error: departmentsError,
-  } = useGetContactDepartments(context, departmentSearch);
+    error: departmentsError
+  } = useGetContactDepartments(context, departmentSearch)
 
   // Note: contactInfoError is available for future use if needed
 
   // Initialize filters from URL parameters when all data is loaded
   useEffect(() => {
-    if (!filtersInitialized && !isContactsLoading && !isAccountsLoading && !isOwnersLoading && !isContactTypesLoading && !isDepartmentsLoading) {
-      setFiltersInitialized(true);
+    if (
+      !filtersInitialized &&
+      !isContactsLoading &&
+      !isAccountsLoading &&
+      !isOwnersLoading &&
+      !isContactTypesLoading &&
+      !isDepartmentsLoading
+    ) {
+      setFiltersInitialized(true)
     }
-  }, [isContactsLoading, isAccountsLoading, isOwnersLoading, isContactTypesLoading, isDepartmentsLoading, filtersInitialized]);
-
-
+  }, [
+    isContactsLoading,
+    isAccountsLoading,
+    isOwnersLoading,
+    isContactTypesLoading,
+    isDepartmentsLoading,
+    filtersInitialized
+  ])
 
   // Backend search functions for new filter types
   const getContactFilters = useCallback(
     (search: string) => {
       // Don't set state during render - use setTimeout to defer it
       setTimeout(() => {
-        setContactSearch(search);
-      }, 0);
+        setContactSearch(search)
+      }, 0)
 
       return {
-        filters: contacts.map((contact) => ({
+        filters: contacts.map(contact => ({
           id: `contact-${contact.id}`,
           label: contact.name,
           value: contact.name,
-          selected: selectedFilters.includes(`contact-${contact.id}`),
+          selected: selectedFilters.includes(`contact-${contact.id}`)
         })),
         loading: isContactsLoading,
-        error: contactsError,
-      };
+        error: contactsError
+      }
     },
     [contacts, selectedFilters, isContactsLoading, contactsError]
-  );
+  )
 
   const getAccountFilters = useCallback(
     (search: string) => {
       // Don't set state during render - use setTimeout to defer it
       setTimeout(() => {
-        setAccountSearch(search);
-      }, 0);
+        setAccountSearch(search)
+      }, 0)
 
       return {
-        filters: contactAccounts.map((account) => ({
+        filters: contactAccounts.map(account => ({
           id: `account-${account.id}`,
           label: account.name,
           value: account.id,
-          selected: selectedFilters.includes(`account-${account.id}`),
+          selected: selectedFilters.includes(`account-${account.id}`)
         })),
         loading: isAccountsLoading,
-        error: accountsError,
-      };
+        error: accountsError
+      }
     },
     [contactAccounts, selectedFilters, isAccountsLoading, accountsError]
-  );
+  )
 
   const getOwnerFilters = useCallback(
     (search: string) => {
       // Don't set state during render - use setTimeout to defer it
       setTimeout(() => {
-        setOwnerSearch(search);
-      }, 0);
+        setOwnerSearch(search)
+      }, 0)
 
       return {
-        filters: contactOwners.map((owner) => ({
+        filters: contactOwners.map(owner => ({
           id: `owner-${owner.id}`,
           label: owner.name,
           value: owner.id,
-          selected: selectedFilters.includes(`owner-${owner.id}`),
+          selected: selectedFilters.includes(`owner-${owner.id}`)
         })),
         loading: isOwnersLoading,
-        error: ownersError,
-      };
+        error: ownersError
+      }
     },
     [contactOwners, selectedFilters, isOwnersLoading, ownersError]
-  );
+  )
 
   const getContactTypeFilters = useCallback(
     (search: string) => {
-      setTimeout(() => { setContactTypeSearch(search); }, 0);
+      setTimeout(() => {
+        setContactTypeSearch(search)
+      }, 0)
       return {
-        filters: (contactTypeOptions || []).map((option) => ({
+        filters: (contactTypeOptions || []).map(option => ({
           id: `contact-type-${option.name}`,
           label: option.name,
           value: option.name,
-          selected: selectedFilters.includes(`contact-type-${option.name}`),
+          selected: selectedFilters.includes(`contact-type-${option.name}`)
         })),
         loading: isContactTypesLoading,
-        error: contactTypesError,
-      };
+        error: contactTypesError
+      }
     },
     [contactTypeOptions, selectedFilters, isContactTypesLoading, contactTypesError]
-  );
-
+  )
 
   const getDepartmentFilters = useCallback(
     (search: string) => {
-      setTimeout(() => { setDepartmentSearch(search); }, 0);
+      setTimeout(() => {
+        setDepartmentSearch(search)
+      }, 0)
       return {
-        filters: (departmentOptions || []).map((option) => ({
+        filters: (departmentOptions || []).map(option => ({
           id: `department-${option.name}`,
           label: option.name,
           value: option.name,
-          selected: selectedFilters.includes(`department-${option.name}`),
+          selected: selectedFilters.includes(`department-${option.name}`)
         })),
         loading: isDepartmentsLoading,
-        error: departmentsError,
-      };
+        error: departmentsError
+      }
     },
     [departmentOptions, selectedFilters, isDepartmentsLoading, departmentsError]
-  );
+  )
 
   const filterGroups: FilterGroup[] = useMemo(
     () => [
       {
-        id: "contacts",
-        title: "Contact",
-        filters: contacts.map((contact) => ({
+        id: 'contacts',
+        title: 'Contact',
+        filters: contacts.map(contact => ({
           id: `contact-${contact.id}`,
           label: contact.name,
           value: {
@@ -219,149 +217,159 @@ export const useContactFilters = (
             lastName: contact.lastName,
             name: contact.name
           },
-          selected: selectedFilters.includes(`contact-${contact.id}`),
+          selected: selectedFilters.includes(`contact-${contact.id}`)
         })),
-        backendSearch: getContactFilters,
+        backendSearch: getContactFilters
       },
       {
-        id: "contactInfo",
-        title: "Contact Info",
-        filters: contactInfoFilters.map((filter) => ({
+        id: 'contactInfo',
+        title: 'Contact Info',
+        filters: contactInfoFilters.map(filter => ({
           id: filter.id,
           label: filter.label,
           value: filter.value,
-          selected: selectedFilters.includes(filter.id),
-        })),
+          selected: selectedFilters.includes(filter.id)
+        }))
       },
       {
-        id: "accounts",
-        title: "Account",
-        filters: contactAccounts.map((account) => ({
+        id: 'accounts',
+        title: 'Account',
+        filters: contactAccounts.map(account => ({
           id: `account-${account.id}`,
           label: account.name,
           value: account.id,
-          selected: selectedFilters.includes(`account-${account.id}`),
+          selected: selectedFilters.includes(`account-${account.id}`)
         })),
-        backendSearch: getAccountFilters,
+        backendSearch: getAccountFilters
       },
       {
-        id: "owners",
-        title: "Owner",
-        filters: contactOwners.map((owner) => ({
+        id: 'owners',
+        title: 'Owner',
+        filters: contactOwners.map(owner => ({
           id: `owner-${owner.id}`,
           label: owner.name,
           value: owner.id,
-          selected: selectedFilters.includes(`owner-${owner.id}`),
+          selected: selectedFilters.includes(`owner-${owner.id}`)
         })),
-        backendSearch: getOwnerFilters,
+        backendSearch: getOwnerFilters
       },
       {
-        id: "contactType",
-        title: "Contact Type",
-        filters: (contactTypeOptions || []).map((option) => ({
+        id: 'contactType',
+        title: 'Contact Type',
+        filters: (contactTypeOptions || []).map(option => ({
           id: `contact-type-${option.name}`,
           label: option.name,
           value: option.name,
-          selected: selectedFilters.includes(`contact-type-${option.name}`),
+          selected: selectedFilters.includes(`contact-type-${option.name}`)
         })),
-        backendSearch: getContactTypeFilters,
+        backendSearch: getContactTypeFilters
       },
       {
-        id: "departments",
-        title: "Department",
-        filters: (departmentOptions || []).map((option) => ({
+        id: 'departments',
+        title: 'Department',
+        filters: (departmentOptions || []).map(option => ({
           id: `department-${option.name}`,
           label: option.name,
           value: option.name,
-          selected: selectedFilters.includes(`department-${option.name}`),
+          selected: selectedFilters.includes(`department-${option.name}`)
         })),
-        backendSearch: getDepartmentFilters,
-      },
+        backendSearch: getDepartmentFilters
+      }
     ],
-    [selectedFilters, contacts, contactAccounts, contactOwners, contactInfoFilters, contactTypeOptions, departmentOptions, getContactFilters, getAccountFilters, getOwnerFilters, getContactTypeFilters, getDepartmentFilters]
-  );
+    [
+      selectedFilters,
+      contacts,
+      contactAccounts,
+      contactOwners,
+      contactInfoFilters,
+      contactTypeOptions,
+      departmentOptions,
+      getContactFilters,
+      getAccountFilters,
+      getOwnerFilters,
+      getContactTypeFilters,
+      getDepartmentFilters
+    ]
+  )
 
   const filterLabelMap: Record<string, string> = useMemo(() => {
-    const map: Record<string, string> = {};
-    filterGroups.forEach((group) => {
-      group.filters.forEach((filter) => {
-        map[filter.id] = filter.label;
-      });
-    });
-    return map;
-  }, [filterGroups]);
+    const map: Record<string, string> = {}
+    filterGroups.forEach(group => {
+      group.filters.forEach(filter => {
+        map[filter.id] = filter.label
+      })
+    })
+    return map
+  }, [filterGroups])
 
   const addFilter = useCallback((filterId: string) => {
-    setSelectedFilters((prev) => {
+    setSelectedFilters(prev => {
       if (!prev.includes(filterId)) {
-        return [...prev, filterId];
+        return [...prev, filterId]
       }
-      return prev;
-    });
-  }, []);
+      return prev
+    })
+  }, [])
 
   const removeFilter = useCallback((filterId: string) => {
-    setSelectedFilters((prev) => prev.filter((id) => id !== filterId));
-  }, []);
+    setSelectedFilters(prev => prev.filter(id => id !== filterId))
+  }, [])
 
   const clearAllFilters = useCallback(() => {
-    setSelectedFilters([]);
-  }, []);
+    setSelectedFilters([])
+  }, [])
 
-  const handleDateRangeChange = useCallback(
-    (after?: string, before?: string) => {
-      setCreatedAfter(after);
-      setCreatedBefore(before);
-    },
-    []
-  );
+  const handleDateRangeChange = useCallback((after?: string, before?: string) => {
+    setCreatedAfter(after)
+    setCreatedBefore(before)
+  }, [])
 
   const getFilters = useCallback(() => {
-    const filters: any = {};
+    const filters: any = {}
 
     if (search) {
-      filters.search = search;
+      filters.search = search
     }
 
     if (createdAfter) {
-      filters.createdAfter = createdAfter;
+      filters.createdAfter = createdAfter
     }
 
     if (createdBefore) {
-      filters.createdBefore = createdBefore;
+      filters.createdBefore = createdBefore
     }
 
     // Process selected filters
-    selectedFilters.forEach((filterId) => {
+    selectedFilters.forEach(filterId => {
       for (const group of filterGroups) {
-        const filter = group.filters.find((f) => f.id === filterId);
+        const filter = group.filters.find(f => f.id === filterId)
         if (filter) {
-          if (group.id === "contacts") {
-            if (!filters.contacts) filters.contacts = [];
-            filters.contacts.push(filter.value);
-          } else if (group.id === "contactInfo") {
-            if (!filters.contactInfo) filters.contactInfo = [];
-            filters.contactInfo.push(filter.value);
-          } else if (group.id === "accounts") {
-            if (!filters.accounts) filters.accounts = [];
-            filters.accounts.push(filter.value);
-          } else if (group.id === "owners") {
-            if (!filters.owners) filters.owners = [];
-            filters.owners.push(filter.value);
-          } else if (group.id === "contactType") {
-            if (!filters.contactTypes) filters.contactTypes = [];
-            filters.contactTypes.push(filter.value);
-          } else if (group.id === "departments") {
-            if (!filters.departments) filters.departments = [];
-            filters.departments.push(filter.value);
+          if (group.id === 'contacts') {
+            if (!filters.contacts) filters.contacts = []
+            filters.contacts.push(filter.value)
+          } else if (group.id === 'contactInfo') {
+            if (!filters.contactInfo) filters.contactInfo = []
+            filters.contactInfo.push(filter.value)
+          } else if (group.id === 'accounts') {
+            if (!filters.accounts) filters.accounts = []
+            filters.accounts.push(filter.value)
+          } else if (group.id === 'owners') {
+            if (!filters.owners) filters.owners = []
+            filters.owners.push(filter.value)
+          } else if (group.id === 'contactType') {
+            if (!filters.contactTypes) filters.contactTypes = []
+            filters.contactTypes.push(filter.value)
+          } else if (group.id === 'departments') {
+            if (!filters.departments) filters.departments = []
+            filters.departments.push(filter.value)
           }
-          break;
+          break
         }
       }
-    });
+    })
 
-    return filters;
-  }, [search, selectedFilters, createdAfter, createdBefore, filterGroups]);
+    return filters
+  }, [search, selectedFilters, createdAfter, createdBefore, filterGroups])
 
   return {
     search,
@@ -382,6 +390,6 @@ export const useContactFilters = (
     setAccountSearch,
     ownerSearch,
     setOwnerSearch,
-    filtersInitialized,
-  };
-};
+    filtersInitialized
+  }
+}

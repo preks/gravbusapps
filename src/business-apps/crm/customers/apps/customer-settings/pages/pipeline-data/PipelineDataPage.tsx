@@ -12,13 +12,16 @@ export interface PipelineDataPageProps extends BusinessAppContextProps {
 const DATA_TEST_ID = 'CustomerPipelineDataPage'
 
 const PipelineDataPage: React.FC<PipelineDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
-  const catalogConfig = useMemo(() => ({
-    pipelineCatalog: 'SalesPipeline',
-    stageCatalog: 'SalesPipelineStage',
-    conditionCatalog: 'SalesPipelineStageCondition',
-    version: 'v1',
-    autoFetch: true
-  }), []);
+  const catalogConfig = useMemo(
+    () => ({
+      pipelineCatalog: 'SalesPipeline',
+      stageCatalog: 'SalesPipelineStage',
+      conditionCatalog: 'SalesPipelineStageCondition',
+      version: 'v1',
+      autoFetch: true
+    }),
+    []
+  )
 
   const { pipelines, isLoading, error, refetch } = usePipelineSettings(context, catalogConfig)
 
@@ -43,5 +46,3 @@ const PipelineDataPage: React.FC<PipelineDataPageProps> = ({ prefixDataTestId, o
 }
 
 export default PipelineDataPage
-
-

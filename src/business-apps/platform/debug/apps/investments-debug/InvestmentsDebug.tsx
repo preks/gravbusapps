@@ -1,8 +1,15 @@
 // Investment Data Foundation Debug App
-import React, { useState } from 'react';
-import { Button, Card, Divider, Input, Alert, Spin, Typography, Space, Row, Col, Tag, Collapse } from 'antd';
-import { PlayCircleOutlined, SearchOutlined, DatabaseOutlined, LineChartOutlined, ReloadOutlined, BugOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React, { useState } from 'react'
+import { Button, Card, Divider, Input, Alert, Spin, Typography, Space, Row, Col, Tag, Collapse } from 'antd'
+import {
+  PlayCircleOutlined,
+  SearchOutlined,
+  DatabaseOutlined,
+  LineChartOutlined,
+  ReloadOutlined,
+  BugOutlined
+} from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Import all investment data hooks
 import {
@@ -20,47 +27,47 @@ import {
   useGetInvestmentReports,
   useGetInvestmentReportById,
   useInvestmentDataIntegration
-} from '@/common/data/investment';
+} from '@/common/data/investment'
 
-const { Title, Text, Paragraph } = Typography;
-const { Panel } = Collapse;
+const { Title, Text, Paragraph } = Typography
+const { Panel } = Collapse
 
 interface InvestmentsDebugProps extends BusinessAppContextProps {}
 
 interface TestResult {
-  name: string;
-  status: 'idle' | 'loading' | 'success' | 'error';
-  data?: any;
-  error?: string;
-  timestamp?: Date;
-  duration?: number;
-  query?: string;
-  variables?: any;
+  name: string
+  status: 'idle' | 'loading' | 'success' | 'error'
+  data?: any
+  error?: string
+  timestamp?: Date
+  duration?: number
+  query?: string
+  variables?: any
 }
 
-const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
+const InvestmentsDebug: React.FC<InvestmentsDebugProps> = context => {
   // State for test results
-  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTestId, setSelectedTestId] = useState<string>('');
-  const [filterValues] = useState<any>({});
-  
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>({})
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedTestId, setSelectedTestId] = useState<string>('')
+  const [filterValues] = useState<any>({})
+
   // Get all hooks
-  const { fetchInvestments } = useGetInvestments(context);
-  const { fetchInvestmentById } = useGetInvestmentById(context);
-  const { searchInvestments } = useSearchInvestments(context);
-  const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context);
-  const { fetchInvestmentAccountById } = useGetInvestmentAccountById(context);
-  const { fetchInvestmentContacts } = useGetInvestmentContacts(context);
-  const { fetchInvestmentContactById } = useGetInvestmentContactById(context);
-  const { fetchInvestmentLeads } = useGetInvestmentLeads(context);
-  const { fetchInvestmentLeadById } = useGetInvestmentLeadById(context);
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context);
-  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(context);
-  
+  const { fetchInvestments } = useGetInvestments(context)
+  const { fetchInvestmentById } = useGetInvestmentById(context)
+  const { searchInvestments } = useSearchInvestments(context)
+  const { fetchInvestmentAccounts } = useGetInvestmentAccounts(context)
+  const { fetchInvestmentAccountById } = useGetInvestmentAccountById(context)
+  const { fetchInvestmentContacts } = useGetInvestmentContacts(context)
+  const { fetchInvestmentContactById } = useGetInvestmentContactById(context)
+  const { fetchInvestmentLeads } = useGetInvestmentLeads(context)
+  const { fetchInvestmentLeadById } = useGetInvestmentLeadById(context)
+  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
+  const { fetchInvestmentOpportunityById } = useGetInvestmentOpportunityById(context)
+
   // Report hooks
-  const { fetchInvestmentReports } = useGetInvestmentReports(context);
-  const { fetchInvestmentReportById } = useGetInvestmentReportById(context);
+  const { fetchInvestmentReports } = useGetInvestmentReports(context)
+  const { fetchInvestmentReportById } = useGetInvestmentReportById(context)
   // MIGRATION NOTE: Following hooks disabled during migration to centralized approach
   // const { fetchInvestmentTransactions } = useGetInvestmentTransactions(context);
   // const { fetchInvestmentTransactionById } = useGetInvestmentTransactionById(context);
@@ -69,43 +76,38 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
   // const { fetchRealEstateInvestmentReports } = useGetRealEstateInvestmentReports(context);
   // const { fetchRealEstateInvestmentRentalUnits } = useGetRealEstateInvestmentRentalUnits(context);
   // const { fetchLiquidFundInvestmentReports } = useGetLiquidFundInvestmentReports(context);
-  
+
   // Integration hooks
-  const { 
-    investments, 
-    investmentAccounts, 
-    investmentContacts, 
+  const {
+    investments,
+    investmentAccounts,
+    investmentContacts,
     investmentOpportunities,
     investmentLeads,
     stats,
-    isLoading: integrationLoading, 
-    error: integrationError, 
-    refetch: refetchIntegration 
-  } = useInvestmentDataIntegration(context);
+    isLoading: integrationLoading,
+    error: integrationError,
+    refetch: refetchIntegration
+  } = useInvestmentDataIntegration(context)
 
   // Helper function to execute test with query tracking
-  const executeTest = async (
-    testName: string, 
-    testFunction: () => Promise<any>,
-    query?: string,
-    variables?: any
-  ) => {
-    const startTime = Date.now();
-    
+  const executeTest = async (testName: string, testFunction: () => Promise<any>, query?: string, variables?: any) => {
+    const startTime = Date.now()
+
     setTestResults(prev => ({
       ...prev,
-      [testName]: { 
-        name: testName, 
+      [testName]: {
+        name: testName,
         status: 'loading',
         query,
         variables
       }
-    }));
+    }))
 
     try {
-      const result = await testFunction();
-      const duration = Date.now() - startTime;
-      
+      const result = await testFunction()
+      const duration = Date.now() - startTime
+
       setTestResults(prev => ({
         ...prev,
         [testName]: {
@@ -117,10 +119,10 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
           query,
           variables
         }
-      }));
+      }))
     } catch (error) {
-      const duration = Date.now() - startTime;
-      
+      const duration = Date.now() - startTime
+
       setTestResults(prev => ({
         ...prev,
         [testName]: {
@@ -132,109 +134,109 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
           query,
           variables
         }
-      }));
+      }))
     }
-  };
+  }
 
   // Test functions with query tracking
   const testCoreInvestments = () => {
-    const variables = { 
+    const variables = {
       limit: 10,
       search: searchTerm || undefined,
       ...filterValues
-    };
+    }
     return executeTest(
-      'core-investments', 
+      'core-investments',
       () => fetchInvestments(variables),
       'Core Investment Query - GET_INVESTMENTS',
       variables
-    );
-  };
+    )
+  }
 
   const testInvestmentReports = () => {
-    const variables = { 
+    const variables = {
       limit: 10,
       search: searchTerm || undefined
-    };
+    }
     return executeTest(
-      'investment-reports', 
+      'investment-reports',
       () => fetchInvestmentReports(variables),
       'Investment Reports Query - GET_INVESTMENT_REPORTS',
       variables
-    );
-  };
+    )
+  }
 
   const testSearchInvestments = () => {
-    const searchQuery = searchTerm || 'test';
-    const variables = { limit: 5 };
+    const searchQuery = searchTerm || 'test'
+    const variables = { limit: 5 }
     return executeTest(
-      'search-investments', 
+      'search-investments',
       () => searchInvestments(searchQuery, variables),
       'Search Investment Query - SEARCH_INVESTMENTS',
       { searchTerm: searchQuery, ...variables }
-    );
-  };
+    )
+  }
 
   const testInvestmentAccounts = () => {
-    const variables = { 
+    const variables = {
       limit: 10,
       search: searchTerm || undefined
-    };
+    }
     return executeTest(
-      'investment-accounts', 
+      'investment-accounts',
       () => fetchInvestmentAccounts(variables),
       'Investment Accounts Query - GET_INVESTMENT_ACCOUNTS',
       variables
-    );
-  };
+    )
+  }
 
   const testInvestmentContacts = () => {
-    const variables = { 
+    const variables = {
       limit: 10,
       search: searchTerm || undefined
-    };
+    }
     return executeTest(
-      'investment-contacts', 
+      'investment-contacts',
       () => fetchInvestmentContacts(variables),
       'Investment Contacts Query - GET_INVESTMENT_CONTACTS',
       variables
-    );
-  };
+    )
+  }
 
   const testInvestmentLeads = () => {
-    const variables = { 
+    const variables = {
       limit: 10,
       search: searchTerm || undefined
-    };
+    }
     return executeTest(
-      'investment-leads', 
+      'investment-leads',
       () => fetchInvestmentLeads(variables),
       'Investment Leads Query - GET_INVESTMENT_LEADS',
       variables
-    );
-  };
+    )
+  }
 
   const testInvestmentOpportunities = () => {
-    const variables = { 
+    const variables = {
       limit: 10,
       search: searchTerm || undefined
-    };
+    }
     return executeTest(
-      'investment-opportunities', 
+      'investment-opportunities',
       () => fetchInvestmentOpportunities(variables),
       'Investment Opportunities Query - GET_INVESTMENT_OPPORTUNITIES',
       variables
-    );
-  };
+    )
+  }
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testInvestmentTransactions = () => {
-  //   const variables = { 
+  //   const variables = {
   //     limit: 10,
   //     search: searchTerm || undefined
   //   };
   //   return executeTest(
-  //     'investment-transactions', 
+  //     'investment-transactions',
   //     () => fetchInvestmentTransactions(variables),
   //     'Investment Transactions Query - GET_INVESTMENT_TRANSACTIONS',
   //     variables
@@ -243,12 +245,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testEquityInvestmentReportsTest = () => {
-  //   const variables = { 
+  //   const variables = {
   //     limit: 10,
   //     search: searchTerm || undefined
   //   };
   //   return executeTest(
-  //     'equity-investment-reports', 
+  //     'equity-investment-reports',
   //     () => fetchEquityInvestmentReports(variables),
   //     'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Equity)',
   //     variables
@@ -257,12 +259,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testRealEstateInvestmentReportsTest = () => {
-  //   const variables = { 
+  //   const variables = {
   //     limit: 10,
   //     search: searchTerm || undefined
   //   };
   //   return executeTest(
-  //     'real-estate-investment-reports', 
+  //     'real-estate-investment-reports',
   //     () => fetchRealEstateInvestmentReports(variables),
   //     'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Real Estate)',
   //     variables
@@ -271,12 +273,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testEquityReports = () => {
-  //   const variables = { 
+  //   const variables = {
   //     limit: 10,
   //     search: searchTerm || undefined
   //   };
   //   return executeTest(
-  //     'equity-reports', 
+  //     'equity-reports',
   //     () => fetchEquityInvestmentReports(variables),
   //     'Investment Reports Query - GET_INVESTMENT_REPORTS (Enhanced)',
   //     variables
@@ -285,12 +287,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testEquityRounds = () => {
-  //   const variables = { 
+  //   const variables = {
   //     limit: 10,
   //     search: searchTerm || undefined
   //   };
   //   return executeTest(
-  //     'equity-rounds', 
+  //     'equity-rounds',
   //     () => fetchEquityInvestmentRounds(variables),
   //     'Equity Investment Rounds Query - GET_EQUITY_INVESTMENT_ROUNDS',
   //     variables
@@ -299,12 +301,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testRealEstateRentalUnits = () => {
-  //   const variables = { 
+  //   const variables = {
   //     limit: 10,
   //     search: searchTerm || undefined
   //   };
   //   return executeTest(
-  //     'real-estate-rental-units', 
+  //     'real-estate-rental-units',
   //     () => fetchRealEstateInvestmentRentalUnits(variables),
   //     'Real Estate Investment Rental Units Query - GET_REAL_ESTATE_INVESTMENT_RENTAL_UNITS',
   //     variables
@@ -313,12 +315,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testLiquidFundReports = () => {
-  //   const variables = { 
+  //   const variables = {
   //     limit: 10,
   //     search: searchTerm || undefined
   //   };
   //   return executeTest(
-  //     'liquid-fund-reports', 
+  //     'liquid-fund-reports',
   //     () => fetchLiquidFundInvestmentReports(variables),
   //     'Investment Reports Query - GET_INVESTMENT_REPORTS (includes Liquid Fund)',
   //     variables
@@ -327,70 +329,70 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // Test by ID functions (using selected test ID)
   const testInvestmentById = () => {
-    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
+    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001'
     return executeTest(
-      'investment-by-id', 
+      'investment-by-id',
       () => fetchInvestmentById(testId),
       `Investment By ID Query - GET_INVESTMENT_BY_ID`,
       { id: testId }
-    );
-  };
+    )
+  }
 
   const testAccountById = () => {
-    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
+    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001'
     return executeTest(
-      'account-by-id', 
+      'account-by-id',
       () => fetchInvestmentAccountById(testId),
       `Investment Account By ID Query - GET_INVESTMENT_ACCOUNT_BY_ID`,
       { id: testId }
-    );
-  };
+    )
+  }
 
   const testContactById = () => {
-    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
+    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001'
     return executeTest(
-      'contact-by-id', 
+      'contact-by-id',
       () => fetchInvestmentContactById(testId),
       `Investment Contact By ID Query - GET_INVESTMENT_CONTACT_BY_ID`,
       { id: testId }
-    );
-  };
+    )
+  }
 
   const testLeadById = () => {
-    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
+    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001'
     return executeTest(
-      'lead-by-id', 
+      'lead-by-id',
       () => fetchInvestmentLeadById(testId),
       `Investment Lead By ID Query - GET_INVESTMENT_LEAD_BY_ID`,
       { id: testId }
-    );
-  };
+    )
+  }
 
   const testOpportunityById = () => {
-    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
+    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001'
     return executeTest(
-      'opportunity-by-id', 
+      'opportunity-by-id',
       () => fetchInvestmentOpportunityById(testId),
       `Investment Opportunity By ID Query - GET_INVESTMENT_OPPORTUNITY_BY_ID`,
       { id: testId }
-    );
-  };
+    )
+  }
 
   const testInvestmentReportById = () => {
-    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
+    const testId = selectedTestId || '00000000-0000-0000-0000-000000000001'
     return executeTest(
-      'investment-report-by-id', 
+      'investment-report-by-id',
       () => fetchInvestmentReportById(testId),
       `Investment Report By ID Query - GET_INVESTMENT_REPORT_BY_ID`,
       { id: testId }
-    );
-  };
+    )
+  }
 
   // MIGRATION NOTE: Disabled during migration to centralized approach
   // const testInvestmentTransactionById = () => {
   //   const testId = selectedTestId || '00000000-0000-0000-0000-000000000001';
   //   return executeTest(
-  //     'investment-transaction-by-id', 
+  //     'investment-transaction-by-id',
   //     () => fetchInvestmentTransactionById(testId),
   //     `Investment Transaction By ID Query - GET_INVESTMENT_TRANSACTION_BY_ID`,
   //     { id: testId }
@@ -399,44 +401,44 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
   // Clear all results
   const clearResults = () => {
-    setTestResults({});
-  };
+    setTestResults({})
+  }
 
   // Run all core tests
   const runAllCoreTests = async () => {
-    await testCoreInvestments();
-    await testInvestmentAccounts();
-    await testInvestmentContacts();
-    await testInvestmentLeads();
-    await testInvestmentOpportunities();
-  };
+    await testCoreInvestments()
+    await testInvestmentAccounts()
+    await testInvestmentContacts()
+    await testInvestmentLeads()
+    await testInvestmentOpportunities()
+  }
 
   // Run all specific type tests
   const runAllSpecificTests = async () => {
-    await testInvestmentReports();
+    await testInvestmentReports()
     // MIGRATION NOTE: Disabled during migration to centralized approach
     // await testInvestmentTransactions();
     // await testEquityInvestmentReportsTest();
     // await testRealEstateInvestmentReportsTest();
     // Note: Performance metrics test removed - hook not implemented
-  };
+  }
 
   // Run all tests with current search term
   const runAllTestsWithSearch = async () => {
     if (!searchTerm.trim()) {
-      alert('Please enter a search term first');
-      return;
+      alert('Please enter a search term first')
+      return
     }
-    
+
     // Run all core tests
-    await testCoreInvestments();
-    await testInvestmentAccounts();
-    await testInvestmentContacts();
-    await testInvestmentLeads();
-    await testInvestmentOpportunities();
-    
+    await testCoreInvestments()
+    await testInvestmentAccounts()
+    await testInvestmentContacts()
+    await testInvestmentLeads()
+    await testInvestmentOpportunities()
+
     // Run all specific tests
-    await testInvestmentReports();
+    await testInvestmentReports()
     // MIGRATION NOTE: Disabled during migration to centralized approach
     // await testInvestmentTransactions();
     // await testEquityInvestmentReportsTest();
@@ -446,94 +448,86 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
     // await testEquityRounds();
     // await testRealEstateRentalUnits();
     // await testLiquidFundReports();
-  };
+  }
 
   // Get result component with query display
   const getResultComponent = (testKey: string) => {
-    const result = testResults[testKey];
-    if (!result) return null;
+    const result = testResults[testKey]
+    if (!result) return null
 
-    const { status, data, error, timestamp, duration, query, variables } = result;
+    const { status, data, error, timestamp, duration, query, variables } = result
 
-    let statusColor = 'default';
-    let statusText = 'Idle';
-    
+    let statusColor = 'default'
+    let statusText = 'Idle'
+
     switch (status) {
       case 'loading':
-        statusColor = 'processing';
-        statusText = 'Loading...';
-        break;
+        statusColor = 'processing'
+        statusText = 'Loading...'
+        break
       case 'success':
-        statusColor = 'success';
-        statusText = `Success (${duration}ms)`;
-        break;
+        statusColor = 'success'
+        statusText = `Success (${duration}ms)`
+        break
       case 'error':
-        statusColor = 'error';
-        statusText = `Error (${duration}ms)`;
-        break;
+        statusColor = 'error'
+        statusText = `Error (${duration}ms)`
+        break
     }
 
     // Determine if this is a by-ID test (single item) or a list test (with aggregate count)
-    const isByIdTest = testKey.includes('-by-id');
-    
-    let dataCount = 0;
-    let totalCount = 0;
-    
+    const isByIdTest = testKey.includes('-by-id')
+
+    let dataCount = 0
+    let totalCount = 0
+
     if (isByIdTest) {
       // For by-ID tests, just show if we got data or not
-      dataCount = data ? 1 : 0;
+      dataCount = data ? 1 : 0
     } else {
       // For list tests, try to get the actual count from GraphQL response
       if (data && typeof data === 'object') {
         // Check if we have an aggregate count (e.g., InvestmentAggregate.aggregate.count)
-        const aggregateKeys = Object.keys(data).filter(key => key.includes('Aggregate'));
+        const aggregateKeys = Object.keys(data).filter(key => key.includes('Aggregate'))
         if (aggregateKeys.length > 0) {
-          const aggregateKey = aggregateKeys[0];
-          const aggregate = data[aggregateKey];
+          const aggregateKey = aggregateKeys[0]
+          const aggregate = data[aggregateKey]
           if (aggregate?.aggregate?.count !== undefined) {
-            totalCount = aggregate.aggregate.count;
+            totalCount = aggregate.aggregate.count
           }
         }
-        
+
         // Get the actual items count
-        const itemsKey = Object.keys(data).find(key => !key.includes('Aggregate'));
+        const itemsKey = Object.keys(data).find(key => !key.includes('Aggregate'))
         if (itemsKey && Array.isArray(data[itemsKey])) {
-          dataCount = data[itemsKey].length;
+          dataCount = data[itemsKey].length
         } else if (Array.isArray(data)) {
-          dataCount = data.length;
+          dataCount = data.length
         }
       }
     }
 
     return (
-      <Card 
-        size="small" 
+      <Card
+        size="small"
         style={{ marginTop: 8 }}
         title={
           <Space>
             <Tag color={statusColor}>{statusText}</Tag>
             {timestamp && <Text type="secondary">{timestamp.toLocaleTimeString()}</Text>}
-            {status === 'success' && (
-              isByIdTest ? (
+            {status === 'success' &&
+              (isByIdTest ? (
                 <Tag color="blue">{dataCount === 1 ? 'Found' : 'Not Found'}</Tag>
               ) : (
                 <Tag color="blue">
                   {dataCount} items {totalCount > 0 && `(${totalCount} total)`}
                 </Tag>
-              )
-            )}
+              ))}
           </Space>
         }
       >
         {status === 'loading' && <Spin />}
-        {status === 'error' && (
-          <Alert
-            type="error"
-            message="Test Failed"
-            description={error}
-            showIcon
-          />
-        )}
+        {status === 'error' && <Alert type="error" message="Test Failed" description={error} showIcon />}
         {status === 'success' && data && (
           <Collapse size="small" style={{ marginTop: 8 }}>
             <Panel header="📊 Data Results" key="data">
@@ -547,42 +541,48 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
                   )}
                 </div>
               )}
-              <pre style={{ 
-                background: 'var(--nw-color-surface-secondary)', 
-                padding: 'var(--nw-spacing-sm)', 
-                borderRadius: 'var(--nw-border-radius-sm)', 
-                fontSize: 'var(--nw-text-xs)',
-                maxHeight: '200px',
-                overflow: 'auto',
-                marginTop: 'var(--nw-spacing-sm)'
-              }}>
+              <pre
+                style={{
+                  background: 'var(--nw-color-surface-secondary)',
+                  padding: 'var(--nw-spacing-sm)',
+                  borderRadius: 'var(--nw-border-radius-sm)',
+                  fontSize: 'var(--nw-text-xs)',
+                  maxHeight: '200px',
+                  overflow: 'auto',
+                  marginTop: 'var(--nw-spacing-sm)'
+                }}
+              >
                 {JSON.stringify(data, null, 2)}
               </pre>
             </Panel>
             {query && (
               <Panel header="📝 Query Information" key="query">
                 <Text strong>Query:</Text>
-                <pre style={{ 
-                  background: 'var(--nw-color-surface-secondary)', 
-                  padding: 'var(--nw-spacing-sm)', 
-                  borderRadius: 'var(--nw-border-radius-sm)', 
-                  fontSize: 'var(--nw-text-xs)',
-                  marginTop: 'var(--nw-spacing-sm)',
-                  border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
-                }}>
+                <pre
+                  style={{
+                    background: 'var(--nw-color-surface-secondary)',
+                    padding: 'var(--nw-spacing-sm)',
+                    borderRadius: 'var(--nw-border-radius-sm)',
+                    fontSize: 'var(--nw-text-xs)',
+                    marginTop: 'var(--nw-spacing-sm)',
+                    border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
+                  }}
+                >
                   {query}
                 </pre>
                 {variables && Object.keys(variables).length > 0 && (
                   <div style={{ marginTop: 'var(--nw-spacing-sm)' }}>
                     <Text strong>Variables:</Text>
-                    <pre style={{ 
-                      background: 'var(--nw-color-surface-secondary)', 
-                      padding: 'var(--nw-spacing-xs)', 
-                      borderRadius: 'var(--nw-border-radius-sm)', 
-                      fontSize: 'var(--nw-text-xs)',
-                      marginTop: 'var(--nw-spacing-xs)',
-                      border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
-                    }}>
+                    <pre
+                      style={{
+                        background: 'var(--nw-color-surface-secondary)',
+                        padding: 'var(--nw-spacing-xs)',
+                        borderRadius: 'var(--nw-border-radius-sm)',
+                        fontSize: 'var(--nw-text-xs)',
+                        marginTop: 'var(--nw-spacing-xs)',
+                        border: 'var(--nw-border-width-thin) solid var(--nw-color-border-default)'
+                      }}
+                    >
                       {JSON.stringify(variables, null, 2)}
                     </pre>
                   </div>
@@ -592,13 +592,13 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
           </Collapse>
         )}
       </Card>
-    );
-  };
+    )
+  }
 
   return (
     <div
       data-testid="investments-debug-container"
-      style={{ 
+      style={{
         background: 'var(--nw-color-surface-primary)',
         minHeight: '100vh',
         padding: 'var(--nw-spacing-lg)',
@@ -613,27 +613,31 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
         <Paragraph style={{ color: 'var(--nw-color-text-secondary)', margin: 'var(--nw-spacing-sm) 0 0 0' }}>
           Test all aspects of the newly created investment data system with enhanced types and computed fields
         </Paragraph>
-        <Alert 
-          type="success" 
-          message="✅ Updated with Enhanced Data Integration" 
+        <Alert
+          type="success"
+          message="✅ Updated with Enhanced Data Integration"
           description="This debug app now uses the updated hooks with mappers that transform base GraphQL responses to enhanced types with computed display fields (displayName, *Label, etc.)"
-          showIcon 
+          showIcon
           style={{ marginBottom: 16 }}
         />
         {searchTerm && (
-          <Alert 
-            type="info" 
+          <Alert
+            type="info"
             message={`🔍 Search Active: "${searchTerm}"`}
             description="Search term will be applied to all list queries. Use 'Run All with Search' to test search across all entities."
-            showIcon 
+            showIcon
             style={{ marginBottom: 16 }}
           />
         )}
       </div>
 
       {/* Controls */}
-      <Card 
-        title={<><DatabaseOutlined /> Test Controls</>}
+      <Card
+        title={
+          <>
+            <DatabaseOutlined /> Test Controls
+          </>
+        }
         style={{ marginBottom: 24 }}
         data-testid="debug-controls-card"
       >
@@ -644,16 +648,11 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               data-testid="debug-search-input"
               placeholder="Enter search term for testing..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               prefix={<SearchOutlined />}
               suffix={
                 searchTerm && (
-                  <Button
-                    size="small"
-                    type="text"
-                    onClick={() => setSearchTerm('')}
-                    style={{ marginRight: -8 }}
-                  >
+                  <Button size="small" type="text" onClick={() => setSearchTerm('')} style={{ marginRight: -8 }}>
                     ✕
                   </Button>
                 )
@@ -661,7 +660,8 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
             />
             {searchTerm && (
               <Text type="secondary" style={{ fontSize: '12px', marginTop: '4px' }}>
-                🔍 Search will be applied to: Investments, Accounts, Contacts, Leads, Opportunities, Reports, Rounds, and Rental Units
+                🔍 Search will be applied to: Investments, Accounts, Contacts, Leads, Opportunities, Reports, Rounds,
+                and Rental Units
               </Text>
             )}
           </Col>
@@ -671,7 +671,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               data-testid="debug-test-id-input"
               placeholder="UUID for by-ID tests"
               value={selectedTestId}
-              onChange={(e) => setSelectedTestId(e.target.value)}
+              onChange={e => setSelectedTestId(e.target.value)}
             />
             {selectedTestId && (
               <Text type="secondary" style={{ fontSize: '12px', marginTop: '4px' }}>
@@ -683,21 +683,13 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
             <Text strong>Actions:</Text>
             <br />
             <Space>
-              <Button 
-                data-testid="debug-run-all-core-button"
-                onClick={runAllCoreTests}
-                type="primary"
-              >
+              <Button data-testid="debug-run-all-core-button" onClick={runAllCoreTests} type="primary">
                 Run All Core
               </Button>
-              <Button 
-                data-testid="debug-run-all-specific-button"
-                onClick={runAllSpecificTests}
-                type="primary"
-              >
+              <Button data-testid="debug-run-all-specific-button" onClick={runAllSpecificTests} type="primary">
                 Run All Specific
               </Button>
-              <Button 
+              <Button
                 data-testid="debug-run-all-with-search-button"
                 onClick={runAllTestsWithSearch}
                 type="primary"
@@ -706,11 +698,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               >
                 Run All with Search
               </Button>
-              <Button 
-                data-testid="debug-clear-results-button"
-                onClick={clearResults}
-                icon={<ReloadOutlined />}
-              >
+              <Button data-testid="debug-clear-results-button" onClick={clearResults} icon={<ReloadOutlined />}>
                 Clear Results
               </Button>
             </Space>
@@ -721,8 +709,12 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
       {/* Integration Hooks Status */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col span={12}>
-          <Card 
-            title={<><LineChartOutlined /> Data Integration Hook</>}
+          <Card
+            title={
+              <>
+                <LineChartOutlined /> Data Integration Hook
+              </>
+            }
             data-testid="debug-integration-status-card"
           >
             <Space direction="vertical" style={{ width: '100%' }}>
@@ -732,30 +724,35 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
                   {integrationLoading ? 'Loading...' : integrationError ? 'Error' : 'Ready'}
                 </Tag>
               </div>
-              {integrationError && (
-                <Alert type="error" message={integrationError} showIcon />
-              )}
+              {integrationError && <Alert type="error" message={integrationError} showIcon />}
               <div>
-                <Text>Investments: </Text><Tag>{investments.length}</Tag>
-                <Text>Accounts: </Text><Tag>{investmentAccounts.length}</Tag>
-                <Text>Contacts: </Text><Tag>{investmentContacts.length}</Tag>
-                <Text>Opportunities: </Text><Tag>{investmentOpportunities.length}</Tag>
-                <Text>Leads: </Text><Tag>{investmentLeads.length}</Tag>
+                <Text>Investments: </Text>
+                <Tag>{investments.length}</Tag>
+                <Text>Accounts: </Text>
+                <Tag>{investmentAccounts.length}</Tag>
+                <Text>Contacts: </Text>
+                <Tag>{investmentContacts.length}</Tag>
+                <Text>Opportunities: </Text>
+                <Tag>{investmentOpportunities.length}</Tag>
+                <Text>Leads: </Text>
+                <Tag>{investmentLeads.length}</Tag>
               </div>
               {stats && (
                 <div style={{ marginTop: 8 }}>
                   <Text strong>Statistics (Enhanced Types):</Text>
                   <div>
-                    <Text>Total Market Value: </Text><Tag color="green">${stats.totalMarketValue.toLocaleString()}</Tag>
+                    <Text>Total Market Value: </Text>
+                    <Tag color="green">${stats.totalMarketValue.toLocaleString()}</Tag>
                   </div>
                   <div style={{ marginTop: 4, fontSize: '12px', color: '#666' }}>
-                    ℹ️ All data now includes computed fields like displayName, *Label for catalog entries, fullName, etc.
+                    ℹ️ All data now includes computed fields like displayName, *Label for catalog entries, fullName,
+                    etc.
                   </div>
                 </div>
               )}
-              <Button 
+              <Button
                 data-testid="debug-refetch-integration-button"
-                onClick={() => refetchIntegration()} 
+                onClick={() => refetchIntegration()}
                 loading={integrationLoading}
                 icon={<ReloadOutlined />}
               >
@@ -766,16 +763,20 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
         </Col>
         {/* Analytics hook not implemented yet */}
         <Col span={12}>
-          <Card 
-            title={<><LineChartOutlined /> Analytics Hook</>}
+          <Card
+            title={
+              <>
+                <LineChartOutlined /> Analytics Hook
+              </>
+            }
             data-testid="debug-analytics-status-card"
           >
             <Space direction="vertical" style={{ width: '100%' }}>
-              <Alert 
-                type="info" 
-                message="Analytics Hook Not Implemented" 
+              <Alert
+                type="info"
+                message="Analytics Hook Not Implemented"
                 description="Analytics and performance metrics hooks are not yet implemented in the investment data foundation."
-                showIcon 
+                showIcon
               />
             </Space>
           </Card>
@@ -788,7 +789,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
         <Panel header="Core Investment Entity Tests" key="core">
           <Row gutter={[16, 16]}>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-core-investments-button"
                 onClick={testCoreInvestments}
                 loading={testResults['core-investments']?.status === 'loading'}
@@ -800,7 +801,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('core-investments')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-investment-reports-button"
                 onClick={testInvestmentReports}
                 loading={testResults['investment-reports']?.status === 'loading'}
@@ -812,7 +813,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('investment-reports')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-search-investments-button"
                 onClick={testSearchInvestments}
                 loading={testResults['search-investments']?.status === 'loading'}
@@ -824,7 +825,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('search-investments')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-investment-by-id-button"
                 onClick={testInvestmentById}
                 loading={testResults['investment-by-id']?.status === 'loading'}
@@ -841,7 +842,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
           <Row gutter={[16, 16]}>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-accounts-button"
                 onClick={testInvestmentAccounts}
                 loading={testResults['investment-accounts']?.status === 'loading'}
@@ -853,7 +854,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('investment-accounts')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-contacts-button"
                 onClick={testInvestmentContacts}
                 loading={testResults['investment-contacts']?.status === 'loading'}
@@ -865,7 +866,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('investment-contacts')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-leads-button"
                 onClick={testInvestmentLeads}
                 loading={testResults['investment-leads']?.status === 'loading'}
@@ -877,7 +878,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('investment-leads')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-opportunities-button"
                 onClick={testInvestmentOpportunities}
                 loading={testResults['investment-opportunities']?.status === 'loading'}
@@ -994,7 +995,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
         <Panel header="By ID Tests" key="byid">
           <Row gutter={[16, 16]}>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-account-by-id-button"
                 onClick={testAccountById}
                 loading={testResults['account-by-id']?.status === 'loading'}
@@ -1006,7 +1007,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('account-by-id')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-contact-by-id-button"
                 onClick={testContactById}
                 loading={testResults['contact-by-id']?.status === 'loading'}
@@ -1018,7 +1019,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('contact-by-id')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-lead-by-id-button"
                 onClick={testLeadById}
                 loading={testResults['lead-by-id']?.status === 'loading'}
@@ -1030,7 +1031,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
               {getResultComponent('lead-by-id')}
             </Col>
             <Col span={6}>
-              <Button 
+              <Button
                 data-testid="debug-test-opportunity-by-id-button"
                 onClick={testOpportunityById}
                 loading={testResults['opportunity-by-id']?.status === 'loading'}
@@ -1047,7 +1048,7 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
 
           <Row gutter={[16, 16]}>
             <Col span={12}>
-              <Button 
+              <Button
                 data-testid="debug-test-investment-report-by-id-button"
                 onClick={testInvestmentReportById}
                 loading={testResults['investment-report-by-id']?.status === 'loading'}
@@ -1078,18 +1079,18 @@ const InvestmentsDebug: React.FC<InvestmentsDebugProps> = (context) => {
         <Panel header="Analytics & Performance Tests (Not Implemented)" key="analytics">
           <Row gutter={[16, 16]}>
             <Col span={24}>
-              <Alert 
-                type="info" 
-                message="Analytics and Performance Features Not Implemented" 
+              <Alert
+                type="info"
+                message="Analytics and Performance Features Not Implemented"
                 description="Analytics hooks (useInvestmentSummaryAnalytics, useGetInvestmentPerformanceMetrics) are not yet implemented in the investment data foundation. These features will be added in future iterations."
-                showIcon 
+                showIcon
               />
             </Col>
           </Row>
         </Panel>
       </Collapse>
     </div>
-  );
-};
+  )
+}
 
-export default InvestmentsDebug;
+export default InvestmentsDebug

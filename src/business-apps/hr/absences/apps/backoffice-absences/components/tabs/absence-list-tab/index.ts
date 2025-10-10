@@ -1,1 +1,1 @@
-export { AbsenceListTab } from './AbsenceListTab'; 
+export { AbsenceListTab } from './AbsenceListTab'

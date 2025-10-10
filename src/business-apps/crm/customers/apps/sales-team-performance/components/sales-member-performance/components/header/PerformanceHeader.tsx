@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import {
   Avatar,
   AvatarFallback,
@@ -7,28 +7,20 @@ import {
   Card,
   CardContent,
   Spinner,
-  Alert,
-} from "@newwork/nw-design-system";
-import {
-  PiArrowLeft,
-  PiEnvelope,
-  PiPhone,
-  PiUser,
-  PiCalendar,
-  PiFlag,
-  PiDeviceMobile,
-} from "react-icons/pi";
-import { formatCurrency } from "@/business-apps/crm/common/utils/currencyUtils";
-import { EmployeeHeaderData } from "../../queries/EmployeeHeaderQueries";
+  Alert
+} from '@newwork/nw-design-system'
+import { PiArrowLeft, PiEnvelope, PiPhone, PiUser, PiCalendar, PiFlag, PiDeviceMobile } from 'react-icons/pi'
+import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { EmployeeHeaderData } from '../../queries/EmployeeHeaderQueries'
 
-const DATA_TEST_ID_PREFIX = "PerformanceHeader";
+const DATA_TEST_ID_PREFIX = 'PerformanceHeader'
 
 interface PerformanceHeaderProps {
-  headerData: EmployeeHeaderData | null;
-  isLoading?: boolean;
-  error?: string | null;
-  onBack?: () => void;
-  onRetry?: () => void;
+  headerData: EmployeeHeaderData | null
+  isLoading?: boolean
+  error?: string | null
+  onBack?: () => void
+  onRetry?: () => void
 }
 
 export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
@@ -36,24 +28,21 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
   isLoading = false,
   error = null,
   onBack,
-  onRetry,
+  onRetry
 }) => {
   // Get employee initials for avatar
   const getEmployeeInitials = (displayName: string): string => {
     return displayName
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
+      .split(' ')
+      .map(n => n[0])
+      .join('')
       .toUpperCase()
-      .substring(0, 2);
-  };
+      .substring(0, 2)
+  }
 
   if (isLoading) {
     return (
-      <div
-        className="gba:w-full gba:mb-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
-      >
+      <div className="gba:w-full gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
         <div className="gba:mb-4">
           <Button
             variant="ghost"
@@ -72,16 +61,13 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   // Error state
   if (error) {
     return (
-      <div
-        className="gba:w-full gba:mb-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-error`}
-      >
+      <div className="gba:w-full gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
         <div className="gba:mb-4">
           <Button
             variant="ghost"
@@ -97,27 +83,19 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
         <Alert variant="destructive">
           <span>Error loading employee data: {error}</span>
           {onRetry && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onRetry}
-              className="gba:ml-4"
-            >
+            <Button variant="outline" size="sm" onClick={onRetry} className="gba:ml-4">
               Retry
             </Button>
           )}
         </Alert>
       </div>
-    );
+    )
   }
 
   // No data state
   if (!headerData) {
     return (
-      <div
-        className="gba:w-full gba:mb-6"
-        data-testid={`${DATA_TEST_ID_PREFIX}-no-data`}
-      >
+      <div className="gba:w-full gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-no-data`}>
         <div className="gba:mb-4">
           <Button
             variant="ghost"
@@ -134,14 +112,11 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
           <span>Employee data not found</span>
         </Alert>
       </div>
-    );
+    )
   }
 
   return (
-    <div
-      className="gba:w-full gba:mb-6"
-      data-testid={`${DATA_TEST_ID_PREFIX}-container`}
-    >
+    <div className="gba:w-full gba:mb-6" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {/* Back button */}
       <div className="gba:mb-4">
         <Button
@@ -182,12 +157,8 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
                 >
                   {headerData.displayName}
                 </h1>
-                <div className="gba:text-lg gba:text-gray-600">
-                  {headerData.jobPosition || "Unknown Position"}
-                </div>
-                <div className="gba:text-sm gba:text-gray-500">
-                  {headerData.businessUnit || "Unknown Department"}
-                </div>
+                <div className="gba:text-lg gba:text-gray-600">{headerData.jobPosition || 'Unknown Position'}</div>
+                <div className="gba:text-sm gba:text-gray-500">{headerData.businessUnit || 'Unknown Department'}</div>
               </div>
             </div>
 
@@ -201,9 +172,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
                 >
                   <PiEnvelope className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div className="gba:min-w-0">
-                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">
-                      Email
-                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Email</div>
                     <div className="gba:text-sm gba:text-gray-900 gba:truncate gba:max-w-[150px]">
                       {headerData.email}
                     </div>
@@ -213,46 +182,29 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
 
               {/* Phone */}
               {headerData.phone && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-2"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-phone`}
-                >
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-phone`}>
                   <PiPhone className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">
-                      Phone
-                    </div>
-                    <div className="gba:text-sm gba:text-gray-900">
-                      {headerData.phone}
-                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Phone</div>
+                    <div className="gba:text-sm gba:text-gray-900">{headerData.phone}</div>
                   </div>
                 </div>
               )}
 
               {/* Mobile */}
               {headerData.mobile && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-2"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-mobile`}
-                >
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-mobile`}>
                   <PiDeviceMobile className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">
-                      Mobile
-                    </div>
-                    <div className="gba:text-sm gba:text-gray-900">
-                      {headerData.mobile}
-                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Mobile</div>
+                    <div className="gba:text-sm gba:text-gray-900">{headerData.mobile}</div>
                   </div>
                 </div>
               )}
 
               {/* Manager */}
               {headerData.managerName && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-2"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-manager`}
-                >
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-manager`}>
                   <Avatar size="sm" className="gba:w-6 gba:h-6">
                     <AvatarImage
                       src={`data:image/jpeg;base64,${headerData.managerPicture}`}
@@ -263,67 +215,41 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">
-                      Manager
-                    </div>
-                    <div className="gba:text-sm gba:text-gray-900">
-                      {headerData.managerName}
-                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Manager</div>
+                    <div className="gba:text-sm gba:text-gray-900">{headerData.managerName}</div>
                   </div>
                 </div>
               )}
 
               {/* Start Date */}
               {headerData.startDate && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-2"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-start-date`}
-                >
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-start-date`}>
                   <PiCalendar className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">
-                      Start Date
-                    </div>
-                    <div className="gba:text-sm gba:text-gray-900">
-                      {headerData.startDate}
-                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Start Date</div>
+                    <div className="gba:text-sm gba:text-gray-900">{headerData.startDate}</div>
                   </div>
                 </div>
               )}
 
               {/* Country */}
               {headerData.country && (
-                <div
-                  className="gba:flex gba:items-center gba:gap-2"
-                  data-testid={`${DATA_TEST_ID_PREFIX}-country`}
-                >
+                <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-country`}>
                   <PiFlag className="gba:w-3 gba:h-3 gba:text-gray-400 gba:flex-shrink-0" />
                   <div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">
-                      Country
-                    </div>
-                    <div className="gba:text-sm gba:text-gray-900">
-                      {headerData.country}
-                    </div>
+                    <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Country</div>
+                    <div className="gba:text-sm gba:text-gray-900">{headerData.country}</div>
                   </div>
                 </div>
               )}
 
               {/* Total Sales */}
-              <div
-                className="gba:flex gba:items-center gba:gap-2"
-                data-testid={`${DATA_TEST_ID_PREFIX}-total-sales`}
-              >
+              <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${DATA_TEST_ID_PREFIX}-total-sales`}>
                 <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-green-500 gba:flex-shrink-0"></div>
                 <div>
-                  <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">
-                    Total Sales
-                  </div>
+                  <div className="gba:text-xs gba:text-gray-500 gba:uppercase gba:tracking-wide">Total Sales</div>
                   <div className="gba:text-sm gba:font-semibold gba:text-green-600">
-                    {formatCurrency(
-                      headerData.totalSales,
-                      headerData.currencyId
-                    )}
+                    {formatCurrency(headerData.totalSales, headerData.currencyId)}
                   </div>
                 </div>
               </div>
@@ -332,7 +258,7 @@ export const PerformanceHeader: React.FC<PerformanceHeaderProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default PerformanceHeader;
+export default PerformanceHeader

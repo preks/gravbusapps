@@ -1,14 +1,8 @@
-import type React from "react"
-import Link from "next/link"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import type React from 'react'
+import Link from 'next/link'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-export default function EmployeeLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode
-  params: { id: string }
-}) {
+export default function EmployeeLayout({ children, params }: { children: React.ReactNode; params: { id: string } }) {
   return (
     <div className="container mx-auto">
       <Tabs defaultValue="profile" className="w-full mb-6">
@@ -19,9 +13,7 @@ export default function EmployeeLayout({
           <Link href={`/employee/${params.id}/salary`}>
             <TabsTrigger value="salary">Salary</TabsTrigger>
           </Link>
-          <Link href={`/employee/${params.id}/documents`}>
-
-          </Link>
+          <Link href={`/employee/${params.id}/documents`}></Link>
         </TabsList>
       </Tabs>
       {children}

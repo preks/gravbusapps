@@ -1,6 +1,6 @@
 /**
  * GraphQL query to get the count of employee terminations in the previous month
- * 
+ *
  * This query uses the EmployeeWorkingCondition.exitDate field to identify
  * when employees left the company.
  * The exitDate field is a timestamp type (without timezone).
@@ -24,4 +24,4 @@ export const getTurnoverRateQuery = `
       }
     }
   }
-`;
+`

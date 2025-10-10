@@ -1,3 +1,3 @@
-export * from './EmployeeHeaderQueries';
-export * from './EmployeeActivitiesQueries';
-export * from './EmployeeActivitiesStatisticsQueries'; 
+export * from './EmployeeHeaderQueries'
+export * from './EmployeeActivitiesQueries'
+export * from './EmployeeActivitiesStatisticsQueries'

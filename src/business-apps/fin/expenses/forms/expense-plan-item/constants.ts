@@ -7,8 +7,7 @@ export {
   DEFAULT_EXPENSE_STATUS,
   PRIORITY_CURRENCIES,
   DEFAULT_CURRENCY_CODE
-} from "../expense-item/context/constants";
+} from '../expense-item/context/constants'
 
-
-export const FLOW_DOMAIN = "employee-expense";
-export const FLOW_PROCESS_NAME = "changeExpensePlanItem"; 
+export const FLOW_DOMAIN = 'employee-expense'
+export const FLOW_PROCESS_NAME = 'changeExpensePlanItem'

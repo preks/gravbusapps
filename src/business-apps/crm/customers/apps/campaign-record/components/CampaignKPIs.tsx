@@ -1,25 +1,14 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  UserOutlined, 
-  ContactsOutlined, 
-  TeamOutlined, 
-  DollarOutlined 
-} from '@ant-design/icons';
-import { CampaignKPIsProps } from '../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { UserOutlined, ContactsOutlined, TeamOutlined, DollarOutlined } from '@ant-design/icons'
+import { CampaignKPIsProps } from '../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-const CampaignKPIs: React.FC<CampaignKPIsProps> = ({
-  kpis,
-  kpisWithTrends,
-  isLoading,
-  error,
-  onRetry
-}) => {
+const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpis, kpisWithTrends, isLoading, error, onRetry }) => {
   // Helper function to format percentage
   const formatPercentage = (percentage: number): string => {
-    return `${percentage.toFixed(1)}%`;
-  };
+    return `${percentage.toFixed(1)}%`
+  }
 
   // Transform KPIs data into widgets format
   const widgets: WidgetItem[] = [
@@ -30,7 +19,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({
       prefix: <UserOutlined />,
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: kpisWithTrends?.totalLeads.percentage 
+      description: kpisWithTrends?.totalLeads.percentage
         ? `${formatPercentage(kpisWithTrends.totalLeads.percentage)} converted`
         : 'Campaign leads',
       trend: kpisWithTrends?.totalLeads.trend
@@ -62,12 +51,12 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({
       prefix: <DollarOutlined />,
       color: '#fa8c16',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: kpisWithTrends?.totalOpportunities.percentage 
+      description: kpisWithTrends?.totalOpportunities.percentage
         ? `${formatPercentage(kpisWithTrends.totalOpportunities.percentage)} won`
         : 'Campaign opportunities',
       trend: kpisWithTrends?.totalOpportunities.trend
     }
-  ];
+  ]
 
   return (
     <div data-testid="campaign-kpis-container">
@@ -81,7 +70,7 @@ const CampaignKPIs: React.FC<CampaignKPIsProps> = ({
         data-testid="campaign-kpis"
       />
     </div>
-  );
-};
+  )
+}
 
-export default CampaignKPIs;
+export default CampaignKPIs

@@ -1,76 +1,76 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useState, useCallback, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-const LEADS_PER_PAGE = 20;
+const LEADS_PER_PAGE = 20
 
 export interface LeadData {
-  id: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  companyName?: string;
-  businessKey?: string;
-  code?: string;
-  email?: string;
-  phoneNumber?: string;
-  position?: string;
+  id: string
+  name?: string
+  firstName?: string
+  lastName?: string
+  companyName?: string
+  businessKey?: string
+  code?: string
+  email?: string
+  phoneNumber?: string
+  position?: string
   account?: {
-    id: string;
-    name: string;
-  };
+    id: string
+    name: string
+  }
   contact?: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-  };
+    id: string
+    firstName?: string
+    lastName?: string
+    email?: string
+  }
   leadStatus?: {
-    value: string;
-    id: string;
-  };
+    value: string
+    id: string
+  }
   leadSource?: {
-    value: string;
-    id: string;
-  };
+    value: string
+    id: string
+  }
   status?: {
-    value: string;
-    id: string;
-  };
+    value: string
+    id: string
+  }
   ownerEmployee?: {
-    firstName: string;
-    lastName: string;
-  };
+    firstName: string
+    lastName: string
+  }
 }
 
 export interface LeadResponse {
-  Lead: LeadData[];
+  Lead: LeadData[]
   LeadAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
 export interface LeadVariables {
-  limit?: number;
-  offset?: number;
-  search?: string;
+  limit?: number
+  offset?: number
+  search?: string
 }
 
 export interface UseLeadsReturn {
-  leads: LeadData[];
-  loading: boolean;
-  error: string | null;
-  hasMore: boolean;
-  total: number;
-  loadMore: () => Promise<void>;
-  searchLeads: (searchTerm?: string) => void;
-  retry: () => void;
+  leads: LeadData[]
+  loading: boolean
+  error: string | null
+  hasMore: boolean
+  total: number
+  loadMore: () => Promise<void>
+  searchLeads: (searchTerm?: string) => void
+  retry: () => void
 }
 
 export const GET_LEADS = (variables: LeadVariables): string => {
-  const searchFilter = variables.search 
+  const searchFilter = variables.search
     ? `, {
         _or: [
           { name: { _ilike: "%${variables.search}%" } }
@@ -91,7 +91,7 @@ export const GET_LEADS = (variables: LeadVariables): string => {
           { status: { value: { _ilike: "%${variables.search}%" } } }
         ]
       }`
-    : '';
+    : ''
 
   return `
     query GetLeads {
@@ -159,88 +159,92 @@ export const GET_LEADS = (variables: LeadVariables): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useLeads = ({ accessToken }: { accessToken: string }): UseLeadsReturn => {
-  const [leads, setLeads] = useState<LeadData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [offset, setOffset] = useState(0);
-  const [currentSearch, setCurrentSearch] = useState<string>('');
+  const [leads, setLeads] = useState<LeadData[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
+  const [total, setTotal] = useState(0)
+  const [offset, setOffset] = useState(0)
+  const [currentSearch, setCurrentSearch] = useState<string>('')
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
-  const fetchLeads = useCallback(async (searchTerm: string = '', resetOffset: boolean = false) => {
-    if (!accessToken) {
-      setError('No access token available');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      const currentOffset = resetOffset ? 0 : offset;
-      const variables: LeadVariables = {
-        limit: LEADS_PER_PAGE,
-        offset: currentOffset,
-        search: searchTerm.trim() || undefined
-      };
-
-      const query = GET_LEADS(variables);
-      const response = await graphqlClient.request<LeadResponse>(query);
-
-      if (response?.Lead && response?.LeadAggregate) {
-        const newLeads = response.Lead;
-        const totalCount = response.LeadAggregate.aggregate.count;
-
-        setLeads(prevLeads => 
-          resetOffset ? newLeads : [...prevLeads, ...newLeads]
-        );
-        setTotal(totalCount);
-        setHasMore(newLeads.length === LEADS_PER_PAGE && (currentOffset + newLeads.length) < totalCount);
-        setOffset(currentOffset + newLeads.length);
-      } else {
-        setError('Invalid response format');
+  const fetchLeads = useCallback(
+    async (searchTerm: string = '', resetOffset: boolean = false) => {
+      if (!accessToken) {
+        setError('No access token available')
+        return
       }
-    } catch (err) {
-      console.error('Error fetching leads:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch leads');
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, offset, graphqlClient]);
 
-  const searchLeads = useCallback((searchTerm: string = '') => {
-    setCurrentSearch(searchTerm);
-    setOffset(0);
-    setLeads([]);
-    setHasMore(true);
-    fetchLeads(searchTerm, true);
-  }, [fetchLeads]);
+      try {
+        setLoading(true)
+        setError(null)
+
+        const currentOffset = resetOffset ? 0 : offset
+        const variables: LeadVariables = {
+          limit: LEADS_PER_PAGE,
+          offset: currentOffset,
+          search: searchTerm.trim() || undefined
+        }
+
+        const query = GET_LEADS(variables)
+        const response = await graphqlClient.request<LeadResponse>(query)
+
+        if (response?.Lead && response?.LeadAggregate) {
+          const newLeads = response.Lead
+          const totalCount = response.LeadAggregate.aggregate.count
+
+          setLeads(prevLeads => (resetOffset ? newLeads : [...prevLeads, ...newLeads]))
+          setTotal(totalCount)
+          setHasMore(newLeads.length === LEADS_PER_PAGE && currentOffset + newLeads.length < totalCount)
+          setOffset(currentOffset + newLeads.length)
+        } else {
+          setError('Invalid response format')
+        }
+      } catch (err) {
+        console.error('Error fetching leads:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch leads')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [accessToken, offset, graphqlClient]
+  )
+
+  const searchLeads = useCallback(
+    (searchTerm: string = '') => {
+      setCurrentSearch(searchTerm)
+      setOffset(0)
+      setLeads([])
+      setHasMore(true)
+      fetchLeads(searchTerm, true)
+    },
+    [fetchLeads]
+  )
 
   const loadMore = useCallback(async () => {
     if (!loading && hasMore) {
-      await fetchLeads(currentSearch, false);
+      await fetchLeads(currentSearch, false)
     }
-  }, [loading, hasMore, fetchLeads, currentSearch]);
+  }, [loading, hasMore, fetchLeads, currentSearch])
 
   const retry = useCallback(() => {
-    setOffset(0);
-    setLeads([]);
-    setHasMore(true);
-    fetchLeads(currentSearch, true);
-  }, [fetchLeads, currentSearch]);
+    setOffset(0)
+    setLeads([])
+    setHasMore(true)
+    fetchLeads(currentSearch, true)
+  }, [fetchLeads, currentSearch])
 
   // Initial load
   useEffect(() => {
     if (accessToken) {
-      fetchLeads('', true);
+      fetchLeads('', true)
     }
-  }, [accessToken]); // Only run when accessToken changes
+  }, [accessToken]) // Only run when accessToken changes
 
   return {
     leads,
@@ -251,5 +255,5 @@ export const useLeads = ({ accessToken }: { accessToken: string }): UseLeadsRetu
     loadMore,
     searchLeads,
     retry
-  };
-}; 
+  }
+}

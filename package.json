@@ -12,15 +12,16 @@
     "serve": "vite serve --port 5001 --strictPort",
     "proxy:conductor": "node ./scripts/conductor-proxy.js",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@ant-design/icons": "^5.0.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@newwork/gravity-ui-catalog": "7.10.21",
-    "@newwork/nw-design-system": "^0.0.1-303",
+    "@newwork/gravity-ui-catalog": "7.10.24",
+    "@newwork/nw-design-system": "^0.0.1-304",
     "@remixicon/react": "^4.6.0",
     "antd": "^5.26.1",
     "clsx": "^2.1.1",
@@ -43,6 +44,8 @@
     "@azure/storage-blob": "^12.27.0",
     "@dotenvx/dotenvx": "^1.46.0",
     "@eslint/js": "^9.25.0",
+    "@newwork/eslint-config": "^0.1.2",
+    "@newwork/prettier-config": "^0.1.0",
     "@originjs/vite-plugin-federation": "^1.4.1",
     "@tailwindcss/postcss": "^4.1.8",
     "@tailwindcss/vite": "^4.1.6",

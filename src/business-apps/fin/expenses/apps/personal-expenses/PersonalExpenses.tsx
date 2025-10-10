@@ -1,123 +1,169 @@
-import React, { useState, useEffect, ReactNode } from 'react';
-import { PageLayout } from '@newwork/nw-design-system';
-import { WalletIcon } from "@phosphor-icons/react";
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { MODULE_COLORS } from '@/common/constants/ui';
+import React, { useState, useEffect, ReactNode } from 'react'
+import { PageLayout } from '@newwork/nw-design-system'
+import { WalletIcon } from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { MODULE_COLORS } from '@/common/constants/ui'
 
-
-const moduleColor = MODULE_COLORS.FIN;
+const moduleColor = MODULE_COLORS.FIN
 // Create a global API for tab navigation
 
 interface TabNavigationState {
-  setActiveTab: (tabKey: string) => void;
-  filter?: string;
+  setActiveTab: (tabKey: string) => void
+  filter?: string
 }
 
 // Declare variable in global window object
 declare global {
   interface Window {
-    tabNavigationAPI?: TabNavigationState;
+    tabNavigationAPI?: TabNavigationState
   }
 }
 
 // Import tab components (placeholders for now, will be created next)
-import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab';
-import ExpenseItemsTab from './components/tabs/expense-items-tab';
-import ExpensePlansTab from './components/tabs/expense-plans-tab';
-import AdvancePaymentsTab from './components/tabs/advance-payments-tab';
-import ExpenseRequestsTab from './components/tabs/expense-requests-tab';
-import ExpenseCalendarTab from './components/tabs/expense-calendar-tab';
+import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab'
+import ExpenseItemsTab from './components/tabs/expense-items-tab'
+import ExpensePlansTab from './components/tabs/expense-plans-tab'
+import AdvancePaymentsTab from './components/tabs/advance-payments-tab'
+import ExpenseRequestsTab from './components/tabs/expense-requests-tab'
+import ExpenseCalendarTab from './components/tabs/expense-calendar-tab'
 
 export interface PersonalExpensesProps extends BusinessAppContextProps {}
 
-const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
-  const [contentHeader, setContentHeader] = useState<ReactNode | null>(null);
-  
+const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
+  const [contentHeader, setContentHeader] = useState<ReactNode | null>(null)
+
   // Get tab from URL query parameter or use first tab as default
   const getInitialTab = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabFromUrl = urlParams.get('tab');
-    const validTabs = ['dashboard', 'expense-items', 'expense-plans', 'advance-payments', 'expense-requests', 'calendar'];
-    
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabFromUrl = urlParams.get('tab')
+    const validTabs = [
+      'dashboard',
+      'expense-items',
+      'expense-plans',
+      'advance-payments',
+      'expense-requests',
+      'calendar'
+    ]
+
     if (validTabs.includes(tabFromUrl ?? '')) {
-      return tabFromUrl!;
+      return tabFromUrl!
     } else {
       // No valid tab in URL, set default tab in URL
-      const defaultTab = 'dashboard';
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', defaultTab);
-      window.history.replaceState({}, '', url.toString());
-      return defaultTab;
+      const defaultTab = 'dashboard'
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', defaultTab)
+      window.history.replaceState({}, '', url.toString())
+      return defaultTab
     }
-  };
+  }
 
-  const [activeTab, setActiveTab] = useState(getInitialTab);
+  const [activeTab, setActiveTab] = useState(getInitialTab)
 
   // Update URL when tab changes
   const handleTabChange = (key: string) => {
-    setActiveTab(key);
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', key);
-    window.history.pushState({}, '', url.toString());
-  };
+    setActiveTab(key)
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', key)
+    window.history.pushState({}, '', url.toString())
+  }
 
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tabFromUrl = urlParams.get('tab');
-      const validTabs = ['dashboard', 'expense-items', 'expense-plans', 'advance-payments', 'expense-requests', 'calendar'];
-      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : 'dashboard';
-      setActiveTab(newTab);
-    };
+      const urlParams = new URLSearchParams(window.location.search)
+      const tabFromUrl = urlParams.get('tab')
+      const validTabs = [
+        'dashboard',
+        'expense-items',
+        'expense-plans',
+        'advance-payments',
+        'expense-requests',
+        'calendar'
+      ]
+      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : 'dashboard'
+      setActiveTab(newTab)
+    }
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   // Expose the tab navigation API to the global window object
   useEffect(() => {
     window.tabNavigationAPI = {
       setActiveTab: (tabKey: string) => {
-        console.log('Global API: Switching to tab', tabKey);
-        handleTabChange(tabKey);
+        console.log('Global API: Switching to tab', tabKey)
+        handleTabChange(tabKey)
       },
       filter: undefined
-    };
-    
+    }
+
     return () => {
-      window.tabNavigationAPI = undefined;
-    };
-  }, []);
+      window.tabNavigationAPI = undefined
+    }
+  }, [])
 
   // Clear header when switching to tabs that should not display it
   useEffect(() => {
     if (activeTab === 'dashboard' || activeTab === 'calendar') {
       if (contentHeader) {
-        setContentHeader(null);
+        setContentHeader(null)
       }
     }
-  }, [activeTab]);
+  }, [activeTab])
 
-  const noop = (_header?: ReactNode) => {};
+  const noop = (_header?: ReactNode) => {}
 
   return (
     <div data-testid="personal-expenses-container">
       <PageLayout
         headerIcon={WalletIcon}
-        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.my_expenses',"My Expenses")}
-        headerDescription={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.main_description',"Manage your personal expenses, track expenses, and manage advance payments.")}
+        headerTitle={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.my_expenses', 'My Expenses')}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:personal_expenses.main_description',
+          'Manage your personal expenses, track expenses, and manage advance payments.'
+        )}
         headerSubViews={{
           value: activeTab,
           onValueChange: handleTabChange,
           items: [
-            { value: 'dashboard', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.dashboard_btn','Dashboard') },
-            { value: 'expense-items', label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_items','Expense Items') },
-            { value: 'expense-plans', label: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.expense_plans','Expense Plans') },
-            { value: 'advance-payments', label: getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.advance_title','Advance Payments') },
-            { value: 'expense-requests', label: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.expense_requests','Expense Requests') },
-            { value: 'calendar', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar','Calendar') }
+            {
+              value: 'dashboard',
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_backoffice.dashboard_btn',
+                'Dashboard'
+              )
+            },
+            {
+              value: 'expense-items',
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_list.flows_button.expense_items',
+                'Expense Items'
+              )
+            },
+            {
+              value: 'expense-plans',
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_expenses_page.dashboard_tab.expense_plans',
+                'Expense Plans'
+              )
+            },
+            {
+              value: 'advance-payments',
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:backoffice_expense_landing_page.advance_title',
+                'Advance Payments'
+              )
+            },
+            {
+              value: 'expense-requests',
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:employee_list.flows_button.expense_requests',
+                'Expense Requests'
+              )
+            },
+            { value: 'calendar', label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar') }
           ]
         }}
         variant={moduleColor}
@@ -129,7 +175,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
             {contentHeader}
           </div>
         )}
-        
+
         {/* Render all tabs concurrently; toggle visibility for instant switching */}
         <div data-testid="tabs-container">
           <div className={activeTab === 'dashboard' ? '' : 'gba:hidden'} data-testid="tab-dashboard">
@@ -137,19 +183,31 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
           </div>
 
           <div className={activeTab === 'expense-items' ? '' : 'gba:hidden'} data-testid="tab-expense-items">
-            <ExpenseItemsTab {...props} onContentHeaderChange={activeTab === 'expense-items' ? setContentHeader : noop} />
+            <ExpenseItemsTab
+              {...props}
+              onContentHeaderChange={activeTab === 'expense-items' ? setContentHeader : noop}
+            />
           </div>
 
           <div className={activeTab === 'expense-plans' ? '' : 'gba:hidden'} data-testid="tab-expense-plans">
-            <ExpensePlansTab {...props} onContentHeaderChange={activeTab === 'expense-plans' ? setContentHeader : noop} />
+            <ExpensePlansTab
+              {...props}
+              onContentHeaderChange={activeTab === 'expense-plans' ? setContentHeader : noop}
+            />
           </div>
 
           <div className={activeTab === 'advance-payments' ? '' : 'gba:hidden'} data-testid="tab-advance-payments">
-            <AdvancePaymentsTab {...props} onContentHeaderChange={activeTab === 'advance-payments' ? setContentHeader : noop} />
+            <AdvancePaymentsTab
+              {...props}
+              onContentHeaderChange={activeTab === 'advance-payments' ? setContentHeader : noop}
+            />
           </div>
 
           <div className={activeTab === 'expense-requests' ? '' : 'gba:hidden'} data-testid="tab-expense-requests">
-            <ExpenseRequestsTab {...props} onContentHeaderChange={activeTab === 'expense-requests' ? setContentHeader : noop} />
+            <ExpenseRequestsTab
+              {...props}
+              onContentHeaderChange={activeTab === 'expense-requests' ? setContentHeader : noop}
+            />
           </div>
 
           <div className={activeTab === 'calendar' ? '' : 'gba:hidden'} data-testid="tab-calendar">
@@ -158,7 +216,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = (props) => {
         </div>
       </PageLayout>
     </div>
-  );
-};
+  )
+}
 
-export default PersonalExpenses;
+export default PersonalExpenses

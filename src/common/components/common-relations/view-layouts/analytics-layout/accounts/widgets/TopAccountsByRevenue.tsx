@@ -1,21 +1,21 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle, Badge } from "@newwork/nw-design-system";
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
 
 export interface TopAccountItem {
-  id: string;
-  name: string;
-  industry: string;
-  opportunityCount?: number;
-  wonOpportunities?: number;
-  totalValue: number;
+  id: string
+  name: string
+  industry: string
+  opportunityCount?: number
+  wonOpportunities?: number
+  totalValue: number
 }
 
 interface TopAccountsByRevenueProps {
-  topAccounts: TopAccountItem[];
-  moduleColor?: string;
+  topAccounts: TopAccountItem[]
+  moduleColor?: string
 }
 
-export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({ topAccounts, moduleColor = "default" }) => {
+export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({ topAccounts, moduleColor = 'default' }) => {
   return (
     <Card data-testid="top-accounts-section">
       <CardHeader>
@@ -54,9 +54,7 @@ export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({ topA
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default TopAccountsByRevenue;
-
-
+export default TopAccountsByRevenue

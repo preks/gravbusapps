@@ -1,20 +1,19 @@
-import { RestClient, type RequestOptions, ResponseType } from "../rest/RestClient";
-import { env } from "../../env/EnvUtils";
-import { setAccessTokenToAuthorizationHeader } from "../HeaderUtils";
-import { FilePathParams, FileQueryParams, FileUploadResponse } from "../../types/FileTypes";
+import { RestClient, type RequestOptions, ResponseType } from '../rest/RestClient'
+import { env } from '../../env/EnvUtils'
+import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
+import { FilePathParams, FileQueryParams, FileUploadResponse } from '../../types/FileTypes'
 
 export class FileClient extends RestClient {
   constructor() {
-    super(env("NEXT_PUBLIC_FILE_SERVICE_ENDPOINT") ?? "");
+    super(env('NEXT_PUBLIC_FILE_SERVICE_ENDPOINT') ?? '')
   }
 
   setAccessToken(accessToken: string) {
     if (!this.headers) {
-      this.headers = {};
+      this.headers = {}
     }
 
-    this.headers["Authorization"] =
-      setAccessTokenToAuthorizationHeader(accessToken);
+    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
   }
 
   /**
@@ -33,31 +32,31 @@ export class FileClient extends RestClient {
     fieldName: string = 'fileContent',
     options: Omit<RequestOptions, 'body'> = {}
   ): Promise<FileUploadResponse> {
-    const queryPath = `/${path.accessScope}/files`;
+    const queryPath = `/${path.accessScope}/files`
 
     // Create a clean params object without undefined values
-    const queryParams: URLSearchParams = new URLSearchParams();
-    
+    const queryParams: URLSearchParams = new URLSearchParams()
+
     // Only add defined properties from params
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        queryParams.append(key, String(value));
+        queryParams.append(key, String(value))
       }
-    });
+    })
 
     // Create FormData for file upload
-    const formData = new FormData();
-    formData.append(fieldName, file);
-    
+    const formData = new FormData()
+    formData.append(fieldName, file)
+
     // Upload the file
     try {
-      return await this.post(`${encodeURI(queryPath)}?${queryParams.toString()}`, formData, options);
+      return await this.post(`${encodeURI(queryPath)}?${queryParams.toString()}`, formData, options)
     } catch (error) {
-      console.error('FileClient: Error uploading file:', error);
-      throw error;
+      console.error('FileClient: Error uploading file:', error)
+      throw error
     }
   }
-  
+
   /**
    * Get a file by ID
    *
@@ -69,35 +68,35 @@ export class FileClient extends RestClient {
   public async getFile(
     path: FilePathParams,
     params: FileQueryParams = {},
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<Blob> {
-    const queryPath = `/${path.accessScope}/files/${path.fileId}`;
+    const queryPath = `/${path.accessScope}/files/${path.fileId}`
 
     // Create a clean params object without undefined values
-    const queryParams: URLSearchParams = new URLSearchParams();
-    
+    const queryParams: URLSearchParams = new URLSearchParams()
+
     // Only add defined properties from params
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        queryParams.append(key, String(value));
+        queryParams.append(key, String(value))
       }
-    });
+    })
 
     // Prepare headers
     const headers = {
       ...this.headers,
-      ...(options.headers || {}),
-    };
-    
+      ...(options.headers || {})
+    }
+
     try {
       // Always force BLOB response type for file downloads
       return await this.get(`${encodeURI(queryPath)}?${queryParams.toString()}`, {
         headers,
         responseType: ResponseType.BLOB
-      });
+      })
     } catch (error) {
-      console.error('FileClient: Error fetching file:', error);
-      throw error;
+      console.error('FileClient: Error fetching file:', error)
+      throw error
     }
   }
 
@@ -113,13 +112,13 @@ export class FileClient extends RestClient {
   public async downloadFileByPath(
     filePath: string,
     accessToken: string,
-    options: Omit<RequestOptions, "body"> = {}
+    options: Omit<RequestOptions, 'body'> = {}
   ): Promise<Blob> {
     if (!accessToken) {
-      throw new Error("accessToken is required for downloadFileByPath");
+      throw new Error('accessToken is required for downloadFileByPath')
     }
     if (!filePath) {
-      throw new Error("filePath is required for downloadFileByPath");
+      throw new Error('filePath is required for downloadFileByPath')
     }
 
     // Prepare headers with authentication
@@ -127,24 +126,24 @@ export class FileClient extends RestClient {
       ...this.headers,
       ...options.headers,
       Authorization: setAccessTokenToAuthorizationHeader(accessToken),
-      Accept: 'application/pdf, application/octet-stream, */*',
-    };
+      Accept: 'application/pdf, application/octet-stream, */*'
+    }
 
     // Remove leading slash if present since RestClient will add it
-    const path = filePath.startsWith('/') ? filePath.substring(1) : filePath;
-    
+    const path = filePath.startsWith('/') ? filePath.substring(1) : filePath
+
     try {
       // Always force BLOB response type for file downloads
       return await this.get(path, {
         ...options,
         headers,
         responseType: ResponseType.BLOB
-      });
+      })
     } catch (error) {
-      console.error('FileClient: Error downloading file by path:', error);
-      throw error;
+      console.error('FileClient: Error downloading file by path:', error)
+      throw error
     }
   }
 }
 
-export const fileClient = new FileClient();
+export const fileClient = new FileClient()

@@ -1,5 +1,5 @@
-import { SalesArea, SalesQuickAction } from '../types';
-import { 
+import { SalesArea, SalesQuickAction } from '../types'
+import {
   ShoppingCart,
   Package,
   ChartBar,
@@ -10,7 +10,7 @@ import {
   Plus,
   TrendUp,
   FunnelSimple
-} from '@phosphor-icons/react';
+} from '@phosphor-icons/react'
 
 export const salesAreas: SalesArea[] = [
   {
@@ -85,7 +85,7 @@ export const salesAreas: SalesArea[] = [
       }
     ]
   }
-];
+]
 
 export const salesQuickActions: SalesQuickAction[] = [
   {
@@ -112,11 +112,11 @@ export const salesQuickActions: SalesQuickAction[] = [
     icon: FunnelSimple,
     action: 'manage-pipeline'
   }
-];
+]
 
 export const categoryLabels: Record<string, string> = {
-  'orders': 'Order Management',
-  'analytics': 'Analytics & Reports',
-  'products': 'Product Management',
-  'manufacturing': 'Manufacturing'
-};
+  orders: 'Order Management',
+  analytics: 'Analytics & Reports',
+  products: 'Product Management',
+  manufacturing: 'Manufacturing'
+}

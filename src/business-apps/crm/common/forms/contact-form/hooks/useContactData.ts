@@ -1,70 +1,68 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { ContactFormValues } from "../types";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ContactFormValues } from '../types'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UseContactDataProps {
-  businessAppContext: BusinessAppContextProps;
+  businessAppContext: BusinessAppContextProps
 }
 
 interface ContactQueryResult {
-  id: string;
-  version: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  jobTitle: string;
-  department?: string;
-  contactType?: string;
-  pictureUrl?: string;
-  linkedinUrl?: string;
-  xingUrl?: string;
-  bio?: string;
-  birthDate?: string;
-  ownerEmployeeId?: string;
-  salesCampaignId?: string;
+  id: string
+  version: number
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  jobTitle: string
+  department?: string
+  contactType?: string
+  pictureUrl?: string
+  linkedinUrl?: string
+  xingUrl?: string
+  bio?: string
+  birthDate?: string
+  ownerEmployeeId?: string
+  salesCampaignId?: string
 
   academicTitle?: {
-    id: string;
-    value: string;
-    code: string;
-    objectValue?: any;
-  };
+    id: string
+    value: string
+    code: string
+    objectValue?: any
+  }
 
   ownerEmployee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    displayName?: string;
-    pictureThumbnail?: string;
-  };
+    id: string
+    firstName: string
+    lastName: string
+    displayName?: string
+    pictureThumbnail?: string
+  }
 
   account?: {
-    id: string;
-    name: string;
-  };
+    id: string
+    name: string
+  }
 
   salesCampaign?: {
-    id: string;
-    name: string;
-  };
+    id: string
+    name: string
+  }
 
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface ContactDataResponse {
-  Contact: ContactQueryResult[];
+  Contact: ContactQueryResult[]
 }
 
 export interface UseContactDataReturn {
-  contactData: ContactQueryResult | null;
-  isLoading: boolean;
-  error: string | null;
-  mapContactToFormValues: (
-    contact: ContactQueryResult
-  ) => Partial<ContactFormValues>;
+  contactData: ContactQueryResult | null
+  isLoading: boolean
+  error: string | null
+  mapContactToFormValues: (contact: ContactQueryResult) => Partial<ContactFormValues>
 }
 
 const GET_CONTACT_BY_ID = `
@@ -122,34 +120,30 @@ const GET_CONTACT_BY_ID = `
       updatedAt
     }
   }
-`;
+`
 
-export const useContactData = ({
-  businessAppContext,
-}: UseContactDataProps): UseContactDataReturn => {
-  const [contactData, setContactData] = useState<ContactQueryResult | null>(
-    null
-  );
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const useContactData = ({ businessAppContext }: UseContactDataProps): UseContactDataReturn => {
+  const [contactData, setContactData] = useState<ContactQueryResult | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphQLClient(businessAppContext.accessToken);
+  const graphqlClient = useGraphQLClient(businessAppContext.accessToken)
 
   // Function to map contact data to form values
   const mapContactToFormValues = useMemo(
     () =>
       (contact: ContactQueryResult): Partial<ContactFormValues> => {
-        console.log("🔍 Contact Data Mapping Debug:", {
+        console.log('🔍 Contact Data Mapping Debug:', {
           contactId: contact.id,
           contactName: `${contact.firstName} ${contact.lastName}`,
           ownerEmployee: contact.ownerEmployee,
-          mappedOwner: contact.ownerEmployeeId || "",
+          mappedOwner: contact.ownerEmployeeId || '',
           salesCampaign: contact.salesCampaign,
           salesCampaignId: contact.salesCampaignId,
           originalContactType: contact.contactType,
-          mappedContactType: contact?.contactType || "",
-          fullContact: contact,
-        });
+          mappedContactType: contact?.contactType || '',
+          fullContact: contact
+        })
 
         const mappedValues: Partial<ContactFormValues> = {
           // System fields
@@ -157,63 +151,57 @@ export const useContactData = ({
           version: contact.version,
 
           // Personal Information
-          firstName: contact?.firstName || "",
-          lastName: contact?.lastName || "",
-          email: contact?.email || "",
-          phone: contact?.phone || "",
-          fax: contact?.fax || "",
-          birthDate: contact.birthDate
-            ? new Date(contact.birthDate).toISOString().split("T")[0]
-            : "", // Convert to YYYY-MM-DD format for HTML date input
-          bio: contact.bio || "",
-          pictureUrl: contact.pictureUrl || "",
+          firstName: contact?.firstName || '',
+          lastName: contact?.lastName || '',
+          email: contact?.email || '',
+          phone: contact?.phone || '',
+          fax: contact?.fax || '',
+          birthDate: contact.birthDate ? new Date(contact.birthDate).toISOString().split('T')[0] : '', // Convert to YYYY-MM-DD format for HTML date input
+          bio: contact.bio || '',
+          pictureUrl: contact.pictureUrl || '',
 
           // Professional Information
-          jobTitle: contact?.jobTitle || "",
-          department: contact?.department || "",
-          contactType: contact?.contactType || "", // Use actual database value
-          workExperienceYears: contact?.workExperienceYears
-            ? String(contact?.workExperienceYears)
-            : "",
+          jobTitle: contact?.jobTitle || '',
+          department: contact?.department || '',
+          contactType: contact?.contactType || '', // Use actual database value
+          workExperienceYears: contact?.workExperienceYears ? String(contact?.workExperienceYears) : '',
 
           // Owner Information
-          owner: contact?.ownerEmployeeId || "",
-          ownerEmployeeId: contact?.ownerEmployeeId || "",
+          owner: contact?.ownerEmployeeId || '',
+          ownerEmployeeId: contact?.ownerEmployeeId || '',
 
           // Account Information
-          account: contact?.account?.id || "",
-          accountId: contact?.account?.id || "",
-          companyName: contact?.account?.name || "",
+          account: contact?.account?.id || '',
+          accountId: contact?.account?.id || '',
+          companyName: contact?.account?.name || '',
 
           // Academic Title
-          academicTitle: contact?.academicTitle?.id || "",
-          academicTitleRef:
-            contact?.academicTitleRef || contact?.academicTitle?.id || "",
+          academicTitle: contact?.academicTitle?.id || '',
+          academicTitleRef: contact?.academicTitleRef || contact?.academicTitle?.id || '',
 
           // Language
-          language: contact?.language?.id || "",
-          languageRef: contact?.languageRef || contact?.language?.id || "",
+          language: contact?.language?.id || '',
+          languageRef: contact?.languageRef || contact?.language?.id || '',
 
           // Social Media
-          linkedinUrl: contact?.linkedinUrl || "",
-          xingUrl: contact?.xingUrl || "",
+          linkedinUrl: contact?.linkedinUrl || '',
+          xingUrl: contact?.xingUrl || '',
 
           // Campaign Information
-          salesCampaignId:
-            contact?.salesCampaignId || contact?.salesCampaign?.id || "",
+          salesCampaignId: contact?.salesCampaignId || contact?.salesCampaign?.id || '',
 
           // Notes
-          notesSummary: contact?.notesSummary || "",
+          notesSummary: contact?.notesSummary || '',
 
           // Audit fields
-          createdAt: contact?.createdAt || "",
-          updatedAt: contact?.updatedAt || "",
-        };
+          createdAt: contact?.createdAt || '',
+          updatedAt: contact?.updatedAt || ''
+        }
 
-        return mappedValues;
+        return mappedValues
       },
     []
-  );
+  )
 
   // Load contact data when contactId is provided in additionalData (MATCHES LEAD FORM EXACTLY)
   useEffect(() => {
@@ -221,55 +209,46 @@ export const useContactData = ({
       // Handle contactId the same way as Lead Form - EXACT COPY
       const contactId =
         businessAppContext.additionalData?.contactId ||
-        businessAppContext.additionalData?.psi_taskPayload
-          ?.psi_initialParameters?.contactId;
+        businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
 
       if (!contactId || !businessAppContext.accessToken) {
-        return;
+        return
       }
 
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       try {
-        const result = await graphqlClient.request<ContactDataResponse>(
-          GET_CONTACT_BY_ID,
-          { contactId }
-        );
+        const result = await graphqlClient.request<ContactDataResponse>(GET_CONTACT_BY_ID, { contactId })
 
         if (result.Contact?.[0]) {
-          console.log(
-            "✅ Contact Data Hook: Contact data loaded successfully:",
-            result.Contact[0]
-          );
-          setContactData(result.Contact[0]);
+          console.log('✅ Contact Data Hook: Contact data loaded successfully:', result.Contact[0])
+          setContactData(result.Contact[0])
         } else {
-          setError("Contact not found");
-          console.log("❌ Contact Data Hook: Contact not found");
+          setError('Contact not found')
+          console.log('❌ Contact Data Hook: Contact not found')
         }
       } catch (err) {
-        const errorMessage =
-          err instanceof Error ? err.message : "Failed to load contact data";
-        console.error("❌ Contact Data Hook: Error loading contact data:", err);
-        setError(errorMessage);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load contact data'
+        console.error('❌ Contact Data Hook: Error loading contact data:', err)
+        setError(errorMessage)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    loadContactData();
+    loadContactData()
   }, [
     businessAppContext.additionalData?.contactId,
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.contactId,
-    businessAppContext.accessToken,
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.contactId,
+    businessAppContext.accessToken
     // Note: graphqlClient removed to prevent infinite loops (matches lead form pattern)
-  ]);
+  ])
 
   return {
     contactData,
     isLoading,
     error,
-    mapContactToFormValues,
-  };
-};
+    mapContactToFormValues
+  }
+}

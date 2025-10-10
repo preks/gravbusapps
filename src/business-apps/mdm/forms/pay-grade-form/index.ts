@@ -1,4 +1,4 @@
-import { PayGradeForm } from './PayGradeForm';
+import { PayGradeForm } from './PayGradeForm'
 
-export { PayGradeForm };
-export default PayGradeForm;
+export { PayGradeForm }
+export default PayGradeForm

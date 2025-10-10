@@ -1,21 +1,21 @@
 export interface DocumentData {
-  id: string;
-  name: string;
-  createdAt: string;
-  fileSize: number;
-  mimeType: string;
-  fileId?: string;
-  fileUrl?: string;
-  additionalProperties?: any;
+  id: string
+  name: string
+  createdAt: string
+  fileSize: number
+  mimeType: string
+  fileId?: string
+  fileUrl?: string
+  additionalProperties?: any
 }
 
 export interface GetDocumentsResponse {
-  CrmDocument: DocumentData[];
+  CrmDocument: DocumentData[]
   CrmDocumentAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
 export const GET_DOCUMENTS_BY_ACCOUNT = `
@@ -45,4 +45,4 @@ export const GET_DOCUMENTS_BY_ACCOUNT = `
       }
     }
   }
-`;
+`

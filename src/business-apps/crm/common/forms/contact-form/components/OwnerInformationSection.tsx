@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import {
   Input,
   Card,
@@ -10,13 +10,13 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useContactFormContext } from "../context/ContactFormContext";
-import OwnerSelector from "./OwnerSelector";
+  SelectValue
+} from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useContactFormContext } from '../context/ContactFormContext'
+import OwnerSelector from './OwnerSelector'
 
-const prefixDataTestId = "ContactForm";
+const prefixDataTestId = 'ContactForm'
 
 const OwnerInformationSection: React.FC = () => {
   const {
@@ -28,30 +28,30 @@ const OwnerInformationSection: React.FC = () => {
     employeePositionsError,
     employeePositionsHasMore,
     loadMoreEmployeePositions,
-    searchEmployeePositions,
-  } = useContactFormContext();
+    searchEmployeePositions
+  } = useContactFormContext()
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent gba:p-0"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <CardContent
         className="gba:space-y-6 gba:p-0"
         style={{
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          padding: "0",
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          padding: '0'
         }}
       >
         {error && (
@@ -70,7 +70,7 @@ const OwnerInformationSection: React.FC = () => {
             onChange={(value: string) =>
               setFormValues({
                 owner: value,
-                ownerEmployeeId: value,
+                ownerEmployeeId: value
               })
             }
             employees={employeePositions}
@@ -78,10 +78,10 @@ const OwnerInformationSection: React.FC = () => {
             hasMore={employeePositionsHasMore}
             onLoadMore={loadMoreEmployeePositions}
             onSearch={(searchTerm: string) => {
-              searchEmployeePositions(searchTerm);
+              searchEmployeePositions(searchTerm)
             }}
             error={employeePositionsError}
-            dataTestId={formatDataTestId(prefixDataTestId, "OwnerSelect")}
+            dataTestId={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
           />
         </div>
 
@@ -94,10 +94,10 @@ const OwnerInformationSection: React.FC = () => {
             <Input
               name="firstName"
               value={formValues.firstName}
-              onChange={(e) => setFormValues({ firstName: e.target.value })}
+              onChange={e => setFormValues({ firstName: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "FirstNameInput")}
+              data-testid={formatDataTestId(prefixDataTestId, 'FirstNameInput')}
             />
           </div>
 
@@ -108,10 +108,10 @@ const OwnerInformationSection: React.FC = () => {
             <Input
               name="lastName"
               value={formValues.lastName}
-              onChange={(e) => setFormValues({ lastName: e.target.value })}
+              onChange={e => setFormValues({ lastName: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "LastNameInput")}
+              data-testid={formatDataTestId(prefixDataTestId, 'LastNameInput')}
             />
           </div>
         </div>
@@ -125,48 +125,44 @@ const OwnerInformationSection: React.FC = () => {
             name="email"
             type="email"
             value={formValues.email}
-            onChange={(e) => setFormValues({ email: e.target.value })}
+            onChange={e => setFormValues({ email: e.target.value })}
             placeholder="Please Enter..."
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "EmailInput")}
+            data-testid={formatDataTestId(prefixDataTestId, 'EmailInput')}
           />
         </div>
 
         {/* Phone and Fax - Side by side */}
         <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:md:grid-cols-2">
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Phone
-            </Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Phone</Label>
             <Input
               name="phone"
               type="tel"
               value={formValues.phone}
-              onChange={(e) => setFormValues({ phone: e.target.value })}
+              onChange={e => setFormValues({ phone: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "PhoneInput")}
+              data-testid={formatDataTestId(prefixDataTestId, 'PhoneInput')}
             />
           </div>
 
           <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-              Fax
-            </Label>
+            <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Fax</Label>
             <Input
               name="fax"
               type="tel"
               value={formValues.fax}
-              onChange={(e) => setFormValues({ fax: e.target.value })}
+              onChange={e => setFormValues({ fax: e.target.value })}
               placeholder="Please Enter..."
               className="gba:border-gray-300 gba:bg-white"
-              data-testid={formatDataTestId(prefixDataTestId, "FaxInput")}
+              data-testid={formatDataTestId(prefixDataTestId, 'FaxInput')}
             />
           </div>
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default OwnerInformationSection;
+export default OwnerInformationSection

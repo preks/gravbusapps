@@ -1,30 +1,25 @@
-import React, { useState } from 'react';
-import { Form, Input, Switch, Divider, Typography, Button, Select, Space } from 'antd';
-import { DownOutlined, RightOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { useOpportunityFormContext } from '../../context/OpportunityFormContext';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import React, { useState } from 'react'
+import { Form, Input, Switch, Divider, Typography, Button, Select, Space } from 'antd'
+import { DownOutlined, RightOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useOpportunityFormContext } from '../../context/OpportunityFormContext'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
-const { Title } = Typography;
-const { Option } = Select;
-const { TextArea } = Input;
+const { Title } = Typography
+const { Option } = Select
+const { TextArea } = Input
 
 interface BusinessInformationSectionProps {
-  prefixDataTestId: string;
+  prefixDataTestId: string
 }
 
 const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({ prefixDataTestId }) => {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const { 
-    formValues, 
-    setFormValues, 
-    addressTypes, 
-    communicationChannelTypes,
-    recordStates 
-  } = useOpportunityFormContext();
+  const [isCollapsed, setIsCollapsed] = useState(true)
+  const { formValues, setFormValues, addressTypes, communicationChannelTypes, recordStates } =
+    useOpportunityFormContext()
 
   const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+    setIsCollapsed(!isCollapsed)
+  }
 
   // Address management functions
   const addAddress = () => {
@@ -35,22 +30,22 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
       city: '',
       region: '',
       country: ''
-    };
+    }
     setFormValues({
       addresses: [...formValues.addresses, newAddress]
-    });
-  };
+    })
+  }
 
   const removeAddress = (index: number) => {
-    const updatedAddresses = formValues.addresses.filter((_, i) => i !== index);
-    setFormValues({ addresses: updatedAddresses });
-  };
+    const updatedAddresses = formValues.addresses.filter((_, i) => i !== index)
+    setFormValues({ addresses: updatedAddresses })
+  }
 
   const updateAddress = (index: number, field: string, value: string) => {
-    const updatedAddresses = [...formValues.addresses];
-    updatedAddresses[index] = { ...updatedAddresses[index], [field]: value };
-    setFormValues({ addresses: updatedAddresses });
-  };
+    const updatedAddresses = [...formValues.addresses]
+    updatedAddresses[index] = { ...updatedAddresses[index], [field]: value }
+    setFormValues({ addresses: updatedAddresses })
+  }
 
   // Communication channel management functions
   const addCommunicationChannel = () => {
@@ -58,49 +53,49 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
       channelType: 'EMAIL',
       channelValue: '',
       isPrimary: false
-    };
+    }
     setFormValues({
       communicationChannels: [...formValues.communicationChannels, newChannel]
-    });
-  };
+    })
+  }
 
   const removeCommunicationChannel = (index: number) => {
-    const updatedChannels = formValues.communicationChannels.filter((_, i) => i !== index);
-    setFormValues({ communicationChannels: updatedChannels });
-  };
+    const updatedChannels = formValues.communicationChannels.filter((_, i) => i !== index)
+    setFormValues({ communicationChannels: updatedChannels })
+  }
 
   const updateCommunicationChannel = (index: number, field: string, value: any) => {
-    const updatedChannels = [...formValues.communicationChannels];
-    updatedChannels[index] = { ...updatedChannels[index], [field]: value };
-    setFormValues({ communicationChannels: updatedChannels });
-  };
+    const updatedChannels = [...formValues.communicationChannels]
+    updatedChannels[index] = { ...updatedChannels[index], [field]: value }
+    setFormValues({ communicationChannels: updatedChannels })
+  }
 
   // Tag management functions
   const addTag = () => {
     const newTag = {
       tagName: '',
       tagValue: ''
-    };
+    }
     setFormValues({
       tags: [...formValues.tags, newTag]
-    });
-  };
+    })
+  }
 
   const removeTag = (index: number) => {
-    const updatedTags = formValues.tags.filter((_, i) => i !== index);
-    setFormValues({ tags: updatedTags });
-  };
+    const updatedTags = formValues.tags.filter((_, i) => i !== index)
+    setFormValues({ tags: updatedTags })
+  }
 
   const updateTag = (index: number, field: string, value: string) => {
-    const updatedTags = [...formValues.tags];
-    updatedTags[index] = { ...updatedTags[index], [field]: value };
-    setFormValues({ tags: updatedTags });
-  };
+    const updatedTags = [...formValues.tags]
+    updatedTags[index] = { ...updatedTags[index], [field]: value }
+    setFormValues({ tags: updatedTags })
+  }
 
   return (
-    <div 
+    <div
       data-testid={formatDataTestId(prefixDataTestId, 'BusinessInformationSection')}
-      style={{ 
+      style={{
         marginBottom: '24px',
         border: '1px solid #d9d9d9',
         borderRadius: '8px',
@@ -132,54 +127,38 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
       {!isCollapsed && (
         <div style={{ padding: '24px' }}>
           {/* Basic Business Fields */}
-          <Form.Item 
-            label="Business Key" 
-            name="businessKey"
-            style={{ marginBottom: '16px' }}
-          >
+          <Form.Item label="Business Key" name="businessKey" style={{ marginBottom: '16px' }}>
             <Input
               data-testid={formatDataTestId(prefixDataTestId, 'BusinessKey')}
               value={formValues.businessKey}
-              onChange={(e) => setFormValues({ businessKey: e.target.value })}
+              onChange={e => setFormValues({ businessKey: e.target.value })}
               placeholder="Enter business key"
             />
           </Form.Item>
 
-          <Form.Item 
-            label="Code" 
-            name="code"
-            style={{ marginBottom: '16px' }}
-          >
+          <Form.Item label="Code" name="code" style={{ marginBottom: '16px' }}>
             <Input
               data-testid={formatDataTestId(prefixDataTestId, 'Code')}
               value={formValues.code}
-              onChange={(e) => setFormValues({ code: e.target.value })}
+              onChange={e => setFormValues({ code: e.target.value })}
               placeholder="Enter opportunity code"
             />
           </Form.Item>
 
-          <Form.Item 
-            label="Source Application" 
-            name="sourceApp"
-            style={{ marginBottom: '16px' }}
-          >
+          <Form.Item label="Source Application" name="sourceApp" style={{ marginBottom: '16px' }}>
             <Input
               data-testid={formatDataTestId(prefixDataTestId, 'SourceApp')}
               value={formValues.sourceApp}
-              onChange={(e) => setFormValues({ sourceApp: e.target.value })}
+              onChange={e => setFormValues({ sourceApp: e.target.value })}
               placeholder="Enter source application"
             />
           </Form.Item>
 
-          <Form.Item 
-            label="Record State" 
-            name="recordState"
-            style={{ marginBottom: '16px' }}
-          >
+          <Form.Item label="Record State" name="recordState" style={{ marginBottom: '16px' }}>
             <Select
               data-testid={formatDataTestId(prefixDataTestId, 'RecordState')}
               value={formValues.recordState}
-              onChange={(value) => setFormValues({ recordState: value })}
+              onChange={value => setFormValues({ recordState: value })}
               placeholder="Select record state"
             >
               {recordStates.map(state => (
@@ -190,8 +169,8 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             </Select>
           </Form.Item>
 
-          <Form.Item 
-            label="Personal Opportunity" 
+          <Form.Item
+            label="Personal Opportunity"
             name="personal"
             valuePropName="checked"
             style={{ marginBottom: '24px' }}
@@ -199,7 +178,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             <Switch
               data-testid={formatDataTestId(prefixDataTestId, 'Personal')}
               checked={formValues.personal}
-              onChange={(checked) => setFormValues({ personal: checked })}
+              onChange={checked => setFormValues({ personal: checked })}
             />
           </Form.Item>
 
@@ -207,11 +186,15 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
 
           {/* Addresses Section */}
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <Title level={5} style={{ margin: 0 }}>Addresses</Title>
-              <Button 
-                type="dashed" 
-                icon={<PlusOutlined />} 
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}
+            >
+              <Title level={5} style={{ margin: 0 }}>
+                Addresses
+              </Title>
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
                 onClick={addAddress}
                 data-testid={formatDataTestId(prefixDataTestId, 'AddAddress')}
               >
@@ -220,19 +203,29 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             </div>
 
             {formValues.addresses.map((address, index) => (
-              <div key={index} style={{ 
-                border: '1px solid #f0f0f0', 
-                borderRadius: '6px', 
-                padding: '16px', 
-                marginBottom: '12px',
-                backgroundColor: '#fafafa'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div
+                key={index}
+                style={{
+                  border: '1px solid #f0f0f0',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  marginBottom: '12px',
+                  backgroundColor: '#fafafa'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '12px'
+                  }}
+                >
                   <span style={{ fontWeight: 500 }}>Address {index + 1}</span>
-                  <Button 
-                    type="text" 
-                    danger 
-                    icon={<DeleteOutlined />} 
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
                     onClick={() => removeAddress(index)}
                     data-testid={formatDataTestId(prefixDataTestId, `RemoveAddress-${index}`)}
                   />
@@ -242,7 +235,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Address Type" style={{ marginBottom: '12px' }}>
                     <Select
                       value={address.addressType}
-                      onChange={(value) => updateAddress(index, 'addressType', value)}
+                      onChange={value => updateAddress(index, 'addressType', value)}
                       data-testid={formatDataTestId(prefixDataTestId, `AddressType-${index}`)}
                     >
                       {addressTypes.map(type => (
@@ -256,7 +249,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Country" style={{ marginBottom: '12px' }}>
                     <Input
                       value={address.country}
-                      onChange={(e) => updateAddress(index, 'country', e.target.value)}
+                      onChange={e => updateAddress(index, 'country', e.target.value)}
                       placeholder="Country"
                       data-testid={formatDataTestId(prefixDataTestId, `AddressCountry-${index}`)}
                     />
@@ -265,7 +258,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Address Line" style={{ marginBottom: '12px', gridColumn: 'span 2' }}>
                     <Input
                       value={address.addressLine}
-                      onChange={(e) => updateAddress(index, 'addressLine', e.target.value)}
+                      onChange={e => updateAddress(index, 'addressLine', e.target.value)}
                       placeholder="Street address"
                       data-testid={formatDataTestId(prefixDataTestId, `AddressLine-${index}`)}
                     />
@@ -274,7 +267,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="City" style={{ marginBottom: '12px' }}>
                     <Input
                       value={address.city}
-                      onChange={(e) => updateAddress(index, 'city', e.target.value)}
+                      onChange={e => updateAddress(index, 'city', e.target.value)}
                       placeholder="City"
                       data-testid={formatDataTestId(prefixDataTestId, `AddressCity-${index}`)}
                     />
@@ -283,7 +276,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Postal Code" style={{ marginBottom: '12px' }}>
                     <Input
                       value={address.postalCode}
-                      onChange={(e) => updateAddress(index, 'postalCode', e.target.value)}
+                      onChange={e => updateAddress(index, 'postalCode', e.target.value)}
                       placeholder="Postal code"
                       data-testid={formatDataTestId(prefixDataTestId, `AddressPostalCode-${index}`)}
                     />
@@ -292,7 +285,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Region" style={{ marginBottom: '0' }}>
                     <Input
                       value={address.region}
-                      onChange={(e) => updateAddress(index, 'region', e.target.value)}
+                      onChange={e => updateAddress(index, 'region', e.target.value)}
                       placeholder="State/Region"
                       data-testid={formatDataTestId(prefixDataTestId, `AddressRegion-${index}`)}
                     />
@@ -306,11 +299,15 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
 
           {/* Communication Channels Section */}
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <Title level={5} style={{ margin: 0 }}>Communication Channels</Title>
-              <Button 
-                type="dashed" 
-                icon={<PlusOutlined />} 
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}
+            >
+              <Title level={5} style={{ margin: 0 }}>
+                Communication Channels
+              </Title>
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
                 onClick={addCommunicationChannel}
                 data-testid={formatDataTestId(prefixDataTestId, 'AddCommunicationChannel')}
               >
@@ -319,29 +316,41 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             </div>
 
             {formValues.communicationChannels.map((channel, index) => (
-              <div key={index} style={{ 
-                border: '1px solid #f0f0f0', 
-                borderRadius: '6px', 
-                padding: '16px', 
-                marginBottom: '12px',
-                backgroundColor: '#fafafa'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div
+                key={index}
+                style={{
+                  border: '1px solid #f0f0f0',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  marginBottom: '12px',
+                  backgroundColor: '#fafafa'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '12px'
+                  }}
+                >
                   <span style={{ fontWeight: 500 }}>Channel {index + 1}</span>
-                  <Button 
-                    type="text" 
-                    danger 
-                    icon={<DeleteOutlined />} 
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
                     onClick={() => removeCommunicationChannel(index)}
                     data-testid={formatDataTestId(prefixDataTestId, `RemoveCommunicationChannel-${index}`)}
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '12px', alignItems: 'center' }}>
+                <div
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 100px', gap: '12px', alignItems: 'center' }}
+                >
                   <Form.Item label="Type" style={{ marginBottom: '0' }}>
                     <Select
                       value={channel.channelType}
-                      onChange={(value) => updateCommunicationChannel(index, 'channelType', value)}
+                      onChange={value => updateCommunicationChannel(index, 'channelType', value)}
                       data-testid={formatDataTestId(prefixDataTestId, `ChannelType-${index}`)}
                     >
                       {communicationChannelTypes.map(type => (
@@ -355,7 +364,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Value" style={{ marginBottom: '0' }}>
                     <Input
                       value={channel.channelValue}
-                      onChange={(e) => updateCommunicationChannel(index, 'channelValue', e.target.value)}
+                      onChange={e => updateCommunicationChannel(index, 'channelValue', e.target.value)}
                       placeholder="Enter value"
                       data-testid={formatDataTestId(prefixDataTestId, `ChannelValue-${index}`)}
                     />
@@ -364,7 +373,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Primary" style={{ marginBottom: '0' }}>
                     <Switch
                       checked={channel.isPrimary}
-                      onChange={(checked) => updateCommunicationChannel(index, 'isPrimary', checked)}
+                      onChange={checked => updateCommunicationChannel(index, 'isPrimary', checked)}
                       data-testid={formatDataTestId(prefixDataTestId, `ChannelPrimary-${index}`)}
                     />
                   </Form.Item>
@@ -377,11 +386,15 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
 
           {/* Tags Section */}
           <div style={{ marginBottom: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <Title level={5} style={{ margin: 0 }}>Tags</Title>
-              <Button 
-                type="dashed" 
-                icon={<PlusOutlined />} 
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}
+            >
+              <Title level={5} style={{ margin: 0 }}>
+                Tags
+              </Title>
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
                 onClick={addTag}
                 data-testid={formatDataTestId(prefixDataTestId, 'AddTag')}
               >
@@ -390,19 +403,29 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             </div>
 
             {formValues.tags.map((tag, index) => (
-              <div key={index} style={{ 
-                border: '1px solid #f0f0f0', 
-                borderRadius: '6px', 
-                padding: '16px', 
-                marginBottom: '12px',
-                backgroundColor: '#fafafa'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div
+                key={index}
+                style={{
+                  border: '1px solid #f0f0f0',
+                  borderRadius: '6px',
+                  padding: '16px',
+                  marginBottom: '12px',
+                  backgroundColor: '#fafafa'
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '12px'
+                  }}
+                >
                   <span style={{ fontWeight: 500 }}>Tag {index + 1}</span>
-                  <Button 
-                    type="text" 
-                    danger 
-                    icon={<DeleteOutlined />} 
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
                     onClick={() => removeTag(index)}
                     data-testid={formatDataTestId(prefixDataTestId, `RemoveTag-${index}`)}
                   />
@@ -412,7 +435,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Tag Name" style={{ marginBottom: '0' }}>
                     <Input
                       value={tag.tagName}
-                      onChange={(e) => updateTag(index, 'tagName', e.target.value)}
+                      onChange={e => updateTag(index, 'tagName', e.target.value)}
                       placeholder="Tag name"
                       data-testid={formatDataTestId(prefixDataTestId, `TagName-${index}`)}
                     />
@@ -421,7 +444,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
                   <Form.Item label="Tag Value" style={{ marginBottom: '0' }}>
                     <Input
                       value={tag.tagValue}
-                      onChange={(e) => updateTag(index, 'tagValue', e.target.value)}
+                      onChange={e => updateTag(index, 'tagValue', e.target.value)}
                       placeholder="Tag value"
                       data-testid={formatDataTestId(prefixDataTestId, `TagValue-${index}`)}
                     />
@@ -432,22 +455,18 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
           </div>
 
           {/* Additional Properties */}
-          <Form.Item 
-            label="Process Instance ID" 
-            name="processInstanceId"
-            style={{ marginBottom: '16px' }}
-          >
+          <Form.Item label="Process Instance ID" name="processInstanceId" style={{ marginBottom: '16px' }}>
             <Input
               data-testid={formatDataTestId(prefixDataTestId, 'ProcessInstanceId')}
               value={formValues.processInstanceId}
-              onChange={(e) => setFormValues({ processInstanceId: e.target.value })}
+              onChange={e => setFormValues({ processInstanceId: e.target.value })}
               placeholder="Enter process instance ID"
             />
           </Form.Item>
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default BusinessInformationSection; 
+export default BusinessInformationSection

@@ -1,19 +1,22 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { AppActionForm } from '@/components/app-action-form';
-import { useForm } from 'react-hook-form';
-import ContactSegment from '@/common/components/common-relations/form-segments/contact-segment/ContactSegment';
-import { createContactSegmentResolver, type ContactSegmentSchema } from '@/common/components/common-relations/form-segments/contact-segment/schema';
-import { useInvestmentEntities } from '@/common/data/investment/hooks';
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
+import React, { useCallback, useMemo, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { AppActionForm } from '@/components/app-action-form'
+import { useForm } from 'react-hook-form'
+import ContactSegment from '@/common/components/common-relations/form-segments/contact-segment/ContactSegment'
+import {
+  createContactSegmentResolver,
+  type ContactSegmentSchema
+} from '@/common/components/common-relations/form-segments/contact-segment/schema'
+import { useInvestmentEntities } from '@/common/data/investment/hooks'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 export interface ContactExampleFormProps extends BusinessAppContextProps {
-  onSuccess?: (data: ContactSegmentSchema) => void;
-  onCancel?: () => void;
+  onSuccess?: (data: ContactSegmentSchema) => void
+  onCancel?: () => void
 }
 
-type FormData = ContactSegmentSchema & { id?: string; version?: number };
+type FormData = ContactSegmentSchema & { id?: string; version?: number }
 
 const initialFormData: FormData = {
   ownerEmployeeId: '',
@@ -29,73 +32,102 @@ const initialFormData: FormData = {
   jobPosition: '',
   department: '',
   code: '',
-  relatedEntityId: '',
-};
+  relatedEntityId: ''
+}
 
-const ContactExampleForm: React.FC<ContactExampleFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const [formData] = useState<FormData>(initialFormData);
+const ContactExampleForm: React.FC<ContactExampleFormProps> = ({
+  accessToken,
+  userInfo,
+  additionalData,
+  onSuccess,
+  onCancel
+}) => {
+  const [formData] = useState<FormData>(initialFormData)
 
   // Shared central investment entity search (lead/contact/account/opportunity)
-  const { entities, loading: entitiesLoading, hasMore: entitiesHasMore, searchEntities, loadMore: loadMoreEntities } = useInvestmentEntities({ accessToken, additionalData });
+  const {
+    entities,
+    loading: entitiesLoading,
+    hasMore: entitiesHasMore,
+    searchEntities,
+    loadMore: loadMoreEntities
+  } = useInvestmentEntities({ accessToken, additionalData })
 
   // Owner employee search
-  const { employees, search: searchEmployees, loading: employeesLoading, hasMore: employeesHasMore, loadMore: loadMoreEmployees } = useEmployeeSearch(accessToken);
+  const {
+    employees,
+    search: searchEmployees,
+    loading: employeesLoading,
+    hasMore: employeesHasMore,
+    loadMore: loadMoreEmployees
+  } = useEmployeeSearch(accessToken)
 
   // Platform context entity hints
   const platformParams = useMemo(() => {
-    const nested = (additionalData as any)?.psi_taskPayload?.psi_initialParameters || (additionalData as any)?.psi_initialParameters || {};
+    const nested =
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
+      (additionalData as any)?.psi_initialParameters ||
+      {}
     return {
       accountId: (additionalData as any)?.accountId || nested?.accountId,
       contactId: (additionalData as any)?.contactId || nested?.contactId,
       opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
-      leadId: (additionalData as any)?.leadId || nested?.leadId,
-    } as { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string };
-  }, [additionalData]);
+      leadId: (additionalData as any)?.leadId || nested?.leadId
+    } as { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string }
+  }, [additionalData])
 
-  const hasEntityFromContext = Boolean(platformParams.accountId || platformParams.contactId || platformParams.opportunityId || platformParams.leadId);
+  const hasEntityFromContext = Boolean(
+    platformParams.accountId || platformParams.contactId || platformParams.opportunityId || platformParams.leadId
+  )
 
   const form = useForm<any>({
     resolver: createContactSegmentResolver(),
     defaultValues: formData as any,
-    mode: 'onChange',
-  });
+    mode: 'onChange'
+  })
 
-  const handleEntitySearch = useCallback((q: string) => {
-    if ((q || '').trim().length === 0 || (q || '').trim().length >= 2) {
-      searchEntities(q);
-    }
-  }, [searchEntities]);
+  const handleEntitySearch = useCallback(
+    (q: string) => {
+      if ((q || '').trim().length === 0 || (q || '').trim().length >= 2) {
+        searchEntities(q)
+      }
+    },
+    [searchEntities]
+  )
 
-  const handleSubmit = useCallback(async (_: ContactSegmentSchema) => {
-    const allValues = (form as any).getValues?.() || {};
-    const entityRef = (() => {
-      if (allValues.account?.id) return { account: { id: allValues.account.id } };
-      if (allValues.contact?.id) return { contact: { id: allValues.contact.id } };
-      if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } };
-      if (allValues.lead?.id) return { lead: { id: allValues.lead.id } };
-      return {} as any;
-    })();
-    return {
-      type: 'InvestmentContactExample',
-      ownerEmployeeId: allValues.ownerEmployeeId,
-      firstName: allValues.firstName,
-      lastName: allValues.lastName,
-      email: allValues.email,
-      phone: allValues.phone,
-      academicTitleRef: allValues.academicTitleRef,
-      languageRef: allValues.languageRef,
-      birthDate: allValues.birthDate,
-      description: allValues.description,
-      jobPosition: allValues.jobPosition,
-      department: allValues.department,
-      code: allValues.code,
-      ...entityRef,
-    };
-  }, [form]);
+  const handleSubmit = useCallback(
+    async (_: ContactSegmentSchema) => {
+      const allValues = (form as any).getValues?.() || {}
+      const entityRef = (() => {
+        if (allValues.account?.id) return { account: { id: allValues.account.id } }
+        if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
+        if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
+        if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
+        return {} as any
+      })()
+      return {
+        type: 'InvestmentContactExample',
+        ownerEmployeeId: allValues.ownerEmployeeId,
+        firstName: allValues.firstName,
+        lastName: allValues.lastName,
+        email: allValues.email,
+        phone: allValues.phone,
+        academicTitleRef: allValues.academicTitleRef,
+        languageRef: allValues.languageRef,
+        birthDate: allValues.birthDate,
+        description: allValues.description,
+        jobPosition: allValues.jobPosition,
+        department: allValues.department,
+        code: allValues.code,
+        ...entityRef
+      }
+    },
+    [form]
+  )
 
   const handleSuccess = useCallback(() => {
-    onSuccess?.(formData);
-  }, [formData, onSuccess]);
+    onSuccess?.(formData)
+  }, [formData, onSuccess])
 
   return (
     <AppActionForm
@@ -156,9 +188,7 @@ const ContactExampleForm: React.FC<ContactExampleFormProps> = ({ accessToken, us
         data-testid="platform-contact-example-segment"
       />
     </AppActionForm>
-  );
-};
+  )
+}
 
-export default ContactExampleForm;
-
-
+export default ContactExampleForm

@@ -1,11 +1,11 @@
 /**
  * Stage Transition Conditions Configuration
- * 
+ *
  * Defines conditions that must be met before allowing opportunity stage transitions.
  * These conditions trigger workflows in the custom-flow-engine.
  */
 
-import { StageTransitionCondition } from '../types/stageTransition';
+import { StageTransitionCondition } from '../types/stageTransition'
 
 /**
  * Default stage transition conditions for standard sales pipeline
@@ -122,7 +122,7 @@ export const DEFAULT_STAGE_TRANSITION_CONDITIONS: StageTransitionCondition[] = [
     ],
     isActive: true
   }
-];
+]
 
 /**
  * High-value opportunity conditions (for opportunities above threshold)
@@ -162,7 +162,7 @@ export const HIGH_VALUE_STAGE_TRANSITION_CONDITIONS: StageTransitionCondition[] 
     ],
     isActive: true
   }
-];
+]
 
 /**
  * Get stage transition conditions for a specific pipeline and transition
@@ -174,31 +174,31 @@ export function getStageTransitionConditions(
   opportunityValue?: number
 ): StageTransitionCondition[] {
   // Determine which conditions to use based on pipeline and value
-  let conditions = DEFAULT_STAGE_TRANSITION_CONDITIONS;
-  
+  let conditions = DEFAULT_STAGE_TRANSITION_CONDITIONS
+
   // Add high-value conditions if opportunity value is above threshold
-  const HIGH_VALUE_THRESHOLD = 100000; // $100k threshold
+  const HIGH_VALUE_THRESHOLD = 100000 // $100k threshold
   if (opportunityValue && opportunityValue >= HIGH_VALUE_THRESHOLD) {
-    conditions = [...conditions, ...HIGH_VALUE_STAGE_TRANSITION_CONDITIONS];
+    conditions = [...conditions, ...HIGH_VALUE_STAGE_TRANSITION_CONDITIONS]
   }
-  
+
   // Filter conditions for the specific transition
-  return conditions.filter(condition => 
-    condition.isActive &&
-    condition.pipelineId === pipelineId &&
-    condition.fromStage.toLowerCase() === fromStage.toLowerCase() &&
-    condition.toStage.toLowerCase() === toStage.toLowerCase()
-  );
+  return conditions.filter(
+    condition =>
+      condition.isActive &&
+      condition.pipelineId === pipelineId &&
+      condition.fromStage.toLowerCase() === fromStage.toLowerCase() &&
+      condition.toStage.toLowerCase() === toStage.toLowerCase()
+  )
 }
 
 /**
  * Get all active stage transition conditions
  */
 export function getAllActiveStageTransitionConditions(): StageTransitionCondition[] {
-  return [
-    ...DEFAULT_STAGE_TRANSITION_CONDITIONS,
-    ...HIGH_VALUE_STAGE_TRANSITION_CONDITIONS
-  ].filter(condition => condition.isActive);
+  return [...DEFAULT_STAGE_TRANSITION_CONDITIONS, ...HIGH_VALUE_STAGE_TRANSITION_CONDITIONS].filter(
+    condition => condition.isActive
+  )
 }
 
 /**
@@ -210,6 +210,6 @@ export function hasStageTransitionConditions(
   pipelineId: string = 'SalesPipeline:v1:STANDARD',
   opportunityValue?: number
 ): boolean {
-  const conditions = getStageTransitionConditions(fromStage, toStage, pipelineId, opportunityValue);
-  return conditions.length > 0;
-} 
+  const conditions = getStageTransitionConditions(fromStage, toStage, pipelineId, opportunityValue)
+  return conditions.length > 0
+}

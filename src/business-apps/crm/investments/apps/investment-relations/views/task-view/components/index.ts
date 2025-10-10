@@ -1,2 +1,1 @@
-export { default as TaskStatistics } from './TaskStatistics';
-
+export { default as TaskStatistics } from './TaskStatistics'

@@ -1,50 +1,55 @@
-import React, { useMemo } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@newwork/nw-design-system';
-import { 
-  ChartContainer, 
-  ChartTooltip, 
-  ChartTooltipContent, 
-  ChartLegend, 
+import React, { useMemo } from 'react'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@newwork/nw-design-system'
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
   ChartLegendContent,
   IconAvatar
-} from '@newwork/nw-design-system';
-import { ComposedChart, Bar, Line, XAxis, YAxis, LineChart, AreaChart, Area } from 'recharts';
-import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react';
-import { formatCurrency, formatNumber } from '@/common/data/investment';
+} from '@newwork/nw-design-system'
+import { ComposedChart, Bar, Line, XAxis, YAxis, LineChart, AreaChart, Area } from 'recharts'
+import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
+import { formatCurrency, formatNumber } from '@/common/data/investment'
 
 interface RealEstateTimelineChartsProps {
   chartData: {
-    timelineData: any[];
-    performanceData: any[];
-    buildingYearData: any[];
-  };
+    timelineData: any[]
+    performanceData: any[]
+    buildingYearData: any[]
+  }
 }
 
 export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> = ({ chartData }) => {
-  const {
-    timelineData,
-    performanceData,
-    buildingYearData
-  } = chartData;
+  const { timelineData, performanceData, buildingYearData } = chartData
 
   // Timeline Config
-  const timelineConfig = useMemo(() => ({
-    investmentcount: { label: "Investment Count" },
-    totalinvestmentamount: { label: "Total Investment Amount" },
-    cumulativeinvestments: { label: "Cumulative Investments" }
-  }), []);
+  const timelineConfig = useMemo(
+    () => ({
+      investmentcount: { label: 'Investment Count' },
+      totalinvestmentamount: { label: 'Total Investment Amount' },
+      cumulativeinvestments: { label: 'Cumulative Investments' }
+    }),
+    []
+  )
 
   // Performance Config
-  const performanceConfig = useMemo(() => ({
-    averageoccupancyrate: { label: "Average Occupancy Rate" },
-    totalpropertyvalue: { label: "Total Property Value" }
-  }), []);
+  const performanceConfig = useMemo(
+    () => ({
+      averageoccupancyrate: { label: 'Average Occupancy Rate' },
+      totalpropertyvalue: { label: 'Total Property Value' }
+    }),
+    []
+  )
 
   // Building Year Config
-  const buildingYearConfig = useMemo(() => ({
-    averagevalue: { label: "Average Value" },
-    propertycount: { label: "Property Count" }
-  }), []);
+  const buildingYearConfig = useMemo(
+    () => ({
+      averagevalue: { label: 'Average Value' },
+      propertycount: { label: 'Property Count' }
+    }),
+    []
+  )
 
   return (
     <div className="gba:space-y-6">
@@ -65,58 +70,53 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
-              <ChartTooltip 
+              <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                          {label}
-                        </div>
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
                         {payload.map((entry, index) => {
-                          let formattedValue = '';
-                          let properLabel = '';
-                          let dotColor = '';
-                          
+                          let formattedValue = ''
+                          let properLabel = ''
+                          let dotColor = ''
+
                           if (entry.dataKey === 'investmentCount') {
-                            formattedValue = `${entry.value}`;
-                            properLabel = 'Investment Count';
-                            dotColor = 'var(--color-investmentcount)';
+                            formattedValue = `${entry.value}`
+                            properLabel = 'Investment Count'
+                            dotColor = 'var(--color-investmentcount)'
                           } else if (entry.dataKey === 'totalInvestmentAmount') {
-                            formattedValue = formatCurrency(entry.value as number);
-                            properLabel = 'Total Investment Amount';
-                            dotColor = 'var(--color-totalinvestmentamount)';
+                            formattedValue = formatCurrency(entry.value as number)
+                            properLabel = 'Total Investment Amount'
+                            dotColor = 'var(--color-totalinvestmentamount)'
                           } else if (entry.dataKey === 'cumulativeInvestments') {
-                            formattedValue = `${entry.value}`;
-                            properLabel = 'Cumulative Investments';
-                            dotColor = 'var(--color-cumulativeinvestments)';
+                            formattedValue = `${entry.value}`
+                            properLabel = 'Cumulative Investments'
+                            dotColor = 'var(--color-cumulativeinvestments)'
                           }
-                          
+
                           return (
                             <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div 
-                                className="gba:w-3 gba:h-3 gba:rounded-full" 
-                                style={{ backgroundColor: dotColor }}
-                              />
+                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
                               <span className="gba:font-medium">{properLabel}:</span>
                               <span className="gba:font-semibold">{formattedValue}</span>
                             </div>
-                          );
+                          )
                         })}
                       </div>
-                    );
+                    )
                   }
-                  return null;
+                  return null
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar 
+              <Bar
                 yAxisId="left"
                 dataKey="investmentCount"
                 fill="var(--color-investmentcount)"
                 name="Investment Count"
               />
-              <Line 
+              <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="totalInvestmentAmount"
@@ -124,7 +124,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
                 strokeWidth={3}
                 name="Total Investment Amount"
               />
-              <Line 
+              <Line
                 yAxisId="left"
                 type="monotone"
                 dataKey="cumulativeInvestments"
@@ -155,48 +155,43 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
-              <ChartTooltip 
+              <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                          {label}
-                        </div>
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
                         {payload.map((entry, index) => {
-                          let properLabel = '';
-                          let formattedValue = '';
-                          let dotColor = '';
-                          
+                          let properLabel = ''
+                          let formattedValue = ''
+                          let dotColor = ''
+
                           if (entry.dataKey === 'averageOccupancyRate') {
-                            properLabel = 'Average Occupancy Rate';
-                            formattedValue = `${entry.value}%`;
-                            dotColor = 'var(--color-averageoccupancyrate)';
+                            properLabel = 'Average Occupancy Rate'
+                            formattedValue = `${entry.value}%`
+                            dotColor = 'var(--color-averageoccupancyrate)'
                           } else if (entry.dataKey === 'totalPropertyValue') {
-                            properLabel = 'Total Property Value';
-                            formattedValue = formatCurrency(entry.value as number);
-                            dotColor = 'var(--color-totalpropertyvalue)';
+                            properLabel = 'Total Property Value'
+                            formattedValue = formatCurrency(entry.value as number)
+                            dotColor = 'var(--color-totalpropertyvalue)'
                           }
-                          
+
                           return (
                             <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div 
-                                className="gba:w-3 gba:h-3 gba:rounded-full" 
-                                style={{ backgroundColor: dotColor }}
-                              />
+                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
                               <span className="gba:font-medium">{properLabel}:</span>
                               <span className="gba:font-semibold">{formattedValue}</span>
                             </div>
-                          );
+                          )
                         })}
                       </div>
-                    );
+                    )
                   }
-                  return null;
+                  return null
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Line 
+              <Line
                 yAxisId="left"
                 type="monotone"
                 dataKey="averageOccupancyRate"
@@ -204,7 +199,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
                 strokeWidth={3}
                 name="Average Occupancy Rate"
               />
-              <Line 
+              <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="totalPropertyValue"
@@ -234,54 +229,44 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
               <XAxis dataKey="yearRange" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
-              <ChartTooltip 
+              <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                          {label}
-                        </div>
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
                         {payload.map((entry, index) => {
-                          let properLabel = '';
-                          let formattedValue = '';
-                          let dotColor = '';
-                          
+                          let properLabel = ''
+                          let formattedValue = ''
+                          let dotColor = ''
+
                           if (entry.dataKey === 'propertyCount') {
-                            properLabel = 'Property Count';
-                            formattedValue = `${entry.value}`;
-                            dotColor = 'var(--color-propertycount)';
+                            properLabel = 'Property Count'
+                            formattedValue = `${entry.value}`
+                            dotColor = 'var(--color-propertycount)'
                           } else if (entry.dataKey === 'averageValue') {
-                            properLabel = 'Average Value';
-                            formattedValue = formatCurrency(entry.value as number);
-                            dotColor = 'var(--color-averagevalue)';
+                            properLabel = 'Average Value'
+                            formattedValue = formatCurrency(entry.value as number)
+                            dotColor = 'var(--color-averagevalue)'
                           }
-                          
+
                           return (
                             <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div 
-                                className="gba:w-3 gba:h-3 gba:rounded-full" 
-                                style={{ backgroundColor: dotColor }}
-                              />
+                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
                               <span className="gba:font-medium">{properLabel}:</span>
                               <span className="gba:font-semibold">{formattedValue}</span>
                             </div>
-                          );
+                          )
                         })}
                       </div>
-                    );
+                    )
                   }
-                  return null;
+                  return null
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar 
-                yAxisId="left"
-                dataKey="propertyCount"
-                fill="var(--color-propertycount)"
-                name="Property Count"
-              />
-              <Line 
+              <Bar yAxisId="left" dataKey="propertyCount" fill="var(--color-propertycount)" name="Property Count" />
+              <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="averageValue"
@@ -294,5 +279,5 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}

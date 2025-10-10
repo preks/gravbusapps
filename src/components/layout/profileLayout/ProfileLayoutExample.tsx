@@ -1,33 +1,35 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import { ProfileLayout } from './ProfileLayout';
-import { useTranslation } from 'react-i18next';
+import React, { useState } from 'react'
+import { ProfileLayout } from './ProfileLayout'
+import { useTranslation } from 'react-i18next'
 
 /**
  * Example component demonstrating how to use the ProfileLayout component
  * with different configurations.
  */
 export const ProfileLayoutExample: React.FC = () => {
-  const { t } = useTranslation();
-  const [headerPlacement, setHeaderPlacement] = useState<'top' | 'left'>('top');
+  const { t } = useTranslation()
+  const [headerPlacement, setHeaderPlacement] = useState<'top' | 'left'>('top')
 
   // Example header content
   const headerContent = (
-    <div className={`gba:flex ${headerPlacement === 'top'          ? 'gba:flex-row gba:items-center' : 'gba:flex-col gba:items-start gba:gap-4'} gba:w-full`}>
+    <div
+      className={`gba:flex ${headerPlacement === 'top' ? 'gba:flex-row gba:items-center' : 'gba:flex-col gba:items-start gba:gap-4'} gba:w-full`}
+    >
       {/* Profile image */}
       <div className="gba:shrink-0">
         <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-blue-500 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xl gba:font-bold">
           JD
         </div>
       </div>
-      
+
       {/* Profile info */}
-      <div className={`${headerPlacement === 'top'          ? 'gba:ml-4' : 'gba:mt-2'} gba:grow`}>
+      <div className={`${headerPlacement === 'top' ? 'gba:ml-4' : 'gba:mt-2'} gba:grow`}>
         <h1 className="gba:text-2xl gba:font-bold">John Doe</h1>
         <p className="gba:text-gray-600">Software Engineer</p>
       </div>
-      
+
       {/* Actions */}
       <div className={`${headerPlacement === 'top' ? 'gba:ml-4' : 'gba:mt-2'} gba:shrink-0`}>
         <button className="gba:px-4 gba:py-2 gba:bg-blue-600 gba:text-white gba:rounded gba:hover:bg-blue-700 gba:transition-colors">
@@ -35,7 +37,7 @@ export const ProfileLayoutExample: React.FC = () => {
         </button>
       </div>
     </div>
-  );
+  )
 
   // Example content header
   const contentHeader = (
@@ -52,12 +54,10 @@ export const ProfileLayoutExample: React.FC = () => {
         </button>
       </div>
       <div>
-        <button className="gba:px-4 gba:py-2 gba:text-gray-600 gba:hover:text-blue-600">
-          {t('common.refresh')}
-        </button>
+        <button className="gba:px-4 gba:py-2 gba:text-gray-600 gba:hover:text-blue-600">{t('common.refresh')}</button>
       </div>
     </div>
-  );
+  )
 
   // Example content
   const contentContainer = (
@@ -67,14 +67,14 @@ export const ProfileLayoutExample: React.FC = () => {
         <div className="gba:flex gba:items-center gba:justify-between">
           <span className="gba:font-medium">{t('demo.toggle_header_placement')}</span>
           <button
-            onClick={() => setHeaderPlacement(prev => prev === 'top' ? 'left' : 'top')}
+            onClick={() => setHeaderPlacement(prev => (prev === 'top' ? 'left' : 'top'))}
             className="gba:px-4 gba:py-2 gba:bg-gray-200 gba:rounded gba:hover:bg-gray-300 gba:transition-colors"
           >
             {headerPlacement === 'top' ? t('demo.switch_to_left') : t('demo.switch_to_top')}
           </button>
         </div>
       </div>
-      
+
       {/* Sample content sections */}
       <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:shadow">
         <h2 className="gba:text-xl gba:font-semibold gba:mb-4">{t('profile.personal_information')}</h2>
@@ -105,7 +105,7 @@ export const ProfileLayoutExample: React.FC = () => {
           </div>
         </div>
       </div>
-      
+
       <div className="gba:bg-white gba:p-6 gba:rounded-lg gba:shadow">
         <h2 className="gba:text-xl gba:font-semibold gba:mb-4">{t('profile.work_information')}</h2>
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
@@ -136,7 +136,7 @@ export const ProfileLayoutExample: React.FC = () => {
         </div>
       </div>
     </div>
-  );
+  )
 
   return (
     <div className="gba:w-full gba:h-screen gba:p-4 gba:bg-gray-200">
@@ -148,7 +148,7 @@ export const ProfileLayoutExample: React.FC = () => {
         className="gba:h-full"
       />
     </div>
-  );
-};
+  )
+}
 
-export default ProfileLayoutExample;
+export default ProfileLayoutExample

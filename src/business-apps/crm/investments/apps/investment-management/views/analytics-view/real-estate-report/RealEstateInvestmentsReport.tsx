@@ -1,131 +1,152 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { Alert, AlertTitle, AlertDescription, Spinner, Button, Badge, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system';
-import { Building, TrendingUp, BarChart, PieChart } from 'lucide-react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useGetInvestments } from '@/common/data/investment';
-import type { Investment, RealEstateInvestment } from '@/common/data/investment';
-import { useRealEstateChartData, useRealEstateKPIIntegration } from './hooks';
-import { 
-  RealEstateDistributionCharts, 
-  RealEstateTimelineCharts, 
-  RealEstateAnalyticsCharts 
-} from './components';
-import { 
+import React, { useState, useCallback, useEffect } from 'react'
+import {
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Spinner,
+  Button,
+  Badge,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@newwork/nw-design-system'
+import { Building, TrendingUp, BarChart, PieChart } from 'lucide-react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined, PercentageOutlined } from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useGetInvestments } from '@/common/data/investment'
+import type { Investment, RealEstateInvestment } from '@/common/data/investment'
+import { useRealEstateChartData, useRealEstateKPIIntegration } from './hooks'
+import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
+import {
   calculateChange,
   formatCurrency,
   formatPercentage,
   extractCurrencyCode,
   getInvestmentStatusColor,
   getRiskLevelColor
-} from '../shared/utils';
-import type { RealEstateInvestmentSummary } from '../shared/types';
+} from '../shared/utils'
+import type { RealEstateInvestmentSummary } from '../shared/types'
 
 // Legacy interface - kept for compatibility
 export interface RealEstateInvestmentKPIs {
-  totalPropertyValue: number;
-  averageOccupancyRate: number;
-  totalUnits: number;
-  totalAnnualExpenses: number;
+  totalPropertyValue: number
+  averageOccupancyRate: number
+  totalUnits: number
+  totalAnnualExpenses: number
 }
 
 // Helper function to safely extract currency code from CatalogEntry or string
 const safeCurrencyExtraction = (currency: any): string => {
-  if (!currency) return 'EUR';
-  
+  if (!currency) return 'EUR'
+
   if (typeof currency === 'object') {
     // Handle CatalogEntry: try code first, then value
-    const currencyStr = currency.code || currency.value;
-    return extractCurrencyCode(currencyStr || 'EUR');
+    const currencyStr = currency.code || currency.value
+    return extractCurrencyCode(currencyStr || 'EUR')
   }
-  
-  // Handle string values
-  return extractCurrencyCode(currency);
-};
 
-interface RealEstateInvestmentsReportProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  // Handle string values
+  return extractCurrencyCode(currency)
 }
 
-const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = (props) => {
-  const prefixDataTestId = props.prefixDataTestId || 'RealEstateInvestmentsReport';
-  const [activeTab, setActiveTab] = useState('distribution');
-  
-  const [realEstateInvestments, setRealEstateInvestments] = useState<RealEstateInvestmentSummary[]>([]);
-  const [dataLoading, setDataLoading] = useState(true);
-  const [dataError, setDataError] = useState<string | null>(null);
+interface RealEstateInvestmentsReportProps extends BusinessAppContextProps {
+  prefixDataTestId?: string
+}
+
+const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = props => {
+  const prefixDataTestId = props.prefixDataTestId || 'RealEstateInvestmentsReport'
+  const [activeTab, setActiveTab] = useState('distribution')
+
+  const [realEstateInvestments, setRealEstateInvestments] = useState<RealEstateInvestmentSummary[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState<string | null>(null)
 
   // Use the new KPI integration hook for real GraphQL aggregate queries
-  const { current: kpis, previous: previousKpis, isLoading: kpiLoading, error: kpiError, refetch: refetchKpis } = useRealEstateKPIIntegration(props);
-  
-  const { fetchInvestments } = useGetInvestments(props);
+  const {
+    current: kpis,
+    previous: previousKpis,
+    isLoading: kpiLoading,
+    error: kpiError,
+    refetch: refetchKpis
+  } = useRealEstateKPIIntegration(props)
+
+  const { fetchInvestments } = useGetInvestments(props)
 
   // Combined loading and error states
-  const isLoading = dataLoading || kpiLoading;
-  const error = dataError || kpiError;
+  const isLoading = dataLoading || kpiLoading
+  const error = dataError || kpiError
 
   // Transform real estate data
   const transformRealEstateData = useCallback((investments: Investment[]): RealEstateInvestmentSummary[] => {
     return investments
-      .filter(investment => investment.realEstateInvestment && Array.isArray(investment.realEstateInvestment) && investment.realEstateInvestment.length > 0)
+      .filter(
+        investment =>
+          investment.realEstateInvestment &&
+          Array.isArray(investment.realEstateInvestment) &&
+          investment.realEstateInvestment.length > 0
+      )
       .map(investment => {
         // realEstateInvestment is an array, take the first one
-        const realEstateInvestment = investment.realEstateInvestment![0];
-        
+        const realEstateInvestment = investment.realEstateInvestment![0]
+
         return {
           id: realEstateInvestment.id,
           investment,
           realEstateInvestment,
-          displayName: investment.displayName || investment.name || realEstateInvestment.propertyName || 'Unknown Property',
+          displayName:
+            investment.displayName || investment.name || realEstateInvestment.propertyName || 'Unknown Property',
           statusColor: getInvestmentStatusColor(investment.investmentStatus?.value || ''),
           riskLevelColor: getRiskLevelColor(investment.investmentRiskLevel?.value || ''),
           currencyCode: safeCurrencyExtraction(investment.currency),
           occupancyRate: realEstateInvestment.occupancyPercent || 0,
           isActive: investment.investmentStatus?.value?.toLowerCase() === 'active',
           propertyType: realEstateInvestment.realEstateType?.value || 'Unknown',
-          location: `${realEstateInvestment.country?.value || ''}, ${realEstateInvestment.region?.value || ''}`.trim().replace(/^,\s*|,\s*$/g, '') || 'Unknown Location'
-        };
-      });
-  }, []);
+          location:
+            `${realEstateInvestment.country?.value || ''}, ${realEstateInvestment.region?.value || ''}`
+              .trim()
+              .replace(/^,\s*|,\s*$/g, '') || 'Unknown Location'
+        }
+      })
+  }, [])
 
   // Load real estate investment data for chart display
   const loadData = useCallback(async () => {
     if (!props.accessToken) {
-      setDataError('Access token not available');
-      setDataLoading(false);
-      return;
+      setDataError('Access token not available')
+      setDataLoading(false)
+      return
     }
 
-    setDataLoading(true);
-    setDataError(null);
-    
+    setDataLoading(true)
+    setDataError(null)
+
     try {
-      const result = await fetchInvestments();
-      const enhancedRealEstateInvestments = transformRealEstateData(result.Investment);
-      setRealEstateInvestments(enhancedRealEstateInvestments);
+      const result = await fetchInvestments()
+      const enhancedRealEstateInvestments = transformRealEstateData(result.Investment)
+      setRealEstateInvestments(enhancedRealEstateInvestments)
     } catch (err) {
-      setDataError(err instanceof Error ? err.message : 'Unknown error');
+      setDataError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
-      setDataLoading(false);
+      setDataLoading(false)
     }
-  }, [props.accessToken, fetchInvestments, transformRealEstateData]);
+  }, [props.accessToken, fetchInvestments, transformRealEstateData])
 
   // Load data on mount and when access token changes
   useEffect(() => {
     if (props.accessToken) {
-      loadData();
+      loadData()
     }
-  }, [props.accessToken, loadData]);
+  }, [props.accessToken, loadData])
 
   // Combined refetch function for error retry
   const refetch = useCallback(async () => {
-    await Promise.all([loadData(), refetchKpis()]);
-  }, [loadData, refetchKpis]);
-  const chartData = useRealEstateChartData(realEstateInvestments);
-
+    await Promise.all([loadData(), refetchKpis()])
+  }, [loadData, refetchKpis])
+  const chartData = useRealEstateChartData(realEstateInvestments)
 
   if (isLoading) {
     return (
@@ -135,15 +156,12 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
       >
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <Alert
-        data-testid={formatDataTestId(prefixDataTestId, 'Error')}
-        variant="destructive"
-      >
+      <Alert data-testid={formatDataTestId(prefixDataTestId, 'Error')} variant="destructive">
         <AlertTitle>{getTranslationFromI18nKeyAndLabel('error.loading', 'Error Loading Data')}</AlertTitle>
         <AlertDescription>{error}</AlertDescription>
         <div className="gba:mt-2">
@@ -152,7 +170,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -166,7 +184,10 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
           <h3 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
             {getTranslationFromI18nKeyAndLabel('realEstate.investments.title', 'Real Estate Investments Report')}
           </h3>
-          <Badge variant="secondary">{kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('realEstate.investments.items', 'properties')}</Badge>
+          <Badge variant="secondary">
+            {kpis?.totalInvestments || 0}{' '}
+            {getTranslationFromI18nKeyAndLabel('realEstate.investments.items', 'properties')}
+          </Badge>
         </div>
       </div>
 
@@ -175,64 +196,64 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
         <WidgetGroup
           widgets={[
             {
-              key: "total-investments",
+              key: 'total-investments',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalInvestments', 'Total Investments'),
               value: kpis.totalInvestments,
               prefix: <TeamOutlined />,
-              color: "var(--nw-color-primary-500)",
+              color: 'var(--nw-color-primary-500)',
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Total number of real estate investments",
+              description: 'Total number of real estate investments',
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "total-amount-invested",
+              key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
               value: formatCurrency(kpis.totalAmountInvested),
               prefix: <DollarCircleOutlined />,
-              color: "var(--nw-color-success-500)",
+              color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Sum of all real estate investment amounts",
+              description: 'Sum of all real estate investment amounts',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "total-market-value",
+              key: 'total-market-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
               value: formatCurrency(kpis.totalMarketValue),
               prefix: <RiseOutlined />,
-              color: "var(--nw-color-warning-500)",
+              color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Current total market value of properties",
+              description: 'Current total market value of properties',
               trend: {
                 value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
                 positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-                description: "vs 7 days ago",
-              },
+                description: 'vs 7 days ago'
+              }
             },
             {
-              key: "average-occupancy-rate",
+              key: 'average-occupancy-rate',
               title: getTranslationFromI18nKeyAndLabel('kpi.averageOccupancyRate', 'Average Occupancy Rate'),
               value: formatPercentage(kpis.averageOccupancyRate),
               prefix: <PercentageOutlined />,
-              color: "var(--nw-color-purple-500)",
+              color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: "Average occupancy rate across all properties",
+              description: 'Average occupancy rate across all properties',
               trend: {
                 value: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).value,
                 positive: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).positive,
-                description: "vs 7 days ago",
-              },
-            },
+                description: 'vs 7 days ago'
+              }
+            }
           ]}
           isLoading={isLoading}
           error={error ? new Error(error) : null}
@@ -243,31 +264,25 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
 
       {/* Tabbed Charts */}
       <div className="gba:bg-white gba:rounded-lg gba:p-4">
-        <Tabs 
-          value={activeTab} 
+        <Tabs
+          value={activeTab}
           onValueChange={setActiveTab}
           data-testid={formatDataTestId(prefixDataTestId, 'ChartTabs')}
         >
           <TabsList className="gba:grid gba:w-full gba:grid-cols-3">
-            <TabsTrigger value="distribution" className="gba:flex gba:items-center gba:gap-2">
-              <PieChart className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="distribution" startIcon={<PieChart />}>
               {getTranslationFromI18nKeyAndLabel('tab.distribution', 'Distribution Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="timeline" className="gba:flex gba:items-center gba:gap-2">
-              <TrendingUp className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="timeline" startIcon={<TrendingUp />}>
               {getTranslationFromI18nKeyAndLabel('tab.timeline', 'Timeline Analysis')}
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gba:flex gba:items-center gba:gap-2">
-              <BarChart className="gba:h-4 gba:w-4" />
+            <TabsTrigger value="analytics" startIcon={<BarChart />}>
               {getTranslationFromI18nKeyAndLabel('tab.analytics', 'Performance Analysis')}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="distribution" className="gba:mt-6">
-            <RealEstateDistributionCharts 
-              chartData={chartData} 
-              rawInvestments={realEstateInvestments}
-            />
+            <RealEstateDistributionCharts chartData={chartData} rawInvestments={realEstateInvestments} />
           </TabsContent>
 
           <TabsContent value="timeline" className="gba:mt-6">
@@ -280,7 +295,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
         </Tabs>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default RealEstateInvestmentsReport; 
+export default RealEstateInvestmentsReport

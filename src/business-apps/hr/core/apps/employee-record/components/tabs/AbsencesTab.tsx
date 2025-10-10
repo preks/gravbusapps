@@ -1,86 +1,78 @@
-import React, { useState, useEffect } from 'react';
-import dayjs from 'dayjs';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { Tabs } from 'antd';
-import { CalendarOutlined, UnorderedListOutlined, PaperClipOutlined } from '@ant-design/icons';
-import isBetween from 'dayjs/plugin/isBetween';
-import weekday from 'dayjs/plugin/weekday';
-import weekOfYear from 'dayjs/plugin/weekOfYear';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
-import updateLocale from 'dayjs/plugin/updateLocale';
+import React, { useState, useEffect } from 'react'
+import dayjs from 'dayjs'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { Tabs } from 'antd'
+import { CalendarOutlined, UnorderedListOutlined, PaperClipOutlined } from '@ant-design/icons'
+import isBetween from 'dayjs/plugin/isBetween'
+import weekday from 'dayjs/plugin/weekday'
+import weekOfYear from 'dayjs/plugin/weekOfYear'
+import customParseFormat from 'dayjs/plugin/customParseFormat'
+import updateLocale from 'dayjs/plugin/updateLocale'
 
 // Register dayjs plugins
-dayjs.extend(isBetween);
-dayjs.extend(weekday);
-dayjs.extend(weekOfYear);
-dayjs.extend(customParseFormat);
-dayjs.extend(updateLocale);
+dayjs.extend(isBetween)
+dayjs.extend(weekday)
+dayjs.extend(weekOfYear)
+dayjs.extend(customParseFormat)
+dayjs.extend(updateLocale)
 
-import {
-  getTranslationFromI18nKeyAndLabel,
-  getCurrentActiveUserLocale,
-} from '@/common/utils/windowUtils';
-import { AppActionMenu } from '@/components/app-action-menu';
-import { PiPencilSimple } from 'react-icons/pi';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { AppActionMenu } from '@/components/app-action-menu'
+import { PiPencilSimple } from 'react-icons/pi'
 
 // Import extracted components and utilities
-import { AbsencesTabProps } from '../../queries/types';
-import { useAbsenceData } from '../../hooks/useAbsenceData';
-import AbsenceCalendar from './components/AbsenceCalendar';
-import AbsenceList from './components/AbsenceList';
-import Entitlements from './components/Entitlements';
-import AbsenceCharts from './components/AbsenceCharts';
+import { AbsencesTabProps } from '../../queries/types'
+import { useAbsenceData } from '../../hooks/useAbsenceData'
+import AbsenceCalendar from './components/AbsenceCalendar'
+import AbsenceList from './components/AbsenceList'
+import Entitlements from './components/Entitlements'
+import AbsenceCharts from './components/AbsenceCharts'
 
 /**
  * Absences Tab Component
  * Displays absence entitlements, history, and calendar for the employee
  */
-const AbsencesTab: React.FC<AbsencesTabProps> = ({
-  employee,
-  employeeAbsenceEntitlement,
-  accessToken,
-  shownTab,
-}) => {
-  const [activeTab, setActiveTab] = useState<string>(shownTab ?? 'calendar');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale());
+const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEntitlement, accessToken, shownTab }) => {
+  const [activeTab, setActiveTab] = useState<string>(shownTab ?? 'calendar')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
   // Calendar state
-  const [currentDate, setCurrentDate] = useState(dayjs());
-  const [selectedStartDate, setSelectedStartDate] = useState<dayjs.Dayjs | null>(null);
-  const [selectedEndDate, setSelectedEndDate] = useState<dayjs.Dayjs | null>(null);
+  const [currentDate, setCurrentDate] = useState(dayjs())
+  const [selectedStartDate, setSelectedStartDate] = useState<dayjs.Dayjs | null>(null)
+  const [selectedEndDate, setSelectedEndDate] = useState<dayjs.Dayjs | null>(null)
 
   // Use custom hook for data fetching
   const { absenceList, entitlements, loading, error } = useAbsenceData(
     employee?.id,
     accessToken,
-    employeeAbsenceEntitlement,
-  );
+    employeeAbsenceEntitlement
+  )
 
   // Check for locale changes periodically
   useEffect(() => {
     const checkLocale = () => {
-      const newLocale = getCurrentActiveUserLocale();
+      const newLocale = getCurrentActiveUserLocale()
       if (newLocale !== currentLocale) {
-        setCurrentLocale(newLocale);
+        setCurrentLocale(newLocale)
       }
-    };
+    }
 
-    const interval = setInterval(checkLocale, 1000); // Check every second
-    return () => clearInterval(interval);
-  }, [currentLocale]);
+    const interval = setInterval(checkLocale, 1000) // Check every second
+    return () => clearInterval(interval)
+  }, [currentLocale])
 
   // Handle tab change
   const onTabChange = (key: string) => {
-    setActiveTab(key);
-  };
+    setActiveTab(key)
+  }
 
   useEffect(() => {
     if (shownTab) {
-      setActiveTab(shownTab);
+      setActiveTab(shownTab)
     }
-  }, [shownTab]);
+  }, [shownTab])
 
   const tabsItems = [
     {
@@ -105,7 +97,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             setSelectedEndDate={setSelectedEndDate}
           />
         </div>
-      ),
+      )
     },
     {
       key: 'absence-list',
@@ -127,7 +119,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             setPageSize={setPageSize}
           />
         </div>
-      ),
+      )
     },
     {
       key: 'entitlements',
@@ -141,9 +133,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         <div className="gba:entitlements-content">
           <Entitlements entitlements={entitlements} loading={loading} error={error} />
         </div>
-      ),
-    },
-  ].filter((item) => (shownTab ? item.key === shownTab : true));
+      )
+    }
+  ].filter(item => (shownTab ? item.key === shownTab : true))
 
   // tabsItems prepared above based on shownTab
 
@@ -153,21 +145,15 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     <div className="gba:absences-tab gba:space-y-8">
       {/* Absence Overview Headline with Action Button */}
       {!shownTab && (
-        <div
-          className="gba:flex gba:justify-between gba:items-start"
-          data-testid="absencehub-header"
-        >
+        <div className="gba:flex gba:justify-between gba:items-start" data-testid="absencehub-header">
           <div className="gba:absence-header">
             <div className="gba:font-bold gba:text-2xl" data-testid="absencehub-title">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_absences.absence_overview',
-                'Absence Overview',
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_overview', 'Absence Overview')}
             </div>
             <div className="gba:text-gray-500 gba:text-lg" data-testid="absencehub-description">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_hub.absence_description',
-                'View and manage your absences',
+                'View and manage your absences'
               )}
             </div>
           </div>
@@ -179,12 +165,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
               contextsArray={[FlowContextName.employeeAbsenceRecord]}
               externalContextData={{
                 employeeId: employee.id,
-                absenceType: employeeAbsenceEntitlement.find(
-                  (e) => e.type?.id === 'AbsenceType:v1:A001',
-                )?.type?.id,
+                absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
                 flowType: 'vacation',
                 startDate: selectedStartDate?.format('YYYY-MM-DD'),
-                endDate: selectedEndDate?.format('YYYY-MM-DD'),
+                endDate: selectedEndDate?.format('YYYY-MM-DD')
               }}
               prefixDataTestId="employee-absence-request"
               accessToken={accessToken}
@@ -214,22 +198,17 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             contextsArray={[FlowContextName.employeeAbsenceRecord]}
             externalContextData={{
               employeeId: employee.id,
-              absenceType: employeeAbsenceEntitlement.find(
-                (e) => e.type?.id === 'AbsenceType:v1:A001',
-              )?.type?.id,
+              absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
               flowType: 'vacation',
               startDate: selectedStartDate?.format('YYYY-MM-DD'),
-              endDate: selectedEndDate?.format('YYYY-MM-DD'),
+              endDate: selectedEndDate?.format('YYYY-MM-DD')
             }}
             prefixDataTestId="employee-absence-request-inline"
             accessToken={accessToken}
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
               <PiPencilSimple className="gba:h-5 gba:w-5" />
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_hub.request_absence',
-                'Request Absence',
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
             </div>
           </AppActionMenu>
         </div>
@@ -255,7 +234,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AbsencesTab;
+export default AbsencesTab

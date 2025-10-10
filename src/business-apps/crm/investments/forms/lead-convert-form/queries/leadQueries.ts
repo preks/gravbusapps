@@ -126,24 +126,22 @@ export const GET_INVESTMENT_LEAD_PREFILL_DATA = `
       annualNetColdRent
     }
   }
-`;
+`
 
 // GraphQL queries for fetching account and contact lists with infinite scrolling support
-export const GET_INVESTMENT_ACCOUNTS_LIST = (variables: { 
-  limit?: number; 
-  offset?: number; 
-  search?: string | null 
+export const GET_INVESTMENT_ACCOUNTS_LIST = (variables: {
+  limit?: number
+  offset?: number
+  search?: string | null
 }) => {
-  const searchFilter = variables.search
-    ? `name: { _ilike: "%${variables.search}%" }`
-    : '';
+  const searchFilter = variables.search ? `name: { _ilike: "%${variables.search}%" }` : ''
 
   const whereClause = variables.search
     ? `where: { 
         isDeleted: { _eq: false },
         ${searchFilter}
       }`
-    : `where: { isDeleted: { _eq: false } }`;
+    : `where: { isDeleted: { _eq: false } }`
 
   return `
     query GetInvestmentAccountsList {
@@ -171,13 +169,13 @@ export const GET_INVESTMENT_ACCOUNTS_LIST = (variables: {
         }
       }
     }
-  `;
-};
+  `
+}
 
-export const GET_INVESTMENT_CONTACTS_LIST = (variables: { 
-  limit?: number; 
-  offset?: number; 
-  search?: string | null 
+export const GET_INVESTMENT_CONTACTS_LIST = (variables: {
+  limit?: number
+  offset?: number
+  search?: string | null
 }) => {
   const searchFilter = variables.search
     ? `_or: [
@@ -186,14 +184,14 @@ export const GET_INVESTMENT_CONTACTS_LIST = (variables: {
         { fullName: { _ilike: "%${variables.search}%" } },
         { email: { _ilike: "%${variables.search}%" } }
       ]`
-    : '';
+    : ''
 
   const whereClause = variables.search
     ? `where: { 
         isDeleted: { _eq: false },
         ${searchFilter}
       }`
-    : `where: { isDeleted: { _eq: false } }`;
+    : `where: { isDeleted: { _eq: false } }`
 
   return `
     query GetInvestmentContactsList {
@@ -222,5 +220,5 @@ export const GET_INVESTMENT_CONTACTS_LIST = (variables: {
         }
       }
     }
-  `;
-};
+  `
+}

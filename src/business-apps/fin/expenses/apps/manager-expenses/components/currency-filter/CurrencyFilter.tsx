@@ -1,69 +1,62 @@
-import React, { useMemo, useEffect, useCallback } from "react";
-import { useCurrencyStore } from "../../store/useCurrencyStore";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@newwork/nw-design-system";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { useCurrencyData } from "../../hooks/useCurrencyData";
+import React, { useMemo, useEffect, useCallback } from 'react'
+import { useCurrencyStore } from '../../store/useCurrencyStore'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface CurrencyFilterProps {
   /**
    * Loading state indicator
    */
-  isLoading?: boolean;
+  isLoading?: boolean
   /**
    * Currently selected currency code
    */
-  value: string | null;
+  value: string | null
 
   /**
    * Callback when currency selection changes
    */
-  onChange: (currency: string | null) => void;
+  onChange: (currency: string | null) => void
 
   /**
    * List of available currencies to display (optional - will use dynamic data if not provided)
    */
-  currencies?: string[];
+  currencies?: string[]
 
   /**
    * Whether to show "All Currencies" option
    */
-  showAllOption?: boolean;
+  showAllOption?: boolean
 
   /**
    * Custom placeholder text when no currency is selected
    */
-  placeholder?: string;
+  placeholder?: string
 
   /**
    * Additional CSS class names
    */
-  className?: string;
+  className?: string
 
   /**
    * Data test ID for testing
    */
-  "data-testid"?: string;
+  'data-testid'?: string
 
   /**
    * Whether the component is disabled
    */
-  disabled?: boolean;
+  disabled?: boolean
 
   /**
    * Access token for API calls
    */
-  accessToken?: string;
+  accessToken?: string
 
   /**
    * Manager ID for filtering currency data
    */
-  managerId?: string;
+  managerId?: string
 }
 
 /**
@@ -76,69 +69,52 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
   currencies: propCurrencies,
   isLoading: propIsLoading,
   showAllOption = true,
-  placeholder = getTranslationFromI18nKeyAndLabel(
-    "lowcoder:team_expenses_page.all_currencies",
-    "All Currencies",
-  ),
-  className = "",
-  "data-testid": dataTestId = "currency-filter",
+  placeholder = getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.all_currencies', 'All Currencies'),
+  className = '',
+  'data-testid': dataTestId = 'currency-filter',
   disabled = false,
-  accessToken = "",
-  managerId = "",
+  accessToken = '',
+  managerId = ''
 }) => {
   // Use the global currency store for consistent state across components
   const {
     primaryCurrency,
     setPrimaryCurrency,
     availableCurrencies: storeCurrencies,
-    setUserSelected,
-  } = useCurrencyStore();
+    setUserSelected
+  } = useCurrencyStore()
 
-  // Always use dynamic currency data if accessToken and managerId are provided
-  const useDynamicData = accessToken && managerId;
-  const {
-    availableCurrencies: dynamicCurrencies,
-    isLoading: dynamicIsLoading,
-    mostUsedCurrency,
-  } = useDynamicData
-    ? useCurrencyData(accessToken, managerId)
-    : {
-        availableCurrencies: [],
-        isLoading: false,
-        mostUsedCurrency: null,
-      };
+  // Dynamic fetching removed to avoid duplicate currency calls.
+  // Rely on provided currencies or store.
+  const mostUsedCurrency = null as unknown as string | null
 
   // Use either provided currencies or dynamic currencies with fallbacks
   // Ensure we have a comprehensive list that includes the most used currency
   const currencies = useMemo(() => {
     // Start with provided currencies if available
-    let currencyList = propCurrencies || [];
+    let currencyList = propCurrencies || []
 
-    // Always prioritize dynamic currencies from the store or hook
-    // This ensures we have the most complete list available
-    const availableDynamicCurrencies = useDynamicData ? dynamicCurrencies : [];
-    const availableStoreCurrencies = storeCurrencies || [];
+    // Use store currencies as primary fallback when prop not provided
+    const availableStoreCurrencies = storeCurrencies || []
 
     // Combine all sources, prioritizing dynamic data
-    currencyList = [
-      ...new Set([...currencyList, ...availableDynamicCurrencies, ...availableStoreCurrencies]),
-    ];
+    currencyList = [...new Set([...currencyList, ...availableStoreCurrencies])]
 
     // Ensure the most used currency is included if available
     if (mostUsedCurrency && !currencyList.includes(mostUsedCurrency)) {
-      currencyList.push(mostUsedCurrency);
+      currencyList.push(mostUsedCurrency)
     }
 
-    // If still empty after all attempts, use comprehensive fallback list
+    // If still empty after all attempts, use minimal fallback (just EUR)
     if (currencyList.length === 0) {
-      currencyList = ["EUR", "USD", "GBP", "RON", "CHF", "PLN", "CZK"];
+      currencyList = ['EUR']
     }
 
-    return [...new Set(currencyList)].sort();
-  }, [propCurrencies, dynamicCurrencies, mostUsedCurrency, storeCurrencies]);
+    return [...new Set(currencyList)].sort((a, b) => a.localeCompare(b))
+  }, [propCurrencies, mostUsedCurrency, storeCurrencies])
 
   // Combine loading states
-  const isLoading = propIsLoading || (useDynamicData && dynamicIsLoading);
+  const isLoading = propIsLoading || false
 
   // Determine if we should pre-select a value
   // If no value is selected and we have currencies available, pre-select the most used currency
@@ -148,60 +124,85 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
     // 2. We have currencies available
     if (value === null && currencies.length > 0) {
       // Use most used currency if available, otherwise use primaryCurrency from store
-      const initialCurrency = mostUsedCurrency || primaryCurrency;
+      const initialCurrency = mostUsedCurrency || primaryCurrency
 
       if (initialCurrency && currencies.includes(initialCurrency)) {
         // Set the currency without marking as user-selected
-        onChange(initialCurrency);
+        onChange(initialCurrency)
       } else if (currencies[0]) {
         // Fallback to first available currency if most used is not in the list
-        onChange(currencies[0]);
+        onChange(currencies[0])
       }
     }
-  }, [value, currencies, mostUsedCurrency, primaryCurrency, onChange]);
+  }, [value, currencies, mostUsedCurrency, primaryCurrency, onChange])
 
   // Mark currency as user-selected when changed via UI
   const handleCurrencyChange = useCallback(
     (newValue: string) => {
       // If "all" is selected, pass null to indicate no specific currency filter
-      if (newValue === "all") {
-        onChange(null);
-        return;
+      if (newValue === 'all') {
+        onChange(null)
+        return
       }
 
       // Mark as user-selected in the store
-      setUserSelected(true);
+      setUserSelected(true)
 
       // Update primary currency in the store
-      setPrimaryCurrency(newValue);
+      setPrimaryCurrency(newValue)
 
       // Notify parent component
-      onChange(newValue);
+      onChange(newValue)
     },
-    [onChange, setPrimaryCurrency, setUserSelected],
-  );
+    [onChange, setPrimaryCurrency, setUserSelected]
+  )
 
   // Use the enhanced currency change handler that marks user selection
-  const handleChange = handleCurrencyChange;
+  const handleChange = handleCurrencyChange
 
   // Determine if we should show loading state or empty state
   // Only show loading state if we're loading and have no currencies available
-  const showLoadingState = isLoading && currencies.length === 0;
-  const showEmptyState = !isLoading && (!currencies || currencies.length === 0);
+  const showLoadingState = isLoading && currencies.length === 0
+  const showEmptyState = !isLoading && (!currencies || currencies.length === 0)
+
+  // Render currency options based on state
+  const renderCurrencyOptions = () => {
+    if (showLoadingState) {
+      return (
+        <SelectItem value="loading" data-testid={`${dataTestId}-option-loading`}>
+          {getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')}
+        </SelectItem>
+      )
+    }
+
+    if (showEmptyState) {
+      return (
+        <SelectItem value="empty" data-testid={`${dataTestId}-option-empty`}>
+          {getTranslationFromI18nKeyAndLabel('lowcoder:common.no_data', 'No currencies available')}
+        </SelectItem>
+      )
+    }
+
+    return currencies.map(currency => (
+      <SelectItem key={currency} value={currency} data-testid={`${dataTestId}-option-${currency.toLowerCase()}`}>
+        {currency}
+      </SelectItem>
+    ))
+  }
 
   return (
-    <div className={`flex w-full ${className}`} data-testid={`${dataTestId}-container`}>
+    <div className={`gba:flex gba:w-full ${className}`} data-testid={`${dataTestId}-container`}>
       <Select
-        value={value || "all"}
+        value={value || 'all'}
         onValueChange={handleChange}
         disabled={disabled} // Only disable if explicitly set to disabled
         data-testid={dataTestId}
       >
-        <SelectTrigger className="flex w-full gba:w-[140px] gba:h-9 gba:text-sm gba:border-gray-300">
+        <SelectTrigger className="gba:flex gba:w-full gba:w-[140px] gba:h-9 gba:text-sm gba:border-input">
           <SelectValue
             placeholder={
               showLoadingState
-                ? getTranslationFromI18nKeyAndLabel("lowcoder:common.loading", "Loading...")
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:common.loading', 'Loading...')
                 : placeholder
             }
           />
@@ -212,32 +213,11 @@ export const CurrencyFilter: React.FC<CurrencyFilterProps> = ({
               {placeholder}
             </SelectItem>
           )}
-          {showLoadingState ? (
-            <SelectItem value="loading" data-testid={`${dataTestId}-option-loading`}>
-              {getTranslationFromI18nKeyAndLabel("lowcoder:common.loading", "Loading...")}
-            </SelectItem>
-          ) : showEmptyState ? (
-            <SelectItem value="empty" data-testid={`${dataTestId}-option-empty`}>
-              {getTranslationFromI18nKeyAndLabel(
-                "lowcoder:common.no_data",
-                "No currencies available",
-              )}
-            </SelectItem>
-          ) : (
-            currencies.map((currency) => (
-              <SelectItem
-                key={currency}
-                value={currency}
-                data-testid={`${dataTestId}-option-${currency.toLowerCase()}`}
-              >
-                {currency}
-              </SelectItem>
-            ))
-          )}
+          {renderCurrencyOptions()}
         </SelectContent>
       </Select>
     </div>
-  );
-};
+  )
+}
 
-export default CurrencyFilter;
+export default CurrencyFilter

@@ -163,7 +163,7 @@ const GridLayoutExample = ({ moduleColor }) => {
       </Card>
     </div>
   );
-};`;
+};`
 
 export const responsiveLayoutCode = `import React, { useMemo } from "react";
 import {
@@ -293,7 +293,7 @@ const ResponsiveLayoutExample = ({ moduleColor }) => {
       </div>
     </div>
   );
-};`;
+};`
 
 export const dashboardLayoutCode = `// Complete dashboard layout with KPI cards, main chart, and performance metrics
 // This example shows a comprehensive dashboard structure with:
@@ -313,4 +313,4 @@ export const dashboardLayoutCode = `// Complete dashboard layout with KPI cards,
 // - Consistent design system integration
 // - Proper responsive grid layout
 
-// See full implementation in DashboardLayoutExample.tsx`;
+// See full implementation in DashboardLayoutExample.tsx`

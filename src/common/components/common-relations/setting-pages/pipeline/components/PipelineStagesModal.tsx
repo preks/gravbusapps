@@ -1,25 +1,19 @@
-import React, { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import StagesForm from "./StagesForm";
-import ConditionsForm from "./ConditionsForm";
+import React, { useState } from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import StagesForm from './StagesForm'
+import ConditionsForm from './ConditionsForm'
 
 interface PipelineStagesModalProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  pipeline: any;
+  isOpen: boolean
+  onClose: () => void
+  pipeline: any
   catalogConfig: {
-    stageCatalog: string;
-    conditionCatalog?: string;
-    version?: string;
-  };
-  prefixDataTestId?: string;
+    stageCatalog: string
+    conditionCatalog?: string
+    version?: string
+  }
+  prefixDataTestId?: string
 }
 
 const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
@@ -27,29 +21,29 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
   onClose,
   pipeline,
   catalogConfig,
-  prefixDataTestId = "pipeline-stages-modal",
-  accessToken,
+  prefixDataTestId = 'pipeline-stages-modal',
+  accessToken
 }) => {
-  const [, setStages] = useState<any[]>([]);
-  const [isConditionsModalOpen, setIsConditionsModalOpen] = useState(false);
-  const [selectedStageForConditions, setSelectedStageForConditions] = useState<any>(null);
+  const [, setStages] = useState<any[]>([])
+  const [isConditionsModalOpen, setIsConditionsModalOpen] = useState(false)
+  const [selectedStageForConditions, setSelectedStageForConditions] = useState<any>(null)
 
   const handleStagesChange = (newStages: any[]) => {
-    setStages(newStages);
-  };
+    setStages(newStages)
+  }
 
   const handleViewConditions = (stage: any) => {
-    setSelectedStageForConditions(stage);
-    setIsConditionsModalOpen(true);
-  };
+    setSelectedStageForConditions(stage)
+    setIsConditionsModalOpen(true)
+  }
 
   const handleCloseConditionsModal = () => {
-    setIsConditionsModalOpen(false);
-    setSelectedStageForConditions(null);
-  };
+    setIsConditionsModalOpen(false)
+    setSelectedStageForConditions(null)
+  }
 
   if (!pipeline) {
-    return null;
+    return null
   }
 
   return (
@@ -58,9 +52,7 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
         <DialogContent className="gba:[&&]:max-w-[95vw] gba:w-[95vw] gba:max-h-[90vh] gba:overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Pipeline Stages: {pipeline?.value}</DialogTitle>
-            <DialogDescription>
-              Manage stages for this pipeline. Drag and drop to reorder.
-            </DialogDescription>
+            <DialogDescription>Manage stages for this pipeline. Drag and drop to reorder.</DialogDescription>
           </DialogHeader>
 
           <StagesForm
@@ -87,7 +79,7 @@ const PipelineStagesModal: React.FC<PipelineStagesModalProps> = ({
         accessToken={accessToken}
       />
     </>
-  );
-};
+  )
+}
 
-export default PipelineStagesModal;
+export default PipelineStagesModal

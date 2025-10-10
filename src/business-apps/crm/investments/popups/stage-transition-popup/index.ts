@@ -1,3 +1,2 @@
-export { default as StageTransitionPopup } from './StageTransitionPopup';
-export { default } from './StageTransitionPopup';
-
+export { default as StageTransitionPopup } from './StageTransitionPopup'
+export { default } from './StageTransitionPopup'

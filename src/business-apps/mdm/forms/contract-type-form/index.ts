@@ -1,4 +1,4 @@
-import ContractTypeForm from "./ContractTypeForm";
+import ContractTypeForm from './ContractTypeForm'
 
-export { ContractTypeForm };
-export default ContractTypeForm;
+export { ContractTypeForm }
+export default ContractTypeForm

@@ -1,9 +1,13 @@
-import React, { useCallback, useEffect, useState, useMemo } from 'react';
-import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
-import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient';
-import { CalendarTimeline } from '@newwork/gravity-ui-catalog';
-import { Select } from 'antd';
-const { Option } = Select;
+import React, { useCallback, useEffect, useState, useMemo } from 'react'
+import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
+import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient'
+import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
+import { Select } from 'antd'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale
+} from '../../../../../../../../../common/utils/windowUtils'
+const { Option } = Select
 
 interface EmployeeAbsence {
   id: string
@@ -24,6 +28,10 @@ interface EmployeeAbsence {
     id: string
     value: string
     parentEntryId: string
+    translations?: {
+      localeCode: string
+      value: string
+    }[]
   }
   startDate: string
   endDate: string
@@ -63,13 +71,9 @@ interface EmployeePositionResponse {
   }>
 }
 
-
-
 interface AbsenceResponse {
   EmployeeAbsence: EmployeeAbsence[]
 }
-
-
 
 // Query all 2025 absences (like manager-absences does)
 const ABSENCE_QUERY_2025 = `
@@ -116,14 +120,16 @@ const ABSENCE_QUERY_2025 = `
         id
         value
         parentEntryId
+        translations {
+          localeCode
+          value
+        }
       }
       calendarDays
       effectiveDays
     }
   }
-`;
-
-
+`
 
 // Query all employees from EmployeePosition table (only employees with positions) - for org units
 const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
@@ -153,38 +159,61 @@ const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
       }
     }
   }
-`;
+`
 
 interface OrganizationalUnit {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphQLClient(accessToken)
+  const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
   const [employeeAbsences, setEmployeeAbsences] = useState<EmployeeAbsence[]>([])
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [organizationalUnits, setOrganizationalUnits] = useState<OrganizationalUnit[]>([])
   const [selectedOrgUnits, setSelectedOrgUnits] = useState<string[]>(
-    userInfo?.employeeDetails?.organizationalUnit?.name 
+    userInfo?.employeeDetails?.organizationalUnit?.name
       ? [userInfo.employeeDetails.organizationalUnit.name]
       : ['--- All Departments']
   )
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-      const fetchData = useCallback(async (departments: string[] = selectedOrgUnits) => {
-    setIsLoading(true)
-    setError(null)
+  // Helper function to get translated absence type name
+  const getAbsenceTypeName = (type: EmployeeAbsence['type'], locale = userLocale): string => {
+    const translation = type.translations?.find(t => t.localeCode === locale)
+    return translation?.value || type.value || type.objectValue || 'Unknown Type'
+  }
 
-    try {
-      
-      // Step 1: Fetch employees from EmployeePosition table (ensures department data)
-      let employeesQuery;
-      if (departments.includes('--- All Departments')) {
-        // If "All Departments" is selected, fetch all employees
-        const currentDate = new Date().toISOString();
-        employeesQuery = `
+  // Helper function to get translated status name
+  const getStatusName = (status: string): string => {
+    switch (status) {
+      case 'APPROVED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved')
+      case 'PENDING':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending')
+      case 'REJECTED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected')
+      case 'CANCELLED':
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled')
+      default:
+        return status
+    }
+  }
+
+  const fetchData = useCallback(
+    async (departments: string[] = selectedOrgUnits) => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        // Step 1: Fetch employees from EmployeePosition table (ensures department data)
+        let employeesQuery
+        if (departments.includes('--- All Departments')) {
+          // If "All Departments" is selected, fetch all employees
+          const currentDate = new Date().toISOString()
+          employeesQuery = `
           query GetAllEmployeesFromPositions {
             EmployeePosition(
               where: {
@@ -212,13 +241,13 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
               }
             }
           }
-        `;
-      } else {
-        // Filter by selected departments using _in clause
-        const currentDate = new Date().toISOString();
-        const departmentNames = departments.map(dept => `"${dept}"`).join(', ');
-        
-        employeesQuery = `
+        `
+        } else {
+          // Filter by selected departments using _in clause
+          const currentDate = new Date().toISOString()
+          const departmentNames = departments.map(dept => `"${dept}"`).join(', ')
+
+          employeesQuery = `
           query GetEmployeesByDepartments {
             EmployeePosition(
               where: {
@@ -247,33 +276,33 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
               }
             }
           }
-        `;
-      }
-
-      // Fetch employees from EmployeePosition table
-      const employeeResult = await graphQLClient.request<EmployeePositionResponse>(employeesQuery);
-      const employeePositions = employeeResult?.EmployeePosition || [];
-      
-      // Transform EmployeePosition data to Employee format with org unit info
-      const employees: Employee[] = employeePositions.map((position) => ({
-        id: position.employee.id,
-        firstName: position.employee.firstName,
-        lastName: position.employee.lastName,
-        pictureThumbnail: position.employee.pictureThumbnail || '',
-        employeePosition: {
-          organizationalUnit: {
-            name: position.organizationalUnit.name
-          }
+        `
         }
-      }));
-      
-      setAllEmployees(employees);
-      
-      // Step 2: Fetch 2025 absences for these employees using proper schema structure
-      let absenceQuery = ABSENCE_QUERY_2025;
-      if (employees.length > 0) {
-        const employeeIds = employees.map((emp) => `"${emp.id}"`).join(', ');
-        absenceQuery = `
+
+        // Fetch employees from EmployeePosition table
+        const employeeResult = await graphQLClient.request<EmployeePositionResponse>(employeesQuery)
+        const employeePositions = employeeResult?.EmployeePosition || []
+
+        // Transform EmployeePosition data to Employee format with org unit info
+        const employees: Employee[] = employeePositions.map(position => ({
+          id: position.employee.id,
+          firstName: position.employee.firstName,
+          lastName: position.employee.lastName,
+          pictureThumbnail: position.employee.pictureThumbnail || '',
+          employeePosition: {
+            organizationalUnit: {
+              name: position.organizationalUnit.name
+            }
+          }
+        }))
+
+        setAllEmployees(employees)
+
+        // Step 2: Fetch 2025 absences for these employees using proper schema structure
+        let absenceQuery = ABSENCE_QUERY_2025
+        if (employees.length > 0) {
+          const employeeIds = employees.map(emp => `"${emp.id}"`).join(', ')
+          absenceQuery = `
           query GetAbsencesForEmployees {
             EmployeeAbsence(
               where: {
@@ -318,133 +347,136 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
                 id
                 value
                 parentEntryId
+                translations {
+                  localeCode
+                  value
+                }
               }
               calendarDays
               effectiveDays
             }
           }
-        `;
-      }
+        `
+        }
 
-      // Fetch absences for the filtered employees
-      const absenceResult = await graphQLClient.request<AbsenceResponse>(absenceQuery);
-      const absences = absenceResult?.EmployeeAbsence || [];
-      setEmployeeAbsences(absences);
-    
-    } catch (err) {
-      console.error('Error in enhanced fetch:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch data'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphQLClient, selectedOrgUnits])
+        // Fetch absences for the filtered employees
+        const absenceResult = await graphQLClient.request<AbsenceResponse>(absenceQuery)
+        const absences = absenceResult?.EmployeeAbsence || []
+        setEmployeeAbsences(absences)
+      } catch (err) {
+        console.error('Error in enhanced fetch:', err)
+        setError(err instanceof Error ? err : new Error('Failed to fetch data'))
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [graphQLClient, selectedOrgUnits]
+  )
 
   useEffect(() => {
     if (accessToken) {
-      fetchData();
+      fetchData()
     }
-  }, [accessToken, selectedOrgUnits, fetchData]);
+  }, [accessToken, selectedOrgUnits, fetchData])
 
   // Extract organizational units from ALL company employees (for filter options)
   useEffect(() => {
     const fetchAllOrgUnits = async () => {
-      if (!accessToken) return;
-      
+      if (!accessToken) return
+
       try {
         // Always fetch ALL employees to get complete org unit list for filter
-        const currentDate = new Date().toISOString();
-      const getAllEmployeesQuery = getGetAllEmployeesFromPositionsQuery(currentDate);
-      const result = await graphQLClient.request<EmployeePositionResponse>(getAllEmployeesQuery);
-        const allEmployeePositions = result?.EmployeePosition || [];
-        
-        const orgUnitsMap = new Map<string, OrganizationalUnit>();
-        
-        allEmployeePositions.forEach((position) => {
+        const currentDate = new Date().toISOString()
+        const getAllEmployeesQuery = getGetAllEmployeesFromPositionsQuery(currentDate)
+        const result = await graphQLClient.request<EmployeePositionResponse>(getAllEmployeesQuery)
+        const allEmployeePositions = result?.EmployeePosition || []
+
+        const orgUnitsMap = new Map<string, OrganizationalUnit>()
+
+        allEmployeePositions.forEach(position => {
           if (position.organizationalUnit?.name) {
-            const orgUnitName = position.organizationalUnit.name;
+            const orgUnitName = position.organizationalUnit.name
             orgUnitsMap.set(orgUnitName, {
               id: orgUnitName, // Use name as id since we only have name
               name: orgUnitName
-            });
+            })
           }
-        });
+        })
 
-        const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-        setOrganizationalUnits(uniqueOrgUnits);
+        const uniqueOrgUnits = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+        setOrganizationalUnits(uniqueOrgUnits)
       } catch (error) {
-        console.error('Error fetching organizational units:', error);
+        console.error('Error fetching organizational units:', error)
       }
-    };
+    }
 
-    fetchAllOrgUnits();
-  }, [accessToken, graphQLClient]);
-
-
+    fetchAllOrgUnits()
+  }, [accessToken, graphQLClient])
 
   // Create timeline items for ALL employees (data is already filtered server-side)
   const timelineItems = useMemo(() => {
     const items = allEmployees.map(employee => {
-      const empId = employee.id;
-      const empName = `${employee.firstName} ${employee.lastName}`.trim();
+      const empId = employee.id
+      const empName = `${employee.firstName} ${employee.lastName}`.trim()
       // employeePosition is a single active position (filtered at query level)
-      const dept = employee.employeePosition?.organizationalUnit?.name || 'No Department';
-      
+      const dept = employee.employeePosition?.organizationalUnit?.name || 'No Department'
+
       return {
         id: empId,
         name: empName,
         department: dept,
         picture: employee.pictureThumbnail
-      };
-    });
-    
-    return items;
-  }, [allEmployees, selectedOrgUnits]);
+      }
+    })
+
+    return items
+  }, [allEmployees, selectedOrgUnits])
 
   // Status color mapping (like manager-absences)
   const getStatusColor = (status: string): string => {
     switch (status) {
       case 'APPROVED':
-        return '#10b981'; // success variant - green
+        return '#10b981' // success variant - green
       case 'PENDING':
-        return '#f59e0b'; // warning variant - amber
+        return '#f59e0b' // warning variant - amber
       case 'REJECTED':
-        return '#ef4444'; // destructive variant - red
+        return '#ef4444' // destructive variant - red
       case 'CANCELLED':
-        return '#6b7280'; // secondary variant - gray
+        return '#6b7280' // secondary variant - gray
       default:
-        return '#6b7280'; // default - gray
+        return '#6b7280' // default - gray
     }
-  };
+  }
 
   // Status type mapping (like manager-absences)
   const getStatusType = (status: string): string => {
     switch (status) {
       case 'APPROVED':
-        return 'approved';
+        return 'approved'
       case 'PENDING':
-        return 'pending';
+        return 'pending'
       case 'REJECTED':
-        return 'rejected';
+        return 'rejected'
       case 'CANCELLED':
-        return 'cancelled';
+        return 'cancelled'
       default:
-        return 'cancelled';
+        return 'cancelled'
     }
-  };
+  }
 
   // Create timeline events from absences (data is already filtered server-side)
   const timelineEvents = useMemo(() => {
-    const events: any[] = [];
-    const eventIdSet = new Set();
-    
+    const events: any[] = []
+    const eventIdSet = new Set()
+
     employeeAbsences.forEach(absence => {
-      const eventId = `${absence.employee.id}-${absence.startDate}-${absence.endDate}-${absence.type.value}`;
-      
+      const eventId = `${absence.employee.id}-${absence.startDate}-${absence.endDate}-${absence.type.value}`
+
       if (!eventIdSet.has(eventId)) {
-        eventIdSet.add(eventId);
-        
-        const absenceType = absence.type.value;
-        
+        eventIdSet.add(eventId)
+
+        const absenceType = getAbsenceTypeName(absence.type)
+
         events.push({
           id: eventId,
           itemId: absence.employee.id,
@@ -452,47 +484,63 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
           startDate: new Date(absence.startDate).toISOString(),
           endDate: new Date(absence.endDate).toISOString(),
           color: getStatusColor(absence.status), // Use STATUS color, not type color
-          status: absence.status,
+          status: getStatusName(absence.status), // Use translated status
           type: getStatusType(absence.status), // Use STATUS type for CalendarTimeline
           note: absenceType
-        });
+        })
       }
-    });
+    })
 
-    return events;
-  }, [employeeAbsences, selectedOrgUnits]);
+    return events
+  }, [employeeAbsences, selectedOrgUnits])
 
   // Create status-based legend (like manager-absences)
   const legendItems = [
-    { label: 'Approved', color: '#10b981' }, // success variant - green
-    { label: 'Pending', color: '#f59e0b' },  // warning variant - amber
-    { label: 'Rejected', color: '#ef4444' }, // destructive variant - red
-    { label: 'Cancelled', color: '#6b7280' } // secondary variant - gray
-  ];
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.approved', 'Approved'),
+      color: '#10b981'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.pending', 'Pending'),
+      color: '#f59e0b'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.rejected', 'Rejected'),
+      color: '#ef4444'
+    },
+    {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'),
+      color: '#6b7280'
+    }
+  ]
 
   const getInitials = (name: string): string => {
-    if (!name) return '';
+    if (!name) return ''
     return name
       .split(' ')
       .map((n: string) => n[0])
       .join('')
-      .toUpperCase();
-  };
+      .toUpperCase()
+  }
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
         <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-t-2 gba:border-b-2 gba:border-blue-500"></div>
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
       <div className="gba:p-4 gba:text-red-600 gba:bg-red-50 gba:rounded">
-        Error loading absences: {error.message}
+        {getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_backoffice.calendar.error_loading_absences',
+          'Error loading absences'
+        )}
+        : {error.message}
       </div>
-    );
+    )
   }
 
   return (
@@ -506,60 +554,67 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
             // Handle edge cases from Ant Design Select
             if (!values || values.length === 0) {
               // If nothing selected, default to "All Departments"
-              setSelectedOrgUnits(['--- All Departments']);
-              return;
+              setSelectedOrgUnits(['--- All Departments'])
+              return
             }
-            
+
             // Filter out invalid values that might come from clear operations
-            const validValues = values.filter(value => 
-              value && 
-              typeof value === 'string' && 
-              value !== 'department' && 
-              value.trim() !== ''
-            );
-            
+            const validValues = values.filter(
+              value => value && typeof value === 'string' && value !== 'department' && value.trim() !== ''
+            )
+
             if (validValues.length === 0) {
-              setSelectedOrgUnits(['--- All Departments']);
-              return;
+              setSelectedOrgUnits(['--- All Departments'])
+              return
             }
-            
+
             // Analyze current state vs new selection to understand user intent
-            const currentState = selectedOrgUnits;
-            const newSelection = validValues;
-            
-            const currentHasAllDepartments = currentState.includes('--- All Departments');
-            const newHasAllDepartments = newSelection.includes('--- All Departments');
-            const specificDepartmentsInNew = newSelection.filter(val => val !== '--- All Departments');
-            
+            const currentState = selectedOrgUnits
+            const newSelection = validValues
+
+            const currentHasAllDepartments = currentState.includes('--- All Departments')
+            const newHasAllDepartments = newSelection.includes('--- All Departments')
+            const specificDepartmentsInNew = newSelection.filter(val => val !== '--- All Departments')
+
             if (currentHasAllDepartments && newHasAllDepartments && specificDepartmentsInNew.length > 0) {
               // User had "All Departments" and clicked on a specific department
               // Ant Design gives us both, but user intent is to switch to specific department
-              setSelectedOrgUnits(specificDepartmentsInNew);
+              setSelectedOrgUnits(specificDepartmentsInNew)
             } else if (newHasAllDepartments && !currentHasAllDepartments) {
               // User explicitly clicked "All Departments" - clear others
-              setSelectedOrgUnits(['--- All Departments']);
+              setSelectedOrgUnits(['--- All Departments'])
             } else if (newHasAllDepartments && specificDepartmentsInNew.length === 0) {
               // Only "All Departments" in new selection
-              setSelectedOrgUnits(['--- All Departments']);
+              setSelectedOrgUnits(['--- All Departments'])
             } else {
               // Regular multi-select behavior (no "All Departments" involved)
-              setSelectedOrgUnits(validValues);
+              setSelectedOrgUnits(validValues)
             }
           }}
           onClear={() => {
-            setSelectedOrgUnits(['--- All Departments']);
+            setSelectedOrgUnits(['--- All Departments'])
           }}
-          placeholder="Filter by Department"
+          placeholder={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:absence_management_hub_backoffice.calendar.filter_by_department',
+            'Filter by Department'
+          )}
           disabled={isLoading}
           allowClear
           style={{ width: '100%' }}
           data-testid="calendar-department-filter"
         >
-          <Option key="all" value="--- All Departments">--- All Departments</Option>
+          <Option key="all" value="--- All Departments">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_backoffice.calendar.all_departments',
+              '--- All Departments'
+            )}
+          </Option>
           {organizationalUnits
             .sort((a, b) => a.name.localeCompare(b.name))
             .map(org => (
-              <Option key={org.id} value={org.name}>{org.name}</Option>
+              <Option key={org.id} value={org.name}>
+                {org.name}
+              </Option>
             ))}
         </Select>
       </div>
@@ -569,26 +624,36 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
         key={selectedOrgUnits.join(',') || 'all'}
         items={timelineItems}
         events={timelineEvents}
-        title=""
+        title={getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.title', 'Team Absence Calendar')}
         legendItems={legendItems}
-        itemDetailLabel='Department'
-        initialDate={new Date('2025-07-01')}
+        itemLabel={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+        itemDetailLabel={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.search_employee_list.recent_employees_table.department',
+          'Department'
+        )}
+        searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_table.employee_search_filter',
+          'Search Employee...'
+        )}
+        initialDate={new Date()}
         initialViewRange={31}
-        renderItemContent={(item) => (
+        renderItemContent={item => (
           <div className="gba:flex gba:items-center gba:gap-2 gba:p-1 gba:w-full gba:hover:bg-gray-50 gba:rounded">
             <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-gray-100 gba:flex-shrink-0 gba:overflow-hidden">
               {item.picture ? (
-                <img 
-                  src={`data:image/gif;base64,${item.picture}`} 
+                <img
+                  src={`data:image/gif;base64,${item.picture}`}
                   alt={getInitials(item.name)}
                   className="gba:w-full gba:h-full gba:object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('gba:hidden');
+                  onError={e => {
+                    e.currentTarget.style.display = 'none'
+                    e.currentTarget.nextElementSibling?.classList.remove('gba:hidden')
                   }}
                 />
               ) : null}
-              <div className={`gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-blue-100 gba:text-blue-700 gba:text-xs gba:font-medium ${item.picture ? 'gba:hidden' : ''}`}>
+              <div
+                className={`gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-blue-100 gba:text-blue-700 gba:text-xs gba:font-medium ${item.picture ? 'gba:hidden' : ''}`}
+              >
                 {getInitials(item.name)}
               </div>
             </div>
@@ -602,10 +667,11 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
       {/* Debug Info */}
       <div className="gba:absolute gba:bottom-4 gba:right-4 gba:bg-black gba:bg-opacity-75 gba:text-white gba:p-2 gba:rounded gba:text-xs gba:z-10">
-        Employees: {timelineItems.length} | Events: {timelineEvents.length} | Depts: {selectedOrgUnits.join(', ') || 'All'}
+        Employees: {timelineItems.length} | Events: {timelineEvents.length} | Depts:{' '}
+        {selectedOrgUnits.join(', ') || 'All'}
       </div>
     </div>
   )
 }
 
-export default CalendarList;
+export default CalendarList

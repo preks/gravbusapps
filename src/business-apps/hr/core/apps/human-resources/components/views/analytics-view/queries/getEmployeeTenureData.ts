@@ -1,6 +1,6 @@
 /**
  * GraphQL query to fetch hire dates of all active employees for tenure calculation
- * 
+ *
  * This query retrieves the hire date from employee working conditions
  * to calculate the average tenure across all current employees.
  */
@@ -25,4 +25,4 @@ export const getEmployeeTenureDataQuery = `
       hireDate
     }
   }
-`;
+`

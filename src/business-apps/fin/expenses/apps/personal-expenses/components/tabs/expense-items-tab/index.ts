@@ -1,4 +1,4 @@
-import ExpenseItemsTab from './ExpenseItemsTab';
+import ExpenseItemsTab from './ExpenseItemsTab'
 
-export { ExpenseItemsTab };
-export default ExpenseItemsTab;
+export { ExpenseItemsTab }
+export default ExpenseItemsTab

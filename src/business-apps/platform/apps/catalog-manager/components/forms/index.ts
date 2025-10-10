@@ -1,2 +1,1 @@
-export { CatalogHeaderForm } from './CatalogHeader';
-
+export { CatalogHeaderForm } from './CatalogHeader'

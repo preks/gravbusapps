@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,24 +11,28 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { CircleWavyIcon } from "@phosphor-icons/react";
-import radarChartData from "../../data/radarChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { CircleWavyIcon } from '@phosphor-icons/react'
+import radarChartData from '../../data/radarChartData.json'
 
 interface RadarChartLegendProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const RadarChartLegend: React.FC<RadarChartLegendProps> = ({ moduleColor }) => {
-  const chartData = radarChartData.legend;
+  const chartData = radarChartData.legend
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-    tablet: { label: "Tablet" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' },
+        tablet: { label: 'Tablet' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="radar-chart-legend">
@@ -40,32 +44,14 @@ const RadarChartLegend: React.FC<RadarChartLegendProps> = ({ moduleColor }) => {
         </div>
       </CardHeader>
       <CardContent className="gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <RadarChart data={chartData}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <PolarAngleAxis dataKey="month" />
             <PolarGrid />
-            <Radar
-              dataKey="desktop"
-              stroke="var(--color-desktop)"
-              fill="var(--color-desktop)"
-              fillOpacity={0.6}
-            />
-            <Radar
-              dataKey="mobile"
-              stroke="var(--color-mobile)"
-              fill="var(--color-mobile)"
-              fillOpacity={0.6}
-            />
-            <Radar
-              dataKey="tablet"
-              stroke="var(--color-tablet)"
-              fill="var(--color-tablet)"
-              fillOpacity={0.6}
-            />
+            <Radar dataKey="desktop" stroke="var(--color-desktop)" fill="var(--color-desktop)" fillOpacity={0.6} />
+            <Radar dataKey="mobile" stroke="var(--color-mobile)" fill="var(--color-mobile)" fillOpacity={0.6} />
+            <Radar dataKey="tablet" stroke="var(--color-tablet)" fill="var(--color-tablet)" fillOpacity={0.6} />
             <ChartLegend
               content={<ChartLegendContent />}
               className="-gba:translate-y-2 gba:flex-wrap gba:gap-2 [&>*]:gba:basis-1/3 [&>*]:gba:justify-center"
@@ -74,7 +60,7 @@ const RadarChartLegend: React.FC<RadarChartLegendProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RadarChartLegend;
+export default RadarChartLegend

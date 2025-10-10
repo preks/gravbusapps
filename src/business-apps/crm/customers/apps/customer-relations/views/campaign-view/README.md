@@ -5,12 +5,14 @@ A comprehensive campaign management application for the CRM module that provides
 ## Features
 
 ### 📊 Campaign Statistics (KPIs)
+
 - **Total Campaigns**: Count of all campaigns in the system
 - **Active Campaigns**: Currently running campaigns
 - **Completed Campaigns**: Successfully finished campaigns
 - **Total Budget**: Combined budget across all campaigns
 
 ### 📋 Campaign List
+
 - **Name**: Campaign name with description
 - **Type**: Campaign type (e.g., Email, Social Media, Print)
 - **Start Date**: Campaign start date
@@ -18,6 +20,7 @@ A comprehensive campaign management application for the CRM module that provides
 - **Status**: Campaign status with color-coded badges
 
 ### 🔧 Actions
+
 - **AppActionButton**: Integrated action button for each campaign
 - **Search**: Full-text search across campaign names and descriptions
 - **Sorting**: Sortable columns for better data organization
@@ -25,12 +28,14 @@ A comprehensive campaign management application for the CRM module that provides
 ## Technical Implementation
 
 ### GraphQL Integration
+
 - Uses `nw.crm.sales_campaign` table
 - Real-time data fetching with loading states
 - Error handling with retry functionality
 - Pagination and search support
 
 ### Component Structure
+
 ```
 campaign-management/
 ├── CampaignManagement.tsx          # Main app component
@@ -49,6 +54,7 @@ campaign-management/
 ```
 
 ### Design System Integration
+
 - Uses `@newwork/nw-design-system` components
 - Follows established patterns from other CRM apps
 - Responsive design with proper loading states
@@ -60,7 +66,7 @@ campaign-management/
 import CampaignManagement from '@/business-apps/crm/common/apps/campaign-management';
 
 // In your app
-<CampaignManagement 
+<CampaignManagement
   accessToken={accessToken}
   // ... other BusinessAppContextProps
 />
@@ -76,8 +82,9 @@ import CampaignManagement from '@/business-apps/crm/common/apps/campaign-managem
 ## GraphQL Schema
 
 The app queries the `SalesCampaign` table with the following structure:
+
 - Basic fields: `id`, `name`, `description`, `createdAt`, `updatedAt`
 - Date fields: `startDate`, `endDate`
 - Reference fields: `statusRef`, `campaignTypeRef`, `currencyRef`
 - Related entities: `status`, `campaignType`, `currency`, `ownerEmployee`
-- System fields: `isDeleted`, `recordState`, `version` 
+- System fields: `isDeleted`, `recordState`, `version`

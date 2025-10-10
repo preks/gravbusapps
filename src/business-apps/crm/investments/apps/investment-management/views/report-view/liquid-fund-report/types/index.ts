@@ -1,1 +1,1 @@
-export * from './AnalyticsTypes';
+export * from './AnalyticsTypes'
