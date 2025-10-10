@@ -1,18 +1,18 @@
 'use client'
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import dayjs from 'dayjs';
-import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData';
-import { Card } from '@newwork/gravity-ui-catalog';
-import { Empty, Spin } from 'antd';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { employeePerformanceQuery } from '../../queries/performanceQueries';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
-import { PiPencilSimple } from 'react-icons/pi';
-import { Button } from '@newwork/nw-design-system';
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import dayjs from 'dayjs'
+import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
+import { Card } from '@newwork/gravity-ui-catalog'
+import { Empty, Spin } from 'antd'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { employeePerformanceQuery } from '../../queries/performanceQueries'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { PiPencilSimple } from 'react-icons/pi'
+import { Button } from '@newwork/nw-design-system'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -39,20 +39,18 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   accessToken,
   employeePerformanceGoals = [],
   isSelfView,
-  userInfo,
+  userInfo
 }) => {
-  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<
-    ExtendedEmployeePerformanceGoal[]
-  >([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const supevisor = useMemo(() => employee.employeePosition?.supervisor?.id, [employee]);
+  const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([])
+  const [loading, setLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const supevisor = useMemo(() => employee.employeePosition?.supervisor?.id, [employee])
 
   // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken)
 
   // Fetch performance data
-  const fetchPerformanceData = async () => {
+  const fetchPerformanceData = useCallback(async () => {
     if (!employee?.id) return
 
     try {
@@ -110,71 +108,64 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
   // Map status to display values and styles
   const getStatusInfo: (_status: string) => { label: string; color: string } = (status: string) => {
-    return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' };
-  };
+    return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' }
+  }
 
   // Sort performance goals according to the specified rules
-  const sortPerformanceGoals = (
-    goals: ExtendedEmployeePerformanceGoal[],
-  ): ExtendedEmployeePerformanceGoal[] => {
-    const today = dayjs().startOf('day');
+  const sortPerformanceGoals = (goals: ExtendedEmployeePerformanceGoal[]): ExtendedEmployeePerformanceGoal[] => {
+    const today = dayjs().startOf('day')
 
     return [...goals].sort((a, b) => {
       // Primary sort: Status (Overdue > Active > Completed)
       const getStatusPriority = (goal: ExtendedEmployeePerformanceGoal): number => {
-        const isOverdue =
-          goal.dueDate && dayjs(goal.dueDate).isBefore(today) && goal.progressPercent < 100;
-        const isCompleted = goal.progressPercent === 100;
-        const isActive = !isOverdue && !isCompleted && goal.progressPercent < 100;
+        const isOverdue = goal.dueDate && dayjs(goal.dueDate).isBefore(today) && goal.progressPercent < 100
+        const isCompleted = goal.progressPercent === 100
+        const isActive = !isOverdue && !isCompleted && goal.progressPercent < 100
 
-        if (isOverdue) return 1; // Highest priority
-        if (isActive) return 2; // Medium priority
-        if (isCompleted) return 3; // Lowest priority
-        return 4; // No due date or other cases
-      };
+        if (isOverdue) return 1 // Highest priority
+        if (isActive) return 2 // Medium priority
+        if (isCompleted) return 3 // Lowest priority
+        return 4 // No due date or other cases
+      }
 
-      const statusPriorityA = getStatusPriority(a);
-      const statusPriorityB = getStatusPriority(b);
+      const statusPriorityA = getStatusPriority(a)
+      const statusPriorityB = getStatusPriority(b)
 
       if (statusPriorityA !== statusPriorityB) {
-        return statusPriorityA - statusPriorityB;
+        return statusPriorityA - statusPriorityB
       }
 
       // Secondary sort: Due Date (depends on status group)
-      const dueDateA = a.dueDate ? dayjs(a.dueDate).valueOf() : Number.MAX_SAFE_INTEGER;
-      const dueDateB = b.dueDate ? dayjs(b.dueDate).valueOf() : Number.MAX_SAFE_INTEGER;
+      const dueDateA = a.dueDate ? dayjs(a.dueDate).valueOf() : Number.MAX_SAFE_INTEGER
+      const dueDateB = b.dueDate ? dayjs(b.dueDate).valueOf() : Number.MAX_SAFE_INTEGER
 
       // Check if due dates are the same (within the same day)
-      const sameDueDate =
-        a.dueDate && b.dueDate && dayjs(a.dueDate).isSame(dayjs(b.dueDate), 'day');
+      const sameDueDate = a.dueDate && b.dueDate && dayjs(a.dueDate).isSame(dayjs(b.dueDate), 'day')
 
       if (!sameDueDate && dueDateA !== dueDateB) {
         // For overdue goals: sort by due date DESCENDING (most overdue first)
         if (statusPriorityA === 1) {
-          return dueDateB - dueDateA; // Most overdue (oldest due date) first
+          return dueDateB - dueDateA // Most overdue (oldest due date) first
         }
         // For active and completed goals: sort by due date ASCENDING (earliest first)
-        return dueDateA - dueDateB;
+        return dueDateA - dueDateB
       }
 
       // Tertiary sort: Progress ascending (lowest progress first)
-      const progressA = a.progressPercent || 0;
-      const progressB = b.progressPercent || 0;
+      const progressA = a.progressPercent || 0
+      const progressB = b.progressPercent || 0
 
-      return progressA - progressB;
-    });
-  };
+      return progressA - progressB
+    })
+  }
 
   // Get sorted performance goals
-  const sortedPerformanceGoals = sortPerformanceGoals(localPerformanceGoals);
+  const sortedPerformanceGoals = sortPerformanceGoals(localPerformanceGoals)
 
   // Handle loading state
   if (loading) {
     return (
-      <div
-        className="gba:flex gba:justify-center gba:items-center gba:h-40"
-        data-testid="performance-loading"
-      >
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="performance-loading">
         <Spin size="large" />
       </div>
     )
@@ -192,10 +183,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   return (
     <div className="gba:performance-tab gba:space-y-8" data-testid="performance-tab-container">
       {/* Performance Goals Headline with Action Button */}
-      <div
-        className="gba:flex gba:justify-between gba:items-start"
-        data-testid="performance-goals-header"
-      >
+      <div className="gba:flex gba:justify-between gba:items-start" data-testid="performance-goals-header">
         <div className="gba:performance-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="performance-goals-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.performance_goals', 'Performance Goals')}
@@ -214,7 +202,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
               data-testid="employee-goal-add-button"
               contextsArray={[FlowContextName.employeePerformanceGoal]}
               externalContextData={{
-                employeeId: employee?.id,
+                employeeId: employee?.id
               }}
               prefixDataTestId="employee-goal-add"
               accessToken={accessToken}
@@ -234,14 +222,10 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">
         <section className="gba:flex gba:flex-col gba:gap-4">
           {!sortedPerformanceGoals?.length ? (
-            <Empty
-              description="No goals available"
-              className="gba:py-10"
-              data-testid="empty-goals-state"
-            />
+            <Empty description="No goals available" className="gba:py-10" data-testid="empty-goals-state" />
           ) : (
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
-              {sortedPerformanceGoals.map((goal) => {
+              {sortedPerformanceGoals.map(goal => {
                 if (!isGoalValid(goal)) {
                   return null
                 }
@@ -287,11 +271,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                       </div>
                       <div>
                         <span className="gba:block gba:text-gray-500">Completion Date</span>
-                        <span>
-                          {goal.completionDate
-                            ? dayjs(goal.completionDate).format('MMM D, YYYY')
-                            : '-'}
-                        </span>
+                        <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
                       </div>
                     </div>
 
@@ -310,7 +290,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                             completionDate: goal.completionDate,
                             progressPercent: goal.progressPercent,
                             status: goal.status,
-                            version: goal.version,
+                            version: goal.version
                           }}
                           prefixDataTestId={`employee-goal-edit-${goal.id}`}
                           accessToken={accessToken}

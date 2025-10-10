@@ -1,14 +1,14 @@
 'use client'
 
-import React, { useMemo } from 'react';
-import { message } from 'antd';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import dayjs from 'dayjs';
-import { useTranslation } from 'react-i18next';
-import { useForm } from 'react-hook-form';
-import AppActionForm from '@/components/app-action-form/AppActionForm';
-import FormScreenComponent from './components/FormScreenComponent';
-import flowSmall from '@/assets/icons/flowSmall.svg';
+import React, { useMemo } from 'react'
+import { message } from 'antd'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import dayjs from 'dayjs'
+import { useTranslation } from 'react-i18next'
+import { useForm } from 'react-hook-form'
+import AppActionForm from '@/components/app-action-form/AppActionForm'
+import FormScreenComponent from './components/FormScreenComponent'
+import flowSmall from '@/assets/icons/flowSmall.svg'
 
 interface PerformanceGoalFormProps {
   onClose: () => void
@@ -90,14 +90,14 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 
   const form = useForm<PerformanceGoalFormData>({
     defaultValues: getInitialFormData(),
-    mode: 'onChange',
-  });
+    mode: 'onChange'
+  })
 
   // Check if form is valid (modified and no errors)
   const isFormValid = useMemo(
     () => form.formState.isValid && form.formState.isDirty,
-    [form.formState.isValid, form.formState.isDirty],
-  );
+    [form.formState.isValid, form.formState.isDirty]
+  )
 
   // Helper function to convert date to ISO string with noon time to avoid timezone issues
   const dateToISOString = (date: Date | string): string => {

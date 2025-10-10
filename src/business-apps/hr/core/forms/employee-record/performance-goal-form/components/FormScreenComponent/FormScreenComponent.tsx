@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useEffect, useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
+import React, { useEffect, useState } from 'react'
+import { UseFormReturn } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import {
   Input,
   Select,
@@ -14,10 +14,10 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
-} from '@newwork/nw-design-system';
-import { formatDate } from '@/common/utils/windowUtils';
-import { PercentIcon } from '@phosphor-icons/react';
+  FormMessage
+} from '@newwork/nw-design-system'
+import { formatDate } from '@/common/utils/windowUtils'
+import { PercentIcon } from '@phosphor-icons/react'
 
 interface FormScreenComponentProps {
   statusOptions: { value: string; label: string }[]
@@ -41,28 +41,28 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   dataTestId = 'performance-goal-form-modal',
   form
 }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   // Store initial progress value to determine disabled state
-  const [initialProgress] = useState(() => form.getValues('progressPercent'));
+  const [initialProgress] = useState(() => form.getValues('progressPercent'))
 
   // Watch progress percent to auto-set completion date when reaching 100%
   const progressPercent = form.watch('progressPercent')
   const completionDate = form.watch('completionDate')
 
-  const isStartDateDisabled = initialProgress > 0;
-  const isFieldsDisabled = initialProgress === 100;
+  const isStartDateDisabled = initialProgress > 0
+  const isFieldsDisabled = initialProgress === 100
 
   useEffect(() => {
     if (progressPercent === 100 && !completionDate) {
       // Only set completion date if it's not already set (first time reaching 100%)
-      form.setValue('completionDate', new Date());
+      form.setValue('completionDate', new Date())
     } else if (progressPercent < 100 && completionDate) {
       // Clear completion date if progress is less than 100%
       form.setValue('completionDate', undefined)
     }
     // If progressPercent === 100 and completionDate already exists, don't change it
-  }, [progressPercent, completionDate, form]);
+  }, [progressPercent, completionDate, form])
 
   return (
     <div className="gba:space-y-6" data-testid={dataTestId}>
@@ -108,7 +108,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 disabled={isStartDateDisabled}
                 placeholder={t(
                   'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
-                  'Please Select',
+                  'Please Select'
                 )}
                 data-testid="flw_changePersonalData_startDate"
                 value={
@@ -116,11 +116,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`
                     : ''
                 }
-                onChange={(e) => {
-                  const dateValue = e.target.value
-                    ? new Date(e.target.value + 'T12:00:00')
-                    : undefined;
-                  field.onChange(dateValue);
+                onChange={e => {
+                  const dateValue = e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
+                  field.onChange(dateValue)
                 }}
               />
             </FormControl>
@@ -134,7 +132,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         control={form.control}
         name="dueDate"
         rules={{
-          required: t('performance_goal.Due_date_required', 'Please select a due date'),
+          required: t('performance_goal.Due_date_required', 'Please select a due date')
         }}
         render={({ field }) => (
           <FormItem>
@@ -149,7 +147,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 disabled={isFieldsDisabled}
                 placeholder={t(
                   'lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder',
-                  'Please Select',
+                  'Please Select'
                 )}
                 data-testid="flw_changePersonalData_dueDate"
                 value={
@@ -157,11 +155,9 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                     ? `${field.value.getFullYear()}-${String(field.value.getMonth() + 1).padStart(2, '0')}-${String(field.value.getDate()).padStart(2, '0')}`
                     : ''
                 }
-                onChange={(e) => {
-                  const dateValue = e.target.value
-                    ? new Date(e.target.value + 'T12:00:00')
-                    : undefined;
-                  field.onChange(dateValue);
+                onChange={e => {
+                  const dateValue = e.target.value ? new Date(e.target.value + 'T12:00:00') : undefined
+                  field.onChange(dateValue)
                 }}
               />
             </FormControl>
@@ -205,22 +201,22 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           validate: (v: any) => {
             // Check if field is empty
             if (v === undefined || v === null || v === '') {
-              return t('performance_goal.progress_required', 'Please enter progress percentage');
+              return t('performance_goal.progress_required', 'Please enter progress percentage')
             }
 
             // Check if it's a valid number
-            const num = Number(v);
+            const num = Number(v)
             if (Number.isNaN(num)) {
-              return t('performance_goal.invalid_number', 'Please enter a valid number (0-100)');
+              return t('performance_goal.invalid_number', 'Please enter a valid number (0-100)')
             }
 
             // Check range
             if (num < 0 || num > 100) {
-              return t('performance_goal.range_error', 'Please enter a number between 0 and 100');
+              return t('performance_goal.range_error', 'Please enter a number between 0 and 100')
             }
 
-            return true;
-          },
+            return true
+          }
         }}
         render={({ field }) => (
           <FormItem data-testid={`${prefixDataTestId}-progress-field`}>
@@ -232,20 +228,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
                 className="gba:w-full"
                 {...field}
                 disabled={isFieldsDisabled}
-                placeholder={t(
-                  'performance_goal.progress_placeholder',
-                  'Enter progress percentage',
-                )}
+                placeholder={t('performance_goal.progress_placeholder', 'Enter progress percentage')}
                 // type="number"
                 inputMode="decimal"
                 data-testid={`${prefixDataTestId}-progress-input`}
                 endAddOn={<PercentIcon className="gba:w-4 gba:h-4" />}
-                onChange={(e) => {
+                onChange={e => {
                   if (e.target.value === '') {
-                    field.onChange(0);
+                    field.onChange(0)
                   } else {
-                    const value = parseInt(e.target.value, 10);
-                    field.onChange(isNaN(value) ? undefined : value);
+                    const value = parseInt(e.target.value, 10)
+                    field.onChange(isNaN(value) ? undefined : value)
                   }
                 }}
               />
