@@ -1,157 +1,147 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { extractCurrencyCode } from '../utils/currencyUtils';
-import { useCurrencyStore } from '../store/useCurrencyStore';
-import { GET_ALL_CURRENCIES } from '../queries/analytics';
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { extractCurrencyCode } from '../utils/currencyUtils'
+import { useCurrencyStore } from '../store/useCurrencyStore'
+import { GET_ALL_CURRENCIES } from '../queries/analytics'
 
-/**
- * Helper function to standardize currency reference format.
- * Exported publicly for use in other components that need to format currency references.
- * 
- * @param currencyRef - Currency reference string (either "USD" or "Currency:v1:USD")
- * @returns Standardized currency reference in format "Currency:v1:CODE"
- * 
- * @example
- * standardizeCurrencyRef("USD") // Returns "Currency:v1:USD"
- * standardizeCurrencyRef("Currency:v1:EUR") // Returns "Currency:v1:EUR"
- */
-export const standardizeCurrencyRef = (currencyRef: string): string => {
-  if (!currencyRef) return '';
-  
-  // If it's already in the format Currency:v1:CODE, return as is
-  if (currencyRef.startsWith('Currency:v1:')) {
-    return currencyRef;
+// Re-export standardizeCurrencyRef for backward compatibility
+export { standardizeCurrencyRef } from '../utils/currencyUtils'
+
+// Module-scope in-flight registry keyed by managerId
+const inFlightByManager = new Map<string, Promise<any>>()
+
+// Helper: Process a collection of items and add their currencies to the map
+const processCurrencyCollection = (
+  items: Array<{ currencyRef?: string }> | undefined,
+  currencyMap: Map<string, number>
+) => {
+  if (!items) return
+
+  for (const item of items) {
+    const code = extractCurrencyCode(item.currencyRef)
+    if (code) {
+      currencyMap.set(code, (currencyMap.get(code) || 0) + 1)
+    }
   }
-  
-  // If it's just a currency code (e.g., USD, EUR), convert to standard format
-  return `Currency:v1:${currencyRef}`;
-};
+}
 
 /**
  * Hook to fetch available currencies and most used currency
  */
 export const useCurrencyData = (accessToken: string, managerId: string) => {
+  // Global in-flight guard per manager to prevent duplicate StrictMode/dev fetches
+  // and cross-component duplicate requests.
+
   // Function to process currency data from API response
   const processCurrencyData = (response: any) => {
-    const currencyMap = new Map<string, number>();
+    const currencyMap = new Map<string, number>()
 
-    if (response?.expenseItems) {
-      response.expenseItems.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
+    processCurrencyCollection(response?.expenseItems, currencyMap)
+    processCurrencyCollection(response?.expenseRequests, currencyMap)
+    processCurrencyCollection(response?.expensePlans, currencyMap)
+    processCurrencyCollection(response?.advancePayments, currencyMap)
 
-    if (response?.expenseRequests) {
-      response.expenseRequests.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
+    return Array.from(currencyMap.entries()).map(([currencyCode, count]) => ({ currencyCode, count }))
+  }
+  const [localAvailableCurrencies, setLocalAvailableCurrencies] = useState<string[]>([])
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null)
 
-    if (response?.expensePlans) {
-      response.expensePlans.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
-
-    if (response?.advancePayments) {
-      response.advancePayments.forEach((item: any) => {
-        const code = extractCurrencyCode(item.currencyRef);
-        if (code) currencyMap.set(code, (currencyMap.get(code) || 0) + 1);
-      });
-    }
-
-    return Array.from(currencyMap.entries()).map(([currencyCode, count]) => ({ currencyCode, count }));
-  };
-  const [availableCurrencies, setLocalCurrencies] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null);
-  
-  // Access the global currency store
-  const { 
-    setAvailableCurrencies: setStoreCurrencies,
+  // Access the global currency store (value + setter pairs)
+  const {
     availableCurrencies: storeCurrencies,
+    setAvailableCurrencies: setStoreCurrencies,
+    mostUsedCurrency: storeMostUsedCurrency,
+    setMostUsedCurrency,
     primaryCurrency,
     setPrimaryCurrency,
-    isUserSelected,
+    isInitialized,
     setInitialized,
-    setMostUsedCurrency,
-    mostUsedCurrency: storeMostUsedCurrency,
-    isInitialized
-  } = useCurrencyStore();
-  
+    isUserSelected
+  } = useCurrencyStore()
+
   // GraphQL client for data fetching
-  const graphQLClient = useGraphQLClient(accessToken);
+  const graphQLClient = useGraphQLClient(accessToken)
 
   // Centralized fetch with error + loading handling
   const fetchCurrencyData = useCallback(async () => {
     try {
-      setError(null);
-      setIsLoading(true);
-      // Fetch all currencies from different entities
-      const response = await graphQLClient.request(GET_ALL_CURRENCIES, { managerId });
+      setError(null)
+      setIsLoading(true)
+      // Deduplicate concurrent/in-flight calls per managerId
+      if (!inFlightByManager.has(managerId)) {
+        inFlightByManager.set(managerId, graphQLClient.request(GET_ALL_CURRENCIES, { managerId }))
+      }
+      const response = await inFlightByManager.get(managerId)!
       // Process currency data from all entities
-      const currencyCounts = processCurrencyData(response);
+      const currencyCounts = processCurrencyData(response)
       // Sort currencies by frequency
-      currencyCounts.sort((a, b) => b.count - a.count);
+      currencyCounts.sort((a, b) => b.count - a.count)
       // Extract unique currency codes
-      const uniqueCurrencies = Array.from(
-        new Set(currencyCounts.map((c) => c.currencyCode))
-      ).sort((a, b) => a.localeCompare(b));
+      const uniqueCurrencies = Array.from(new Set(currencyCounts.map(c => c.currencyCode))).sort((a, b) =>
+        a.localeCompare(b)
+      )
       // Determine most used currency
-      const mostUsed = currencyCounts.length > 0 ? currencyCounts[0].currencyCode : null;
+      const mostUsed = currencyCounts.length > 0 ? currencyCounts[0].currencyCode : null
       // Update local state
-      setLocalCurrencies(uniqueCurrencies);
-      setLocalMostUsedCurrency(mostUsed);
+      setLocalAvailableCurrencies(uniqueCurrencies)
+      setLocalMostUsedCurrency(mostUsed)
       // Update global store
-      setStoreCurrencies(uniqueCurrencies);
-      setMostUsedCurrency(mostUsed);
+      setStoreCurrencies(uniqueCurrencies)
+      setMostUsedCurrency(mostUsed)
       // Update primary currency if user hasn't made a selection
       if (!isUserSelected && mostUsed) {
-        setPrimaryCurrency(mostUsed);
+        setPrimaryCurrency(mostUsed)
       }
       // Mark as initialized in the store
-      setInitialized(true);
+      setInitialized(true)
     } catch (err) {
-      console.error('Error fetching currency data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch currency data');
-      setLocalCurrencies([]);
+      console.error('Error fetching currency data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch currency data')
+      setLocalAvailableCurrencies([])
     } finally {
-      setIsLoading(false);
+      inFlightByManager.delete(managerId)
+      setIsLoading(false)
     }
-  }, [graphQLClient, managerId, setStoreCurrencies, setMostUsedCurrency, isUserSelected, setPrimaryCurrency, setInitialized]);
-  
+  }, [
+    graphQLClient,
+    managerId,
+    setStoreCurrencies,
+    setMostUsedCurrency,
+    isUserSelected,
+    setPrimaryCurrency,
+    setInitialized
+  ])
+
   // Fetch currency data on component mount
   useEffect(() => {
     if (!accessToken || !managerId) {
-      setIsLoading(false);
-      return;
+      setIsLoading(false)
+      return
     }
     if (!isInitialized) {
-      fetchCurrencyData();
+      fetchCurrencyData()
     } else {
-      setLocalCurrencies(storeCurrencies);
-      setLocalMostUsedCurrency(storeMostUsedCurrency);
-      setIsLoading(false);
+      setLocalAvailableCurrencies(storeCurrencies)
+      setLocalMostUsedCurrency(storeMostUsedCurrency)
+      setIsLoading(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, managerId, fetchCurrencyData, isInitialized]);
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, managerId, fetchCurrencyData, isInitialized])
+
   // Default to most used currency, fallback to primary currency from store
   const defaultCurrency = useMemo(() => {
-    return localMostUsedCurrency || storeMostUsedCurrency || primaryCurrency || 'EUR';
-  }, [localMostUsedCurrency, storeMostUsedCurrency, primaryCurrency]);
-  
+    return localMostUsedCurrency || storeMostUsedCurrency || primaryCurrency || 'EUR'
+  }, [localMostUsedCurrency, storeMostUsedCurrency, primaryCurrency])
+
   // Combine all data for the component
   return {
-    availableCurrencies: availableCurrencies.length > 0 ? availableCurrencies : storeCurrencies,
+    availableCurrencies: localAvailableCurrencies.length > 0 ? localAvailableCurrencies : storeCurrencies,
     isLoading,
     error,
     mostUsedCurrency: localMostUsedCurrency || storeMostUsedCurrency,
     defaultCurrency,
     refetch: fetchCurrencyData
-  };
-};
+  }
+}

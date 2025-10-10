@@ -1,4 +1,4 @@
-import SalaryAdministration from "@/components/salary-administration"
+import SalaryAdministration from '@/components/salary-administration'
 
 export default function SalaryPage({ params }: { params: { id: string } }) {
   return (

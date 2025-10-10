@@ -1,27 +1,27 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
-import { DollarSign } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import Link from 'next/link'
+import { DollarSign } from 'lucide-react'
 
 export default function EmployeeProfilePage({ params }: { params: { id: string } }) {
   // Mock employee data - in a real app, this would come from a database
   const employee = {
     id: params.id,
-    name: "Lisa Lee",
-    position: "Chief Executive Officer",
-    employeeId: "EMP001",
-    company: "NEWWORK Software GmbH",
-    location: "ACME Dublin",
-    workspace: "Berlin",
-    costCenter: "M110",
-    employmentType: "Internal",
-    contractType: "Full time wage",
-    startDate: "09/01/2019",
-    probationEndDate: "02/28/2020",
-    remote: "100%",
-    region: "Berlin",
+    name: 'Lisa Lee',
+    position: 'Chief Executive Officer',
+    employeeId: 'EMP001',
+    company: 'NEWWORK Software GmbH',
+    location: 'ACME Dublin',
+    workspace: 'Berlin',
+    costCenter: 'M110',
+    employmentType: 'Internal',
+    contractType: 'Full time wage',
+    startDate: '09/01/2019',
+    probationEndDate: '02/28/2020',
+    remote: '100%',
+    region: 'Berlin',
     weeklyHours: 40,
-    avatar: "/placeholder.svg?height=100&width=100&text=LL",
+    avatar: '/placeholder.svg?height=100&width=100&text=LL'
   }
 
   return (
@@ -125,7 +125,7 @@ export default function EmployeeProfilePage({ params }: { params: { id: string }
                   <span className="font-medium ml-2">{employee.weeklyHours}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-2 mt-3">
-                  {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
                     <div key={day} className="text-center p-2 border rounded text-xs">
                       {day}
                     </div>

@@ -1,12 +1,12 @@
-import React from "react";
-import { Input, Label } from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useLeadFormContext } from "../../context/LeadFormContext";
+import React from 'react'
+import { Input, Label } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useLeadFormContext } from '../../context/LeadFormContext'
 
-const prefixDataTestId = "LeadForm";
+const prefixDataTestId = 'LeadForm'
 
 const BasicInformationSection: React.FC = () => {
-  const { formValues, setFormValues } = useLeadFormContext();
+  const { formValues, setFormValues } = useLeadFormContext()
 
   return (
     <div className="gba:space-y-6">
@@ -18,16 +18,12 @@ const BasicInformationSection: React.FC = () => {
           </Label>
           <Input
             name="firstName"
-            value={
-              typeof formValues.firstName === "string"
-                ? formValues.firstName
-                : ""
-            }
-            onChange={(e) => setFormValues({ firstName: e.target.value })}
+            value={typeof formValues.firstName === 'string' ? formValues.firstName : ''}
+            onChange={e => setFormValues({ firstName: e.target.value })}
             placeholder="Please Enter..."
             required
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "first-name-input")}
+            data-testid={formatDataTestId(prefixDataTestId, 'first-name-input')}
           />
         </div>
 
@@ -37,16 +33,12 @@ const BasicInformationSection: React.FC = () => {
           </Label>
           <Input
             name="lastName"
-            value={
-              typeof formValues.lastName === "string"
-                ? formValues.lastName
-                : ""
-            }
-            onChange={(e) => setFormValues({ lastName: e.target.value })}
+            value={typeof formValues.lastName === 'string' ? formValues.lastName : ''}
+            onChange={e => setFormValues({ lastName: e.target.value })}
             placeholder="Please Enter..."
             required
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "last-name-input")}
+            data-testid={formatDataTestId(prefixDataTestId, 'last-name-input')}
           />
         </div>
       </div>
@@ -58,20 +50,16 @@ const BasicInformationSection: React.FC = () => {
         </Label>
         <Input
           name="company"
-          value={
-            typeof formValues.company === "string"
-              ? formValues.company
-              : String(formValues.company || "")
-          }
-          onChange={(e) => setFormValues({ company: e.target.value })}
+          value={typeof formValues.company === 'string' ? formValues.company : String(formValues.company || '')}
+          onChange={e => setFormValues({ company: e.target.value })}
           placeholder="Please Enter..."
           required
           className="gba:border-gray-300 gba:bg-white"
-          data-testid={formatDataTestId(prefixDataTestId, "company-input")}
+          data-testid={formatDataTestId(prefixDataTestId, 'company-input')}
         />
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default BasicInformationSection;
+export default BasicInformationSection

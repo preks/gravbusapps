@@ -1,1 +1,1 @@
-export * from './EquityKPIQueries';
+export * from './EquityKPIQueries'

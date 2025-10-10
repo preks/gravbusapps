@@ -15,11 +15,7 @@ export interface CustomerSettingsProps extends BusinessAppContextProps {
 
 // Removed unused DATA_TEST_ID
 
-const CustomerSettings: React.FC<CustomerSettingsProps> = ({ 
-  className, 
-  prefixDataTestId,
-  ...context
-}) => {
+const CustomerSettings: React.FC<CustomerSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
 
@@ -131,6 +127,6 @@ const CustomerSettings: React.FC<CustomerSettingsProps> = ({
 }
 
 export default CustomerSettings
-export { CustomerSettings } 
+export { CustomerSettings }
 
 // removed inlined hook bundle; moved to dedicated components to satisfy Rules of Hooks

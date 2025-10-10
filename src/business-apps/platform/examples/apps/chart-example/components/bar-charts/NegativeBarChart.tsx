@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,22 +9,26 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from "recharts";
-import { ChartBarIcon } from "@phosphor-icons/react";
-import barChartData from "../../data/barChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ReferenceLine } from 'recharts'
+import { ChartBarIcon } from '@phosphor-icons/react'
+import barChartData from '../../data/barChartData.json'
 
 interface NegativeBarChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const NegativeBarChart: React.FC<NegativeBarChartProps> = ({ moduleColor }) => {
-  const chartData = barChartData.negative;
+  const chartData = barChartData.negative
 
-  const chartConfig = useMemo(() => ({
-    visitors: { label: "Visitors", color: "none" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        visitors: { label: 'Visitors', color: 'none' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="negative-bar-chart">
@@ -44,24 +48,17 @@ const NegativeBarChart: React.FC<NegativeBarChartProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent indicator="dashed" />}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dashed" />} />
             <ReferenceLine y={0} stroke="var(--border)" />
-            <Bar
-              dataKey="visitors"
-              fill="var(--color-visitors)"
-              radius={4}
-            />
+            <Bar dataKey="visitors" fill="var(--color-visitors)" radius={4} />
           </BarChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default NegativeBarChart;
+export default NegativeBarChart

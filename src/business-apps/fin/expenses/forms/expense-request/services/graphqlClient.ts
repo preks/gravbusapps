@@ -14,15 +14,9 @@ export const wrapGraphQLClient = (graphQLClient: any) => {
      * @param options - Query options with query string and variables
      * @returns Promise with query results
      */
-    query: async ({
-      query,
-      variables,
-    }: {
-      query: string;
-      variables?: Record<string, any>;
-    }): Promise<{ data: any }> => {
-      const result = await graphQLClient.request(query, variables);
-      return { data: result };
-    },
-  };
-};
+    query: async ({ query, variables }: { query: string; variables?: Record<string, any> }): Promise<{ data: any }> => {
+      const result = await graphQLClient.request(query, variables)
+      return { data: result }
+    }
+  }
+}

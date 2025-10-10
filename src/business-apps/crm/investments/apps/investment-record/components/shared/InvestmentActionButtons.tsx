@@ -1,13 +1,13 @@
-import React from 'react';
-import { AiButton } from '@newwork/nw-design-system';
-import { Upload } from 'lucide-react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { BaseInvestment } from '../../hooks/useInvestmentReportData';
-import { AppAction } from '@/components/app-action/AppAction';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { DirectApiGenerateButton } from './DirectApiGenerateButton';
-import { FlowBasedGenerateButton } from './FlowBasedGenerateButton';
+import React from 'react'
+import { AiButton } from '@newwork/nw-design-system'
+import { Upload } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { BaseInvestment } from '../../hooks/useInvestmentReportData'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { DirectApiGenerateButton } from './DirectApiGenerateButton'
+import { FlowBasedGenerateButton } from './FlowBasedGenerateButton'
 
 // =============================================================================
 // GENERATE ONE-PAGER BUTTON
@@ -17,45 +17,45 @@ export interface GenerateOnePagerButtonProps {
   /**
    * Access token for API requests (required)
    */
-  accessToken: string;
+  accessToken: string
 
   /**
    * User information (optional)
    */
-  userInfo?: BusinessAppContextProps['userInfo'];
+  userInfo?: BusinessAppContextProps['userInfo']
 
   /**
    * Additional data (optional)
    */
-  additionalData?: BusinessAppContextProps['additionalData'];
+  additionalData?: BusinessAppContextProps['additionalData']
 
   /**
    * Investment ID to generate report for
    */
-  investmentId?: string;
-  
+  investmentId?: string
+
   /**
    * Button variant
    */
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+
   /**
    * Button size
    */
-  size?: 'sm' | 'default' | 'lg';
+  size?: 'sm' | 'default' | 'lg'
 
   /**
    * Use direct API approach instead of flow-based approach
    * When true: calls /generateInvestmentReport API directly with proper payload
    * When false/undefined: uses existing flow-based approach (default behavior)
    */
-  useDirectApi?: boolean;
+  useDirectApi?: boolean
 
   /**
    * Pre-loaded investment data to avoid duplicate API calls
    * When provided, this data will be used instead of fetching it again
    */
-  investmentData?: BaseInvestment;
+  investmentData?: BaseInvestment
 }
 
 export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
@@ -69,22 +69,22 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
 }) => {
   // Validate required props
   if (!accessToken) {
-    console.warn('⚠️ GenerateOnePagerButton: Missing required accessToken');
-    return null;
+    console.warn('⚠️ GenerateOnePagerButton: Missing required accessToken')
+    return null
   }
 
-  const resolvedInvestmentId = investmentId ?? investmentData?.id;
+  const resolvedInvestmentId = investmentId ?? investmentData?.id
 
   if (!resolvedInvestmentId) {
-    console.warn('⚠️ GenerateOnePagerButton: Missing required investmentId and no ID in investmentData');
-    return null;
+    console.warn('⚠️ GenerateOnePagerButton: Missing required investmentId and no ID in investmentData')
+    return null
   }
 
   // NEW DIRECT API APPROACH (opt-in with useDirectApi=true)
   if (useDirectApi) {
     if (!investmentData) {
-      console.warn('⚠️ GenerateOnePagerButton: Direct API requires investmentData');
-      return null;
+      console.warn('⚠️ GenerateOnePagerButton: Direct API requires investmentData')
+      return null
     }
     return (
       <DirectApiGenerateButton
@@ -94,7 +94,7 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
         userInfo={userInfo}
         investmentData={investmentData}
       />
-    );
+    )
   }
 
   // ORIGINAL FLOW-BASED APPROACH (default behavior) - Enhanced with complete payload
@@ -107,35 +107,34 @@ export const GenerateOnePagerButton: React.FC<GenerateOnePagerButtonProps> = ({
       userInfo={userInfo}
       investmentData={investmentData}
     />
-  );
-};
+  )
+}
 
 // =============================================================================
-// UPLOAD REPORT BUTTON  
+// UPLOAD REPORT BUTTON
 // =============================================================================
 
 export interface UploadReportButtonProps extends BusinessAppContextProps {
   /**
    * Investment ID to pass to the upload flow
    */
-  investmentId: string;
+  investmentId: string
 
   /**
    * Investment data for flow context (optional but recommended)
    */
-  investment?: BaseInvestment;
-  
+  investment?: BaseInvestment
+
   /**
    * Button variant
    */
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  
+  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+
   /**
    * Button size
    */
-  size?: 'sm' | 'default' | 'lg';
+  size?: 'sm' | 'default' | 'lg'
 }
-
 
 export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
   investmentId,
@@ -144,7 +143,7 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
   accessToken
 }) => {
   if (!investmentId || !accessToken) {
-    return null;
+    return null
   }
 
   return (
@@ -166,8 +165,8 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
         {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'Upload Report')}
       </AiButton>
     </AppAction>
-  );
-};
+  )
+}
 
 // =============================================================================
 // EXPORTS
@@ -176,4 +175,4 @@ export const UploadReportButton: React.FC<UploadReportButtonProps> = ({
 export default {
   GenerateOnePagerButton,
   UploadReportButton
-};
+}

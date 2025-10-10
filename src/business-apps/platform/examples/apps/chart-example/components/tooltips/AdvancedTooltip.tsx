@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,30 +9,34 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
 
 interface AdvancedTooltipProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const chartData = [
-  { month: "January", desktop: 186, mobile: 80, tablet: 45 },
-  { month: "February", desktop: 305, mobile: 200, tablet: 120 },
-  { month: "March", desktop: 237, mobile: 120, tablet: 75 },
-  { month: "April", desktop: 73, mobile: 190, tablet: 95 },
-  { month: "May", desktop: 209, mobile: 130, tablet: 85 },
-  { month: "June", desktop: 214, mobile: 140, tablet: 90 },
-];
+  { month: 'January', desktop: 186, mobile: 80, tablet: 45 },
+  { month: 'February', desktop: 305, mobile: 200, tablet: 120 },
+  { month: 'March', desktop: 237, mobile: 120, tablet: 75 },
+  { month: 'April', desktop: 73, mobile: 190, tablet: 95 },
+  { month: 'May', desktop: 209, mobile: 130, tablet: 85 },
+  { month: 'June', desktop: 214, mobile: 140, tablet: 90 }
+]
 
 const AdvancedTooltip: React.FC<AdvancedTooltipProps> = ({ moduleColor }) => {
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-    tablet: { label: "Tablet" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' },
+        tablet: { label: 'Tablet' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="advanced-tooltip">
@@ -52,7 +56,7 @@ const AdvancedTooltip: React.FC<AdvancedTooltipProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-                              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
@@ -84,7 +88,7 @@ const AdvancedTooltip: React.FC<AdvancedTooltipProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default AdvancedTooltip;
+export default AdvancedTooltip

@@ -1,1 +1,1 @@
-export * from './RealEstateKPIQueries';
+export * from './RealEstateKPIQueries'

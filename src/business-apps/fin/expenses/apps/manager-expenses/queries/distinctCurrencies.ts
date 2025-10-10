@@ -15,7 +15,7 @@ export const GET_DISTINCT_EXPENSE_PLAN_CURRENCIES = `
       currencyRef
     }
   }
-`;
+`
 
 export const GET_DISTINCT_EXPENSE_REQUEST_CURRENCIES = `
   query GetDistinctExpenseRequestCurrencies($managerId: uuid!) {
@@ -32,7 +32,7 @@ export const GET_DISTINCT_EXPENSE_REQUEST_CURRENCIES = `
       currencyRef
     }
   }
-`;
+`
 
 export const GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES = `
   query GetDistinctAdvancePaymentCurrencies($managerId: uuid!) {
@@ -52,4 +52,4 @@ export const GET_DISTINCT_ADVANCE_PAYMENT_CURRENCIES = `
       currencyRef
     }
   }
-`;
+`

@@ -1,89 +1,89 @@
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface InvestmentContactQueryVariables {
-  contactId: string;
+  contactId: string
 }
 
 export interface InvestmentContactDataResponse {
   InvestmentContact: Array<{
-    id: string;
-    version?: number;
+    id: string
+    version?: number
 
     // Personal Information
-    firstName?: string;
-    lastName?: string;
-    fullName?: string;
-    type?: string;
-    birthDate?: string;
+    firstName?: string
+    lastName?: string
+    fullName?: string
+    type?: string
+    birthDate?: string
 
     // Professional Information
-    jobPosition?: string;
-    department?: string;
+    jobPosition?: string
+    department?: string
 
     // Contact Information
-    email?: string;
-    phone?: string;
+    email?: string
+    phone?: string
 
     // Communication Channels
     communicationChannels?: Array<{
-      id: string;
-      communicationChannelRef: string;
-      value: string;
-      valueExtension?: string;
-      source?: string;
-      activeFrom?: string;
-      activeTo?: string;
+      id: string
+      communicationChannelRef: string
+      value: string
+      valueExtension?: string
+      source?: string
+      activeFrom?: string
+      activeTo?: string
       communicationChannel?: {
-        id: string;
-        value: string;
-        code: string;
-      };
-    }>;
+        id: string
+        value: string
+        code: string
+      }
+    }>
 
     // picture?: string; // ❌ NOT in schema
     // pictureThumbnail?: string; // ❌ NOT in schema
 
     // Owner Information
-    ownerEmployeeId?: string;
+    ownerEmployeeId?: string
     ownerEmployee?: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      displayName: string;
-      pictureThumbnail?: string;
-    };
+      id: string
+      firstName: string
+      lastName: string
+      displayName: string
+      pictureThumbnail?: string
+    }
 
     // Additional Information
-    notesSummary?: string;
-    businessKey?: string;
+    notesSummary?: string
+    businessKey?: string
 
     // Catalog relationships
     academicTitle?: {
-      id: string;
-      value: string;
-      code: string;
-      objectValue?: any;
-    };
-    academicTitleRef?: string;
-    languageRef?: string;
+      id: string
+      value: string
+      code: string
+      objectValue?: any
+    }
+    academicTitleRef?: string
+    languageRef?: string
 
     // ✅ REMOVED: Fields NOT in InvestmentContact database
     // salutationRef?: string; // ❌ NOT in schema
 
     // Account relationships
     investmentAccountContact?: Array<{
-      id: string;
+      id: string
       account: {
-        id: string;
-        name: string;
-      };
-    }>;
+        id: string
+        name: string
+      }
+    }>
 
     // System fields
-    createdAt?: string;
-    createdBy?: string;
-    additionalProperties?: any;
+    createdAt?: string
+    createdBy?: string
+    additionalProperties?: any
 
     // ✅ REMOVED: Fields NOT in expected payload structure
     // activeFrom?: string; // Not in expected payload
@@ -91,7 +91,7 @@ export interface InvestmentContactDataResponse {
     // acl?: any; // Not in expected payload
     // updatedAt?: string; // ❌ NOT in InvestmentContact schema
     // updatedBy?: string; // ❌ NOT in InvestmentContact schema
-  }>;
+  }>
 }
 
 export const GET_INVESTMENT_CONTACT_BY_ID = `
@@ -164,28 +164,21 @@ export const GET_INVESTMENT_CONTACT_BY_ID = `
 
     }
   }
-`;
+`
 
-export const useGetInvestmentContactData = (
-  context: BusinessAppContextProps
-) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+export const useGetInvestmentContactData = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchInvestmentContactData = async (
-    variables: InvestmentContactQueryVariables
-  ) => {
-    const query = GET_INVESTMENT_CONTACT_BY_ID;
+  const fetchInvestmentContactData = async (variables: InvestmentContactQueryVariables) => {
+    const query = GET_INVESTMENT_CONTACT_BY_ID
     try {
-      const result = await graphqlClient.request<InvestmentContactDataResponse>(
-        query,
-        variables
-      );
-      return result;
+      const result = await graphqlClient.request<InvestmentContactDataResponse>(query, variables)
+      return result
     } catch (error) {
-      console.error("Error fetching investment contact data:", error);
-      throw error;
+      console.error('Error fetching investment contact data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchInvestmentContactData };
-};
+  return { fetchInvestmentContactData }
+}

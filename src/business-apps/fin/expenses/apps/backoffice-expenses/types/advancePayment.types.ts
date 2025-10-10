@@ -1,45 +1,45 @@
 export interface AdvancePaymentItem {
-  id: string;
-  code?: string;
-  description?: string;
-  status: string;
-  title?: string;
-  employeeDisplayName?: string;
-  employeeFullName?: string;
-  employeePictureThumbnail?: string;
-  startDate?: string;
-  endDate?: string;
-  amount?: number;
-  paymentMethod?: string;
+  id: string
+  code?: string
+  description?: string
+  status: string
+  title?: string
+  employeeDisplayName?: string
+  employeeFullName?: string
+  employeePictureThumbnail?: string
+  startDate?: string
+  endDate?: string
+  amount?: number
+  paymentMethod?: string
   currency?: {
-    code: string;
-  };
+    code: string
+  }
   costCenter?: {
-    name: string;
-  };
+    name: string
+  }
   expensePlan?: {
-    id: string;
-    code: string;
-    title: string;
-    startDate: string;
-    totalAmount: number;
+    id: string
+    code: string
+    title: string
+    startDate: string
+    totalAmount: number
     employee?: {
-      id: string;
-      firstName: string;
-      lastName: string;
+      id: string
+      firstName: string
+      lastName: string
       employeePosition?: {
         organizationalUnit?: {
-          name: string;
-        };
-      };
-    };
+          name: string
+        }
+      }
+    }
     currency?: {
-      code: string;
-      id: string;
-    };
-  };
+      code: string
+      id: string
+    }
+  }
 }
 
 export interface AdvancePaymentStatisticsData {
-  totalAmount: number | null;
+  totalAmount: number | null
 }

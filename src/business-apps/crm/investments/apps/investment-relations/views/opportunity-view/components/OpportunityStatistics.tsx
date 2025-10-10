@@ -1,65 +1,81 @@
-import React, { useEffect, useState } from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  DollarOutlined,
-  TrophyOutlined,
-  RiseOutlined,
-  ClockCircleOutlined
-} from '@ant-design/icons';
+import React, { useEffect, useState } from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { DollarOutlined, TrophyOutlined, RiseOutlined, ClockCircleOutlined } from '@ant-design/icons'
 // import type { InvestmentOpportunity } from '@/common/data/investment/types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useOpportunityStatisticsQueries } from '../queries/OpportunityStatisticsQueries';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useOpportunityStatisticsQueries } from '../queries/OpportunityStatisticsQueries'
 
 interface OpportunityStatisticsProps extends BusinessAppContextProps {}
 
 export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ...context }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const { fetchRecentOpportunitiesWithTrend, fetchOpportunityValueWithTrend, fetchWinRateWithTrend, fetchOpportunitiesThisYearWithTrend } = useOpportunityStatisticsQueries(context);
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const {
+    fetchRecentOpportunitiesWithTrend,
+    fetchOpportunityValueWithTrend,
+    fetchWinRateWithTrend,
+    fetchOpportunitiesThisYearWithTrend
+  } = useOpportunityStatisticsQueries(context)
 
-  const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
-  const [value, setValue] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
-  const [win, setWin] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
-  const [year, setYear] = useState<{ current: number; changePercent: number; isPositive: boolean }>({ current: 0, changePercent: 0, isPositive: true });
+  const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [value, setValue] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [win, setWin] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
+  const [year, setYear] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
+    current: 0,
+    changePercent: 0,
+    isPositive: true
+  })
 
   useEffect(() => {
     const load = async () => {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
       try {
         const [r, v, w, y] = await Promise.all([
           fetchRecentOpportunitiesWithTrend(),
           fetchOpportunityValueWithTrend(),
           fetchWinRateWithTrend(),
-          fetchOpportunitiesThisYearWithTrend(),
-        ]);
+          fetchOpportunitiesThisYearWithTrend()
+        ])
         const trend = (t: { current: number; previous: number }) => ({
           current: t.current,
-          changePercent: t.previous > 0 ? ((t.current - t.previous) / t.previous) * 100 : (t.current > 0 ? 100 : 0),
-          isPositive: t.current - t.previous >= 0,
-        });
-        setRecent(trend(r));
-        setValue(trend(v));
-        setWin(trend(w));
-        setYear(trend(y));
+          changePercent: t.previous > 0 ? ((t.current - t.previous) / t.previous) * 100 : t.current > 0 ? 100 : 0,
+          isPositive: t.current - t.previous >= 0
+        })
+        setRecent(trend(r))
+        setValue(trend(v))
+        setWin(trend(w))
+        setYear(trend(y))
       } catch (e) {
-        setError(e instanceof Error ? e : new Error('Failed to load opportunity statistics'));
+        setError(e instanceof Error ? e : new Error('Failed to load opportunity statistics'))
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
-    load();
+    }
+    load()
     // Run once on mount; hooks are memoized with useCallback
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [])
 
   // Custom formatter that only abbreviates millions and billions, not thousands
   const formatCurrency = (amount: number): string => {
-    if (amount === undefined || amount === null || !isFinite(amount)) return "-";
-    
-    const abs = Math.abs(amount);
-    const sign = amount < 0 ? '-' : '';
-    
+    if (amount === undefined || amount === null || !isFinite(amount)) return '-'
+
+    const abs = Math.abs(amount)
+    const sign = amount < 0 ? '-' : ''
+
     if (abs >= 1_000_000_000) {
       // Billions
       const formatted = new Intl.NumberFormat('en-US', {
@@ -67,10 +83,10 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
         currency: 'USD',
         maximumFractionDigits: 1,
         minimumFractionDigits: 0
-      }).format(abs / 1_000_000_000);
-      return `${sign}${formatted}B`;
+      }).format(abs / 1_000_000_000)
+      return `${sign}${formatted}B`
     }
-    
+
     if (abs >= 1_000_000) {
       // Millions
       const formatted = new Intl.NumberFormat('en-US', {
@@ -78,24 +94,24 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
         currency: 'USD',
         maximumFractionDigits: 1,
         minimumFractionDigits: 0
-      }).format(abs / 1_000_000);
-      return `${sign}${formatted}M`;
+      }).format(abs / 1_000_000)
+      return `${sign}${formatted}M`
     }
-    
+
     // Thousands and below - show as normal currency
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD',
       maximumFractionDigits: 0,
       minimumFractionDigits: 0
-    }).format(amount);
-  };
+    }).format(amount)
+  }
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
-    const sign = changePercent >= 0 ? '+' : '';
-    return `${sign}${changePercent.toFixed(1)}%`;
-  };
+    const sign = changePercent >= 0 ? '+' : ''
+    return `${sign}${changePercent.toFixed(1)}%`
+  }
 
   // Transform the trend data into widgets format with trend information
   const widgets: WidgetItem[] = [
@@ -157,7 +173,7 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
         description: 'vs same period last year'
       }
     }
-  ];
+  ]
 
   return (
     <div data-testid="opportunity-statistics-with-trend-container">
@@ -171,5 +187,5 @@ export const OpportunityStatistics: React.FC<OpportunityStatisticsProps> = ({ ..
         data-testid="opportunity-statistics-with-trend"
       />
     </div>
-  );
-};
+  )
+}

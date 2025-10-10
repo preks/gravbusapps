@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { TeamInfo } from '../types/userRoles';
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { TeamInfo } from '../types/userRoles'
 
 interface UseTeamsDataProps {
-  accessToken: string;
+  accessToken: string
 }
 
 interface UseTeamsDataResult {
-  teams: TeamInfo[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
+  teams: TeamInfo[]
+  isLoading: boolean
+  error: string | null
+  refetch: () => void
 }
 
 // GraphQL query to get employees with sales activities and organizational structure
@@ -129,7 +129,7 @@ const GET_SALES_EMPLOYEES_WITH_ORG_DATA = `
       }
     }
   }
-`;
+`
 
 /**
  * Hook to fetch real sales teams data by deriving them from CRM employees' organizational structure
@@ -137,142 +137,143 @@ const GET_SALES_EMPLOYEES_WITH_ORG_DATA = `
  * This ensures teams have actual sales team members with data
  */
 export const useTeamsData = ({ accessToken }: UseTeamsDataProps): UseTeamsDataResult => {
-  const [teams, setTeams] = useState<TeamInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [teams, setTeams] = useState<TeamInfo[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchTeams = useCallback(async () => {
     if (!accessToken) {
-      console.log("⚠️ useTeamsData: No access token available, waiting...");
-      setError('Access token required');
-      setIsLoading(false);
-      return;
+      console.log('⚠️ useTeamsData: No access token available, waiting...')
+      setError('Access token required')
+      setIsLoading(false)
+      return
     }
 
-    console.log("✅ useTeamsData: Access token available, fetching teams...");
-    setIsLoading(true);
-    setError(null);
-    
+    console.log('✅ useTeamsData: Access token available, fetching teams...')
+    setIsLoading(true)
+    setError(null)
+
     try {
-      console.log('useTeamsData: Fetching teams from sales employees with organizational structure...');
-      
+      console.log('useTeamsData: Fetching teams from sales employees with organizational structure...')
+
       const response = await graphqlClient.request<{
         leadsOwners: Array<{
           ownerEmployee: {
-            id: string;
-            firstName: string;
-            lastName: string;
-            displayName: string;
+            id: string
+            firstName: string
+            lastName: string
+            displayName: string
             employeePosition: {
               organizationalUnit: {
-                id: string;
-                name: string;
-              };
+                id: string
+                name: string
+              }
               supervisor: {
-                id: string;
-                firstName: string;
-                lastName: string;
-                displayName: string;
-              };
-            };
-          } | null;
-        }>;
+                id: string
+                firstName: string
+                lastName: string
+                displayName: string
+              }
+            }
+          } | null
+        }>
         accountsOwners: Array<{
           ownerEmployee: {
-            id: string;
-            firstName: string;
-            lastName: string;
-            displayName: string;
+            id: string
+            firstName: string
+            lastName: string
+            displayName: string
             employeePosition: {
               organizationalUnit: {
-                id: string;
-                name: string;
-              };
+                id: string
+                name: string
+              }
               supervisor: {
-                id: string;
-                firstName: string;
-                lastName: string;
-                displayName: string;
-              };
-            };
-          } | null;
-        }>;
+                id: string
+                firstName: string
+                lastName: string
+                displayName: string
+              }
+            }
+          } | null
+        }>
         opportunitiesOwners: Array<{
           ownerEmployee: {
-            id: string;
-            firstName: string;
-            lastName: string;
-            displayName: string;
+            id: string
+            firstName: string
+            lastName: string
+            displayName: string
             employeePosition: {
               organizationalUnit: {
-                id: string;
-                name: string;
-              };
+                id: string
+                name: string
+              }
               supervisor: {
-                id: string;
-                firstName: string;
-                lastName: string;
-                displayName: string;
-              };
-            };
-          } | null;
-        }>;
+                id: string
+                firstName: string
+                lastName: string
+                displayName: string
+              }
+            }
+          } | null
+        }>
         contactsOwners: Array<{
           ownerEmployee: {
-            id: string;
-            firstName: string;
-            lastName: string;
-            displayName: string;
+            id: string
+            firstName: string
+            lastName: string
+            displayName: string
             employeePosition: {
               organizationalUnit: {
-                id: string;
-                name: string;
-              };
+                id: string
+                name: string
+              }
               supervisor: {
-                id: string;
-                firstName: string;
-                lastName: string;
-                displayName: string;
-              };
-            };
-          } | null;
-        }>;
-      }>(GET_SALES_EMPLOYEES_WITH_ORG_DATA);
+                id: string
+                firstName: string
+                lastName: string
+                displayName: string
+              }
+            }
+          } | null
+        }>
+      }>(GET_SALES_EMPLOYEES_WITH_ORG_DATA)
 
       // Combine all sales employees from different CRM entity types
       const allSalesEmployees: Array<{
-        id: string;
-        firstName: string;
-        lastName: string;
-        displayName: string;
+        id: string
+        firstName: string
+        lastName: string
+        displayName: string
         employeePosition: {
           organizationalUnit: {
-            id: string;
-            name: string;
-          };
+            id: string
+            name: string
+          }
           supervisor: {
-            id: string;
-            firstName: string;
-            lastName: string;
-            displayName: string;
-          };
-        };
-      }> = [];
+            id: string
+            firstName: string
+            lastName: string
+            displayName: string
+          }
+        }
+      }> = []
 
       // Extract employees from each CRM entity type
-      [response.leadsOwners, response.accountsOwners, response.opportunitiesOwners, response.contactsOwners]
-        .forEach(owners => {
+      ;[response.leadsOwners, response.accountsOwners, response.opportunitiesOwners, response.contactsOwners].forEach(
+        owners => {
           owners.forEach(item => {
             if (item.ownerEmployee) {
               // Check if employee already exists (deduplication)
               if (!allSalesEmployees.find(emp => emp.id === item.ownerEmployee!.id)) {
-                allSalesEmployees.push(item.ownerEmployee);
+                allSalesEmployees.push(item.ownerEmployee)
               }
             }
-          });
-        });
+          })
+        }
+      )
 
       console.log('useTeamsData: Found sales employees from CRM entities:', {
         leadsOwners: response.leadsOwners.length,
@@ -280,21 +281,24 @@ export const useTeamsData = ({ accessToken }: UseTeamsDataProps): UseTeamsDataRe
         opportunitiesOwners: response.opportunitiesOwners.length,
         contactsOwners: response.contactsOwners.length,
         uniqueSalesEmployees: allSalesEmployees.length
-      });
+      })
 
       // Group employees by organizational unit and supervisor to create teams
-      const teamMap = new Map<string, {
-        orgUnitId: string;
-        orgUnitName: string;
-        supervisorId: string;
-        supervisorName: string;
-        members: string[];
-      }>();
+      const teamMap = new Map<
+        string,
+        {
+          orgUnitId: string
+          orgUnitName: string
+          supervisorId: string
+          supervisorName: string
+          members: string[]
+        }
+      >()
 
       allSalesEmployees.forEach(employee => {
-        const orgUnit = employee.employeePosition?.organizationalUnit;
-        const supervisor = employee.employeePosition?.supervisor;
-        
+        const orgUnit = employee.employeePosition?.organizationalUnit
+        const supervisor = employee.employeePosition?.supervisor
+
         // Skip employees with missing organizational data (even though we filtered, relationships can be null)
         if (!orgUnit || !supervisor || !orgUnit.id || !supervisor.id) {
           console.warn('Skipping employee with incomplete org data:', {
@@ -303,25 +307,28 @@ export const useTeamsData = ({ accessToken }: UseTeamsDataProps): UseTeamsDataRe
             hasSupervisor: !!supervisor,
             orgUnitId: orgUnit?.id,
             supervisorId: supervisor?.id
-          });
-          return;
+          })
+          return
         }
-        
+
         // Create a unique team key combining org unit and supervisor
-        const teamKey = `${orgUnit.id}-${supervisor.id}`;
-        
+        const teamKey = `${orgUnit.id}-${supervisor.id}`
+
         if (!teamMap.has(teamKey)) {
           teamMap.set(teamKey, {
             orgUnitId: orgUnit.id,
             orgUnitName: orgUnit.name,
             supervisorId: supervisor.id,
-            supervisorName: supervisor.displayName || `${supervisor.firstName || ''} ${supervisor.lastName || ''}`.trim() || 'Unknown Supervisor',
+            supervisorName:
+              supervisor.displayName ||
+              `${supervisor.firstName || ''} ${supervisor.lastName || ''}`.trim() ||
+              'Unknown Supervisor',
             members: []
-          });
+          })
         }
-        
-        teamMap.get(teamKey)!.members.push(employee.id);
-      });
+
+        teamMap.get(teamKey)!.members.push(employee.id)
+      })
 
       // Convert map to TeamInfo array
       const teamsData: TeamInfo[] = Array.from(teamMap.entries()).map(([teamKey, teamData]) => ({
@@ -330,40 +337,42 @@ export const useTeamsData = ({ accessToken }: UseTeamsDataProps): UseTeamsDataRe
         managerId: teamData.supervisorId,
         memberCount: teamData.members.length,
         memberIds: teamData.members
-      }));
+      }))
 
-      console.log('useTeamsData: Successfully derived', teamsData.length, 'sales teams from CRM employee data');
-      console.log('Sales teams found:', teamsData.map(t => ({ name: t.name, memberCount: t.memberCount })));
-      
-      setTeams(teamsData);
-      
+      console.log('useTeamsData: Successfully derived', teamsData.length, 'sales teams from CRM employee data')
+      console.log(
+        'Sales teams found:',
+        teamsData.map(t => ({ name: t.name, memberCount: t.memberCount }))
+      )
+
+      setTeams(teamsData)
     } catch (err) {
-      console.error('Error fetching teams data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch sales teams data from CRM employee structure');
-      setTeams([]);
+      console.error('Error fetching teams data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch sales teams data from CRM employee structure')
+      setTeams([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [accessToken, graphqlClient]);
+  }, [accessToken, graphqlClient])
 
   const refetch = () => {
-    fetchTeams();
-  };
+    fetchTeams()
+  }
 
   useEffect(() => {
     if (accessToken) {
-      fetchTeams();
+      fetchTeams()
     } else {
-      console.log("⚠️ useTeamsData: Waiting for access token...");
-      setIsLoading(false);
-      setTeams([]);
+      console.log('⚠️ useTeamsData: Waiting for access token...')
+      setIsLoading(false)
+      setTeams([])
     }
-  }, [accessToken, fetchTeams]);
+  }, [accessToken, fetchTeams])
 
   return {
     teams,
     isLoading,
     error,
-    refetch,
-  };
-};
+    refetch
+  }
+}

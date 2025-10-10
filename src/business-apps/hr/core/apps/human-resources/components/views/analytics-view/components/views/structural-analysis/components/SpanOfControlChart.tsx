@@ -1,15 +1,15 @@
-import React from 'react';
-import { Card, Typography, Table, Tag, Progress, Tooltip as AntTooltip } from 'antd';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts';
-import { SpanOfControlData, SpanOfControlSummary } from '../types/structuralTypes';
-import { chartColors } from '../utils/structuralUtils';
+import React from 'react'
+import { Card, Typography, Table, Tag, Progress, Tooltip as AntTooltip } from 'antd'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts'
+import { SpanOfControlData, SpanOfControlSummary } from '../types/structuralTypes'
+import { chartColors } from '../utils/structuralUtils'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface SpanOfControlChartProps {
-  data: SpanOfControlData[];
-  summary: SpanOfControlSummary;
-  prefixDataTestId?: string;
+  data: SpanOfControlData[]
+  summary: SpanOfControlSummary
+  prefixDataTestId?: string
 }
 
 export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
@@ -19,15 +19,13 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
 }) => {
   // Prepare data for the bar chart
   const chartData = data.map(item => ({
-    name: item.managerName.length > 15 
-      ? `${item.managerName.substring(0, 12)}...` 
-      : item.managerName,
+    name: item.managerName.length > 15 ? `${item.managerName.substring(0, 12)}...` : item.managerName,
     fullName: item.managerName,
     directReports: item.directReports,
     efficiency: item.efficiency,
     managerLevel: item.managerLevel,
     organizationalUnit: item.organizationalUnit
-  }));
+  }))
 
   // Table columns configuration
   const columns = [
@@ -39,11 +37,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       render: (text: string, record: SpanOfControlData) => (
         <div>
           <Text strong>{text}</Text>
-          {record.managerLevel && (
-            <div style={{ fontSize: '12px', color: '#666' }}>
-              {record.managerLevel}
-            </div>
-          )}
+          {record.managerLevel && <div style={{ fontSize: '12px', color: '#666' }}>{record.managerLevel}</div>}
         </div>
       )
     },
@@ -68,7 +62,9 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
       width: 120,
       align: 'center' as const,
       render: (value: number) => (
-        <Text strong style={{ fontSize: '16px' }}>{value}</Text>
+        <Text strong style={{ fontSize: '16px' }}>
+          {value}
+        </Text>
       )
     },
     {
@@ -82,32 +78,35 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
           Underutilized: { color: 'orange', text: 'Under' },
           Optimal: { color: 'green', text: 'Optimal' },
           Overloaded: { color: 'red', text: 'Over' }
-        };
-        return <Tag color={config[efficiency].color}>{config[efficiency].text}</Tag>;
+        }
+        return <Tag color={config[efficiency].color}>{config[efficiency].text}</Tag>
       }
     },
     {
       title: 'Recommendation',
       dataIndex: 'recommendation',
       key: 'recommendation',
-      render: (text: string) => 
+      render: (text: string) =>
         text ? (
           <AntTooltip title={text}>
-            <Text style={{ cursor: 'help' }}>
-              {text.length > 50 ? `${text.substring(0, 47)}...` : text}
-            </Text>
+            <Text style={{ cursor: 'help' }}>{text.length > 50 ? `${text.substring(0, 47)}...` : text}</Text>
           </AntTooltip>
-        ) : '-'
+        ) : (
+          '-'
+        )
     }
-  ];
+  ]
 
   const getBarColor = (efficiency: string) => {
     switch (efficiency) {
-      case 'Underutilized': return chartColors.status.warning;
-      case 'Overloaded': return chartColors.status.critical;
-      default: return chartColors.status.optimal;
+      case 'Underutilized':
+        return chartColors.status.warning
+      case 'Overloaded':
+        return chartColors.status.critical
+      default:
+        return chartColors.status.optimal
     }
-  };
+  }
 
   return (
     <div data-testid={`${prefixDataTestId}-SpanOfControlChart`}>
@@ -116,17 +115,15 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
         <Title level={5} style={{ margin: 0, marginBottom: '16px', color: '#1f2937' }}>
           Span of Control Summary
         </Title>
-        <div 
-          style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
-            gap: '16px' 
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            gap: '16px'
           }}
         >
           <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
-              {summary.totalManagers}
-            </div>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>{summary.totalManagers}</div>
             <div style={{ fontSize: '12px', color: '#666' }}>Total Managers</div>
           </div>
           <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
@@ -140,7 +137,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
               {summary.optimalCount}
             </div>
             <div style={{ fontSize: '12px', color: '#666' }}>Optimal</div>
-            <Progress 
+            <Progress
               percent={summary.totalManagers > 0 ? (summary.optimalCount / summary.totalManagers) * 100 : 0}
               size="small"
               strokeColor={chartColors.status.optimal}
@@ -152,7 +149,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
               {summary.underUtilizedCount}
             </div>
             <div style={{ fontSize: '12px', color: '#666' }}>Under-utilized</div>
-            <Progress 
+            <Progress
               percent={summary.totalManagers > 0 ? (summary.underUtilizedCount / summary.totalManagers) * 100 : 0}
               size="small"
               strokeColor={chartColors.status.warning}
@@ -164,7 +161,7 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
               {summary.overBurdenedCount}
             </div>
             <div style={{ fontSize: '12px', color: '#666' }}>Over-burdened</div>
-            <Progress 
+            <Progress
               percent={summary.totalManagers > 0 ? (summary.overBurdenedCount / summary.totalManagers) * 100 : 0}
               size="small"
               strokeColor={chartColors.status.critical}
@@ -172,14 +169,16 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
             />
           </div>
         </div>
-        
-        <div style={{ 
-          marginTop: '16px', 
-          padding: '12px', 
-          backgroundColor: '#e3f2fd', 
-          borderRadius: '6px',
-          textAlign: 'center'
-        }}>
+
+        <div
+          style={{
+            marginTop: '16px',
+            padding: '12px',
+            backgroundColor: '#e3f2fd',
+            borderRadius: '6px',
+            textAlign: 'center'
+          }}
+        >
           <Text style={{ color: '#1565c0' }}>
             Recommended span range: {summary.recommendedSpanMin} - {summary.recommendedSpanMax} direct reports
           </Text>
@@ -194,16 +193,8 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="name" 
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              interval={0}
-            />
-            <YAxis 
-              label={{ value: 'Direct Reports', angle: -90, position: 'insideLeft' }}
-            />
+            <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
+            <YAxis label={{ value: 'Direct Reports', angle: -90, position: 'insideLeft' }} />
             <Tooltip />
             <Bar dataKey="directReports" radius={[4, 4, 0, 0]}>
               {chartData.map((entry, index) => (
@@ -226,15 +217,18 @@ export const SpanOfControlChart: React.FC<SpanOfControlChartProps> = ({
           pagination={{ pageSize: 10, showSizeChanger: true }}
           size="small"
           scroll={{ x: 800 }}
-          rowClassName={(record) => {
+          rowClassName={record => {
             switch (record.efficiency) {
-              case 'Underutilized': return 'gba:bg-orange-50';
-              case 'Overloaded': return 'gba:bg-red-50';
-              default: return 'gba:bg-green-50';
+              case 'Underutilized':
+                return 'gba:bg-orange-50'
+              case 'Overloaded':
+                return 'gba:bg-red-50'
+              default:
+                return 'gba:bg-green-50'
             }
           }}
         />
       </Card>
     </div>
-  );
-}; 
+  )
+}

@@ -1,75 +1,69 @@
-import React, { useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@newwork/nw-design-system";
+import React, { useMemo } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@newwork/nw-design-system'
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { PieChart, Pie } from "recharts";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { PieChart, Pie } from 'recharts'
 
-export interface LeadsBySourceItem { source: string; count: number; }
+export interface LeadsBySourceItem {
+  source: string
+  count: number
+}
 
 export interface LeadsBySourcePieProps {
-  data: LeadsBySourceItem[];
-  moduleColor?: string;
+  data: LeadsBySourceItem[]
+  moduleColor?: string
 }
 
 const formatLargeNumber = (value: number): string => {
-  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
-  return value.toString();
-};
+  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`
+  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
+  return value.toString()
+}
 
 const toKey = (value: string): string =>
   value
     .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "");
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
 
-export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({
-  data,
-  moduleColor,
-}) => {
-  const dataKey = "leads";
-  const nameKey = "source";
+export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, moduleColor }) => {
+  const dataKey = 'leads'
+  const nameKey = 'source'
 
   const chartData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    return data.map((item) => {
-      const key = toKey(item.source);
+    if (!data || data.length === 0) return []
+    return data.map(item => {
+      const key = toKey(item.source)
       return {
         [nameKey]: key,
         [dataKey]: item.count,
-        fill: `var(--color-${key})`,
-      } as Record<string, string | number>;
-    });
-  }, [data]);
+        fill: `var(--color-${key})`
+      } as Record<string, string | number>
+    })
+  }, [data])
 
   const chartConfig = useMemo(() => {
-    if (!data || data.length === 0) return {} as ChartConfig;
+    if (!data || data.length === 0) return {} as ChartConfig
     const config: Record<string, { label?: string }> = {
-      [dataKey]: {},
-    };
-    data.forEach((item) => {
-      const key = toKey(item.source);
-      config[key] = { label: item.source };
-    });
-    return config as ChartConfig;
-  }, [data]);
+      [dataKey]: {}
+    }
+    data.forEach(item => {
+      const key = toKey(item.source)
+      config[key] = { label: item.source }
+    })
+    return config as ChartConfig
+  }, [data])
 
   const totalLeads = useMemo(() => {
-    return data?.reduce((sum, item) => sum + item.count, 0) || 0;
-  }, [data]);
+    return data?.reduce((sum, item) => sum + item.count, 0) || 0
+  }, [data])
 
   return (
     <Card data-testid="leads-by-source-chart" className="gba:flex gba:flex-col">
@@ -85,24 +79,18 @@ export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({
           className="[&_.recharts-pie-label-text]:fill-foreground gba:mx-auto gba:aspect-square gba:max-h-[300px] gba:pb-0"
         >
           <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="40%"
-              outerRadius={75}
-              dataKey={dataKey}
-              nameKey={nameKey}
+            <Pie data={chartData} cx="50%" cy="40%" outerRadius={75} dataKey={dataKey} nameKey={nameKey} />
+            <ChartTooltip content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />} />
+            <ChartLegend
+              content={
+                <ChartLegendContent className="gba:-translate-y-2 gba:flex-wrap gba:gap-2 gba:*:basis-1/4 gba:*:justify-center" />
+              }
             />
-            <ChartTooltip
-              content={<ChartTooltipContent hideLabel labelKey={dataKey} nameKey={nameKey} />}
-            />
-            <ChartLegend content={<ChartLegendContent className="gba:-translate-y-2 gba:flex-wrap gba:gap-2 gba:*:basis-1/4 gba:*:justify-center" />} />
           </PieChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default LeadsBySourcePie;
-
+export default LeadsBySourcePie

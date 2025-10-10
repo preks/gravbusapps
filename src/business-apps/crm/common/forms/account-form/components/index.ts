@@ -1,5 +1,5 @@
-import DiagnosticAccountForm from './DiagnosticAccountForm';
+import DiagnosticAccountForm from './DiagnosticAccountForm'
 
-export { DiagnosticAccountForm };
+export { DiagnosticAccountForm }
 
-export default DiagnosticAccountForm;
+export default DiagnosticAccountForm

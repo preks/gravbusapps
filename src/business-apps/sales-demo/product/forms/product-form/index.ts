@@ -1,4 +1,4 @@
-import ProductForm from './ProductForm';
+import ProductForm from './ProductForm'
 
-export { ProductForm };
-export default ProductForm;
+export { ProductForm }
+export default ProductForm

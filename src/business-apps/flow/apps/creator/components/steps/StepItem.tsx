@@ -1,30 +1,26 @@
-import React, { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { Accordion } from '@newwork/nw-design-system';
-import { Button } from '@newwork/nw-design-system';
-import { Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
+import React, { useState, useCallback } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Accordion } from '@newwork/nw-design-system'
+import { Button } from '@newwork/nw-design-system'
+import { Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
 
-import { BasicConfiguration } from './BasicConfiguration';
-import { AssignmentContent } from './AssignmentConfiguration';
-import { LinksContent } from './LinksConfiguration';
-import { InputFieldsContent } from './InputFieldsConfiguration';
+import { BasicConfiguration } from './BasicConfiguration'
+import { AssignmentContent } from './AssignmentConfiguration'
+import { LinksContent } from './LinksConfiguration'
+import { InputFieldsContent } from './InputFieldsConfiguration'
 
 interface StepItemProps {
-  step: any;
-  stepIndex: number;
-  'data-testid'?: string;
+  step: any
+  stepIndex: number
+  'data-testid'?: string
 }
 
-export const StepItem: React.FC<StepItemProps> = ({ 
-  step, 
-  stepIndex,
-  'data-testid': testId = 'step-item'
-}) => {
-  const [isExpanded, setIsExpanded] = useState(stepIndex === 0); // First step always expanded
-  const { removeStep, updateStep } = useFlowTemplateStore();
-  
+export const StepItem: React.FC<StepItemProps> = ({ step, stepIndex, 'data-testid': testId = 'step-item' }) => {
+  const [isExpanded, setIsExpanded] = useState(stepIndex === 0) // First step always expanded
+  const { removeStep, updateStep } = useFlowTemplateStore()
+
   // Defensive programming: ensure step has all required properties
   const normalizedStep = {
     id: step?.id || `step-${stepIndex}`,
@@ -37,25 +33,25 @@ export const StepItem: React.FC<StepItemProps> = ({
     assignment: step?.assignment || null,
     dueInMinutes: step?.dueInMinutes || undefined,
     ...step // Spread the original step to preserve any other properties
-  };
-  
-  const handleRemoveStep = useCallback(() => {
-    removeStep(stepIndex);
-  }, [removeStep, stepIndex]);
+  }
 
-  const handleUpdateStep = useCallback((updates: any) => {
-    updateStep(stepIndex, updates);
-  }, [updateStep, stepIndex]);
+  const handleRemoveStep = useCallback(() => {
+    removeStep(stepIndex)
+  }, [removeStep, stepIndex])
+
+  const handleUpdateStep = useCallback(
+    (updates: any) => {
+      updateStep(stepIndex, updates)
+    },
+    [updateStep, stepIndex]
+  )
 
   const toggleExpanded = useCallback(() => {
-    setIsExpanded(!isExpanded);
-  }, [isExpanded]);
+    setIsExpanded(!isExpanded)
+  }, [isExpanded])
 
   return (
-    <Card 
-      className="gba:w-full gba:mb-4 gba:border gba:rounded-lg gba:shadow-sm"
-      data-testid={testId}
-    >
+    <Card className="gba:w-full gba:mb-4 gba:border gba:rounded-lg gba:shadow-sm" data-testid={testId}>
       <CardHeader className="gba:pb-2">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
@@ -66,20 +62,15 @@ export const StepItem: React.FC<StepItemProps> = ({
               className="gba:p-1"
               data-testid={`${testId}-toggle`}
             >
-              {isExpanded ? (
-                <ChevronDown className="gba:h-4 gba:w-4" />
-              ) : (
-                <ChevronUp className="gba:h-4 gba:w-4" />
-              )}
+              {isExpanded ? <ChevronDown className="gba:h-4 gba:w-4" /> : <ChevronUp className="gba:h-4 gba:w-4" />}
             </Button>
             <CardTitle className="gba:text-lg gba:font-medium gba:text-gray-800 gba:flex-1">
-              {normalizedStep.title || `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${stepIndex + 1}`}
+              {normalizedStep.title ||
+                `${getTranslationFromI18nKeyAndLabel('flow.creator.step', 'Step')} ${stepIndex + 1}`}
             </CardTitle>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-500 gba:capitalize">
-              {normalizedStep.type || 'task'}
-            </span>
+            <span className="gba:text-sm gba:text-gray-500 gba:capitalize">{normalizedStep.type || 'task'}</span>
             <Button
               variant="ghost"
               size="sm"
@@ -92,19 +83,19 @@ export const StepItem: React.FC<StepItemProps> = ({
           </div>
         </div>
       </CardHeader>
-      
+
       {isExpanded && (
         <CardContent className="gba:pt-0">
           <div className="gba:space-y-4">
             {normalizedStep && normalizedStep.id ? (
               <Accordion
                 type="multiple"
-                defaultValue={["basic"]}
+                defaultValue={['basic']}
                 className="gba:w-full"
                 data-testid={`${testId}-accordion-${stepIndex}`}
                 items={[
                   {
-                    id: "basic",
+                    id: 'basic',
                     title: getTranslationFromI18nKeyAndLabel('flow.creator.basic', 'Basic Configuration'),
                     content: (
                       <BasicConfiguration
@@ -116,52 +107,42 @@ export const StepItem: React.FC<StepItemProps> = ({
                     )
                   },
                   {
-                    id: "links",
+                    id: 'links',
                     title: getTranslationFromI18nKeyAndLabel('flow.creator.links', 'Links'),
-                    badgeText: normalizedStep.links && normalizedStep.links.length > 0 ? `${normalizedStep.links.length}` : undefined,
-                    content: (
-                      <LinksContent
-                        step={normalizedStep}
-                        testId={testId}
-                        onUpdateStep={handleUpdateStep}
-                      />
-                    )
+                    badgeText:
+                      normalizedStep.links && normalizedStep.links.length > 0
+                        ? `${normalizedStep.links.length}`
+                        : undefined,
+                    content: <LinksContent step={normalizedStep} testId={testId} onUpdateStep={handleUpdateStep} />
                   },
                   {
-                    id: "inputs",
+                    id: 'inputs',
                     title: getTranslationFromI18nKeyAndLabel('flow.creator.inputFields', 'Input Fields'),
-                    badgeText: normalizedStep.inputs && normalizedStep.inputs.length > 0 ? `${normalizedStep.inputs.length}` : undefined,
+                    badgeText:
+                      normalizedStep.inputs && normalizedStep.inputs.length > 0
+                        ? `${normalizedStep.inputs.length}`
+                        : undefined,
                     content: (
-                      <InputFieldsContent
-                        step={normalizedStep}
-                        testId={testId}
-                        onUpdateStep={handleUpdateStep}
-                      />
+                      <InputFieldsContent step={normalizedStep} testId={testId} onUpdateStep={handleUpdateStep} />
                     )
                   },
                   {
-                    id: "assignment",
+                    id: 'assignment',
                     title: getTranslationFromI18nKeyAndLabel('flow.creator.assignment', 'Assignment'),
-                    badgeText: normalizedStep.assignment ? getTranslationFromI18nKeyAndLabel('flow.creator.configured', 'Configured') : undefined,
-                    badgeVariant: normalizedStep.assignment ? "success" : undefined,
-                    content: (
-                      <AssignmentContent
-                        step={normalizedStep}
-                        testId={testId}
-                        onUpdateStep={handleUpdateStep}
-                      />
-                    )
+                    badgeText: normalizedStep.assignment
+                      ? getTranslationFromI18nKeyAndLabel('flow.creator.configured', 'Configured')
+                      : undefined,
+                    badgeVariant: normalizedStep.assignment ? 'success' : undefined,
+                    content: <AssignmentContent step={normalizedStep} testId={testId} onUpdateStep={handleUpdateStep} />
                   }
                 ]}
               />
             ) : (
-              <div className="gba:text-center gba:text-gray-500 gba:p-4">
-                Loading step configuration...
-              </div>
+              <div className="gba:text-center gba:text-gray-500 gba:p-4">Loading step configuration...</div>
             )}
           </div>
         </CardContent>
       )}
     </Card>
-  );
-};
+  )
+}

@@ -22,19 +22,19 @@ import { AppActionForm } from '@/components/process-dialog';
 
 const MyForm = () => {
   const [formData, setFormData] = useState({ name: '', email: '' });
-  
+
   const handleSubmit = async (data: any) => {
     // Just return the payload - AppActionForm handles the rest
     return { name: data.name, email: data.email };
   };
-  
+
   const validateForm = (data: any) => {
     const errors = [];
     if (!data.name) errors.push('Name is required');
     if (!data.email) errors.push('Email is required');
     return errors.length > 0 ? errors : null;
   };
-  
+
   return (
     <AppActionForm
       title="Create User"
@@ -46,15 +46,15 @@ const MyForm = () => {
       onCancel={() => console.log('Cancelled')}
     >
       {/* Your form fields go here */}
-      <input 
-        name="name" 
-        value={formData.name} 
-        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} 
+      <input
+        name="name"
+        value={formData.name}
+        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
       />
-      <input 
-        name="email" 
-        value={formData.email} 
-        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))} 
+      <input
+        name="email"
+        value={formData.email}
+        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
       />
     </AppActionForm>
   );
@@ -67,7 +67,7 @@ const MyForm = () => {
 const AdvancedForm = () => {
   const [formData, setFormData] = useState({ title: '', description: '' });
   const isUpdateMode = !!formData.id;
-  
+
   return (
     <AppActionForm
       title={isUpdateMode ? "Edit Item" : "Create Item"}
@@ -125,23 +125,25 @@ const AdvancedForm = () => {
 ## Validation
 
 The `validateForm` function should return:
+
 - `null` if validation passes
 - `string[]` array of error messages if validation fails
 
 ```typescript
 const validateForm = (data: any): string[] | null => {
-  const errors = [];
-  
-  if (!data.title) errors.push('Title is required');
-  if (!data.description) errors.push('Description is required');
-  
-  return errors.length > 0 ? errors : null;
-};
+  const errors = []
+
+  if (!data.title) errors.push('Title is required')
+  if (!data.description) errors.push('Description is required')
+
+  return errors.length > 0 ? errors : null
+}
 ```
 
 ## Success Messages
 
 Success messages are automatically generated based on the `processType`:
+
 - Create: "Successfully created"
 - Update: "Successfully updated"
 - Delete: "Successfully deleted"
@@ -150,6 +152,7 @@ Success messages are automatically generated based on the `processType`:
 ## Process Events
 
 The component automatically dispatches process events:
+
 - **Submit**: `dispatchProcessContinueEvent(submitEventType, result)`
 - **Cancel**: `dispatchProcessContinueEvent(cancelEventType, {})`
 
@@ -165,6 +168,7 @@ The component automatically dispatches process events:
 ## Migration from Existing Forms
 
 ### Before (Traditional Form)
+
 ```typescript
 // ~50+ lines of boilerplate
 const [loading, setLoading] = useState(false);
@@ -194,6 +198,7 @@ const handleSubmit = async (e) => {
 ```
 
 ### After (With AppActionForm)
+
 ```typescript
 // Just the business logic
 const handleSubmit = async (formData) => {
@@ -216,6 +221,7 @@ return (
 ## Testing
 
 The component provides comprehensive test IDs:
+
 - `{data-testid}-title`: Dialog title
 - `{data-testid}-message`: Success/error message
 - `{data-testid}-form`: Form element

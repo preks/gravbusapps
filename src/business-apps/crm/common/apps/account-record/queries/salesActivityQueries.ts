@@ -1,36 +1,36 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface SalesActivityQueryVariables {
-  accountId: string;
+  accountId: string
 }
 
 export interface SalesActivityData {
-    id: string;
-    title: string;
-    version: number;
-    description: string;
-    createdAt: string;
-    occurredAt?: string | null;
-    completedAt?: string | null;
-    createdBy: string;
-    ownerEmployee?: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      displayName: string;
-      fullName: string;
-    };
-    activityType?: {
-      code: string;
-      id: string;
-      type: string;
-      value: string;
-    };
+  id: string
+  title: string
+  version: number
+  description: string
+  createdAt: string
+  occurredAt?: string | null
+  completedAt?: string | null
+  createdBy: string
+  ownerEmployee?: {
+    id: string
+    firstName: string
+    lastName: string
+    displayName: string
+    fullName: string
+  }
+  activityType?: {
+    code: string
+    id: string
+    type: string
+    value: string
+  }
 }
 
 export interface SalesActivityResponse {
-  SalesActivity: SalesActivityData[];
+  SalesActivity: SalesActivityData[]
 }
 
 export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): string => {
@@ -60,22 +60,22 @@ export const GET_SALES_ACTIVITIES = (variables: SalesActivityQueryVariables): st
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetSalesActivities = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchSalesActivities = async (variables: SalesActivityQueryVariables) => {
-    const query = GET_SALES_ACTIVITIES(variables);
-    try {
-      const result = await graphqlClient.request<SalesActivityResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching sales activities:', error);
-      throw error;
-    }
-  };
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchSalesActivities };
-};
+  const fetchSalesActivities = async (variables: SalesActivityQueryVariables) => {
+    const query = GET_SALES_ACTIVITIES(variables)
+    try {
+      const result = await graphqlClient.request<SalesActivityResponse>(query, variables)
+      return result
+    } catch (error) {
+      console.error('Error fetching sales activities:', error)
+      throw error
+    }
+  }
+
+  return { fetchSalesActivities }
+}

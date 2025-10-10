@@ -1,29 +1,29 @@
-"use client";
+'use client'
 
-import { useEffect, useState, useCallback } from 'react';
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useEffect, useState, useCallback } from 'react'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 /**
  * Employee type definition for the directory.
  */
 export interface Employee {
-  startDate?: string;
-  exitDate?: string | null;
-  tenure?: string;
-  id: string;
-  userId?: string;
-  firstName: string;
-  lastName: string;
-  jobPosition: string;
-  location: string;
+  startDate?: string
+  exitDate?: string | null
+  tenure?: string
+  id: string
+  userId?: string
+  firstName: string
+  lastName: string
+  jobPosition: string
+  location: string
   locationDetails?: {
-    id?: string;
-  };
-  email: string;
-  profilePicture: string;
-  employmentType?: string;
-  contractType?: string;
+    id?: string
+  }
+  email: string
+  profilePicture: string
+  employmentType?: string
+  contractType?: string
 }
 
 /**
@@ -79,7 +79,7 @@ const EMPLOYEE_POSITION_QUERY = `
       }
     }
   }
-`;
+`
 
 /**
  * Helper function to calculate the tenure from start date to now or exit date
@@ -88,39 +88,39 @@ const EMPLOYEE_POSITION_QUERY = `
  * @returns A formatted string representing the tenure
  */
 function calculateTenure(startDate: string | undefined, exitDate: string | null | undefined): string {
-  if (!startDate) return '';
-  
-  const start = new Date(startDate);
-  const end = exitDate ? new Date(exitDate) : new Date();
-  
-  if (isNaN(start.getTime()) || isNaN(end.getTime())) return '';
-  
-  let years = end.getFullYear() - start.getFullYear();
-  let months = end.getMonth() - start.getMonth();
-  
+  if (!startDate) return ''
+
+  const start = new Date(startDate)
+  const end = exitDate ? new Date(exitDate) : new Date()
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return ''
+
+  let years = end.getFullYear() - start.getFullYear()
+  let months = end.getMonth() - start.getMonth()
+
   if (months < 0) {
-    years--;
-    months += 12;
+    years--
+    months += 12
   }
-  
-  let result = '';
-  
+
+  let result = ''
+
   if (years > 0) {
-    result += `${years} ${years === 1 ? 'year' : 'years'}`;
+    result += `${years} ${years === 1 ? 'year' : 'years'}`
   }
-  
+
   if (months > 0) {
-    if (result) result += ', ';
-    result += `${months} ${months === 1 ? 'month' : 'months'}`;
+    if (result) result += ', '
+    result += `${months} ${months === 1 ? 'month' : 'months'}`
   }
-  
+
   if (!result) {
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    result = `${diffDays} ${diffDays === 1 ? 'day' : 'days'}`;
+    const diffTime = Math.abs(end.getTime() - start.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    result = `${diffDays} ${diffDays === 1 ? 'day' : 'days'}`
   }
-  
-  return result;
+
+  return result
 }
 
 /**
@@ -131,36 +131,37 @@ function calculateTenure(startDate: string | undefined, exitDate: string | null 
 interface UseGetEmployeesReportProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
 
 export function useGetEmployeesReport({ accessToken, userInfo }: UseGetEmployeesReportProps) {
-  const ALL_EMPLOYEES_LIMIT = 10000;
-    const client = useGraphqlClient(accessToken);
-  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId;
-  
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const ALL_EMPLOYEES_LIMIT = 10000
+  const client = useGraphqlClient(accessToken)
+  const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId
 
-    const fetchEmployees = useCallback(() => {
-    if (typeof window === 'undefined' || !client || !supervisorEmployeeId) return;
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-    setLoading(true);
-    setError(null);
+  const fetchEmployees = useCallback(() => {
+    if (typeof window === 'undefined' || !client || !supervisorEmployeeId) return
 
-        const variables = {
+    setLoading(true)
+    setError(null)
+
+    const variables = {
       limit: ALL_EMPLOYEES_LIMIT,
-      supervisorId: supervisorEmployeeId,
-    };
+      supervisorId: supervisorEmployeeId
+    }
 
-    client.request?.(EMPLOYEE_POSITION_QUERY, variables)
+    client
+      .request?.(EMPLOYEE_POSITION_QUERY, variables)
       .then((res: any) => {
         if (!res) {
-          throw new Error('No response from GraphQL query');
+          throw new Error('No response from GraphQL query')
         }
-        const employeePositions = res.EmployeePosition ?? [];
+        const employeePositions = res.EmployeePosition ?? []
         const newEmployees = employeePositions.map((ep: any) => {
-          const workingCondition = ep.employee?.workingCondition?.[0];
-          const startDate = workingCondition?.hireDate ?? '';
-          const exitDate = workingCondition?.exitDate ?? null;
-          
+          const workingCondition = ep.employee?.workingCondition?.[0]
+          const startDate = workingCondition?.hireDate ?? ''
+          const exitDate = workingCondition?.exitDate ?? null
+
           return {
             id: ep.employeeId,
             userId: ep.userId,
@@ -179,28 +180,28 @@ export function useGetEmployeesReport({ accessToken, userInfo }: UseGetEmployees
             startDate,
             exitDate,
             tenure: calculateTenure(startDate, exitDate)
-          };
-        });
-        setEmployees(newEmployees);
+          }
+        })
+        setEmployees(newEmployees)
       })
       .catch((err: any) => {
-        setError(err);
-        setEmployees([]);
+        setError(err)
+        setEmployees([])
       })
       .finally(() => {
-        setLoading(false);
-      });
-    }, [client, supervisorEmployeeId]);
+        setLoading(false)
+      })
+  }, [client, supervisorEmployeeId])
 
-    useEffect(() => {
+  useEffect(() => {
     if (accessToken && supervisorEmployeeId) {
-      fetchEmployees();
+      fetchEmployees()
     }
-  }, [accessToken, supervisorEmployeeId, fetchEmployees]);
+  }, [accessToken, supervisorEmployeeId, fetchEmployees])
 
   const retry = useCallback(() => {
-    fetchEmployees();
-  }, [fetchEmployees]);
+    fetchEmployees()
+  }, [fetchEmployees])
 
-  return { employees, loading, error, retry };
+  return { employees, loading, error, retry }
 }

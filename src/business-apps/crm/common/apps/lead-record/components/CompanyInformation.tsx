@@ -1,18 +1,15 @@
-import React from 'react';
-import { Card } from 'antd';
-import { Lead } from '../types';
+import React from 'react'
+import { Card } from 'antd'
+import { Lead } from '../types'
 
 interface CompanyInformationProps {
-  lead: Lead;
-  leadData: any;
+  lead: Lead
+  leadData: any
 }
 
 export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, leadData }) => {
   return (
-    <Card
-      title="Company Information"
-      style={{ width: '100%', height: '100%' }}
-    >
+    <Card title="Company Information" style={{ width: '100%', height: '100%' }}>
       <div>
         <div style={{ marginBottom: '24px' }}>
           {/* Company details grid */}
@@ -25,28 +22,28 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
                   {leadData?.companyName || '-'}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Legal Form</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {leadData?.legalForm?.value || '-'}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Country</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {leadData?.country?.value || '-'}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Industry</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {leadData?.industry?.value || '-'}
                 </div>
               </div>
-              
+
               <div>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
@@ -54,60 +51,60 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
                 </div>
               </div>
             </div>
-            
+
             {/* Right Column */}
             <div>
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Website</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {leadData?.companyWebsite ? (
-                    <a 
-                      href={leadData.companyWebsite} 
-                      target="_blank" 
+                    <a
+                      href={leadData.companyWebsite}
+                      target="_blank"
                       rel="noopener noreferrer"
                       style={{ color: '#3b82f6', textDecoration: 'none' }}
                     >
                       {leadData.companyWebsite}
                     </a>
-                  ) : '-'}
+                  ) : (
+                    '-'
+                  )}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>E-Mail</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {leadData?.companyEmail ? (
-                    <a 
-                      href={`mailto:${leadData.companyEmail}`}
-                      style={{ color: '#3b82f6', textDecoration: 'none' }}
-                    >
+                    <a href={`mailto:${leadData.companyEmail}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>
                       {leadData.companyEmail}
                     </a>
-                  ) : '-'}
+                  ) : (
+                    '-'
+                  )}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {leadData?.companyPhone ? (
-                    <a 
-                      href={`tel:${leadData.companyPhone}`}
-                      style={{ color: '#3b82f6', textDecoration: 'none' }}
-                    >
+                    <a href={`tel:${leadData.companyPhone}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>
                       {leadData.companyPhone}
                     </a>
-                  ) : '-'}
+                  ) : (
+                    '-'
+                  )}
                 </div>
               </div>
-              
+
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Employees</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
                   {leadData?.numberOfEmployees?.value || '-'}
                 </div>
               </div>
-              
+
               <div>
                 <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Revenue</div>
                 <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
@@ -119,5 +116,5 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
         </div>
       </div>
     </Card>
-  );
-}; 
+  )
+}

@@ -1,22 +1,21 @@
-import { useState, useEffect } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useGetInvestmentContactData,
   InvestmentContactDataResponse,
-  InvestmentContactQueryVariables,
-} from "../queries/ContactQueries";
-import { ContactFormValues, InvestmentContactQueryResult } from "../types";
+  InvestmentContactQueryVariables
+} from '../queries/ContactQueries'
+import { ContactFormValues, InvestmentContactQueryResult } from '../types'
 
 // Helper function to map InvestmentContact data to form values
 export const mapInvestmentContactToFormValues = (
   contactData: InvestmentContactDataResponse
 ): Partial<ContactFormValues> => {
   if (!contactData?.InvestmentContact?.[0]) {
-    return {};
+    return {}
   }
 
-  const contact = contactData.InvestmentContact[0];
-
+  const contact = contactData.InvestmentContact[0]
 
   const formValues: Partial<ContactFormValues> = {
     // System fields
@@ -24,67 +23,68 @@ export const mapInvestmentContactToFormValues = (
     version: contact.version,
 
     // Personal Information
-    firstName: contact.firstName || "",
-    lastName: contact.lastName || "",
-    fullName: contact.fullName || "",
-    type: contact.type || "UNKNOWN_CONTACT",
-    birthDate: contact.birthDate ? contact.birthDate.split('T')[0] : "",
+    firstName: contact.firstName || '',
+    lastName: contact.lastName || '',
+    fullName: contact.fullName || '',
+    type: contact.type || 'UNKNOWN_CONTACT',
+    birthDate: contact.birthDate ? contact.birthDate.split('T')[0] : '',
 
     // Professional Information
-    jobPosition: contact.jobPosition || "",
-    department: contact.department || "",
+    jobPosition: contact.jobPosition || '',
+    department: contact.department || '',
 
     // Social Media Information - Extract from communication channels
-    linkedinUrl: contact.communicationChannels?.find(
-      channel => channel.communicationChannelRef === "CommunicationChannel:v1:LinkedIn"
-    )?.value || "",
-    xingUrl: contact.communicationChannels?.find(
-      channel => channel.communicationChannelRef === "CommunicationChannel:v1:Xing"
-    )?.value || "",
+    linkedinUrl:
+      contact.communicationChannels?.find(
+        channel => channel.communicationChannelRef === 'CommunicationChannel:v1:LinkedIn'
+      )?.value || '',
+    xingUrl:
+      contact.communicationChannels?.find(channel => channel.communicationChannelRef === 'CommunicationChannel:v1:Xing')
+        ?.value || '',
 
     // Contact Information
-    email: contact.email || "",
-    phone: contact.phone || "",
+    email: contact.email || '',
+    phone: contact.phone || '',
 
     // picture: contact.picture || "", // ❌ NOT in schema
     // pictureThumbnail: contact.pictureThumbnail || "", // ❌ NOT in schema
 
     // Owner Information
-    ownerEmployeeId: contact.ownerEmployeeId || "",
-    owner: contact.ownerEmployeeId || "", // Map to owner field for form
+    ownerEmployeeId: contact.ownerEmployeeId || '',
+    owner: contact.ownerEmployeeId || '', // Map to owner field for form
 
     // Account Information
     accountIds: Array.from(
       new Set(
         (contact.investmentAccountContact ?? [])
           .map(rel => {
-            if (!rel.account?.id) return null;
+            if (!rel.account?.id) return null
             return {
               id: rel.account.id,
               name: rel.account.name || 'Unnamed Account'
-            };
+            }
           })
           .filter((account): account is { id: string; name: string } => Boolean(account))
       )
     ),
 
     // Additional Information
-    notesSummary: contact.notesSummary || "",
-    businessKey: contact.businessKey || "",
+    notesSummary: contact.notesSummary || '',
+    businessKey: contact.businessKey || '',
 
     // Catalog fields
-    academicTitleRef: contact.academicTitle?.id || "",
-    languageRef: contact.languageRef || "",
+    academicTitleRef: contact.academicTitle?.id || '',
+    languageRef: contact.languageRef || '',
 
     // ✅ REMOVED: Fields NOT in InvestmentContact database
     // salutationRef: contact.salutationRef || "", // ❌ NOT in schema
 
     // Audit fields
-    createdAt: contact.createdAt || "",
-    createdBy: contact.createdBy || "",
+    createdAt: contact.createdAt || '',
+    createdBy: contact.createdBy || '',
 
     // System fields
-    additionalProperties: contact.additionalProperties,
+    additionalProperties: contact.additionalProperties
 
     // ✅ REMOVED: Fields NOT in expected payload structure
     // activeFrom: contact.activeFrom || "", // Not in expected payload
@@ -93,64 +93,55 @@ export const mapInvestmentContactToFormValues = (
     // updatedAt: contact.updatedAt || "", // ❌ NOT in InvestmentContact schema
     // updatedBy: contact.updatedBy || "", // ❌ NOT in InvestmentContact schema
     // sourceApp: "IRM", // ❌ NOT a database field (used in payload only)
-  };
+  }
 
-  return formValues;
-};
+  return formValues
+}
 
-export const useInvestmentContactData = (
-  businessAppContext: BusinessAppContextProps
-) => {
-  const [contactData, setContactData] =
-    useState<InvestmentContactDataResponse | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const useInvestmentContactData = (businessAppContext: BusinessAppContextProps) => {
+  const [contactData, setContactData] = useState<InvestmentContactDataResponse | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const { fetchInvestmentContactData } =
-    useGetInvestmentContactData(businessAppContext);
+  const { fetchInvestmentContactData } = useGetInvestmentContactData(businessAppContext)
 
   // Extract contactId from businessAppContext
   const contactId =
     businessAppContext.additionalData?.contactId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.contactId;
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
 
   useEffect(() => {
     const loadContactData = async () => {
-
       if (!contactId || !businessAppContext.accessToken) {
-        return;
+        return
       }
 
       try {
-        setLoading(true);
-        setError(null);
+        setLoading(true)
+        setError(null)
 
-        const result = await fetchInvestmentContactData({ contactId });
+        const result = await fetchInvestmentContactData({ contactId })
 
-        setContactData(result);
+        setContactData(result)
       } catch (err) {
-        const errorMessage =
-          err instanceof Error
-            ? err.message
-            : "Unknown error loading contact data";
-        console.error("❌ Contact Data Hook: Error loading contact data:", err);
-        setError(errorMessage);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error loading contact data'
+        console.error('❌ Contact Data Hook: Error loading contact data:', err)
+        setError(errorMessage)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
     if (contactId) {
-      loadContactData();
+      loadContactData()
     } else {
     }
-  }, [contactId, businessAppContext.accessToken]);
+  }, [contactId, businessAppContext.accessToken])
 
   return {
     contactData,
     loading,
     error,
-    contactId,
-  };
-};
+    contactId
+  }
+}

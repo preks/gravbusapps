@@ -60,47 +60,48 @@ const MySettingsPage = () => {
 
 ### SettingsLayoutProps
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `headerPhosphorIcon` | `PhosphorIconConfig` | ✅ | Phosphor icon configuration for header |
-| `headerLabel` | `string` | ✅ | Title displayed in the header |
-| `cards` | `SettingsCard[]` | ✅ | Array of settings cards to display |
-| `className` | `string` | ❌ | Additional CSS classes |
-| `prefixDataTestId` | `string` | ❌ | Prefix for test IDs |
-| `searchPlaceholder` | `string` | ❌ | Custom search placeholder text |
+| Prop                 | Type                 | Required | Description                            |
+| -------------------- | -------------------- | -------- | -------------------------------------- |
+| `headerPhosphorIcon` | `PhosphorIconConfig` | ✅       | Phosphor icon configuration for header |
+| `headerLabel`        | `string`             | ✅       | Title displayed in the header          |
+| `cards`              | `SettingsCard[]`     | ✅       | Array of settings cards to display     |
+| `className`          | `string`             | ❌       | Additional CSS classes                 |
+| `prefixDataTestId`   | `string`             | ❌       | Prefix for test IDs                    |
+| `searchPlaceholder`  | `string`             | ❌       | Custom search placeholder text         |
 
 ### PhosphorIconConfig
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `icon` | `ComponentType` | ✅ | Phosphor icon component (e.g., `PiGear`) |
-| `variant` | `string` | ❌ | Icon variant ('default', 'secondary', 'success', 'warning', 'info', 'employee', 'strategy', 'premium') |
-| `size` | `string` | ❌ | Icon size ('sm', 'md', 'lg', 'xl') |
-| `label` | `string` | ❌ | Accessible label for the icon |
+| Prop      | Type            | Required | Description                                                                                            |
+| --------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `icon`    | `ComponentType` | ✅       | Phosphor icon component (e.g., `PiGear`)                                                               |
+| `variant` | `string`        | ❌       | Icon variant ('default', 'secondary', 'success', 'warning', 'info', 'employee', 'strategy', 'premium') |
+| `size`    | `string`        | ❌       | Icon size ('sm', 'md', 'lg', 'xl')                                                                     |
+| `label`   | `string`        | ❌       | Accessible label for the icon                                                                          |
 
 ### SettingsCard
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `title` | `string` | ✅ | Card title |
-| `description` | `string` | ❌ | Card description |
-| `icon` | `ComponentType` | ❌ | Icon component (e.g., `PiGear`) |
-| `iconSize` | `string` | ❌ | Icon size ('sm', 'md', 'lg', 'xl') |
-| `entries` | `SettingsCardEntry[]` | ❌ | Array of clickable entries |
+| Prop          | Type                  | Required | Description                        |
+| ------------- | --------------------- | -------- | ---------------------------------- |
+| `title`       | `string`              | ✅       | Card title                         |
+| `description` | `string`              | ❌       | Card description                   |
+| `icon`        | `ComponentType`       | ❌       | Icon component (e.g., `PiGear`)    |
+| `iconSize`    | `string`              | ❌       | Icon size ('sm', 'md', 'lg', 'xl') |
+| `entries`     | `SettingsCardEntry[]` | ❌       | Array of clickable entries         |
 
 **Note:** Card icons automatically inherit the variant from the header icon for visual consistency.
 
 ### SettingsCardEntry
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `label` | `string` | ✅ | Entry label text |
-| `url` | `string` | ❌ | Legacy: Direct URL (deprecated) |
-| `basePath` | `string` | ❌ | Recommended: Platform base path (e.g., '/platform/mdm/lead-data') |
-| `params` | `Record<string, string>` | ❌ | Query parameters for the URL (e.g., { tab: 'ratings' }) |
-| `disabled` | `boolean` | ❌ | Whether entry is disabled |
+| Prop       | Type                     | Required | Description                                                       |
+| ---------- | ------------------------ | -------- | ----------------------------------------------------------------- |
+| `label`    | `string`                 | ✅       | Entry label text                                                  |
+| `url`      | `string`                 | ❌       | Legacy: Direct URL (deprecated)                                   |
+| `basePath` | `string`                 | ❌       | Recommended: Platform base path (e.g., '/platform/mdm/lead-data') |
+| `params`   | `Record<string, string>` | ❌       | Query parameters for the URL (e.g., { tab: 'ratings' })           |
+| `disabled` | `boolean`                | ❌       | Whether entry is disabled                                         |
 
 **Navigation Pattern:**
+
 - **Recommended**: Use `basePath` + `params` for proper URL building with `buildPlatformUrl`
 - **Legacy**: Use `url` for direct URLs (maintained for backward compatibility)
 - URLs are built automatically using the navigation utilities for proper development/production handling
@@ -115,13 +116,15 @@ const MySettingsPage = () => {
 ## Search Functionality
 
 The component includes built-in search that filters cards based on:
+
 - Card title (case-insensitive)
-- Card description (case-insensitive)  
+- Card description (case-insensitive)
 - Entry labels (case-insensitive)
 
 ## Test IDs
 
 Test IDs are automatically generated with the format:
+
 - Layout: `{prefixDataTestId}-SettingsLayout`
 - Search: `{prefixDataTestId}-SettingsLayout-Search-Input`
 - Cards: `{prefixDataTestId}-SettingsLayout-Card-{index}`
@@ -130,15 +133,13 @@ Test IDs are automatically generated with the format:
 ## Examples
 
 ### Basic Settings Page
+
 ```tsx
-<SettingsLayout
-  headerIcon={<PiUsers />}
-  headerLabel="HR Settings"
-  cards={hrSettingsCards}
-/>
+<SettingsLayout headerIcon={<PiUsers />} headerLabel="HR Settings" cards={hrSettingsCards} />
 ```
 
 ### With Custom Search
+
 ```tsx
 <SettingsLayout
   headerIcon={<PiTrendUp />}
@@ -149,6 +150,7 @@ Test IDs are automatically generated with the format:
 ```
 
 ### With Test ID Prefix
+
 ```tsx
 <SettingsLayout
   headerIcon={<PiUsersThree />}
@@ -168,6 +170,7 @@ To migrate from existing settings layouts:
 4. **Update Styling**: Remove Ant Design/gravity-ui-catalog dependencies
 
 ### Before (Legacy)
+
 ```tsx
 // Multiple files with duplicated layout logic
 // Ant Design dependencies
@@ -175,6 +178,7 @@ To migrate from existing settings layouts:
 ```
 
 ### After (New)
+
 ```tsx
 import { SettingsLayout } from '@/components/layout/settings-layout'
 
@@ -189,4 +193,4 @@ import { SettingsLayout } from '@/components/layout/settings-layout'
 - ✅ **Maintainability**: Single source of truth for settings UI
 - ✅ **Performance**: Optimized with proper memoization
 - ✅ **Accessibility**: Built-in ARIA support and test IDs
-- ✅ **Design System**: Leverages nw-design-system components 
+- ✅ **Design System**: Leverages nw-design-system components

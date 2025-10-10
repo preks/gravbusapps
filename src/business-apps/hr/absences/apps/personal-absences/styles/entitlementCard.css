@@ -79,7 +79,6 @@
   line-height: 1.1;
 }
 
-
 .gba\:entitlementIcon {
   width: 8px;
   height: 28px;
@@ -88,11 +87,21 @@
   background: #a78bfa;
   display: inline-block;
 }
-.gba\:entitlementIcon--purple { background: #a78bfa; }
-.gba\:entitlementIcon--blue { background: #1976d2; }
-.gba\:entitlementIcon--orange { background: #fb8c00; }
-.gba\:entitlementIcon--green { background: #27ae60; }
-.gba\:entitlementIcon--red { background: #e53935; }
+.gba\:entitlementIcon--purple {
+  background: #a78bfa;
+}
+.gba\:entitlementIcon--blue {
+  background: #1976d2;
+}
+.gba\:entitlementIcon--orange {
+  background: #fb8c00;
+}
+.gba\:entitlementIcon--green {
+  background: #27ae60;
+}
+.gba\:entitlementIcon--red {
+  background: #e53935;
+}
 .gba\:entitlementTitle {
   font-weight: 600;
   font-size: 16px;

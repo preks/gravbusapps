@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React, { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Alert,
   Button,
@@ -13,58 +13,58 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@newwork/nw-design-system';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  BarChart3, 
-  TrendingUp, 
-  Clock, 
-  Users, 
-  CheckCircle, 
+} from '@newwork/nw-design-system'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import {
+  BarChart3,
+  TrendingUp,
+  Clock,
+  Users,
+  CheckCircle,
   AlertCircle,
   UserPlus,
   UserMinus,
   Calendar,
   Filter,
   RefreshCw
-} from 'lucide-react';
+} from 'lucide-react'
 
 export interface AnalyticsTabProps extends BusinessAppContextProps {}
 
 interface AnalyticsData {
-  totalFlows: number;
-  completedFlows: number;
-  activeFlows: number;
-  averageCompletionTime: number;
-  onboardingFlows: number;
-  offboardingFlows: number;
-  recruitingFlows: number;
-  completionRate: number;
-  flowsByMonth: Array<{ month: string; count: number }>;
-  topTemplates: Array<{ name: string; usage: number }>;
+  totalFlows: number
+  completedFlows: number
+  activeFlows: number
+  averageCompletionTime: number
+  onboardingFlows: number
+  offboardingFlows: number
+  recruitingFlows: number
+  completionRate: number
+  flowsByMonth: Array<{ month: string; count: number }>
+  topTemplates: Array<{ name: string; usage: number }>
 }
 
-export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<string>('30d');
-  const [flowType, setFlowType] = useState<string>('all');
+export const AnalyticsTab: React.FC<AnalyticsTabProps> = context => {
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [timeRange, setTimeRange] = useState<string>('30d')
+  const [flowType, setFlowType] = useState<string>('all')
 
   const loadAnalytics = useCallback(async () => {
-    if (!context.accessToken) return;
-    
+    if (!context.accessToken) return
+
     try {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       // For now, we'll simulate analytics data since the actual service implementation
       // would need to be extended. In a real implementation, this would call:
       // const analytics = await EmployeeLifecycleFlowService.getAnalytics(context.accessToken, { timeRange, flowType });
-      
+
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
       // Mock analytics data
       const mockData: AnalyticsData = {
         totalFlows: 156,
@@ -90,87 +90,90 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
           { name: 'Employee Password Reset', usage: 24 },
           { name: 'Employee Service', usage: 18 }
         ]
-      };
-      
-      setAnalyticsData(mockData);
-      
+      }
+
+      setAnalyticsData(mockData)
     } catch (err) {
-      console.error('Error loading employee lifecycle analytics:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load analytics');
+      console.error('Error loading employee lifecycle analytics:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load analytics')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, timeRange, flowType]);
+  }, [context.accessToken, timeRange, flowType])
 
   // Load analytics on mount and when filters change
   useEffect(() => {
-    loadAnalytics();
-  }, [loadAnalytics]);
+    loadAnalytics()
+  }, [loadAnalytics])
 
   // Calculate widgets from analytics data
-  const widgets: WidgetItem[] = analyticsData ? [
-    {
-      key: "total-flows",
-      title: "Total Flows",
-      value: analyticsData.totalFlows,
-      prefix: <BarChart3 className="gba:h-5 gba:w-5 gba:text-blue-600" />,
-      color: "#3b82f6",
-      description: `Past ${timeRange === '30d' ? '30 days' : timeRange === '90d' ? '90 days' : 'year'}`,
-    },
-    {
-      key: "completed-flows",
-      title: "Completed Flows",
-      value: analyticsData.completedFlows,
-      prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-green-600" />,
-      color: "#16a34a",
-      description: `${analyticsData.completionRate.toFixed(1)}% completion rate`,
-    },
-    {
-      key: "active-flows",
-      title: "Active Flows",
-      value: analyticsData.activeFlows,
-      prefix: <Clock className="gba:h-5 gba:w-5 gba:text-orange-600" />,
-      color: "#ea580c",
-      description: "Currently in progress",
-    },
-    {
-      key: "avg-completion-time",
-      title: "Avg. Completion Time",
-      value: analyticsData.averageCompletionTime,
-      suffix: "hrs",
-      prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-purple-600" />,
-      color: "#9333ea",
-      description: "Time to complete workflows",
-      precision: 1,
-    },
-  ] : [];
+  const widgets: WidgetItem[] = analyticsData
+    ? [
+        {
+          key: 'total-flows',
+          title: 'Total Flows',
+          value: analyticsData.totalFlows,
+          prefix: <BarChart3 className="gba:h-5 gba:w-5 gba:text-blue-600" />,
+          color: '#3b82f6',
+          description: `Past ${timeRange === '30d' ? '30 days' : timeRange === '90d' ? '90 days' : 'year'}`
+        },
+        {
+          key: 'completed-flows',
+          title: 'Completed Flows',
+          value: analyticsData.completedFlows,
+          prefix: <CheckCircle className="gba:h-5 gba:w-5 gba:text-green-600" />,
+          color: '#16a34a',
+          description: `${analyticsData.completionRate.toFixed(1)}% completion rate`
+        },
+        {
+          key: 'active-flows',
+          title: 'Active Flows',
+          value: analyticsData.activeFlows,
+          prefix: <Clock className="gba:h-5 gba:w-5 gba:text-orange-600" />,
+          color: '#ea580c',
+          description: 'Currently in progress'
+        },
+        {
+          key: 'avg-completion-time',
+          title: 'Avg. Completion Time',
+          value: analyticsData.averageCompletionTime,
+          suffix: 'hrs',
+          prefix: <TrendingUp className="gba:h-5 gba:w-5 gba:text-purple-600" />,
+          color: '#9333ea',
+          description: 'Time to complete workflows',
+          precision: 1
+        }
+      ]
+    : []
 
-  const flowTypeWidgets: WidgetItem[] = analyticsData ? [
-    {
-      key: "onboarding-analytics",
-      title: "Onboarding Flows",
-      value: analyticsData.onboardingFlows,
-      prefix: <UserPlus className="gba:h-5 gba:w-5 gba:text-green-600" />,
-      color: "#16a34a",
-      description: "New employee onboarding",
-    },
-    {
-      key: "recruiting-analytics",
-      title: "Recruiting Flows", 
-      value: analyticsData.recruitingFlows,
-      prefix: <Users className="gba:h-5 gba:w-5 gba:text-purple-600" />,
-      color: "#9333ea",
-      description: "Candidate recruiting processes",
-    },
-    {
-      key: "offboarding-analytics",
-      title: "Offboarding Flows",
-      value: analyticsData.offboardingFlows,
-      prefix: <UserMinus className="gba:h-5 gba:w-5 gba:text-orange-600" />,
-      color: "#ea580c",
-      description: "Employee departure processes",
-    },
-  ] : [];
+  const flowTypeWidgets: WidgetItem[] = analyticsData
+    ? [
+        {
+          key: 'onboarding-analytics',
+          title: 'Onboarding Flows',
+          value: analyticsData.onboardingFlows,
+          prefix: <UserPlus className="gba:h-5 gba:w-5 gba:text-green-600" />,
+          color: '#16a34a',
+          description: 'New employee onboarding'
+        },
+        {
+          key: 'recruiting-analytics',
+          title: 'Recruiting Flows',
+          value: analyticsData.recruitingFlows,
+          prefix: <Users className="gba:h-5 gba:w-5 gba:text-purple-600" />,
+          color: '#9333ea',
+          description: 'Candidate recruiting processes'
+        },
+        {
+          key: 'offboarding-analytics',
+          title: 'Offboarding Flows',
+          value: analyticsData.offboardingFlows,
+          prefix: <UserMinus className="gba:h-5 gba:w-5 gba:text-orange-600" />,
+          color: '#ea580c',
+          description: 'Employee departure processes'
+        }
+      ]
+    : []
 
   return (
     <div className="gba:space-y-6" data-testid="employee-lifecycle-analytics-tab">
@@ -189,7 +192,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
           <Filter className="gba:h-4 gba:w-4 gba:text-gray-500" />
           <span className="gba:text-sm gba:font-medium gba:text-gray-700">Filters:</span>
         </div>
-        
+
         <div className="gba:flex gba:gap-3">
           <div className="gba:flex gba:items-center gba:gap-2">
             <Calendar className="gba:h-4 gba:w-4 gba:text-gray-500" />
@@ -221,8 +224,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
             </Select>
           </div>
 
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             onClick={loadAnalytics}
             disabled={isLoading}
@@ -268,14 +271,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
                 <TrendingUp className="gba:h-5 gba:w-5 gba:text-blue-600" />
                 Most Used Templates
               </CardTitle>
-              <CardDescription>
-                Templates with highest usage in selected time period
-              </CardDescription>
+              <CardDescription>Templates with highest usage in selected time period</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="gba:space-y-3">
                 {analyticsData.topTemplates.map((template, index) => (
-                  <div key={template.name} className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:rounded gba:bg-gray-50">
+                  <div
+                    key={template.name}
+                    className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:rounded gba:bg-gray-50"
+                  >
                     <div className="gba:flex gba:items-center gba:gap-3">
                       <div className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs gba:font-medium gba:px-2 gba:py-1 gba:rounded gba:min-w-[1.5rem] gba:text-center">
                         {index + 1}
@@ -285,8 +289,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <span className="gba:text-sm gba:text-gray-600">{template.usage} uses</span>
                       <div className="gba:w-16 gba:h-2 gba:bg-gray-200 gba:rounded-full">
-                        <div 
-                          className="gba:h-full gba:bg-blue-500 gba:rounded-full" 
+                        <div
+                          className="gba:h-full gba:bg-blue-500 gba:rounded-full"
                           style={{ width: `${(template.usage / analyticsData.topTemplates[0].usage) * 100}%` }}
                         />
                       </div>
@@ -304,20 +308,20 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
                 <BarChart3 className="gba:h-5 gba:w-5 gba:text-green-600" />
                 Flow Trends
               </CardTitle>
-              <CardDescription>
-                Monthly flow execution trends
-              </CardDescription>
+              <CardDescription>Monthly flow execution trends</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="gba:space-y-3">
-                {analyticsData.flowsByMonth.map((data) => (
+                {analyticsData.flowsByMonth.map(data => (
                   <div key={data.month} className="gba:flex gba:items-center gba:justify-between">
                     <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:w-12">{data.month}</span>
                     <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                       <div className="gba:flex-1 gba:h-4 gba:bg-gray-200 gba:rounded-full gba:overflow-hidden">
-                        <div 
-                          className="gba:h-full gba:bg-green-500 gba:rounded-full gba:transition-all" 
-                          style={{ width: `${(data.count / Math.max(...analyticsData.flowsByMonth.map(d => d.count))) * 100}%` }}
+                        <div
+                          className="gba:h-full gba:bg-green-500 gba:rounded-full gba:transition-all"
+                          style={{
+                            width: `${(data.count / Math.max(...analyticsData.flowsByMonth.map(d => d.count))) * 100}%`
+                          }}
                         />
                       </div>
                       <span className="gba:text-sm gba:text-gray-600 gba:w-8 gba:text-right">{data.count}</span>
@@ -346,7 +350,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = (context) => {
         </Alert>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default AnalyticsTab;
+export default AnalyticsTab

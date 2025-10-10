@@ -1,16 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Button, 
-  Alert,
-  Spinner
-} from '@newwork/nw-design-system';
-import { UserOutlined } from '@ant-design/icons';
-import { useFeedbackRequestForm } from '../context/FeedbackRequestFormContext';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import EmployeeSearchableSelect from '../../../../../crm/common/forms/lead-form/components/EmployeeSearchableSelect';
+import React, { useState, useEffect } from 'react'
+import { Button, Alert, Spinner } from '@newwork/nw-design-system'
+import { UserOutlined } from '@ant-design/icons'
+import { useFeedbackRequestForm } from '../context/FeedbackRequestFormContext'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import EmployeeSearchableSelect from '../../../../../crm/common/forms/lead-form/components/EmployeeSearchableSelect'
 
-const prefixDataTestId = 'FeedbackRequestFormComponent';
+const prefixDataTestId = 'FeedbackRequestFormComponent'
 
 const FeedbackRequestFormComponent: React.FC = () => {
   const {
@@ -27,44 +23,44 @@ const FeedbackRequestFormComponent: React.FC = () => {
     searchEmployees,
     hasPreSelectedEmployee,
     isPreSelectedEmployeeCurrentUser
-  } = useFeedbackRequestForm();
+  } = useFeedbackRequestForm()
 
   // Load initial employees if needed
   useEffect(() => {
     if (!hasPreSelectedEmployee && !isPreSelectedEmployeeCurrentUser) {
-      searchEmployees('');
+      searchEmployees('')
     }
-  }, [hasPreSelectedEmployee, isPreSelectedEmployeeCurrentUser, searchEmployees]);
+  }, [hasPreSelectedEmployee, isPreSelectedEmployeeCurrentUser, searchEmployees])
 
   const handleEmployeeSearch = (value: string) => {
-    searchEmployees(value);
-  };
+    searchEmployees(value)
+  }
 
   const handleEmployeeSelect = (employeeId: string) => {
-    const selectedEmployee = employees.find(emp => emp.id === employeeId);
+    const selectedEmployee = employees.find(emp => emp.id === employeeId)
     if (selectedEmployee) {
       setFormValues({
         employeeId: selectedEmployee.id,
         employeeName: selectedEmployee.name
-      });
+      })
     }
-  };
+  }
 
   const handleMessageChange = (value: string) => {
-    setFormValues({ requestMessage: value });
-  };
+    setFormValues({ requestMessage: value })
+  }
 
   const handleSubmit = async () => {
-    clearError();
-    await onSubmit();
-  };
+    clearError()
+    await onSubmit()
+  }
 
   const handleCancel = async () => {
-    await onCancel();
-  };
+    await onCancel()
+  }
 
   return (
-    <div 
+    <div
       className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
@@ -82,10 +78,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
         <div className="gba:p-4 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-140px)]">
           {/* Error Display */}
           {error && (
-            <Alert 
-              variant="destructive"
-              data-testid={formatDataTestId(prefixDataTestId, 'Error')}
-            >
+            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'Error')}>
               {error}
             </Alert>
           )}
@@ -162,7 +155,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default FeedbackRequestFormComponent;
+export default FeedbackRequestFormComponent

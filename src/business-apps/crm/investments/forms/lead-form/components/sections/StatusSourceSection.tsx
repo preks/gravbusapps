@@ -1,16 +1,24 @@
-import React, { useEffect } from "react";
-import { Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Checkbox } from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useLeadFormContext } from "../../context/LeadFormContext";
-import SearchableSelect from "../SearchableSelect";
+import React, { useEffect } from 'react'
+import {
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Checkbox
+} from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useLeadFormContext } from '../../context/LeadFormContext'
+import SearchableSelect from '../SearchableSelect'
 
-const prefixDataTestId = "LeadForm";
+const prefixDataTestId = 'LeadForm'
 
 const StatusSourceSection: React.FC = () => {
   const {
     formValues,
     setFormValues,
-    
+
     // Lead Sources
     leadSources,
     leadSourcesLoading,
@@ -36,51 +44,35 @@ const StatusSourceSection: React.FC = () => {
     leadRatingsNeedsMoreData,
     leadRatingsTotalFetched,
     searchLeadRatings,
-    loadMoreLeadRatings,
-  } = useLeadFormContext();
+    loadMoreLeadRatings
+  } = useLeadFormContext()
 
   // Simple effect to load more lead sources when needed
   useEffect(() => {
     if (leadSourcesNeedsMoreData && !leadSourcesLoading && leadSourcesHasMore) {
-      loadMoreLeadSources();
+      loadMoreLeadSources()
     }
-  }, [
-    leadSourcesNeedsMoreData,
-    leadSourcesLoading,
-    leadSourcesHasMore,
-    leadSourcesTotalFetched,
-    loadMoreLeadSources,
-  ]);
+  }, [leadSourcesNeedsMoreData, leadSourcesLoading, leadSourcesHasMore, leadSourcesTotalFetched, loadMoreLeadSources])
 
   // Simple effect to load more lead statuses when needed
   useEffect(() => {
-    if (
-      leadStatusesNeedsMoreData &&
-      !leadStatusesLoading &&
-      leadStatusesHasMore
-    ) {
-      loadMoreLeadStatuses();
+    if (leadStatusesNeedsMoreData && !leadStatusesLoading && leadStatusesHasMore) {
+      loadMoreLeadStatuses()
     }
   }, [
     leadStatusesNeedsMoreData,
     leadStatusesLoading,
     leadStatusesHasMore,
     leadStatusesTotalFetched,
-    loadMoreLeadStatuses,
-  ]);
+    loadMoreLeadStatuses
+  ])
 
   // Simple effect to load more lead ratings when needed
   useEffect(() => {
     if (leadRatingsNeedsMoreData && !leadRatingsLoading && leadRatingsHasMore) {
-      loadMoreLeadRatings();
+      loadMoreLeadRatings()
     }
-  }, [
-    leadRatingsNeedsMoreData,
-    leadRatingsLoading,
-    leadRatingsHasMore,
-    leadRatingsTotalFetched,
-    loadMoreLeadRatings,
-  ]);
+  }, [leadRatingsNeedsMoreData, leadRatingsLoading, leadRatingsHasMore, leadRatingsTotalFetched, loadMoreLeadRatings])
 
   return (
     <div className="gba:space-y-6">
@@ -92,18 +84,16 @@ const StatusSourceSection: React.FC = () => {
           name="leadStatus"
           value={formValues.leadStatus}
           placeholder={
-            formValues.leadStatus && formValues.leadStatus.trim()
-              ? "Search and select status..."
-              : "Please Select..."
+            formValues.leadStatus && formValues.leadStatus.trim() ? 'Search and select status...' : 'Please Select...'
           }
           options={leadStatuses}
           loading={leadStatusesLoading}
           hasMore={leadStatusesHasMore}
           onSearch={searchLeadStatuses}
           onLoadMore={loadMoreLeadStatuses}
-          onChange={(value) => setFormValues({ leadStatus: value })}
+          onChange={value => setFormValues({ leadStatus: value })}
           error={null}
-          data-testid={formatDataTestId(prefixDataTestId, "lead-status-select")}
+          data-testid={formatDataTestId(prefixDataTestId, 'lead-status-select')}
           className="gba:w-full"
         />
 
@@ -113,21 +103,18 @@ const StatusSourceSection: React.FC = () => {
           name="leadSource"
           value={formValues.leadSource}
           placeholder={
-            formValues.leadSource && formValues.leadSource.trim()
-              ? "Search and select source..."
-              : "Please Select..."
+            formValues.leadSource && formValues.leadSource.trim() ? 'Search and select source...' : 'Please Select...'
           }
           options={leadSources}
           loading={leadSourcesLoading}
           hasMore={leadSourcesHasMore}
           onSearch={searchLeadSources}
           onLoadMore={loadMoreLeadSources}
-          onChange={(value) => setFormValues({ leadSource: value })}
+          onChange={value => setFormValues({ leadSource: value })}
           error={null}
-          data-testid={formatDataTestId(prefixDataTestId, "lead-source-select")}
+          data-testid={formatDataTestId(prefixDataTestId, 'lead-source-select')}
           className="gba:w-full"
         />
-
       </div>
 
       {/* Rating and Sensitive - Same Row */}
@@ -139,18 +126,16 @@ const StatusSourceSection: React.FC = () => {
             name="rating"
             value={formValues.rating}
             placeholder={
-              formValues.rating && formValues.rating.trim()
-                ? "Search and select rating..."
-                : "Please Select..."
+              formValues.rating && formValues.rating.trim() ? 'Search and select rating...' : 'Please Select...'
             }
             options={leadRatings}
             loading={leadRatingsLoading}
             hasMore={leadRatingsHasMore}
             onSearch={searchLeadRatings}
             onLoadMore={loadMoreLeadRatings}
-            onChange={(value) => setFormValues({ rating: value })}
+            onChange={value => setFormValues({ rating: value })}
             error={null}
-            data-testid={formatDataTestId(prefixDataTestId, "rating-select")}
+            data-testid={formatDataTestId(prefixDataTestId, 'rating-select')}
             className="gba:w-full"
           />
         </div>
@@ -161,13 +146,8 @@ const StatusSourceSection: React.FC = () => {
             <Checkbox
               id="sensitive-checkbox"
               checked={!!formValues.sensitive}
-              onCheckedChange={(checked) =>
-                setFormValues({ sensitive: !!checked })
-              }
-              data-testid={formatDataTestId(
-                prefixDataTestId,
-                "SensitiveCheckbox"
-              )}
+              onCheckedChange={checked => setFormValues({ sensitive: !!checked })}
+              data-testid={formatDataTestId(prefixDataTestId, 'SensitiveCheckbox')}
             />
             <Label
               htmlFor="sensitive-checkbox"
@@ -179,7 +159,7 @@ const StatusSourceSection: React.FC = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default StatusSourceSection;
+export default StatusSourceSection

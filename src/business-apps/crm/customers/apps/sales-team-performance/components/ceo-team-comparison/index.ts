@@ -1,2 +1,2 @@
-export { CEOTeamComparisonDashboard } from './CEOTeamComparisonDashboard';
-export { default } from './CEOTeamComparisonDashboard';
+export { CEOTeamComparisonDashboard } from './CEOTeamComparisonDashboard'
+export { default } from './CEOTeamComparisonDashboard'

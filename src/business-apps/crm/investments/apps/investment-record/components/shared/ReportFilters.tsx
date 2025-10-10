@@ -1,20 +1,20 @@
 // Report Filters Component for Investment Reports
-import React from 'react';
-import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { DatePicker } from 'antd';
-import { FilterIcon } from 'lucide-react';
-import dayjs from 'dayjs';
+import React from 'react'
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
+import { DatePicker } from 'antd'
+import { FilterIcon } from 'lucide-react'
+import dayjs from 'dayjs'
 
-const { RangePicker } = DatePicker;
+const { RangePicker } = DatePicker
 
 interface ReportFiltersProps {
-  timeFilter: string;
-  dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null;
-  onTimeFilterChange: (value: string) => void;
-  onDateRangeChange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void;
-  onClearFilters: () => void;
-  headerActions?: React.ReactNode;
-  'data-testid'?: string;
+  timeFilter: string
+  dateRange: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null
+  onTimeFilterChange: (value: string) => void
+  onDateRangeChange: (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => void
+  onClearFilters: () => void
+  headerActions?: React.ReactNode
+  'data-testid'?: string
 }
 
 const ReportFilters: React.FC<ReportFiltersProps> = ({
@@ -59,17 +59,17 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="gba:flex gba:items-center gba:gap-2">
             <label className="gba:text-sm gba:font-medium">Date Range:</label>
             <RangePicker
               value={dateRange}
               onChange={onDateRangeChange}
               format="DD/MM/YYYY"
-              placeholder={["Start Date", "End Date"]}
+              placeholder={['Start Date', 'End Date']}
             />
           </div>
-          
+
           <div className="gba:flex gba:items-center gba:gap-2 gba:ml-auto">
             <Button onClick={onClearFilters} variant="outline" size="sm">
               Clear Filters
@@ -78,7 +78,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ReportFilters;
+export default ReportFilters

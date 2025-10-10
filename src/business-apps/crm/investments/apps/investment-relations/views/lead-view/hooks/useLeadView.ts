@@ -1,43 +1,43 @@
-import { useState, useCallback } from 'react';
-import type { InvestmentLead } from '@/common/data/investment/types';
+import { useState, useCallback } from 'react'
+import type { InvestmentLead } from '@/common/data/investment/types'
 
 export interface UseLeadViewReturn {
-  selectedLeads: Set<string>;
-  toggleLeadSelection: (leadId: string) => void;
-  selectAllLeads: () => void;
-  clearSelection: () => void;
-  getSelectedLeads: () => InvestmentLead[];
-  hasSelection: boolean;
+  selectedLeads: Set<string>
+  toggleLeadSelection: (leadId: string) => void
+  selectAllLeads: () => void
+  clearSelection: () => void
+  getSelectedLeads: () => InvestmentLead[]
+  hasSelection: boolean
 }
 
 export const useLeadView = (leads: InvestmentLead[]): UseLeadViewReturn => {
-  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set())
 
   const toggleLeadSelection = useCallback((leadId: string) => {
     setSelectedLeads(prev => {
-      const newSelection = new Set(prev);
+      const newSelection = new Set(prev)
       if (newSelection.has(leadId)) {
-        newSelection.delete(leadId);
+        newSelection.delete(leadId)
       } else {
-        newSelection.add(leadId);
+        newSelection.add(leadId)
       }
-      return newSelection;
-    });
-  }, []);
+      return newSelection
+    })
+  }, [])
 
   const selectAllLeads = useCallback(() => {
-    setSelectedLeads(new Set(leads.map(lead => lead.id)));
-  }, [leads]);
+    setSelectedLeads(new Set(leads.map(lead => lead.id)))
+  }, [leads])
 
   const clearSelection = useCallback(() => {
-    setSelectedLeads(new Set());
-  }, []);
+    setSelectedLeads(new Set())
+  }, [])
 
   const getSelectedLeads = useCallback(() => {
-    return leads.filter(lead => selectedLeads.has(lead.id));
-  }, [leads, selectedLeads]);
+    return leads.filter(lead => selectedLeads.has(lead.id))
+  }, [leads, selectedLeads])
 
-  const hasSelection = selectedLeads.size > 0;
+  const hasSelection = selectedLeads.size > 0
 
   return {
     selectedLeads,
@@ -46,6 +46,5 @@ export const useLeadView = (leads: InvestmentLead[]): UseLeadViewReturn => {
     clearSelection,
     getSelectedLeads,
     hasSelection
-  };
-};
-
+  }
+}

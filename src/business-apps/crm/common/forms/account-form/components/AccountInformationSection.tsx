@@ -1,18 +1,11 @@
-import React from "react";
-import {
-  Input,
-  Label,
-  Card,
-  CardContent,
-  Alert,
-  AlertDescription,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useAccountFormContext } from "../context/AccountFormContext";
-import OwnerSelector from "./OwnerSelector";
-import SearchableSelect from "../../opportunity-form/components/SearchableSelect";
+import React from 'react'
+import { Input, Label, Card, CardContent, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useAccountFormContext } from '../context/AccountFormContext'
+import OwnerSelector from './OwnerSelector'
+import SearchableSelect from '../../opportunity-form/components/SearchableSelect'
 
-const prefixDataTestId = "AccountForm";
+const prefixDataTestId = 'AccountForm'
 
 const AccountInformationSection: React.FC = () => {
   const {
@@ -30,30 +23,30 @@ const AccountInformationSection: React.FC = () => {
     salesCampaignsError,
     salesCampaignsHasMore,
     searchSalesCampaigns,
-    loadMoreSalesCampaigns,
-  } = useAccountFormContext();
+    loadMoreSalesCampaigns
+  } = useAccountFormContext()
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <CardContent
         className="gba:space-y-6 gba:p-0"
         style={{
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          padding: "0",
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          padding: '0'
         }}
       >
         {error && (
@@ -75,10 +68,10 @@ const AccountInformationSection: React.FC = () => {
             hasMore={employeePositionsHasMore}
             onLoadMore={loadMoreEmployeePositions}
             onSearch={(searchTerm: string) => {
-              searchEmployeePositions(searchTerm);
+              searchEmployeePositions(searchTerm)
             }}
             error={employeePositionsError}
-            dataTestId={formatDataTestId(prefixDataTestId, "OwnerSelect")}
+            dataTestId={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
           />
         </div>
 
@@ -90,10 +83,10 @@ const AccountInformationSection: React.FC = () => {
           <Input
             name="accountName"
             value={formValues.accountName}
-            onChange={(e) => setFormValues({ accountName: e.target.value })}
+            onChange={e => setFormValues({ accountName: e.target.value })}
             placeholder="Please Enter..."
             className="gba:border-gray-300 gba:bg-white"
-            data-testid={formatDataTestId(prefixDataTestId, "AccountNameInput")}
+            data-testid={formatDataTestId(prefixDataTestId, 'AccountNameInput')}
           />
         </div>
 
@@ -109,19 +102,19 @@ const AccountInformationSection: React.FC = () => {
             hasMore={salesCampaignsHasMore}
             onSearch={searchSalesCampaigns}
             onLoadMore={loadMoreSalesCampaigns}
-            onChange={(value) => {
+            onChange={value => {
               setFormValues({
-                salesCampaignId: value, // Store only ID for backend
-              });
+                salesCampaignId: value // Store only ID for backend
+              })
             }}
             error={salesCampaignsError}
             className="gba:w-full gba:min-w-[300px]"
-            data-testid={formatDataTestId(prefixDataTestId, "CampaignSelect")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CampaignSelect')}
           />
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default AccountInformationSection;
+export default AccountInformationSection

@@ -1,29 +1,25 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
+import React from 'react'
+import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
 
 export interface EmploymentStatistics {
-  totalFte: number;
-  employeeCount: number;
-  averageTenure: string;
-  gapRate: number;
-  vacantPositions: number;
-  totalPositions: number;
-  probationRate: number;
-  employeesInProbation: number;
-  totalEmployees: number;
+  totalFte: number
+  employeeCount: number
+  averageTenure: string
+  gapRate: number
+  vacantPositions: number
+  totalPositions: number
+  probationRate: number
+  employeesInProbation: number
+  totalEmployees: number
 }
 
 interface EmploymentStatisticsProps {
-  statistics: EmploymentStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: EmploymentStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
-const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({
-  statistics,
-  isLoading,
-  dataTestId
-}) => {
+const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
   const kpiCards: KpiCardData[] = [
     {
       id: 'fte-employee-count',
@@ -57,27 +53,27 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({
       iconColor: statistics.probationRate > 20 ? '#ff4d4f' : statistics.probationRate > 10 ? '#fa8c16' : '#52c41a',
       footer: `${statistics.employeesInProbation}/${statistics.totalEmployees} employees`
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
       value: 'Loading...'
-    }));
-    
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default EmploymentStatistics; 
+export default EmploymentStatistics

@@ -1,32 +1,32 @@
-import { 
-  GET_PIPELINE_OPPORTUNITIES, 
-  GET_PIPELINES, 
-  GET_PIPELINE_STAGES, 
-  UPDATE_OPPORTUNITY_STAGE 
-} from '../queries/kanbanQueries';
-import { type Pipeline, type Stage, type Opportunity } from './data';
-import { GraphQLClient } from '@/common/network/graphql/GraphQLClient';
+import {
+  GET_PIPELINE_OPPORTUNITIES,
+  GET_PIPELINES,
+  GET_PIPELINE_STAGES,
+  UPDATE_OPPORTUNITY_STAGE
+} from '../queries/kanbanQueries'
+import { type Pipeline, type Stage, type Opportunity } from './data'
+import { GraphQLClient } from '@/common/network/graphql/GraphQLClient'
 
 /**
  * Service for kanban board data management
  */
 export class KanbanService {
-  private client: GraphQLClient;
-  
+  private client: GraphQLClient
+
   constructor(client: GraphQLClient) {
-    this.client = client;
+    this.client = client
   }
   /**
    * Fetch all pipelines
    */
   async fetchPipelines(): Promise<Pipeline[]> {
     try {
-      const data = await this.client.request<{ Pipeline: Pipeline[] }>(GET_PIPELINES);
-      
-      return data?.Pipeline || [];
+      const data = await this.client.request<{ Pipeline: Pipeline[] }>(GET_PIPELINES)
+
+      return data?.Pipeline || []
     } catch (error) {
-      console.error('Error fetching pipelines:', error);
-      return [];
+      console.error('Error fetching pipelines:', error)
+      return []
     }
   }
 
@@ -35,15 +35,12 @@ export class KanbanService {
    */
   async fetchPipelineStages(pipelineId: string): Promise<Stage[]> {
     try {
-      const data = await this.client.request<{ Stage: Stage[] }>(
-        GET_PIPELINE_STAGES,
-        { pipelineId }
-      );
-      
-      return data?.Stage || [];
+      const data = await this.client.request<{ Stage: Stage[] }>(GET_PIPELINE_STAGES, { pipelineId })
+
+      return data?.Stage || []
     } catch (error) {
-      console.error('Error fetching pipeline stages:', error);
-      return [];
+      console.error('Error fetching pipeline stages:', error)
+      return []
     }
   }
 
@@ -52,17 +49,16 @@ export class KanbanService {
    */
   async fetchPipelineOpportunities(pipelineId: string): Promise<Opportunity[]> {
     try {
-      const data = await this.client.request<{ Opportunity: any[] }>(
-        GET_PIPELINE_OPPORTUNITIES,
-        { pipelineRef: pipelineId }
-      );
-      
-      const opportunities = data?.Opportunity || [];
-      
+      const data = await this.client.request<{ Opportunity: any[] }>(GET_PIPELINE_OPPORTUNITIES, {
+        pipelineRef: pipelineId
+      })
+
+      const opportunities = data?.Opportunity || []
+
       if (opportunities.length === 0) {
-        console.warn('No opportunities returned from API for pipeline:', pipelineId);
+        console.warn('No opportunities returned from API for pipeline:', pipelineId)
       }
-      
+
       const mappedOpportunities = opportunities.map((opp: any) => {
         return {
           id: opp.id,
@@ -78,14 +74,14 @@ export class KanbanService {
           company: opp.company?.name || '',
           contact: '',
           tags: opp.tags || [],
-          stageEnteredAt: opp.lastActivityAt,
-        };
-      });
-      
-      return mappedOpportunities;
+          stageEnteredAt: opp.lastActivityAt
+        }
+      })
+
+      return mappedOpportunities
     } catch (error) {
-      console.error('Error fetching pipeline opportunities:', error);
-      return [];
+      console.error('Error fetching pipeline opportunities:', error)
+      return []
     }
   }
 
@@ -94,20 +90,17 @@ export class KanbanService {
    */
   async updateOpportunityStage(opportunityId: string, stageId: string): Promise<boolean> {
     try {
-      const now = new Date().toISOString();
-      
-      await this.client.request(
-        UPDATE_OPPORTUNITY_STAGE,
-        {
-          id: opportunityId,
-          stageId: stageId,
-          lastActivityAt: now
-        }
-      );
-      return true;
+      const now = new Date().toISOString()
+
+      await this.client.request(UPDATE_OPPORTUNITY_STAGE, {
+        id: opportunityId,
+        stageId: stageId,
+        lastActivityAt: now
+      })
+      return true
     } catch (error) {
-      console.error('Error updating opportunity stage:', error);
-      return false;
+      console.error('Error updating opportunity stage:', error)
+      return false
     }
   }
 }
@@ -116,5 +109,5 @@ export class KanbanService {
  * Hook to use the KanbanService
  */
 export const useKanbanService = () => {
-  return new KanbanService();
-}; 
+  return new KanbanService()
+}

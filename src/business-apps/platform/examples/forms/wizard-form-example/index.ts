@@ -1,5 +1,5 @@
-import WizardFormExample from './WizardFormExample';
-import WizardFormCustomNavigationExample from './WizardFormCustomNavigationExample';
+import WizardFormExample from './WizardFormExample'
+import WizardFormCustomNavigationExample from './WizardFormCustomNavigationExample'
 
-export { WizardFormExample, WizardFormCustomNavigationExample };
-export default WizardFormExample;
+export { WizardFormExample, WizardFormCustomNavigationExample }
+export default WizardFormExample

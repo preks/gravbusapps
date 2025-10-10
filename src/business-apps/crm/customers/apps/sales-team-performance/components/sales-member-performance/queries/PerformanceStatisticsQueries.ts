@@ -1,8 +1,8 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface PerformanceStatisticsQueryVariables {
-  employeeId: string;
+  employeeId: string
 }
 
 // 1) Leads Worked: Total count + Converted count
@@ -26,7 +26,7 @@ export const GET_LEADS_STATISTICS = `
       }
     }
   }
-`;
+`
 
 // 2) Contacts Worked: Total count + Contacts with sales activities (simplified metric)
 export const GET_CONTACTS_STATISTICS = `
@@ -49,7 +49,7 @@ export const GET_CONTACTS_STATISTICS = `
       }
     }
   }
-`;
+`
 
 // 3) Opportunities Managed: Total count + Won count
 export const GET_OPPORTUNITIES_STATISTICS = `
@@ -72,7 +72,7 @@ export const GET_OPPORTUNITIES_STATISTICS = `
       }
     }
   }
-`;
+`
 
 // 4) Accounts Managed: Total count + Sum of won opportunity values (Sales)
 export const GET_ACCOUNTS_STATISTICS = `
@@ -97,7 +97,7 @@ export const GET_ACCOUNTS_STATISTICS = `
       }
     }
   }
-`;
+`
 
 // Combined query for better performance - fetch all statistics in one request
 export const GET_ALL_PERFORMANCE_STATISTICS = `
@@ -196,10 +196,10 @@ export const GET_ALL_PERFORMANCE_STATISTICS = `
       }
     }
   }
-`;
+`
 
 export const usePerformanceStatisticsQueries = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { graphqlClient };
-}; 
+  return { graphqlClient }
+}

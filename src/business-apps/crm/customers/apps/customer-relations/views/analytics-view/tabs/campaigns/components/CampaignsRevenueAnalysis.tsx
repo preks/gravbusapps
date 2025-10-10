@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Spinner, Alert, AlertDescription, Button } from '@newwork/nw-design-system';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
+import React, { useState } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Button
+} from '@newwork/nw-design-system'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -18,10 +27,16 @@ import {
   PolarRadiusAxis,
   Radar,
   Legend
-} from 'recharts';
-import { DollarOutlined, BarChartOutlined, PieChartOutlined, LineChartOutlined, RadarChartOutlined } from '@ant-design/icons';
-import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+} from 'recharts'
+import {
+  DollarOutlined,
+  BarChartOutlined,
+  PieChartOutlined,
+  LineChartOutlined,
+  RadarChartOutlined
+} from '@ant-design/icons'
+import { CampaignsAnalyticsComponentProps } from '../types/CampaignsAnalyticsTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
   campaignComparisons = [],
@@ -29,7 +44,9 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
   error = null,
   onRetry
 }) => {
-  const [chartType, setChartType] = useState<'revenue-bar' | 'revenue-pie' | 'revenue-area' | 'revenue-radar'>('revenue-bar');
+  const [chartType, setChartType] = useState<'revenue-bar' | 'revenue-pie' | 'revenue-area' | 'revenue-radar'>(
+    'revenue-bar'
+  )
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -38,20 +55,14 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       currency: 'USD',
       notation: 'compact',
       maximumFractionDigits: 1
-    }).format(amount);
-  };
+    }).format(amount)
+  }
 
   // Prepare revenue data for different visualizations with better filtering
   const revenueData = campaignComparisons
-    .filter(campaign => 
-      campaign.totalRevenue > 0 && 
-      campaign.leadsCount > 0 && 
-      campaign.opportunitiesCount > 0
-    )
+    .filter(campaign => campaign.totalRevenue > 0 && campaign.leadsCount > 0 && campaign.opportunitiesCount > 0)
     .map(campaign => ({
-      name: campaign.campaignName.length > 15 
-        ? campaign.campaignName.substring(0, 15) + '...' 
-        : campaign.campaignName,
+      name: campaign.campaignName.length > 15 ? campaign.campaignName.substring(0, 15) + '...' : campaign.campaignName,
       fullName: campaign.campaignName,
       revenue: campaign.totalRevenue,
       winRate: campaign.winRate,
@@ -59,23 +70,19 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       wonOpportunitiesCount: campaign.wonOpportunitiesCount,
       status: campaign.status,
       // Calculate revenue per opportunity
-      revenuePerOpportunity: campaign.opportunitiesCount > 0 
-        ? campaign.totalRevenue / campaign.opportunitiesCount 
-        : 0,
+      revenuePerOpportunity: campaign.opportunitiesCount > 0 ? campaign.totalRevenue / campaign.opportunitiesCount : 0,
       // Calculate revenue efficiency (revenue per lead)
-      revenuePerLead: campaign.leadsCount > 0 
-        ? campaign.totalRevenue / campaign.leadsCount 
-        : 0,
+      revenuePerLead: campaign.leadsCount > 0 ? campaign.totalRevenue / campaign.leadsCount : 0
     }))
-    .sort((a, b) => b.revenue - a.revenue);
+    .sort((a, b) => b.revenue - a.revenue)
 
   // Colors for pie chart
-  const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16', '#F97316'];
+  const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16', '#F97316']
 
   // Custom tooltips for different chart types
   const RevenueBarTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
+      const data = payload[0].payload
       return (
         <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
@@ -87,22 +94,23 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
               <span className="gba:text-blue-600">Win Rate:</span> {data.winRate.toFixed(1)}%
             </p>
             <p className="gba:text-sm">
-              <span className="gba:text-purple-600">Revenue/Opportunity:</span> {formatCurrency(data.revenuePerOpportunity)}
+              <span className="gba:text-purple-600">Revenue/Opportunity:</span>{' '}
+              {formatCurrency(data.revenuePerOpportunity)}
             </p>
             <p className="gba:text-sm">
               <span className="gba:text-orange-600">Revenue/Lead:</span> {formatCurrency(data.revenuePerLead)}
             </p>
           </div>
         </div>
-      );
+      )
     }
-    return null;
-  };
+    return null
+  }
 
   const RevenuePieTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const percentage = ((data.revenue / revenueData.reduce((sum, item) => sum + item.revenue, 0)) * 100).toFixed(1);
+      const data = payload[0].payload
+      const percentage = ((data.revenue / revenueData.reduce((sum, item) => sum + item.revenue, 0)) * 100).toFixed(1)
       return (
         <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
@@ -113,18 +121,18 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
             <span className="gba:text-blue-600">Status:</span> {data.status}
           </p>
         </div>
-      );
+      )
     }
-    return null;
-  };
+    return null
+  }
 
   // Radar chart data - normalize values for better visualization
   const radarData = revenueData.slice(0, 6).map(campaign => {
-    const maxRevenue = Math.max(...revenueData.map(c => c.revenue));
-    const maxWinRate = 100;
-    const maxRevenuePerOpp = Math.max(...revenueData.map(c => c.revenuePerOpportunity));
-    const maxRevenuePerLead = Math.max(...revenueData.map(c => c.revenuePerLead));
-    
+    const maxRevenue = Math.max(...revenueData.map(c => c.revenue))
+    const maxWinRate = 100
+    const maxRevenuePerOpp = Math.max(...revenueData.map(c => c.revenuePerOpportunity))
+    const maxRevenuePerLead = Math.max(...revenueData.map(c => c.revenuePerLead))
+
     return {
       campaign: campaign.name,
       fullName: campaign.fullName,
@@ -132,9 +140,9 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       'Win Rate': campaign.winRate,
       'Rev/Opp': (campaign.revenuePerOpportunity / maxRevenuePerOpp) * 100,
       'Rev/Lead': (campaign.revenuePerLead / maxRevenuePerLead) * 100,
-      'Opportunities': (campaign.opportunitiesCount / Math.max(...revenueData.map(c => c.opportunitiesCount))) * 100,
-    };
-  });
+      Opportunities: (campaign.opportunitiesCount / Math.max(...revenueData.map(c => c.opportunitiesCount))) * 100
+    }
+  })
 
   const renderChart = () => {
     switch (chartType) {
@@ -143,20 +151,14 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
           <div className="gba:h-96">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={revenueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  interval={0}
-                />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
                 <YAxis tickFormatter={formatCurrency} />
                 <Tooltip content={<RevenueBarTooltip />} />
                 <Bar dataKey="revenue" fill="#10B981" name="Revenue" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        );
+        )
 
       case 'revenue-pie':
         return (
@@ -182,7 +184,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
               </PieChart>
             </ResponsiveContainer>
           </div>
-        );
+        )
 
       case 'revenue-area':
         return (
@@ -191,31 +193,25 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
               <AreaChart data={revenueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
-                <XAxis 
-                  dataKey="name" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  interval={0}
-                />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
                 <YAxis tickFormatter={formatCurrency} />
                 <Tooltip content={<RevenueBarTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#10B981" 
-                  fillOpacity={1} 
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#10B981"
+                  fillOpacity={1}
                   fill="url(#revenueGradient)"
                   strokeWidth={3}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        );
+        )
 
       case 'revenue-radar':
         return (
@@ -224,7 +220,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
               <RadarChart data={radarData} margin={{ top: 20, right: 80, bottom: 20, left: 80 }}>
                 <PolarGrid />
                 <PolarAngleAxis dataKey="campaign" />
-                <PolarRadiusAxis angle={90} domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
+                <PolarRadiusAxis angle={90} domain={[0, 100]} tickFormatter={value => `${value}%`} />
                 <Radar
                   name="Revenue"
                   dataKey="Revenue"
@@ -262,12 +258,12 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
               </RadarChart>
             </ResponsiveContainer>
           </div>
-        );
+        )
 
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   if (isLoading) {
     return (
@@ -278,7 +274,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (error) {
@@ -287,14 +283,12 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
         <CardContent className="gba:p-6">
           <Alert variant="destructive">
             <AlertDescription>
-              {getTranslationFromI18nKeyAndLabel('campaigns.analytics.revenueAnalysis.error', 'Error loading revenue analysis data')}
+              {getTranslationFromI18nKeyAndLabel(
+                'campaigns.analytics.revenueAnalysis.error',
+                'Error loading revenue analysis data'
+              )}
               {onRetry && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onRetry}
-                  className="gba:ml-2"
-                >
+                <Button variant="outline" size="sm" onClick={onRetry} className="gba:ml-2">
                   {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}
                 </Button>
               )}
@@ -302,7 +296,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
           </Alert>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   return (
@@ -356,30 +350,46 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       <CardContent className="gba:p-6">
         {revenueData.length === 0 ? (
           <div className="gba:text-center gba:py-8" style={{ color: 'var(--color-text-secondary)' }}>
-            {getTranslationFromI18nKeyAndLabel('campaigns.analytics.revenueAnalysis.noData', 'No revenue data available - campaigns have not generated any won revenue yet')}
+            {getTranslationFromI18nKeyAndLabel(
+              'campaigns.analytics.revenueAnalysis.noData',
+              'No revenue data available - campaigns have not generated any won revenue yet'
+            )}
           </div>
         ) : (
           <>
             {/* Revenue Insights - Horizontal Layout */}
-            <div className="gba:mb-3 gba:p-3 gba:rounded-lg" style={{ backgroundColor: 'var(--color-surface-secondary)' }}>
+            <div
+              className="gba:mb-3 gba:p-3 gba:rounded-lg"
+              style={{ backgroundColor: 'var(--color-surface-secondary)' }}
+            >
               <div className="gba:flex gba:justify-between gba:items-center gba:text-sm gba:gap-4">
                 <div className="gba:text-center gba:flex-1">
                   <span className="gba:font-semibold" style={{ color: 'var(--color-success-600)' }}>
                     {formatCurrency(revenueData.reduce((sum, item) => sum + item.revenue, 0))}
                   </span>
-                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Total Won</span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    Total Won
+                  </span>
                 </div>
                 <div className="gba:text-center gba:flex-1">
                   <span className="gba:font-semibold" style={{ color: 'var(--color-primary-600)' }}>
-                    {formatCurrency(revenueData.length > 0 ? revenueData.reduce((sum, item) => sum + item.revenue, 0) / revenueData.length : 0)}
+                    {formatCurrency(
+                      revenueData.length > 0
+                        ? revenueData.reduce((sum, item) => sum + item.revenue, 0) / revenueData.length
+                        : 0
+                    )}
                   </span>
-                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Avg/Campaign</span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    Avg/Campaign
+                  </span>
                 </div>
                 <div className="gba:text-center gba:flex-1">
                   <span className="gba:font-semibold" style={{ color: 'var(--color-warning-600)' }}>
                     {revenueData[0]?.name || 'N/A'}
                   </span>
-                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>Top Campaign</span>
+                  <span className="gba:ml-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    Top Campaign
+                  </span>
                 </div>
               </div>
             </div>
@@ -389,7 +399,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default CampaignsRevenueAnalysis;
+export default CampaignsRevenueAnalysis

@@ -1,19 +1,15 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { UserOutlined, CalendarOutlined, TeamOutlined, BarChartOutlined } from '@ant-design/icons';
-import { PerformanceStatistics as PerformanceStatsType } from '../../../../../hooks/usePerformanceData';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { UserOutlined, CalendarOutlined, TeamOutlined, BarChartOutlined } from '@ant-design/icons'
+import { PerformanceStatistics as PerformanceStatsType } from '../../../../../hooks/usePerformanceData'
 
 interface PerformanceStatisticsProps {
-  statistics: PerformanceStatsType;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: PerformanceStatsType
+  isLoading: boolean
+  dataTestId: string
 }
 
-const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
-  statistics,
-  isLoading,
-  dataTestId
-}) => {
+const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
   // Transform statistics into widget format
   const widgets: WidgetItem[] = [
     {
@@ -52,7 +48,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
       description: 'Employees across all tracked entities',
       precision: 0
     }
-  ];
+  ]
 
   return (
     <div data-testid={dataTestId}>
@@ -65,7 +61,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
         data-testid={`${dataTestId}-widgets`}
       />
     </div>
-  );
-};
+  )
+}
 
-export default PerformanceStatistics; 
+export default PerformanceStatistics

@@ -1,8 +1,4 @@
-import FileExplorerDemo from './FileExplorerDemo';
+import FileExplorerDemo from './FileExplorerDemo'
 
-export { default as FileExplorerDemo } from './FileExplorerDemo';
-export default FileExplorerDemo;
-
-
-
-
+export { default as FileExplorerDemo } from './FileExplorerDemo'
+export default FileExplorerDemo

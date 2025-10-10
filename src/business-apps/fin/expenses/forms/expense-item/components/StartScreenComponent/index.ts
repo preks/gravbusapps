@@ -1,4 +1,4 @@
-import { StartScreenComponent } from './StartScreenComponent';
+import { StartScreenComponent } from './StartScreenComponent'
 
-export { StartScreenComponent };
-export default StartScreenComponent;
+export { StartScreenComponent }
+export default StartScreenComponent

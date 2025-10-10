@@ -1,2 +1,2 @@
-export { default as IDEStartScreen } from './IDEStartScreen';
-export type { default } from './IDEStartScreen'; 
+export { default as IDEStartScreen } from './IDEStartScreen'
+export type { default } from './IDEStartScreen'

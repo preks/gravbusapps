@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import FormWrapperModal from "@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal";
+import React, { useMemo, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import {
   Input,
   FormField,
@@ -9,28 +9,24 @@ import {
   FormControl,
   FormMessage,
   Textarea,
-  Combobox,
-} from "@newwork/nw-design-system";
-import {
-  JobFamily,
-  JobFunction,
-  JobLevelGroup,
-} from "@/business-apps/mdm/apps/job-structure-data/types";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
+  Combobox
+} from '@newwork/nw-design-system'
+import { JobFamily, JobFunction, JobLevelGroup } from '@/business-apps/mdm/apps/job-structure-data/types'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
-const DATA_TEST_ID_PREFIX = "JobFunctionForm";
+const DATA_TEST_ID_PREFIX = 'JobFunctionForm'
 
 export interface JobFunctionFormProps extends BusinessAppContextProps {
-  childAddButton: React.ReactNode;
-  jobFunction?: Partial<JobFunction>;
-  onCancel?: () => void;
-  prefixDataTestId: string;
-  refetch: () => void;
-  isDrawerActive?: boolean;
-  jobFamilies: JobFamily[];
-  jobLevelGroups: JobLevelGroup[];
+  childAddButton: React.ReactNode
+  jobFunction?: Partial<JobFunction>
+  onCancel?: () => void
+  prefixDataTestId: string
+  refetch: () => void
+  isDrawerActive?: boolean
+  jobFamilies: JobFamily[]
+  jobLevelGroups: JobLevelGroup[]
 }
 
 const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
@@ -42,67 +38,63 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
   refetch,
   isDrawerActive = false,
   jobFamilies,
-  jobLevelGroups,
+  jobLevelGroups
 }) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const restClient = useRestClient(
-    env("NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT")
-  );
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (values: any) => {
     try {
-      setLoading(true);
+      setLoading(true)
 
       const payload = {
-        changeMode: "INSERT",
+        changeMode: 'INSERT',
         jobFunction: {
           code: values.code,
           name: values.name,
           description: values.description,
           jobFamilyRef: values.jobFamilyRef,
           jobLevelGroupRef: values.jobLevelGroupRef,
-          ...(jobFunction
-            ? { version: jobFunction.version, id: jobFunction.id }
-            : {}),
-        },
-      };
+          ...(jobFunction ? { version: jobFunction.version, id: jobFunction.id } : {})
+        }
+      }
 
-      await restClient.post("/employee/saveJobFunction", payload, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      await restClient.post('/employee/saveJobFunction', payload, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      })
 
-      refetch();
+      refetch()
     } catch (error) {
-      console.error("Error saving Job Function:", error);
+      console.error('Error saving Job Function:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const defaultValues = useMemo(
     () =>
       jobFunction
         ? {
-            name: jobFunction.name || "",
-            code: jobFunction.code || "",
-            description: jobFunction.description || "",
+            name: jobFunction.name || '',
+            code: jobFunction.code || '',
+            description: jobFunction.description || '',
             jobFamilyRef: jobFunction.jobFamily?.id || null,
-            jobLevelGroupRef: jobFunction.jobLevelGroup?.id || "",
+            jobLevelGroupRef: jobFunction.jobLevelGroup?.id || ''
           }
         : {},
     [jobFunction]
-  );
+  )
 
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={jobFunction ? "Edit Job Function" : "Create Job Function"}
+      title={jobFunction ? 'Edit Job Function' : 'Create Job Function'}
       description={
         jobFunction
-          ? "Update the job function information"
-          : "Create a new job function to define specific roles and responsibilities"
+          ? 'Update the job function information'
+          : 'Create a new job function to define specific roles and responsibilities'
       }
       onSubmit={handleSubmit}
       onCancel={onCancel}
@@ -114,7 +106,7 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
     >
       <FormField
         name="name"
-        rules={{ required: "Please enter job function name" }}
+        rules={{ required: 'Please enter job function name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Name</FormLabel>
@@ -122,7 +114,7 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
               <Input
                 placeholder="e.g., Software Development, Product Management, Sales"
                 {...field}
-                data-testid={formatDataTestId(dataTestId, "Name")}
+                data-testid={formatDataTestId(dataTestId, 'Name')}
               />
             </FormControl>
             <FormMessage />
@@ -132,7 +124,7 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
 
       <FormField
         name="code"
-        rules={{ required: "Please enter code" }}
+        rules={{ required: 'Please enter code' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Code</FormLabel>
@@ -140,7 +132,7 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
               <Input
                 placeholder="e.g., SW_DEV, PROD_MGMT, SALES"
                 {...field}
-                data-testid={formatDataTestId(dataTestId, "Code")}
+                data-testid={formatDataTestId(dataTestId, 'Code')}
               />
             </FormControl>
             <FormMessage />
@@ -158,7 +150,7 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
                 placeholder="Describe this job function and the types of roles it encompasses"
                 rows={3}
                 {...field}
-                data-testid={formatDataTestId(dataTestId, "Description")}
+                data-testid={formatDataTestId(dataTestId, 'Description')}
               />
             </FormControl>
             <FormMessage />
@@ -173,18 +165,18 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
             <FormLabel>Job Family</FormLabel>
             <FormControl>
               <Combobox
-                key={`job-family-combobox-${field.value || "empty"}`}
-                options={jobFamilies.map((family) => ({
+                key={`job-family-combobox-${field.value || 'empty'}`}
+                options={jobFamilies.map(family => ({
                   value: family.id,
-                  label: family.name,
+                  label: family.name
                 }))}
-                value={field.value || ""}
+                value={field.value || ''}
                 onValueChange={field.onChange}
                 placeholder="Select job family (optional)"
                 searchPlaceholder="Search job families..."
                 emptyText="No job families found"
                 className="gba:!w-full"
-                data-testid={formatDataTestId(dataTestId, "JobFamily")}
+                data-testid={formatDataTestId(dataTestId, 'JobFamily')}
               />
             </FormControl>
             <FormMessage />
@@ -199,18 +191,18 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
             <FormLabel>Job Level Group</FormLabel>
             <FormControl>
               <Combobox
-                key={`job-level-group-combobox-${field.value || "empty"}`}
-                options={jobLevelGroups.map((group) => ({
+                key={`job-level-group-combobox-${field.value || 'empty'}`}
+                options={jobLevelGroups.map(group => ({
                   value: group.id,
-                  label: group.name,
+                  label: group.name
                 }))}
-                value={field.value || ""}
+                value={field.value || ''}
                 onValueChange={field.onChange}
                 placeholder="Select job level group (optional)"
                 searchPlaceholder="Search job level groups..."
                 emptyText="No job level groups found"
                 className="gba:!w-full"
-                data-testid={formatDataTestId(dataTestId, "JobLevelGroup")}
+                data-testid={formatDataTestId(dataTestId, 'JobLevelGroup')}
               />
             </FormControl>
             <FormMessage />
@@ -218,7 +210,7 @@ const JobFunctionForm: React.FC<JobFunctionFormProps> = ({
         )}
       />
     </FormWrapperModal>
-  );
-};
+  )
+}
 
-export default JobFunctionForm;
+export default JobFunctionForm

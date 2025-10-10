@@ -1,2 +1,2 @@
-export { HumanResources } from './HumanResources';
-export { default } from './HumanResources';
+export { HumanResources } from './HumanResources'
+export { default } from './HumanResources'

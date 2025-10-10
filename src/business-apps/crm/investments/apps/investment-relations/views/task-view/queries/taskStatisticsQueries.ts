@@ -1,86 +1,88 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface TaskStatisticsQueryVariables {
   myTasksFilters?: {
-    assignedEmployeeIds?: string[];
-    taskStatusIds?: string[];
-    taskPriorityIds?: string[];
-    taskTypeIds?: string[];
-    search?: string;
-    createdAfter?: string;
-    createdBefore?: string;
-  };
+    assignedEmployeeIds?: string[]
+    taskStatusIds?: string[]
+    taskPriorityIds?: string[]
+    taskTypeIds?: string[]
+    search?: string
+    createdAfter?: string
+    createdBefore?: string
+  }
   teamTasksFilters?: {
-    taskStatusIds?: string[];
-    taskPriorityIds?: string[];
-    taskTypeIds?: string[];
-    search?: string;
-    createdAfter?: string;
-    createdBefore?: string;
-  };
+    taskStatusIds?: string[]
+    taskPriorityIds?: string[]
+    taskTypeIds?: string[]
+    search?: string
+    createdAfter?: string
+    createdBefore?: string
+  }
 }
 
 export interface TaskStatisticsData {
   myTasks: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   myTasksInProgress: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   myTasksCompleted: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   myTasksOverdue: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   teamTasks: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   teamTasksInProgress: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   teamTasksCompleted: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
   teamTasksOverdue: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
 export const GET_TASK_STATISTICS = (variables: TaskStatisticsQueryVariables): string => {
-  const { myTasksFilters, teamTasksFilters } = variables;
+  const { myTasksFilters, teamTasksFilters } = variables
 
   // Build where conditions for my tasks
-  const myTasksWhere = [];
+  const myTasksWhere = []
   if (myTasksFilters?.assignedEmployeeIds?.length) {
-    myTasksWhere.push(`assignedEmployeeId: {_in: [${myTasksFilters.assignedEmployeeIds.map(id => `"${id}"`).join(', ')}]}`);
+    myTasksWhere.push(
+      `assignedEmployeeId: {_in: [${myTasksFilters.assignedEmployeeIds.map(id => `"${id}"`).join(', ')}]}`
+    )
   }
   if (myTasksFilters?.taskStatusIds?.length) {
-    myTasksWhere.push(`taskStatusRef: {_in: [${myTasksFilters.taskStatusIds.map(id => `"${id}"`).join(', ')}]}`);
+    myTasksWhere.push(`taskStatusRef: {_in: [${myTasksFilters.taskStatusIds.map(id => `"${id}"`).join(', ')}]}`)
   }
   if (myTasksFilters?.taskPriorityIds?.length) {
-    myTasksWhere.push(`taskPriorityRef: {_in: [${myTasksFilters.taskPriorityIds.map(id => `"${id}"`).join(', ')}]}`);
+    myTasksWhere.push(`taskPriorityRef: {_in: [${myTasksFilters.taskPriorityIds.map(id => `"${id}"`).join(', ')}]}`)
   }
   if (myTasksFilters?.taskTypeIds?.length) {
-    myTasksWhere.push(`taskTypeRef: {_in: [${myTasksFilters.taskTypeIds.map(id => `"${id}"`).join(', ')}]}`);
+    myTasksWhere.push(`taskTypeRef: {_in: [${myTasksFilters.taskTypeIds.map(id => `"${id}"`).join(', ')}]}`)
   }
   if (myTasksFilters?.search?.trim()) {
     myTasksWhere.push(`_or: [
@@ -95,25 +97,25 @@ export const GET_TASK_STATISTICS = (variables: TaskStatisticsQueryVariables): st
       {lead: {firstName: {_ilike: "%${myTasksFilters.search.trim()}%"}}},
       {lead: {lastName: {_ilike: "%${myTasksFilters.search.trim()}%"}}},
       {opportunity: {name: {_ilike: "%${myTasksFilters.search.trim()}%"}}}
-    ]`);
+    ]`)
   }
   if (myTasksFilters?.createdAfter) {
-    myTasksWhere.push(`createdAt: {_gte: "${myTasksFilters.createdAfter}"}`);
+    myTasksWhere.push(`createdAt: {_gte: "${myTasksFilters.createdAfter}"}`)
   }
   if (myTasksFilters?.createdBefore) {
-    myTasksWhere.push(`createdAt: {_lte: "${myTasksFilters.createdBefore}"}`);
+    myTasksWhere.push(`createdAt: {_lte: "${myTasksFilters.createdBefore}"}`)
   }
 
   // Build where conditions for team tasks
-  const teamTasksWhere = [];
+  const teamTasksWhere = []
   if (teamTasksFilters?.taskStatusIds?.length) {
-    teamTasksWhere.push(`taskStatusRef: {_in: [${teamTasksFilters.taskStatusIds.map(id => `"${id}"`).join(', ')}]}`);
+    teamTasksWhere.push(`taskStatusRef: {_in: [${teamTasksFilters.taskStatusIds.map(id => `"${id}"`).join(', ')}]}`)
   }
   if (teamTasksFilters?.taskPriorityIds?.length) {
-    teamTasksWhere.push(`taskPriorityRef: {_in: [${teamTasksFilters.taskPriorityIds.map(id => `"${id}"`).join(', ')}]}`);
+    teamTasksWhere.push(`taskPriorityRef: {_in: [${teamTasksFilters.taskPriorityIds.map(id => `"${id}"`).join(', ')}]}`)
   }
   if (teamTasksFilters?.taskTypeIds?.length) {
-    teamTasksWhere.push(`taskTypeRef: {_in: [${teamTasksFilters.taskTypeIds.map(id => `"${id}"`).join(', ')}]}`);
+    teamTasksWhere.push(`taskTypeRef: {_in: [${teamTasksFilters.taskTypeIds.map(id => `"${id}"`).join(', ')}]}`)
   }
   if (teamTasksFilters?.search?.trim()) {
     teamTasksWhere.push(`_or: [
@@ -128,42 +130,48 @@ export const GET_TASK_STATISTICS = (variables: TaskStatisticsQueryVariables): st
       {lead: {firstName: {_ilike: "%${teamTasksFilters.search.trim()}%"}}},
       {lead: {lastName: {_ilike: "%${teamTasksFilters.search.trim()}%"}}},
       {opportunity: {name: {_ilike: "%${teamTasksFilters.search.trim()}%"}}}
-    ]`);
+    ]`)
   }
   if (teamTasksFilters?.createdAfter) {
-    teamTasksWhere.push(`createdAt: {_gte: "${teamTasksFilters.createdAfter}"}`);
+    teamTasksWhere.push(`createdAt: {_gte: "${teamTasksFilters.createdAfter}"}`)
   }
   if (teamTasksFilters?.createdBefore) {
-    teamTasksWhere.push(`createdAt: {_lte: "${teamTasksFilters.createdBefore}"}`);
+    teamTasksWhere.push(`createdAt: {_lte: "${teamTasksFilters.createdBefore}"}`)
   }
 
-  const myTasksWhereClause = myTasksWhere.length > 0 ? `where: {${myTasksWhere.join(', ')}}` : '';
-  const teamTasksWhereClause = teamTasksWhere.length > 0 ? `where: {${teamTasksWhere.join(', ')}}` : '';
+  const myTasksWhereClause = myTasksWhere.length > 0 ? `where: {${myTasksWhere.join(', ')}}` : ''
+  const teamTasksWhereClause = teamTasksWhere.length > 0 ? `where: {${teamTasksWhere.join(', ')}}` : ''
 
   // Build status-specific where clauses
-  const myTasksInProgressWhere = myTasksWhere.length > 0 
-    ? `where: {${myTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}`
-    : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}';
-    
-  const myTasksCompletedWhere = myTasksWhere.length > 0 
-    ? `where: {${myTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}`
-    : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}';
-    
-  const myTasksOverdueWhere = myTasksWhere.length > 0 
-    ? `where: {${myTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}`
-    : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}';
-    
-  const teamTasksInProgressWhere = teamTasksWhere.length > 0 
-    ? `where: {${teamTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}`
-    : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}';
-    
-  const teamTasksCompletedWhere = teamTasksWhere.length > 0 
-    ? `where: {${teamTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}`
-    : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}';
-    
-  const teamTasksOverdueWhere = teamTasksWhere.length > 0 
-    ? `where: {${teamTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}`
-    : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}';
+  const myTasksInProgressWhere =
+    myTasksWhere.length > 0
+      ? `where: {${myTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}`
+      : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}'
+
+  const myTasksCompletedWhere =
+    myTasksWhere.length > 0
+      ? `where: {${myTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}`
+      : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}'
+
+  const myTasksOverdueWhere =
+    myTasksWhere.length > 0
+      ? `where: {${myTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}`
+      : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}'
+
+  const teamTasksInProgressWhere =
+    teamTasksWhere.length > 0
+      ? `where: {${teamTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}`
+      : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:IN_PROGRESS"]}}'
+
+  const teamTasksCompletedWhere =
+    teamTasksWhere.length > 0
+      ? `where: {${teamTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}`
+      : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:COMPLETED", "InvestmentTaskStatus:v1:DONE"]}}'
+
+  const teamTasksOverdueWhere =
+    teamTasksWhere.length > 0
+      ? `where: {${teamTasksWhere.join(', ')}, taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}`
+      : 'where: {taskStatusRef: {_in: ["InvestmentTaskStatus:v1:OVERDUE"]}}'
 
   return `
     query GetTaskStatistics {
@@ -215,22 +223,25 @@ export const GET_TASK_STATISTICS = (variables: TaskStatisticsQueryVariables): st
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetTaskStatistics = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchTaskStatistics = useCallback(async (variables: TaskStatisticsQueryVariables = {}) => {
-    const query = GET_TASK_STATISTICS(variables);
-    try {
-      const result = await graphqlClient.request<TaskStatisticsData>(query);
-      return result;
-    } catch (error) {
-      console.error('Error fetching task statistics:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchTaskStatistics };
-};
+  const fetchTaskStatistics = useCallback(
+    async (variables: TaskStatisticsQueryVariables = {}) => {
+      const query = GET_TASK_STATISTICS(variables)
+      try {
+        const result = await graphqlClient.request<TaskStatisticsData>(query)
+        return result
+      } catch (error) {
+        console.error('Error fetching task statistics:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchTaskStatistics }
+}

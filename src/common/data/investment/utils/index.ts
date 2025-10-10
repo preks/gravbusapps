@@ -2,7 +2,7 @@
  * Investment utilities for shared functionality
  */
 
-export { debounce, DEFAULT_SEARCH_DEBOUNCE_DELAY, DEFAULT_LOAD_DEBOUNCE_DELAY } from './debounce';
+export { debounce, DEFAULT_SEARCH_DEBOUNCE_DELAY, DEFAULT_LOAD_DEBOUNCE_DELAY } from './debounce'
 
 // Export all formatters
 export {
@@ -14,4 +14,4 @@ export {
   getStatusColor,
   formatLargeNumber,
   formatNumber
-} from './formatters';
+} from './formatters'

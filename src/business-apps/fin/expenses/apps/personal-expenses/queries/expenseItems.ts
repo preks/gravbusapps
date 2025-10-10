@@ -109,7 +109,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
 
 // GraphQL query variant that accepts a dynamic where clause to allow optional filters (e.g., currency)
 export const GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE = `
@@ -146,7 +146,7 @@ export const GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE = `
       employee { fullName additionalProperties }
     }
   }
-`;
+`
 
 export const GET_ITEMS_WITHOUT_RECEIPTS = `
   query GetItemsWithoutReceipts($employeeId: uuid!) {
@@ -163,7 +163,7 @@ export const GET_ITEMS_WITHOUT_RECEIPTS = `
       }
     }
   }
-`;
+`
 
 export const GET_PENDING_ITEMS = `
   query GetPendingItems($employeeId: uuid!, $currencyRef: String!) {
@@ -195,7 +195,7 @@ export const GET_PENDING_ITEMS = `
       }
     }
   }
-`;
+`
 
 export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
   query GetPendingItemsWithDateRange($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
@@ -220,7 +220,7 @@ export const GET_PENDING_ITEMS_WITH_DATE_RANGE = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_ITEM_BY_ID = `
   query GetExpenseItemById($id: uuid!) {
@@ -261,7 +261,7 @@ export const GET_EXPENSE_ITEM_BY_ID = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_ITEM_STATISTICS = `
   query GetExpenseItemStatistics($employeeId: uuid!, $startDate: timestamp, $endDate: timestamp, $currencyRef: String!) {
@@ -296,7 +296,7 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
       }
     }
   }
-`;
+`
 
 export const GET_USED_CURRENCIES_BY_EMPLOYEE = `
   query GetUsedCurrenciesByEmployee($employeeId: uuid!, $limit: Int = 1000) {
@@ -312,4 +312,4 @@ export const GET_USED_CURRENCIES_BY_EMPLOYEE = `
       currency { code }
     }
   }
-`;
+`

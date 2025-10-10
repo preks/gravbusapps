@@ -1,33 +1,19 @@
-import React from 'react';
-import {
-  Card,
-  Badge,
-  Button,
-  Separator
-} from '@newwork/nw-design-system';
-import {
-  User,
-  CheckCircle,
-  XCircle,
-  Clock,
-  FileText,
-  MessageSquare,
-  Calendar,
-  Eye
-} from 'lucide-react';
+import React from 'react'
+import { Card, Badge, Button, Separator } from '@newwork/nw-design-system'
+import { User, CheckCircle, XCircle, Clock, FileText, MessageSquare, Calendar, Eye } from 'lucide-react'
 
 interface SimulationPreviewProps {
-  step: any;
-  stepIndex: number;
-  simulationData?: any;
-  userPerspective: string;
+  step: any
+  stepIndex: number
+  simulationData?: any
+  userPerspective: string
   availableUsers: Array<{
-    id: string;
-    name: string;
-    role: string;
-  }>;
-  onClose: () => void;
-  'data-testid'?: string;
+    id: string
+    name: string
+    role: string
+  }>
+  onClose: () => void
+  'data-testid'?: string
 }
 
 export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
@@ -40,72 +26,72 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
   'data-testid': testId = 'simulation-preview'
 }) => {
   const getCurrentUser = () => {
-    return availableUsers.find(user => user.id === userPerspective) || availableUsers[0];
-  };
+    return availableUsers.find(user => user.id === userPerspective) || availableUsers[0]
+  }
 
   const getStepTypeIcon = (stepType: string) => {
     switch (stepType) {
       case 'TASK':
-        return <User className="gba:w-5 gba:h-5" />;
+        return <User className="gba:w-5 gba:h-5" />
       case 'APPROVAL':
-        return <CheckCircle className="gba:w-5 gba:h-5" />;
+        return <CheckCircle className="gba:w-5 gba:h-5" />
       case 'INFORMATION':
-        return <MessageSquare className="gba:w-5 gba:h-5" />;
+        return <MessageSquare className="gba:w-5 gba:h-5" />
       case 'ACKNOWLEDGE':
-        return <FileText className="gba:w-5 gba:h-5" />;
+        return <FileText className="gba:w-5 gba:h-5" />
       default:
-        return <Eye className="gba:w-5 gba:h-5" />;
+        return <Eye className="gba:w-5 gba:h-5" />
     }
-  };
+  }
 
   const getStepTypeColor = (stepType: string) => {
     switch (stepType) {
       case 'TASK':
-        return 'var(--color-primary-500)';
+        return 'var(--color-primary-500)'
       case 'APPROVAL':
-        return 'var(--color-warning-500)';
+        return 'var(--color-warning-500)'
       case 'INFORMATION':
-        return 'var(--color-info-500)';
+        return 'var(--color-info-500)'
       case 'ACKNOWLEDGE':
-        return 'var(--color-success-500)';
+        return 'var(--color-success-500)'
       default:
-        return 'var(--color-surface-disabled)';
+        return 'var(--color-surface-disabled)'
     }
-  };
+  }
 
   const getResultIcon = (result: string) => {
     switch (result) {
       case 'APPROVED':
-        return <CheckCircle className="gba:w-4 gba:h-4" style={{ color: 'var(--color-success-500)' }} />;
+        return <CheckCircle className="gba:w-4 gba:h-4" style={{ color: 'var(--color-success-500)' }} />
       case 'REJECTED':
-        return <XCircle className="gba:w-4 gba:h-4" style={{ color: 'var(--color-danger-500)' }} />;
+        return <XCircle className="gba:w-4 gba:h-4" style={{ color: 'var(--color-danger-500)' }} />
       case 'COMPLETED':
-        return <CheckCircle className="gba:w-4 gba:h-4" style={{ color: 'var(--color-success-500)' }} />;
+        return <CheckCircle className="gba:w-4 gba:h-4" style={{ color: 'var(--color-success-500)' }} />
       default:
-        return <Clock className="gba:w-4 gba:h-4" style={{ color: 'var(--color-warning-500)' }} />;
+        return <Clock className="gba:w-4 gba:h-4" style={{ color: 'var(--color-warning-500)' }} />
     }
-  };
+  }
 
   const getResultColor = (result: string) => {
     switch (result) {
       case 'APPROVED':
       case 'COMPLETED':
-        return 'var(--color-success-500)';
+        return 'var(--color-success-500)'
       case 'REJECTED':
-        return 'var(--color-danger-500)';
+        return 'var(--color-danger-500)'
       default:
-        return 'var(--color-warning-500)';
+        return 'var(--color-warning-500)'
     }
-  };
+  }
 
-  const currentUser = getCurrentUser();
+  const currentUser = getCurrentUser()
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
       {/* Step Header */}
-      <Card 
+      <Card
         className="gba:shadow-sm gba:border gba:border-gray-200"
-        style={{ 
+        style={{
           backgroundColor: 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(8px)'
         }}
@@ -113,24 +99,21 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
         <div style={{ padding: 'var(--spacing-lg)' }}>
           <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
             <div className="gba:flex gba:items-start gba:gap-4">
-              <div 
+              <div
                 className="gba:p-2 gba:rounded-lg"
-                style={{ 
+                style={{
                   backgroundColor: `${getStepTypeColor(step.type)}20`,
                   color: getStepTypeColor(step.type)
                 }}
               >
                 {getStepTypeIcon(step.type)}
               </div>
-              
+
               <div>
-                <h3 
-                  className="gba:text-xl gba:font-bold gba:mb-2"
-                  style={{ color: 'var(--color-text-primary)' }}
-                >
+                <h3 className="gba:text-xl gba:font-bold gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
                   {step.title}
                 </h3>
-                
+
                 <div className="gba:flex gba:gap-2 gba:mb-3">
                   <Badge
                     variant="outline"
@@ -142,7 +125,7 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                   >
                     {step.type}
                   </Badge>
-                  
+
                   <Badge
                     variant="outline"
                     style={{
@@ -156,9 +139,9 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                 </div>
               </div>
             </div>
-            
+
             {simulationData && (
-              <div 
+              <div
                 className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg"
                 style={{
                   backgroundColor: `${getResultColor(simulationData.result)}20`,
@@ -166,22 +149,20 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                 }}
               >
                 {getResultIcon(simulationData.result)}
-                <span className="gba:font-medium gba:text-sm">
-                  {simulationData.result}
-                </span>
+                <span className="gba:font-medium gba:text-sm">{simulationData.result}</span>
               </div>
             )}
           </div>
 
           {/* User Perspective */}
-          <div 
+          <div
             className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-lg"
             style={{
               backgroundColor: 'var(--color-surface-secondary)',
               border: `1px solid var(--color-border-default)`
             }}
           >
-            <div 
+            <div
               className="gba:w-8 gba:h-8 gba:rounded-full gba:flex gba:items-center gba:justify-center"
               style={{
                 backgroundColor: 'var(--color-primary-500)',
@@ -190,18 +171,12 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
             >
               <User className="gba:w-4 gba:h-4" />
             </div>
-            
+
             <div>
-              <p 
-                className="gba:font-medium gba:text-sm"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
+              <p className="gba:font-medium gba:text-sm" style={{ color: 'var(--color-text-primary)' }}>
                 Viewing as: {currentUser.name}
               </p>
-              <p 
-                className="gba:text-xs"
-                style={{ color: 'var(--color-text-secondary)' }}
-              >
+              <p className="gba:text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                 {currentUser.role}
               </p>
             </div>
@@ -211,33 +186,30 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
 
       {/* Step Message */}
       {step.message && (
-        <Card 
+        <Card
           className="gba:shadow-sm gba:border gba:border-gray-200"
-          style={{ 
+          style={{
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(4px)'
           }}
         >
           <div style={{ padding: 'var(--spacing-lg)' }}>
-            <h4 
+            <h4
               className="gba:text-lg gba:font-medium gba:mb-3 gba:flex gba:items-center gba:gap-2"
               style={{ color: 'var(--color-text-primary)' }}
             >
               <MessageSquare className="gba:w-4 gba:h-4" />
               Message
             </h4>
-            
-            <div 
+
+            <div
               className="gba:p-4 gba:rounded-lg"
               style={{
                 backgroundColor: 'var(--color-surface-secondary)',
                 border: `1px solid var(--color-border-default)`
               }}
             >
-              <p 
-                className="gba:leading-relaxed gba:whitespace-pre-wrap"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
+              <p className="gba:leading-relaxed gba:whitespace-pre-wrap" style={{ color: 'var(--color-text-primary)' }}>
                 {step.message}
               </p>
             </div>
@@ -247,22 +219,22 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
 
       {/* Form Data */}
       {step.inputs && step.inputs.length > 0 && (
-        <Card 
+        <Card
           className="gba:shadow-sm gba:border gba:border-gray-200"
-          style={{ 
+          style={{
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(4px)'
           }}
         >
           <div style={{ padding: 'var(--spacing-lg)' }}>
-            <h4 
+            <h4
               className="gba:text-lg gba:font-medium gba:mb-4 gba:flex gba:items-center gba:gap-2"
               style={{ color: 'var(--color-text-primary)' }}
             >
               <FileText className="gba:w-4 gba:h-4" />
               Form Fields
               {simulationData && (
-                <Badge 
+                <Badge
                   variant="outline"
                   style={{
                     backgroundColor: 'var(--color-success-100)',
@@ -275,14 +247,14 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                 </Badge>
               )}
             </h4>
-            
+
             <div className="gba:space-y-4">
               {step.inputs.map((input: any, index: number) => {
-                const fieldName = input.name || `input_${index}`;
-                const fieldValue = simulationData?.formData?.[fieldName];
-                
+                const fieldName = input.name || `input_${index}`
+                const fieldValue = simulationData?.formData?.[fieldName]
+
                 return (
-                  <div 
+                  <div
                     key={index}
                     className="gba:p-4 gba:rounded-lg"
                     style={{
@@ -291,15 +263,12 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                     }}
                   >
                     <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
-                      <label 
-                        className="gba:font-medium gba:text-sm"
-                        style={{ color: 'var(--color-text-primary)' }}
-                      >
+                      <label className="gba:font-medium gba:text-sm" style={{ color: 'var(--color-text-primary)' }}>
                         {input.label}
                       </label>
-                      
+
                       {fieldValue !== undefined && fieldValue !== '' && (
-                        <Badge 
+                        <Badge
                           variant="outline"
                           style={{
                             backgroundColor: 'var(--color-primary-100)',
@@ -312,17 +281,14 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                         </Badge>
                       )}
                     </div>
-                    
+
                     {input.placeholder && (
-                      <p 
-                        className="gba:text-xs gba:mb-2"
-                        style={{ color: 'var(--color-text-secondary)' }}
-                      >
+                      <p className="gba:text-xs gba:mb-2" style={{ color: 'var(--color-text-secondary)' }}>
                         {input.placeholder}
                       </p>
                     )}
-                    
-                    <div 
+
+                    <div
                       className="gba:p-3 gba:rounded gba:min-h-[40px] gba:flex gba:items-center"
                       style={{
                         backgroundColor: 'var(--color-surface-primary)',
@@ -330,23 +296,17 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                       }}
                     >
                       {fieldValue !== undefined && fieldValue !== '' ? (
-                        <span 
-                          className="gba:text-sm"
-                          style={{ color: 'var(--color-text-primary)' }}
-                        >
+                        <span className="gba:text-sm" style={{ color: 'var(--color-text-primary)' }}>
                           {Array.isArray(fieldValue) ? fieldValue.join(', ') : String(fieldValue)}
                         </span>
                       ) : (
-                        <span 
-                          className="gba:text-sm gba:italic"
-                          style={{ color: 'var(--color-text-secondary)' }}
-                        >
+                        <span className="gba:text-sm gba:italic" style={{ color: 'var(--color-text-secondary)' }}>
                           No answer provided
                         </span>
                       )}
                     </div>
                   </div>
-                );
+                )
               })}
             </div>
           </div>
@@ -355,24 +315,21 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
 
       {/* Links */}
       {step.links && step.links.length > 0 && (
-        <Card 
+        <Card
           className="gba:shadow-sm gba:border gba:border-gray-200"
-          style={{ 
+          style={{
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(4px)'
           }}
         >
           <div style={{ padding: 'var(--spacing-lg)' }}>
-            <h4 
-              className="gba:text-lg gba:font-medium gba:mb-4"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
+            <h4 className="gba:text-lg gba:font-medium gba:mb-4" style={{ color: 'var(--color-text-primary)' }}>
               Related Links
             </h4>
-            
+
             <div className="gba:space-y-2">
               {step.links.map((link: any, index: number) => (
-                <div 
+                <div
                   key={index}
                   className="gba:p-3 gba:rounded-lg"
                   style={{
@@ -381,18 +338,16 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
                   }}
                 >
                   {link.url ? (
-                    <a 
-                      href={link.url} 
-                      target="_blank" 
+                    <a
+                      href={link.url}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="gba:text-blue-600 gba:underline gba:hover:text-blue-800"
                     >
                       {link.name || link.url}
                     </a>
                   ) : (
-                    <span style={{ color: 'var(--color-text-primary)' }}>
-                      {link.name}
-                    </span>
+                    <span style={{ color: 'var(--color-text-primary)' }}>{link.name}</span>
                   )}
                 </div>
               ))}
@@ -403,62 +358,47 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
 
       {/* Simulation Summary */}
       {simulationData && (
-        <Card 
+        <Card
           className="gba:shadow-sm gba:border gba:border-gray-200"
-          style={{ 
+          style={{
             backgroundColor: 'rgba(255, 255, 255, 0.9)',
             backdropFilter: 'blur(4px)',
             borderLeft: `4px solid ${getResultColor(simulationData.result)}`
           }}
         >
           <div style={{ padding: 'var(--spacing-lg)' }}>
-            <h4 
+            <h4
               className="gba:text-lg gba:font-medium gba:mb-4 gba:flex gba:items-center gba:gap-2"
               style={{ color: 'var(--color-text-primary)' }}
             >
               {getResultIcon(simulationData.result)}
               Simulation Result
             </h4>
-            
+
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
               <div>
-                <label 
-                  className="gba:text-xs gba:font-medium"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
+                <label className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>
                   RESULT
                 </label>
-                <p 
-                  className="gba:font-semibold"
-                  style={{ color: getResultColor(simulationData.result) }}
-                >
+                <p className="gba:font-semibold" style={{ color: getResultColor(simulationData.result) }}>
                   {simulationData.result}
                 </p>
               </div>
-              
+
               <div>
-                <label 
-                  className="gba:text-xs gba:font-medium"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
+                <label className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>
                   COMPLETED BY
                 </label>
-                <p 
-                  className="gba:font-semibold"
-                  style={{ color: 'var(--color-text-primary)' }}
-                >
+                <p className="gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                   {currentUser.name}
                 </p>
               </div>
-              
+
               <div>
-                <label 
-                  className="gba:text-xs gba:font-medium"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
+                <label className="gba:text-xs gba:font-medium" style={{ color: 'var(--color-text-secondary)' }}>
                   COMPLETED AT
                 </label>
-                <p 
+                <p
                   className="gba:font-semibold gba:flex gba:items-center gba:gap-1"
                   style={{ color: 'var(--color-text-primary)' }}
                 >
@@ -473,14 +413,10 @@ export const SimulationPreview: React.FC<SimulationPreviewProps> = ({
 
       {/* Footer */}
       <div className="gba:flex gba:justify-end gba:pt-4">
-        <Button
-          variant="outline"
-          onClick={onClose}
-          data-testid={`${testId}-close-button`}
-        >
+        <Button variant="outline" onClick={onClose} data-testid={`${testId}-close-button`}>
           Close Preview
         </Button>
       </div>
     </div>
-  );
-};
+  )
+}

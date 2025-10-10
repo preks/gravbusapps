@@ -1,72 +1,71 @@
-import React from 'react';
-import { Card } from 'antd';
-import dayjs from 'dayjs';
-import { ContactData } from '../queries/ContactQueries';
+import React from 'react'
+import { Card } from 'antd'
+import dayjs from 'dayjs'
+import { ContactData } from '../queries/ContactQueries'
 
 interface ContactPersonalInfoProps {
-  contact: ContactData;
+  contact: ContactData
 }
 
 export const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contact }) => {
   return (
-    <Card
-      title="Contact Information"
-      style={{ width: '100%', height: '100%' }}
-    >
+    <Card title="Contact Information" style={{ width: '100%', height: '100%' }}>
       <div>
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>First Name</div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.firstName || '-'}</div>
         </div>
-        
+
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Last Name</div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.lastName || '-'}</div>
         </div>
-        
+
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Email</div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>
             {contact?.email ? (
-              <a 
+              <a
                 href={`mailto:${contact.email}`}
                 style={{ color: '#3b82f6', textDecoration: 'none' }}
                 data-testid="contact-personal-info-email-link"
               >
                 {contact.email}
               </a>
-            ) : '-'}
+            ) : (
+              '-'
+            )}
           </div>
         </div>
-        
+
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Phone Number</div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>
             {contact?.phone ? (
-              <a 
-                href={`tel:${contact.phone}`}
-                style={{ color: '#3b82f6', textDecoration: 'none' }}
-              >
+              <a href={`tel:${contact.phone}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>
                 {contact.phone}
               </a>
-            ) : '-'}
+            ) : (
+              '-'
+            )}
           </div>
         </div>
-        
+
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Job Title</div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>{contact?.jobTitle || '-'}</div>
         </div>
-        
+
         <div style={{ marginBottom: '16px' }}>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Department</div>
-          <div style={{ fontSize: '16px', fontWeight: '500' }}>{
-            (contact as any)?.department
-              ? ((contact as any).department as string).charAt(0).toUpperCase() + ((contact as any).department as string).slice(1)
-              : '-'
-          }</div>
+          <div style={{ fontSize: '16px', fontWeight: '500' }}>
+            {(contact as any)?.department
+              ? ((contact as any).department as string).charAt(0).toUpperCase() +
+                ((contact as any).department as string).slice(1)
+              : '-'}
+          </div>
         </div>
-        
+
         <div>
           <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: '4px' }}>Created At</div>
           <div style={{ fontSize: '16px', fontWeight: '500' }}>
@@ -75,5 +74,5 @@ export const ContactPersonalInfo: React.FC<ContactPersonalInfoProps> = ({ contac
         </div>
       </div>
     </Card>
-  );
-}; 
+  )
+}

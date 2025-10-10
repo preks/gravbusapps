@@ -1,17 +1,13 @@
-import React from "react";
-import { Button } from "@newwork/nw-design-system";
+import React from 'react'
+import { Button } from '@newwork/nw-design-system'
 
 interface AbsenceTypeFilterProps {
-  filterOptions: string[];
-  activeFilter: string;
-  onFilterChange: (filter: string) => void;
+  filterOptions: string[]
+  activeFilter: string
+  onFilterChange: (filter: string) => void
 }
 
-const AbsenceTypeFilter: React.FC<AbsenceTypeFilterProps> = ({
-  filterOptions,
-  activeFilter,
-  onFilterChange,
-}) => (
+const AbsenceTypeFilter: React.FC<AbsenceTypeFilterProps> = ({ filterOptions, activeFilter, onFilterChange }) => (
   <>
     <style>
       {`
@@ -40,19 +36,12 @@ const AbsenceTypeFilter: React.FC<AbsenceTypeFilterProps> = ({
         }
       `}
     </style>
-    <div
-      className="gba:absenceListFilters gba:flex gba:gap-2"
-      data-testid="absence-type-filter"
-    >
-      {filterOptions.map((filter) => (
+    <div className="gba:absenceListFilters gba:flex gba:gap-2" data-testid="absence-type-filter">
+      {filterOptions.map(filter => (
         <Button
           key={filter}
           variant="outline"
-          className={`gba:filterButton ${
-            activeFilter === filter
-              ? "gba:filter-active"
-              : "gba:filter-inactive"
-          }`}
+          className={`gba:filterButton ${activeFilter === filter ? 'gba:filter-active' : 'gba:filter-inactive'}`}
           data-active={activeFilter === filter}
           onClick={() => onFilterChange(filter)}
           data-testid="absence-type-filter-button"
@@ -62,6 +51,6 @@ const AbsenceTypeFilter: React.FC<AbsenceTypeFilterProps> = ({
       ))}
     </div>
   </>
-);
+)
 
-export default AbsenceTypeFilter;
+export default AbsenceTypeFilter

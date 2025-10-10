@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Input, Label } from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { useLeadFormContext } from "../../context/LeadFormContext";
-import SearchableSelect from "../SearchableSelect";
+import React, { useState, useEffect, useMemo } from 'react'
+import { Input, Label } from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useLeadFormContext } from '../../context/LeadFormContext'
+import SearchableSelect from '../SearchableSelect'
 
-const prefixDataTestId = "LeadForm";
+const prefixDataTestId = 'LeadForm'
 
 const InvestmentSelectionSection: React.FC = () => {
   // State for investment type search
-  const [investmentTypeSearchTerm, setInvestmentTypeSearchTerm] = useState("");
+  const [investmentTypeSearchTerm, setInvestmentTypeSearchTerm] = useState('')
 
   const {
     formValues,
@@ -21,45 +21,42 @@ const InvestmentSelectionSection: React.FC = () => {
     // Dependent Investment Types (filtered by selected investment group)
     dependentInvestmentTypes,
     dependentInvestmentTypesLoading,
-    dependentInvestmentTypesError,
-  } = useLeadFormContext();
+    dependentInvestmentTypesError
+  } = useLeadFormContext()
 
   // Filter investment types based on search term
   const filteredInvestmentTypes = useMemo(() => {
     if (!investmentTypeSearchTerm.trim()) {
-      return dependentInvestmentTypes;
+      return dependentInvestmentTypes
     }
-    
-    const searchLower = investmentTypeSearchTerm.toLowerCase();
-    return dependentInvestmentTypes.filter(type => 
-      type.name.toLowerCase().includes(searchLower) ||
-      type.label.toLowerCase().includes(searchLower)
-    );
-  }, [dependentInvestmentTypes, investmentTypeSearchTerm]);
+
+    const searchLower = investmentTypeSearchTerm.toLowerCase()
+    return dependentInvestmentTypes.filter(
+      type => type.name.toLowerCase().includes(searchLower) || type.label.toLowerCase().includes(searchLower)
+    )
+  }, [dependentInvestmentTypes, investmentTypeSearchTerm])
 
   // Handle investment type search
   const handleInvestmentTypeSearch = (searchTerm: string) => {
-    setInvestmentTypeSearchTerm(searchTerm);
-  };
+    setInvestmentTypeSearchTerm(searchTerm)
+  }
 
   // Clear search term when investment group changes
   useEffect(() => {
-    setInvestmentTypeSearchTerm("");
-  }, [formValues.investmentGroup]);
+    setInvestmentTypeSearchTerm('')
+  }, [formValues.investmentGroup])
 
   return (
     <div className="gba:space-y-6">
       {/* Investment Name - Full width */}
       <div className="gba:space-y-2">
-        <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-          Investment Name
-        </Label>
+        <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Investment Name</Label>
         <Input
           type="text"
-          value={formValues.investmentName || ""}
-          onChange={(e) => setFormValues({ investmentName: e.target.value })}
+          value={formValues.investmentName || ''}
+          onChange={e => setFormValues({ investmentName: e.target.value })}
           placeholder="Enter investment name..."
-          data-testid={formatDataTestId(prefixDataTestId, "investment-name-input")}
+          data-testid={formatDataTestId(prefixDataTestId, 'investment-name-input')}
           className="gba:w-full"
         />
       </div>
@@ -74,16 +71,16 @@ const InvestmentSelectionSection: React.FC = () => {
             value={formValues.investmentGroup}
             placeholder={
               formValues.investmentGroup && formValues.investmentGroup.trim()
-                ? "Search and select investment group..."
-                : "Please Select..."
+                ? 'Search and select investment group...'
+                : 'Please Select...'
             }
             options={investmentGroupsSearchable}
             loading={false}
             hasMore={false}
             onSearch={searchInvestmentGroups}
-            onChange={(value) => setFormValues({ investmentGroup: value })}
+            onChange={value => setFormValues({ investmentGroup: value })}
             error={null}
-            data-testid={formatDataTestId(prefixDataTestId, "investment-group-select")}
+            data-testid={formatDataTestId(prefixDataTestId, 'investment-group-select')}
             className="gba:w-full"
           />
         </div>
@@ -96,24 +93,24 @@ const InvestmentSelectionSection: React.FC = () => {
             value={formValues.investmentType}
             placeholder={
               !formValues.investmentGroup
-                ? "Please select Investment Group first..."
+                ? 'Please select Investment Group first...'
                 : formValues.investmentType && formValues.investmentType.trim()
-                ? "Search and select investment type..."
-                : "Please Select..."
+                  ? 'Search and select investment type...'
+                  : 'Please Select...'
             }
             options={filteredInvestmentTypes}
             loading={dependentInvestmentTypesLoading}
             hasMore={false}
             onSearch={handleInvestmentTypeSearch}
-            onChange={(value) => setFormValues({ investmentType: value })}
+            onChange={value => setFormValues({ investmentType: value })}
             error={dependentInvestmentTypesError}
-            data-testid={formatDataTestId(prefixDataTestId, "investment-type-select")}
+            data-testid={formatDataTestId(prefixDataTestId, 'investment-type-select')}
             className="gba:w-full"
           />
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default InvestmentSelectionSection;
+export default InvestmentSelectionSection

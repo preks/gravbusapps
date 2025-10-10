@@ -1,18 +1,14 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { DemographicsStatistics } from '../../../../hooks/useDemographicsDataIntegration';
+import React from 'react'
+import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import type { DemographicsStatistics } from '../../../../hooks/useDemographicsDataIntegration'
 
 interface DemographicsStatisticsProps {
-  statistics: DemographicsStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: DemographicsStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
-const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({
-  statistics,
-  isLoading,
-  dataTestId
-}) => {
+const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
   const kpiCards: KpiCardData[] = [
     {
       id: 'gender-diversity',
@@ -46,27 +42,27 @@ const DemographicsStatistics: React.FC<DemographicsStatisticsProps> = ({
       iconColor: '#13c2c2',
       footer: `Most common • ${statistics.nationalityDiversity} different nationalities`
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
       value: 'Loading...'
-    }));
-    
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default DemographicsStatistics; 
+export default DemographicsStatistics

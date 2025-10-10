@@ -19,58 +19,51 @@ A comprehensive React form component for creating and updating lead records in t
 ### Creating a New Lead
 
 ```tsx
-import { LeadForm } from '@/business-apps/crm/leads/forms/lead-form';
+import { LeadForm } from '@/business-apps/crm/leads/forms/lead-form'
 
 const CreateLeadPage = () => {
-  const handleSubmit = async (values) => {
+  const handleSubmit = async values => {
     // Handle lead creation
-    console.log('Creating lead:', values);
-  };
+    console.log('Creating lead:', values)
+  }
 
   const handleCancel = () => {
     // Handle form cancellation
-    console.log('Form cancelled');
-  };
+    console.log('Form cancelled')
+  }
 
-  return (
-    <LeadForm 
-      accessToken={accessToken}
-      userInfo={userInfo}
-      onSubmit={handleSubmit}
-      onCancel={handleCancel}
-    />
-  );
-};
+  return <LeadForm accessToken={accessToken} userInfo={userInfo} onSubmit={handleSubmit} onCancel={handleCancel} />
+}
 ```
 
 ### Updating an Existing Lead
 
 ```tsx
-import { LeadForm } from '@/business-apps/crm/leads/forms/lead-form';
+import { LeadForm } from '@/business-apps/crm/leads/forms/lead-form'
 
 const UpdateLeadPage = () => {
-  const leadId = "lead-uuid-here";
+  const leadId = 'lead-uuid-here'
 
-  const handleSubmit = async (values) => {
+  const handleSubmit = async values => {
     // Handle lead update
-    console.log('Updating lead:', values);
-  };
+    console.log('Updating lead:', values)
+  }
 
   const handleCancel = () => {
     // Handle form cancellation
-    console.log('Form cancelled');
-  };
+    console.log('Form cancelled')
+  }
 
   return (
-    <LeadForm 
+    <LeadForm
       accessToken={accessToken}
       userInfo={userInfo}
       additionalData={{ leadId }} // Pass leadId to load existing data
       onSubmit={handleSubmit}
       onCancel={handleCancel}
     />
-  );
-};
+  )
+}
 ```
 
 ## API Integration
@@ -78,6 +71,7 @@ const UpdateLeadPage = () => {
 ### GraphQL Integration
 
 The form automatically:
+
 - Loads existing lead data when `leadId` is provided in `additionalData`
 - Fetches catalog data (lead sources, statuses, ratings)
 - Searches accounts for company autocomplete
@@ -98,12 +92,14 @@ The form automatically:
 ## Form Structure
 
 ### 1. Lead Information Section
+
 - **Owner**: Employee position selection with search
 - **Status**: Lead status dropdown
-- **Source**: Lead source dropdown  
+- **Source**: Lead source dropdown
 - **Rating**: Lead rating dropdown
 
 ### 2. Contact Information Section
+
 - **Salutation**: Title dropdown (Mr., Mrs., Ms., Dr., Prof.)
 - **First Name**: Required text input
 - **Last Name**: Required text input
@@ -112,6 +108,7 @@ The form automatically:
 - **Email**: Text input with validation
 
 ### 3. Company Information Section
+
 - **Legal Form**: Dropdown selection
 - **Industry**: Industry dropdown
 - **Company Name**: Required text input with autocomplete
@@ -122,12 +119,14 @@ The form automatically:
   - Annual Revenue
 
 ### 4. Address Information Section
+
 - **Country**: Country dropdown
 - **Region**: Text input
 - **Address Lines**: Dynamic address lines (1-4)
 - **Postal Code & City**: Side-by-side inputs
 
 ### 5. Notes Section (collapsible)
+
 - **Description**: Multi-line text area for notes
 
 ## Data Flow
@@ -197,17 +196,22 @@ lead-form/
 ### Key Components
 
 #### LeadForm.tsx
+
 Main entry point that combines the context provider with the form component.
 
 #### LeadFormContext.tsx
+
 Context provider that manages:
+
 - Form state and validation
 - Data loading and error states
 - Integration with GraphQL and Catalog APIs
 - Default value population (current user as owner)
 
 #### LeadFormComponent.tsx
+
 Main form UI built with @newwork/gravity-ui-catalog components featuring:
+
 - **Lead Information Section**: Core lead details (always visible)
 - **Address Information Section**: Address details (collapsible)
 - Professional styling with hover effects and proper spacing
@@ -215,6 +219,7 @@ Main form UI built with @newwork/gravity-ui-catalog components featuring:
 ## Form Fields
 
 ### Lead Information (Always Visible)
+
 - **Lead Status** (required): Dropdown with catalog values
 - **Lead Owner** (required): Enhanced dropdown with profile pictures and job info
 - **Salutation**: Mr., Mrs., Ms., Dr., Prof.
@@ -228,6 +233,7 @@ Main form UI built with @newwork/gravity-ui-catalog components featuring:
 - **Follow Up**: Checkbox
 
 ### Address Information (Collapsible)
+
 - **Address**: Multi-line text area
 - **City**: Text input
 - **State/Province**: Text input
@@ -236,11 +242,13 @@ Main form UI built with @newwork/gravity-ui-catalog components featuring:
 ## Data Integration
 
 ### GraphQL APIs
+
 - **Accounts**: Search and autocomplete for company field
 - **Contacts**: Search with auto-fill for email/phone
 - **Employee Positions**: Enhanced employee data with profile pictures
 
 ### Catalog APIs
+
 - **SalesLeadSource**: Lead source options
 - **SalesLeadStatus**: Lead status options
 - **SalesLeadRating**: Lead rating options
@@ -248,6 +256,7 @@ Main form UI built with @newwork/gravity-ui-catalog components featuring:
 ## Publishing
 
 To publish the form:
+
 ```bash
 npm run publish:screen -- /crm/leads/forms/lead-form
 ```
@@ -255,10 +264,12 @@ npm run publish:screen -- /crm/leads/forms/lead-form
 ## Migration Notes
 
 This standalone form replaces the integrated lead form found in:
+
 - `src/business-apps/crm/overview-screens/LeadsOverview/components/AddEditLead.tsx`
 
 The new form provides:
+
 - Better separation of concerns
 - Enhanced user experience
 - Improved maintainability
-- Consistent patterns with other forms 
+- Consistent patterns with other forms

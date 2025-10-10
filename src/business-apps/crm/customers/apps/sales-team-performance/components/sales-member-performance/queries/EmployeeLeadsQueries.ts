@@ -1,23 +1,23 @@
-import { useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { Lead } from "../../../../../components/lead-list/types";
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Lead } from '../../../../../components/lead-list/types'
 
 export interface EmployeeLeadsQueryVariables {
-  employeeId: string;
-  offset?: number;
-  limit?: number;
-  orderBy?: Array<any>;
-  where?: any;
+  employeeId: string
+  offset?: number
+  limit?: number
+  orderBy?: Array<any>
+  where?: any
 }
 
 export interface EmployeeLeadsResponse {
-  Lead: Lead[];
+  Lead: Lead[]
   LeadAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
 // Query to get leads owned by a specific employee
@@ -97,47 +97,42 @@ export const GET_EMPLOYEE_LEADS_QUERY = `
       }
     }
   }
-`;
+`
 
 export const useEmployeeLeadsQueries = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchEmployeeLeads = useCallback(
-    async (
-      variables: EmployeeLeadsQueryVariables
-    ): Promise<EmployeeLeadsResponse> => {
+    async (variables: EmployeeLeadsQueryVariables): Promise<EmployeeLeadsResponse> => {
       const baseWhere = {
         isDeleted: { _eq: false },
-        ownerEmployeeId: { _eq: variables.employeeId },
-      };
+        ownerEmployeeId: { _eq: variables.employeeId }
+      }
 
       // Merge with any additional where conditions
       const where = variables.where
         ? {
-            _and: [baseWhere, variables.where],
+            _and: [baseWhere, variables.where]
           }
-        : baseWhere;
+        : baseWhere
 
       const requestVariables = {
         offset: variables.offset || 0,
         limit: variables.limit || 20,
-        orderBy: variables.orderBy || [{ createdAt: "DESC" }],
-        where,
-      };
+        orderBy: variables.orderBy || [{ createdAt: 'DESC' }],
+        where
+      }
 
       try {
-        const result = await graphqlClient.request<EmployeeLeadsResponse>(
-          GET_EMPLOYEE_LEADS_QUERY,
-          requestVariables
-        );
-        return result;
+        const result = await graphqlClient.request<EmployeeLeadsResponse>(GET_EMPLOYEE_LEADS_QUERY, requestVariables)
+        return result
       } catch (error) {
-        console.error("Error fetching employee leads data:", error);
-        throw error;
+        console.error('Error fetching employee leads data:', error)
+        throw error
       }
     },
     [graphqlClient]
-  );
+  )
 
-  return { fetchEmployeeLeads };
-};
+  return { fetchEmployeeLeads }
+}

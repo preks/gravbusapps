@@ -71,7 +71,7 @@ query GetAdvancePayments($where: AdvancePaymentBoolExp, $limit: Int!, $offset: I
     }
   }
 }
-`;
+`
 
 export const GET_ADVANCE_PAYMENT_STATISTICS = `
   query GetAdvancePaymentStatistics {
@@ -88,4 +88,4 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
       }
     }
   }
-`;
+`

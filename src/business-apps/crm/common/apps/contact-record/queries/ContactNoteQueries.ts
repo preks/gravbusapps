@@ -1,21 +1,21 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ContactNoteQueryVariables {
-  contactId: string;
+  contactId: string
 }
 
 export interface ContactNoteData {
-  id: string;
-  version: number;
-  noteText: string;
-  noteTitle: string;
-  createdAt: string;
-  createdBy: string;
+  id: string
+  version: number
+  noteText: string
+  noteTitle: string
+  createdAt: string
+  createdBy: string
 }
 
 export interface ContactNoteResponse {
-  CrmNote: ContactNoteData[];
+  CrmNote: ContactNoteData[]
 }
 
 export const GET_CONTACT_NOTES = (variables: ContactNoteQueryVariables): string => {
@@ -30,22 +30,22 @@ export const GET_CONTACT_NOTES = (variables: ContactNoteQueryVariables): string 
         noteTitle
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetContactNotes = (context: BusinessAppContextProps) => {
-  const graphQLClient = useGraphQLClient(context.accessToken);
-  
-  const fetchContactNotes = async (variables: ContactNoteQueryVariables) => {
-    const query = GET_CONTACT_NOTES(variables);
-    try {
-      const result = await graphQLClient.request<ContactNoteResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching contact notes:', error);
-      throw error;
-    }
-  };
+  const graphQLClient = useGraphQLClient(context.accessToken)
 
-  return { fetchContactNotes };
-}; 
+  const fetchContactNotes = async (variables: ContactNoteQueryVariables) => {
+    const query = GET_CONTACT_NOTES(variables)
+    try {
+      const result = await graphQLClient.request<ContactNoteResponse>(query, variables)
+      return result
+    } catch (error) {
+      console.error('Error fetching contact notes:', error)
+      throw error
+    }
+  }
+
+  return { fetchContactNotes }
+}

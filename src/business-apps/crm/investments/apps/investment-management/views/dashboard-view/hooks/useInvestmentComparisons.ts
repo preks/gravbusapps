@@ -1,18 +1,18 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface InvestmentComparisons {
-  portfolioGrowthRate: number; // book value vs initial investment percentage
-  averageROI: number; // average return on investment percentage
-  performingInvestmentsRate: number; // percentage of investments with positive ROI
-  quarterlyPerformance: number; // current quarter vs previous quarter
+  portfolioGrowthRate: number // book value vs initial investment percentage
+  averageROI: number // average return on investment percentage
+  performingInvestmentsRate: number // percentage of investments with positive ROI
+  quarterlyPerformance: number // current quarter vs previous quarter
   typePerformanceComparison: {
-    equity: number;
-    realEstate: number;
-    liquidFunds: number;
-  };
-  isLoading: boolean;
-  error: string | null;
+    equity: number
+    realEstate: number
+    liquidFunds: number
+  }
+  isLoading: boolean
+  error: string | null
 }
 
 // Query to get investment comparison data for meaningful percentages
@@ -116,11 +116,9 @@ const GET_INVESTMENT_COMPARISONS = `
     }
     
   }
-`;
+`
 
-export const useInvestmentComparisons = (
-  accessToken: string
-): InvestmentComparisons => {
+export const useInvestmentComparisons = (accessToken: string): InvestmentComparisons => {
   const [comparisons, setComparisons] = useState<InvestmentComparisons>({
     portfolioGrowthRate: 0,
     averageROI: 0,
@@ -129,119 +127,84 @@ export const useInvestmentComparisons = (
     typePerformanceComparison: {
       equity: 0,
       realEstate: 0,
-      liquidFunds: 0,
+      liquidFunds: 0
     },
     isLoading: true,
-    error: null,
-  });
+    error: null
+  })
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const getQuarterDates = () => {
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth()
 
     // Determine current quarter
-    const currentQuarter = Math.floor(currentMonth / 3);
-    const currentQuarterStart = new Date(currentYear, currentQuarter * 3, 1);
+    const currentQuarter = Math.floor(currentMonth / 3)
+    const currentQuarterStart = new Date(currentYear, currentQuarter * 3, 1)
 
     // Previous quarter
-    const previousQuarter = currentQuarter === 0 ? 3 : currentQuarter - 1;
-    const previousQuarterYear =
-      currentQuarter === 0 ? currentYear - 1 : currentYear;
-    const previousQuarterStart = new Date(
-      previousQuarterYear,
-      previousQuarter * 3,
-      1
-    );
-    const previousQuarterEnd = new Date(
-      previousQuarterYear,
-      (previousQuarter + 1) * 3,
-      1
-    );
+    const previousQuarter = currentQuarter === 0 ? 3 : currentQuarter - 1
+    const previousQuarterYear = currentQuarter === 0 ? currentYear - 1 : currentYear
+    const previousQuarterStart = new Date(previousQuarterYear, previousQuarter * 3, 1)
+    const previousQuarterEnd = new Date(previousQuarterYear, (previousQuarter + 1) * 3, 1)
 
     return {
       currentQuarterStart: currentQuarterStart.toISOString(),
       previousQuarterStart: previousQuarterStart.toISOString(),
-      previousQuarterEnd: previousQuarterEnd.toISOString(),
-    };
-  };
+      previousQuarterEnd: previousQuarterEnd.toISOString()
+    }
+  }
 
   const fetchComparisons = useCallback(async () => {
     if (!accessToken) {
-      setComparisons((prev) => ({
+      setComparisons(prev => ({
         ...prev,
         isLoading: false,
-        error: "No access token",
-      }));
-      return;
+        error: 'No access token'
+      }))
+      return
     }
 
-    setComparisons((prev) => ({ ...prev, isLoading: true, error: null }));
+    setComparisons(prev => ({ ...prev, isLoading: true, error: null }))
 
     try {
-      const dates = getQuarterDates();
-      const result = await graphqlClient.request<any>(
-        GET_INVESTMENT_COMPARISONS,
-        dates
-      );
+      const dates = getQuarterDates()
+      const result = await graphqlClient.request<any>(GET_INVESTMENT_COMPARISONS, dates)
 
       // Calculate portfolio growth rate (investment market value vs initial investment)
-      const totalInitial =
-        result.allInvestments.aggregate.sum?.initialInvestmentAmount || 0;
-      const totalMarketValue =
-        result.allInvestments.aggregate.sum?.investmentMarketValue || 0;
+      const totalInitial = result.allInvestments.aggregate.sum?.initialInvestmentAmount || 0
+      const totalMarketValue = result.allInvestments.aggregate.sum?.investmentMarketValue || 0
       const portfolioGrowthRate =
-        totalInitial > 0
-          ? Math.round(((totalMarketValue - totalInitial) / totalInitial) * 100)
-          : 0;
+        totalInitial > 0 ? Math.round(((totalMarketValue - totalInitial) / totalInitial) * 100) : 0
 
       // Calculate average ROI (market value vs initial investment)
-      const totalCurrentMarketValue =
-        result.allInvestments.aggregate.sum?.investmentMarketValue || 0;
+      const totalCurrentMarketValue = result.allInvestments.aggregate.sum?.investmentMarketValue || 0
       const averageROI =
-        totalInitial > 0
-          ? Math.round(
-              ((totalCurrentMarketValue - totalInitial) / totalInitial) * 100
-            )
-          : 0;
+        totalInitial > 0 ? Math.round(((totalCurrentMarketValue - totalInitial) / totalInitial) * 100) : 0
 
       // Mock performing investments rate (could be calculated from individual investment data)
-      const performingInvestmentsRate = Math.round(65 + Math.random() * 25); // 65-90% range
+      const performingInvestmentsRate = Math.round(65 + Math.random() * 25) // 65-90% range
 
       // Calculate quarterly performance
-      const currentQuarterAmount =
-        result.currentQuarterInvestments.aggregate.sum?.totalInvestmentAmount ||
-        0;
-      const previousQuarterAmount =
-        result.previousQuarterInvestments.aggregate.sum
-          ?.totalInvestmentAmount || 0;
+      const currentQuarterAmount = result.currentQuarterInvestments.aggregate.sum?.totalInvestmentAmount || 0
+      const previousQuarterAmount = result.previousQuarterInvestments.aggregate.sum?.totalInvestmentAmount || 0
       const quarterlyPerformance =
         previousQuarterAmount > 0
-          ? Math.round(
-              ((currentQuarterAmount - previousQuarterAmount) /
-                previousQuarterAmount) *
-                100
-            )
-          : 0;
+          ? Math.round(((currentQuarterAmount - previousQuarterAmount) / previousQuarterAmount) * 100)
+          : 0
 
       // Calculate type performance comparisons
-      const equityValuation =
-        result.equityInvestments.aggregate.sum?.marketValue || 0;
-      const equityAvg =
-        result.equityInvestments.aggregate.avg?.marketValue || 0;
-      const equityPerformance =
-        equityAvg > 0 ? Math.round((equityValuation / equityAvg) * 10) : 75;
+      const equityValuation = result.equityInvestments.aggregate.sum?.marketValue || 0
+      const equityAvg = result.equityInvestments.aggregate.avg?.marketValue || 0
+      const equityPerformance = equityAvg > 0 ? Math.round((equityValuation / equityAvg) * 10) : 75
 
-      const realEstateOccupancy =
-        result.realEstateInvestments.aggregate.avg?.occupancyPercent || 0;
-      const realEstatePerformance = Math.round(realEstateOccupancy);
+      const realEstateOccupancy = result.realEstateInvestments.aggregate.avg?.occupancyPercent || 0
+      const realEstatePerformance = Math.round(realEstateOccupancy)
 
-      const liquidFundRate =
-        result.liquidFundInvestments.aggregate.avg?.interestRate || 0;
-      const liquidFundsPerformance = Math.round(liquidFundRate * 20); // Convert to percentage
-
+      const liquidFundRate = result.liquidFundInvestments.aggregate.avg?.interestRate || 0
+      const liquidFundsPerformance = Math.round(liquidFundRate * 20) // Convert to percentage
 
       setComparisons({
         portfolioGrowthRate,
@@ -251,27 +214,24 @@ export const useInvestmentComparisons = (
         typePerformanceComparison: {
           equity: Math.max(equityPerformance, 0),
           realEstate: Math.max(realEstatePerformance, 0),
-          liquidFunds: Math.max(liquidFundsPerformance, 0),
+          liquidFunds: Math.max(liquidFundsPerformance, 0)
         },
         isLoading: false,
-        error: null,
-      });
+        error: null
+      })
     } catch (error) {
-      console.error("Error fetching investment comparisons:", error);
-      setComparisons((prev) => ({
+      console.error('Error fetching investment comparisons:', error)
+      setComparisons(prev => ({
         ...prev,
         isLoading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch comparison data",
-      }));
+        error: error instanceof Error ? error.message : 'Failed to fetch comparison data'
+      }))
     }
-  }, [accessToken, graphqlClient]);
+  }, [accessToken, graphqlClient])
 
   useEffect(() => {
-    fetchComparisons();
-  }, [fetchComparisons]);
+    fetchComparisons()
+  }, [fetchComparisons])
 
-  return comparisons;
-};
+  return comparisons
+}

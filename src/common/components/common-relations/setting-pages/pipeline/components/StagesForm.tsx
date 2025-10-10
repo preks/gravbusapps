@@ -1,20 +1,6 @@
-import React, { useState, useEffect } from "react";
-import {
-  Card,
-  Button,
-  Spinner,
-  Alert,
-  AlertDescription,
-  Badge,
-} from "@newwork/nw-design-system";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  GripVertical,
-  ArrowRight,
-} from "lucide-react";
+import React, { useState, useEffect } from 'react'
+import { Card, Button, Spinner, Alert, AlertDescription, Badge } from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2, Eye, GripVertical, ArrowRight } from 'lucide-react'
 import {
   DndContext,
   closestCorners,
@@ -23,58 +9,56 @@ import {
   DragStartEvent,
   PointerSensor,
   useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-import { SortableContext, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
-import { PipelineStageEntry } from "../hooks/usePipelineSettings";
-import StageForm from "./StageForm";
+  useSensors
+} from '@dnd-kit/core'
+import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { PipelineStageEntry } from '../hooks/usePipelineSettings'
+import StageForm from './StageForm'
 
 interface StagesFormProps extends BusinessAppContextProps {
-  pipeline: any;
+  pipeline: any
   catalogConfig: {
-    stageCatalog: string;
-    conditionCatalog?: string;
-    version?: string;
-  };
-  onStagesChange: (stages: PipelineStageEntry[]) => void;
-  onViewConditions: (stage: PipelineStageEntry) => void;
-  prefixDataTestId?: string;
+    stageCatalog: string
+    conditionCatalog?: string
+    version?: string
+  }
+  onStagesChange: (stages: PipelineStageEntry[]) => void
+  onViewConditions: (stage: PipelineStageEntry) => void
+  prefixDataTestId?: string
 }
 
 // Stage type configurations for UI
 const STAGE_TYPE_CONFIGS = {
-  DISCOVERY: { label: "Discovery", variant: "offline" as const },
-  QUALIFICATION: { label: "Qualification", variant: "info" as const },
-  NEGOTIATION: { label: "Negotiation", variant: "warning" as const },
-  CLOSED_WON: { label: "Closed Won", variant: "success" as const },
-  CLOSED_LOST: { label: "Closed Lost", variant: "destructive" as const },
-} as const;
+  DISCOVERY: { label: 'Discovery', variant: 'offline' as const },
+  QUALIFICATION: { label: 'Qualification', variant: 'info' as const },
+  NEGOTIATION: { label: 'Negotiation', variant: 'warning' as const },
+  CLOSED_WON: { label: 'Closed Won', variant: 'success' as const },
+  CLOSED_LOST: { label: 'Closed Lost', variant: 'destructive' as const }
+} as const
 
 // Draggable Stage Card Component
 const DraggableStageCard: React.FC<{
-  stage: PipelineStageEntry;
-  conditionCount: number;
-  prefixDataTestId?: string;
-  onEdit: (stage: PipelineStageEntry) => void;
-  onDelete: (stage: PipelineStageEntry) => void;
-  onViewConditions: (stage: PipelineStageEntry) => void;
+  stage: PipelineStageEntry
+  conditionCount: number
+  prefixDataTestId?: string
+  onEdit: (stage: PipelineStageEntry) => void
+  onDelete: (stage: PipelineStageEntry) => void
+  onViewConditions: (stage: PipelineStageEntry) => void
 }> = ({ stage, conditionCount, prefixDataTestId, onEdit, onDelete, onViewConditions }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: stage.id,
-  });
+    id: stage.id
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-  };
+    transition
+  }
 
-  const stageType = stage.type || stage.alternativeCode || "DISCOVERY";
-  const stageConfig =
-    STAGE_TYPE_CONFIGS[stageType as keyof typeof STAGE_TYPE_CONFIGS] ||
-    STAGE_TYPE_CONFIGS.DISCOVERY;
+  const stageType = stage.type || stage.alternativeCode || 'DISCOVERY'
+  const stageConfig = STAGE_TYPE_CONFIGS[stageType as keyof typeof STAGE_TYPE_CONFIGS] || STAGE_TYPE_CONFIGS.DISCOVERY
 
   return (
     <Card
@@ -134,9 +118,7 @@ const DraggableStageCard: React.FC<{
               <span className="gba:text-xs gba:text-gray-600">Conditions</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:font-semibold gba:text-orange-600">
-                {conditionCount}
-              </span>
+              <span className="gba:text-sm gba:font-semibold gba:text-orange-600">{conditionCount}</span>
               <Button
                 variant="ghost"
                 size="icon"
@@ -151,177 +133,175 @@ const DraggableStageCard: React.FC<{
         </div>
       </div>
     </Card>
-  );
-};
+  )
+}
 
 const StagesForm: React.FC<StagesFormProps> = ({
   pipeline,
   catalogConfig,
   onStagesChange,
   onViewConditions,
-  prefixDataTestId = "stages-form",
-  accessToken,
+  prefixDataTestId = 'stages-form',
+  accessToken
 }) => {
-  const [stages, setStages] = useState<PipelineStageEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [operationLoading, setOperationLoading] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingStage, setEditingStage] = useState<PipelineStageEntry | null>(null);
-  const [conditionCounts, setConditionCounts] = useState<Record<string, number>>({});
+  const [stages, setStages] = useState<PipelineStageEntry[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [operationLoading, setOperationLoading] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingStage, setEditingStage] = useState<PipelineStageEntry | null>(null)
+  const [conditionCounts, setConditionCounts] = useState<Record<string, number>>({})
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5,
-      },
+        distance: 5
+      }
     })
-  );
+  )
 
   // Fetch stages for the pipeline
   const fetchStages = async () => {
-    if (!pipeline) return;
+    if (!pipeline) return
 
     try {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       const response = await catalogClient.getCatalogEntriesList(
         {
           catalogIdentifier: catalogConfig.stageCatalog,
-          version: catalogConfig.version || "v1",
+          version: catalogConfig.version || 'v1'
         },
         {
           limit: 1000,
           offset: 0,
           returnTotalRecords: true,
-          includeChildCatalogEntries: true,
+          includeChildCatalogEntries: true
         }
-      );
+      )
 
       // Filter stages for this pipeline and transform
       const pipelineStages = response.data
-        .filter((entry) => entry.parentEntryId === pipeline.id)
-        .map((entry) => ({
+        .filter(entry => entry.parentEntryId === pipeline.id)
+        .map(entry => ({
           id: entry.id,
-          parentEntryId: entry.parentEntryId || "",
-          code: entry.code || "",
+          parentEntryId: entry.parentEntryId || '',
+          code: entry.code || '',
           value: entry.value,
-          displayOrder: entry.displayOrder || parseInt(entry.additionalValue1 || "0") || 0,
-          alternativeCode: entry.alternativeCode || "DISCOVERY",
-          type: entry.type || entry.alternativeCode || "DISCOVERY",
-          additionalValue1: entry.additionalValue1 || "0",
+          displayOrder: entry.displayOrder || parseInt(entry.additionalValue1 || '0') || 0,
+          alternativeCode: entry.alternativeCode || 'DISCOVERY',
+          type: entry.type || entry.alternativeCode || 'DISCOVERY',
+          additionalValue1: entry.additionalValue1 || '0',
           additionalValue2: entry.additionalValue2 || undefined,
           additionalValue3: entry.additionalValue3 || undefined,
-          objectValue: entry.objectValue as Record<string, any>,
+          objectValue: entry.objectValue as Record<string, any>
         }))
-        .sort((a, b) => a.displayOrder - b.displayOrder);
+        .sort((a, b) => a.displayOrder - b.displayOrder)
 
-      setStages(pipelineStages);
-      onStagesChange(pipelineStages);
+      setStages(pipelineStages)
+      onStagesChange(pipelineStages)
 
       // Fetch condition counts for all stages
-      const stageIds = pipelineStages.map((stage) => stage.id);
-      await fetchConditionCounts(stageIds);
+      const stageIds = pipelineStages.map(stage => stage.id)
+      await fetchConditionCounts(stageIds)
     } catch (err) {
-      console.error("Error fetching stages:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch stages");
+      console.error('Error fetching stages:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch stages')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Fetch condition counts for stages
   const fetchConditionCounts = async (stageIds: string[]) => {
-    if (!catalogConfig.conditionCatalog) return;
+    if (!catalogConfig.conditionCatalog) return
 
     try {
-      const counts: Record<string, number> = {};
+      const counts: Record<string, number> = {}
 
       // Fetch conditions for all stages in parallel
       await Promise.all(
-        stageIds.map(async (stageId) => {
+        stageIds.map(async stageId => {
           try {
             const response = await catalogClient.getCatalogEntriesList(
               {
                 catalogIdentifier: catalogConfig.conditionCatalog!,
-                version: catalogConfig.version || "v1",
+                version: catalogConfig.version || 'v1'
               },
               {
                 limit: 1000,
                 offset: 0,
                 returnTotalRecords: true,
-                includeChildCatalogEntries: true,
+                includeChildCatalogEntries: true
               }
-            );
+            )
 
             // Count conditions for this stage
-            const stageConditions = response.data.filter(
-              (entry) => entry.parentEntryId === stageId,
-            );
-            counts[stageId] = stageConditions.length;
+            const stageConditions = response.data.filter(entry => entry.parentEntryId === stageId)
+            counts[stageId] = stageConditions.length
           } catch (err) {
-            console.error(`Error fetching conditions for stage ${stageId}:`, err);
-            counts[stageId] = 0;
+            console.error(`Error fetching conditions for stage ${stageId}:`, err)
+            counts[stageId] = 0
           }
-        }),
-      );
+        })
+      )
 
-      setConditionCounts(counts);
+      setConditionCounts(counts)
     } catch (err) {
-      console.error("Error fetching condition counts:", err);
+      console.error('Error fetching condition counts:', err)
     }
-  };
+  }
 
   // Load stages when pipeline changes
   useEffect(() => {
     if (pipeline) {
-      fetchStages();
+      fetchStages()
     }
-  }, [pipeline]);
+  }, [pipeline])
 
   // Drag and drop handlers
   const handleDragStart = (event: DragStartEvent) => {
-    const { active } = event;
-    setActiveId(active.id as string);
-  };
+    const { active } = event
+    setActiveId(active.id as string)
+  }
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
+    const { active, over } = event
+    setActiveId(null)
 
-    if (!over || active.id === over.id) return;
+    if (!over || active.id === over.id) return
 
-    const oldIndex = stages.findIndex((stage) => stage.id === active.id);
-    const newIndex = stages.findIndex((stage) => stage.id === over.id);
+    const oldIndex = stages.findIndex(stage => stage.id === active.id)
+    const newIndex = stages.findIndex(stage => stage.id === over.id)
 
-    if (oldIndex === -1 || newIndex === -1) return;
+    if (oldIndex === -1 || newIndex === -1) return
 
     // Reorder stages locally
-    const newStages = [...stages];
-    const [movedStage] = newStages.splice(oldIndex, 1);
-    newStages.splice(newIndex, 0, movedStage);
+    const newStages = [...stages]
+    const [movedStage] = newStages.splice(oldIndex, 1)
+    newStages.splice(newIndex, 0, movedStage)
 
     // Update display orders
     const updatedStages = newStages.map((stage, index) => ({
       ...stage,
-      displayOrder: index + 1,
-    }));
+      displayOrder: index + 1
+    }))
 
-    setStages(updatedStages);
-    onStagesChange(updatedStages);
+    setStages(updatedStages)
+    onStagesChange(updatedStages)
 
     // Update on server
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
       await Promise.all(
-        updatedStages.map(async (stage) => {
+        updatedStages.map(async stage => {
           // Fetch current stage data to preserve all fields
-          const currentStage = await catalogClient.getCatalogEntryById(stage.id);
+          const currentStage = await catalogClient.getCatalogEntryById(stage.id)
 
           const updateData = {
             // Required fields
@@ -332,61 +312,61 @@ const StagesForm: React.FC<StagesFormProps> = ({
             alternativeCode: stage.type || stage.alternativeCode,
             parentEntryId: stage.parentEntryId || currentStage.parentEntryId,
             displayOrder: stage.displayOrder,
-            
+
             // Additional fields - preserve existing values
-            additionalValue1: stage.displayOrder.toString().padStart(2, "0"),
+            additionalValue1: stage.displayOrder.toString().padStart(2, '0'),
             additionalValue2: currentStage.additionalValue2 || undefined,
             additionalValue3: currentStage.additionalValue3 || undefined,
-            objectValue: stage.objectValue || currentStage.objectValue || {},
-          };
+            objectValue: stage.objectValue || currentStage.objectValue || {}
+          }
 
-          return catalogClient.updateCatalogEntry(stage.id, updateData);
-        }),
-      );
+          return catalogClient.updateCatalogEntry(stage.id, updateData)
+        })
+      )
     } catch (err) {
-      console.error("Error updating stage order:", err);
+      console.error('Error updating stage order:', err)
       // Revert on error
-      fetchStages();
+      fetchStages()
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   // Stage management handlers
   const handleDeleteStage = async (stage: PipelineStageEntry) => {
     try {
-      setOperationLoading(true);
-      await catalogClient.deleteCatalogEntry(stage.id);
-      await fetchStages();
+      setOperationLoading(true)
+      await catalogClient.deleteCatalogEntry(stage.id)
+      await fetchStages()
     } catch (err) {
-      console.error("Error deleting stage:", err);
-      setError(err instanceof Error ? err.message : "Failed to delete stage");
+      console.error('Error deleting stage:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete stage')
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   const openCreateModal = () => {
-    setIsCreateModalOpen(true);
-  };
+    setIsCreateModalOpen(true)
+  }
 
   const openEditModal = (stage: PipelineStageEntry) => {
-    setEditingStage(stage);
-    setIsEditModalOpen(true);
-  };
+    setEditingStage(stage)
+    setIsEditModalOpen(true)
+  }
 
   const handleStageSuccess = () => {
-    fetchStages();
-  };
+    fetchStages()
+  }
 
-  const activeStage = stages.find((stage) => stage.id === activeId);
+  const activeStage = stages.find(stage => stage.id === activeId)
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:py-8">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -399,7 +379,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -433,21 +413,17 @@ const StagesForm: React.FC<StagesFormProps> = ({
             onDragEnd={handleDragEnd}
           >
             <div className="gba:flex gba:flex-wrap gba:gap-4">
-            <SortableContext
-              items={stages.map((s) => s.id)}
-              strategy={rectSortingStrategy}
-            >
-
+              <SortableContext items={stages.map(s => s.id)} strategy={rectSortingStrategy}>
                 {stages.map((stage, index) => (
                   <React.Fragment key={stage.id}>
-                      <DraggableStageCard
-                        stage={stage}
-                        conditionCount={conditionCounts[stage.id] || 0}
-                        prefixDataTestId={prefixDataTestId}
-                        onEdit={openEditModal}
-                        onDelete={handleDeleteStage}
-                        onViewConditions={onViewConditions}
-                      />
+                    <DraggableStageCard
+                      stage={stage}
+                      conditionCount={conditionCounts[stage.id] || 0}
+                      prefixDataTestId={prefixDataTestId}
+                      onEdit={openEditModal}
+                      onDelete={handleDeleteStage}
+                      onViewConditions={onViewConditions}
+                    />
 
                     {index < stages.length - 1 && (
                       <div className="gba:flex gba:items-center gba:px-2 gba:flex-shrink-0 gba:mt-8">
@@ -456,19 +432,18 @@ const StagesForm: React.FC<StagesFormProps> = ({
                     )}
                   </React.Fragment>
                 ))}
-
-            </SortableContext>
+              </SortableContext>
             </div>
             <DragOverlay dropAnimation={null}>
               {activeStage ? (
-                  <DraggableStageCard
-                    stage={activeStage}
-                    conditionCount={conditionCounts[activeStage.id] || 0}
-                    prefixDataTestId={prefixDataTestId}
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                    onViewConditions={() => {}}
-                  />
+                <DraggableStageCard
+                  stage={activeStage}
+                  conditionCount={conditionCounts[activeStage.id] || 0}
+                  prefixDataTestId={prefixDataTestId}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  onViewConditions={() => {}}
+                />
               ) : null}
             </DragOverlay>
           </DndContext>
@@ -490,8 +465,8 @@ const StagesForm: React.FC<StagesFormProps> = ({
       <StageForm
         isOpen={isEditModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingStage(null);
+          setIsEditModalOpen(false)
+          setEditingStage(null)
         }}
         onSuccess={handleStageSuccess}
         editingStage={editingStage}
@@ -501,10 +476,7 @@ const StagesForm: React.FC<StagesFormProps> = ({
         accessToken={accessToken}
       />
     </>
-  );
-};
+  )
+}
 
-export default StagesForm;
-
-
-
+export default StagesForm

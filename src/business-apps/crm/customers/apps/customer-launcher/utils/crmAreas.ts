@@ -1,13 +1,5 @@
-import { CrmArea, QuickAction } from '../types';
-import { 
-  UserPlus, 
-  Target, 
-  Building,
-  AddressBook,
-  FileText,
-  ChartBar,
-  Upload
-} from '@phosphor-icons/react';
+import { CrmArea, QuickAction } from '../types'
+import { UserPlus, Target, Building, AddressBook, FileText, ChartBar, Upload } from '@phosphor-icons/react'
 
 export const crmAreas: CrmArea[] = [
   // Sales Management
@@ -27,7 +19,7 @@ export const crmAreas: CrmArea[] = [
     category: 'sales',
     path: '/crm/opportunities'
   },
-  
+
   // Customer Management
   {
     id: 'accounts',
@@ -45,7 +37,7 @@ export const crmAreas: CrmArea[] = [
     category: 'customer',
     path: '/crm/contacts'
   },
-  
+
   // Business Intelligence
   {
     id: 'reports',
@@ -63,7 +55,7 @@ export const crmAreas: CrmArea[] = [
     category: 'intelligence',
     path: '/crm/analytics'
   }
-];
+]
 
 export const quickActions: QuickAction[] = [
   {
@@ -102,20 +94,23 @@ export const quickActions: QuickAction[] = [
     icon: FileText,
     action: 'generate-report'
   }
-];
+]
 
 export const categoryLabels = {
   sales: 'Sales Management',
   customer: 'Customer Management',
   intelligence: 'Business Intelligence'
-};
+}
 
 export const getCrmAreasByCategory = () => {
-  return crmAreas.reduce((acc, area) => {
-    if (!acc[area.category]) {
-      acc[area.category] = [];
-    }
-    acc[area.category].push(area);
-    return acc;
-  }, {} as Record<string, CrmArea[]>);
-};
+  return crmAreas.reduce(
+    (acc, area) => {
+      if (!acc[area.category]) {
+        acc[area.category] = []
+      }
+      acc[area.category].push(area)
+      return acc
+    },
+    {} as Record<string, CrmArea[]>
+  )
+}

@@ -1,46 +1,48 @@
 // Investment Tab Configuration Utilities
-import { Home, BarChart3, Folder, FileText } from 'lucide-react';
-import { InvestmentDocuments } from '../components/InvestmentDocuments';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  GenerateOnePagerButton, 
+import { Home, BarChart3, Folder, FileText } from 'lucide-react'
+import { InvestmentDocuments } from '../components/InvestmentDocuments'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  GenerateOnePagerButton,
   UploadReportButton,
   InvestmentTileSection,
   InvestmentHomeTab,
   InvestmentReportsTab
-} from '../components/shared';
-import {
-  EquityInvestmentRounds,
-  RealEstateLiquidityForecast 
-} from '../components/group-specific';
+} from '../components/shared'
+import { EquityInvestmentRounds, RealEstateLiquidityForecast } from '../components/group-specific'
 // Remove dependency on investmentTypeUtils - now using dynamic types
 
 /**
  * Gets type-specific overview content with enhanced equity detection
  */
-export const getTypeSpecificOverviewContent = (investmentType: string, typeSpecificData: any, businessAppContext?: BusinessAppContextProps, onRefresh?: () => void) => {
+export const getTypeSpecificOverviewContent = (
+  investmentType: string,
+  typeSpecificData: any,
+  businessAppContext?: BusinessAppContextProps,
+  onRefresh?: () => void
+) => {
   // Enhanced equity detection - check multiple conditions
-  const isEquityInvestment = 
+  const isEquityInvestment =
     investmentType === 'equity' ||
     (investmentType || '').toLowerCase().includes('equity') ||
     (typeSpecificData?.investment?.investmentGroup?.code || '').includes('EQUITY') ||
     (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
-    typeSpecificData?.equityInvestment; // Has equity data
+    typeSpecificData?.equityInvestment // Has equity data
 
   // Enhanced real estate detection - check multiple conditions
-  const isRealEstateInvestment = 
+  const isRealEstateInvestment =
     investmentType === 'real_estate' ||
     (investmentType || '').toLowerCase().includes('real_estate') ||
     (investmentType || '').toLowerCase().includes('realestate') ||
     (typeSpecificData?.investment?.investmentGroup?.code || '').includes('REAL_ESTATE') ||
     (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('real_estate') ||
-    typeSpecificData?.realEstateInvestment; // Has real estate data
+    typeSpecificData?.realEstateInvestment // Has real estate data
 
   if (isEquityInvestment) {
     return (
       <div data-testid="equity-overview-section">
-        <EquityInvestmentRounds 
+        <EquityInvestmentRounds
           equityData={typeSpecificData}
           isLoading={false}
           onRefresh={onRefresh}
@@ -50,33 +52,28 @@ export const getTypeSpecificOverviewContent = (investmentType: string, typeSpeci
           additionalData={businessAppContext?.additionalData}
         />
       </div>
-    );
+    )
   }
 
   if (isRealEstateInvestment) {
     return (
       <div data-testid="real-estate-overview-section">
-        <RealEstateLiquidityForecast 
+        <RealEstateLiquidityForecast
           realEstateData={typeSpecificData}
           isLoading={false}
           data-testid="real-estate-liquidity-forecast-overview"
         />
       </div>
-    );
+    )
   }
 
   switch (investmentType) {
     case 'real_estate':
-      return (
-        <RealEstateLiquidityForecast 
-          realEstateData={typeSpecificData}
-          isLoading={false}
-        />
-      );
+      return <RealEstateLiquidityForecast realEstateData={typeSpecificData} isLoading={false} />
     default:
-      return null;
+      return null
   }
-};
+}
 
 /**
  * Creates the tab configuration for RecordLayout
@@ -100,26 +97,20 @@ export const createInvestmentTabsConfig = (
       value: 'home',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home'),
       icon: <Home className="gba:h-4 gba:w-4 gba:mr-2" />,
-      content: (
-          <InvestmentHomeTab
-            investmentId={investmentId}
-            investment={investment}
-            {...props}
-          />
-      )
+      content: <InvestmentHomeTab investmentId={investmentId} investment={investment} {...props} />
     }
-  ];
+  ]
 
   // Add Overview Tab only for non-liquid fund investments
-  const typeStr = (investmentType || '').toUpperCase();
+  const typeStr = (investmentType || '').toUpperCase()
   const isLiquidFund =
     typeStr === 'LIQUID_FUND' ||
     typeStr.includes('LIQUID_FUND') ||
-    ((investment?.investmentGroup?.code || '').toUpperCase().includes('LIQUID_FUND')) ||
-    ((investment?.investmentGroup?.value || '').toUpperCase().includes('LIQUID_FUND')) ||
-    ((investment?.investmentType?.code || '').toUpperCase().includes('LIQUID_FUND')) ||
-    ((investment?.investmentType?.value || '').toUpperCase().includes('LIQUID_FUND'));
-  
+    (investment?.investmentGroup?.code || '').toUpperCase().includes('LIQUID_FUND') ||
+    (investment?.investmentGroup?.value || '').toUpperCase().includes('LIQUID_FUND') ||
+    (investment?.investmentType?.code || '').toUpperCase().includes('LIQUID_FUND') ||
+    (investment?.investmentType?.value || '').toUpperCase().includes('LIQUID_FUND')
+
   if (!isLiquidFund) {
     tabs.push({
       value: 'overview',
@@ -128,7 +119,7 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12 gba:space-y-6">
           {/* Generate One-Pager Action */}
-          <div 
+          <div
             className="gba:flex gba:justify-end"
             style={{ marginBottom: 'var(--nw-spacing-lg)' }}
             data-testid="investment-generate-onepager-section"
@@ -143,7 +134,7 @@ export const createInvestmentTabsConfig = (
 
           {/* Investment Tile Section - only show if tile fields are configured */}
           {processedTiles.length > 0 && (
-            <InvestmentTileSection 
+            <InvestmentTileSection
               investment={investment}
               isLoading={false}
               accessToken={props.accessToken}
@@ -159,7 +150,7 @@ export const createInvestmentTabsConfig = (
           {/* Note: Account and Contact sections removed - now available in Home tab */}
         </div>
       )
-    });
+    })
   }
 
   // Add remaining tabs
@@ -172,14 +163,16 @@ export const createInvestmentTabsConfig = (
       content: (
         <div className="gba:col-span-12">
           {investmentId ? (
-            <InvestmentDocuments 
-              investmentId={investmentId} 
+            <InvestmentDocuments
+              investmentId={investmentId}
               context={props}
               data-testid="investment-documents-section"
             />
           ) : (
             <div className="gba:p-8 gba:text-center gba:text-gray-500">
-              <p data-testid="investment-documents-loading">{getTranslationFromI18nKeyAndLabel('investment.record.loading', 'Loading investment data...')}</p>
+              <p data-testid="investment-documents-loading">
+                {getTranslationFromI18nKeyAndLabel('investment.record.loading', 'Loading investment data...')}
+              </p>
             </div>
           )}
         </div>
@@ -216,13 +209,13 @@ export const createInvestmentTabsConfig = (
         </div>
       )
     }
-  );
+  )
 
   return {
     defaultValue: activeTab,
     onValueChange: (val: string) => {
-      setActiveTabAndUrl(val);
+      setActiveTabAndUrl(val)
     },
     items: tabs
-  };
-};
+  }
+}

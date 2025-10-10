@@ -1,26 +1,19 @@
-import React from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
-  Alert,
-  Spinner
-} from '@newwork/nw-design-system';
-import { AppAction } from '@/components/app-action/AppAction';
-import { PencilSimpleIcon } from '@phosphor-icons/react';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useInvestmentTileFields } from '../../hooks/useInvestmentTileFields';
-import { getPhosphorIcon } from '../../utils/phosphorIconMapping';
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Alert, Spinner } from '@newwork/nw-design-system'
+import { AppAction } from '@/components/app-action/AppAction'
+import { PencilSimpleIcon } from '@phosphor-icons/react'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useInvestmentTileFields } from '../../hooks/useInvestmentTileFields'
+import { getPhosphorIcon } from '../../utils/phosphorIconMapping'
 
 interface InvestmentTileSectionProps extends BusinessAppContextProps {
-  investment?: any;
-  isLoading?: boolean;
-  'data-testid'?: string;
+  investment?: any
+  isLoading?: boolean
+  'data-testid'?: string
 }
 
-const prefixDataTestId = 'investment-tile-section';
+const prefixDataTestId = 'investment-tile-section'
 
 const InvestmentTileSection: React.FC<InvestmentTileSectionProps> = ({
   investment,
@@ -35,24 +28,21 @@ const InvestmentTileSection: React.FC<InvestmentTileSectionProps> = ({
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   // Get dynamic tile fields from catalog
-  const { 
-    processedTiles, 
-    loading: tilesLoading, 
-    error: tilesError 
-  } = useInvestmentTileFields(businessAppContext, investment);
+  const {
+    processedTiles,
+    loading: tilesLoading,
+    error: tilesError
+  } = useInvestmentTileFields(businessAppContext, investment)
 
-  const isLoading = parentLoading || tilesLoading;
+  const isLoading = parentLoading || tilesLoading
 
   // Show loading state
   if (isLoading) {
     return (
-      <div 
-        className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-6" 
-        data-testid={`${dataTestId}-loading`}
-      >
+      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-6" data-testid={`${dataTestId}-loading`}>
         {Array.from({ length: 3 }).map((_, index) => (
           <Card key={index} data-testid={`${dataTestId}-loading-card-${index}`}>
             <CardHeader>
@@ -70,68 +60,55 @@ const InvestmentTileSection: React.FC<InvestmentTileSectionProps> = ({
           </Card>
         ))}
       </div>
-    );
+    )
   }
 
   // Show error state
   if (tilesError) {
     return (
-      <Alert
-        variant="destructive"
-        data-testid={`${dataTestId}-error`}
-      >
+      <Alert variant="destructive" data-testid={`${dataTestId}-error`}>
         <h4>Error Loading Tiles</h4>
         <p>{tilesError}</p>
       </Alert>
-    );
+    )
   }
 
   // Show empty state if no tiles configured
   if (!processedTiles.length) {
     return (
-      <div 
-        className="gba:text-center gba:py-8 gba:text-gray-500"
-        data-testid={`${dataTestId}-empty`}
-      >
+      <div className="gba:text-center gba:py-8 gba:text-gray-500" data-testid={`${dataTestId}-empty`}>
         <p>No tile fields configured for this investment type.</p>
       </div>
-    );
+    )
   }
 
   // Calculate grid columns based on number of tiles
   const getGridCols = (tileCount: number): string => {
-    if (tileCount === 1) return 'gba:grid-cols-1';
-    if (tileCount === 2) return 'gba:grid-cols-1 gba:lg:grid-cols-2';
-    if (tileCount >= 3) return 'gba:grid-cols-1 gba:lg:grid-cols-3';
-    return 'gba:grid-cols-1 gba:lg:grid-cols-3';
-  };
+    if (tileCount === 1) return 'gba:grid-cols-1'
+    if (tileCount === 2) return 'gba:grid-cols-1 gba:lg:grid-cols-2'
+    if (tileCount >= 3) return 'gba:grid-cols-1 gba:lg:grid-cols-3'
+    return 'gba:grid-cols-1 gba:lg:grid-cols-3'
+  }
 
   return (
-    <div 
-      className={`gba:grid ${getGridCols(processedTiles.length)} gba:gap-6`} 
-      data-testid={dataTestId}
-    >
-      {processedTiles.map((tile) => {
-        const IconComponent = getPhosphorIcon(tile.icon);
-        
+    <div className={`gba:grid ${getGridCols(processedTiles.length)} gba:gap-6`} data-testid={dataTestId}>
+      {processedTiles.map(tile => {
+        const IconComponent = getPhosphorIcon(tile.icon)
+
         return (
-          <Card 
-            key={tile.key} 
-            data-testid={`${dataTestId}-tile-${tile.key}`}
-            className="gba:relative"
-          >
+          <Card key={tile.key} data-testid={`${dataTestId}-tile-${tile.key}`} className="gba:relative">
             <CardHeader>
               <div className="gba:flex gba:items-center gba:justify-between">
                 <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-lg">
                   <IconComponent className="gba:h-5 gba:w-5 gba:text-blue-600" />
                   {tile.label}
                 </CardTitle>
-                
+
                 {/* Action for editing */}
                 <div className="gba:flex gba:justify-start gba:gap-2">
                   <AppAction
                     contextsArray={[FlowContextName.investmentTileUpdate]}
-                    externalContextData={{ 
+                    externalContextData={{
                       investmentId: investment?.id,
                       tileKey: tile.key,
                       scope: 'tile'
@@ -141,15 +118,15 @@ const InvestmentTileSection: React.FC<InvestmentTileSectionProps> = ({
                     emptyStateBehavior="hide"
                     deferMainContextRequestsUntilClick
                   >
-                    <PencilSimpleIcon 
-                      className="gba:h-4 gba:w-4 gba:text-gray-500 hover:gba:text-blue-600 gba:cursor-pointer" 
+                    <PencilSimpleIcon
+                      className="gba:h-4 gba:w-4 gba:text-gray-500 hover:gba:text-blue-600 gba:cursor-pointer"
                       data-testid={`${dataTestId}-edit-${tile.key}-icon`}
                     />
                   </AppAction>
                 </div>
               </div>
             </CardHeader>
-            
+
             <CardContent>
               <div className="gba:space-y-3" data-testid={`${dataTestId}-content-${tile.key}`}>
                 {tile.value ? (
@@ -167,10 +144,10 @@ const InvestmentTileSection: React.FC<InvestmentTileSectionProps> = ({
               </div>
             </CardContent>
           </Card>
-        );
+        )
       })}
     </div>
-  );
-};
+  )
+}
 
-export default InvestmentTileSection;
+export default InvestmentTileSection

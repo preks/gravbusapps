@@ -1,1 +1,1 @@
-export { useInvestmentDashboardStats } from './useInvestmentDashboardStats'; 
+export { useInvestmentDashboardStats } from './useInvestmentDashboardStats'

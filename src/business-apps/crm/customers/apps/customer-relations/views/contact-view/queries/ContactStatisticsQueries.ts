@@ -1,17 +1,17 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCallback } from 'react';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCallback } from 'react'
 
 export interface UseContactStatisticsQueriesProps extends BusinessAppContextProps {
-  sourceApp: string;
+  sourceApp: string
 }
 
 interface TrendData {
-  current: number;
-  previous: number;
-  change: number;
-  changePercent: number;
-  isPositive: boolean;
+  current: number
+  previous: number
+  change: number
+  changePercent: number
+  isPositive: boolean
 }
 
 // Enhanced queries that fetch both current and previous period data for trend calculations
@@ -38,7 +38,7 @@ export const GET_RECENT_CONTACTS_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Query to get active contacts count (current vs last month)
 export const GET_ACTIVE_CONTACTS_WITH_TREND = `
@@ -63,7 +63,7 @@ export const GET_ACTIVE_CONTACTS_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Query to get email engagements (current vs last month)
 export const GET_EMAIL_ENGAGEMENTS_WITH_TREND = `
@@ -88,7 +88,7 @@ export const GET_EMAIL_ENGAGEMENTS_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 // Query to get contacts this year vs same period last year
 export const GET_CONTACTS_THIS_YEAR_WITH_TREND = `
@@ -112,123 +112,111 @@ export const GET_CONTACTS_THIS_YEAR_WITH_TREND = `
       }
     }
   }
-`;
+`
 
 export const useContactStatisticsQueries = (context: UseContactStatisticsQueriesProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  const { sourceApp } = context;
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const { sourceApp } = context
 
   const calculateTrend = (current: number, previous: number): TrendData => {
-    const change = current - previous;
-    const changePercent = previous > 0 ? (change / previous) * 100 : (current > 0 ? 100 : 0);
+    const change = current - previous
+    const changePercent = previous > 0 ? (change / previous) * 100 : current > 0 ? 100 : 0
     return {
       current,
       previous,
       change,
       changePercent,
       isPositive: change >= 0
-    };
-  };
+    }
+  }
 
   const fetchRecentContactsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const currentStart = new Date(now.getTime() - (14 * 24 * 60 * 60 * 1000));
-      const previousEnd = currentStart;
-      const previousStart = new Date(currentStart.getTime() - (14 * 24 * 60 * 60 * 1000));
-      
+      const now = new Date()
+      const currentStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+      const previousEnd = currentStart
+      const previousStart = new Date(currentStart.getTime() - 14 * 24 * 60 * 60 * 1000)
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_RECENT_CONTACTS_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_RECENT_CONTACTS_WITH_TREND, {
         currentStart: currentStart.toISOString(),
         previousStart: previousStart.toISOString(),
         previousEnd: previousEnd.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching recent contacts with trend:', error);
-      throw error;
+      console.error('Error fetching recent contacts with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchActiveContactsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      
+      const now = new Date()
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_ACTIVE_CONTACTS_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_ACTIVE_CONTACTS_WITH_TREND, {
         lastMonth: lastMonth.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching active contacts with trend:', error);
-      throw error;
+      console.error('Error fetching active contacts with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchEmailEngagementsWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-      
+      const now = new Date()
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_EMAIL_ENGAGEMENTS_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_EMAIL_ENGAGEMENTS_WITH_TREND, {
         lastMonth: lastMonth.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching email engagements with trend:', error);
-      throw error;
+      console.error('Error fetching email engagements with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   const fetchContactsThisYearWithTrend = useCallback(async (): Promise<TrendData> => {
     try {
-      const now = new Date();
-      const thisYearStart = new Date(now.getFullYear(), 0, 1);
-      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1);
-      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-      
+      const now = new Date()
+      const thisYearStart = new Date(now.getFullYear(), 0, 1)
+      const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
+      const lastYearEnd = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())
+
       const result = await graphqlClient.request<{
-        current: { aggregate: { count: number } };
-        previous: { aggregate: { count: number } };
-      }>(GET_CONTACTS_THIS_YEAR_WITH_TREND, { 
+        current: { aggregate: { count: number } }
+        previous: { aggregate: { count: number } }
+      }>(GET_CONTACTS_THIS_YEAR_WITH_TREND, {
         thisYearStart: thisYearStart.toISOString(),
         lastYearStart: lastYearStart.toISOString(),
         lastYearEnd: lastYearEnd.toISOString(),
-        sourceApp 
-      });
-      
-      return calculateTrend(
-        result.current.aggregate.count,
-        result.previous.aggregate.count
-      );
+        sourceApp
+      })
+
+      return calculateTrend(result.current.aggregate.count, result.previous.aggregate.count)
     } catch (error) {
-      console.error('Error fetching contacts this year with trend:', error);
-      throw error;
+      console.error('Error fetching contacts this year with trend:', error)
+      throw error
     }
-  }, [graphqlClient, sourceApp]);
+  }, [graphqlClient, sourceApp])
 
   return {
     // Enhanced methods with trend data
@@ -236,5 +224,5 @@ export const useContactStatisticsQueries = (context: UseContactStatisticsQueries
     fetchActiveContactsWithTrend,
     fetchEmailEngagementsWithTrend,
     fetchContactsThisYearWithTrend
-  };
-}; 
+  }
+}

@@ -80,7 +80,7 @@ export const GET_EXPENSE_PLANS_BY_MANAGER = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
   query GetExpensePlanStatistics($managerId: uuid!) {
@@ -121,7 +121,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
     }
   }
 }
-`;
+`
 
 export const APPROVE_EXPENSE_PLAN = `
   mutation ApproveExpensePlan($planId: uuid!, $approverEmployeeId: uuid!, $comments: String) {
@@ -141,7 +141,7 @@ export const APPROVE_EXPENSE_PLAN = `
       }
     }
   }
-`;
+`
 
 export const REJECT_EXPENSE_PLAN = `
   mutation RejectExpensePlan($planId: uuid!, $rejectorEmployeeId: uuid!, $reason: String!) {
@@ -161,4 +161,4 @@ export const REJECT_EXPENSE_PLAN = `
       }
     }
   }
-`;
+`

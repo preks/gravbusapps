@@ -1,34 +1,23 @@
-import React, { useState, useEffect } from "react";
-import {
-  Spinner,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-  Button,
-} from "@newwork/nw-design-system";
-import {
-  ArrowLeftOutlined,
-  UserOutlined,
-  FileOutlined,
-} from "@ant-design/icons";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { navigateTo } from "@/common/utils/navigationUtils";
-import { useOpportunityData } from "./hooks/useOpportunityData";
-import { OpportunityHeader } from "./components/OpportunityHeader";
-import { CompanyInformation } from "./components/CompanyInformation";
-import { ContactInformation } from "./components/ContactInformation";
-import { OpportunityDetails } from "./components/OpportunityDetails";
-import { ActivityTimeline } from "./components/ActivityTimeline";
-import { TasksSection } from "./components/TasksSection";
-import { OpportunityStageProgression } from "./components/OpportunityStageProgression";
-import { OpportunityDocuments } from "./components/OpportunityDocuments";
+import React, { useState, useEffect } from 'react'
+import { Spinner, Tabs, TabsList, TabsTrigger, TabsContent, Button } from '@newwork/nw-design-system'
+import { ArrowLeftOutlined, UserOutlined, FileOutlined } from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { useOpportunityData } from './hooks/useOpportunityData'
+import { OpportunityHeader } from './components/OpportunityHeader'
+import { CompanyInformation } from './components/CompanyInformation'
+import { ContactInformation } from './components/ContactInformation'
+import { OpportunityDetails } from './components/OpportunityDetails'
+import { ActivityTimeline } from './components/ActivityTimeline'
+import { TasksSection } from './components/TasksSection'
+import { OpportunityStageProgression } from './components/OpportunityStageProgression'
+import { OpportunityDocuments } from './components/OpportunityDocuments'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
-  opportunityId: string;
-  onBack: () => void;
-  getBackButtonText: () => string;
-  fromEntity?: string | null;
+  opportunityId: string
+  onBack: () => void
+  getBackButtonText: () => string
+  fromEntity?: string | null
 }
 
 const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
@@ -37,7 +26,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
   getBackButtonText,
   ...props
 }) => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState('overview')
   const {
     opportunity,
     opportunityData,
@@ -49,88 +38,86 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
     loadingStages,
     loadingStatuses,
     stagesError,
-    refetchOpportunityData,
-  } = useOpportunityData(opportunityId, props.accessToken);
+    refetchOpportunityData
+  } = useOpportunityData(opportunityId, props.accessToken)
 
   // Listen for process completion events to refresh opportunity data (including stage condition updates)
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        console.log("OpportunityRecord: Process completion event received:", event);
+        console.log('OpportunityRecord: Process completion event received:', event)
 
         // Check for successful completion
-        if (event.detail?.resolution === "success") {
-          console.log("OpportunityRecord: Refreshing opportunity data after stage condition update...");
-          refetchOpportunityData();
-          return;
+        if (event.detail?.resolution === 'success') {
+          console.log('OpportunityRecord: Refreshing opportunity data after stage condition update...')
+          refetchOpportunityData()
+          return
         }
 
         // Also check for different event structure
-        const response = event.detail?.response;
-        if (response?.detail?.resolution === "success" || response?.opportunityStageConditionStatus) {
-          console.log("OpportunityRecord: Refreshing opportunity data from response...");
-          refetchOpportunityData();
+        const response = event.detail?.response
+        if (response?.detail?.resolution === 'success' || response?.opportunityStageConditionStatus) {
+          console.log('OpportunityRecord: Refreshing opportunity data from response...')
+          refetchOpportunityData()
         }
       } catch (err) {
-        console.error("Error handling process completion in OpportunityRecord:", err);
+        console.error('Error handling process completion in OpportunityRecord:', err)
       }
-    };
+    }
 
     // Listen to multiple possible event names for stage condition updates
     const eventNames = [
-      "com.newwork.process.taskCompletion",
-      "com.newwork.process.completion",
-      "com.newwork.process.continue",
-      "com.newwork.process.processCompletion",
-      "processCompletion",
-      "taskCompletion",
-      "taskCompleted",
-      "processCompleted",
-      "task-completion",
-      "process-completion",
-    ];
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion as EventListener);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion as EventListener);
-      });
-    };
-  }, [refetchOpportunityData]);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+    }
+  }, [refetchOpportunityData])
 
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error || !opportunity) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">
-            {error || "Opportunity not found"}
-          </p>
+          <p className="gba:text-red-500 gba:text-lg">{error || 'Opportunity not found'}</p>
           <Button onClick={onBack} className="gba:mt-4" variant="default">
             {getBackButtonText()}
           </Button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div
       className="gba:opportunity-details-container"
       data-testid="opportunity-record-detail"
-      style={{ backgroundColor: "white", padding: "16px" }}
+      style={{ backgroundColor: 'white', padding: '16px' }}
     >
-      <div className="gba:back-navigation" style={{ marginBottom: "16px" }}>
+      <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
         <button
           onClick={onBack}
           className="gba:flex gba:items-center gba:text-blue-500 gba:hover:text-blue-600"
@@ -150,56 +137,42 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
       />
 
       {/* Stage Progression - Show filtered pipeline stages */}
-      {!loadingStages &&
-        !stagesError &&
-        opportunityStages.length > 0 &&
-        opportunityData?.salesPipelineRef && (
-          <OpportunityStageProgression
-            currentStage={
-              opportunityData?.salesPipelineStage?.code || "Discovery"
-            }
-            stages={opportunityStages}
-            opportunityId={opportunityId}
-            opportunityVersion={parseInt(opportunity.version) || 0}
-            accessToken={props.accessToken}
-            stageConditionStatuses={stageConditionStatuses}
-            onStageUpdate={refetchOpportunityData}
-          />
-        )}
+      {!loadingStages && !stagesError && opportunityStages.length > 0 && opportunityData?.salesPipelineRef && (
+        <OpportunityStageProgression
+          currentStage={opportunityData?.salesPipelineStage?.code || 'Discovery'}
+          stages={opportunityStages}
+          opportunityId={opportunityId}
+          opportunityVersion={parseInt(opportunity.version) || 0}
+          accessToken={props.accessToken}
+          stageConditionStatuses={stageConditionStatuses}
+          onStageUpdate={refetchOpportunityData}
+        />
+      )}
 
       {/* Show stages loading */}
       {loadingStages && (
-        <div style={{ textAlign: "center", padding: "20px" }}>
+        <div style={{ textAlign: 'center', padding: '20px' }}>
           <Spinner size="sm" />
-          <span style={{ marginLeft: "8px" }}>Loading pipeline stages...</span>
+          <span style={{ marginLeft: '8px' }}>Loading pipeline stages...</span>
         </div>
       )}
 
       {/* Show stages error */}
       {stagesError && (
-        <div style={{ textAlign: "center", padding: "20px", color: "#ff4d4f" }}>
+        <div style={{ textAlign: 'center', padding: '20px', color: '#ff4d4f' }}>
           <p>Failed to load pipeline stages: {stagesError}</p>
         </div>
       )}
 
       {/* Show info when no salesPipelineRef */}
       {!opportunityData?.salesPipelineRef && !loadingStages && (
-        <div style={{ textAlign: "center", padding: "20px", color: "#8c8c8c" }}>
+        <div style={{ textAlign: 'center', padding: '20px', color: '#8c8c8c' }}>
           <p>No sales pipeline assigned to this opportunity</p>
         </div>
       )}
 
-
-
-      <div
-        className="gba:opportunity-details-content"
-        data-testid="opportunity-details-content"
-      >
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="gba:w-full"
-        >
+      <div className="gba:opportunity-details-content" data-testid="opportunity-details-content">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
           <TabsList className="gba:bg-white gba:border gba:mb-6">
             <TabsTrigger value="overview" data-testid="overview-tab">
               <UserOutlined className="gba:mr-2" />
@@ -214,18 +187,11 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           <TabsContent value="overview" data-testid="overview-content">
             <div className="gba:grid gba:grid-cols-8 gba:gap-6 gba:mb-6">
               <div className="gba:col-span-4 gba:flex">
-                <CompanyInformation
-                  opportunity={opportunity}
-                  opportunityData={opportunityData}
-                />
+                <CompanyInformation opportunity={opportunity} opportunityData={opportunityData} />
               </div>
 
               <div className="gba:col-span-2 gba:flex">
-                <ContactInformation
-                  opportunityData={opportunityData}
-                  opportunityId={opportunityId}
-                  context={props}
-                />
+                <ContactInformation opportunityData={opportunityData} opportunityId={opportunityId} context={props} />
               </div>
 
               <div className="gba:col-span-2 gba:flex">
@@ -239,10 +205,7 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
 
             <div className="gba:grid gba:grid-cols-2 gba:gap-6">
               <div>
-                <ActivityTimeline
-                  opportunityId={opportunityId}
-                  context={props}
-                />
+                <ActivityTimeline opportunityId={opportunityId} context={props} />
               </div>
 
               <div>
@@ -254,87 +217,77 @@ const OpportunityRecordContent: React.FC<OpportunityRecordContentProps> = ({
           <TabsContent value="documents" data-testid="documents-content">
             <OpportunityDocuments opportunityId={opportunityId} context={props} />
           </TabsContent>
-
         </Tabs>
       </div>
     </div>
-  );
-};
-
-interface OpportunityRecordProps extends BusinessAppContextProps {
-  opportunityId?: string;
-  source?: string;
-  onBack?: () => void;
+  )
 }
 
-const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const opportunityId =
-    props.opportunityId ||
-    urlParams.get("opportunityId") ||
-    urlParams.get("id");
+interface OpportunityRecordProps extends BusinessAppContextProps {
+  opportunityId?: string
+  source?: string
+  onBack?: () => void
+}
 
-  const source = props.source || urlParams.get("source");
+const OpportunityRecord: React.FC<OpportunityRecordProps> = props => {
+  const urlParams = new URLSearchParams(window.location.search)
+  const opportunityId = props.opportunityId || urlParams.get('opportunityId') || urlParams.get('id')
 
-  const fromEntity = urlParams.get("fromEntity");
+  const source = props.source || urlParams.get('source')
+
+  const fromEntity = urlParams.get('fromEntity')
 
   const getBackButtonText = () => {
     switch (fromEntity) {
-      case "leads":
-        return "Back to Leads";
-      case "accounts":
-        return "Back to Accounts";
-      case "contacts":
-        return "Back to Contacts";
-      case "salesPerformance":
-        return "Back to Sales Performance";
+      case 'leads':
+        return 'Back to Leads'
+      case 'accounts':
+        return 'Back to Accounts'
+      case 'contacts':
+        return 'Back to Contacts'
+      case 'salesPerformance':
+        return 'Back to Sales Performance'
       default:
-        return "Back to Opportunities";
+        return 'Back to Opportunities'
     }
-  };
+  }
 
   const handleBack = () => {
     if (props.onBack) {
-      props.onBack();
+      props.onBack()
     } else {
       // Navigate back based on fromEntity first, then source
       switch (fromEntity) {
-        case "salesPerformance":
+        case 'salesPerformance':
           // Check if there's an employee ID to navigate back to specific employee performance
-          const employeeId = urlParams.get("employeeId");
+          const employeeId = urlParams.get('employeeId')
           const salesPerformanceUrl = employeeId
             ? `/platform/crm/sales-performance?employeeId=${employeeId}`
-            : "/platform/crm/sales-performance";
-          navigateTo(salesPerformanceUrl);
-          break;
+            : '/platform/crm/sales-performance'
+          navigateTo(salesPerformanceUrl)
+          break
         default:
           // Default back navigation based on source
           switch (source) {
-            case "investments":
-              navigateTo(
-                "/platform/irm/investment-relations?view=opportunities"
-              );
-              break;
-            case "customer-relations":
+            case 'investments':
+              navigateTo('/platform/irm/investment-relations?view=opportunities')
+              break
+            case 'customer-relations':
             default:
-              navigateTo("/platform/crm/customer-relations?view=opportunities");
-              break;
+              navigateTo('/platform/crm/customer-relations?view=opportunities')
+              break
           }
-          break;
+          break
       }
     }
-  };
+  }
 
   if (!opportunityId) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
         <div className="gba:text-center">
-          <p className="gba:text-red-500 gba:text-lg">
-            No opportunity ID provided
-          </p>
-          <p className="gba:text-gray-500 gba:mb-4">
-            Please provide an opportunity ID via props or URL parameter
-          </p>
+          <p className="gba:text-red-500 gba:text-lg">No opportunity ID provided</p>
+          <p className="gba:text-gray-500 gba:mb-4">Please provide an opportunity ID via props or URL parameter</p>
           <button
             onClick={handleBack}
             className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded"
@@ -343,7 +296,7 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -354,9 +307,9 @@ const OpportunityRecord: React.FC<OpportunityRecordProps> = (props) => {
       getBackButtonText={getBackButtonText}
       fromEntity={fromEntity}
     />
-  );
-};
+  )
+}
 
-export { OpportunityRecord, OpportunityRecordContent };
+export { OpportunityRecord, OpportunityRecordContent }
 
-export default OpportunityRecord;
+export default OpportunityRecord

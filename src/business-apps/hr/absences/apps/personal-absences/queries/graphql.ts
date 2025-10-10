@@ -19,7 +19,7 @@ export const GET_EMPLOYEE_ABSENCES = `
             workingHours
             createdAt
         }
-    }`;
+    }`
 
 export const GET_EMPLOYEE_ENTITLEMENTS = `
     query GetEmployeeEntitlements($employeeId: uuid!, $activeUserLocale: String!) {
@@ -38,4 +38,4 @@ export const GET_EMPLOYEE_ENTITLEMENTS = `
           total
           pending
         }
-    }`;
+    }`

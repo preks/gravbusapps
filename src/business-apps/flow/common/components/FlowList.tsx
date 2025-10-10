@@ -1,31 +1,17 @@
-import React, { useState } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  Alert, 
-  Badge 
-} from '@newwork/nw-design-system';
-import { 
-  Workflow, 
-  Calendar, 
-  Clock, 
-  AlertCircle, 
-  ArrowRight,
-  CheckCircle
-} from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { useFlowList } from '../hooks/useFlowList';
+import React, { useState } from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Alert, Badge } from '@newwork/nw-design-system'
+import { Workflow, Calendar, Clock, AlertCircle, ArrowRight, CheckCircle } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { useFlowList } from '../hooks/useFlowList'
 
 export interface FlowListProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  title?: string;
-  filterType?: 'all' | 'initiated' | 'participated';
-  hideFilters?: boolean;
-  onFlowSelect?: (flowId: string) => void;
-  userId?: string;
+  prefixDataTestId?: string
+  title?: string
+  filterType?: 'all' | 'initiated' | 'participated'
+  hideFilters?: boolean
+  onFlowSelect?: (flowId: string) => void
+  userId?: string
 }
 
 export const FlowList: React.FC<FlowListProps> = ({
@@ -38,38 +24,33 @@ export const FlowList: React.FC<FlowListProps> = ({
   userId,
   ...context
 }) => {
-  const [flowsSearch, setFlowsSearch] = useState('');
-  const [flowsStatus, setFlowsStatus] = useState<string>('');
+  const [flowsSearch, setFlowsSearch] = useState('')
+  const [flowsStatus, setFlowsStatus] = useState<string>('')
 
-  const { 
+  const {
     flows,
     totalCount,
-    loading: flowsLoading, 
+    loading: flowsLoading,
     error: flowsError,
     refetch
-  } = useFlowList(
-    filterType || 'monitoring',
-    userId || '',
-    accessToken,
-    {
-      searchTerm: flowsSearch,
-      status: flowsStatus as any,
-      limit: 10,
-      offset: 0
-    }
-  );
+  } = useFlowList(filterType || 'monitoring', userId || '', accessToken, {
+    searchTerm: flowsSearch,
+    status: flowsStatus as any,
+    limit: 10,
+    offset: 0
+  })
 
   const formatDateTime = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
+    const date = new Date(dateString)
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
 
   const formatLastActivity = (flow: any): { label: string; time: string } => {
     // Use lastActivityTime if it's more recent than updateTime, otherwise fall back to updateTime or startTime
-    const lastActivity = flow.lastActivityTime || flow.updateTime || flow.startTime;
-    const isRecentActivity = flow.lastActivityTime && 
-      (!flow.updateTime || new Date(flow.lastActivityTime) > new Date(flow.updateTime));
-    
+    const lastActivity = flow.lastActivityTime || flow.updateTime || flow.startTime
+    const isRecentActivity =
+      flow.lastActivityTime && (!flow.updateTime || new Date(flow.lastActivityTime) > new Date(flow.updateTime))
+
     // Debug logging
     console.debug('formatLastActivity for', flow.flowId, {
       lastActivityTime: flow.lastActivityTime,
@@ -77,50 +58,50 @@ export const FlowList: React.FC<FlowListProps> = ({
       startTime: flow.startTime,
       isRecentActivity,
       label: isRecentActivity ? 'Last activity' : 'Started'
-    });
-    
+    })
+
     return {
       label: isRecentActivity ? 'Last activity' : 'Started',
       time: formatDateTime(lastActivity)
-    };
-  };
+    }
+  }
 
   const formatDuration = (minutesDuration: number): string => {
     if (minutesDuration < 60) {
-      const roundedMinutes = Math.round(minutesDuration);
-      return `${roundedMinutes} minute${roundedMinutes !== 1 ? 's' : ''}`;
+      const roundedMinutes = Math.round(minutesDuration)
+      return `${roundedMinutes} minute${roundedMinutes !== 1 ? 's' : ''}`
     } else if (minutesDuration < 1440) {
-      const hours = Math.floor(minutesDuration / 60);
-      const remainingMinutes = Math.round(minutesDuration % 60);
+      const hours = Math.floor(minutesDuration / 60)
+      const remainingMinutes = Math.round(minutesDuration % 60)
       if (remainingMinutes === 0) {
-        return `${hours} hour${hours !== 1 ? 's' : ''}`;
+        return `${hours} hour${hours !== 1 ? 's' : ''}`
       } else {
-        return `${hours}h ${remainingMinutes}m`;
+        return `${hours}h ${remainingMinutes}m`
       }
     } else {
-      const days = Math.floor(minutesDuration / 1440);
-      const remainingHours = Math.floor((minutesDuration % 1440) / 60);
+      const days = Math.floor(minutesDuration / 1440)
+      const remainingHours = Math.floor((minutesDuration % 1440) / 60)
       if (remainingHours === 0) {
-        return `${days} day${days !== 1 ? 's' : ''}`;
+        return `${days} day${days !== 1 ? 's' : ''}`
       } else {
-        return `${days}d ${remainingHours}h`;
+        return `${days}d ${remainingHours}h`
       }
     }
-  };
+  }
 
   const formatFlowDuration = (flow: any): { label: string; duration: string } => {
     if (!flow.durationMinutes) {
-      return { label: '', duration: '' };
+      return { label: '', duration: '' }
     }
 
-    const isCompleted = flow.status === 'COMPLETED' || flow.endTime;
-    const duration = formatDuration(flow.durationMinutes);
-    
+    const isCompleted = flow.status === 'COMPLETED' || flow.endTime
+    const duration = formatDuration(flow.durationMinutes)
+
     return {
       label: isCompleted ? 'Completed in' : 'Running',
       duration: duration
-    };
-  };
+    }
+  }
 
   return (
     <Card data-testid={prefixDataTestId}>
@@ -133,7 +114,7 @@ export const FlowList: React.FC<FlowListProps> = ({
             </CardTitle>
           </div>
         </div>
-        
+
         {!hideFilters && (
           <div className="gba:flex gba:gap-4 gba:mt-4">
             <div className="gba:flex-1">
@@ -147,7 +128,7 @@ export const FlowList: React.FC<FlowListProps> = ({
             </div>
             <select
               value={flowsStatus}
-              onChange={(e) => setFlowsStatus(e.target.value)}
+              onChange={e => setFlowsStatus(e.target.value)}
               className="gba:px-3 gba:py-2 gba:border gba:rounded-md gba:text-sm gba:bg-white"
               data-testid={`${prefixDataTestId}-flows-status-filter`}
             >
@@ -196,7 +177,7 @@ export const FlowList: React.FC<FlowListProps> = ({
         ) : (
           <div className="gba:space-y-3">
             {flows.map((flow, index) => (
-              <div 
+              <div
                 key={flow.flowId}
                 className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:border gba:border-gray-200 gba:rounded-xl gba:hover:bg-gray-50 gba:hover:shadow-md gba:transition-all gba:duration-200 gba:cursor-pointer gba:bg-white"
                 data-testid={`${prefixDataTestId}-flow-${index}`}
@@ -205,51 +186,60 @@ export const FlowList: React.FC<FlowListProps> = ({
                 <div className="gba:flex gba:items-center gba:justify-center gba:w-12 gba:h-12 gba:bg-gradient-to-br gba:from-blue-50 gba:to-blue-100 gba:rounded-lg gba:flex-shrink-0 gba:shadow-sm">
                   <Workflow className="gba:h-6 gba:w-6 gba:text-blue-600" />
                 </div>
-                
+
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:flex gba:items-center gba:gap-3 gba:mb-2">
                     <h4 className="gba:font-semibold gba:text-base gba:truncate gba:text-gray-900">
                       {flow.flowName || `Flow ${flow.flowId.slice(-8)}`}
                     </h4>
-                    <Badge 
+                    <Badge
                       variant="outline"
                       className="gba:text-xs gba:font-medium gba:px-3 gba:py-1 gba:border-0"
                       style={{
-                        backgroundColor: 
-                          flow.status === 'COMPLETED' ? '#10b981' :
-                          flow.status === 'RUNNING' ? '#3b82f6' :
-                          flow.status === 'TIMED_OUT' ? '#f59e0b' :
-                          flow.status === 'FAILED' ? '#ef4444' :
-                          '#6b7280',
+                        backgroundColor:
+                          flow.status === 'COMPLETED'
+                            ? '#10b981'
+                            : flow.status === 'RUNNING'
+                              ? '#3b82f6'
+                              : flow.status === 'TIMED_OUT'
+                                ? '#f59e0b'
+                                : flow.status === 'FAILED'
+                                  ? '#ef4444'
+                                  : '#6b7280',
                         color: 'white'
                       }}
                     >
-                      {flow.status === 'COMPLETED' ? 'COMPLETED' :
-                       flow.status === 'RUNNING' ? 'RUNNING' :
-                       flow.status === 'TIMED_OUT' ? 'TIMED OUT' :
-                       flow.status}
+                      {flow.status === 'COMPLETED'
+                        ? 'COMPLETED'
+                        : flow.status === 'RUNNING'
+                          ? 'RUNNING'
+                          : flow.status === 'TIMED_OUT'
+                            ? 'TIMED OUT'
+                            : flow.status}
                     </Badge>
                   </div>
-                  
+
                   <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500 gba:mb-2">
                     <span className="gba:flex gba:items-center gba:gap-1">
                       <Calendar className="gba:h-3 gba:w-3" />
                       {formatLastActivity(flow).label}: {formatLastActivity(flow).time}
                     </span>
-                    {flow.durationMinutes && (() => {
-                      const flowDuration = formatFlowDuration(flow);
-                      return (
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <Clock className="gba:h-3 gba:w-3" />
-                          {flowDuration.label} {flowDuration.duration}
-                        </span>
-                      );
-                    })()}
+                    {flow.durationMinutes &&
+                      (() => {
+                        const flowDuration = formatFlowDuration(flow)
+                        return (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <Clock className="gba:h-3 gba:w-3" />
+                            {flowDuration.label} {flowDuration.duration}
+                          </span>
+                        )
+                      })()}
                     {/* Show end date for completed flows */}
                     {['COMPLETED', 'TIMED_OUT', 'TERMINATED', 'FAILED'].includes(flow.status) && flow.endTime && (
                       <span className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500">
                         <CheckCircle className="gba:h-3 gba:w-3" />
-                        Ended: {new Date(flow.endTime).toLocaleDateString('en-US', {
+                        Ended:{' '}
+                        {new Date(flow.endTime).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
@@ -257,23 +247,17 @@ export const FlowList: React.FC<FlowListProps> = ({
                         })}
                       </span>
                     )}
-                    {flow.initiatedBy && (
-                      <span className="gba:text-blue-600">
-                        by {flow.initiatedBy}
-                      </span>
-                    )}
+                    {flow.initiatedBy && <span className="gba:text-blue-600">by {flow.initiatedBy}</span>}
                   </div>
-                  
+
                   <div className="gba:text-xs gba:text-gray-600">
                     Progress: {flow.currentStep}/{flow.totalSteps} steps
                     {flow.progressPercentage !== undefined && (
-                      <span className="gba:ml-2 gba:font-medium">
-                        ({flow.progressPercentage}%)
-                      </span>
+                      <span className="gba:ml-2 gba:font-medium">({flow.progressPercentage}%)</span>
                     )}
                   </div>
                 </div>
-                
+
                 <div className="gba:flex gba:items-center">
                   <ArrowRight className="gba:h-4 gba:w-4 gba:text-gray-400" />
                 </div>
@@ -283,5 +267,5 @@ export const FlowList: React.FC<FlowListProps> = ({
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}

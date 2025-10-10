@@ -1,22 +1,23 @@
-import React from 'react';
-import { Table } from 'antd';
-import { AdvancePayment } from '../types/expensePlanRecord.types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatCurrencyDisplay } from '../utils/currency';
-
- 
+import React from 'react'
+import { Table } from 'antd'
+import { AdvancePayment } from '../types/expensePlanRecord.types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatCurrencyDisplay } from '../utils/currency'
 
 interface ExpensePlanAdvancePaymentsSummaryProps {
-  pageData: readonly AdvancePayment[];
-  formatAmount?: (amount: number) => string;
+  pageData: readonly AdvancePayment[]
+  formatAmount?: (amount: number) => string
 }
 
-const ExpensePlanAdvancePaymentsSummary: React.FC<ExpensePlanAdvancePaymentsSummaryProps> = ({ pageData, formatAmount }) => {
-  let totalAmount = 0;
+const ExpensePlanAdvancePaymentsSummary: React.FC<ExpensePlanAdvancePaymentsSummaryProps> = ({
+  pageData,
+  formatAmount
+}) => {
+  let totalAmount = 0
 
   pageData.forEach(({ amount }) => {
-    totalAmount += amount;
-  });
+    totalAmount += amount
+  })
 
   return (
     <Table.Summary fixed>
@@ -34,7 +35,7 @@ const ExpensePlanAdvancePaymentsSummary: React.FC<ExpensePlanAdvancePaymentsSumm
         <Table.Summary.Cell index={2} colSpan={6} />
       </Table.Summary.Row>
     </Table.Summary>
-  );
-};
+  )
+}
 
-export default ExpensePlanAdvancePaymentsSummary;
+export default ExpensePlanAdvancePaymentsSummary

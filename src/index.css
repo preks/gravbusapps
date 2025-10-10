@@ -19,20 +19,20 @@
   utilities,
   all-newwork-tw-utilities;
 
-@import "@newwork/gravity-ui-catalog/dist/assets/style.css";
+@import '@newwork/gravity-ui-catalog/dist/assets/style.css';
 
-@import "@newwork/nw-design-system/index.css";
+@import '@newwork/nw-design-system/index.css';
 
-@import "tailwindcss" prefix(gba);
-@import "tw-animate-css";
+@import 'tailwindcss' prefix(gba);
+@import 'tw-animate-css';
 
-@import "@newwork/nw-design-system/core";
-@import "@newwork/nw-design-system/layout";
-@import "@newwork/nw-design-system/colors";
-@import "@newwork/nw-design-system/effects";
-@import "@newwork/nw-design-system/spacing";
+@import '@newwork/nw-design-system/core';
+@import '@newwork/nw-design-system/layout';
+@import '@newwork/nw-design-system/colors';
+@import '@newwork/nw-design-system/effects';
+@import '@newwork/nw-design-system/spacing';
 
-@import "./business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css" layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
 
 /* Tooltip styles for absence calendar segments */
 .ant-tooltip-inner {
@@ -82,13 +82,12 @@
   font-weight: 500;
 }
 
-
-@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css" layer(legacy-unlayered-override);
-@import "./business-apps/hr/absences/apps/personal-absences/styles/statsCard.css" layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/statisticsTab.css' layer(legacy-unlayered-override);
+@import './business-apps/hr/absences/apps/personal-absences/styles/upcomingAbsenceCard.css';
+@import './business-apps/hr/absences/apps/personal-absences/styles/statsCard.css' layer(legacy-unlayered-override);
 
 @source "../index.html";
 @source "./*.{ts,tsx,js,jsx}";
@@ -100,30 +99,28 @@
   html {
     scroll-behavior: smooth;
   }
-  html, body, #root {
+  html,
+  body,
+  #root {
     height: 100%;
     overflow: hidden;
   }
   button:not(:disabled),
-  [role="button"]:not(:disabled) {
+  [role='button']:not(:disabled) {
     cursor: pointer;
   }
   :root {
-    --font-primary: "Roboto Flex", sans-serif;
-    --font-secondary: "Roboto Flex", sans-serif;
+    --font-primary: 'Roboto Flex', sans-serif;
+    --font-secondary: 'Roboto Flex', sans-serif;
   }
 }
 
 @utility font-primary {
-  font-family: var(--nw-font-primary, "Roboto", sans-serif) !important;
+  font-family: var(--nw-font-primary, 'Roboto', sans-serif) !important;
 }
 
 @utility font-secondary {
-  font-family: var(
-    --nw-font-secondary,
-    "Dela Gothic One",
-    sans-serif
-  ) !important;
+  font-family: var(--nw-font-secondary, 'Dela Gothic One', sans-serif) !important;
 }
 
 @layer properties {
@@ -275,38 +272,38 @@
   .gba\:category-expanded {
     animation: slideDown 0.3s ease;
   }
-  
+
   /* Responsive improvements */
   @media (max-width: 768px) {
     .gba\:flow-wizard-dialog .ant-modal {
       width: 95vw !important;
       max-width: none !important;
     }
-    
+
     .gba\:pattern-selector-grid {
       grid-template-columns: 1fr !important;
     }
-    
+
     .gba\:step-config-grid {
       grid-template-columns: 1fr !important;
     }
   }
-  
+
   /* Custom scrollbar for dialog content */
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar {
     width: 6px;
   }
-  
+
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 3px;
   }
-  
+
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
   }
-  
+
   .gba\:flow-wizard-dialog .ant-modal-body::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }

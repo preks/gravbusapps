@@ -1,22 +1,22 @@
-import { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 export interface HrStats {
-  totalEmployees: number;
-  totalJobPositions: number;
-  totalOrganizationalUnits: number;
-  uniqueEmploymentTypes: number;
-  myPendingAbsences: number;
-  teamPendingAbsences: number;
+  totalEmployees: number
+  totalJobPositions: number
+  totalOrganizationalUnits: number
+  uniqueEmploymentTypes: number
+  myPendingAbsences: number
+  teamPendingAbsences: number
 }
 
 export interface UseHrStatsResult {
-  stats: HrStats;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
+  stats: HrStats
+  isLoading: boolean
+  error: string | null
+  refetch: () => void
 }
 
 // GraphQL queries for HR stats
@@ -35,7 +35,7 @@ const GET_TOTAL_EMPLOYEES = `
       }
     }
   }
-`;
+`
 
 const GET_TOTAL_JOB_POSITIONS = `
   query GetTotalJobPositions($structureId: uuid!) {
@@ -56,7 +56,7 @@ const GET_TOTAL_JOB_POSITIONS = `
       }
     }
   }
-`;
+`
 
 const GET_TOTAL_ORGANIZATIONAL_UNITS = `
   query GetTotalOrganizationalUnits($structureId: uuid!) {
@@ -71,7 +71,7 @@ const GET_TOTAL_ORGANIZATIONAL_UNITS = `
       }
     }
   }
-`;
+`
 
 const GET_UNIQUE_EMPLOYMENT_TYPES = `
   query GetUniqueEmploymentTypes {
@@ -87,7 +87,7 @@ const GET_UNIQUE_EMPLOYMENT_TYPES = `
       }
     }
   }
-`;
+`
 
 const GET_MY_PENDING_ABSENCES = `
   query GetMyPendingAbsences($employeeId: uuid!) {
@@ -103,7 +103,7 @@ const GET_MY_PENDING_ABSENCES = `
       }
     }
   }
-`;
+`
 
 const GET_TEAM_PENDING_ABSENCES = `
   query GetTeamPendingAbsences($supervisorId: uuid!) {
@@ -119,7 +119,7 @@ const GET_TEAM_PENDING_ABSENCES = `
       }
     }
   }
-`;
+`
 
 export const useHrStats = (context: BusinessAppContextProps): UseHrStatsResult => {
   const [stats, setStats] = useState<HrStats>({
@@ -129,35 +129,35 @@ export const useHrStats = (context: BusinessAppContextProps): UseHrStatsResult =
     uniqueEmploymentTypes: 0,
     myPendingAbsences: 0,
     teamPendingAbsences: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  })
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchStats = async () => {
     if (!context.accessToken) {
-      setIsLoading(false);
-      return;
+      setIsLoading(false)
+      return
     }
 
-    const employeeId = context.userInfo?.employeeDetails?.employeeId;
+    const employeeId = context.userInfo?.employeeDetails?.employeeId
     if (!employeeId) {
-      setError('Employee ID is required');
-      setIsLoading(false);
-      return;
+      setError('Employee ID is required')
+      setIsLoading(false)
+      return
     }
 
-    const structureId = getCurrentActiveStructureId();
+    const structureId = getCurrentActiveStructureId()
     if (!structureId) {
-      setError('Structure ID is required');
-      setIsLoading(false);
-      return;
+      setError('Structure ID is required')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
-    
+    setIsLoading(true)
+    setError(null)
+
     try {
       // Execute all queries in parallel
       const [
@@ -169,20 +169,32 @@ export const useHrStats = (context: BusinessAppContextProps): UseHrStatsResult =
         teamPendingAbsencesResult
       ] = await Promise.all([
         graphqlClient.request<{ EmployeePositionAggregate: { aggregate: { count: number } } }>(GET_TOTAL_EMPLOYEES),
-        graphqlClient.request<{ JobPositionAggregate: { aggregate: { count: number } } }>(GET_TOTAL_JOB_POSITIONS, { structureId }),
-        graphqlClient.request<{ OrganizationalUnitAggregate: { aggregate: { count: number } } }>(GET_TOTAL_ORGANIZATIONAL_UNITS, { structureId }),
-        graphqlClient.request<{ EmployeeWorkingConditionAggregate: { aggregate: { count: number } } }>(GET_UNIQUE_EMPLOYMENT_TYPES),
-        graphqlClient.request<{ EmployeeAbsenceAggregate: { aggregate: { count: number } } }>(GET_MY_PENDING_ABSENCES, { employeeId }),
-        graphqlClient.request<{ EmployeeAbsenceAggregate: { aggregate: { count: number } } }>(GET_TEAM_PENDING_ABSENCES, { supervisorId: employeeId })
-      ]);
+        graphqlClient.request<{ JobPositionAggregate: { aggregate: { count: number } } }>(GET_TOTAL_JOB_POSITIONS, {
+          structureId
+        }),
+        graphqlClient.request<{ OrganizationalUnitAggregate: { aggregate: { count: number } } }>(
+          GET_TOTAL_ORGANIZATIONAL_UNITS,
+          { structureId }
+        ),
+        graphqlClient.request<{ EmployeeWorkingConditionAggregate: { aggregate: { count: number } } }>(
+          GET_UNIQUE_EMPLOYMENT_TYPES
+        ),
+        graphqlClient.request<{ EmployeeAbsenceAggregate: { aggregate: { count: number } } }>(GET_MY_PENDING_ABSENCES, {
+          employeeId
+        }),
+        graphqlClient.request<{ EmployeeAbsenceAggregate: { aggregate: { count: number } } }>(
+          GET_TEAM_PENDING_ABSENCES,
+          { supervisorId: employeeId }
+        )
+      ])
 
       // Extract counts from results
-      const totalEmployees = totalEmployeesResult.EmployeePositionAggregate?.aggregate?.count || 0;
-      const totalJobPositions = totalJobPositionsResult.JobPositionAggregate?.aggregate?.count || 0;
-      const totalOrganizationalUnits = totalOrganizationalUnitsResult.OrganizationalUnitAggregate?.aggregate?.count || 0;
-      const uniqueEmploymentTypes = uniqueEmploymentTypesResult.EmployeeWorkingConditionAggregate?.aggregate?.count || 0;
-      const myPendingAbsences = myPendingAbsencesResult.EmployeeAbsenceAggregate?.aggregate?.count || 0;
-      const teamPendingAbsences = teamPendingAbsencesResult.EmployeeAbsenceAggregate?.aggregate?.count || 0;
+      const totalEmployees = totalEmployeesResult.EmployeePositionAggregate?.aggregate?.count || 0
+      const totalJobPositions = totalJobPositionsResult.JobPositionAggregate?.aggregate?.count || 0
+      const totalOrganizationalUnits = totalOrganizationalUnitsResult.OrganizationalUnitAggregate?.aggregate?.count || 0
+      const uniqueEmploymentTypes = uniqueEmploymentTypesResult.EmployeeWorkingConditionAggregate?.aggregate?.count || 0
+      const myPendingAbsences = myPendingAbsencesResult.EmployeeAbsenceAggregate?.aggregate?.count || 0
+      const teamPendingAbsences = teamPendingAbsencesResult.EmployeeAbsenceAggregate?.aggregate?.count || 0
 
       setStats({
         totalEmployees,
@@ -191,25 +203,25 @@ export const useHrStats = (context: BusinessAppContextProps): UseHrStatsResult =
         uniqueEmploymentTypes,
         myPendingAbsences,
         teamPendingAbsences
-      });
+      })
     } catch (err) {
-      console.error('Error fetching HR statistics:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load HR statistics');
+      console.error('Error fetching HR statistics:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load HR statistics')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
     if (context.accessToken) {
-      fetchStats();
+      fetchStats()
     }
-  }, [context.accessToken]);
+  }, [context.accessToken])
 
   return {
     stats,
     isLoading,
     error,
     refetch: fetchStats
-  };
-}; 
+  }
+}

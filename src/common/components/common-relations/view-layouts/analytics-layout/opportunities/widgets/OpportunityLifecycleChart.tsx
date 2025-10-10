@@ -1,26 +1,47 @@
-import React, { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Checkbox, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis } from "recharts";
-import { ChartLineIcon, CalendarIcon, EyeIcon } from "@phosphor-icons/react";
+import React, { useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Checkbox,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis } from 'recharts'
+import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
 
-export type TimeFilter = "month" | "quarter" | "sixMonths" | "year" | "historical";
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
-export interface PipelineItem { id: string; name: string }
+export interface PipelineItem {
+  id: string
+  name: string
+}
 
 export interface OpportunityLifecyclePoint {
-  date: string;
-  opportunitiesCreated: number;
-  opportunitiesWon: number;
+  date: string
+  opportunitiesCreated: number
+  opportunitiesWon: number
 }
 
 interface OpportunityLifecycleChartProps {
-  data: OpportunityLifecyclePoint[];
-  selectedTimeFilter: TimeFilter;
-  onTimeFilterChange: (filter: TimeFilter) => void;
-  pipelines: PipelineItem[];
-  selectedPipelineId?: string;
-  onPipelineChange: (pipelineId: string) => void;
-  moduleColor?: string;
+  data: OpportunityLifecyclePoint[]
+  selectedTimeFilter: TimeFilter
+  onTimeFilterChange: (filter: TimeFilter) => void
+  pipelines: PipelineItem[]
+  selectedPipelineId?: string
+  onPipelineChange: (pipelineId: string) => void
+  moduleColor?: string
 }
 
 export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps> = ({
@@ -30,25 +51,25 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
   pipelines,
   selectedPipelineId,
   onPipelineChange,
-  moduleColor = "default",
+  moduleColor = 'default'
 }) => {
   // Remove unused variable warning
-  const _ = moduleColor;
-  const [visibleLines, setVisibleLines] = React.useState({ opportunitiesCreated: true, opportunitiesWon: true });
+  const _ = moduleColor
+  const [visibleLines, setVisibleLines] = React.useState({ opportunitiesCreated: true, opportunitiesWon: true })
   const timeFilterOptions: { key: TimeFilter; label: string }[] = [
-    { key: "month", label: "Last Month" },
-    { key: "quarter", label: "Last Quarter" },
-    { key: "sixMonths", label: "Last 6 Months" },
-    { key: "year", label: "Last Year" },
-    { key: "historical", label: "Historical" },
-  ];
+    { key: 'month', label: 'Last Month' },
+    { key: 'quarter', label: 'Last Quarter' },
+    { key: 'sixMonths', label: 'Last 6 Months' },
+    { key: 'year', label: 'Last Year' },
+    { key: 'historical', label: 'Historical' }
+  ]
   const formatXAxisLabel = (value: string) => {
-    const date = new Date(value);
-    if (selectedTimeFilter === "month") {
-      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const date = new Date(value)
+    if (selectedTimeFilter === 'month') {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     }
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-  };
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  }
 
   return (
     <Card data-testid="opportunity-lifecycle-chart">
@@ -65,14 +86,16 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
           </CardTitle>
           <div className="gba:flex gba:items-center gba:gap-4">
             <div className="gba:min-w-48">
-              <Select value={selectedPipelineId || "all"} onValueChange={onPipelineChange}>
+              <Select value={selectedPipelineId || 'all'} onValueChange={onPipelineChange}>
                 <SelectTrigger data-testid="opportunity-pipeline-selector">
                   <SelectValue placeholder="Select pipeline" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Pipelines</SelectItem>
-                  {pipelines.map((pipeline) => (
-                    <SelectItem key={pipeline.id} value={pipeline.id}>{pipeline.name}</SelectItem>
+                  {pipelines.map(pipeline => (
+                    <SelectItem key={pipeline.id} value={pipeline.id}>
+                      {pipeline.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -80,8 +103,14 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
             <div className="gba:flex gba:items-center gba:gap-2">
               <CalendarIcon size={16} className="gba:text-gray-500" />
               <div className="gba:flex gba:gap-1" data-testid="opportunity-time-filters">
-                {timeFilterOptions.map((option) => (
-                  <Button key={option.key} variant={selectedTimeFilter === option.key ? "default" : "outline"} size="sm" onClick={() => onTimeFilterChange(option.key)} data-testid={`opportunity-filter-${option.key}`}>
+                {timeFilterOptions.map(option => (
+                  <Button
+                    key={option.key}
+                    variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onTimeFilterChange(option.key)}
+                    data-testid={`opportunity-filter-${option.key}`}
+                  >
                     {option.label}
                   </Button>
                 ))}
@@ -97,12 +126,22 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid="opportunity-line-filters">
               {[
-                { key: "opportunitiesCreated", label: "Opportunities Created", dataKey: "opportunitiesCreated" },
-                { key: "opportunitiesWon", label: "Opportunities Won", dataKey: "opportunitiesWon" },
-              ].map((line) => (
-                <label key={line.key} className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer" data-testid={`opportunity-line-filter-${line.key}`}>
-                  <Checkbox checked={(visibleLines as any)[line.key]} onCheckedChange={() => setVisibleLines((prev) => ({ ...prev, [line.key]: !(prev as any)[line.key] }))} />
-                  <div className="gba:w-3 gba:h-3 gba:rounded" style={{ backgroundColor: `var(--color-${line.dataKey})` }} />
+                { key: 'opportunitiesCreated', label: 'Opportunities Created', dataKey: 'opportunitiesCreated' },
+                { key: 'opportunitiesWon', label: 'Opportunities Won', dataKey: 'opportunitiesWon' }
+              ].map(line => (
+                <label
+                  key={line.key}
+                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
+                  data-testid={`opportunity-line-filter-${line.key}`}
+                >
+                  <Checkbox
+                    checked={(visibleLines as any)[line.key]}
+                    onCheckedChange={() => setVisibleLines(prev => ({ ...prev, [line.key]: !(prev as any)[line.key] }))}
+                  />
+                  <div
+                    className="gba:w-3 gba:h-3 gba:rounded"
+                    style={{ backgroundColor: `var(--color-${line.dataKey})` }}
+                  />
                   <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
                 </label>
               ))}
@@ -115,14 +154,19 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
           <div className="gba:text-center gba:p-8" data-testid="opportunity-lifecycle-empty-state">
             <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">No opportunity lifecycle data found for the selected pipeline and time period.</p>
+            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
+              No opportunity lifecycle data found for the selected pipeline and time period.
+            </p>
           </div>
         ) : (
           <ChartContainer
-            config={useMemo(() => ({
-              opportunitiesCreated: { label: "Opportunities Created" },
-              opportunitiesWon: { label: "Opportunities Won" },
-            }), [])}
+            config={useMemo(
+              () => ({
+                opportunitiesCreated: { label: 'Opportunities Created' },
+                opportunitiesWon: { label: 'Opportunities Won' }
+              }),
+              []
+            )}
             className="gba:h-[320px] gba:w-full"
             data-testid="opportunity-lifecycle-chart-container"
           >
@@ -160,9 +204,7 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default OpportunityLifecycleChart;
-
-
+export default OpportunityLifecycleChart

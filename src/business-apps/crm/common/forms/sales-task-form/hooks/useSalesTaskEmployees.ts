@@ -1,18 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface UseSalesTaskEmployeesParams {
-  search?: string;
-  limit?: number;
-  offset?: number;
+  search?: string
+  limit?: number
+  offset?: number
 }
 
 export interface SalesTaskEmployee {
-  id: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  userId: string;
+  id: string
+  firstName: string
+  lastName: string
+  displayName: string
+  userId: string
 }
 
 const GET_SALES_TASK_EMPLOYEES_QUERY = `
@@ -41,51 +41,51 @@ const GET_SALES_TASK_EMPLOYEES_QUERY = `
       userId
     }
   }
-`;
+`
 
 export const useSalesTaskEmployees = (accessToken: string, params?: UseSalesTaskEmployeesParams) => {
-  const [data, setData] = useState<SalesTaskEmployee[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
-  const graphqlClient = useGraphQLClient(accessToken);
+  const [data, setData] = useState<SalesTaskEmployee[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<any>(null)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchEmployees = useCallback(async () => {
     if (!accessToken) {
-      console.warn('No access token provided to useSalesTaskEmployees');
-      return;
+      console.warn('No access token provided to useSalesTaskEmployees')
+      return
     }
 
-    setLoading(true);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
     try {
-      let searchPattern: string;
-      let limit: number;
+      let searchPattern: string
+      let limit: number
 
       // Trigger filtered search as soon as the user types at least 1 character
       if (params?.search && params.search.trim().length >= 1) {
         // User is searching - use search pattern and higher limit
-        searchPattern = `%${params.search.trim()}%`;
-        limit = 50;
+        searchPattern = `%${params.search.trim()}%`
+        limit = 50
       } else {
         // No search or search too short - get more employees alphabetically (increased from 10 to limit or 100)
-        searchPattern = '%%';
-        limit = params?.limit || 100;
+        searchPattern = '%%'
+        limit = params?.limit || 100
       }
 
       const variables = {
         search: searchPattern,
         limit: params?.limit || limit,
         offset: params?.offset || 0
-      };
+      }
 
       const result = await graphqlClient.request<{ Employee: SalesTaskEmployee[] }>(
         GET_SALES_TASK_EMPLOYEES_QUERY,
         variables
-      );
+      )
 
-      const employeeData = result.Employee || [];
-      
+      const employeeData = result.Employee || []
+
       // Process and format employees
       const processedEmployees = employeeData.map(emp => ({
         id: emp.id,
@@ -93,23 +93,23 @@ export const useSalesTaskEmployees = (accessToken: string, params?: UseSalesTask
         firstName: emp.firstName || '',
         lastName: emp.lastName || '',
         userId: emp.userId || ''
-      }));
-      
-      setData(processedEmployees);
+      }))
+
+      setData(processedEmployees)
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Failed to fetch sales task employees');
-      setError(error);
-      console.error('Error fetching sales task employees:', error);
+      const error = err instanceof Error ? err : new Error('Failed to fetch sales task employees')
+      setError(error)
+      console.error('Error fetching sales task employees:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [accessToken, params?.search, params?.limit, params?.offset, graphqlClient]);
+  }, [accessToken, params?.search, params?.limit, params?.offset, graphqlClient])
 
   useEffect(() => {
     if (accessToken) {
-      fetchEmployees();
+      fetchEmployees()
     }
-  }, [accessToken, params?.search, params?.limit, params?.offset, fetchEmployees]);
+  }, [accessToken, params?.search, params?.limit, params?.offset, fetchEmployees])
 
-  return { data, loading, error };
-}; 
+  return { data, loading, error }
+}

@@ -48,7 +48,7 @@ export const GET_PLANNED_VS_UNPLANNED_2025 = `
       }
     }
   }
-`;
+`
 
 export const GET_AVERAGE_DAYS_PER_REQUEST = `
   query GetAverageDaysPerRequest($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -68,7 +68,7 @@ export const GET_AVERAGE_DAYS_PER_REQUEST = `
       }
     }
   }
-`;
+`
 
 export const GET_USAGE_TRENDS_DATA = `
   query GetUsageTrendsData($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -106,7 +106,7 @@ export const GET_USAGE_TRENDS_DATA = `
       }
     }
   }
-`;
+`
 
 export const GET_YEAR_OVER_YEAR_DATA = `
   query GetYearOverYearData($supervisorId: uuid, $previousYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -144,7 +144,7 @@ export const GET_YEAR_OVER_YEAR_DATA = `
       }
     }
   }
-`;
+`
 
 export const GET_AVERAGE_WORK_STREAK = `
   query GetAverageWorkStreak($supervisorId: uuid, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
@@ -169,7 +169,7 @@ export const GET_AVERAGE_WORK_STREAK = `
       }
     }
   }
-`;
+`
 export const GET_EMPLOYEE_WORK_LIFE_BALANCE = `
   query GetEmployeeWorkLifeBalance($supervisorId: uuid!, $currentYearStart: timestamp!, $currentYearEnd: timestamp!) {
     # Get all employees who report to this supervisor
@@ -212,7 +212,7 @@ export const GET_EMPLOYEE_WORK_LIFE_BALANCE = `
       }
     }
   }
-`;
+`
 
 export const GET_TEAM_COVERAGE_DATA = `
   query GetTeamCoverageData($supervisorId: uuid!, $structureId: uuid, $hasStructureId: Boolean!) {
@@ -279,4 +279,4 @@ export const GET_TEAM_COVERAGE_DATA = `
       name
     }
   }
-`;
+`

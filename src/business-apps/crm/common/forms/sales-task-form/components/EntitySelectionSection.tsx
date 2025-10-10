@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { Select, Spin, Tag } from 'antd';
-import { useSalesTaskFormContext } from '../context/SalesTaskFormContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
+import React, { useState } from 'react'
+import { Select, Spin, Tag } from 'antd'
+import { useSalesTaskFormContext } from '../context/SalesTaskFormContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
-const prefixDataTestId = 'SalesTaskForm-EntitySelection';
+const prefixDataTestId = 'SalesTaskForm-EntitySelection'
 
 const EntitySelectionSection: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(false); // Start collapsed
-  
+  const [isExpanded, setIsExpanded] = useState(false) // Start collapsed
+
   const {
     formValues,
     setFormValues,
@@ -17,11 +17,11 @@ const EntitySelectionSection: React.FC = () => {
     searchEntities,
     selectedEntity,
     setSelectedEntity,
-    showEntitySearch,
-  } = useSalesTaskFormContext();
+    showEntitySearch
+  } = useSalesTaskFormContext()
 
   if (!showEntitySearch) {
-    return null;
+    return null
   }
 
   return (
@@ -34,11 +34,11 @@ const EntitySelectionSection: React.FC = () => {
           background: 'linear-gradient(to right, #bbf7d0, #a7f3d0)',
           transition: 'background 0.2s ease'
         }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #86efac, #6ee7b7)';
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #86efac, #6ee7b7)'
         }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bbf7d0, #a7f3d0)';
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'linear-gradient(to right, #bbf7d0, #a7f3d0)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'Toggle')}
       >
@@ -46,16 +46,15 @@ const EntitySelectionSection: React.FC = () => {
           <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
           {getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
         </h3>
-        <span className="gba:text-gray-500 gba:text-lg">
-          {isExpanded ? '▲' : '▼'}
-        </span>
+        <span className="gba:text-gray-500 gba:text-lg">{isExpanded ? '▲' : '▼'}</span>
       </button>
-      
+
       {isExpanded && (
         <div className="gba:p-6">
           <div>
             <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-              {getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')} <span className="gba:text-red-500">*</span>
+              {getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}{' '}
+              <span className="gba:text-red-500">*</span>
             </label>
             <Select
               data-testid={formatDataTestId(prefixDataTestId, 'EntitySelect')}
@@ -65,24 +64,27 @@ const EntitySelectionSection: React.FC = () => {
               filterOption={false}
               notFoundContent={entitiesLoading ? <Spin size="small" /> : null}
               onSearch={searchEntities}
-              placeholder={getTranslationFromI18nKeyAndLabel('crm:salesTask.searchEntity', 'Search leads, contacts, accounts, or opportunities...')}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'crm:salesTask.searchEntity',
+                'Search leads, contacts, accounts, or opportunities...'
+              )}
               allowClear
               onSelect={(value: string) => {
-                const entity = entities.find(e => e.id === value);
+                const entity = entities.find(e => e.id === value)
                 if (entity) {
-                  setSelectedEntity(entity);
+                  setSelectedEntity(entity)
                   setFormValues({
                     relatedEntityType: entity.type,
                     relatedEntityId: entity.id
-                  });
+                  })
                 }
               }}
               onClear={() => {
-                setSelectedEntity(null);
+                setSelectedEntity(null)
                 setFormValues({
                   relatedEntityType: '',
                   relatedEntityId: ''
-                });
+                })
               }}
             >
               {entities.map(entity => (
@@ -93,20 +95,23 @@ const EntitySelectionSection: React.FC = () => {
                       {entity.type === 'contact' && <span>👤</span>}
                       {entity.type === 'account' && <span>🏢</span>}
                       {entity.type === 'opportunity' && <span>🎯</span>}
-                      <Tag color={
-                        entity.type === 'lead' ? 'orange' : 
-                        entity.type === 'contact' ? 'blue' : 
-                        entity.type === 'account' ? 'green' : 
-                        'purple'
-                      }>
+                      <Tag
+                        color={
+                          entity.type === 'lead'
+                            ? 'orange'
+                            : entity.type === 'contact'
+                              ? 'blue'
+                              : entity.type === 'account'
+                                ? 'green'
+                                : 'purple'
+                        }
+                      >
                         {entity.type.charAt(0).toUpperCase() + entity.type.slice(1)}
                       </Tag>
                     </div>
                     <div className="gba:flex-1">
                       <div className="gba:font-medium">{entity.name}</div>
-                      {entity.subtitle && (
-                        <div className="gba:text-sm gba:text-gray-500">{entity.subtitle}</div>
-                      )}
+                      {entity.subtitle && <div className="gba:text-sm gba:text-gray-500">{entity.subtitle}</div>}
                     </div>
                   </div>
                 </Select.Option>
@@ -114,14 +119,17 @@ const EntitySelectionSection: React.FC = () => {
             </Select>
             {!formValues.relatedEntityId && (
               <div className="gba:text-red-500 gba:text-sm gba:mt-1">
-                {getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntityRequired', 'Please select a related entity')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'crm:salesTask.relatedEntityRequired',
+                  'Please select a related entity'
+                )}
               </div>
             )}
           </div>
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default EntitySelectionSection; 
+export default EntitySelectionSection

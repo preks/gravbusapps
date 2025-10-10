@@ -1,18 +1,14 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData';
+import React from 'react'
+import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData'
 
 interface HeadcountStatisticsProps {
-  statistics: HeadcountStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: HeadcountStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
-const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({
-  statistics,
-  isLoading,
-  dataTestId
-}) => {
+const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
   const kpiCards: KpiCardData[] = [
     {
       id: 'monthly-hires',
@@ -46,27 +42,27 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({
       iconColor: statistics.growthRate >= 0 ? '#52c41a' : '#ff4d4f',
       footer: 'Monthly growth percentage'
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
       value: 'Loading...'
-    }));
-    
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default HeadcountStatistics; 
+export default HeadcountStatistics

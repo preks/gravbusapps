@@ -1,4 +1,4 @@
-import SalesOrderPipelineTab from './SalesOrderPipelineTab';
+import SalesOrderPipelineTab from './SalesOrderPipelineTab'
 
-export { SalesOrderPipelineTab };
-export default SalesOrderPipelineTab;
+export { SalesOrderPipelineTab }
+export default SalesOrderPipelineTab

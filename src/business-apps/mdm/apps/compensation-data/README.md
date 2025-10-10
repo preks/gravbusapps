@@ -5,6 +5,7 @@ This app manages compensation bands and salary structures for HR master data.
 ## Overview
 
 The Compensation Data app provides functionality to:
+
 - Manage compensation bands with pay grades and salary ranges
 - Define minimum and maximum salary thresholds
 - Support multiple currencies
@@ -13,10 +14,13 @@ The Compensation Data app provides functionality to:
 ## Components
 
 ### CompensationData
+
 Main component that provides the overall layout and navigation for the compensation data management interface.
 
 ### CompensationBandsTab
+
 Manages the compensation bands data including:
+
 - CRUD operations for compensation bands
 - Search and filtering capabilities
 - Modal forms for creating/editing bands
@@ -25,6 +29,7 @@ Manages the compensation bands data including:
 ## Features
 
 ### Compensation Band Management
+
 - **Pay Grade System**: Organize compensation bands by numerical pay grades (1-20)
 - **Salary Ranges**: Define minimum and maximum salary thresholds for each band
 - **Multi-Currency Support**: Support for EUR, USD, GBP, CHF currencies
@@ -32,7 +37,9 @@ Manages the compensation bands data including:
 - **Search & Filter**: Real-time search across band names, descriptions, and pay grades
 
 ### Data Structure
+
 Each compensation band includes:
+
 - `id`: Unique identifier
 - `name`: Display name for the band
 - `payGrade`: Numerical grade (1-20)
@@ -43,6 +50,7 @@ Each compensation band includes:
 - `version`: Version number for tracking changes
 
 ### User Interface
+
 - **Table View**: Sortable table with pagination
 - **Modal Forms**: Create/edit forms with validation
 - **Search**: Real-time search functionality
@@ -52,9 +60,11 @@ Each compensation band includes:
 ## Integration
 
 ### HR Settings Integration
+
 The app is integrated into the HR Settings as a separate card under "Compensation Data" with direct navigation to the compensation bands management interface.
 
 ### URL Structure
+
 - Main route: `/hr/master-data/compensation-data`
 - Tab navigation: `?tab=compensation-bands#compensation-bands`
 
@@ -80,4 +90,4 @@ The app is integrated into the HR Settings as a separate card under "Compensatio
 - Uses inline styles to avoid Tailwind prefix conflicts
 - Follows existing project patterns and conventions
 - Includes comprehensive TypeScript types
-- Implements proper error handling and user feedback 
+- Implements proper error handling and user feedback

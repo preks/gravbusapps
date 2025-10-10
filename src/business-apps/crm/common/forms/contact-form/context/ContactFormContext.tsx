@@ -1,87 +1,79 @@
-import React, {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useMemo,
-} from "react";
-import { ContactFormValues, SelectOption } from "../types";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useEmployeePositions } from "../../lead-form/hooks/useEmployeePositions";
-import { useEmployeeById } from "../../lead-form/hooks/useEmployeeById";
-import { useAccountsGraphQL } from "../../opportunity-form/hooks/useAccountsGraphQL";
-import { useSearchableCatalog } from "../../lead-form/hooks/useSearchableCatalog";
-import { useSalesCampaignsGraphQL } from "../../../hooks/useSalesCampaignsGraphQL";
-import { useContactData } from "../hooks/useContactData";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { ContactFormValues, SelectOption } from '../types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useEmployeePositions } from '../../lead-form/hooks/useEmployeePositions'
+import { useEmployeeById } from '../../lead-form/hooks/useEmployeeById'
+import { useAccountsGraphQL } from '../../opportunity-form/hooks/useAccountsGraphQL'
+import { useSearchableCatalog } from '../../lead-form/hooks/useSearchableCatalog'
+import { useSalesCampaignsGraphQL } from '../../../hooks/useSalesCampaignsGraphQL'
+import { useContactData } from '../hooks/useContactData'
 
 // Academic Title and Languages catalog constants
-export const ACADEMIC_TITLE_CATALOG = "AcademicTitle";
-export const LANGUAGES_CATALOG = "Languages";
-export const CATALOG_VERSION = "v1";
+export const ACADEMIC_TITLE_CATALOG = 'AcademicTitle'
+export const LANGUAGES_CATALOG = 'Languages'
+export const CATALOG_VERSION = 'v1'
 
 interface ContactFormContextValue {
-  formValues: ContactFormValues;
-  setFormValues: (updates: Partial<ContactFormValues>) => void;
-  onSubmit: (values: ContactFormValues) => Promise<void>;
-  onCancel: () => Promise<void>;
-  isLoading: boolean;
-  error: string | null;
+  formValues: ContactFormValues
+  setFormValues: (updates: Partial<ContactFormValues>) => void
+  onSubmit: (values: ContactFormValues) => Promise<void>
+  onCancel: () => Promise<void>
+  isLoading: boolean
+  error: string | null
 
   // Employee positions
-  employeePositions: SelectOption[];
-  employeePositionsLoading: boolean;
-  employeePositionsError: string | null;
-  employeePositionsHasMore: boolean;
-  loadMoreEmployeePositions: () => Promise<void>;
-  searchEmployeePositions: (search: string) => void;
+  employeePositions: SelectOption[]
+  employeePositionsLoading: boolean
+  employeePositionsError: string | null
+  employeePositionsHasMore: boolean
+  loadMoreEmployeePositions: () => Promise<void>
+  searchEmployeePositions: (search: string) => void
 
   // Account suggestions (using GraphQL hook like opportunity form)
-  accountSuggestions: SelectOption[];
-  searchAccounts: (searchTerm: string) => void;
-  loadMoreAccounts: () => void;
-  accountsHasMore: boolean;
-  accountsLoading: boolean;
+  accountSuggestions: SelectOption[]
+  searchAccounts: (searchTerm: string) => void
+  loadMoreAccounts: () => void
+  accountsHasMore: boolean
+  accountsLoading: boolean
 
   // Campaign suggestions (using GraphQL hook)
-  campaignSuggestions: SelectOption[];
-  searchCampaigns: (searchTerm: string) => void;
-  loadMoreCampaigns: () => void;
-  campaignsHasMore: boolean;
-  campaignsLoading: boolean;
+  campaignSuggestions: SelectOption[]
+  searchCampaigns: (searchTerm: string) => void
+  loadMoreCampaigns: () => void
+  campaignsHasMore: boolean
+  campaignsLoading: boolean
 
   // Catalog data
-  academicTitles: SelectOption[];
-  academicTitlesLoading: boolean;
-  academicTitlesError: string | null;
-  academicTitlesHasMore: boolean;
-  searchAcademicTitles: (search: string) => void;
-  loadMoreAcademicTitles: () => void;
+  academicTitles: SelectOption[]
+  academicTitlesLoading: boolean
+  academicTitlesError: string | null
+  academicTitlesHasMore: boolean
+  searchAcademicTitles: (search: string) => void
+  loadMoreAcademicTitles: () => void
 
-  languages: SelectOption[];
-  languagesLoading: boolean;
-  languagesError: string | null;
-  languagesHasMore: boolean;
-  searchLanguages: (search: string) => void;
-  loadMoreLanguages: () => void;
+  languages: SelectOption[]
+  languagesLoading: boolean
+  languagesError: string | null
+  languagesHasMore: boolean
+  searchLanguages: (search: string) => void
+  loadMoreLanguages: () => void
 
   // Static dropdown options
-  contactTypes: SelectOption[];
-  departments: SelectOption[];
+  contactTypes: SelectOption[]
+  departments: SelectOption[]
 
   // Business app context for child components
-  businessAppContext: BusinessAppContextProps;
+  businessAppContext: BusinessAppContextProps
 }
 
-const ContactFormContext = createContext<ContactFormContextValue | null>(null);
+const ContactFormContext = createContext<ContactFormContextValue | null>(null)
 
 interface ContactFormProviderProps {
-  children: React.ReactNode;
-  businessAppContext: BusinessAppContextProps;
-  initialValues?: Partial<ContactFormValues>;
-  onSubmit?: (values: ContactFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  children: React.ReactNode
+  businessAppContext: BusinessAppContextProps
+  initialValues?: Partial<ContactFormValues>
+  onSubmit?: (values: ContactFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
@@ -89,65 +81,65 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   businessAppContext,
   initialValues = {},
   onSubmit = async () => {},
-  onCancel = async () => {},
+  onCancel = async () => {}
 }) => {
   // Form state
   const [formValues, setFormValuesState] = useState<ContactFormValues>({
     // Personal Information
-    firstName: "",
-    lastName: "",
-    academicTitleRef: "",
-    academicTitle: "", // Academic title ID for selection
-    birthDate: "",
-    languageRef: "",
-    bio: "",
-    pictureUrl: "",
+    firstName: '',
+    lastName: '',
+    academicTitleRef: '',
+    academicTitle: '', // Academic title ID for selection
+    birthDate: '',
+    languageRef: '',
+    bio: '',
+    pictureUrl: '',
 
     // Professional Information
-    jobTitle: "",
-    department: "",
-    contactType: "", // Will be set to default for new contacts or actual value for existing
-    workExperienceYears: "",
+    jobTitle: '',
+    department: '',
+    contactType: '', // Will be set to default for new contacts or actual value for existing
+    workExperienceYears: '',
 
     // Contact Information
-    email: "",
-    phone: "",
-    fax: "",
-    linkedinUrl: "",
-    xingUrl: "",
+    email: '',
+    phone: '',
+    fax: '',
+    linkedinUrl: '',
+    xingUrl: '',
 
     // Account Information
-    accountId: "",
-    account: "", // Account ID for selection
-    companyName: "", // Company name for display (same as opportunity form)
-    ownerEmployeeId: "",
-    owner: "", // Owner employee ID for selection
-    ownerOrganizationId: "",
+    accountId: '',
+    account: '', // Account ID for selection
+    companyName: '', // Company name for display (same as opportunity form)
+    ownerEmployeeId: '',
+    owner: '', // Owner employee ID for selection
+    ownerOrganizationId: '',
 
     // Campaign Information
-    salesCampaignId: "",
+    salesCampaignId: '',
 
     // Additional Information
-    notesSummary: "",
+    notesSummary: '',
 
     // System fields
     id: undefined,
     version: undefined,
 
     // Audit fields
-    createdAt: "",
-    updatedAt: "",
+    createdAt: '',
+    updatedAt: '',
 
     // Source tracking
-    sourceApp: "CRM",
-    recordState: "ACTIVE",
+    sourceApp: 'CRM',
+    recordState: 'ACTIVE',
 
-    ...initialValues,
-  });
+    ...initialValues
+  })
 
   // Global state
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // Employee positions hook
   const {
@@ -156,8 +148,8 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     error: employeePositionsError,
     hasMore: employeePositionsHasMore,
     loadMore: loadMoreEmployeePositions,
-    searchEmployees,
-  } = useEmployeePositions({ accessToken: businessAppContext.accessToken });
+    searchEmployees
+  } = useEmployeePositions({ accessToken: businessAppContext.accessToken })
 
   // Account search hook (using GraphQL hook like opportunity form)
   const {
@@ -166,8 +158,8 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     error: accountsError,
     hasMore: accountsHasMore,
     search: searchAccounts,
-    loadMore: loadMoreAccounts,
-  } = useAccountsGraphQL({ accessToken: businessAppContext.accessToken });
+    loadMore: loadMoreAccounts
+  } = useAccountsGraphQL({ accessToken: businessAppContext.accessToken })
 
   // Campaign search hook (using GraphQL hook)
   const {
@@ -176,65 +168,64 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     error: campaignsError,
     hasMore: campaignsHasMore,
     search: searchCampaigns,
-    loadMore: loadMoreCampaigns,
-  } = useSalesCampaignsGraphQL(businessAppContext.accessToken);
+    loadMore: loadMoreCampaigns
+  } = useSalesCampaignsGraphQL(businessAppContext.accessToken)
 
   // Create search wrapper for account autocomplete
   const searchAccountsWrapper = useCallback(
     (searchTerm: string) => {
       // Allow empty search to load all companies, or search with 3+ characters
       if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
-        searchAccounts(searchTerm);
+        searchAccounts(searchTerm)
       }
     },
     [searchAccounts]
-  );
+  )
 
   // Create search wrapper for campaign autocomplete
   const searchCampaignsWrapper = useCallback(
     (searchTerm: string) => {
       // Allow empty search to load all campaigns, or search with 3+ characters
       if (searchTerm.trim().length === 0 || searchTerm.trim().length > 2) {
-        searchCampaigns(searchTerm);
+        searchCampaigns(searchTerm)
       }
     },
     [searchCampaigns]
-  );
+  )
 
   // Create wrapper function to match interface
   const loadMoreAccountsWrapper = useCallback((): void => {
-    loadMoreAccounts();
-  }, [loadMoreAccounts]);
+    loadMoreAccounts()
+  }, [loadMoreAccounts])
 
   // Create wrapper function for campaigns to match interface
   const loadMoreCampaignsWrapper = useCallback((): void => {
-    loadMoreCampaigns();
-  }, [loadMoreCampaigns]);
+    loadMoreCampaigns()
+  }, [loadMoreCampaigns])
 
   // Auto-selection reference
-  const autoSelectionDone = useRef(false);
-  const accountInitializationDone = useRef(false);
-  const contactDataPopulated = useRef(false); // Track if contact data has been populated
+  const autoSelectionDone = useRef(false)
+  const accountInitializationDone = useRef(false)
+  const contactDataPopulated = useRef(false) // Track if contact data has been populated
 
   // Current user employee data
   const { employee: currentUserEmployee } = useEmployeeById({
-    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId || "",
-    accessToken: businessAppContext.accessToken,
-  });
+    employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId || '',
+    accessToken: businessAppContext.accessToken
+  })
 
   // Contact data hook for populating form when editing existing contact
   const {
     contactData,
     isLoading: contactDataLoading,
     error: contactDataError,
-    mapContactToFormValues,
-  } = useContactData({ businessAppContext });
+    mapContactToFormValues
+  } = useContactData({ businessAppContext })
 
   // Extract contactId for tracking changes
   const contactId =
     businessAppContext.additionalData?.contactId ||
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.contactId;
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
 
   // Populate form values when contact data is loaded (for editing existing contacts)
   useEffect(() => {
@@ -246,9 +237,9 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       (!formValues.id || formValues.id !== contactData.id) &&
       !contactDataPopulated.current
     ) {
-      const mappedValues = mapContactToFormValues(contactData);
+      const mappedValues = mapContactToFormValues(contactData)
 
-      console.log("📝 Form values being set:", {
+      console.log('📝 Form values being set:', {
         owner: mappedValues.owner,
         firstName: mappedValues.firstName,
         lastName: mappedValues.lastName,
@@ -257,110 +248,80 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
         birthDate: mappedValues.birthDate,
         salesCampaignId: mappedValues.salesCampaignId,
         originalContactType: contactData.contactType,
-        currentFormContactType: formValues.contactType,
-      });
+        currentFormContactType: formValues.contactType
+      })
 
       // Check if we would override any user selections
-      const userSelections = [];
-      if (
-        formValues.accountId &&
-        formValues.accountId !== mappedValues.accountId
-      ) {
-        userSelections.push(
-          `accountId (user: ${formValues.accountId}, db: ${mappedValues.accountId})`
-        );
+      const userSelections = []
+      if (formValues.accountId && formValues.accountId !== mappedValues.accountId) {
+        userSelections.push(`accountId (user: ${formValues.accountId}, db: ${mappedValues.accountId})`)
       }
 
       if (userSelections.length > 0) {
-        console.error(
-          "🚨 WOULD OVERRIDE USER SELECTIONS:",
-          userSelections.join(", ")
-        );
-        console.error(
-          "   This should not happen if contactDataPopulated flag is working!"
-        );
+        console.error('🚨 WOULD OVERRIDE USER SELECTIONS:', userSelections.join(', '))
+        console.error('   This should not happen if contactDataPopulated flag is working!')
       }
 
-      setFormValuesState((prev) => ({
+      setFormValuesState(prev => ({
         ...prev,
-        ...mappedValues,
-      }));
+        ...mappedValues
+      }))
 
       // Mark as populated to prevent overriding user changes
-      contactDataPopulated.current = true;
+      contactDataPopulated.current = true
       // Don't auto-select current user if we're editing an existing contact
-      autoSelectionDone.current = true;
+      autoSelectionDone.current = true
     }
   }, [
     contactData,
     mapContactToFormValues,
     businessAppContext.additionalData?.contactId,
-    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters
-      ?.contactId,
-  ]);
+    businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.contactId
+  ])
 
   // Initialize account data when form has accountId (for both new and existing contacts)
   useEffect(() => {
-    if (
-      formValues.accountId &&
-      accountSuggestions.length > 0 &&
-      !accountInitializationDone.current
-    ) {
-      accountInitializationDone.current = true;
+    if (formValues.accountId && accountSuggestions.length > 0 && !accountInitializationDone.current) {
+      accountInitializationDone.current = true
 
       const foundAccount = accountSuggestions.find(
-        (account: any) =>
-          account.value === formValues.accountId ||
-          account.id === formValues.accountId
-      );
+        (account: any) => account.value === formValues.accountId || account.id === formValues.accountId
+      )
 
       if (foundAccount) {
-        console.log("🏢 Contact Context: Found account in suggestions:", {
+        console.log('🏢 Contact Context: Found account in suggestions:', {
           accountId: formValues.accountId,
           foundAccount: foundAccount,
           currentCompanyName: formValues.companyName,
           foundAccountName: foundAccount.name,
-          shouldUpdateCompanyName:
-            !formValues.companyName ||
-            formValues.companyName !== foundAccount.name,
-        });
+          shouldUpdateCompanyName: !formValues.companyName || formValues.companyName !== foundAccount.name
+        })
         // Update companyName if not already set or if different
-        if (
-          !formValues.companyName ||
-          formValues.companyName !== foundAccount.name
-        ) {
-          console.log(
-            "🔄 Contact Context: Updating companyName from account suggestion"
-          );
-          setFormValuesState((prev) => ({
+        if (!formValues.companyName || formValues.companyName !== foundAccount.name) {
+          console.log('🔄 Contact Context: Updating companyName from account suggestion')
+          setFormValuesState(prev => ({
             ...prev,
-            companyName: foundAccount.name,
-          }));
+            companyName: foundAccount.name
+          }))
         }
       } else {
-        console.log(
-          "🔍 Contact Context: Account not found in suggestions, loading accounts:",
-          {
-            accountId: formValues.accountId,
-            suggestionsLength: accountSuggestions.length,
-          }
-        );
+        console.log('🔍 Contact Context: Account not found in suggestions, loading accounts:', {
+          accountId: formValues.accountId,
+          suggestionsLength: accountSuggestions.length
+        })
         // If account not found in current list, trigger a search to load it
-        searchAccounts("");
+        searchAccounts('')
       }
     }
-  }, [formValues.accountId, accountSuggestions, searchAccounts]);
+  }, [formValues.accountId, accountSuggestions, searchAccounts])
 
   // Initial load of accounts when form opens with existing accountId (for both new and update scenarios)
   useEffect(() => {
     if (formValues.accountId && accountSuggestions.length === 0) {
-      console.log(
-        "🔍 Contact Context: Loading initial accounts for existing accountId:",
-        formValues.accountId
-      );
-      searchAccounts(""); // Load initial accounts to find the existing one
+      console.log('🔍 Contact Context: Loading initial accounts for existing accountId:', formValues.accountId)
+      searchAccounts('') // Load initial accounts to find the existing one
     }
-  }, [formValues.accountId, accountSuggestions.length, searchAccounts]);
+  }, [formValues.accountId, accountSuggestions.length, searchAccounts])
 
   // Academic Titles catalog configuration
   const academicTitlesConfig = useMemo(
@@ -368,10 +329,10 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       accessToken: businessAppContext.accessToken,
       catalogIdentifier: ACADEMIC_TITLE_CATALOG,
       version: CATALOG_VERSION,
-      pageSize: 100, // Load 100 items per query for better performance
+      pageSize: 100 // Load 100 items per query for better performance
     }),
     [businessAppContext.accessToken]
-  );
+  )
 
   // Languages catalog configuration
   const languagesConfig = useMemo(
@@ -379,25 +340,25 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       accessToken: businessAppContext.accessToken,
       catalogIdentifier: LANGUAGES_CATALOG,
       version: CATALOG_VERSION,
-      pageSize: 100, // Load 100 items per query for better performance
+      pageSize: 100 // Load 100 items per query for better performance
     }),
     [businessAppContext.accessToken]
-  );
+  )
 
   // Initialize catalog hooks
-  const academicTitlesHook = useSearchableCatalog(academicTitlesConfig);
-  const languagesHook = useSearchableCatalog(languagesConfig);
+  const academicTitlesHook = useSearchableCatalog(academicTitlesConfig)
+  const languagesHook = useSearchableCatalog(languagesConfig)
 
   // Initialize catalogs on mount
   useEffect(() => {
-    academicTitlesHook.initialize();
-    languagesHook.initialize();
-  }, []);
+    academicTitlesHook.initialize()
+    languagesHook.initialize()
+  }, [])
 
   // Convert employee position data to SelectOption format
   const employeePositions: SelectOption[] = useMemo(() => {
     if (!employeePositionData) {
-      return [];
+      return []
     }
 
     // Convert regular employee position data
@@ -407,23 +368,21 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       label: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
       name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
       extraInfo: {
-        jobPosition: emp.jobPosition?.name || "",
-        organizationalUnit: emp.organizationalUnit?.name || "",
+        jobPosition: emp.jobPosition?.name || '',
+        organizationalUnit: emp.organizationalUnit?.name || '',
         pictureThumbnail: emp.employee?.pictureThumbnail || null,
-        email: "",
-      },
-    }));
+        email: ''
+      }
+    }))
 
     // Ensure current user is included in the employee positions list
     // (same logic as lead form to fix the owner display issue)
     if (currentUserEmployee) {
       const currentUserDisplayName =
         currentUserEmployee.employee?.displayName ||
-        `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`.trim();
-      const currentUserJobTitle =
-        currentUserEmployee.jobPosition?.name || "No Position";
-      const currentUserOrgUnit =
-        currentUserEmployee.organizationalUnit?.name || "No Unit";
+        `${currentUserEmployee.firstName} ${currentUserEmployee.lastName}`.trim()
+      const currentUserJobTitle = currentUserEmployee.jobPosition?.name || 'No Position'
+      const currentUserOrgUnit = currentUserEmployee.organizationalUnit?.name || 'No Unit'
 
       const currentUserOption: SelectOption = {
         id: currentUserEmployee.employeeId,
@@ -435,30 +394,24 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
           pictureThumbnail: currentUserEmployee.employee?.pictureThumbnail,
           jobPosition: currentUserJobTitle,
           organizationalUnit: currentUserOrgUnit,
-          userId: currentUserEmployee.employee?.userId,
-        },
-      };
+          userId: currentUserEmployee.employee?.userId
+        }
+      }
 
       // Check if current user is already in the regular employees list
-      const isCurrentUserInList = regularEmployees.some(
-        (emp) => emp.value === currentUserEmployee.employeeId
-      );
+      const isCurrentUserInList = regularEmployees.some(emp => emp.value === currentUserEmployee.employeeId)
 
       if (!isCurrentUserInList) {
-        regularEmployees.unshift(currentUserOption);
+        regularEmployees.unshift(currentUserOption)
       }
     }
 
     // Add contact owner employee if they exist and are not already in the list
     if (contactData?.ownerEmployee) {
-      const ownerEmployee = contactData.ownerEmployee;
-      const ownerDisplayName =
-        ownerEmployee.displayName ||
-        `${ownerEmployee.firstName} ${ownerEmployee.lastName}`;
+      const ownerEmployee = contactData.ownerEmployee
+      const ownerDisplayName = ownerEmployee.displayName || `${ownerEmployee.firstName} ${ownerEmployee.lastName}`
 
-      const isOwnerAlreadyInList = regularEmployees.some(
-        (emp) => emp.value === ownerEmployee.id
-      );
+      const isOwnerAlreadyInList = regularEmployees.some(emp => emp.value === ownerEmployee.id)
 
       if (!isOwnerAlreadyInList) {
         const ownerOption: SelectOption = {
@@ -469,143 +422,138 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
           extraInfo: {
             picture: undefined,
             pictureThumbnail: ownerEmployee.pictureThumbnail || undefined,
-            jobPosition: "Owner",
-            organizationalUnit: "N/A",
-            userId: undefined,
-          },
-        };
+            jobPosition: 'Owner',
+            organizationalUnit: 'N/A',
+            userId: undefined
+          }
+        }
 
-        console.log("🔍 Adding contact owner to employee list:", {
+        console.log('🔍 Adding contact owner to employee list:', {
           contactOwnerEmployeeId: contactData.ownerEmployeeId,
           contactOwnerDisplayName: ownerDisplayName,
-          contactOwnerOption: ownerOption,
-        });
+          contactOwnerOption: ownerOption
+        })
 
         // Add owner at the beginning (after current user if present)
         const currentUserIndex = regularEmployees.findIndex(
-          (emp) =>
-            currentUserEmployee && emp.value === currentUserEmployee.employeeId
-        );
+          emp => currentUserEmployee && emp.value === currentUserEmployee.employeeId
+        )
 
         if (currentUserIndex >= 0) {
-          regularEmployees.splice(currentUserIndex + 1, 0, ownerOption);
+          regularEmployees.splice(currentUserIndex + 1, 0, ownerOption)
         } else {
-          regularEmployees.unshift(ownerOption);
+          regularEmployees.unshift(ownerOption)
         }
       }
     }
 
-    return regularEmployees;
-  }, [employeePositionData, currentUserEmployee, contactData]);
+    return regularEmployees
+  }, [employeePositionData, currentUserEmployee, contactData])
 
   // Contact Types - Backend Enum Values
   const contactTypes: SelectOption[] = useMemo(
     () => [
       {
-        id: "PRIMARY_CONTACT",
-        value: "PRIMARY_CONTACT",
-        label: "Primary Contact",
-        name: "Primary Contact",
+        id: 'PRIMARY_CONTACT',
+        value: 'PRIMARY_CONTACT',
+        label: 'Primary Contact',
+        name: 'Primary Contact'
       },
       {
-        id: "SECONDARY_CONTACT",
-        value: "SECONDARY_CONTACT",
-        label: "Secondary Contact",
-        name: "Secondary Contact",
+        id: 'SECONDARY_CONTACT',
+        value: 'SECONDARY_CONTACT',
+        label: 'Secondary Contact',
+        name: 'Secondary Contact'
       },
       {
-        id: "FOUNDER_CONTACT",
-        value: "FOUNDER_CONTACT",
-        label: "Founder Contact",
-        name: "Founder Contact",
+        id: 'FOUNDER_CONTACT',
+        value: 'FOUNDER_CONTACT',
+        label: 'Founder Contact',
+        name: 'Founder Contact'
       },
       {
-        id: "UNKNOWN_CONTACT",
-        value: "UNKNOWN_CONTACT",
-        label: "Unknown Contact",
-        name: "Unknown Contact",
-      },
+        id: 'UNKNOWN_CONTACT',
+        value: 'UNKNOWN_CONTACT',
+        label: 'Unknown Contact',
+        name: 'Unknown Contact'
+      }
     ],
     []
-  );
-
+  )
 
   // Academic Titles and Languages now come from catalog hooks (removed hardcoded data)
 
   const departments: SelectOption[] = useMemo(
     () => [
-      { id: "sales", value: "sales", label: "Sales", name: "Sales" },
+      { id: 'sales', value: 'sales', label: 'Sales', name: 'Sales' },
       {
-        id: "marketing",
-        value: "marketing",
-        label: "Marketing",
-        name: "Marketing",
+        id: 'marketing',
+        value: 'marketing',
+        label: 'Marketing',
+        name: 'Marketing'
       },
       {
-        id: "engineering",
-        value: "engineering",
-        label: "Engineering",
-        name: "Engineering",
+        id: 'engineering',
+        value: 'engineering',
+        label: 'Engineering',
+        name: 'Engineering'
       },
-      { id: "finance", value: "finance", label: "Finance", name: "Finance" },
+      { id: 'finance', value: 'finance', label: 'Finance', name: 'Finance' },
       {
-        id: "hr",
-        value: "hr",
-        label: "Human Resources",
-        name: "Human Resources",
+        id: 'hr',
+        value: 'hr',
+        label: 'Human Resources',
+        name: 'Human Resources'
       },
-      { id: "it", value: "it", label: "IT", name: "IT" },
+      { id: 'it', value: 'it', label: 'IT', name: 'IT' },
       {
-        id: "operations",
-        value: "operations",
-        label: "Operations",
-        name: "Operations",
-      },
+        id: 'operations',
+        value: 'operations',
+        label: 'Operations',
+        name: 'Operations'
+      }
     ],
     []
-  );
+  )
 
   // Reset auto-selection flag when contactId changes or when creating new contact (MATCHES LEAD FORM PATTERN)
   useEffect(() => {
-    console.log("🔄 Contact Context: Resetting flags for contact:", contactId);
-    autoSelectionDone.current = false;
-    contactDataPopulated.current = false; // Allow new contact data to be populated
+    console.log('🔄 Contact Context: Resetting flags for contact:', contactId)
+    autoSelectionDone.current = false
+    contactDataPopulated.current = false // Allow new contact data to be populated
 
     // Set defaults for NEW contacts only (when no contactId)
     if (!contactId && !formValues.contactType) {
-      console.log("🆕 Setting defaults for new contact");
-      setFormValuesState((prev) => ({
+      console.log('🆕 Setting defaults for new contact')
+      setFormValuesState(prev => ({
         ...prev,
-        contactType: "PRIMARY_CONTACT",
-      }));
+        contactType: 'PRIMARY_CONTACT'
+      }))
     }
-  }, [contactId]);
+  }, [contactId])
 
   // Auto-select current user as owner (only if not editing existing contact) - MATCHES LEAD FORM PATTERN
   useEffect(() => {
-    const currentContactId = contactId;
+    const currentContactId = contactId
 
-    console.log(
-      "🔍 Contact Context: Auto-selection useEffect triggered with:",
-      {
-        hasCurrentUserEmployee: !!currentUserEmployee,
-        currentUserEmployeeId: currentUserEmployee?.employeeId,
-        formOwner: formValues.owner,
-        formOwnerEmployeeId: formValues.ownerEmployeeId,
-        autoSelectionDone: autoSelectionDone.current,
-        currentContactId: currentContactId,
-        hasContactData: !!contactData,
-        formValuesId: formValues.id,
-        shouldAutoSelect:
-          currentUserEmployee &&
-          !formValues.owner &&
-          !formValues.ownerEmployeeId &&
-          !autoSelectionDone.current &&
-          !currentContactId &&
-          !contactData &&
-          !formValues.id,
-      }
-    );
+    console.log('🔍 Contact Context: Auto-selection useEffect triggered with:', {
+      hasCurrentUserEmployee: !!currentUserEmployee,
+      currentUserEmployeeId: currentUserEmployee?.employeeId,
+      formOwner: formValues.owner,
+      formOwnerEmployeeId: formValues.ownerEmployeeId,
+      autoSelectionDone: autoSelectionDone.current,
+      currentContactId: currentContactId,
+      hasContactData: !!contactData,
+      formValuesId: formValues.id,
+      shouldAutoSelect:
+        currentUserEmployee &&
+        !formValues.owner &&
+        !formValues.ownerEmployeeId &&
+        !autoSelectionDone.current &&
+        !currentContactId &&
+        !contactData &&
+        !formValues.id
+    })
 
     // Only auto-select if:
     // 1. We have current user employee data
@@ -623,86 +571,69 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
       !contactData && // Don't auto-select when we have contact data
       !formValues.id // Don't auto-select when form has ID
     ) {
-      console.log(
-        "✅ Contact Context: Auto-selecting current user as owner:",
-        currentUserEmployee.employeeId
-      );
-      setFormValuesState((prev) => ({
+      console.log('✅ Contact Context: Auto-selecting current user as owner:', currentUserEmployee.employeeId)
+      setFormValuesState(prev => ({
         ...prev,
         ownerEmployeeId: currentUserEmployee.employeeId,
-        owner: currentUserEmployee.employeeId, // Update both fields
-      }));
-      autoSelectionDone.current = true;
+        owner: currentUserEmployee.employeeId // Update both fields
+      }))
+      autoSelectionDone.current = true
     } else {
-      console.log("❌ Contact Context: Auto-selection skipped");
+      console.log('❌ Contact Context: Auto-selection skipped')
     }
-  }, [
-    currentUserEmployee,
-    formValues.owner,
-    formValues.ownerEmployeeId,
-    formValues.id,
-    contactId,
-    contactData,
-  ]);
+  }, [currentUserEmployee, formValues.owner, formValues.ownerEmployeeId, formValues.id, contactId, contactData])
 
   // Update global loading and error state to include contact data loading (MATCHES LEAD FORM PATTERN)
   useEffect(() => {
-    setIsLoading(contactDataLoading);
-  }, [contactDataLoading]);
+    setIsLoading(contactDataLoading)
+  }, [contactDataLoading])
 
   useEffect(() => {
-    setError(contactDataError);
-  }, [contactDataError]);
+    setError(contactDataError)
+  }, [contactDataError])
 
   // Watcher for form values changes - to detect unexpected overrides
-  const prevFormValues = useRef<ContactFormValues>();
+  const prevFormValues = useRef<ContactFormValues>()
   useEffect(() => {
     if (prevFormValues.current) {
-      const changes = [];
+      const changes = []
       if (prevFormValues.current.accountId !== formValues.accountId) {
-        changes.push(
-          `accountId: ${prevFormValues.current.accountId} → ${formValues.accountId}`
-        );
+        changes.push(`accountId: ${prevFormValues.current.accountId} → ${formValues.accountId}`)
       }
       if (prevFormValues.current.contactType !== formValues.contactType) {
-        changes.push(
-          `contactType: ${prevFormValues.current.contactType} → ${formValues.contactType}`
-        );
+        changes.push(`contactType: ${prevFormValues.current.contactType} → ${formValues.contactType}`)
       }
 
       if (changes.length > 0) {
-        console.log("👀 Form values changed:", changes.join(", "));
+        console.log('👀 Form values changed:', changes.join(', '))
       }
     }
-    prevFormValues.current = { ...formValues };
-  }, [formValues.accountId, formValues.contactType]);
+    prevFormValues.current = { ...formValues }
+  }, [formValues.accountId, formValues.contactType])
 
   // Form values update handler
   const setFormValues = useCallback(
     (updates: Partial<ContactFormValues>) => {
-      console.log("🔄 setFormValues called with:", {
+      console.log('🔄 setFormValues called with:', {
         updates: updates,
         currentAccountId: formValues.accountId,
-        hasAccountId: "accountId" in updates,
-        accountIdChange:
-          "accountId" in updates
-            ? `${formValues.accountId} → ${updates.accountId}`
-            : "no change",
-        stackTrace: new Error().stack?.split("\n")[2]?.trim(), // Show where it was called from
-      });
+        hasAccountId: 'accountId' in updates,
+        accountIdChange: 'accountId' in updates ? `${formValues.accountId} → ${updates.accountId}` : 'no change',
+        stackTrace: new Error().stack?.split('\n')[2]?.trim() // Show where it was called from
+      })
 
-      setFormValuesState((prev) => ({ ...prev, ...updates }));
+      setFormValuesState(prev => ({ ...prev, ...updates }))
     },
     [formValues.accountId]
-  );
+  )
 
   // Employee positions search
   const searchEmployeePositions = useCallback(
     (search: string) => {
-      searchEmployees(search);
+      searchEmployees(search)
     },
     [searchEmployees]
-  );
+  )
 
   const value: ContactFormContextValue = {
     // Form state
@@ -758,22 +689,16 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
     departments,
 
     // Business app context for child components
-    businessAppContext,
-  };
+    businessAppContext
+  }
 
-  return (
-    <ContactFormContext.Provider value={value}>
-      {children}
-    </ContactFormContext.Provider>
-  );
-};
+  return <ContactFormContext.Provider value={value}>{children}</ContactFormContext.Provider>
+}
 
 export const useContactFormContext = (): ContactFormContextValue => {
-  const context = useContext(ContactFormContext);
+  const context = useContext(ContactFormContext)
   if (!context) {
-    throw new Error(
-      "useContactFormContext must be used within a ContactFormProvider"
-    );
+    throw new Error('useContactFormContext must be used within a ContactFormProvider')
   }
-  return context;
-};
+  return context
+}

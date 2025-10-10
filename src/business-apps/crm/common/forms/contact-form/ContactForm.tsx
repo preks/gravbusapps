@@ -1,13 +1,13 @@
-import React from 'react';
-import { ContactFormProvider } from './context/ContactFormContext';
-import ContactFormComponent from './components/ContactFormComponent';
-import { ContactFormValues } from './types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { ContactFormProvider } from './context/ContactFormContext'
+import ContactFormComponent from './components/ContactFormComponent'
+import { ContactFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ContactFormProps {
-  initialValues?: Partial<ContactFormValues>;
-  onSubmit?: (values: ContactFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  initialValues?: Partial<ContactFormValues>
+  onSubmit?: (values: ContactFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 const ContactForm: React.FC<BusinessAppContextProps & ContactFormProps> = ({
@@ -25,14 +25,14 @@ const ContactForm: React.FC<BusinessAppContextProps & ContactFormProps> = ({
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   return (
     <ContactFormProvider
@@ -43,7 +43,7 @@ const ContactForm: React.FC<BusinessAppContextProps & ContactFormProps> = ({
     >
       <ContactFormComponent />
     </ContactFormProvider>
-  );
-};
+  )
+}
 
-export default ContactForm; 
+export default ContactForm

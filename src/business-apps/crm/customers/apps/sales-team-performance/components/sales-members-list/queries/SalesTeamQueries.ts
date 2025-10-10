@@ -1,45 +1,45 @@
-import { useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface SalesTeamQueryVariables {
-  limit?: number;
-  offset?: number;
-  search?: string;
+  limit?: number
+  offset?: number
+  search?: string
 }
 
 export interface EmployeeOwnershipData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  picture?: string;
-  pictureThumbnail?: string;
+  id: string
+  firstName: string
+  lastName: string
+  displayName: string
+  picture?: string
+  pictureThumbnail?: string
   employeePosition?: {
     jobPosition?: {
-      name: string;
-    };
-    pictureThumbnail?: string;
+      name: string
+    }
+    pictureThumbnail?: string
     supervisor?: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      displayName: string;
-      picture?: string;
-      pictureThumbnail?: string;
-    };
-  };
+      id: string
+      firstName: string
+      lastName: string
+      displayName: string
+      picture?: string
+      pictureThumbnail?: string
+    }
+  }
 }
 
 export interface OpportunityData {
-  id: string;
-  estimatedAmount: number;
-  currencyRef: string;
+  id: string
+  estimatedAmount: number
+  currencyRef: string
   opportunityStatus: {
-    code: string;
-    value: string;
-  };
-  ownerEmployeeId: string;
+    code: string
+    value: string
+  }
+  ownerEmployeeId: string
 }
 
 // Get won opportunities for revenue calculation
@@ -63,7 +63,7 @@ export const GET_WON_OPPORTUNITIES = `
       ownerEmployeeId
     }
   }
-`;
+`
 
 // Single query for employees from leads with dynamic where conditions
 export const GET_EMPLOYEES_FROM_LEADS = `
@@ -97,7 +97,7 @@ export const GET_EMPLOYEES_FROM_LEADS = `
       ownerEmployeeId
     }
   }
-`;
+`
 
 // Single query for employees from accounts with dynamic where conditions
 export const GET_EMPLOYEES_FROM_ACCOUNTS = `
@@ -131,7 +131,7 @@ export const GET_EMPLOYEES_FROM_ACCOUNTS = `
       ownerEmployeeId
     }
   }
-`;
+`
 
 // Single query for employees from opportunities with dynamic where conditions
 export const GET_EMPLOYEES_FROM_OPPORTUNITIES = `
@@ -165,7 +165,7 @@ export const GET_EMPLOYEES_FROM_OPPORTUNITIES = `
       ownerEmployeeId
     }
   }
-`;
+`
 
 // Single query for employees from contacts with dynamic where conditions
 export const GET_EMPLOYEES_FROM_CONTACTS = `
@@ -199,10 +199,10 @@ export const GET_EMPLOYEES_FROM_CONTACTS = `
       ownerEmployeeId
     }
   }
-`;
+`
 
 export const useSalesTeamQueries = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchSalesTeamEmployees = useCallback(
     async (variables: SalesTeamQueryVariables = {}) => {
@@ -212,12 +212,12 @@ export const useSalesTeamQueries = (context: BusinessAppContextProps) => {
           const baseWhere = {
             isDeleted: { _eq: false },
             ownerEmployeeId: { _neq: null },
-            ...entityConditions,
-          };
+            ...entityConditions
+          }
 
           // Add search conditions if search term provided
           if (variables.search?.trim()) {
-            const searchPattern = `%${variables.search.trim()}%`;
+            const searchPattern = `%${variables.search.trim()}%`
             const searchConditions = [
               { ownerEmployee: { firstName: { _ilike: searchPattern } } },
               { ownerEmployee: { lastName: { _ilike: searchPattern } } },
@@ -225,163 +225,147 @@ export const useSalesTeamQueries = (context: BusinessAppContextProps) => {
               {
                 ownerEmployee: {
                   employeePosition: {
-                    jobPosition: { name: { _ilike: searchPattern } },
-                  },
-                },
+                    jobPosition: { name: { _ilike: searchPattern } }
+                  }
+                }
               },
               {
                 ownerEmployee: {
                   employeePosition: {
-                    supervisor: { firstName: { _ilike: searchPattern } },
-                  },
-                },
+                    supervisor: { firstName: { _ilike: searchPattern } }
+                  }
+                }
               },
               {
                 ownerEmployee: {
                   employeePosition: {
-                    supervisor: { lastName: { _ilike: searchPattern } },
-                  },
-                },
+                    supervisor: { lastName: { _ilike: searchPattern } }
+                  }
+                }
               },
               {
                 ownerEmployee: {
                   employeePosition: {
-                    supervisor: { displayName: { _ilike: searchPattern } },
-                  },
-                },
-              },
-            ];
+                    supervisor: { displayName: { _ilike: searchPattern } }
+                  }
+                }
+              }
+            ]
 
             // Combine base conditions with search using _and
             return {
-              _and: [baseWhere, { _or: searchConditions }],
-            };
+              _and: [baseWhere, { _or: searchConditions }]
+            }
           }
 
-          return baseWhere;
-        };
+          return baseWhere
+        }
 
         // Fetch employees from all CRM entity types in parallel using single queries
-        const [
-          leadsResult,
-          accountsResult,
-          opportunitiesResult,
-          contactsResult,
-        ] = await Promise.all([
+        const [leadsResult, accountsResult, opportunitiesResult, contactsResult] = await Promise.all([
           graphqlClient.request<{
             Lead: Array<{
-              ownerEmployee: EmployeeOwnershipData | null;
-              ownerEmployeeId: string | null;
-            }>;
+              ownerEmployee: EmployeeOwnershipData | null
+              ownerEmployeeId: string | null
+            }>
           }>(GET_EMPLOYEES_FROM_LEADS, {
             limit: variables.limit,
             offset: variables.offset,
-            where: buildWhereCondition(),
+            where: buildWhereCondition()
           }),
           graphqlClient.request<{
             Account: Array<{
-              ownerEmployee: EmployeeOwnershipData | null;
-              ownerEmployeeId: string | null;
-            }>;
+              ownerEmployee: EmployeeOwnershipData | null
+              ownerEmployeeId: string | null
+            }>
           }>(GET_EMPLOYEES_FROM_ACCOUNTS, {
             limit: variables.limit,
             offset: variables.offset,
-            where: buildWhereCondition(),
+            where: buildWhereCondition()
           }),
           graphqlClient.request<{
             Opportunity: Array<{
-              ownerEmployee: EmployeeOwnershipData | null;
-              ownerEmployeeId: string | null;
-            }>;
+              ownerEmployee: EmployeeOwnershipData | null
+              ownerEmployeeId: string | null
+            }>
           }>(GET_EMPLOYEES_FROM_OPPORTUNITIES, {
             limit: variables.limit,
             offset: variables.offset,
-            where: buildWhereCondition(),
+            where: buildWhereCondition()
           }),
           graphqlClient.request<{
             Contact: Array<{
-              ownerEmployee: EmployeeOwnershipData | null;
-              ownerEmployeeId: string | null;
-            }>;
+              ownerEmployee: EmployeeOwnershipData | null
+              ownerEmployeeId: string | null
+            }>
           }>(GET_EMPLOYEES_FROM_CONTACTS, {
             limit: variables.limit,
             offset: variables.offset,
-            where: buildWhereCondition(),
-          }),
-        ]);
+            where: buildWhereCondition()
+          })
+        ])
 
         // De-duplicate employees by ID using a Map
-        const employeeMap = new Map<string, EmployeeOwnershipData>();
+        const employeeMap = new Map<string, EmployeeOwnershipData>()
 
         // Process leads
-        leadsResult.Lead?.forEach((lead) => {
+        leadsResult.Lead?.forEach(lead => {
           if (lead.ownerEmployee && lead.ownerEmployeeId) {
-            employeeMap.set(lead.ownerEmployeeId, lead.ownerEmployee);
+            employeeMap.set(lead.ownerEmployeeId, lead.ownerEmployee)
           }
-        });
+        })
 
         // Process accounts
-        accountsResult.Account?.forEach((account) => {
+        accountsResult.Account?.forEach(account => {
           if (account.ownerEmployee && account.ownerEmployeeId) {
-            employeeMap.set(account.ownerEmployeeId, account.ownerEmployee);
+            employeeMap.set(account.ownerEmployeeId, account.ownerEmployee)
           }
-        });
+        })
 
         // Process opportunities
-        opportunitiesResult.Opportunity?.forEach((opportunity) => {
+        opportunitiesResult.Opportunity?.forEach(opportunity => {
           if (opportunity.ownerEmployee && opportunity.ownerEmployeeId) {
-            employeeMap.set(
-              opportunity.ownerEmployeeId,
-              opportunity.ownerEmployee
-            );
+            employeeMap.set(opportunity.ownerEmployeeId, opportunity.ownerEmployee)
           }
-        });
+        })
 
         // Process contacts
-        contactsResult.Contact?.forEach((contact) => {
+        contactsResult.Contact?.forEach(contact => {
           if (contact.ownerEmployee && contact.ownerEmployeeId) {
-            employeeMap.set(contact.ownerEmployeeId, contact.ownerEmployee);
+            employeeMap.set(contact.ownerEmployeeId, contact.ownerEmployee)
           }
-        });
+        })
 
         // Convert map to array and sort by name
-        const uniqueEmployees = Array.from(employeeMap.values()).sort(
-          (a, b) => {
-            const nameA =
-              a.displayName ||
-              `${a.firstName || ""} ${a.lastName || ""}`.trim();
-            const nameB =
-              b.displayName ||
-              `${b.firstName || ""} ${b.lastName || ""}`.trim();
-            return nameA.localeCompare(nameB);
-          }
-        );
+        const uniqueEmployees = Array.from(employeeMap.values()).sort((a, b) => {
+          const nameA = a.displayName || `${a.firstName || ''} ${a.lastName || ''}`.trim()
+          const nameB = b.displayName || `${b.firstName || ''} ${b.lastName || ''}`.trim()
+          return nameA.localeCompare(nameB)
+        })
 
-        return uniqueEmployees;
+        return uniqueEmployees
       } catch (error) {
-        console.error("❌ Error fetching sales team employees:", error);
-        throw error;
+        console.error('❌ Error fetching sales team employees:', error)
+        throw error
       }
     },
     [context.accessToken, graphqlClient]
-  );
+  )
 
-  const fetchOpportunityTotals = useCallback(async (): Promise<
-    OpportunityData[]
-  > => {
+  const fetchOpportunityTotals = useCallback(async (): Promise<OpportunityData[]> => {
     try {
       const result = await graphqlClient.request<{
-        Opportunity: OpportunityData[];
-      }>(GET_WON_OPPORTUNITIES);
-      return result.Opportunity || [];
+        Opportunity: OpportunityData[]
+      }>(GET_WON_OPPORTUNITIES)
+      return result.Opportunity || []
     } catch (error) {
-      console.error("❌ Error fetching opportunity totals:", error);
-      throw error;
+      console.error('❌ Error fetching opportunity totals:', error)
+      throw error
     }
-  }, [context.accessToken, graphqlClient]);
+  }, [context.accessToken, graphqlClient])
 
   return {
     fetchSalesTeamEmployees,
-    fetchOpportunityTotals,
-  };
-};
+    fetchOpportunityTotals
+  }
+}

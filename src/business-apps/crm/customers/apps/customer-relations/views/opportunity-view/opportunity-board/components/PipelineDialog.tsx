@@ -1,9 +1,9 @@
-import { useEffect } from "react";
-import { useKanbanStore } from "../lib/kanban-store";
-import { Form, Input, Modal } from "antd";
+import { useEffect } from 'react'
+import { useKanbanStore } from '../lib/kanban-store'
+import { Form, Input, Modal } from 'antd'
 
 export function PipelineDialog() {
-  const { 
+  const {
     isAddingPipeline,
     isEditingPipeline,
     editingPipelineId,
@@ -11,78 +11,65 @@ export function PipelineDialog() {
     addPipeline,
     updatePipeline,
     setIsAddingPipeline,
-    setEditingPipeline 
-  } = useKanbanStore();
+    setEditingPipeline
+  } = useKanbanStore()
 
-  const [form] = Form.useForm();
-  const isOpen = isAddingPipeline || isEditingPipeline;
-  const isEditing = isEditingPipeline;
-  const title = isEditing ? "Edit Pipeline" : "Add Pipeline";
+  const [form] = Form.useForm()
+  const isOpen = isAddingPipeline || isEditingPipeline
+  const isEditing = isEditingPipeline
+  const title = isEditing ? 'Edit Pipeline' : 'Add Pipeline'
 
-  const editingPipeline = isEditing && editingPipelineId 
-    ? pipelines.find(p => p.id === editingPipelineId) 
-    : null;
+  const editingPipeline = isEditing && editingPipelineId ? pipelines.find(p => p.id === editingPipelineId) : null
 
   useEffect(() => {
     if (isOpen) {
       if (isEditing && editingPipeline) {
         form.setFieldsValue({
           name: editingPipeline.name,
-          isDefault: editingPipeline.isDefault || false,
-        });
+          isDefault: editingPipeline.isDefault || false
+        })
       } else {
-        form.resetFields();
+        form.resetFields()
         form.setFieldsValue({
-          isDefault: false,
-        });
+          isDefault: false
+        })
       }
     }
-  }, [isOpen, isEditing, editingPipeline, form]);
+  }, [isOpen, isEditing, editingPipeline, form])
 
   const handleCancel = () => {
     if (isEditing) {
-      setEditingPipeline(null);
+      setEditingPipeline(null)
     } else {
-      setIsAddingPipeline(false);
+      setIsAddingPipeline(false)
     }
-    form.resetFields();
-  };
+    form.resetFields()
+  }
 
   const handleSubmit = () => {
     form.validateFields().then(values => {
       if (isEditing && editingPipelineId) {
-        updatePipeline(editingPipelineId, values);
+        updatePipeline(editingPipelineId, values)
       } else {
-        addPipeline(values);
+        addPipeline(values)
       }
-      form.resetFields();
-    });
-  };
+      form.resetFields()
+    })
+  }
 
   return (
-    <Modal
-      title={title}
-      open={isOpen}
-      onCancel={handleCancel}
-      onOk={handleSubmit}
-      destroyOnClose
-    >
-      <Form
-        form={form}
-        layout="vertical"
-        name="pipeline_form"
-      >
+    <Modal title={title} open={isOpen} onCancel={handleCancel} onOk={handleSubmit} destroyOnClose>
+      <Form form={form} layout="vertical" name="pipeline_form">
         <Form.Item
           name="name"
           label="Pipeline Name"
-          rules={[{ required: true, message: "Please enter a pipeline name" }]}
+          rules={[{ required: true, message: 'Please enter a pipeline name' }]}
         >
           <Input placeholder="Enter pipeline name" />
         </Form.Item>
-
       </Form>
     </Modal>
-  );
+  )
 }
 
-export default PipelineDialog; 
+export default PipelineDialog

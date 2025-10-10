@@ -18,4 +18,4 @@ export const GET_CONTRACT_TYPE_DISTRIBUTION = `
       employeeId
     }
   }
-`;
+`

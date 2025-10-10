@@ -26,4 +26,4 @@ export const GET_PROBATION_RATE_DATA = `
       }
     }
   }
-`;
+`

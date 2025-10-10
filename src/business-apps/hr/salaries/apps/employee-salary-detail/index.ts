@@ -1,4 +1,4 @@
-import EmployeeSalaryDetail from './EmployeeSalaryDetail';
+import EmployeeSalaryDetail from './EmployeeSalaryDetail'
 
-export { EmployeeSalaryDetail };
-export default EmployeeSalaryDetail;
+export { EmployeeSalaryDetail }
+export default EmployeeSalaryDetail

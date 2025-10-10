@@ -1,33 +1,29 @@
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Investment Group Catalog
-export const INVESTMENT_GROUP_CATALOG = "InvestmentGroup";
-export const INVESTMENT_GROUP_VERSION = "v1";
+export const INVESTMENT_GROUP_CATALOG = 'InvestmentGroup'
+export const INVESTMENT_GROUP_VERSION = 'v1'
 
-// Investment Type Catalog  
-export const INVESTMENT_TYPE_CATALOG = "InvestmentType";
-export const INVESTMENT_TYPE_VERSION = "v1";
+// Investment Type Catalog
+export const INVESTMENT_TYPE_CATALOG = 'InvestmentType'
+export const INVESTMENT_TYPE_VERSION = 'v1'
 
 // Investment Role Catalog
-export const INVESTMENT_ROLE_CATALOG = "InvestmentRole";
-export const INVESTMENT_ROLE_VERSION = "v1";
+export const INVESTMENT_ROLE_CATALOG = 'InvestmentRole'
+export const INVESTMENT_ROLE_VERSION = 'v1'
 
 // Investment Stake Type Catalog
-export const INVESTMENT_STAKE_TYPE_CATALOG = "InvestmentStakeType";
-export const INVESTMENT_STAKE_TYPE_VERSION = "v1";
+export const INVESTMENT_STAKE_TYPE_CATALOG = 'InvestmentStakeType'
+export const INVESTMENT_STAKE_TYPE_VERSION = 'v1'
 
-export const MEASUREMENT_UNIT_CATALOG = "MeasurementUnit";
-export const MEASUREMENT_UNIT_VERSION = "v1";
+export const MEASUREMENT_UNIT_CATALOG = 'MeasurementUnit'
+export const MEASUREMENT_UNIT_VERSION = 'v1'
 
 export const useInvestmentGroupCatalog = (context: BusinessAppContextProps) => {
-  const catalogClient = useCatalogManagerClient(context.accessToken);
+  const catalogClient = useCatalogManagerClient(context.accessToken)
 
-  const fetchInvestmentGroups = async (params?: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-  }) => {
+  const fetchInvestmentGroups = async (params?: { limit?: number; offset?: number; search?: string }) => {
     const response = await catalogClient.getCatalogEntriesList(
       {
         catalogIdentifier: INVESTMENT_GROUP_CATALOG,
@@ -40,21 +36,17 @@ export const useInvestmentGroupCatalog = (context: BusinessAppContextProps) => {
         includeChildCatalogEntries: true,
         ...(params?.search && { searchCriteria: params.search })
       }
-    );
-    return response;
-  };
+    )
+    return response
+  }
 
-  return { fetchInvestmentGroups };
-};
+  return { fetchInvestmentGroups }
+}
 
 export const useInvestmentTypeCatalog = (context: BusinessAppContextProps) => {
-  const catalogClient = useCatalogManagerClient(context.accessToken);
+  const catalogClient = useCatalogManagerClient(context.accessToken)
 
-  const fetchInvestmentTypes = async (params?: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-  }) => {
+  const fetchInvestmentTypes = async (params?: { limit?: number; offset?: number; search?: string }) => {
     const response = await catalogClient.getCatalogEntriesList(
       {
         catalogIdentifier: INVESTMENT_TYPE_CATALOG,
@@ -67,21 +59,17 @@ export const useInvestmentTypeCatalog = (context: BusinessAppContextProps) => {
         includeChildCatalogEntries: true,
         ...(params?.search && { searchCriteria: params.search })
       }
-    );
-    return response;
-  };
+    )
+    return response
+  }
 
-  return { fetchInvestmentTypes };
-};
+  return { fetchInvestmentTypes }
+}
 
 export const useInvestmentRoleCatalog = (context: BusinessAppContextProps) => {
-  const catalogClient = useCatalogManagerClient(context.accessToken);
+  const catalogClient = useCatalogManagerClient(context.accessToken)
 
-  const fetchInvestmentRoles = async (params?: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-  }) => {
+  const fetchInvestmentRoles = async (params?: { limit?: number; offset?: number; search?: string }) => {
     const response = await catalogClient.getCatalogEntriesList(
       {
         catalogIdentifier: INVESTMENT_ROLE_CATALOG,
@@ -94,21 +82,17 @@ export const useInvestmentRoleCatalog = (context: BusinessAppContextProps) => {
         includeChildCatalogEntries: true,
         ...(params?.search && { searchCriteria: params.search })
       }
-    );
-    return response;
-  };
+    )
+    return response
+  }
 
-  return { fetchInvestmentRoles };
-};
+  return { fetchInvestmentRoles }
+}
 
 export const useInvestmentStakeTypeCatalog = (context: BusinessAppContextProps) => {
-  const catalogClient = useCatalogManagerClient(context.accessToken);
+  const catalogClient = useCatalogManagerClient(context.accessToken)
 
-  const fetchInvestmentStakeTypes = async (params?: {
-    limit?: number;
-    offset?: number;
-    search?: string;
-  }) => {
+  const fetchInvestmentStakeTypes = async (params?: { limit?: number; offset?: number; search?: string }) => {
     const response = await catalogClient.getCatalogEntriesList(
       {
         catalogIdentifier: INVESTMENT_STAKE_TYPE_CATALOG,
@@ -121,9 +105,9 @@ export const useInvestmentStakeTypeCatalog = (context: BusinessAppContextProps) 
         includeChildCatalogEntries: true,
         ...(params?.search && { searchCriteria: params.search })
       }
-    );
-    return response;
-  };
+    )
+    return response
+  }
 
-  return { fetchInvestmentStakeTypes };
-};
+  return { fetchInvestmentStakeTypes }
+}

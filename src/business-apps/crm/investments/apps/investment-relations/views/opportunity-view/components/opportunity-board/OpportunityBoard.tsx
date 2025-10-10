@@ -1,8 +1,8 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  Spinner, 
+import React, { useCallback, useMemo, useState, useEffect } from 'react'
+import {
+  Card,
+  CardContent,
+  Spinner,
   Select,
   SelectContent,
   SelectItem,
@@ -12,137 +12,126 @@ import {
   RadioGroupItem,
   Label,
   Badge
-} from '@newwork/nw-design-system';
-import { KanbanBoard, KanbanItem, KanbanStage } from '@/components/kanban-board';
-import { InvestmentOpportunity } from '@/common/data/investment/types/investmentRelationTypes';
+} from '@newwork/nw-design-system'
+import { KanbanBoard, KanbanItem, KanbanStage } from '@/components/kanban-board'
+import { InvestmentOpportunity } from '@/common/data/investment/types/investmentRelationTypes'
 
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGenericPipelines } from '@/components/kanban-board/hooks/useGenericPipelines';
-import { useGenericPipelineStages } from '@/components/kanban-board/hooks/useGenericPipelineStages';
-import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities';
-import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGenericPipelines } from '@/components/kanban-board/hooks/useGenericPipelines'
+import { useGenericPipelineStages } from '@/components/kanban-board/hooks/useGenericPipelineStages'
+import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import type { InvestmentOpportunityQueryVariables } from '@/common/data/investment/queries/investmentOpportunityQueries'
 
-
-import { formatCurrencyCompact } from '../../../../../investment-management/utils/currencyUtils';
-import { Calendar, Building2, Clock, FileText } from 'lucide-react';
-import { UserOutlined } from '@ant-design/icons';
-import { EmployeeSelector } from './EmployeeSelector';
-import { startProcess } from '@/common/utils/start-process';
-
-
+import { formatCurrencyCompact } from '../../../../../investment-management/utils/currencyUtils'
+import { Calendar, Building2, Clock, FileText } from 'lucide-react'
+import { UserOutlined } from '@ant-design/icons'
+import { EmployeeSelector } from './EmployeeSelector'
+import { startProcess } from '@/common/utils/start-process'
 
 interface OpportunityBoardProps extends BusinessAppContextProps {
   // Board loads its own stages based on selected pipeline
-  dealType?: string; // Optional dealType filter (INVESTMENT_DEAL, DIVESTMENT_DEAL)
-  refreshTrigger?: number; // Optional trigger to force refresh from parent
+  dealType?: string // Optional dealType filter (INVESTMENT_DEAL, DIVESTMENT_DEAL)
+  refreshTrigger?: number // Optional trigger to force refresh from parent
 }
 
-
-
-export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({ 
+export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
   accessToken,
   userInfo,
-  dealType = "INVESTMENT_DEAL", // Default to investment deals
+  dealType = 'INVESTMENT_DEAL', // Default to investment deals
   refreshTrigger
 }) => {
   // Filter states
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
-  const [opportunityFilter, setOpportunityFilter] = useState<"my" | "all" | "selected">("all");
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>('')
+  const [opportunityFilter, setOpportunityFilter] = useState<'my' | 'all' | 'selected'>('all')
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([])
 
   // Data state
-  const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>([]);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
+  const [opportunities, setOpportunities] = useState<InvestmentOpportunity[]>([])
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
   // Track recent process starts to prevent duplicates
-  const [recentProcessStarts, setRecentProcessStarts] = useState<Set<string>>(new Set());
+  const [recentProcessStarts, setRecentProcessStarts] = useState<Set<string>>(new Set())
 
   // Hooks for data fetching
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities({ accessToken, userInfo });
-  const { pipelines } = useGenericPipelines(accessToken, "InvestmentOpportunityPipeline");
+  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities({ accessToken, userInfo })
+  const { pipelines } = useGenericPipelines(accessToken, 'InvestmentOpportunityPipeline')
   const { stages, isLoading: isLoadingStages } = useGenericPipelineStages(
     accessToken,
-    "InvestmentOpportunityPipelineStage",
+    'InvestmentOpportunityPipelineStage',
     selectedPipelineId || undefined
-  );
+  )
 
   // Build query variables based on filters
   const queryVariables: InvestmentOpportunityQueryVariables = useMemo(() => {
     const variables: InvestmentOpportunityQueryVariables = {
       limit: 200, // Higher limit for board view
-      orderBy: [{ field: "createdAt", direction: "DESC_NULLS_LAST" }],
-      dealType: dealType, // Filter by provided dealType
-    };
+      orderBy: [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      dealType: dealType // Filter by provided dealType
+    }
 
     // Add pipeline filter - always filter by selected pipeline
     if (selectedPipelineId) {
-      variables.pipelineIds = [selectedPipelineId];
+      variables.pipelineIds = [selectedPipelineId]
     }
 
     // Add employee filter
-    if (opportunityFilter === "my" && userInfo?.employeeDetails?.employeeId) {
-      variables.ownerEmployeeIds = [userInfo.employeeDetails.employeeId];
-    } else if (opportunityFilter === "selected") {
+    if (opportunityFilter === 'my' && userInfo?.employeeDetails?.employeeId) {
+      variables.ownerEmployeeIds = [userInfo.employeeDetails.employeeId]
+    } else if (opportunityFilter === 'selected') {
       if (selectedEmployeeIds.length > 0) {
         // Filter by selected employees
-        variables.ownerEmployeeIds = selectedEmployeeIds;
+        variables.ownerEmployeeIds = selectedEmployeeIds
       } else {
         // No employees selected - use a non-existent ID to show no results
-        variables.ownerEmployeeIds = ["00000000-0000-0000-0000-000000000000"];
+        variables.ownerEmployeeIds = ['00000000-0000-0000-0000-000000000000']
       }
     }
     // "all" mode: no employee filtering - shows all opportunities
 
-    return variables;
-  }, [selectedPipelineId, opportunityFilter, selectedEmployeeIds, userInfo?.employeeDetails?.employeeId, dealType]);
+    return variables
+  }, [selectedPipelineId, opportunityFilter, selectedEmployeeIds, userInfo?.employeeDetails?.employeeId, dealType])
 
   // Load opportunities data
   const loadData = useCallback(async () => {
-    if (!accessToken) return;
+    if (!accessToken) return
 
-    setError(null);
+    setError(null)
 
     try {
-      const result = await fetchInvestmentOpportunities(queryVariables);
-      setOpportunities(result.InvestmentOpportunity || []);
+      const result = await fetchInvestmentOpportunities(queryVariables)
+      setOpportunities(result.InvestmentOpportunity || [])
     } catch (err) {
-      console.error("Error loading investment opportunities:", err);
-      setError(err instanceof Error ? err.message : "Unknown error occurred");
+      console.error('Error loading investment opportunities:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error occurred')
     }
-  }, [accessToken, fetchInvestmentOpportunities, queryVariables]);
+  }, [accessToken, fetchInvestmentOpportunities, queryVariables])
 
   // Set default pipeline when pipelines load
   useEffect(() => {
     if (pipelines && pipelines.length > 0 && !selectedPipelineId) {
-      setSelectedPipelineId(pipelines[0].id);
+      setSelectedPipelineId(pipelines[0].id)
     }
-  }, [pipelines, selectedPipelineId]);
+  }, [pipelines, selectedPipelineId])
 
   // Handle initial loading state
   useEffect(() => {
     if (selectedPipelineId && isInitialLoading) {
-      setIsInitialLoading(false);
+      setIsInitialLoading(false)
     }
-  }, [selectedPipelineId, isInitialLoading]);
+  }, [selectedPipelineId, isInitialLoading])
 
   // Load data when variables change
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData()
+  }, [loadData])
 
   // Load data when parent triggers refresh (for process completion events)
   useEffect(() => {
     if (refreshTrigger && refreshTrigger > 0) {
-      loadData();
+      loadData()
     }
-  }, [refreshTrigger, loadData]);
-
-
-
-
-
-
+  }, [refreshTrigger, loadData])
 
   // Map opportunities to kanban items
   const kanbanItems: KanbanItem[] = useMemo(() => {
@@ -154,38 +143,39 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
       position: 0,
       // Store the full opportunity data for rendering
       opportunityData: opp
-    }));
-  }, [opportunities]);
+    }))
+  }, [opportunities])
 
   // Render function for opportunity cards
   const renderCard = useCallback((item: KanbanItem) => {
-    const opp = item.opportunityData as InvestmentOpportunity;
-    
+    const opp = item.opportunityData as InvestmentOpportunity
+
     // Format dates
-    let formattedCloseDate = "";
+    let formattedCloseDate = ''
     if (opp.closeDate) {
-      const closeDate = new Date(opp.closeDate);
-      formattedCloseDate = new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-      }).format(closeDate);
+      const closeDate = new Date(opp.closeDate)
+      formattedCloseDate = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric'
+      }).format(closeDate)
     }
-    
-    let formattedCreatedAt = "";
+
+    let formattedCreatedAt = ''
     if (opp.createdAt) {
-      const createdDate = new Date(opp.createdAt);
-      formattedCreatedAt = new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric"
-      }).format(createdDate);
+      const createdDate = new Date(opp.createdAt)
+      formattedCreatedAt = new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }).format(createdDate)
     }
-    
-    const amount = opp.forecastedProfitAmount || opp.estimatedAmount || 0;
-    const companyName = opp.account?.name || '';
-    const ownerName = opp.ownerEmployee?.firstName && opp.ownerEmployee?.lastName 
-      ? `${opp.ownerEmployee.firstName} ${opp.ownerEmployee.lastName}` 
-      : opp.ownerEmployee?.displayName || '';
+
+    const amount = opp.forecastedProfitAmount || opp.estimatedAmount || 0
+    const companyName = opp.account?.name || ''
+    const ownerName =
+      opp.ownerEmployee?.firstName && opp.ownerEmployee?.lastName
+        ? `${opp.ownerEmployee.firstName} ${opp.ownerEmployee.lastName}`
+        : opp.ownerEmployee?.displayName || ''
 
     return (
       <div
@@ -224,7 +214,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
               {companyName}
             </div>
           )}
-          
+
           <div className="gba:flex gba:justify-between gba:items-center">
             {ownerName && (
               <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400">
@@ -232,7 +222,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
                 {ownerName}
               </div>
             )}
-            
+
             {formattedCreatedAt && (
               <div className="gba:flex gba:items-center gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:ml-auto">
                 <Clock className="gba:h-3 gba:w-3 gba:mr-1" />
@@ -242,109 +232,111 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
           </div>
         </div>
       </div>
-    );
-  }, []);
+    )
+  }, [])
 
   // Custom render function for stage headers
-  const renderStageHeader = useCallback((stage: KanbanStage, itemCount: number) => {
-    // Calculate total amount for opportunities in this stage
-    const stageOpportunities = opportunities.filter(opp => 
-      opp.opportunityPipelineStage?.id === stage.id
-    );
-    const totalAmount = stageOpportunities.reduce((sum, opp) => 
-      sum + (opp.forecastedProfitAmount || opp.estimatedAmount || 0), 0
-    );
+  const renderStageHeader = useCallback(
+    (stage: KanbanStage, itemCount: number) => {
+      // Calculate total amount for opportunities in this stage
+      const stageOpportunities = opportunities.filter(opp => opp.opportunityPipelineStage?.id === stage.id)
+      const totalAmount = stageOpportunities.reduce(
+        (sum, opp) => sum + (opp.forecastedProfitAmount || opp.estimatedAmount || 0),
+        0
+      )
 
-    return (
-      <div>
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <h3 className="gba:font-medium gba:text-sm" data-testid={`stage-title-${stage.id}`}>
-            {stage.name}
-          </h3>
-        </div>
-        
-        <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
-          <div>
-            <span className="gba:font-medium" data-testid={`stage-total-${stage.id}`}>
-              {formatCurrencyCompact(totalAmount)}
-            </span>
+      return (
+        <div>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <h3 className="gba:font-medium gba:text-sm" data-testid={`stage-title-${stage.id}`}>
+              {stage.name}
+            </h3>
           </div>
-          <div>
-            <span className="gba:font-medium">{itemCount}</span>{" "}
-            {itemCount === 1 ? "deal" : "deals"}
+
+          <div className="gba:flex gba:justify-between gba:text-xs gba:text-gray-500 gba:dark:text-gray-400 gba:pt-1">
+            <div>
+              <span className="gba:font-medium" data-testid={`stage-total-${stage.id}`}>
+                {formatCurrencyCompact(totalAmount)}
+              </span>
+            </div>
+            <div>
+              <span className="gba:font-medium">{itemCount}</span> {itemCount === 1 ? 'deal' : 'deals'}
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }, [opportunities]);
+      )
+    },
+    [opportunities]
+  )
 
   // Handle drag end events
-  const handleDragEnd = useCallback((itemId: string, toStageId: string) => {
-    const opportunity = opportunities.find(op => op.id === itemId);
-    if (!opportunity) return;
+  const handleDragEnd = useCallback(
+    (itemId: string, toStageId: string) => {
+      const opportunity = opportunities.find(op => op.id === itemId)
+      if (!opportunity) return
 
-    const currentStageId = opportunity.opportunityPipelineStage?.id;
-    if (currentStageId === toStageId) {
-      // Same stage - handle reordering if needed
-      // Note: Reordering is disabled via allowReorderWithinStage={false}
-      return;
-    } else {
-      // Different stage - start transition process
-      
-      // Create a unique key for this transition to prevent duplicates
-      const transitionKey = `${itemId}-${currentStageId}-${toStageId}`;
-      
-      // Check if we've recently started this process
-      if (recentProcessStarts.has(transitionKey)) {
-        return;
+      const currentStageId = opportunity.opportunityPipelineStage?.id
+      if (currentStageId === toStageId) {
+        // Same stage - handle reordering if needed
+        // Note: Reordering is disabled via allowReorderWithinStage={false}
+        return
+      } else {
+        // Different stage - start transition process
+
+        // Create a unique key for this transition to prevent duplicates
+        const transitionKey = `${itemId}-${currentStageId}-${toStageId}`
+
+        // Check if we've recently started this process
+        if (recentProcessStarts.has(transitionKey)) {
+          return
+        }
+
+        // Mark this transition as in progress
+        setRecentProcessStarts(prev => new Set(prev).add(transitionKey))
+
+        // Clear the flag after 3 seconds to allow legitimate retries
+        setTimeout(() => {
+          setRecentProcessStarts(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(transitionKey)
+            return newSet
+          })
+        }, 3000)
+
+        startProcess({
+          domain: 'investment-relations',
+          processName: 'transitionInvestmentOpportunity',
+          payload: {
+            opportunityId: itemId,
+            targetStageRef: toStageId
+          },
+          builderType: 'NATIVE_SCREEN'
+        })
+
+        // Optionally reload data after a short delay to reflect changes
+        setTimeout(() => {
+          loadData()
+        }, 1000)
       }
-      
-      // Mark this transition as in progress
-      setRecentProcessStarts(prev => new Set(prev).add(transitionKey));
-      
-      // Clear the flag after 3 seconds to allow legitimate retries
-      setTimeout(() => {
-        setRecentProcessStarts(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(transitionKey);
-          return newSet;
-        });
-      }, 3000);
-      
-      startProcess({
-        domain: 'investment-relations',
-        processName: 'transitionInvestmentOpportunity',
-        payload: {
-          opportunityId: itemId,
-          targetStageRef: toStageId,
-        },
-        builderType: 'NATIVE_SCREEN',
-      });
-      
-      // Optionally reload data after a short delay to reflect changes
-      setTimeout(() => {
-        loadData();
-      }, 1000);
-    }
-  }, [opportunities, loadData, recentProcessStarts]);
-
-
+    },
+    [opportunities, loadData, recentProcessStarts]
+  )
 
   // Handle filter changes
   const handleOpportunityFilterChange = (value: string) => {
-    setOpportunityFilter(value as "my" | "all" | "selected");
-    if (value !== "selected") {
-      setSelectedEmployeeIds([]);
+    setOpportunityFilter(value as 'my' | 'all' | 'selected')
+    if (value !== 'selected') {
+      setSelectedEmployeeIds([])
     }
-  };
+  }
 
   const handlePipelineChange = (value: string) => {
-    setSelectedPipelineId(value);
-  };
+    setSelectedPipelineId(value)
+  }
 
   const handleEmployeeSelectionChange = (employeeIds: string[]) => {
-    setSelectedEmployeeIds(employeeIds);
-  };
+    setSelectedEmployeeIds(employeeIds)
+  }
 
   return (
     <div className="gba:space-y-6" data-testid="opportunity-board">
@@ -390,7 +382,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
                 <SelectValue placeholder="Select Pipeline" />
               </SelectTrigger>
               <SelectContent>
-                {pipelines?.map((pipeline) => (
+                {pipelines?.map(pipeline => (
                   <SelectItem key={pipeline.id} value={pipeline.id}>
                     {pipeline.value}
                   </SelectItem>
@@ -400,7 +392,7 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
           </div>
 
           {/* Employee Selection - Only show when "Selected Employees" is chosen */}
-          {opportunityFilter === "selected" && (
+          {opportunityFilter === 'selected' && (
             <div className="gba:flex gba:flex-col gba:gap-2">
               <Label className="gba:text-sm gba:font-medium">Employees:</Label>
               <EmployeeSelector
@@ -408,14 +400,12 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
                 userInfo={userInfo}
                 selectedEmployeeIds={selectedEmployeeIds}
                 onEmployeeSelectionChange={handleEmployeeSelectionChange}
-                disabled={opportunityFilter !== "selected"}
+                disabled={opportunityFilter !== 'selected'}
               />
             </div>
           )}
         </div>
       </div>
-
-
 
       {/* Loading States for Stages */}
       {isLoadingStages ? (
@@ -436,12 +426,8 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
               <div className="gba:flex gba:justify-center gba:mb-4">
                 <FileText className="gba:h-16 gba:w-16 gba:text-gray-400" />
               </div>
-              <h3 className="gba:text-xl gba:font-semibold gba:text-gray-700 gba:mb-2">
-                No Stages for This Pipeline
-              </h3>
-              <p className="gba:text-gray-500 gba:mb-4">
-                This pipeline doesn't have any stages configured yet.
-              </p>
+              <h3 className="gba:text-xl gba:font-semibold gba:text-gray-700 gba:mb-2">No Stages for This Pipeline</h3>
+              <p className="gba:text-gray-500 gba:mb-4">This pipeline doesn't have any stages configured yet.</p>
               <p className="gba:text-sm gba:text-gray-400">
                 Configure stages in the pipeline settings to start organizing opportunities.
               </p>
@@ -453,11 +439,9 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
           <CardContent className="gba:p-8">
             <div className="gba:text-center">
               <div className="gba:text-red-500 gba:text-6xl gba:mb-4">⚠️</div>
-              <h3 className="gba:text-xl gba:font-semibold gba:text-gray-700 gba:mb-2">
-                Error Loading Opportunities
-              </h3>
+              <h3 className="gba:text-xl gba:font-semibold gba:text-gray-700 gba:mb-2">Error Loading Opportunities</h3>
               <p className="gba:text-gray-500 gba:mb-4">{error}</p>
-              <button 
+              <button
                 onClick={loadData}
                 className="gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded gba:hover:bg-blue-600"
               >
@@ -479,5 +463,5 @@ export const OpportunityBoard: React.FC<OpportunityBoardProps> = ({
         />
       )}
     </div>
-  );
-};
+  )
+}

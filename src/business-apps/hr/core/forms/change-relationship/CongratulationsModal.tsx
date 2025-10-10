@@ -1,28 +1,23 @@
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Button } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface CongratulationsModalProps {
-  open: boolean;
-  onConfirm: () => void;
-  dataTestId?: string;
-  confirmButtonTestId?: string;
+  open: boolean
+  onConfirm: () => void
+  dataTestId?: string
+  confirmButtonTestId?: string
 }
 
 export const CongratulationsModal: React.FC<CongratulationsModalProps> = ({
   open,
   onConfirm,
   dataTestId = 'congratulations-modal',
-  confirmButtonTestId = 'congratulations-modal-confirm',
+  confirmButtonTestId = 'congratulations-modal-confirm'
 }) => {
   return (
-    <Dialog
-      open={open}
-    >
-      <DialogContent 
-        data-testid={dataTestId}
-        showCloseButton={false}
-      >
+    <Dialog open={open}>
+      <DialogContent data-testid={dataTestId} showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>
             {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.success_title', 'Congratulations! ')}🎉
@@ -46,7 +41,5 @@ export const CongratulationsModal: React.FC<CongratulationsModalProps> = ({
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
-
-
+  )
+}

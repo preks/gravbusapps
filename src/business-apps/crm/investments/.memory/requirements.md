@@ -15,12 +15,14 @@ The IRM (Investment Risk Management) Investments Dashboard is a comprehensive ov
 ## User Stories
 
 ### Primary Users: Managers
+
 - **As a manager**, I want to view all investments in a centralized dashboard so that I can get a complete overview of our investment portfolio
 - **As a manager**, I want to filter investments by type, shareholding percentage, and performance metrics so that I can focus on specific investment categories
 - **As a manager**, I want to see key metrics like Expected ROI and book value at a glance so that I can quickly assess investment performance
 - **As a manager**, I want to monitor capital allocation across investment types so that I can ensure proper portfolio diversification
 
 ### Primary Users: Analysts
+
 - **As an analyst**, I want to sort and order investments by customizable attributes so that I can analyze investment patterns and trends
 - **As an analyst**, I want to search for specific investments so that I can quickly locate and review investment details
 - **As an analyst**, I want to view investment phases and their relevance to different investment types so that I can understand the investment lifecycle
@@ -29,53 +31,60 @@ The IRM (Investment Risk Management) Investments Dashboard is a comprehensive ov
 ## Functional Requirements
 
 ### 1. Investment Types Overview Display
+
 1.1. The system must display investments organized by investment type and sub-type in a list view
 1.2. The system must show capital allocation for each investment type and sub-type
 1.3. The system must categorize investments into the following types:
-   - **Strategic Investments**
-     - Majority Stake
-     - Minority Stake
-     - Venture Capital
-     - Co-Investments
-   - **Real Estate**
-     - Properties
-     - Project Development
-     - Mezzanine Loan
-     - Other
-   - **Private Equity**
-   - **Liquid Funds**
-     - Bank
-     - Strategic Liquidity (capital market)
+
+- **Strategic Investments**
+  - Majority Stake
+  - Minority Stake
+  - Venture Capital
+  - Co-Investments
+- **Real Estate**
+  - Properties
+  - Project Development
+  - Mezzanine Loan
+  - Other
+- **Private Equity**
+- **Liquid Funds**
+  - Bank
+  - Strategic Liquidity (capital market)
 
 ### 2. Investments Overview Screen
+
 2.1. The system must display all investments in a comprehensive list view
 2.2. The system must provide filtering capabilities for:
-   - Investment Type
-   - Shareholding percentage
-   - Turnover
-   - EBITDA
-   - Role
-   - Other customizable attributes
-2.3. The system must provide sorting and ordering functionality for all displayed attributes
-2.4. The system must display key metrics including:
-   - Expected ROI
-   - Book value
-   - Investment phase status
-   - Other relevant financial indicators
+
+- Investment Type
+- Shareholding percentage
+- Turnover
+- EBITDA
+- Role
+- Other customizable attributes
+  2.3. The system must provide sorting and ordering functionality for all displayed attributes
+  2.4. The system must display key metrics including:
+- Expected ROI
+- Book value
+- Investment phase status
+- Other relevant financial indicators
 
 ### 3. Search and Filter Functionality
+
 3.1. The system must provide a search interface for finding specific investments
 3.2. The system must support multiple filter criteria simultaneously
 3.3. The system must allow users to save and apply custom filter configurations
 3.4. The system must provide real-time filtering results
 
 ### 4. Data Integration
+
 4.1. The system must integrate with GraphQL API for investment data queries
 4.2. The system must integrate with catalog management for investment type definitions
 4.3. The system must support real-time data updates
 4.4. The system must handle data pagination for large investment portfolios
 
 ### 5. Investment Phase Management
+
 5.1. The system must display investment phases relevant to each investment type
 5.2. The system must show that for liquid funds, only monitoring phase is relevant
 5.3. The system must indicate current phase status for each investment
@@ -92,6 +101,7 @@ The IRM (Investment Risk Management) Investments Dashboard is a comprehensive ov
 ## Design Considerations
 
 ### UI/UX Requirements
+
 - Clean, professional dashboard layout following NEWWORK design system
 - Responsive grid layout for investment cards/list items
 - Intuitive filter and search controls
@@ -99,6 +109,7 @@ The IRM (Investment Risk Management) Investments Dashboard is a comprehensive ov
 - Loading states for data fetching operations
 
 ### Component Architecture
+
 - Modular component structure following project conventions
 - Reusable filter and search components
 - Separate components for different investment type displays
@@ -107,18 +118,21 @@ The IRM (Investment Risk Management) Investments Dashboard is a comprehensive ov
 ## Technical Considerations
 
 ### Data Requirements
+
 - GraphQL integration for investment data queries
 - Catalog management integration for investment type definitions
 - Support for pagination and lazy loading
 - Real-time data synchronization capabilities
 
 ### Performance Requirements
+
 - Fast initial load time (< 3 seconds)
 - Smooth filtering and sorting operations
 - Efficient data caching for frequently accessed information
 - Optimized GraphQL queries with proper field selection
 
 ### Integration Points
+
 - NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK for investment data
 - NEXT_PUBLIC_CATALOG_API for investment type catalogs
 - BusinessAppContextProps for user context and access tokens

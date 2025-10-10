@@ -1,1 +1,1 @@
-export { AppActionMenu } from './AppActionMenu';
+export { AppActionMenu } from './AppActionMenu'

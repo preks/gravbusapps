@@ -1,5 +1,5 @@
-import React from "react";
-import { useTranslation } from "react-i18next";
+import React from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Table,
   TableHeader,
@@ -15,40 +15,33 @@ import {
   CardContent,
   Avatar,
   AvatarFallback,
-  AvatarImage,
-} from "@newwork/nw-design-system";
-import {
-  PiEnvelope,
-  PiPhone,
-  PiLinkedinLogo,
-  PiBuilding,
-  PiArrowUp,
-  PiArrowDown,
-} from "react-icons/pi";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Contact } from "../../../../../../components/contact-list/types";
-import { navigateTo, buildPlatformUrl } from "@/common/utils/navigationUtils";
+  AvatarImage
+} from '@newwork/nw-design-system'
+import { PiEnvelope, PiPhone, PiLinkedinLogo, PiBuilding, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { Contact } from '../../../../../../components/contact-list/types'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-const DATA_TEST_ID_PREFIX = "EmployeeContactsTable";
+const DATA_TEST_ID_PREFIX = 'EmployeeContactsTable'
 
 interface ContactsTableProps {
-  contacts: Contact[];
-  loading: boolean;
-  error: Error | null;
-  hasMore: boolean;
-  retry: () => void;
-  total: number;
-  pageSize: number;
-  currentPage: number;
-  sortField: string;
-  sortOrder: "ASC" | "DESC" | "";
-  onSelectContact?: (contact: Contact) => void;
-  onPaginationChange: (page: number, pageSize?: number) => void;
-  onSortingChange: (field: string, order: "ASC" | "DESC" | "") => void;
-  selectedContactId?: string;
-  accessToken: string;
-  employeeId?: string;
+  contacts: Contact[]
+  loading: boolean
+  error: Error | null
+  hasMore: boolean
+  retry: () => void
+  total: number
+  pageSize: number
+  currentPage: number
+  sortField: string
+  sortOrder: 'ASC' | 'DESC' | ''
+  onSelectContact?: (contact: Contact) => void
+  onPaginationChange: (page: number, pageSize?: number) => void
+  onSortingChange: (field: string, order: 'ASC' | 'DESC' | '') => void
+  selectedContactId?: string
+  accessToken: string
+  employeeId?: string
 }
 
 export const ContactsTable: React.FC<ContactsTableProps> = ({
@@ -67,18 +60,18 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
   onSortingChange,
   selectedContactId,
   accessToken,
-  employeeId,
+  employeeId
 }) => {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
 
   // Get contact display name
   const getContactName = (contact: Contact) => {
-    const title = contact.academicTitle?.value;
-    const firstName = contact.firstName || "";
-    const lastName = contact.lastName || "";
-    const fullName = `${firstName} ${lastName}`.trim();
-    return title ? `${title} ${fullName}` : fullName || "-";
-  };
+    const title = contact.academicTitle?.value
+    const firstName = contact.firstName || ''
+    const lastName = contact.lastName || ''
+    const fullName = `${firstName} ${lastName}`.trim()
+    return title ? `${title} ${fullName}` : fullName || '-'
+  }
 
   // Handle row click
   const handleRowClick = React.useCallback(
@@ -86,52 +79,47 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
       // Navigate to contact record page
       const navigationParams: Record<string, string> = {
         contactId: record.id,
-        source: "customer-relations",
-        fromEntity: "salesPerformance",
-      };
+        source: 'customer-relations',
+        fromEntity: 'salesPerformance'
+      }
 
       // Add employee ID if available for proper back navigation
       if (employeeId) {
-        navigationParams.employeeId = employeeId;
+        navigationParams.employeeId = employeeId
       }
 
-      const url = buildPlatformUrl(
-        "/platform/crm/contact-record",
-        navigationParams
-      );
-      navigateTo(url);
+      const url = buildPlatformUrl('/platform/crm/contact-record', navigationParams)
+      navigateTo(url)
 
       // Also call the selection callback if provided
-      onSelectContact?.(record);
+      onSelectContact?.(record)
     },
     [onSelectContact, employeeId]
-  );
+  )
 
   // Helper function to handle column sorting
   const handleSort = (field: string) => {
     if (sortField === field) {
       // Cycle through: ASC -> DESC -> clear
-      if (sortOrder === "ASC") {
-        onSortingChange(field, "DESC");
-      } else if (sortOrder === "DESC") {
-        onSortingChange("", "");
+      if (sortOrder === 'ASC') {
+        onSortingChange(field, 'DESC')
+      } else if (sortOrder === 'DESC') {
+        onSortingChange('', '')
       } else {
-        onSortingChange(field, "ASC");
+        onSortingChange(field, 'ASC')
       }
     } else {
-      onSortingChange(field, "ASC");
+      onSortingChange(field, 'ASC')
     }
-  };
+  }
 
   // Helper function to render sort icon
   const renderSortIcon = (field: string) => {
-    if (sortField !== field) return null;
-    if (sortOrder === "ASC")
-      return <PiArrowUp className="gba:inline gba:ml-1" size={12} />;
-    if (sortOrder === "DESC")
-      return <PiArrowDown className="gba:inline gba:ml-1" size={12} />;
-    return null;
-  };
+    if (sortField !== field) return null
+    if (sortOrder === 'ASC') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
+    if (sortOrder === 'DESC') return <PiArrowDown className="gba:inline gba:ml-1" size={12} />
+    return null
+  }
 
   // Show error state
   if (error) {
@@ -141,18 +129,14 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
         data-testid={`${DATA_TEST_ID_PREFIX}-error-state`}
       >
         <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
-          {t("contact.error.title", "Error Loading Contacts")}
+          {t('contact.error.title', 'Error Loading Contacts')}
         </div>
         <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
-        <Button
-          variant="default"
-          onClick={retry}
-          data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}
-        >
-          {t("common.retry", "Retry")}
+        <Button variant="default" onClick={retry} data-testid={`${DATA_TEST_ID_PREFIX}-retry-button`}>
+          {t('common.retry', 'Retry')}
         </Button>
       </div>
-    );
+    )
   }
 
   return (
@@ -176,12 +160,12 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                 </TableHead>
                 <TableHead
                   className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("firstName")}
+                  onClick={() => handleSort('firstName')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-contact-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     Contact
-                    {renderSortIcon("firstName")}
+                    {renderSortIcon('firstName')}
                   </div>
                 </TableHead>
                 <TableHead
@@ -192,22 +176,22 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                 </TableHead>
                 <TableHead
                   className="gba:w-[38%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
-                  onClick={() => handleSort("accountId")}
+                  onClick={() => handleSort('accountId')}
                   data-testid={`${DATA_TEST_ID_PREFIX}-account-header`}
                 >
                   <div className="gba:flex gba:items-center">
                     Account
-                    {renderSortIcon("accountId")}
+                    {renderSortIcon('accountId')}
                   </div>
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {contacts.map((contact) => (
+              {contacts.map(contact => (
                 <TableRow
                   key={contact.id}
                   className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${
-                    selectedContactId === contact.id ? "gba:bg-blue-50" : ""
+                    selectedContactId === contact.id ? 'gba:bg-blue-50' : ''
                   }`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${contact.id}`}
                 >
@@ -226,7 +210,7 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                         accessToken={accessToken}
                         emptyStateBehavior="disable"
                         deferMainContextRequestsUntilClick
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={e => e.stopPropagation()}
                       />
                     </div>
                   </TableCell>
@@ -238,9 +222,9 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                   >
                     <div
                       className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRowClick(contact);
+                      onClick={e => {
+                        e.stopPropagation()
+                        handleRowClick(contact)
                       }}
                       data-testid={`${DATA_TEST_ID_PREFIX}-contact-name-${contact.id}`}
                     >
@@ -248,7 +232,7 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                         {contact.pictureThumbnailUrl ? (
                           <AvatarImage
                             src={
-                              contact.pictureThumbnailUrl.startsWith("data:")
+                              contact.pictureThumbnailUrl.startsWith('data:')
                                 ? contact.pictureThumbnailUrl
                                 : `data:image/jpeg;base64,${contact.pictureThumbnailUrl}`
                             }
@@ -256,25 +240,19 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                           />
                         ) : (
                           <AvatarFallback>
-                            {getContactName(contact) !== "-"
+                            {getContactName(contact) !== '-'
                               ? getContactName(contact)
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")
+                                  .split(' ')
+                                  .map(n => n[0])
+                                  .join('')
                                   .toUpperCase()
-                              : ""}
+                              : ''}
                           </AvatarFallback>
                         )}
                       </Avatar>
                       <div>
-                        <div className="gba:font-medium gba:text-sm">
-                          {getContactName(contact)}
-                        </div>
-                        {contact.jobTitle && (
-                          <div className="gba:text-xs gba:text-gray-500">
-                            {contact.jobTitle}
-                          </div>
-                        )}
+                        <div className="gba:font-medium gba:text-sm">{getContactName(contact)}</div>
+                        {contact.jobTitle && <div className="gba:text-xs gba:text-gray-500">{contact.jobTitle}</div>}
                       </div>
                     </div>
                   </TableCell>
@@ -307,7 +285,7 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                             target="_blank"
                             rel="noopener noreferrer"
                             className="gba:text-blue-600 hover:gba:underline gba:truncate"
-                            onClick={(e) => e.stopPropagation()}
+                            onClick={e => e.stopPropagation()}
                           >
                             LinkedIn
                           </a>
@@ -326,30 +304,24 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                         <PiBuilding className="gba:text-gray-400" />
                         <span
                           className="gba:text-sm gba:font-medium gba:cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!contact.account?.id) return;
+                          onClick={e => {
+                            e.stopPropagation()
+                            if (!contact.account?.id) return
 
                             const navigationParams: Record<string, string> = {
                               accountId: contact.account.id,
-                              source: "customer-relations",
-                              fromEntity: "salesPerformance",
-                            };
+                              source: 'customer-relations',
+                              fromEntity: 'salesPerformance'
+                            }
 
                             // Add employee ID if available for proper back navigation
                             if (employeeId) {
-                              navigationParams.employeeId = employeeId;
+                              navigationParams.employeeId = employeeId
                             }
 
-                            const url = buildPlatformUrl(
-                              "/platform/crm/account-record",
-                              navigationParams
-                            );
-                            console.log(
-                              "Navigating from contacts to account:",
-                              url
-                            );
-                            navigateTo(url);
+                            const url = buildPlatformUrl('/platform/crm/account-record', navigationParams)
+                            console.log('Navigating from contacts to account:', url)
+                            navigateTo(url)
                           }}
                           data-testid={`${DATA_TEST_ID_PREFIX}-account-name-${contact.id}`}
                         >
@@ -357,9 +329,7 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                         </span>
                       </div>
                     ) : (
-                      <span className="gba:text-gray-400 gba:text-sm">
-                        No account
-                      </span>
+                      <span className="gba:text-gray-400 gba:text-sm">No account</span>
                     )}
                   </TableCell>
                 </TableRow>
@@ -373,21 +343,15 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
           className="gba:flex gba:items-center gba:justify-between gba:px-2 gba:py-4"
           data-testid={`${DATA_TEST_ID_PREFIX}-pagination`}
         >
-          <div
-            className="gba:text-sm gba:text-muted-foreground"
-            data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}
-          >
-            {`${(currentPage - 1) * pageSize + 1}-${Math.min(
-              currentPage * pageSize,
-              total
-            )} of ${total} contacts`}
+          <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${DATA_TEST_ID_PREFIX}-pagination-info`}>
+            {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, total)} of ${total} contacts`}
           </div>
           <div className="gba:flex gba:items-center gba:space-x-6 gba:lg:space-x-8">
             <div className="gba:flex gba:items-center gba:space-x-2">
               <p className="gba:text-sm gba:font-medium">Rows per page</p>
               <select
                 value={pageSize}
-                onChange={(e) => onPaginationChange(1, Number(e.target.value))}
+                onChange={e => onPaginationChange(1, Number(e.target.value))}
                 className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                 data-testid={`${DATA_TEST_ID_PREFIX}-page-size-select`}
               >
@@ -447,7 +411,7 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
         </div>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ContactsTable;
+export default ContactsTable

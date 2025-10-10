@@ -1,19 +1,22 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { AppActionForm } from '@/components/app-action-form';
-import { useForm } from 'react-hook-form';
-import AccountSegment from '@/common/components/common-relations/form-segments/account-segment/AccountSegment';
-import { createAccountSegmentResolver, type AccountSegmentSchema } from '@/common/components/common-relations/form-segments/account-segment/schema';
-import { useInvestmentEntities } from '@/common/data/investment/hooks';
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch';
+import React, { useCallback, useMemo, useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { AppActionForm } from '@/components/app-action-form'
+import { useForm } from 'react-hook-form'
+import AccountSegment from '@/common/components/common-relations/form-segments/account-segment/AccountSegment'
+import {
+  createAccountSegmentResolver,
+  type AccountSegmentSchema
+} from '@/common/components/common-relations/form-segments/account-segment/schema'
+import { useInvestmentEntities } from '@/common/data/investment/hooks'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 export interface AccountExampleFormProps extends BusinessAppContextProps {
-  onSuccess?: (data: AccountSegmentSchema) => void;
-  onCancel?: () => void;
+  onSuccess?: (data: AccountSegmentSchema) => void
+  onCancel?: () => void
 }
 
-type FormData = AccountSegmentSchema & { id?: string; version?: number };
+type FormData = AccountSegmentSchema & { id?: string; version?: number }
 
 const initialFormData: FormData = {
   ownerEmployeeId: '',
@@ -25,71 +28,100 @@ const initialFormData: FormData = {
   phone: '',
   email: '',
   geographicPresence: '',
-  relatedEntityId: '',
-};
+  relatedEntityId: ''
+}
 
-const AccountExampleForm: React.FC<AccountExampleFormProps> = ({ accessToken, userInfo, additionalData, onSuccess, onCancel }) => {
-  const [formData] = useState<FormData>(initialFormData);
+const AccountExampleForm: React.FC<AccountExampleFormProps> = ({
+  accessToken,
+  userInfo,
+  additionalData,
+  onSuccess,
+  onCancel
+}) => {
+  const [formData] = useState<FormData>(initialFormData)
 
   // Shared central investment entity search (lead/contact/account/opportunity)
-  const { entities, loading: entitiesLoading, hasMore: entitiesHasMore, searchEntities, loadMore: loadMoreEntities } = useInvestmentEntities({ accessToken, additionalData });
+  const {
+    entities,
+    loading: entitiesLoading,
+    hasMore: entitiesHasMore,
+    searchEntities,
+    loadMore: loadMoreEntities
+  } = useInvestmentEntities({ accessToken, additionalData })
 
   // Owner employee search
-  const { employees, search: searchEmployees, loading: employeesLoading, hasMore: employeesHasMore, loadMore: loadMoreEmployees } = useEmployeeSearch(accessToken);
+  const {
+    employees,
+    search: searchEmployees,
+    loading: employeesLoading,
+    hasMore: employeesHasMore,
+    loadMore: loadMoreEmployees
+  } = useEmployeeSearch(accessToken)
 
   // Platform context entity hints
   const platformParams = useMemo(() => {
-    const nested = (additionalData as any)?.psi_taskPayload?.psi_initialParameters || (additionalData as any)?.psi_initialParameters || {};
+    const nested =
+      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
+      (additionalData as any)?.psi_initialParameters ||
+      {}
     return {
       accountId: (additionalData as any)?.accountId || nested?.accountId,
       contactId: (additionalData as any)?.contactId || nested?.contactId,
       opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
-      leadId: (additionalData as any)?.leadId || nested?.leadId,
-    } as { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string };
-  }, [additionalData]);
+      leadId: (additionalData as any)?.leadId || nested?.leadId
+    } as { accountId?: string; contactId?: string; opportunityId?: string; leadId?: string }
+  }, [additionalData])
 
-  const hasEntityFromContext = Boolean(platformParams.accountId || platformParams.contactId || platformParams.opportunityId || platformParams.leadId);
+  const hasEntityFromContext = Boolean(
+    platformParams.accountId || platformParams.contactId || platformParams.opportunityId || platformParams.leadId
+  )
 
   const form = useForm<any>({
     resolver: createAccountSegmentResolver(),
     defaultValues: formData as any,
-    mode: 'onChange',
-  });
+    mode: 'onChange'
+  })
 
-  const handleEntitySearch = useCallback((q: string) => {
-    if ((q || '').trim().length === 0 || (q || '').trim().length >= 2) {
-      searchEntities(q);
-    }
-  }, [searchEntities]);
+  const handleEntitySearch = useCallback(
+    (q: string) => {
+      if ((q || '').trim().length === 0 || (q || '').trim().length >= 2) {
+        searchEntities(q)
+      }
+    },
+    [searchEntities]
+  )
 
-  const handleSubmit = useCallback(async (_: AccountSegmentSchema) => {
-    const allValues = (form as any).getValues?.() || {};
-    // Example payload echoing the collected values. Platform process can map as needed.
-    const entityRef = (() => {
-      if (allValues.account?.id) return { account: { id: allValues.account.id } };
-      if (allValues.contact?.id) return { contact: { id: allValues.contact.id } };
-      if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } };
-      if (allValues.lead?.id) return { lead: { id: allValues.lead.id } };
-      return {} as any;
-    })();
-    return {
-      type: 'InvestmentAccountExample',
-      ownerEmployeeId: allValues.ownerEmployeeId,
-      name: allValues.accountName,
-      legalFormRef: allValues.legalFormRef,
-      industryRef: allValues.industryRef,
-      website: allValues.website,
-      mission: allValues.description,
-      phone: allValues.phone,
-      email: allValues.email,
-      geographicPresence: allValues.geographicPresence,
-      ...entityRef,
-    };
-  }, [form]);
+  const handleSubmit = useCallback(
+    async (_: AccountSegmentSchema) => {
+      const allValues = (form as any).getValues?.() || {}
+      // Example payload echoing the collected values. Platform process can map as needed.
+      const entityRef = (() => {
+        if (allValues.account?.id) return { account: { id: allValues.account.id } }
+        if (allValues.contact?.id) return { contact: { id: allValues.contact.id } }
+        if (allValues.opportunity?.id) return { opportunity: { id: allValues.opportunity.id } }
+        if (allValues.lead?.id) return { lead: { id: allValues.lead.id } }
+        return {} as any
+      })()
+      return {
+        type: 'InvestmentAccountExample',
+        ownerEmployeeId: allValues.ownerEmployeeId,
+        name: allValues.accountName,
+        legalFormRef: allValues.legalFormRef,
+        industryRef: allValues.industryRef,
+        website: allValues.website,
+        mission: allValues.description,
+        phone: allValues.phone,
+        email: allValues.email,
+        geographicPresence: allValues.geographicPresence,
+        ...entityRef
+      }
+    },
+    [form]
+  )
 
   const handleSuccess = useCallback(() => {
-    onSuccess?.(formData);
-  }, [formData, onSuccess]);
+    onSuccess?.(formData)
+  }, [formData, onSuccess])
 
   return (
     <AppActionForm
@@ -113,9 +145,15 @@ const AccountExampleForm: React.FC<AccountExampleFormProps> = ({ accessToken, us
         descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:account.description', 'Description')}
         contactPhoneLabel={getTranslationFromI18nKeyAndLabel('crm:account.phone', 'Phone')}
         contactEmailLabel={getTranslationFromI18nKeyAndLabel('crm:account.email', 'Email')}
-        geographicPresenceLabel={getTranslationFromI18nKeyAndLabel('crm:account.geographicPresence', 'Geographic Presence')}
+        geographicPresenceLabel={getTranslationFromI18nKeyAndLabel(
+          'crm:account.geographicPresence',
+          'Geographic Presence'
+        )}
         annualRevenueLabel={getTranslationFromI18nKeyAndLabel('crm:account.annualRevenue', 'Annual Revenue')}
-        numberOfEmployeesLabel={getTranslationFromI18nKeyAndLabel('crm:account.numberOfEmployees', 'Number of Employees')}
+        numberOfEmployeesLabel={getTranslationFromI18nKeyAndLabel(
+          'crm:account.numberOfEmployees',
+          'Number of Employees'
+        )}
         timeZoneLabel={getTranslationFromI18nKeyAndLabel('crm:account.timeZone', 'Time Zone')}
         foundationDateLabel={getTranslationFromI18nKeyAndLabel('crm:account.foundationDate', 'Foundation Date')}
         tickerSymbolLabel={getTranslationFromI18nKeyAndLabel('crm:account.tickerSymbol', 'Ticker Symbol')}
@@ -154,9 +192,7 @@ const AccountExampleForm: React.FC<AccountExampleFormProps> = ({ accessToken, us
         data-testid="platform-account-example-segment"
       />
     </AppActionForm>
-  );
-};
+  )
+}
 
-export default AccountExampleForm;
-
-
+export default AccountExampleForm

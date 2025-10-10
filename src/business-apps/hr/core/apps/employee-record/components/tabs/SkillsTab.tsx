@@ -1,25 +1,20 @@
-import React, { useMemo } from 'react';
-import { Card } from '@newwork/gravity-ui-catalog';
-import { Empty, Progress } from 'antd';
-import { Employee } from '../../hooks/useEmployeeData';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
-import { PiPencilSimple, PiStar, PiCheckCircle } from 'react-icons/pi';
-import {
-  calculateSkillStats,
-  getLevelInfo,
-  getSkillCategory,
-  getTimeSince,
-} from '../../utils/utils';
+import React, { useMemo } from 'react'
+import { Card } from '@newwork/gravity-ui-catalog'
+import { Empty, Progress } from 'antd'
+import { Employee } from '../../hooks/useEmployeeData'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { PiPencilSimple, PiStar, PiCheckCircle } from 'react-icons/pi'
+import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
 
 interface SkillsTabProps {
-  employee: Employee;
-  accessToken: string;
-  employeeId?: string; // Optional employeeId override for permissions check
-  userInfo?: UserInfoProps; // Current user info for self-view check
-  isSelfView: boolean; // Whether user is viewing their own profile
+  employee: Employee
+  accessToken: string
+  employeeId?: string // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps // Current user info for self-view check
+  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 /**
@@ -29,33 +24,30 @@ interface SkillsTabProps {
 const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView }) => {
   // Use employee skills data directly
   const employeeSkills = useMemo(() => {
-    return employee.skills || [];
-  }, [employee.skills]);
+    return employee.skills || []
+  }, [employee.skills])
 
   // Get non-deleted skills for display
   const validSkills = useMemo(() => {
-    return employeeSkills.filter((skill) => !skill.isDeleted);
-  }, [employeeSkills]);
+    return employeeSkills.filter(skill => !skill.isDeleted)
+  }, [employeeSkills])
 
   // Calculate skill statistics
   const skillStats = useMemo(() => {
-    return calculateSkillStats(employeeSkills);
-  }, [employeeSkills]);
+    return calculateSkillStats(employeeSkills)
+  }, [employeeSkills])
 
   return (
     <div className="gba:skills-tab gba:space-y-8" data-testid="skills-tab">
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="skills-header">
         <div className="gba:skills-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="skills-title">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_record.skills_title',
-              'Employee Skills',
-            )}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:employee_record.skills_title', 'Employee Skills')}
           </div>
           <div className="gba:text-gray-500 gba:text-lg" data-testid="skills-description">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:employee_record.skills_description',
-              'View and manage employee skills and competencies',
+              'View and manage employee skills and competencies'
             )}
           </div>
         </div>
@@ -64,7 +56,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
             data-testid="employee-skills-edit-button"
             contextsArray={[FlowContextName.updateEmployeeSkill]}
             externalContextData={{
-              employeeId: employee?.id,
+              employeeId: employee?.id
             }}
             prefixDataTestId="employee-skills-edit"
             accessToken={accessToken}
@@ -80,34 +72,22 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
 
       {validSkills.length === 0 ? (
         <Empty
-          description={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_record.no_skills',
-            'No skills found',
-          )}
+          description={getTranslationFromI18nKeyAndLabel('lowcoder:employee_record.no_skills', 'No skills found')}
           data-testid="skills-empty"
         />
       ) : (
         <>
           {/* Skills Statistics */}
-          <div
-            className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-8"
-            data-testid="skills-stats"
-          >
+          <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-8" data-testid="skills-stats">
             <Card className="gba:border gba:border-gray-200 gba:shadow-sm gba:hover:shadow-md gba:transition-all">
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div
-                    className="gba:text-2xl gba:font-bold"
-                    style={{ color: 'var(--nw-color-purple-500)' }}
-                  >
+                  <div className="gba:text-2xl gba:font-bold" style={{ color: 'var(--nw-color-purple-500)' }}>
                     {skillStats.total}
                   </div>
                   <div className="gba:text-sm gba:text-gray-600">Total Skills</div>
                 </div>
-                <PiStar
-                  className="gba:h-8 gba:w-8"
-                  style={{ color: 'var(--nw-color-purple-500)' }}
-                />
+                <PiStar className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
             </Card>
 
@@ -121,10 +101,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
                   </div>
                   <div className="gba:text-sm gba:text-gray-600">Highest Skills</div>
                 </div>
-                <PiCheckCircle
-                  className="gba:h-8 gba:w-8"
-                  style={{ color: 'var(--nw-color-purple-500)' }}
-                />
+                <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
               </div>
             </Card>
           </div>
@@ -134,13 +111,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
             className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6"
             data-testid="skills-grid"
           >
-            {validSkills.map((skillItem) => {
-              const hasLevel =
-                skillItem.level && skillItem.level !== null && skillItem.level !== '';
-              const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level)) : getLevelInfo(0);
-              const category = getSkillCategory(skillItem.skill.additionalProperties);
-              const timeSinceCreated = getTimeSince(skillItem.skill.createdAt || '');
-              const timeSinceUpdated = getTimeSince(skillItem.skill.updatedAt || '');
+            {validSkills.map(skillItem => {
+              const hasLevel = skillItem.level && skillItem.level !== null && skillItem.level !== ''
+              const levelInfo = hasLevel ? getLevelInfo(Number(skillItem.level)) : getLevelInfo(0)
+              const category = getSkillCategory(skillItem.skill.additionalProperties)
+              const timeSinceCreated = getTimeSince(skillItem.skill.createdAt || '')
+              const timeSinceUpdated = getTimeSince(skillItem.skill.updatedAt || '')
 
               return (
                 <Card
@@ -149,7 +125,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
                   data-testid={`skill-card-${skillItem.skill.id}`}
                   style={{
                     background: 'var(--nw-color-white)',
-                    borderRadius: 'var(--nw-spacing-3)',
+                    borderRadius: 'var(--nw-spacing-3)'
                   }}
                 >
                   <div className="gba:relative">
@@ -163,18 +139,12 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
                       {/* Header */}
                       <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
                         <div className="gba:flex-1">
-                          <h4
-                            className="gba:font-bold gba:text-xl gba:mb-1"
-                            style={{ color: levelInfo.color }}
-                          >
+                          <h4 className="gba:font-bold gba:text-xl gba:mb-1" style={{ color: levelInfo.color }}>
                             {skillItem.skill.name}
                           </h4>
                         </div>
                         <div className="gba:flex gba:flex-col gba:items-end">
-                          <div
-                            className="gba:font-bold gba:text-xl"
-                            style={{ color: levelInfo.color }}
-                          >
+                          <div className="gba:font-bold gba:text-xl" style={{ color: levelInfo.color }}>
                             {hasLevel ? skillItem.level : 'N/A'}
                           </div>
                           <div className="gba:text-xs gba:text-gray-500">Level</div>
@@ -203,47 +173,37 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken, isSelfView
                       <div className="gba:space-y-2 gba:border-t gba:border-gray-100 gba:pt-4">
                         <div className="gba:flex gba:justify-between gba:items-center">
                           <span className="gba:text-xs gba:text-gray-500">Category</span>
-                          <span
-                            className="gba:text-xs gba:font-medium"
-                            style={{ color: 'var(--nw-color-gray-700)' }}
-                          >
+                          <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                             {category}
                           </span>
                         </div>
 
                         <div className="gba:flex gba:justify-between gba:items-center">
                           <span className="gba:text-xs gba:text-gray-500">Added</span>
-                          <span
-                            className="gba:text-xs gba:font-medium"
-                            style={{ color: 'var(--nw-color-gray-700)' }}
-                          >
+                          <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
                             {timeSinceCreated}
                           </span>
                         </div>
 
-                        {skillItem.skill.updatedAt &&
-                          skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
-                            <div className="gba:flex gba:justify-between gba:items-center">
-                              <span className="gba:text-xs gba:text-gray-500">Updated</span>
-                              <span
-                                className="gba:text-xs gba:font-medium"
-                                style={{ color: 'var(--nw-color-gray-700)' }}
-                              >
-                                {timeSinceUpdated}
-                              </span>
-                            </div>
-                          )}
+                        {skillItem.skill.updatedAt && skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
+                          <div className="gba:flex gba:justify-between gba:items-center">
+                            <span className="gba:text-xs gba:text-gray-500">Updated</span>
+                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
+                              {timeSinceUpdated}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 </Card>
-              );
+              )
             })}
           </div>
         </>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default SkillsTab;
+export default SkillsTab

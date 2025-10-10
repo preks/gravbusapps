@@ -1,11 +1,11 @@
-import React from 'react';
-import { StageConditionFormProvider } from './context/StageConditionFormContext';
-import StageConditionFormComponent from './components/StageConditionFormComponent';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { StageConditionFormValues } from './types';
+import React from 'react'
+import { StageConditionFormProvider } from './context/StageConditionFormContext'
+import StageConditionFormComponent from './components/StageConditionFormComponent'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { StageConditionFormValues } from './types'
 
 interface StageConditionFormProps {
-  initialValues?: Partial<StageConditionFormValues>;
+  initialValues?: Partial<StageConditionFormValues>
 }
 
 const StageConditionForm: React.FC<BusinessAppContextProps & StageConditionFormProps> = ({
@@ -14,8 +14,6 @@ const StageConditionForm: React.FC<BusinessAppContextProps & StageConditionFormP
   userInfo,
   additionalData
 }) => {
-
-
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
@@ -23,24 +21,21 @@ const StageConditionForm: React.FC<BusinessAppContextProps & StageConditionFormP
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   return (
-    <StageConditionFormProvider
-      businessAppContext={businessAppContext}
-      initialValues={initialValues}
-    >
+    <StageConditionFormProvider businessAppContext={businessAppContext} initialValues={initialValues}>
       <StageConditionFormComponent />
     </StageConditionFormProvider>
-  );
-};
+  )
+}
 
-export { StageConditionForm };
-export default StageConditionForm;
+export { StageConditionForm }
+export default StageConditionForm
