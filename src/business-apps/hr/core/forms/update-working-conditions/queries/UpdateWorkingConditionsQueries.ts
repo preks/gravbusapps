@@ -75,6 +75,24 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
   }
 `;
 
+// Regions filtered by country
+export const GET_REGIONS_BY_COUNTRY = `
+  query MyQuery($countryId: String!, $activeUserLocale: String!) {
+    CatalogEntry(
+      where: {
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegion" } },
+        additionalValue3: { _eq: $countryId }
+      },
+      orderBy: { value: ASC }
+    ) {
+      id
+      value
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) { value }
+      catalog { defaultLocale }
+    }
+  }
+`;
+
 export const useWorkingConditionsLookups = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   const [employmentTypes, setEmploymentTypes] = useState<SelectOption[]>([]);
@@ -106,7 +124,18 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
       setEmploymentTypes(toOptions(res?.employmentTypes));
       setContractTypes(toOptions(res?.contractTypes));
       setRemoteOptions(toOptions(res?.remote));
-      setRegions(toOptions(res?.allEmploymentRegions));
+      // Derive country id from primary address
+      const countryId = res?.employee?.[0]?.addresses?.[0]?.country?.id || '';
+      if (countryId) {
+        try {
+          const regRes = await graphqlClient.request<any>(GET_REGIONS_BY_COUNTRY, { countryId, activeUserLocale: locale });
+          setRegions(toOptions(regRes?.CatalogEntry));
+        } catch {
+          setRegions(toOptions(res?.allEmploymentRegions));
+        }
+      } else {
+        setRegions(toOptions(res?.allEmploymentRegions));
+      }
       const wcRaw = res?.employee?.[0]?.workingCondition?.[0] || null;
       const wc: WorkingConditionsRecord | null = wcRaw
         ? {
