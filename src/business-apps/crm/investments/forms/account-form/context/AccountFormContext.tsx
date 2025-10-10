@@ -432,7 +432,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
       }
     })
 
-    let finalEmployees: SelectOption[] = [...regularEmployees]
+    const finalEmployees: SelectOption[] = [...regularEmployees]
 
     // Add current user to the beginning if they're not already in the list
     if (currentUserEmployee) {

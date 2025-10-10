@@ -161,7 +161,7 @@ export const useGetExpenseRequests = (context?: BusinessAppContextProps): Expens
         const count = data?.ExpenseRequestAggregate?.aggregate?.count ?? 0
 
         // Get the items - server-side filtering is now applied via GraphQL
-        let fetchedItems = data?.ExpenseRequest ?? []
+        const fetchedItems = data?.ExpenseRequest ?? []
 
         // Update state with the fetched data
         setTotalCount(count)

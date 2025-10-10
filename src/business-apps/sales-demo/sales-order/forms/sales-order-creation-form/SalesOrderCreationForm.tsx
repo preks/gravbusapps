@@ -892,7 +892,7 @@ const SalesOrderCreationForm: React.FC<SalesOrderCreationFormProps> = ({
           lineNumber: editingIndex !== null ? formData.items[editingIndex].lineNumber : formData.items.length + 1
         }
 
-        let newItems = [...formData.items]
+        const newItems = [...formData.items]
         if (editingIndex !== null) {
           newItems[editingIndex] = newItem
         } else {

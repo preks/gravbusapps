@@ -1,72 +1,56 @@
-import React, {
-  useState,
-  useEffect,
-  SetStateAction,
-  Dispatch,
-  useRef,
-  useCallback,
-  useMemo,
-} from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  Button,
-  Form,
-  DialogTitle,
-  Alert,
-} from '@newwork/nw-design-system';
-import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form';
-import { toast } from 'sonner';
-import { cn } from '@/common/utils/cn';
+import React, { useState, useEffect, SetStateAction, Dispatch, useRef, useCallback, useMemo } from 'react'
+import { Dialog, DialogContent, DialogTrigger, Button, Form, DialogTitle, Alert } from '@newwork/nw-design-system'
+import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
+import { toast } from 'sonner'
+import { cn } from '@/common/utils/cn'
 
 export interface FormMessage {
-  type: 'success' | 'error' | 'info';
-  message: string;
+  type: 'success' | 'error' | 'info'
+  message: string
 }
 
 interface FormWrapperModalProps {
-  childAddButton?: React.ReactNode;
-  children: React.ReactNode;
-  title?: string;
-  description?: string;
-  onSubmit?: (_data: FieldValues) => void | Promise<void>;
-  onCancel?: () => void;
-  onError?: (_error: string) => void;
-  defaultValues?: FieldValues;
-  isEditing?: boolean;
-  loading?: boolean;
-  dataTestId?: string;
-  isDrawerActive?: boolean;
-  open?: boolean;
-  setOpen?: Dispatch<SetStateAction<boolean>>;
-  isValid?: boolean;
-  setCodeError?: Dispatch<SetStateAction<string>>;
+  childAddButton?: React.ReactNode
+  children: React.ReactNode
+  title?: string
+  description?: string
+  onSubmit?: (_data: FieldValues) => void | Promise<void>
+  onCancel?: () => void
+  onError?: (_error: string) => void
+  defaultValues?: FieldValues
+  isEditing?: boolean
+  loading?: boolean
+  dataTestId?: string
+  isDrawerActive?: boolean
+  open?: boolean
+  setOpen?: Dispatch<SetStateAction<boolean>>
+  isValid?: boolean
+  setCodeError?: Dispatch<SetStateAction<string>>
 
   // Form handling
-  form?: UseFormReturn<FieldValues>;
-  resolver?: Resolver<FieldValues>;
-  validateForm?: (_formData: FieldValues) => string[] | null;
-  isSubmitDisabled?: boolean;
-  preventDuplicateSubmission?: boolean;
+  form?: UseFormReturn<FieldValues>
+  resolver?: Resolver<FieldValues>
+  validateForm?: (_formData: FieldValues) => string[] | null
+  isSubmitDisabled?: boolean
+  preventDuplicateSubmission?: boolean
 
   // Error handling
-  showErrorMessage?: boolean;
-  errorMessage?: string;
+  showErrorMessage?: boolean
+  errorMessage?: string
 
   // Layout customization
-  formClassName?: string;
-  contentClassName?: string;
+  formClassName?: string
+  contentClassName?: string
 
   // Button customization
-  submitButtonText?: string;
-  cancelButtonText?: string;
-  submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link';
-  showCancelButton?: boolean;
+  submitButtonText?: string
+  cancelButtonText?: string
+  submitButtonVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
+  showCancelButton?: boolean
 
   // Test IDs
-  submitButtonTestId?: string;
-  cancelButtonTestId?: string;
+  submitButtonTestId?: string
+  cancelButtonTestId?: string
 }
 
 const FormWrapperModal = ({
@@ -110,115 +94,115 @@ const FormWrapperModal = ({
 
   // Test IDs
   submitButtonTestId,
-  cancelButtonTestId,
+  cancelButtonTestId
 }: FormWrapperModalProps) => {
-  const [isOpen, setIsOpen] = useState(open);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<FormMessage | null>(null);
-  const isSubmittingRef = useRef(false);
-  const isEditingForm = useMemo(() => (isEditing ? 'Update' : 'Create'), [isEditing]);
+  const [isOpen, setIsOpen] = useState(open)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [message, setMessage] = useState<FormMessage | null>(null)
+  const isSubmittingRef = useRef(false)
+  const isEditingForm = useMemo(() => (isEditing ? 'Update' : 'Create'), [isEditing])
 
   // Create internal form if no external form provided
-  const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' });
-  const form = externalForm || internalForm;
+  const internalForm = useForm<FieldValues>({ defaultValues, resolver, mode: 'onChange' })
+  const form = externalForm || internalForm
   const isFormValid = useMemo(() => {
-    return form.formState.isValid && form.formState.isDirty;
-  }, [form.formState.isValid, form.formState.isDirty]);
+    return form.formState.isValid && form.formState.isDirty
+  }, [form.formState.isValid, form.formState.isDirty])
 
   useEffect(() => {
-    form.reset(defaultValues);
-    form.clearErrors();
-    setMessage(null);
-  }, [form, defaultValues]);
+    form.reset(defaultValues)
+    form.clearErrors()
+    setMessage(null)
+  }, [form, defaultValues])
 
   useEffect(() => {
     if (errorMessage) {
-      setMessage({ type: 'error', message: errorMessage });
+      setMessage({ type: 'error', message: errorMessage })
     }
-  }, [errorMessage]);
+  }, [errorMessage])
 
   const handleSubmit = useCallback(
     async (values?: FieldValues) => {
       // Prevent duplicate submissions using ref for synchronous check
       if (preventDuplicateSubmission && isSubmittingRef.current) {
-        return;
+        return
       }
 
-      if (!onSubmit) return;
+      if (!onSubmit) return
 
       try {
         if (preventDuplicateSubmission) {
-          isSubmittingRef.current = true;
+          isSubmittingRef.current = true
         }
-        setIsSubmitting(true);
-        setMessage(null);
+        setIsSubmitting(true)
+        setMessage(null)
 
-        const dataForValidation = values ?? form.getValues();
+        const dataForValidation = values ?? form.getValues()
 
         if (validateForm) {
-          const errors = validateForm(dataForValidation);
+          const errors = validateForm(dataForValidation)
           if (errors && errors.length > 0) {
-            setMessage({ type: 'error', message: errors.join(', ') });
+            setMessage({ type: 'error', message: errors.join(', ') })
             if (onError) {
-              onError(errors.join(', '));
+              onError(errors.join(', '))
             }
-            return;
+            return
           }
         }
 
-        await onSubmit(dataForValidation);
+        await onSubmit(dataForValidation)
 
-        setIsOpen(false);
-        setOpen?.(false);
-        form.reset();
-        setMessage(null);
+        setIsOpen(false)
+        setOpen?.(false)
+        form.reset()
+        setMessage(null)
       } catch (error) {
-        console.error('Form submission error:', error);
+        console.error('Form submission error:', error)
 
-        const defaultErrorMessage = 'Something went wrong';
-        const errorMsg = error instanceof Error ? error.message : defaultErrorMessage;
+        const defaultErrorMessage = 'Something went wrong'
+        const errorMsg = error instanceof Error ? error.message : defaultErrorMessage
 
-        setMessage({ type: 'error', message: errorMsg });
+        setMessage({ type: 'error', message: errorMsg })
         if (onError) {
-          onError(errorMsg);
+          onError(errorMsg)
         }
-        toast.error(errorMsg);
+        toast.error(errorMsg)
       } finally {
-        setIsSubmitting(false);
+        setIsSubmitting(false)
         if (preventDuplicateSubmission) {
-          isSubmittingRef.current = false;
+          isSubmittingRef.current = false
         }
       }
     },
-    [onSubmit, validateForm, onError, form, preventDuplicateSubmission, setOpen],
-  );
+    [onSubmit, validateForm, onError, form, preventDuplicateSubmission, setOpen]
+  )
 
   const handleCancel = useCallback(() => {
-    setIsOpen(false);
-    setOpen?.(false);
-    setCodeError?.('');
-    setMessage(null);
-    form.reset();
+    setIsOpen(false)
+    setOpen?.(false)
+    setCodeError?.('')
+    setMessage(null)
+    form.reset()
     if (onCancel) {
-      onCancel();
+      onCancel()
     }
-  }, [setOpen, setCodeError, form, onCancel]);
+  }, [setOpen, setCodeError, form, onCancel])
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
-      setIsOpen(open);
-      setOpen?.(open);
-      setCodeError?.('');
-      setMessage(null);
+      setIsOpen(open)
+      setOpen?.(open)
+      setCodeError?.('')
+      setMessage(null)
       if (!open) {
-        form.reset();
+        form.reset()
         if (onCancel) {
-          onCancel();
+          onCancel()
         }
       }
     },
-    [setOpen, setCodeError, form, onCancel],
-  );
+    [setOpen, setCodeError, form, onCancel]
+  )
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -239,17 +223,11 @@ const FormWrapperModal = ({
 
           <Form {...(form as UseFormReturn<FieldValues>)}>
             <form
-              onSubmit={form.handleSubmit((vals) => handleSubmit(vals))}
-              className={cn(
-                'gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full',
-                formClassName,
-              )}
+              onSubmit={form.handleSubmit(vals => handleSubmit(vals))}
+              className={cn('gba:flex gba:flex-col gba:w-full gba:max-w-md gba:h-full', formClassName)}
               data-testid={`${dataTestId}-form`}
             >
-              <div
-                className="gba:flex gba:flex-col gba:gap-4 gba:py-6"
-                data-testid={`${dataTestId}-form-content`}
-              >
+              <div className="gba:flex gba:flex-col gba:gap-4 gba:py-6" data-testid={`${dataTestId}-form-content`}>
                 {children}
               </div>
 
@@ -280,7 +258,7 @@ const FormWrapperModal = ({
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default FormWrapperModal;
+export default FormWrapperModal

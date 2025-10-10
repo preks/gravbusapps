@@ -55,7 +55,7 @@ const JobFunctionsTab: React.FC<JobFunctionsTabProps> = context => {
   const [selectedFunction, setSelectedFunction] = useState<JobFunction | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const [selectedRows, setSelectedRows] = useState<any[]>([])
 
   useEffect(() => {

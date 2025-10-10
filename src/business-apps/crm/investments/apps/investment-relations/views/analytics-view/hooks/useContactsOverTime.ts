@@ -164,7 +164,7 @@ export const useContactsOverTime = ({ accessToken, timeFilter = 'quarter' }: Use
 
         // Generate monthly time series data
         const timeSeriesData: ContactsOverTimeData[] = []
-        let currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
+        const currentDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1)
         let cumulative = 0
 
         while (currentDate <= endDate) {

@@ -40,20 +40,17 @@ import {
   SheetClose,
   Spinner,
   Progress,
-  CardHeader,
-} from '@newwork/nw-design-system';
-import { ColumnDef, SortingState } from '@tanstack/react-table';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import CardTabHeaderComponent from '../../../generic-components/card';
-import { VerticalTable, VerticalTableProps } from '../../../generic-components/table/VerticalTable';
-import {
-  NavigationLinkCards,
-  NavigationLinkCardsProps,
-} from '../../../generic-components/card/NavigationLinkCards';
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
-import ProjectForm from '@/business-apps/mdm/forms/project-form';
-import { useRestClient } from '@/common/network/rest/useRestClient';
-import { env } from '@/common/env/EnvUtils';
+  CardHeader
+} from '@newwork/nw-design-system'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { VerticalTable, VerticalTableProps } from '../../../generic-components/table/VerticalTable'
+import { NavigationLinkCards, NavigationLinkCardsProps } from '../../../generic-components/card/NavigationLinkCards'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import ProjectForm from '@/business-apps/mdm/forms/project-form'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface ProjectsTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -75,7 +72,7 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const showNavigationItems = false
 
@@ -104,12 +101,12 @@ const ProjectsTab: React.FC<ProjectsTabProps> = ({ prefixDataTestId, ...context 
   }, [])
 
   const inactiveStatusIcon = useCallback((status: string) => {
-    return status === 'Expired' ? <WarningIcon /> : <ClockIcon />;
-  }, []);
+    return status === 'Expired' ? <WarningIcon /> : <ClockIcon />
+  }, [])
 
   const inactiveStatusColor = useCallback((status: string) => {
-    return status === 'Expired' ? 'gba:text-[#f5222d]' : 'gba:text-[#fa8c16]';
-  }, []);
+    return status === 'Expired' ? 'gba:text-[#f5222d]' : 'gba:text-[#fa8c16]'
+  }, [])
 
   const dataTable = useMemo(
     () =>

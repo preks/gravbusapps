@@ -108,7 +108,7 @@ export function useContactAiSummary(contactId: string, accessToken: string): Use
         console.warn('No activities, notes, or tasks found for contact', contactId)
       }
 
-      let inputData = `Contact Context: ${JSON.stringify(contactContext, null, 2)}
+      const inputData = `Contact Context: ${JSON.stringify(contactContext, null, 2)}
 
 Recent Activities (${sortedActivities.length} items): ${JSON.stringify(sortedActivities, null, 2)}
 
