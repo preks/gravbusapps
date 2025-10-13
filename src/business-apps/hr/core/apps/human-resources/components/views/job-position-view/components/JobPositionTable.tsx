@@ -210,7 +210,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
 
     // Generate initials and avatar props like in employee-directory
     const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase()
-    const avatarSrc = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
+    const avatarSrc = employee?.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
 
     return (
       <div
