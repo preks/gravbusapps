@@ -4,11 +4,6 @@ import {
   Alert, 
   AlertDescription,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Table,
   TableBody,
   TableCell,
@@ -18,22 +13,26 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue
 } from '@newwork/nw-design-system';
 import { 
   PiArrowLeft, 
   PiPlus, 
   PiMapPin, 
-  PiWarning,
   PiFloppyDisk,
   PiDotsSixVertical
 } from 'react-icons/pi';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient';
 import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm';
 import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm';
+import { useGetAllowanceRegionRules, useGetTravelRegions } from '../../queries';
 import dayjs from 'dayjs';
 import {
   DndContext,
@@ -70,6 +69,9 @@ interface AllowanceRegionRule {
   activeFrom: string;
   activeTo?: string;
   ruleOrder?: number;
+  version?: number;
+  travelRegionSetRef?: string;
+  additionalProperties?: Record<string, any>;
   details: AllowanceRegionRuleDetail[];
 }
 
@@ -78,6 +80,10 @@ interface AllowanceRegionRuleDetail {
   amount: number;
   activeFrom: string;
   activeTo?: string;
+  version?: number;
+  countryRef?: string;
+  currencyRef?: string;
+  travelRegionRef?: string;
   country?: {
     id: string;
     code: string;
@@ -117,6 +123,9 @@ interface EditableTravelRegion extends TravelRegion {
   editingValue: string;
   isModified: boolean;
   isNew: boolean;
+}
+
+interface EditableAllowanceRegionRule extends AllowanceRegionRule {
   validityPeriods: ValidityPeriod[];
 }
 
@@ -126,6 +135,7 @@ interface ValidityPeriod {
   activeTo?: string;
   currencyCode: string;
   hasConflict: boolean;
+  ruleId: string; // Track which rule this period belongs to
 }
 
 interface CurrencyOption {
@@ -143,7 +153,7 @@ interface TravelRegionMatrixViewProps extends BusinessAppContextProps {
 
 // Sortable column header component for drag-and-drop
 const SortableColumnHeader: React.FC<{
-  rule: AllowanceRegionRule;
+  rule: EditableAllowanceRegionRule;
   onAddRule: () => void;
   children: React.ReactNode;
 }> = ({ rule, onAddRule, children }) => {
@@ -182,6 +192,7 @@ const SortableColumnHeader: React.FC<{
             variant="ghost"
             onClick={onAddRule}
             className="gba:h-6 gba:w-6 gba:p-0"
+            title="Add New Rule"
           >
             <PiPlus className="gba:w-3 gba:h-3" />
           </Button>
@@ -200,14 +211,14 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   onBack,
 }) => {
   const [editableTravelRegions, setEditableTravelRegions] = useState<EditableTravelRegion[]>([]);
-  const [allowanceRegionRules, setAllowanceRegionRules] = useState<AllowanceRegionRule[]>([]);
+  const [allowanceRegionRules, setAllowanceRegionRules] = useState<EditableAllowanceRegionRule[]>([]);
   const [editableCells, setEditableCells] = useState<EditableCell[]>([]);
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [editingCell, setEditingCell] = useState<{ ruleId: string; regionId: string; field?: string } | null>(null);
+  const [editingCell, setEditingCell] = useState<{ ruleId: string; regionId: string; field?: string; periodId?: string } | null>(null);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [isRuleModalLoading, setIsRuleModalLoading] = useState(false);
   const [isRegionModalOpen, setIsRegionModalOpen] = useState(false);
@@ -223,15 +234,19 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const graphqlClient = useGraphQLClient(accessToken);
   const catalogClient = useCatalogManagerClient(accessToken);
-  const expenseSettingsClient = new ExpenseSettingsClient();
-
-  // Initialize client
-  useEffect(() => {
+  
+  // Initialize query hooks
+  const { fetchAllowanceRegionRules: fetchRulesQuery } = useGetAllowanceRegionRules({ accessToken } as BusinessAppContextProps);
+  const { fetchTravelRegionCount, fetchTravelRegions: fetchRegionsQuery } = useGetTravelRegions({ accessToken } as BusinessAppContextProps);
+  
+  // Create a function to get a fresh client with current token
+  const getExpenseSettingsClient = useCallback(() => {
+    const client = new ExpenseSettingsClient();
     if (accessToken) {
-      expenseSettingsClient.setAccessToken(accessToken);
+      client.setAccessToken(accessToken);
     }
+    return client;
   }, [accessToken]);
 
   // Drag and drop sensors
@@ -267,110 +282,27 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   }, [catalogClient]);
 
   // Load travel regions with pagination and search
-  const loadTravelRegions = useCallback(async (page: number = currentPage, limit: number = pageSize, search: string = searchTerm) => {
+  const loadTravelRegions = useCallback(async (page: number, limit: number, search: string = '') => {
     try {
       setIsLoadingRegions(true);
       const offset = (page - 1) * limit;
       
-      // First, get the total count from the parent entry's childEntriesAggregate
-      const countQuery = `
-        query GetTravelRegionSetCount($parentEntryId: String!) {
-          CatalogEntry(
-            where: {
-              id: { _eq: $parentEntryId }
-              catalog: {
-                identifier: { _eq: "TravelRegionSet" }
-                version: { _eq: "v1" }
-              }
-              isDeleted: { _eq: false }
-            }
-          ) {
-            id
-            childEntriesAggregate(
-              where: { 
-                isDeleted: { _eq: false },
-                catalog: { 
-                  identifier: { _eq: "TravelRegion" }, 
-                  version: { _eq: "v1" } 
-                }
-              }
-            ) {
-              aggregate {
-                count
-              }
-            }
-          }
-        }
-      `;
+      console.log('📄 Loading travel regions:', { page, limit, offset, search, travelRegionSetId });
       
-      // Then get the paginated regions with search
-      const regionsQuery = search ? `
-        query GetTravelRegionsByParent($parentEntryId: String!, $limit: Int!, $offset: Int!, $search: String!) {
-          CatalogEntry(
-            where: {
-              catalog: {
-                identifier: { _eq: "TravelRegion" }
-                version: { _eq: "v1" }
-              }
-              parentEntryId: { _eq: $parentEntryId }
-              isDeleted: { _eq: false }
-              _or: [
-                { value: { _ilike: $search } }
-                { code: { _ilike: $search } }
-              ]
-            }
-            orderBy: { code: ASC }
-            limit: $limit
-            offset: $offset
-          ) {
-            id
-            code
-            value
-          }
-        }
-      ` : `
-        query GetTravelRegionsByParent($parentEntryId: String!, $limit: Int!, $offset: Int!) {
-          CatalogEntry(
-            where: {
-              catalog: {
-                identifier: { _eq: "TravelRegion" }
-                version: { _eq: "v1" }
-              }
-              parentEntryId: { _eq: $parentEntryId }
-              isDeleted: { _eq: false }
-            }
-            orderBy: { code: ASC }
-            limit: $limit
-            offset: $offset
-          ) {
-            id
-            code
-            value
-          }
-        }
-      `;
-      
-      // Execute both queries in parallel
-      const searchPattern = search ? `%${search}%` : undefined;
-      const [countResult, regionsResult] = await Promise.all([
-        graphqlClient.request<{ CatalogEntry: any[] }>(countQuery, { parentEntryId: travelRegionSetId }),
-        graphqlClient.request<{ CatalogEntry: any[] }>(regionsQuery, { 
+      // Execute both queries in parallel using the hooks
+      const [totalCount, regions] = await Promise.all([
+        fetchTravelRegionCount(travelRegionSetId),
+        fetchRegionsQuery({
           parentEntryId: travelRegionSetId, 
           limit, 
           offset,
-          ...(searchPattern && { search: searchPattern })
+          search
         })
       ]);
       
-      const regions = regionsResult.CatalogEntry.map((item: any) => ({
-        id: item.id,
-        code: item.code,
-        value: item.value
-      }));
+      console.log('✅ Loaded regions:', { totalCount, regionsCount: regions.length, regions: regions.map(r => r.value) });
       
-      const totalCount = countResult.CatalogEntry[0]?.childEntriesAggregate?.aggregate?.count || 0;
       setTotalRegions(totalCount);
-      
       return regions;
     } catch (err) {
       console.error('Error loading travel regions:', err);
@@ -378,7 +310,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     } finally {
       setIsLoadingRegions(false);
     }
-  }, [graphqlClient, travelRegionSetId, currentPage, pageSize]);
+  }, [fetchTravelRegionCount, fetchRegionsQuery, travelRegionSetId]);
 
   // Handle search
   const handleSearch = useCallback(async (search: string) => {
@@ -387,6 +319,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     
     try {
       const regions = await loadTravelRegions(1, pageSize, search);
+      
       // Update the regions state
       const editableRegions = regions.map(region => ({
         ...region,
@@ -414,78 +347,108 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   // Load allowance region rules
   const loadAllowanceRegionRules = useCallback(async () => {
     try {
-      // Use the exact same query structure as the working TravelRegionMatrixView
-      const query = `
-        query GetAllowanceRegionRulesWithTravelRegionSet($travelRegionSetId: String!) {
-          AllowanceRegionRule(
-            where: { 
-              isDeleted: { _eq: false },
-              travelRegionSetRef: { _eq: $travelRegionSetId }
-            }
-            orderBy: [{ ruleOrder: ASC }, { code: ASC }]
-          ) {
-            id
-            code
-            name
-            activeFrom
-            activeTo
-            ruleOrder
-            allowanceRegionRuleDetail(where: { isDeleted: { _eq: false } }) {
-              id
-              amount
-              activeFrom
-              activeTo
-              travelRegionRef
-              country {
-                id
-                code
-                value
-              }
-              currency {
-                id
-                code
-                value
-              }
+      // Use the query hook to fetch rules
+      const result = await fetchRulesQuery({ travelRegionSetId });
+      
+      // Extract all unique travel regions that have details
+      const regionsWithDetailsMap = new Map<string, TravelRegion>();
+      result.AllowanceRegionRule.forEach((rule: any) => {
+        rule.allowanceRegionRuleDetail?.forEach((detail: any) => {
+          if (detail.travelRegion && detail.travelRegion.id) {
+            const regionId = detail.travelRegion.id;
+            if (!regionsWithDetailsMap.has(regionId)) {
+              regionsWithDetailsMap.set(regionId, {
+                id: detail.travelRegion.id,
+                code: detail.travelRegion.code,
+                value: detail.travelRegion.value
+              });
             }
           }
-        }
-      `;
-
-      const result = await graphqlClient.request<{ AllowanceRegionRule: any[] }>(
-        query, 
-        { travelRegionSetId }
-      );
+        });
+      });
+      const regionsWithDetails = Array.from(regionsWithDetailsMap.values());
+      console.log('🗺️ Regions with details:', regionsWithDetails.map(r => ({ id: r.id, value: r.value })));
       
-      const rules: AllowanceRegionRule[] = result.AllowanceRegionRule.map((rule: any) => ({
+      const rules: EditableAllowanceRegionRule[] = result.AllowanceRegionRule.map((rule: any) => {
+        console.log(`📋 Rule "${rule.name}" (${rule.id}) has ${rule.allowanceRegionRuleDetail?.length || 0} details`);
+        
+        const details = rule.allowanceRegionRuleDetail.map((detail: any) => {
+          console.log(`  └─ Detail: ${detail.amount} ${detail.currency?.code}, region: ${detail.travelRegion?.value}`);
+          return {
+            ...detail,
+            // Keep the travelRegion from GraphQL query (don't overwrite it!)
+            travelRegion: detail.travelRegion
+          };
+        });
+        
+        // Extract validity periods from details
+        const periodMap = new Map<string, ValidityPeriod>();
+        
+        details.forEach((detail: any) => {
+          const periodKey = `${detail.activeFrom}-${detail.activeTo || 'null'}`;
+          if (!periodMap.has(periodKey)) {
+            periodMap.set(periodKey, {
+              id: periodKey,
+              activeFrom: detail.activeFrom,
+              activeTo: detail.activeTo,
+              currencyCode: detail.currency?.code || 'EUR',
+              hasConflict: false,
+              ruleId: rule.id
+            });
+          } else {
+            // Check for currency conflicts
+            const existing = periodMap.get(periodKey)!;
+            if (existing.currencyCode !== (detail.currency?.code || 'EUR')) {
+              existing.hasConflict = true;
+            }
+          }
+        });
+        
+        return {
         id: rule.id,
         code: rule.code,
         name: rule.name,
         activeFrom: rule.activeFrom,
         activeTo: rule.activeTo,
         ruleOrder: rule.ruleOrder,
-        details: rule.allowanceRegionRuleDetail.map((detail: any) => ({
-          ...detail,
-          // Extract travel region info from the reference string if needed
-          travelRegion: detail.travelRegionRef ? {
-            id: detail.travelRegionRef,
-            code: '',
-            value: ''
-          } : undefined
-        }))
-      }));
+          version: rule.version,
+          details,
+          validityPeriods: Array.from(periodMap.values())
+        };
+      });
       
-      return rules;
+      console.log('📊 Loaded rules:', rules.map(r => ({ 
+        name: r.name, 
+        periods: r.validityPeriods.length, 
+        details: r.details.length 
+      })));
+      
+      return { rules, regionsWithDetails };
     } catch (err) {
       console.error('Error loading allowance region rules:', err);
-      return [];
+      return { rules: [], regionsWithDetails: [] };
     }
-  }, [graphqlClient, travelRegionSetId]);
+  }, [fetchRulesQuery, travelRegionSetId]);
 
   // Convert rule details to editable cells
-  const convertToEditableCells = useCallback((rules: AllowanceRegionRule[], regions: TravelRegion[]): EditableCell[] => {
+  const convertToEditableCells = useCallback((rules: EditableAllowanceRegionRule[], regions: TravelRegion[]): EditableCell[] => {
     const cells: EditableCell[] = [];
     
+    console.log('🔄 Converting to cells:', { rulesCount: rules.length, regionsCount: regions.length });
+    
     rules.forEach(rule => {
+      console.log('📋 Processing rule:', rule.name, {
+        detailsCount: rule.details?.length || 0,
+        periodsCount: rule.validityPeriods.length,
+        details: rule.details?.map(d => ({ 
+          id: d.id, 
+          amount: d.amount, 
+          travelRegionId: d.travelRegion?.id,
+          activeFrom: d.activeFrom,
+          activeTo: d.activeTo
+        }))
+      });
+      
       regions.forEach(region => {
         // Find existing details for this rule-region combination
         const existingDetails = rule.details?.filter(detail => 
@@ -493,8 +456,23 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         ) || [];
         
         if (existingDetails.length > 0) {
+          console.log('✅ Found details for rule:', rule.name, 'region:', region.value, 'count:', existingDetails.length);
+          
           // Create cells for existing details
           existingDetails.forEach(detail => {
+            // Find the matching validity period for this detail
+            const periodKey = `${detail.activeFrom}-${detail.activeTo || 'null'}`;
+            const matchingPeriod = rule.validityPeriods.find(p => p.id === periodKey);
+            
+            console.log('💾 Creating cell:', {
+              rule: rule.name,
+              region: region.value,
+              amount: detail.amount,
+              periodKey,
+              foundPeriod: !!matchingPeriod,
+              validityPeriodId: matchingPeriod?.id
+            });
+            
             cells.push({
               id: detail.id,
               travelRegionId: region.id,
@@ -504,25 +482,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               activeFrom: detail.activeFrom,
               activeTo: detail.activeTo,
               isNew: false,
-              isModified: false
+              isModified: false,
+              validityPeriodId: matchingPeriod?.id // Link to the validity period
             });
           });
-        } else {
-          // Create empty cell placeholder
-          cells.push({
-            travelRegionId: region.id,
-            allowanceRegionRuleId: rule.id,
-            amount: 0,
-            currencyCode: 'EUR',
-            activeFrom: dayjs().format('YYYY-MM-DD'),
-            activeTo: undefined,
-            isNew: true,
-            isModified: false
-          });
         }
+        // Note: We no longer create empty placeholders here
+        // Cells are created on-demand when clicking or adding a period
       });
     });
     
+    console.log('✅ Total cells created:', cells.length);
     return cells;
   }, []);
 
@@ -561,32 +531,49 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setError(null);
     
     try {
-      const [regions, rules] = await Promise.all([
+      console.log('🔄 Loading all data...');
+      const [paginatedRegions, rulesData] = await Promise.all([
         loadTravelRegions(currentPage, pageSize, ''), // No search for normal load
         loadAllowanceRegionRules(),
         loadCurrencies()
       ]);
       
+      const { rules, regionsWithDetails } = rulesData;
       setAllowanceRegionRules(rules);
       
-      const cells = convertToEditableCells(rules, regions);
+      console.log('📊 Data loaded:', {
+        paginatedRegionsCount: paginatedRegions.length,
+        regionsWithDetailsCount: regionsWithDetails.length,
+        rulesCount: rules.length,
+        paginatedRegions: paginatedRegions.map(r => r.value),
+        regionsWithDetails: regionsWithDetails.map(r => r.value)
+      });
+      
+      // Use ONLY paginated regions for display (don't add regions from other pages)
+      // The details will be shown for regions on the current page that have details
+      console.log('✅ Regions to display (current page):', { 
+        regionsCount: paginatedRegions.length,
+        regions: paginatedRegions.map(r => r.value)
+      });
+      
+      // Generate cells for ALL rules and ALL regions (including those with details)
+      // This ensures details are available for rendering even if region is on another page
+      const allRegionsForCells = [...paginatedRegions, ...regionsWithDetails];
+      const uniqueRegionsForCells = Array.from(
+        new Map(allRegionsForCells.map(r => [r.id, r])).values()
+      );
+      const cells = convertToEditableCells(rules, uniqueRegionsForCells);
       const validatedCells = validateCurrencies(cells);
       setEditableCells(validatedCells);
       
-      // Store regions temporarily to convert after convertToEditableRegions is available
-      // Remove duplicates based on region ID
-      const uniqueRegions = regions.filter((region, index, self) => 
-        index === self.findIndex(r => r.id === region.id)
-      );
-      
-      setEditableTravelRegions(uniqueRegions.map(region => ({
+      // Display only the paginated regions (sorted by GraphQL)
+      setEditableTravelRegions(paginatedRegions.map(region => ({
         ...region,
         isEditing: false,
         editingCode: region.code,
         editingValue: region.value,
         isModified: false,
-        isNew: false,
-        validityPeriods: []
+        isNew: false
       })));
       
     } catch (err) {
@@ -594,61 +581,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [loadTravelRegions, loadAllowanceRegionRules, loadCurrencies, validateCurrencies, currentPage, pageSize]);
-
-  // Convert regular travel regions to editable ones
-  const convertToEditableRegions = useCallback((regions: TravelRegion[], cells: EditableCell[]): EditableTravelRegion[] => {
-    return regions.map(region => {
-      // Group cells by validity periods for this region
-      const regionCells = cells.filter(cell => cell.travelRegionId === region.id);
-      const validityPeriods: ValidityPeriod[] = [];
-      
-      // Create validity periods based on unique activeFrom/activeTo combinations
-      const periodMap = new Map<string, ValidityPeriod>();
-      
-      regionCells.forEach(cell => {
-        const periodKey = `${cell.activeFrom}-${cell.activeTo || 'null'}`;
-        if (!periodMap.has(periodKey)) {
-          periodMap.set(periodKey, {
-            id: periodKey,
-            activeFrom: cell.activeFrom,
-            activeTo: cell.activeTo,
-            currencyCode: cell.currencyCode,
-            hasConflict: false
-          });
-        } else {
-          // Check for currency conflicts
-          const existing = periodMap.get(periodKey)!;
-          if (existing.currencyCode !== cell.currencyCode) {
-            existing.hasConflict = true;
-          }
-        }
-      });
-      
-      validityPeriods.push(...periodMap.values());
-      
-      // If no validity periods exist, create a default one
-      if (validityPeriods.length === 0) {
-        validityPeriods.push({
-          id: `default-${region.id}`,
-          activeFrom: dayjs().format('YYYY-MM-DD'),
-          activeTo: undefined,
-          currencyCode: 'EUR',
-          hasConflict: false
-        });
-      }
-      
-      return {
-        ...region,
-        isEditing: false,
-        editingCode: region.code,
-        editingValue: region.value,
-        isModified: false,
-        isNew: false,
-        validityPeriods
-      };
-    });
-  }, []);
+  }, [loadTravelRegions, loadAllowanceRegionRules, loadCurrencies, validateCurrencies, convertToEditableCells, currentPage, pageSize]);
 
   useEffect(() => {
     if (accessToken && travelRegionSetId) {
@@ -662,25 +595,49 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setIsLoadingRegions(true);
     
     try {
-      const regions = await loadTravelRegions(newPage, pageSize);
+      const paginatedRegions = await loadTravelRegions(newPage, pageSize, '');
       
-      // Update editable regions with new page data
-      const uniqueRegions = regions.filter((region, index, self) => 
-        index === self.findIndex(r => r.id === region.id)
-      );
+      // Get regions with details from current rules
+      const regionsWithDetailsMap = new Map<string, TravelRegion>();
+      allowanceRegionRules.forEach(rule => {
+        rule.details?.forEach(detail => {
+          if (detail.travelRegion && detail.travelRegion.id) {
+            const regionId = detail.travelRegion.id;
+            if (!regionsWithDetailsMap.has(regionId)) {
+              regionsWithDetailsMap.set(regionId, {
+                id: detail.travelRegion.id,
+                code: detail.travelRegion.code,
+                value: detail.travelRegion.value
+              });
+            }
+          }
+        });
+      });
+      const regionsWithDetails = Array.from(regionsWithDetailsMap.values());
       
-      setEditableTravelRegions(uniqueRegions.map(region => ({
+      // Use ONLY paginated regions for display (don't add regions from other pages)
+      console.log('📄 Page change - displaying only paginated regions:', {
+        regionsCount: paginatedRegions.length,
+        regions: paginatedRegions.map(r => r.value)
+      });
+      
+      // Display only the paginated regions (sorted by GraphQL)
+      setEditableTravelRegions(paginatedRegions.map(region => ({
         ...region,
         isEditing: false,
         editingCode: region.code,
         editingValue: region.value,
         isModified: false,
-        isNew: false,
-        validityPeriods: []
+        isNew: false
       })));
       
-      // Regenerate cells for new regions
-      const cells = convertToEditableCells(allowanceRegionRules, regions);
+      // Generate cells for ALL rules and ALL regions (including those with details)
+      // This ensures details are available for rendering even if region is on another page
+      const allRegionsForCells = [...paginatedRegions, ...regionsWithDetails];
+      const uniqueRegionsForCells = Array.from(
+        new Map(allRegionsForCells.map(r => [r.id, r])).values()
+      );
+      const cells = convertToEditableCells(allowanceRegionRules, uniqueRegionsForCells);
       const validatedCells = validateCurrencies(cells);
       setEditableCells(validatedCells);
       
@@ -689,30 +646,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     } finally {
       setIsLoadingRegions(false);
     }
-  }, [loadTravelRegions, pageSize, allowanceRegionRules, validateCurrencies]);
-
-  // Update editable regions with validity periods after cells are loaded
-  // Only update if we don't have manually added periods (to preserve user-added periods)
-  useEffect(() => {
-    if (editableTravelRegions.length > 0 && editableCells.length > 0) {
-      // Check if any region has manually added periods (periods with timestamp-based IDs)
-      const hasManuallyAddedPeriods = editableTravelRegions.some(region => 
-        region.validityPeriods.some(period => period.id.includes('-period-'))
-      );
-      
-      // Check if any cells are new (manually added)
-      const hasNewCells = editableCells.some(cell => cell.isNew);
-      
-      // Only update if no manually added periods exist AND no new cells exist
-      if (!hasManuallyAddedPeriods && !hasNewCells) {
-        const updatedRegions = convertToEditableRegions(
-          editableTravelRegions.map(r => ({ id: r.id, code: r.code, value: r.value })),
-          editableCells
-        );
-        setEditableTravelRegions(updatedRegions);
-      } 
-    }
-  }, [editableCells]);
+  }, [loadTravelRegions, pageSize, allowanceRegionRules, validateCurrencies, convertToEditableCells]);
 
   // Cleanup search timeout on unmount
   useEffect(() => {
@@ -751,111 +685,8 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     setEditingCell(null);
   };
 
-  // Handle validity period editing
-  const handlePeriodEdit = (regionId: string, _periodId: string, field: 'currency' | 'activeFrom' | 'activeTo') => {
-    setEditingCell({ ruleId: '', regionId, field });
-  };
-
-  const handlePeriodChange = (regionId: string, periodId: string, field: 'currencyCode' | 'activeFrom' | 'activeTo', value: string) => {
-    // Update the validity period in the region
-    setEditableTravelRegions(prev => prev.map(region => 
-      region.id === regionId 
-        ? {
-            ...region,
-            validityPeriods: region.validityPeriods.map(period =>
-              period.id === periodId
-                ? { ...period, [field]: value }
-                : period
-            ),
-            isModified: true
-          }
-        : region
-    ));
-
-    // Also update all cells that match this period
-    setEditableCells(prev => prev.map(cell => {
-      if (cell.travelRegionId === regionId) {
-        const currentPeriod = editableTravelRegions
-          .find(r => r.id === regionId)
-          ?.validityPeriods.find(p => p.id === periodId);
-        
-        if (currentPeriod && 
-            cell.activeFrom === currentPeriod.activeFrom &&
-            (cell.activeTo || undefined) === currentPeriod.activeTo) {
-          return { ...cell, [field]: value, isModified: true };
-        }
-      }
-      return cell;
-    }));
-
-    setHasUnsavedChanges(true);
-  };
-
-  // Add new validity period to a region
-  const handleAddValidityPeriod = (regionId: string) => {
-    const newPeriodId = `${regionId}-period-${Date.now()}`;
-    const newPeriod: ValidityPeriod = {
-      id: newPeriodId,
-      activeFrom: dayjs().format('YYYY-MM-DD'),
-      activeTo: undefined,
-      currencyCode: 'EUR',
-      hasConflict: false
-    };
-
-    setEditableTravelRegions(prev => prev.map(region => 
-      region.id === regionId 
-        ? {
-            ...region,
-            validityPeriods: [...region.validityPeriods, newPeriod],
-            isModified: true
-          }
-        : region
-    ));
-
-    // Also create corresponding cells for all rules for this new period
-    setEditableCells(prev => {
-      
-      const newCells: EditableCell[] = [];
-      allowanceRegionRules.forEach(rule => {
-        // Check if cell already exists for this rule and period
-        const existingCell = prev.find(cell => 
-          cell.travelRegionId === regionId && 
-          cell.allowanceRegionRuleId === rule.id && 
-          cell.validityPeriodId === newPeriodId
-        );
-        
-        if (!existingCell) {
-          newCells.push({
-            id: undefined,
-            travelRegionId: regionId,
-            allowanceRegionRuleId: rule.id,
-            amount: 0,
-            currencyCode: 'EUR',
-            activeFrom: newPeriod.activeFrom,
-            activeTo: newPeriod.activeTo,
-            isNew: true,
-            isModified: false,
-            hasError: false,
-            validityPeriodId: newPeriodId
-          });
-        }
-      });
-      
-      return [...prev, ...newCells];
-    });
-
-    // Auto-focus the first cell of the new period for immediate editing
-    if (allowanceRegionRules.length > 0) {
-      const firstRule = allowanceRegionRules[0];
-      setEditingCell({ 
-        ruleId: firstRule.id, 
-        regionId: regionId, 
-        field: undefined 
-      });
-    }
-
-    setHasUnsavedChanges(true);
-  };
+  // Add new validity period to a rule (creates cells for ALL regions for this rule)
+  // Note: handleAddValidityPeriod removed - periods are now added per cell via "+" button
 
   // Handle drag end for column reordering
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -954,14 +785,12 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         businessKey: formData.code.trim()
       };
       
-      // Ensure access token is set before making the API call
-      if (accessToken) {
-        expenseSettingsClient.setAccessToken(accessToken);
-      }
+      // Get a fresh client with current token
+      const client = getExpenseSettingsClient();
       
       // Send the rule data directly (like AllowanceRegionRuleForm does)
       // The ExpenseSettingsClient will transform it to the proper API payload
-      await expenseSettingsClient.saveAllowanceRegionRule(ruleData);
+      await client.saveAllowanceRegionRule(ruleData);
       
       // Reload data to show the new rule
       await loadData();
@@ -991,10 +820,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     );
     
     if (!existingCell) {
-      const region = editableTravelRegions.find(r => r.id === regionId);
-      const period = region?.validityPeriods.find(p => p.id === periodId);
+      const rule = allowanceRegionRules.find(r => r.id === ruleId);
+      const period = rule?.validityPeriods.find((p: ValidityPeriod) => p.id === periodId);
       
-      if (region && period) {
+      if (rule && period) {
         const newCell: EditableCell = {
           id: undefined,
           allowanceRegionRuleId: ruleId,
@@ -1052,37 +881,83 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     
     setIsSaving(true);
     try {
-      // Only save cells that are modified/new (temporarily allow amount 0 for testing)
+      if (!accessToken) {
+        throw new Error('Access token is missing');
+      }
+      
+      // Only save cells that are modified/new and have an amount > 0
       const modifiedCells = editableCells.filter(cell => 
-        ((cell.isModified && !cell.isNew) || cell.isNew)
-        // && cell.amount > 0  // Temporarily disabled for testing
+        ((cell.isModified && !cell.isNew) || cell.isNew) &&
+        cell.amount > 0  // Only save cells with actual amounts
       );
 
       if (modifiedCells.length === 0) {
         toast('No changes to save', 'success');
         return;
       }
-      // Group by rule and save
-      const savePromises = modifiedCells.map(async (cell) => {
-      const currency = currencies.find(c => c.code === cell.currencyCode);
-        
-        if (!currency) {
-          throw new Error(`Currency not found for code: ${cell.currencyCode}`);
+      
+      console.log(`💾 Saving ${modifiedCells.length} cells grouped by rule...`);
+      
+      // Group modified cells by rule
+      const cellsByRule = modifiedCells.reduce((acc, cell) => {
+        if (!acc[cell.allowanceRegionRuleId]) {
+          acc[cell.allowanceRegionRuleId] = [];
+        }
+        acc[cell.allowanceRegionRuleId].push(cell);
+        return acc;
+      }, {} as Record<string, EditableCell[]>);
+      
+      console.log(`📊 Found ${Object.keys(cellsByRule).length} rules with changes`);
+      
+      // Get a fresh client with current token
+      const client = getExpenseSettingsClient();
+      console.log('✅ Created fresh client with access token');
+      
+      // Save details individually - this is the only reliable way for AllowanceRegionRuleDetail
+      await Promise.all(Object.entries(cellsByRule).map(async ([ruleId, cells]) => {
+        const rule = allowanceRegionRules.find(r => r.id === ruleId);
+        if (!rule) {
+          console.error(`❌ Rule not found for ID: ${ruleId}`);
+          return;
         }
         
-        const saveData = {
-          id: cell.id, // undefined for new records, existing ID for updates
+        console.log(`📋 Processing rule "${rule.name}" (ID: ${rule.id}) with ${cells.length} modified cells`);
+        
+        // Save each detail individually
+        const results = await Promise.all(cells.map(async (cell) => {
+      const currency = currencies.find(c => c.code === cell.currencyCode);
+          let countryRef = cell.travelRegionId;
+          
+          // Extract country code from travelRegionRef
+          if (countryRef && countryRef.includes(':')) {
+            const countryCode = countryRef.split(':').pop();
+            countryRef = `Country:v1:${countryCode}`;
+          }
+          
+          // Build the detail payload
+          const detailPayload = {
+            allowanceRegionRuleDetail: {
+              ...(cell.id && { id: cell.id }),
           amount: cell.amount,
-          currencyRef: currency.id,
+              currencyRef: currency?.id,
           activeFrom: cell.activeFrom,
-          activeTo: cell.activeTo,
+          activeTo: cell.activeTo || null, // Explicitly set to null if undefined
           travelRegionRef: cell.travelRegionId,
-          allowanceRegionRuleRef: cell.allowanceRegionRuleId,
-          version: cell.id ? 1 : undefined // Only include version for updates
-        };
-
-        return expenseSettingsClient.saveAllowanceRegionRuleDetail(saveData);
-      });
+              countryRef: countryRef,
+              allowanceRegionRule: rule.id, // ✅ KEY FIX: Use "allowanceRegionRule" not "allowanceRegionRuleId"
+              ...(cell.id && { version: 1 })
+            },
+            changeMode: cell.id ? 'UPDATE' : 'INSERT'
+          };
+          
+          const result = await client.post('/employee-expense/saveAllowanceRegionRuleDetail', detailPayload);
+          
+          return result;
+        }));
+        
+        console.log(`✅ Rule "${rule.name}": Saved ${results.length} details successfully`);
+        return results;
+      }));
 
       const newRecords = modifiedCells.filter(cell => !cell.id).length;
       const updatedRecords = modifiedCells.filter(cell => cell.id).length;
@@ -1098,7 +973,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       
       toast(successMessage, 'success');
       setHasUnsavedChanges(false);
-      loadData(); // Refresh data
+      
+      console.log('🔄 Reloading data after successful save...');
+      await loadData(); // Refresh data
+      console.log('✅ Data reloaded successfully');
       
     } catch (err) {
       console.error('❌ Error saving changes:', err);
@@ -1310,22 +1188,14 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                     </TableCell>
                   </TableRow>
                   
-                  {/* Data Rows - Now supporting multiple validity periods per region */}
-                  {editableTravelRegions.flatMap((region) => {
-                    // Create rows for each validity period + at least one row per region
-                    const validityPeriods = region.validityPeriods.length > 0 ? region.validityPeriods : [
-                      { id: 'new', activeFrom: dayjs().format('YYYY-MM-DD'), activeTo: undefined, currencyCode: 'EUR', hasConflict: false }
-                    ];
-                    
-                    return validityPeriods.map((period, periodIndex) => (
-                    <TableRow key={`${region.id}-${period.id}`}>
-                      <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-64">
-                        <div className="gba:p-2 gba:space-y-2">
-                          {/* Region Info - Only show on first row of each region */}
-                          {periodIndex === 0 && (
-                            <div className="gba:border-b gba:pb-2 gba:mb-2">
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                                <PiMapPin className="gba:text-blue-600" />
+                  {/* Data Rows - One row per region, columns show values based on rule periods */}
+                  {editableTravelRegions.map((region) => (
+                    <TableRow key={region.id}>
+                      <TableCell className="gba:sticky gba:left-0 gba:bg-white gba:z-10 gba:border-r gba:w-48">
+                        <div className="gba:p-3">
+                          {/* Simple Region Info */}
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <PiMapPin className="gba:text-blue-600 gba:w-5 gba:h-5" />
                                 <div className="gba:flex-1">
                                   {/* Editable Code */}
                                   <div className="gba:mb-1">
@@ -1354,7 +1224,7 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                         value={region.editingValue}
                                         onChange={(e) => handleRegionChange(region.id, 'value', e.target.value)}
                                         onBlur={() => handleRegionBlur(region.id)}
-                                        className="gba:h-6 gba:text-xs gba:font-medium"
+                                    className="gba:h-6 gba:text-sm gba:font-medium"
                                         autoFocus
                                       />
                                     ) : (
@@ -1370,208 +1240,227 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                 </div>
                               </div>
                             </div>
-                          )}
-                          
-                          {/* Validity Period & Currency - Editable for this specific row */}
-                          <div className="gba:space-y-2 gba:bg-gray-50 gba:p-2 gba:rounded">
-                            
-                            {/* Currency Selection */}
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:text-xs gba:text-gray-600 gba:w-16">Currency:</span>
-                              {editingCell?.regionId === region.id && editingCell?.field === 'currency' ? (
-                                <Select
-                                  value={period.currencyCode}
-                                  onValueChange={(value) => handlePeriodChange(region.id, period.id, 'currencyCode', value)}
-                                >
-                                  <SelectTrigger className="gba:h-6 gba:text-xs gba:flex-1">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {currencies.map((currency) => (
-                                      <SelectItem key={currency.id} value={currency.code}>
-                                        {currency.code}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              ) : (
-                                <div 
-                                  className="gba:text-sm gba:font-medium gba:cursor-pointer gba:hover:bg-gray-100 gba:px-2 gba:py-1 gba:rounded gba:flex-1"
-                                  onClick={() => handlePeriodEdit(region.id, period.id, 'currency')}
-                                  title="Click to edit currency"
-                                >
-                                  {period.currencyCode}
-                                  {period.hasConflict && <PiWarning className="gba:w-3 gba:h-3 gba:text-red-500 gba:ml-1" />}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Valid From */}
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:text-xs gba:text-gray-600 gba:w-16">From:</span>
-                              {editingCell?.regionId === region.id && editingCell?.field === 'activeFrom' ? (
-                                <Input
-                                  type="date"
-                                  value={period.activeFrom}
-                                  onChange={(e) => handlePeriodChange(region.id, period.id, 'activeFrom', e.target.value)}
-                                  onBlur={() => handleRegionBlur(region.id)}
-                                  className="gba:h-6 gba:text-xs gba:flex-1"
-                                  autoFocus
-                                />
-                              ) : (
-                                <div 
-                                  className="gba:text-sm gba:cursor-pointer gba:hover:bg-gray-100 gba:px-2 gba:py-1 gba:rounded gba:flex-1"
-                                  onClick={() => handlePeriodEdit(region.id, period.id, 'activeFrom')}
-                                  title="Click to edit start date"
-                                >
-                                  {period.activeFrom}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Valid To */}
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:text-xs gba:text-gray-600 gba:w-16">To:</span>
-                              {editingCell?.regionId === region.id && editingCell?.field === 'activeTo' ? (
-                                <Input
-                                  type="date"
-                                  value={period.activeTo || ''}
-                                  onChange={(e) => handlePeriodChange(region.id, period.id, 'activeTo', e.target.value)}
-                                  onBlur={() => handleRegionBlur(region.id)}
-                                  className="gba:h-6 gba:text-xs gba:flex-1"
-                                  placeholder="Leave empty for unlimited"
-                                />
-                              ) : (
-                                <div 
-                                  className="gba:text-sm gba:cursor-pointer gba:hover:bg-gray-100 gba:px-2 gba:py-1 gba:rounded gba:flex-1"
-                                  onClick={() => handlePeriodEdit(region.id, period.id, 'activeTo')}
-                                  title="Click to edit end date"
-                                >
-                                  {period.activeTo || '∞'}
-                                </div>
-                              )}
-                            </div>
-                            
-                            {/* Add new validity period button */}
-                            <div className="gba:mt-2 gba:pt-2 gba:border-t">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleAddValidityPeriod(region.id)}
-                                className="gba:w-full gba:h-6 gba:text-xs"
-                              >
-                                <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
-                                Add Period
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
                       </TableCell>
                       {allowanceRegionRules.map((rule) => {
-                        // Find or create cell for this specific region row + rule combination
-                        let cell = editableCells.find(c => 
+                        // Find all cells for this rule and region (all validity periods)
+                        const ruleCells = editableCells.filter(c => 
                           c.allowanceRegionRuleId === rule.id && 
-                          c.travelRegionId === region.id &&
-                          c.activeFrom === period.activeFrom &&
-                          (c.activeTo || undefined) === period.activeTo
+                          c.travelRegionId === region.id
                         );
                         
-                        // If no cell exists for this row/rule combination, create a placeholder
-                        if (!cell) {
-                          cell = {
-                            id: undefined,
-                            allowanceRegionRuleId: rule.id,
-                            travelRegionId: region.id,
-                            amount: 0,
-                            currencyCode: period.currencyCode,
-                            activeFrom: period.activeFrom,
-                            activeTo: period.activeTo,
-                            isNew: true,
-                            isModified: false,
-                            hasError: false,
-                            validityPeriodId: period.id
-                          };
-                        }
-                        
-                        const isEditing = editingCell?.ruleId === rule.id && 
-                                        editingCell?.regionId === region.id &&
-                                        editingCell?.field === undefined; // Only for amount editing
-                        
-                        // For new cells, always show input field
-                        const shouldShowInput = isEditing || (cell?.isNew && cell?.validityPeriodId === period.id);
+                        // Only use actual validity periods from the rule (no defaults)
+                        const periods = rule.validityPeriods;
                         
                         return (
                           <TableCell 
-                            key={`${rule.id}-${region.id}-${period.id}`}
-                            className={`gba:text-center gba:relative gba:cursor-pointer gba:hover:bg-gray-50 gba:h-16 ${
-                              cell?.hasError ? 'gba:bg-red-50' : 
-                              cell?.isModified ? 'gba:bg-blue-50' : 
-                              cell?.isNew ? 'gba:bg-green-50 gba:border-2 gba:border-green-300' : ''
-                            }`}
-                            onClick={() => handleCellClick(rule.id, region.id, period.id)}
+                            key={`${rule.id}-${region.id}`}
+                            className="gba:text-center gba:relative gba:p-2 gba:align-top"
                           >
-                            {cell ? (
-                              <div className="gba:text-center gba:p-2">
-                                {shouldShowInput ? (
-                                  /* Simple Amount Editing */
-                                  <div className="gba:space-y-2">
+                            {ruleCells.length > 0 ? (
+                              <div className="gba:space-y-2">
+                                {periods.map((period) => {
+                                  // Find cell for this specific period
+                                  const cell = ruleCells.find(c => c.validityPeriodId === period.id);
+                                  
+                                  // Only render card if there's a cell with data
+                                  if (!cell) return null;
+                                  
+                                  return (
+                                    <div 
+                                      key={period.id}
+                                      className={`gba:border gba:rounded gba:p-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:relative ${
+                                        cell?.isModified ? 'gba:bg-blue-50 gba:border-blue-300' : 
+                                        cell?.isNew ? 'gba:bg-green-50 gba:border-green-300' : 'gba:bg-white gba:border-gray-200'
+                                      }`}
+                                      onClick={() => handleCellClick(rule.id, region.id, period.id)}
+                                    >
+                                      {/* Modification Indicator */}
+                                      {cell?.isModified && (
+                                        <div className="gba:absolute gba:top-1 gba:right-1">
+                                          <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
+                                </div>
+                              )}
+                                      
+                                      {/* Editable fields for new cells */}
+                                      {cell.isNew ? (
+                                        <div className="gba:space-y-2">
+                                          {/* Active From */}
+                                          <div>
+                                            <label className="gba:text-xs gba:text-gray-600 gba:block gba:mb-1">From:</label>
+                                <Input
+                                  type="date"
+                                              value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
+                                              onChange={(e) => {
+                                                const dateValue = e.target.value ? `${e.target.value}T00:00:00+00:00` : '';
+                                                setEditableCells(prev => prev.map(c => 
+                                                  c.validityPeriodId === cell.validityPeriodId 
+                                                    ? { ...c, activeFrom: dateValue, isModified: true } 
+                                                    : c
+                                                ));
+                                                setHasUnsavedChanges(true);
+                                              }}
+                                              className="gba:w-full gba:h-7 gba:text-xs"
+                                            />
+                            </div>
+
+                                          {/* Active To */}
+                                          <div>
+                                            <label className="gba:text-xs gba:text-gray-600 gba:block gba:mb-1">To:</label>
+                                <Input
+                                  type="date"
+                                              value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
+                                              onChange={(e) => {
+                                                const dateValue = e.target.value ? `${e.target.value}T00:00:00+00:00` : undefined;
+                                                setEditableCells(prev => prev.map(c => 
+                                                  c.validityPeriodId === cell.validityPeriodId 
+                                                    ? { ...c, activeTo: dateValue, isModified: true } 
+                                                    : c
+                                                ));
+                                                setHasUnsavedChanges(true);
+                                              }}
+                                              className="gba:w-full gba:h-7 gba:text-xs"
+                                            />
+                            </div>
+                            
+                                          {/* Amount */}
+                                          <div>
+                                            <label className="gba:text-xs gba:text-gray-600 gba:block gba:mb-1">Amount:</label>
                                     <Input
                                       type="number"
                                       step="0.01"
                                       value={cell.amount || ''}
                                       onChange={(e) => {
                                         const value = parseFloat(e.target.value) || 0;
-                                        handleCellChange(rule.id, region.id, 'amount', value);
-                                      }}
-                                      onBlur={handleCellBlur}
-                                      className="gba:w-20 gba:h-8 gba:text-center gba:mx-auto"
+                                                setEditableCells(prev => prev.map(c => 
+                                                  c.validityPeriodId === cell.validityPeriodId 
+                                                    ? { ...c, amount: value, isModified: true } 
+                                                    : c
+                                                ));
+                                                setHasUnsavedChanges(true);
+                                              }}
+                                              className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
                                       placeholder="0.00"
-                                      autoFocus
-                                    />
-                                    <div className="gba:text-xs gba:text-gray-500">
-                                      {period.currencyCode}
+                                            />
+                                          </div>
+                                          
+                                          {/* Currency */}
+                                          <div>
+                                            <label className="gba:text-xs gba:text-gray-600 gba:block gba:mb-1">Currency:</label>
+                                            <Select
+                                              value={cell.currencyCode}
+                                              onValueChange={(value) => {
+                                                setEditableCells(prev => prev.map(c => 
+                                                  c.validityPeriodId === cell.validityPeriodId 
+                                                    ? { ...c, currencyCode: value, isModified: true } 
+                                                    : c
+                                                ));
+                                                setHasUnsavedChanges(true);
+                                              }}
+                                            >
+                                              <SelectTrigger className="gba:w-full gba:h-7 gba:text-xs">
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {currencies.map((currency) => (
+                                                  <SelectItem key={currency.id} value={currency.code}>
+                                                    {currency.code} - {currency.value}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
                                     </div>
                                   </div>
                                 ) : (
-                                  /* Display Mode - Amount Only */
-                                  <div>
-                                    <div className="gba:text-lg gba:font-medium">
-                                      {cell.amount > 0 ? (
-                                        cell.amount.toFixed(2)
-                                      ) : (
-                                        <span className="gba:text-gray-400">—</span>
-                                      )}
+                                        <>
+                                          {/* Period Dates */}
+                                          <div className="gba:text-xs gba:text-gray-500 gba:mb-2 gba:text-center">
+                                            {cell.activeFrom ? dayjs(cell.activeFrom).format('DD/MM/YY') : 'New'} - {cell.activeTo ? dayjs(cell.activeTo).format('DD/MM/YY') : '∞'}
                                     </div>
-                                    <div className="gba:text-xs gba:text-gray-500">
-                                      {period.currencyCode}
+                                          
+                                          {/* Amount Display */}
+                                          <div className="gba:text-center gba:mb-2">
+                                            <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
+                                              {cell.amount.toFixed(2)}
                                     </div>
                                   </div>
-                                )}
-                                
-                                {/* Modification Indicator */}
-                                {cell.isModified && (
-                                  <div className="gba:absolute gba:top-1 gba:right-1">
-                                    <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
+                                          
+                                          {/* Currency */}
+                                          <div className="gba:text-xs gba:text-gray-600 gba:text-center gba:font-medium">
+                                            {cell.currencyCode}
                                   </div>
+                                        </>
                                 )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             ) : (
-                              /* Empty Cell */
-                              <div className="gba:text-center gba:py-4 gba:text-gray-400 gba:cursor-pointer" 
-                                   onClick={() => handleCellClick(rule.id, region.id, period.id)}>
-                                <div className="gba:text-2xl">+</div>
-                                <div className="gba:text-xs">Add</div>
+                              /* No cells - Show "+" button to add new detail */
+                              <div className="gba:text-center gba:py-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Create a new cell for this rule-region combination
+                                    const newPeriodId = `new-${rule.id}-${region.id}-${Date.now()}`;
+                                    const todayDate = `${dayjs().format('YYYY-MM-DD')}T00:00:00+00:00`;
+                                    
+                                    // Create new period for this rule
+                                    const newPeriod: ValidityPeriod = {
+                                      id: newPeriodId,
+                                      activeFrom: todayDate,
+                                      activeTo: undefined,
+                                      currencyCode: 'EUR',
+                                      hasConflict: false,
+                                      ruleId: rule.id
+                                    };
+                                    
+                                    // Add period to the rule's validityPeriods
+                                    setAllowanceRegionRules(prev => prev.map(r => 
+                                      r.id === rule.id 
+                                        ? { ...r, validityPeriods: [...r.validityPeriods, newPeriod] }
+                                        : r
+                                    ));
+                                    
+                                    // Create new cell
+                                    const newCell: EditableCell = {
+                                      id: undefined,
+                                      travelRegionId: region.id,
+                                      allowanceRegionRuleId: rule.id,
+                                      amount: 0,
+                                      currencyCode: 'EUR',
+                                      activeFrom: todayDate,
+                                      activeTo: undefined,
+                                      isNew: true,
+                                      isModified: false,
+                                      hasError: false,
+                                      validityPeriodId: newPeriodId
+                                    };
+                                    
+                                    setEditableCells(prev => [...prev, newCell]);
+                                    setEditingCell({ 
+                                      ruleId: rule.id, 
+                                      regionId: region.id, 
+                                      periodId: newPeriodId,
+                                      field: undefined 
+                                    });
+                                    setHasUnsavedChanges(true);
+                                  }}
+                                  className="gba:w-10 gba:h-10 gba:text-gray-400 hover:gba:text-gray-600 hover:gba:bg-gray-100"
+                                  title="Add new allowance detail"
+                                >
+                                  <PiPlus className="gba:w-5 gba:h-5" />
+                                </Button>
                               </div>
                             )}
                           </TableCell>
                         );
                       })}
                       {/* Empty add column cell */}
-                      <TableCell className="gba:w-16 gba:text-center gba:text-gray-300 gba:h-16">
+                      <TableCell className="gba:w-16 gba:text-center gba:text-gray-300">
                       </TableCell>
                     </TableRow>
-                    ));
-                  })}
+                  ))}
                 </TableBody>
               </Table>
             </DndContext>
@@ -1622,6 +1511,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               <Button
                 variant="outline"
                 size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1 || isLoadingRegions}
+                data-testid={`${prefixDataTestId}-first-page-button`}
+                title="Go to first page"
+              >
+                First
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1 || isLoadingRegions}
                 data-testid={`${prefixDataTestId}-prev-page-button`}
@@ -1663,6 +1563,17 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                 data-testid={`${prefixDataTestId}-next-page-button`}
               >
                 Next
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(Math.ceil(totalRegions / pageSize))}
+                disabled={currentPage >= Math.ceil(totalRegions / pageSize) || isLoadingRegions}
+                data-testid={`${prefixDataTestId}-last-page-button`}
+                title="Go to last page"
+              >
+                Last
               </Button>
             </div>
           ) : (

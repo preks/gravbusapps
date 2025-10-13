@@ -82,16 +82,13 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
         code: formData.code.trim(),
         name: formData.name.trim(),
         description: formData.description?.trim() || '',
-        activeFrom: formData.activeFrom,
-        activeTo: formData.activeTo || null,
+        activeFrom: formData.activeFrom ? `${formData.activeFrom}T00:00:00+00:00` : null,
+        activeTo: formData.activeTo ? `${formData.activeTo}T00:00:00+00:00` : null,
         travelRegionSetRef: travelRegionSetId,
-        ruleOrder: 99, // Will be adjusted by the backend
         additionalProperties: {},
         businessKey: formData.code.trim()
       };
 
-      console.log('🚀 Creating Allowance Region Rule:', ruleData);
-      
       await expenseSettingsClient.saveAllowanceRegionRule(ruleData);
       
       toast('Allowance region rule created successfully', 'success');

@@ -205,7 +205,7 @@ export class ExpenseSettingsClient extends RestClient {
         ...(data.regionType && { regionType: data.regionType }),
         ...(data.countryCode && { countryCode: data.countryCode }),
         ...(data.cityName && { cityName: data.cityName }),
-        ...(data.details && { details: data.details }),
+        ...(data.details && { allowanceRegionRuleDetail: data.details }), // Changed: use allowanceRegionRuleDetail instead of details
         ...(data.travelRegionSetRef && { travelRegionSetRef: data.travelRegionSetRef }),
         ...(data.ruleOrder !== undefined && { ruleOrder: data.ruleOrder }),
         ...(data.additionalProperties && { additionalProperties: data.additionalProperties }),
@@ -214,6 +214,20 @@ export class ExpenseSettingsClient extends RestClient {
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     };
+    
+    console.log('💾 Final saveAllowanceRegionRule payload:', JSON.stringify(payload, null, 2));
+    if (payload.allowanceRegionRule.allowanceRegionRuleDetail) {
+      console.log(`📊 Sending ${payload.allowanceRegionRule.allowanceRegionRuleDetail.length} details`);
+      console.log(`  ↳ Each detail has allowanceRegionRuleId?`, 
+        payload.allowanceRegionRule.allowanceRegionRuleDetail.map((d: any) => ({
+          hasId: !!d.id,
+          hasAllowanceRegionRuleId: !!d.allowanceRegionRuleId,
+          allowanceRegionRuleId: d.allowanceRegionRuleId,
+          amount: d.amount
+        }))
+      );
+    }
+    
     return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, payload);
   }
 
@@ -232,10 +246,37 @@ export class ExpenseSettingsClient extends RestClient {
   async saveAllowanceRegionRuleDetail(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
     const hasId = data.id;
+    
+    // Extract country code from travelRegionRef (e.g., "TravelRegion:v1:RO" -> "RO")
+    let countryRef = data.countryRef;
+    if (!countryRef && data.travelRegionRef) {
+      const parts = data.travelRegionRef.split(':');
+      const countryCode = parts[parts.length - 1]; // Get last part (e.g., "RO")
+      countryRef = `Country:v1:${countryCode}`;
+    }
+    
     const payload = {
-      ...data,
+      allowanceRegionRuleDetail: {
+        ...(hasId && { id: data.id }),
+        amount: data.amount,
+        currencyRef: data.currencyRef,
+        activeFrom: data.activeFrom,
+        activeTo: data.activeTo,
+        travelRegionRef: data.travelRegionRef,
+        countryRef: countryRef, // Required field
+        allowanceRegionRuleId: data.allowanceRegionRuleRef, // Changed from allowanceRegionRuleRef to allowanceRegionRuleId
+        ...(data.version !== undefined && { version: data.version })
+      },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
     };
+    
+    console.log('💾 ExpenseSettingsClient - Payload for saveAllowanceRegionRuleDetail:', JSON.stringify(payload, null, 2));
+    console.log('🔍 allowanceRegionRuleId mapping:', {
+      input_allowanceRegionRuleRef: data.allowanceRegionRuleRef,
+      output_allowanceRegionRuleId: payload.allowanceRegionRuleDetail.allowanceRegionRuleId,
+      isNull: payload.allowanceRegionRuleDetail.allowanceRegionRuleId === null || payload.allowanceRegionRuleDetail.allowanceRegionRuleId === undefined
+    });
+    
     return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload);
   }
 
