@@ -14,6 +14,7 @@ import {
   getCatalogValue,
   getCurrentActiveStructureId
 } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 import { CalendarBlankIcon } from '@phosphor-icons/react'
 import { startProcess } from '@/common/utils/start-process'
@@ -86,26 +87,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         setAbsenceList(
           absences.map((absence: any) => ({
             type: absence.type ? getCatalogValue(absence.type) || '' : '',
-            status: (() => {
-              switch ((absence.status || '').toUpperCase()) {
-                case 'PENDING':
-                  return getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_statuses.action_required',
-                    'Action Required'
-                  )
-                case 'APPROVED':
-                  return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')
-                case 'REJECTED':
-                  return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')
-                case 'CANCELLED':
-                  return getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:absences_overview_entry_screen.cancelled_status',
-                    'Cancelled'
-                  )
-                default:
-                  return absence.status
-              }
-            })(),
+            status: getAbsenceStatusLabel(absence.status),
             title: absence.type ? getCatalogValue(absence.type) || '' : '',
             startDate: absence.startDate,
             endDate: absence.endDate,
