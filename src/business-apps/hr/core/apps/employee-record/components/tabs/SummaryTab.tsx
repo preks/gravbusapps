@@ -45,7 +45,6 @@ interface SummaryTabProps {
   accessToken: string
   currentUserEmployeeId?: string
   userInfo?: UserInfoProps // Current user info
-  isSelfView: boolean // Whether user is viewing their own profile
   employeeAbsenceEntitlement: EmployeeAbsenceEntitlement[]
 }
 
@@ -62,7 +61,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
   employee,
   accessToken,
   currentUserEmployeeId,
-  isSelfView,
   employeeAbsenceEntitlement
 }) => {
   // Fetch upcoming absence for this employee
@@ -144,7 +142,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
   // Map real team members from GraphQL data
   const subordinates = useMemo(() => {
-    const tm = employee.employeePosition?.subordinates
+    const tm = employee.employeePosition?.subordinates.filter(member => member.employee)
     if (!tm || !Array.isArray(tm)) return []
     return tm.map((member: any) => ({
       id: member.employee?.id,
@@ -274,13 +272,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         }
                         initials={`${employee.employeePosition.supervisor.firstName?.[0] || ''}${employee.employeePosition.supervisor.lastName?.[0] || ''}`}
                         alt={`${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}`}
-                        // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                        // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
                         contentType={employee.employeePosition.supervisor.pictureThumbnail ? 'image' : 'initials'}
-                        // @ts-ignore - Type issue in gravity-ui-catalog for size
+                        // @ts-expect-error - Type issue in gravity-ui-catalog for size
                         size="xl"
-                        // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                        // @ts-expect-error - Type issue in gravity-ui-catalog for shape
                         shape="circle"
-                        // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                        // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
                         appearance="gradient"
                       />
                       <div className="gba:mt-2 gba:text-center">
@@ -303,13 +301,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                       src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
                       initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
                       alt={`${employee.firstName} ${employee.lastName}`}
-                      // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
                       contentType={employee.pictureThumbnail ? 'image' : 'initials'}
-                      // @ts-ignore - Type issue in gravity-ui-catalog for size
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for size
                       size="xl"
-                      // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for shape
                       shape="circle"
-                      // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
                       appearance="gradient"
                     />
                   </div>
@@ -348,13 +346,13 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                           src={member.profilePicture ? `data:image/gif;base64,${member.profilePicture}` : undefined}
                           initials={`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
                           alt={`${member.firstName} ${member.lastName}`}
-                          // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                          // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
                           contentType={member.profilePicture ? 'image' : 'initials'}
-                          // @ts-ignore - Type issue in gravity-ui-catalog for size
+                          // @ts-expect-error - Type issue in gravity-ui-catalog for size
                           size="xl"
-                          // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                          // @ts-expect-error - Type issue in gravity-ui-catalog for shape
                           shape="circle"
-                          // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                          // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
                           appearance="gradient"
                         />
                         <div className="gba:mt-2 gba:text-center gba:w-full">
