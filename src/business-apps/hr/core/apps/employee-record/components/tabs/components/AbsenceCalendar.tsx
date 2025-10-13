@@ -6,6 +6,7 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { CalendarProps } from '../../../queries/types'
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 // Import dayjs locale
 import 'dayjs/locale/ro'
@@ -33,7 +34,7 @@ const getAbsenceTooltipContent = (absence: any) => {
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}:
           </span>
           <span style={{ color: absence.statusColor || '#6b7280' }} className="gba:font-medium">
-            {absence.status}
+            {getAbsenceStatusLabel(absence.originalStatus || absence.status)}
           </span>
         </div>
         <div className="gba:flex gba:justify-between">
@@ -284,7 +285,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
             <div className="gba:flex gba:items-center gba:gap-1">
               <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: '#f59e0b' }} />
               <span className="gba:text-xs gba:ml-1">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')}
               </span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
