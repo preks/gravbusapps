@@ -13,7 +13,7 @@ import {
   type KpiCardData
 } from '@newwork/nw-design-system';
 import { SubmittedRequest, WorkflowEngine, StepStatus } from '../../../types';
-import { formatRequestId } from '../../../utils';
+import { formatRequestId, formatStatusText } from '../../../utils';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { ClockCounterClockwiseIcon, CheckCircleIcon, XCircleIcon, FileTextIcon, XIcon, ArrowLeftIcon, ArrowClockwiseIcon, WifiHighIcon } from '@phosphor-icons/react';
 import { UserDisplayName } from '../../../components/UserDisplayName';
@@ -334,7 +334,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                          'var(--nw-muted-foreground)'
                 }}
               >
-                {request.status.toUpperCase().replace(/_/g, ' ')}
+                {formatStatusText(request.status.toUpperCase())}
               </Badge>
               {isRefreshing && (
                 <Badge variant="outline" className="gba:text-xs gba:px-2 gba:py-1 gba:bg-blue-100 gba:text-blue-700 gba:animate-pulse">
@@ -701,7 +701,7 @@ const RequestTimeline: React.FC<RequestTimelineProps> = ({ request: initialReque
                         'gba:bg-gray-100 gba:text-gray-800'
                       }
                     >
-                      {step.status.replace('_', ' ').toUpperCase()}
+                      {formatStatusText(step.status)}
                     </Badge>
                   </div>
                   
@@ -1054,7 +1054,7 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     const uniqueStatuses = [...new Set(requests.map(r => r.status))];
     const statusFilters = uniqueStatuses.map(status => ({
       id: `status:${status}`,
-      label: status.toUpperCase().replace(/_/g, ' '),
+      label: formatStatusText(status.toUpperCase()),
       value: status,
       selected: false
     }));

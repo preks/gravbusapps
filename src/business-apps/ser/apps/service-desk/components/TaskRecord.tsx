@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { EnhancedEmployeeDisplay } from '../../../components/shared';
+import { AssignTaskModal } from './AssignTaskModal';
 
 // Import nw-design-system components
 import { 
@@ -45,7 +46,7 @@ import type { SubmittedRequest } from 'packages/services-plus-core';
 import { useTicketDetail } from '../hooks/useTicketDetail';
 import { useTicketActions } from '../hooks/useTicketActions';
 import { useEmployeeNamesBatch } from '../../../hooks/useEmployeeNamesBatch';
-import { formatRequestId, getSLAStatus } from '../../../utils';
+import { formatRequestId, getSLAStatus, formatStatusText } from '../../../utils';
 import { createConductorWorkflowEngine } from '../../../services';
 import { DynamicFormGenerator } from '../../../components/DynamicFormGenerator';
 import { DynamicFormField, DynamicFormValues } from '../../../types/flowTemplate';
@@ -133,6 +134,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   const [isLoadingStepData, setIsLoadingStepData] = useState(false);
   const [step0Data, setStep0Data] = useState<any>(null);
   const [isLoadingStep0Data, setIsLoadingStep0Data] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
 
   // Load task data
   const { 
@@ -150,6 +153,8 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
   const {
     claimTicket,
     unclaimTicket,
+    assignTicket,
+    assignToUserTicket,
     completeTicket,
     rejectTicket,
     addComment,
@@ -187,9 +192,18 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     if (ticket.claimedByUserId) userIds.push(ticket.claimedByUserId);
     if (ticket.flowInitiatedBy) userIds.push(ticket.flowInitiatedBy);
     
+    // Add assignment history users (changedBy and changedTo)
+    const assignmentHistory = (ticket as any).assignment?.assignmentHistory;
+    if (assignmentHistory && Array.isArray(assignmentHistory)) {
+      for (const historyItem of assignmentHistory) {
+        if (historyItem.changedBy) userIds.push(historyItem.changedBy);
+        if (historyItem.changedTo) userIds.push(historyItem.changedTo);
+      }
+    }
+    
     // Remove duplicates
     return [...new Set(userIds)];
-  }, [ticket?.comments, ticket?.assignedToUserId, ticket?.claimedByUserId, ticket?.flowInitiatedBy]);
+  }, [ticket?.comments, ticket?.assignedToUserId, ticket?.claimedByUserId, ticket?.flowInitiatedBy, (ticket as any)?.assignment?.assignmentHistory]);
 
   const { displayNames: batchedDisplayNames, employees: batchedEmployees } = useEmployeeNamesBatch({
     userIds: allUserIds,
@@ -215,17 +229,17 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
       {
         id: 'task-status',
         title: 'Ticket Status',
-        value: ticket.status, // Show raw status instead of transformed label
+        value: formatStatusText(ticket.status), // Format status for display (IN_PROGRESS → "In Progress")
         icon: <StatusIcon className="gba:w-5 gba:h-5" />,
         trend: {
-          value: ticket.status, // Show raw status in trend as well
+          value: formatStatusText(ticket.status), // Format status for display
           positive: ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED',
           trendIcon: (ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED') ? 'up' : 
                     (ticket.status === 'FAILED' || ticket.status === 'ERROR' || ticket.status === 'PAUSED' || ticket.status === 'TIMED_OUT') ? 'down' : 'none',
           badgeVariant: (ticket.status === 'COMPLETED' || ticket.status === 'DONE' || ticket.status === 'SKIPPED') ? 'success' : 
                        (ticket.status === 'FAILED' || ticket.status === 'ERROR' || ticket.status === 'PAUSED' || ticket.status === 'TIMED_OUT') ? 'destructive' : 'default'
         },
-        subtitle: `Raw status value`,
+        subtitle: `Current status`,
       },
       {
         id: 'sla-progress',
@@ -410,6 +424,40 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
     } catch (error) {
       console.error(`Failed to ${action} task:`, error);
       message.error(`Failed to ${action} task`);
+    }
+  };
+
+  // Handle task reassignment to another user (for already claimed/assigned tickets)
+  const handleReassignTask = async (targetUserId: string) => {
+    if (!ticket) return;
+    
+    try {
+      console.log(`[TaskRecord] Reassigning ticket ${ticket.id} to user ${targetUserId}`);
+      await assignTicket(ticket.id, targetUserId);
+      message.success('Ticket reassigned successfully');
+      
+      // Refresh available actions after reassignment
+      await loadAvailableActions();
+    } catch (error) {
+      console.error('Failed to reassign ticket:', error);
+      throw error; // Re-throw to let the modal handle the error display
+    }
+  };
+
+  // Handle task assignment to user (for unclaimed tickets - workaround: claim + reassign)
+  const handleAssignToUser = async (targetUserId: string) => {
+    if (!ticket) return;
+    
+    try {
+      console.log(`[TaskRecord] Assigning unclaimed ticket ${ticket.id} to user ${targetUserId}`);
+      await assignToUserTicket(ticket.id, targetUserId);
+      message.success('Ticket assigned successfully');
+      
+      // Refresh available actions after assignment
+      await loadAvailableActions();
+    } catch (error) {
+      console.error('Failed to assign ticket:', error);
+      throw error; // Re-throw to let the modal handle the error display
     }
   };
 
@@ -653,7 +701,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
         variant="ext1"
         headerContent={
           <Badge variant={statusConfig.color as any}>
-            {ticket.status}
+            {formatStatusText(ticket.status)}
           </Badge>
         }
         kpiCardsData={kpiCards}
@@ -1207,6 +1255,36 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                       </Button>
                     )}
 
+                    {/* Assign to User button - show for unclaimed tickets (workaround: claim + reassign) */}
+                    {availableActions?.canClaim && !ticket.claimedByUserId && !ticket.assignedToUserId && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsAssignModalOpen(true)}
+                        disabled={isActionLoading}
+                        className="gba:gap-2"
+                        data-testid="assign-to-user-button"
+                      >
+                        <UserCheckIcon className="gba:w-4 gba:h-4" />
+                        Assign to User
+                      </Button>
+                    )}
+
+                    {/* Reassign Ticket button - show when reassign action is available */}
+                    {availableActions?.canReassign && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsReassignModalOpen(true)}
+                        disabled={isActionLoading}
+                        className="gba:gap-2"
+                        data-testid="reassign-ticket-button"
+                      >
+                        <UserCheckIcon className="gba:w-4 gba:h-4" />
+                        Reassign Ticket
+                      </Button>
+                    )}
+
                     {availableActions?.canComplete && (() => {
                       // Hide "Complete Ticket" button if there are form fields that need to be filled
                       const hasFormFields = getTaskFormFields().length > 0;
@@ -1282,7 +1360,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                         label: 'Request Status',
                         children: (
                           <Badge variant="secondary">
-                            {fullRequest.status.toUpperCase()}
+                            {formatStatusText(fullRequest.status.toUpperCase())}
                           </Badge>
                         ),
                       },
@@ -1390,7 +1468,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
                     // Create a rich description
                     const description = stepDetails.length > 0 
                       ? stepDetails.join(' • ') 
-                      : `Current status: ${step.status.replace('_', ' ').toLowerCase()}`;
+                      : `Current status: ${formatStatusText(step.status)}`;
                     
                     // Choose appropriate icon based on status with beautiful styling
                     const getStatusIcon = () => {
@@ -1616,6 +1694,42 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({
         </div>
       </div>
       </PageLayout>
+
+      {/* Assign to User Modal - for unclaimed tickets */}
+      <AssignTaskModal
+        open={isAssignModalOpen}
+        onOpenChange={setIsAssignModalOpen}
+        onAssign={handleAssignToUser}
+        taskId={ticket.id}
+        taskName={ticket.name || 'Untitled Task'}
+        currentAssigneeId={undefined} // Unclaimed tickets have no current assignee
+        currentAssigneeName={undefined}
+        accessToken={accessToken}
+        modalTitle="Assign Ticket to User"
+        modalDescription="Select a user to assign this unclaimed ticket to. The ticket will be assigned to the selected user."
+        buttonText="Assign Ticket"
+      />
+
+      {/* Reassign Ticket Modal - for already claimed/assigned tickets */}
+      <AssignTaskModal
+        open={isReassignModalOpen}
+        onOpenChange={setIsReassignModalOpen}
+        onAssign={handleReassignTask}
+        taskId={ticket.id}
+        taskName={ticket.name || 'Untitled Task'}
+        currentAssigneeId={ticket.claimedByUserId || ticket.assignedToUserId}
+        currentAssigneeName={
+          ticket.claimedByUserId 
+            ? batchedDisplayNames.get(ticket.claimedByUserId) || ticket.claimedByUserName || 'Unknown User'
+            : ticket.assignedToUserId
+              ? batchedDisplayNames.get(ticket.assignedToUserId) || ticket.assignedToUserName || 'Unknown User'
+              : undefined
+        }
+        accessToken={accessToken}
+        modalTitle="Reassign Ticket to User"
+        modalDescription="Select a user to reassign this ticket to. The ticket will be reassigned to the selected user."
+        buttonText="Reassign Ticket"
+      />
     </div>
   );
 };

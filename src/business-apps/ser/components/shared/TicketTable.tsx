@@ -5,7 +5,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { StepStatus } from 'packages/services-plus-core';
 import type { StepInstance } from '../../types';
-import { formatRequestId } from '../../utils';
+import { formatRequestId, formatStatusText } from '../../utils';
 import { useEmployeeNamesBatch } from '../../hooks/useEmployeeNamesBatch';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useDeskTablePreferencesSimple } from '../../hooks/useDeskTablePreferencesSimple';
@@ -867,7 +867,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                             data-testid={`status-badge-${ticket.status}`}
                             className="gba:text-xs"
                           >
-                            {ticket.status}
+                            {formatStatusText(ticket.status)}
                           </Badge>
                         </TableCell>
                       )}

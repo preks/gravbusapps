@@ -1433,7 +1433,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   }
 
   /**
-   * Enhanced assign method with comment support
+   * Enhanced assign method with comment support (for already claimed/assigned tasks)
+   * This is an alias for reassign
    */
   async assign(stepId: string, userId: string, assignToUserId: string, comment?: string): Promise<void> {
     try {
@@ -1451,6 +1452,36 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     } catch (error) {
       console.error('[ConductorAdapter] Error assigning step:', error);
       throw new Error(`Failed to assign step: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Assign an unclaimed task directly to a user (workaround: claim + reassign)
+   * 
+   * WORKAROUND: Backend doesn't support direct assignment of unclaimed tasks yet.
+   * Current implementation: claim task first, then reassign to target user
+   * 
+   * FUTURE: When backend implements /tasks/:taskId/assign endpoint, update this to:
+   *   - Call POST /tasks/:taskId/assign with { userId: assignToUserId, comment }
+   *   - Remove the claim + reassign workaround
+   */
+  async assignToUser(stepId: string, currentUserId: string, assignToUserId: string, comment?: string): Promise<void> {
+    try {
+      console.log(`[ConductorAdapter] Assigning unclaimed task: ${stepId} to ${assignToUserId} (workaround: claim + reassign)`);
+
+      // WORKAROUND STEP 1: Claim the task as current user
+      await this.claim(stepId, currentUserId);
+      console.log(`[ConductorAdapter] ✓ Step 1: Claimed task ${stepId} as ${currentUserId}`);
+
+      // WORKAROUND STEP 2: Reassign to target user
+      await this.reassign(stepId, currentUserId, assignToUserId, comment);
+      console.log(`[ConductorAdapter] ✓ Step 2: Reassigned task ${stepId} to ${assignToUserId}`);
+
+      console.log(`[ConductorAdapter] ✓ Assignment completed: ${stepId} → ${assignToUserId}`);
+
+    } catch (error) {
+      console.error('[ConductorAdapter] Error assigning unclaimed task:', error);
+      throw new Error(`Failed to assign task to user: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

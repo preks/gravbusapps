@@ -14,6 +14,7 @@ export interface UseTicketActionsReturn {
   claimTicket: (stepId: string) => Promise<void>;
   unclaimTicket: (stepId: string, comment?: string) => Promise<void>;
   assignTicket: (stepId: string, userId: string) => Promise<void>;
+  assignToUserTicket: (stepId: string, userId: string) => Promise<void>;
   completeTicket: (stepId: string, payload?: any) => Promise<void>;
   rejectTicket: (stepId: string, reason: string) => Promise<void>;
   advanceTicket: (stepId: string, payload?: any) => Promise<void>;
@@ -69,11 +70,20 @@ export const useTicketActions = ({
   };
 
   const assignTicket = async (stepId: string, assignToUserId: string): Promise<void> => {
-    return handleAction('assign ticket', async () => {
+    return handleAction('reassign ticket', async () => {
       const workflowEngine = getEngine();
       const currentUserId = userInfo?.id || 'current-user';
-      console.log(`🎯 [useTicketActions] *** ASSIGNING TICKET: ${stepId} from ${currentUserId} to ${assignToUserId} ***`);
-      await workflowEngine.assign(stepId, currentUserId, assignToUserId, `Assigned via Service Desk`);
+      console.log(`🎯 [useTicketActions] *** REASSIGNING TICKET: ${stepId} from ${currentUserId} to ${assignToUserId} ***`);
+      await workflowEngine.assign(stepId, currentUserId, assignToUserId, `Reassigned via Service Desk`);
+    });
+  };
+
+  const assignToUserTicket = async (stepId: string, assignToUserId: string): Promise<void> => {
+    return handleAction('assign ticket to user', async () => {
+      const workflowEngine = getEngine();
+      const currentUserId = userInfo?.id || 'current-user';
+      console.log(`🎯 [useTicketActions] *** ASSIGNING UNCLAIMED TICKET: ${stepId} to ${assignToUserId} (via ${currentUserId}) ***`);
+      await workflowEngine.assignToUser(stepId, currentUserId, assignToUserId, `Assigned via Service Desk`);
     });
   };
 
@@ -126,6 +136,7 @@ export const useTicketActions = ({
     claimTicket,
     unclaimTicket,
     assignTicket,
+    assignToUserTicket,
     completeTicket,
     rejectTicket,
     advanceTicket,

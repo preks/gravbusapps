@@ -4,7 +4,7 @@ import { Bug, ChevronUp, ChevronDown } from 'lucide-react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import type { SubmittedRequest, WorkflowEngine } from '../../types';
-import { formatRequestId } from '../../utils';
+import { formatRequestId, formatStatusText } from '../../utils';
 import { useEmployeeNamesBatch } from '../../hooks/useEmployeeNamesBatch';
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 import { useMyRequestsTablePreferences } from '../../hooks/useMyRequestsTablePreferences';
@@ -890,7 +890,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                             data-testid={`status-badge-${request.status}`}
                             className="gba:text-xs"
                           >
-                            {request.status.toUpperCase().replace(/_/g, ' ')}
+                            {formatStatusText(request.status.toUpperCase())}
                           </Badge>
                         </TableCell>
                       )}
