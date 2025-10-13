@@ -75,7 +75,7 @@ export const useGetEquityInvestmentsData = (context: BusinessAppContextProps) =>
       }
     ) => {
       // Build where clause for investments with equity investments
-      let investmentWhere: any = {
+      const investmentWhere: any = {
         _and: [
           // Only include investments that have equity investments
           { equityInvestment: {} }
@@ -175,7 +175,7 @@ export const useGetEquityInvestmentsData = (context: BusinessAppContextProps) =>
   const fetchEquityInvestmentsCount = useCallback(
     async (filters: EquityAnalyticsFilters) => {
       // Build same where clause as main query
-      let investmentWhere: any = {
+      const investmentWhere: any = {
         _and: [{ equityInvestment: {} }]
       }
 

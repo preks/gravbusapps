@@ -60,7 +60,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
   const [selectedType, setSelectedType] = useState<EmploymentType | null>(null)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const [selectedRows, setSelectedRows] = useState<any[]>([])
 
   const loadEmploymentTypes = async () => {

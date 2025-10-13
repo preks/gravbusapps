@@ -1,6 +1,6 @@
 import React, { SetStateAction, Dispatch, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import FormWrapperModal from '@/business-apps/mdm/apps/generic-components/form-wrapper/FormWrapperModal'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
@@ -54,7 +54,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
   const handleSubmit = async (values: JobFamily) => {
     try {
       // Validate code before submitting
-      if (!validateCode(values.code)) {
+      if (!validateCode(values.code) && !jobFamily) {
         return
       }
 
@@ -113,6 +113,7 @@ const JobFamilyForm: React.FC<JobFamilyFormProps> = ({
     >
       <FormField
         name="name"
+        rules={{ required: 'Please enter job family name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>Name</FormLabel>

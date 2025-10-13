@@ -33,8 +33,8 @@ export const useUserRole = (
         let canViewAllTeams = true // Temporarily allow all access for testing
         let canViewTeam = true
         let canViewIndividuals = true
-        let managedTeamId: string | undefined = 'default-team'
-        let managedTeamName: string | undefined = 'Default Team'
+        const managedTeamId: string | undefined = 'default-team'
+        const managedTeamName: string | undefined = 'Default Team'
 
         // For now, always default to CEO role to test the system
         // TODO: Implement proper role detection later

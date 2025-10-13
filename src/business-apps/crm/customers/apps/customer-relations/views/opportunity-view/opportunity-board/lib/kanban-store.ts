@@ -103,7 +103,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
         return []
       }
 
-      let opportunities = response.Opportunity.map((opp: any, index: number) => ({
+      const opportunities = response.Opportunity.map((opp: any, index: number) => ({
         ...opp,
         id: opp.id || '',
         title: opp.name || '',

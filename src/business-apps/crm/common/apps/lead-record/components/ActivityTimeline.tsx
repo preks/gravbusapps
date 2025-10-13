@@ -222,7 +222,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
       const result = await fetchSalesTasks({ leadId })
 
       // Filter for approval tasks only - check both possible field structures
-      let approvalTasks = (result.SalesTask || []).filter(task => {
+      const approvalTasks = (result.SalesTask || []).filter(task => {
         // Check both type.value (catalog reference) and direct typeRef fields
         const taskTypeValue = task.type?.value
         const typeRef = task.typeRef

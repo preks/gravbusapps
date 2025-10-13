@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_PENDING_APPROVALS, APPROVE_EXPENSE_REQUEST, REJECT_EXPENSE_REQUEST } from '../queries/approvals'
 import { ensureShortDateFormat } from '../utils/dateUtils'
 
@@ -60,7 +60,7 @@ export const useGetApprovals = (context?: BusinessAppContextProps): UseGetApprov
 
   // Initialize the GraphQL client
   const accessToken = context?.accessToken || ''
-  const graphQLClient: ReturnType<typeof useGraphqlClient> = useGraphqlClient(accessToken)
+  const graphQLClient: ReturnType<typeof useGraphQLClient> = useGraphQLClient(accessToken)
 
   // Fetch approval requests data
   const fetchApprovalRequests = useCallback(async () => {
@@ -117,14 +117,14 @@ export const useGetApprovals = (context?: BusinessAppContextProps): UseGetApprov
       let errorMessage = 'Failed to fetch approval requests'
 
       // Extract GraphQL error message if available
-      if (err.message && err.message.includes('GraphQL error:')) {
+      if (err.message?.includes('GraphQL error:')) {
         try {
           const errorJson = err.message.replaceAll('GraphQL error:', '').trim()
           const parsedError = JSON.parse(errorJson)
           if (Array.isArray(parsedError) && parsedError.length > 0) {
             errorMessage = parsedError[0].message || errorMessage
           }
-        } catch (parseErr) {
+        } catch {
           // If parsing fails, use the original error message
           errorMessage = err.message
         }

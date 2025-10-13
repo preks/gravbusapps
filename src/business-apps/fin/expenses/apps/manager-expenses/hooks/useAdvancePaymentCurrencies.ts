@@ -83,19 +83,19 @@ export const useAdvancePaymentCurrencies = ({
 
       // Calculate most used currency based on frequency
       const currencyFrequency: { [key: string]: number } = {}
-      currencyCodes.forEach(currency => {
+      for (const currency of currencyCodes) {
         currencyFrequency[currency] = (currencyFrequency[currency] || 0) + 1
-      })
+      }
 
       // Find the most used currency
       let mostUsedCurrency = null
       let maxFrequency = 0
-      Object.entries(currencyFrequency).forEach(([currency, frequency]) => {
+      for (const [currency, frequency] of Object.entries(currencyFrequency)) {
         if (frequency > maxFrequency) {
           maxFrequency = frequency
           mostUsedCurrency = currency
         }
-      })
+      }
 
       // Create a unique set of currency codes (no hardcoded fallbacks)
       const uniqueCurrencies = Array.from(new Set(currencyCodes)).sort((a, b) => a.localeCompare(b))

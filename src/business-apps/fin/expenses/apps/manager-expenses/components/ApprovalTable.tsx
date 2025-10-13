@@ -172,11 +172,11 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
       />
 
       <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
-        <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
+        <div className="gba:overflow-x-auto">
           <Table data-testid={`${dataTestIdPrefix}-table`} className="gba:w-full">
-            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-muted gba:z-10 gba:border-b gba:border-border">
               <TableRow>
-                <TableHead className="gba:w-[5%] gba:bg-muted gba:font-semibold">
+                <TableHead className="gba:w-[5%]">
                   <input
                     type="checkbox"
                     checked={selectedTasks.length > 0 && selectedTasks.length === approvalRequests.length}
@@ -196,28 +196,28 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                     data-testid={`${dataTestIdPrefix}-select-all-checkbox`}
                   />
                 </TableHead>
-                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
+                <TableHead className="gba:w-[15%]">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:expense_plan_list.expense_plan_table.create_date',
                     'Date'
                   )}
                 </TableHead>
-                <TableHead className="gba:w-[20%] gba:bg-muted gba:font-semibold">
+                <TableHead className="gba:w-[20%]">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.request', 'Title')}
                 </TableHead>
-                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
+                <TableHead className="gba:w-[15%]">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:manager_expenses_landing_page.task_group', 'Task Group')}
                 </TableHead>
-                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
+                <TableHead className="gba:w-[15%]">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:expense_request_list.expense_plan_table.amount',
                     'Amount'
                   )}
                 </TableHead>
-                <TableHead className="gba:w-[15%] gba:bg-muted gba:font-semibold">
+                <TableHead className="gba:w-[15%]">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
                 </TableHead>
-                <TableHead className="gba:w-[10%] gba:bg-muted gba:font-semibold">
+                <TableHead className="gba:w-[10%]">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:expense_request_list.expense_plan_table.status',
                     'Status'
@@ -229,11 +229,11 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
               {approvalRequests.map((request: ApprovalRequest) => (
                 <TableRow
                   key={request.id}
-                  className="gba:cursor-pointer gba:hover:bg-gray-50"
+                  className="gba:cursor-pointer gba:hover:bg-accent"
                   onClick={() => handleTaskSelection(request)}
                   data-testid={`${dataTestIdPrefix}-table-row-${request.id}`}
                 >
-                  <TableCell>
+                  <TableCell className="gba:py-3 gba:px-4">
                     <input
                       type="checkbox"
                       checked={selectedTasks.some(selected => selected.id === request.id)}
@@ -244,7 +244,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                       data-testid={`${dataTestIdPrefix}-select-checkbox-${request.id}`}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
                     {request.requestDate
                       ? new Intl.DateTimeFormat(getCurrentActiveUserLocale(), {
                           year: 'numeric',
@@ -253,26 +253,25 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
                         }).format(new Date(request.requestDate))
                       : '-'}
                   </TableCell>
-                  <TableCell>
-                    <div className="gba:font-medium gba:text-foreground">{request.title}</div>
+                  <TableCell className="gba:py-3 gba:px-4">
+                    <div className="gba:font-medium gba:text-sm">{request.title}</div>
+                  </TableCell>
+                  <TableCell className="gba:text-sm gba:py-3 gba:px-4">
+                    <div className="gba:text-muted-foreground">{request.taskGroup}</div>
+                  </TableCell>
+                  <TableCell className="gba:text-right gba:text-sm">
+                    {request.totalAmount > 0
+                      ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
+                          style: 'currency',
+                          currency: request.currency || 'EUR',
+                          currencyDisplay: 'code'
+                        }).format(request.totalAmount)
+                      : '-'}
                   </TableCell>
                   <TableCell>
-                    <div className="gba:text-sm gba:text-muted-foreground">{request.taskGroup}</div>
+                    <div className="gba:text-sm">{request.employee.fullName}</div>
                   </TableCell>
-                  <TableCell>
-                    <div className="gba:text-sm gba:text-foreground">
-                      {request.totalAmount > 0
-                        ? new Intl.NumberFormat(getCurrentActiveUserLocale(), {
-                            style: 'currency',
-                            currency: request.currency || 'EUR'
-                          }).format(request.totalAmount)
-                        : '-'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="gba:text-sm gba:text-foreground">{request.employee.fullName}</div>
-                  </TableCell>
-                  <TableCell>
+                  <TableCell className="gba:pr-6">
                     {(() => {
                       const { type, label } = getExpenseRequestStatusDisplay(request.status)
                       return (

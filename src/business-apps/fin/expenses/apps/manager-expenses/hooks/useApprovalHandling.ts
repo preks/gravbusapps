@@ -294,6 +294,51 @@ export const useApprovalHandling = ({
     }
   }
 
+  // Helper: Process all selected tasks sequentially
+  const processSelectedTasks = async (
+    tasks: ApprovalRequest[],
+    tabConfig: any,
+    approvalPayload: any
+  ): Promise<{ approvedCount: number; failedTasks: Array<{ id: string; error: string }> }> => {
+    let approvedCount = 0
+    const failedTasks: Array<{ id: string; error: string }> = []
+
+    for (const task of tasks) {
+      try {
+        const result = await approveSingleTask(task, tabConfig, approvalPayload)
+        if (result.ok) {
+          approvedCount += 1
+        } else {
+          failedTasks.push({ id: task.id, error: result.error || 'Unknown error' })
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.unknown_error', 'Unknown error')
+        failedTasks.push({ id: task.id, error: errorMessage })
+      } finally {
+        setCurrentProgressIndex(prev => prev + 1)
+      }
+    }
+
+    return { approvedCount, failedTasks }
+  }
+
+  // Helper: Handle post-approval cleanup and refresh
+  const handlePostApproval = async (approvedCount: number) => {
+    setSelectedTasks([])
+    setApprovalError(null)
+
+    if (approvedCount > 0 && onApprovalSuccess) {
+      // Add delay for transfer-payment to allow backend processing time
+      if (tabKey === 'transfer-payment') {
+        await delay(500)
+      }
+      onApprovalSuccess()
+    }
+  }
+
   const handleApproveClick = async () => {
     const validation = validatePreconditions(selectedTasks, tabKey, userInfo)
     if ('error' in validation) return { error: validation.error }
@@ -303,7 +348,6 @@ export const useApprovalHandling = ({
     setApprovalError(null)
 
     try {
-      // Create approval payload based on tab type
       const approvalPayload = createApprovalPayload(
         selectedTasks,
         tabConfig,
@@ -315,39 +359,10 @@ export const useApprovalHandling = ({
       setTotalToApprove(selectedTasks.length)
       setCurrentProgressIndex(0)
 
-      let approvedCount = 0
-      const failedTasks: Array<{ id: string; error: string }> = []
+      const { approvedCount, failedTasks } = await processSelectedTasks(selectedTasks, tabConfig, approvalPayload)
 
-      for (const task of selectedTasks) {
-        try {
-          const result = await approveSingleTask(task, tabConfig, approvalPayload)
-          if (result.ok) {
-            approvedCount += 1
-          } else {
-            failedTasks.push({ id: task.id, error: result.error || 'Unknown error' })
-          }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.unknown_error', 'Unknown error')
-          failedTasks.push({ id: task.id, error: errorMessage })
-        } finally {
-          setCurrentProgressIndex(prev => prev + 1)
-        }
-      }
-
-      // Clear selection
-      setSelectedTasks([])
-      setApprovalError(null)
-
-      // Summarize result
+      await handlePostApproval(approvedCount)
       showSummaryToasts(approvedCount, failedTasks)
-
-      // Refresh the list if at least one succeeded
-      if (approvedCount > 0 && onApprovalSuccess) {
-        onApprovalSuccess()
-      }
 
       return { success: true, approvedCount, failedCount: failedTasks.length }
     } catch (error) {
@@ -357,7 +372,6 @@ export const useApprovalHandling = ({
           : getTranslationFromI18nKeyAndLabel('lowcoder:approvals.failed_to_approve', 'Failed to approve tasks')
       setApprovalError(errorMessage)
 
-      // Show error toast notification
       toast.error(getTranslationFromI18nKeyAndLabel('lowcoder:approvals.approval_failed', 'Approval failed'), {
         description: getTranslationFromI18nKeyAndLabel('lowcoder:approvals.error_details', errorMessage),
         duration: 5000

@@ -228,24 +228,6 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
           form={form as any}
           formData={normalizedDefaults}
           submitEventType="pse_submit"
-          onCancel={() => {
-            if (isDeleteMode) {
-              setIsDeleteMode(false)
-              setDeletePayload(null)
-              const addresses = (data?.address?.EmployeeAddress || []) as any[]
-              restoreSelectionFromId(form, addresses, selectedIdBeforeDelete, {
-                setIsSwitchingSelection,
-                setAddressLineCount,
-                setAddressLinesError,
-                setIsDeleteMode,
-                setSelectedAddressId: true
-              })
-              setSelectedIdBeforeDelete(null)
-              return
-            }
-            form.reset(normalizedDefaults)
-            initialRef.current = normalizedDefaults
-          }}
           customFormLayout
           validateForm={values =>
             isDeleteMode ? null : validateAddressForm(values as any, { countries: data?.catalogs?.countries })
@@ -424,8 +406,6 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
 
           <div className="gba:flex-grow" data-testid="change-employee-address-spacer" />
 
-          <Separator className="gba:mt-4 gba:mb-4" data-testid="change-employee-address-divider" />
-
           <div
             className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4"
             data-testid="change-employee-address-actions-wrapper"
@@ -462,7 +442,6 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
                         )
                       }
                     })
-                    form.reset(normalizedDefaults)
                   }
                 }}
                 data-testid={

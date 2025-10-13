@@ -1,15 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import '@newwork/nw-design-system/style'
 import { PageLayout } from '@newwork/nw-design-system'
 import { PiGauge, PiPath, PiHandCoins, PiMoney, PiCalendarBlank, PiWalletDuotone } from 'react-icons/pi'
-import { useAppCurrency } from './hooks/useAppCurrency'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 // Import tab components
 import ExpenseDashboardTab from './components/tabs/expense-dashboard-tab'
 import ExpensePlansTab from './components/tabs/expense-plans-tab'
-import ExpenseCalendarTab from './components/tabs/expense-calendar-tab'
 import AdvancePaymentsTab from './components/tabs/advance-payments-tab'
+import ExpenseCalendarTab from './components/tabs/expense-calendar-tab'
 import ExpenseRequestsTab from './components/tabs/expense-requests-tab'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -58,45 +58,76 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
   ]
 
   // State for current view/page
-  const [currentView, setCurrentView] = useState<'tabs' | 'approvals' | 'reports' | 'analytics'>('tabs')
-
-  // Get tab from URL query parameter or use first tab as default
-  const getInitialTab = () => {
+  const [currentView, setCurrentView] = useState<'tabs' | 'approvals' | 'reports' | 'analytics'>(() => {
     const urlParams = new URLSearchParams(globalThis.location?.search || '')
+    const viewFromUrl = urlParams.get('view')
+    const validViews = ['approvals', 'reports', 'analytics']
+
+    if (validViews.includes(viewFromUrl ?? '')) {
+      return viewFromUrl as 'approvals' | 'reports' | 'analytics'
+    }
+    return 'tabs'
+  })
+
+  // State for active tab within the tabs view
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const urlParams = new URLSearchParams(globalThis.location?.search || '')
+    const viewFromUrl = urlParams.get('view')
+
+    // If we're on a different view (not tabs), don't touch the URL
+    if (viewFromUrl && ['approvals', 'reports', 'analytics'].includes(viewFromUrl)) {
+      return viewOptions[0].key // Return default without modifying URL
+    }
+
     const tabFromUrl = urlParams.get('tab')
     const validTabs = viewOptions.map(item => item.key)
 
     if (validTabs.includes(tabFromUrl ?? '')) {
       return tabFromUrl!
-    } else {
-      // No valid tab in URL, set default tab in URL
-      const defaultTab = viewOptions[0].key
+    }
+
+    // Only set default tab in URL if we're in tabs view (no view parameter)
+    const defaultTab = viewOptions[0].key
+    if (!viewFromUrl) {
       const url = new URL(globalThis.location?.href || 'http://localhost')
       url.searchParams.set('tab', defaultTab)
       globalThis.history?.replaceState?.({}, '', url.toString())
-      return defaultTab
     }
-  }
-
-  // State for active tab within the tabs view
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab)
+    return defaultTab
+  })
 
   // Navigation handlers
   const handleNavigateToApprovals = useCallback(() => {
     setCurrentView('approvals')
+    const url = new URL(globalThis.location?.href || 'http://localhost')
+    url.searchParams.set('view', 'approvals')
+    url.searchParams.delete('tab')
+    globalThis.history?.pushState?.({}, '', url.toString())
   }, [])
 
   const handleNavigateToReports = useCallback(() => {
     setCurrentView('reports')
+    const url = new URL(globalThis.location?.href || 'http://localhost')
+    url.searchParams.set('view', 'reports')
+    url.searchParams.delete('tab')
+    globalThis.history?.pushState?.({}, '', url.toString())
   }, [])
 
   const handleNavigateToAnalytics = useCallback(() => {
     setCurrentView('analytics')
+    const url = new URL(globalThis.location?.href || 'http://localhost')
+    url.searchParams.set('view', 'analytics')
+    url.searchParams.delete('tab')
+    globalThis.history?.pushState?.({}, '', url.toString())
   }, [])
 
   const handleNavigateBackToDashboard = useCallback(() => {
     setCurrentView('tabs')
     setActiveTab('dashboard')
+    const url = new URL(globalThis.location?.href || 'http://localhost')
+    url.searchParams.delete('view')
+    url.searchParams.set('tab', 'dashboard')
+    globalThis.history?.pushState?.({}, '', url.toString())
   }, [])
 
   const handleTabChange = useCallback((tab: string) => {
@@ -110,10 +141,21 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
   useEffect(() => {
     const handlePopState = () => {
       const urlParams = new URLSearchParams(globalThis.location?.search || '')
-      const tabFromUrl = urlParams.get('tab')
-      const validTabs = viewOptions.map(item => item.key)
-      const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : viewOptions[0].key
-      setActiveTab(newTab)
+
+      // Check for view parameter
+      const viewFromUrl = urlParams.get('view')
+      const validViews = ['approvals', 'reports', 'analytics']
+      if (validViews.includes(viewFromUrl ?? '')) {
+        setCurrentView(viewFromUrl as 'approvals' | 'reports' | 'analytics')
+      } else {
+        setCurrentView('tabs')
+
+        // If in tabs view, check for tab parameter
+        const tabFromUrl = urlParams.get('tab')
+        const validTabs = viewOptions.map(item => item.key)
+        const newTab = validTabs.includes(tabFromUrl ?? '') ? tabFromUrl! : viewOptions[0].key
+        setActiveTab(newTab)
+      }
     }
 
     globalThis.addEventListener?.('popstate', handlePopState)
@@ -129,31 +171,30 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     // Currency is now managed globally via the store, no need to pass it explicitly
   }
 
-  // Keep tab contents mounted to prefetch and avoid layout flicker
-  const renderAllTabsKeptMounted = () => (
-    <div>
-      <div className={activeTab === 'dashboard' ? '' : 'gba:hidden'}>
-        <ExpenseDashboardTab
-          {...tabProps}
-          onNavigateToApprovals={handleNavigateToApprovals}
-          onNavigateToReports={handleNavigateToReports}
-          onNavigateToAnalytics={handleNavigateToAnalytics}
-        />
-      </div>
-      <div className={activeTab === 'expense-plans' ? '' : 'gba:hidden'}>
-        <ExpensePlansTab {...tabProps} />
-      </div>
-      <div className={activeTab === 'advance-payments' ? '' : 'gba:hidden'}>
-        <AdvancePaymentsTab {...tabProps} />
-      </div>
-      <div className={activeTab === 'expense-requests' ? '' : 'gba:hidden'}>
-        <ExpenseRequestsTab {...tabProps} />
-      </div>
-      <div className={activeTab === 'expense-calendar' ? '' : 'gba:hidden'}>
-        <ExpenseCalendarTab {...tabProps} />
-      </div>
-    </div>
-  )
+  // Lazy-mount only the active tab to avoid duplicate data fetching
+  const renderActiveTabOnly = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <ExpenseDashboardTab
+            {...tabProps}
+            onNavigateToApprovals={handleNavigateToApprovals}
+            onNavigateToReports={handleNavigateToReports}
+            onNavigateToAnalytics={handleNavigateToAnalytics}
+          />
+        )
+      case 'expense-plans':
+        return <ExpensePlansTab {...tabProps} />
+      case 'advance-payments':
+        return <AdvancePaymentsTab {...tabProps} />
+      case 'expense-requests':
+        return <ExpenseRequestsTab {...tabProps} />
+      case 'expense-calendar':
+        return <ExpenseCalendarTab {...tabProps} />
+      default:
+        return <ExpenseDashboardTab {...tabProps} />
+    }
+  }
 
   // Render based on current view
   if (currentView === 'approvals') {
@@ -191,7 +232,7 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
         }}
         className="gba:min-h-screen"
       >
-        {renderAllTabsKeptMounted()}
+        {renderActiveTabOnly()}
       </PageLayout>
     </div>
   )

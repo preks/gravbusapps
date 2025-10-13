@@ -258,7 +258,7 @@ export const useAbsenceListDataSimple = ({
           isTeamAwayFilter
         })
 
-        let orderBy: any[] = []
+        const orderBy: any[] = []
 
         if (sortField && sortOrder) {
           const graphqlSortOrder = sortOrder.toUpperCase()

@@ -63,7 +63,7 @@ export const useInvestmentPopupData = ({
       // Load tile value for tile scope
       if (scope === 'tile' && tileKey) {
         const raw = investmentData.additionalProperties
-        let ap: any =
+        const ap: any =
           typeof raw === 'string'
             ? (() => {
                 try {

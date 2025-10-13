@@ -731,21 +731,38 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,
-          filter: selectedFilters,
+          filter: primaryCurrency ? [...selectedFilters, `currency:${primaryCurrency}`] : selectedFilters,
           setFilter: (newFilters: string[]): void => {
-            const filtersToRemove = selectedFilters.filter(f => !newFilters.includes(f))
-            const filtersToAdd = newFilters.filter(f => !selectedFilters.includes(f))
+            // Separate currency and status filters
+            const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
+            const statusFilters = newFilters.filter(f => !f.startsWith('currency:'))
 
-            for (const f of filtersToRemove) {
+            // Handle status filter changes
+            const statusToRemove = selectedFilters.filter(f => !statusFilters.includes(f))
+            const statusToAdd = statusFilters.filter(f => !selectedFilters.includes(f))
+
+            for (const f of statusToRemove) {
               removeFilter(f)
             }
-            for (const f of filtersToAdd) {
+            for (const f of statusToAdd) {
               addFilter(f)
+            }
+
+            // Handle currency filter changes - when clearing all, reset currency to most used
+            const hadCurrency = primaryCurrency && primaryCurrency.length > 0
+            const hasCurrency = currencyFilters.length > 0
+
+            if (hadCurrency && !hasCurrency) {
+              // Currency filter was removed - reset to most used by clearing the selection
+              removeFilter(`currency:${primaryCurrency}`)
             }
 
             setCurrentPage(1)
           },
-          filterLabelMap: filterLabelMap,
+          filterLabelMap: {
+            ...filterLabelMap,
+            ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
+          },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">

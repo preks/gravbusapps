@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
 import { Card } from '@newwork/gravity-ui-catalog'
@@ -12,6 +12,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { PiPencilSimple } from 'react-icons/pi'
+import { Button } from '@newwork/nw-design-system'
 
 interface PerformanceTabProps {
   employee: Employee
@@ -37,19 +38,19 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   employee,
   accessToken,
   employeePerformanceGoals = [],
-  isSelfView
+  isSelfView,
+  userInfo
 }) => {
   const [localPerformanceGoals, setLocalPerformanceGoals] = useState<ExtendedEmployeePerformanceGoal[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-
-  // No longer need drawer state as we're showing edit buttons directly on cards
+  const supevisor = useMemo(() => employee.employeePosition?.supervisor?.id, [employee])
 
   // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken)
 
   // Fetch performance data
-  const fetchPerformanceData = async () => {
+  const fetchPerformanceData = useCallback(async () => {
     if (!employee?.id) return
 
     try {
@@ -67,7 +68,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [employee?.id, graphQLClient])
 
   useEffect(() => {
     // Initialize with props if available, otherwise fetch from API
@@ -76,7 +77,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     } else {
       fetchPerformanceData()
     }
-  }, [employee?.id, accessToken])
+  }, [employee?.id, accessToken, employeePerformanceGoals, fetchPerformanceData])
 
   const statusMap: Record<string, { label: string; color: string }> = {
     ON_TRACK: {
@@ -106,9 +107,60 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   }
 
   // Map status to display values and styles
-  const getStatusInfo: (status: string) => { label: string; color: string } = (status: string) => {
+  const getStatusInfo: (_status: string) => { label: string; color: string } = (status: string) => {
     return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' }
   }
+
+  // Sort performance goals according to the specified rules
+  const sortPerformanceGoals = (goals: ExtendedEmployeePerformanceGoal[]): ExtendedEmployeePerformanceGoal[] => {
+    const today = dayjs().startOf('day')
+
+    return [...goals].sort((a, b) => {
+      // Primary sort: Status (Overdue > Active > Completed)
+      const getStatusPriority = (goal: ExtendedEmployeePerformanceGoal): number => {
+        const isOverdue = goal.dueDate && dayjs(goal.dueDate).isBefore(today) && goal.progressPercent < 100
+        const isCompleted = goal.progressPercent === 100
+        const isActive = !isOverdue && !isCompleted && goal.progressPercent < 100
+
+        if (isOverdue) return 1 // Highest priority
+        if (isActive) return 2 // Medium priority
+        if (isCompleted) return 3 // Lowest priority
+        return 4 // No due date or other cases
+      }
+
+      const statusPriorityA = getStatusPriority(a)
+      const statusPriorityB = getStatusPriority(b)
+
+      if (statusPriorityA !== statusPriorityB) {
+        return statusPriorityA - statusPriorityB
+      }
+
+      // Secondary sort: Due Date (depends on status group)
+      const dueDateA = a.dueDate ? dayjs(a.dueDate).valueOf() : Number.MAX_SAFE_INTEGER
+      const dueDateB = b.dueDate ? dayjs(b.dueDate).valueOf() : Number.MAX_SAFE_INTEGER
+
+      // Check if due dates are the same (within the same day)
+      const sameDueDate = a.dueDate && b.dueDate && dayjs(a.dueDate).isSame(dayjs(b.dueDate), 'day')
+
+      if (!sameDueDate && dueDateA !== dueDateB) {
+        // For overdue goals: sort by due date DESCENDING (most overdue first)
+        if (statusPriorityA === 1) {
+          return dueDateB - dueDateA // Most overdue (oldest due date) first
+        }
+        // For active and completed goals: sort by due date ASCENDING (earliest first)
+        return dueDateA - dueDateB
+      }
+
+      // Tertiary sort: Progress ascending (lowest progress first)
+      const progressA = a.progressPercent || 0
+      const progressB = b.progressPercent || 0
+
+      return progressA - progressB
+    })
+  }
+
+  // Get sorted performance goals
+  const sortedPerformanceGoals = sortPerformanceGoals(localPerformanceGoals)
 
   // Handle loading state
   if (loading) {
@@ -169,11 +221,11 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       {/* Goals Content */}
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">
         <section className="gba:flex gba:flex-col gba:gap-4">
-          {!localPerformanceGoals?.length ? (
+          {!sortedPerformanceGoals?.length ? (
             <Empty description="No goals available" className="gba:py-10" data-testid="empty-goals-state" />
           ) : (
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
-              {localPerformanceGoals.map(goal => {
+              {sortedPerformanceGoals.map(goal => {
                 if (!isGoalValid(goal)) {
                   return null
                 }
@@ -183,7 +235,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   <Card
                     key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`}
                     variant="outlined"
-                    className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+                    className="gba:w-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
                     data-testid={`goal-card-${goal.id}`}
                   >
                     <div className="gba:flex gba:flex-col gba:md:flex-row gba:md:items-center gba:justify-between gba:mb-4">
@@ -224,30 +276,36 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     </div>
 
                     {/* Edit button at the bottom right */}
-                    <div className="gba:flex gba:justify-end gba:mt-4">
-                      <AppActionMenu
-                        data-testid={`employee-goal-edit-button-${goal.id}`}
-                        contextsArray={[FlowContextName.employeePerformanceGoal]}
-                        externalContextData={{
-                          employeeId: employee?.id,
-                          goalId: goal.id,
-                          title: goal.title,
-                          startDate: goal.startDate,
-                          dueDate: goal.dueDate,
-                          completionDate: goal.completionDate,
-                          progressPercent: goal.progressPercent,
-                          status: goal.status,
-                          version: goal.version
-                        }}
-                        prefixDataTestId={`employee-goal-edit-${goal.id}`}
-                        accessToken={accessToken}
-                        className="gba:text-sm gba:py-1 gba:px-3"
-                        autoExecuteSingleAction={true}
-                        deferMainContextRequestsUntilClick={true}
-                      >
-                        Edit
-                      </AppActionMenu>
-                    </div>
+                    {(isSelfView || userInfo?.employeeDetails?.employeeId === supevisor) && (
+                      <div className="gba:flex gba:justify-end gba:mt-4">
+                        <AppActionMenu
+                          data-testid={`employee-goal-edit-button-${goal.id}`}
+                          contextsArray={[FlowContextName.employeePerformanceGoal]}
+                          externalContextData={{
+                            employeeId: employee?.id,
+                            goalId: goal.id,
+                            title: goal.title,
+                            startDate: goal.startDate,
+                            dueDate: goal.dueDate,
+                            completionDate: goal.completionDate,
+                            progressPercent: goal.progressPercent,
+                            status: goal.status,
+                            version: goal.version
+                          }}
+                          prefixDataTestId={`employee-goal-edit-${goal.id}`}
+                          accessToken={accessToken}
+                          className="gba:text-sm gba:py-1 gba:px-3"
+                          autoExecuteSingleAction={true}
+                          deferMainContextRequestsUntilClick={true}
+                        >
+                          <Button variant="outline">
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                              <PiPencilSimple className="gba:cursor-pointer" />
+                            </div>
+                          </Button>
+                        </AppActionMenu>
+                      </div>
+                    )}
                   </Card>
                 )
               })}

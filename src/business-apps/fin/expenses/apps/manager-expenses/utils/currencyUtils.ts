@@ -89,7 +89,7 @@ export const getMostUsedCurrency = <T extends Record<string, any>>(
   // Count occurrences of each currency
   const currencyCounts: Record<string, CurrencyCount> = {}
 
-  transactions.forEach(transaction => {
+  for (const transaction of transactions) {
     const currencyCode = String(transaction[currencyKey] || defaultCurrency)
     const amount = amountKey && typeof transaction[amountKey] === 'number' ? (transaction[amountKey] as number) : 1
 
@@ -103,7 +103,7 @@ export const getMostUsedCurrency = <T extends Record<string, any>>(
 
     currencyCounts[currencyCode].count += 1
     currencyCounts[currencyCode].totalAmount += amount
-  })
+  }
 
   // Convert to array for sorting
   const currencyCountArray = Object.values(currencyCounts)

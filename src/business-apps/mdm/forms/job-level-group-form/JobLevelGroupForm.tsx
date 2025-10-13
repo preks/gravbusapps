@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import FormWrapperModal from '../../apps/generic-components/form-wrapper/FormWrapperModal'
+import { FormWrapperModal } from '@/components/form-wrapper'
 import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage, Textarea } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { JobLevel } from '../../apps/job-structure-data'
@@ -40,7 +40,7 @@ const JobLevelGroupForm: React.FC<JobLevelGroupFormProps> = ({
   const { codeError, setCodeError, validateCode } = useCodeError(usedCodes)
 
   const handleSubmit = async (values: any) => {
-    if (!validateCode(values.code)) {
+    if (!validateCode(values.code) && !jobLevelGroup) {
       return
     }
 

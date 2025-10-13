@@ -42,17 +42,11 @@ export const useAdvancePaymentFilters = ({
   const [filtersInitialized, setFiltersInitialized] = useState(false)
 
   // Use the global currency store with enhanced properties
-  const {
-    primaryCurrency,
-    setPrimaryCurrency,
-    setUserSelected,
-    mostUsedCurrency,
-    isInitialized: storeInitialized
-  } = useCurrencyStore()
+  const { primaryCurrency, setPrimaryCurrency, setUserSelected, mostUsedCurrency } = useCurrencyStore()
 
   // Fetch dynamic currency data if accessToken and managerId are provided
   const {
-    availableCurrencies: dynamicCurrencies,
+    availableCurrencies: dynamicCurrencies = [],
     mostUsedCurrency: advancePaymentMostUsedCurrency,
     isLoading: currenciesLoading,
     isInitialized: currenciesInitialized
@@ -97,14 +91,27 @@ export const useAdvancePaymentFilters = ({
 
   const handleDataFilterChange = useCallback(
     (filterId: string, isSelected: boolean) => {
-      // Check if filterId is a currency (will be in dynamicCurrencies)
-      if (dynamicCurrencies.includes(filterId)) {
+      // Normalize to ISO code: handles "Currency:v1:EUR", "currency:EUR", "EUR"
+      const lastSeg = String(filterId).split(':').pop() || filterId
+      const currencyCode = lastSeg.replace(/^currency:/, '')
+
+      // Safe access to dynamicCurrencies array
+      const availableCurrencies = Array.isArray(dynamicCurrencies) ? dynamicCurrencies : []
+
+      if (availableCurrencies.includes(currencyCode)) {
         // Handle currency filter selection
         if (isSelected) {
-          setLocalPrimaryCurrency(filterId)
+          setLocalPrimaryCurrency(currencyCode)
           setUserHasSelectedCurrency(true) // Mark this as a user selection
-          setPrimaryCurrency(filterId) // Also update global store
+          setPrimaryCurrency(currencyCode) // Also update global store
           setUserSelected(true)
+        } else {
+          // When deselecting currency, reset to most used and update global store
+          const fallback = advancePaymentMostUsedCurrency || ''
+          setLocalPrimaryCurrency(fallback)
+          setPrimaryCurrency(fallback) // Also update global store
+          setUserHasSelectedCurrency(false)
+          setUserSelected(false)
         }
         return
       }
@@ -122,7 +129,14 @@ export const useAdvancePaymentFilters = ({
         handleStatusFilterChange(newFilters.length > 0 ? newFilters : null)
       }
     },
-    [statusFilter, handleStatusFilterChange, setPrimaryCurrency, setUserSelected, dynamicCurrencies]
+    [
+      statusFilter,
+      handleStatusFilterChange,
+      setPrimaryCurrency,
+      setUserSelected,
+      dynamicCurrencies,
+      advancePaymentMostUsedCurrency
+    ]
   )
 
   // Define the statuses that should be used for filtering with the correct mappings
@@ -153,8 +167,9 @@ export const useAdvancePaymentFilters = ({
       map[status] = display.label
     }
 
-    // Add currency filters from dynamic data
-    for (const currency of dynamicCurrencies) {
+    // Add currency filters from dynamic data (safe access)
+    const availableCurrencies = Array.isArray(dynamicCurrencies) ? dynamicCurrencies : []
+    for (const currency of availableCurrencies) {
       map[currency] = currency
     }
 
@@ -162,6 +177,7 @@ export const useAdvancePaymentFilters = ({
   }, [availableFilterStatuses, dynamicCurrencies])
 
   // Create filter groups for the DataFilter component
+  // NOTE: Only returning status group - currency group is built by the tab from overview data
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
     // Status filter items
     const statusItems: DataFilter[] = availableFilterStatuses.map(status => ({
@@ -171,42 +187,15 @@ export const useAdvancePaymentFilters = ({
       group: 'statusGroup'
     }))
 
-    // Use dynamic currency options from actual data
-    const currencyItems: DataFilter[] = []
-    for (const currency of dynamicCurrencies) {
-      currencyItems.push({
-        id: currency,
-        label: currency,
-        selected: currency === localPrimaryCurrency,
-        group: 'currencyGroup'
-      })
-    }
-
     return [
       {
         id: 'statusGroup',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         filters: statusItems,
         selectionMode: 'multiple'
-      },
-      {
-        id: 'currencyGroup',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_table.currency',
-          'Currency'
-        ),
-        filters: currencyItems,
-        selectionMode: 'single'
       }
     ]
-  }, [
-    availableFilterStatuses,
-    statusFilter,
-    filterLabelMap,
-    localPrimaryCurrency,
-    dynamicCurrencies,
-    currenciesInitialized
-  ])
+  }, [availableFilterStatuses, statusFilter, filterLabelMap])
 
   // Unified currency setter that updates all related states (local + global)
   const setUnifiedCurrency = useCallback(

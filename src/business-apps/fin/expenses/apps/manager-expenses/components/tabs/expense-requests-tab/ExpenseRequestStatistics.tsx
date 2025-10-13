@@ -27,32 +27,64 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
 }) => {
   const displayCurrency = currencyFilter || 'EUR'
 
+  // Helper: Clear all current filters
+  const clearAllFilters = useCallback(() => {
+    for (const filter of selectedFilters) {
+      removeFilter(filter)
+    }
+  }, [selectedFilters, removeFilter])
+
+  // Helper: Apply multiple filters
+  const applyMultipleFilters = useCallback(
+    (filters: string[]) => {
+      for (const filter of filters) {
+        addFilter(filter)
+      }
+    },
+    [addFilter]
+  )
+
+  // Helper: Toggle multi-filter set (e.g., all submitted statuses)
+  const handleMultiFilterToggle = useCallback(
+    (filtersToToggle: string[]) => {
+      const allFiltersActive = filtersToToggle.every(filter => selectedFilters.includes(filter))
+
+      if (allFiltersActive) {
+        for (const filter of filtersToToggle) {
+          removeFilter(filter)
+        }
+      } else {
+        clearAllFilters()
+        applyMultipleFilters(filtersToToggle)
+      }
+    },
+    [selectedFilters, removeFilter, clearAllFilters, applyMultipleFilters]
+  )
+
+  // Helper: Toggle single filter (exclusive selection)
+  const handleSingleFilterToggle = useCallback(
+    (filterKey: string) => {
+      if (selectedFilters.includes(filterKey)) {
+        removeFilter(filterKey)
+      } else {
+        clearAllFilters()
+        addFilter(filterKey)
+      }
+    },
+    [selectedFilters, removeFilter, clearAllFilters, addFilter]
+  )
+
   // Handle card click functionality with proper filtering logic
   const handleCardClick = useCallback(
     (filterKey: string, isMultiFilter: boolean = false) => {
       if (isMultiFilter) {
-        // For multi-filter cards (like "Total Requests Submitted")
         const filtersToToggle = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
-
-        // Check if all filters are currently active
-        const allFiltersActive = filtersToToggle.every(filter => selectedFilters.includes(filter))
-
-        if (allFiltersActive) {
-          filtersToToggle.forEach(filter => removeFilter(filter))
-        } else {
-          selectedFilters.forEach(filter => removeFilter(filter))
-          filtersToToggle.forEach(filter => addFilter(filter))
-        }
+        handleMultiFilterToggle(filtersToToggle)
       } else {
-        if (selectedFilters.includes(filterKey)) {
-          removeFilter(filterKey)
-        } else {
-          selectedFilters.forEach(filter => removeFilter(filter))
-          addFilter(filterKey)
-        }
+        handleSingleFilterToggle(filterKey)
       }
     },
-    [selectedFilters, addFilter, removeFilter]
+    [handleMultiFilterToggle, handleSingleFilterToggle]
   )
 
   const widgets: WidgetItem[] = useMemo(

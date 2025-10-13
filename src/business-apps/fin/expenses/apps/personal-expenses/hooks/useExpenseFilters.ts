@@ -255,7 +255,7 @@ export const useExpenseFilters = (): UseExpenseFiltersReturn => {
         const endDate = new Date(today).toISOString().split('T')[0]
 
         // Calculate start date based on selected time period
-        let startDate = new Date(today)
+        const startDate = new Date(today)
         if (timePeriod === 'last30days') {
           startDate.setDate(today.getDate() - 30)
         } else if (timePeriod === 'last90days') {

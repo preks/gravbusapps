@@ -61,7 +61,6 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
   // Local permission debug log (always print once when ready)
   useEffect(() => {
     if (!permissionsLoading) {
-      // eslint-disable-next-line no-console
       console.log('[ExpensesLauncher][permissions]', {
         canViewPersonalExpenses: canViewPersonalExpenses(),
         canViewTeamExpenses: canViewTeamExpenses(),
@@ -217,141 +216,249 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
     if (hasBothManagerAndFinance) {
       // Combined view: Manager cards first, then Finance-specific cards
       // Order: Manager cards → Finance-specific cards
-      
+
       // 1. Personal Expenses (Manager card - shared)
       if (canViewPersonalExpenses()) {
         areas.push({
-          id: "personal-expenses",
-          title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.personal_expenses", "Personal Expenses"),
-          description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.personal_expenses_desc", "Manage your own expense submissions and track spending"),
+          id: 'personal-expenses',
+          title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.personal_expenses', 'Personal Expenses'),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.personal_expenses_desc',
+            'Manage your own expense submissions and track spending'
+          ),
           icon: User,
-          category: "manager",
-          kpiType: "personal",
+          category: 'manager',
+          kpiType: 'personal',
           links: [
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_items", "Expense Items"), action: "personal-expense-items" },
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_plans", "Expense Plans"), action: "personal-expense-plans" },
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.advance_payments", "Advance Payments"), action: "personal-advance-payments" },
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_requests", "Expense Requests"), action: "personal-expense-requests" },
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_items', 'Expense Items'),
+              action: 'personal-expense-items'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'),
+              action: 'personal-expense-plans'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.advance_payments',
+                'Advance Payments'
+              ),
+              action: 'personal-advance-payments'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_requests',
+                'Expense Requests'
+              ),
+              action: 'personal-expense-requests'
+            }
           ],
-          buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.go_to_personal_expenses", "Go to Personal Expenses"),
-          buttonAction: "navigate-personal-expenses",
-        });
+          buttonLabel: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.go_to_personal_expenses',
+            'Go to Personal Expenses'
+          ),
+          buttonAction: 'navigate-personal-expenses'
+        })
       }
 
       // 2. Team Expenses (Manager card)
       if (canViewTeamExpenses()) {
         areas.push({
-          id: "team-expenses",
-          title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.team_expenses", "Team Expenses"),
-          description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.team_expenses_desc", "Review and manage your team members expense submissions"),
+          id: 'team-expenses',
+          title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.team_expenses', 'Team Expenses'),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.team_expenses_desc',
+            'Review and manage your team members expense submissions'
+          ),
           icon: Users,
-          category: "manager",
-          kpiType: "team",
+          category: 'manager',
+          kpiType: 'team',
           links: [
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_plans", "Expense Plans"), action: "team-expense-plans" },
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.advance_payments", "Advance Payments"), action: "team-advance-payments" },
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_requests", "Expense Requests"), action: "team-expense-requests" },
-            { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_calendar", "Expense Calendar"), action: "team-expense-calendar" },
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'),
+              action: 'team-expense-plans'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.advance_payments',
+                'Advance Payments'
+              ),
+              action: 'team-advance-payments'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_requests',
+                'Expense Requests'
+              ),
+              action: 'team-expense-requests'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_calendar',
+                'Expense Calendar'
+              ),
+              action: 'team-expense-calendar'
+            }
           ],
-          buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.go_to_team_expenses", "Go to Team Expenses"),
-          buttonAction: "navigate-team-expenses",
-        });
+          buttonLabel: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.go_to_team_expenses',
+            'Go to Team Expenses'
+          ),
+          buttonAction: 'navigate-team-expenses'
+        })
       }
 
       // 3. Finance Settings (Manager card - shared)
       areas.push({
-        id: "finance-settings",
-        title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.finance_settings", "Finance Settings"),
-        description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.finance_settings_desc", "Manage expense calculation rules, mileage policies, and travel regulations"),
+        id: 'finance-settings',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_settings', 'Finance Settings'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.finance_settings_desc',
+          'Manage expense calculation rules, mileage policies, and travel regulations'
+        ),
         icon: Sliders,
-        category: "manager",
-        kpiType: "settings",
+        category: 'manager',
+        kpiType: 'settings',
         links: [
           {
-            label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_calculation_rule_assignment", "Expense Calculation Rule Assignment"),
-            action: "finance-expense-assignment-rule",
-          },
-          { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.mileage_rules", "Mileage Rules"), action: "finance-mileage-rules" },
-          {
-            label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.travel_region_rules", "Travel Region Rules"),
-            action: "finance-travel-region-rules",
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.expense_calculation_rule_assignment',
+              'Expense Calculation Rule Assignment'
+            ),
+            action: 'finance-expense-assignment-rule'
           },
           {
-            label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_calculation_rules", "Expense Calculation Rules"),
-            action: "finance-calculation-rules",
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.mileage_rules', 'Mileage Rules'),
+            action: 'finance-mileage-rules'
           },
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.travel_region_rules',
+              'Travel Region Rules'
+            ),
+            action: 'finance-travel-region-rules'
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.expense_calculation_rules',
+              'Expense Calculation Rules'
+            ),
+            action: 'finance-calculation-rules'
+          }
         ],
-        buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.manage_settings", "Manage Settings"),
-        buttonAction: "navigate-finance-settings",
-      });
+        buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.manage_settings', 'Manage Settings'),
+        buttonAction: 'navigate-finance-settings'
+      })
 
       // 4. Calendar (Manager card - shared)
       areas.push({
-        id: "calendar-view",
-        title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.calendar", "Calendar"),
-        description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.calendar_desc", "View expenses, plans, and events in a calendar timeline"),
+        id: 'calendar-view',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.calendar', 'Calendar'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.calendar_desc',
+          'View expenses, plans, and events in a calendar timeline'
+        ),
         icon: Calendar,
-        category: "reporting",
-        kpiType: "calendar",
-        buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.view_calendar", "View Calendar"),
-        buttonAction: "navigate-calendar-view",
-      });
+        category: 'reporting',
+        kpiType: 'calendar',
+        buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.view_calendar', 'View Calendar'),
+        buttonAction: 'navigate-calendar-view'
+      })
 
       // 5. My Expense Analytics (Manager card - shared)
       areas.push({
-        id: "my-expense-analytics",
-        title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.my_expense_analytics", "My Expense Analytics"),
-        description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.my_expense_analytics_desc", "Personal spending insights, trends, and budget analysis"),
+        id: 'my-expense-analytics',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.my_expense_analytics',
+          'My Expense Analytics'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.my_expense_analytics_desc',
+          'Personal spending insights, trends, and budget analysis'
+        ),
         icon: ChartBar,
-        category: "manager",
-        kpiType: "analytics",
-        buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.view_my_analytics", "View My Analytics"),
-        buttonAction: "navigate-personal-analytics",
-      });
+        category: 'manager',
+        kpiType: 'analytics',
+        buttonLabel: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.view_my_analytics',
+          'View My Analytics'
+        ),
+        buttonAction: 'navigate-personal-analytics'
+      })
 
       // 6. Team Expense Analytics (Manager card)
       if (canViewTeamExpenses() || canManageBudgets()) {
         areas.push({
-          id: "team-expense-analytics",
-          title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.team_expense_analytics", "Team Expense Analytics"),
-          description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.team_expense_analytics_desc", "Team spending insights, budget tracking, and performance metrics"),
+          id: 'team-expense-analytics',
+          title: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.team_expense_analytics',
+            'Team Expense Analytics'
+          ),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.team_expense_analytics_desc',
+            'Team spending insights, budget tracking, and performance metrics'
+          ),
           icon: ChartPie,
-          category: "manager",
-          kpiType: "analytics",
-          buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.view_team_analytics", "View Team Analytics"),
-          buttonAction: "navigate-team-analytics",
-        });
+          category: 'manager',
+          kpiType: 'analytics',
+          buttonLabel: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.view_team_analytics',
+            'View Team Analytics'
+          ),
+          buttonAction: 'navigate-team-analytics'
+        })
       }
 
       // === FINANCE-SPECIFIC CARDS (shown after Manager cards) ===
 
       // 7. Expense Management (Finance-specific)
       areas.push({
-        id: "expense-management",
-        title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_management", "Expense Management"),
-        description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_management_desc", "Comprehensive expense oversight and policy management"),
+        id: 'expense-management',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_management', 'Expense Management'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.expense_management_desc',
+          'Comprehensive expense oversight and policy management'
+        ),
         icon: Gear,
-        category: "manager",
-        kpiType: "team",
+        category: 'manager',
+        kpiType: 'team',
         links: [
-          { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.expense_requests", "Expense Requests"), action: "finance-expense-requests" },
-          { label: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.advance_payments", "Advance Payments"), action: "finance-advance-payments" },
+          {
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_requests', 'Expense Requests'),
+            action: 'finance-expense-requests'
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments', 'Advance Payments'),
+            action: 'finance-advance-payments'
+          }
         ],
-        buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.go_to_expense_management", "Go to Expense Management"),
-        buttonAction: "navigate-finance-management",
-      });
+        buttonLabel: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.go_to_expense_management',
+          'Go to Expense Management'
+        ),
+        buttonAction: 'navigate-finance-management'
+      })
 
       // 8. Advanced Expense Analytics (Finance-specific)
       areas.push({
-        id: "advanced-expense-analytics",
-        title: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.advanced_expense_analytics", "Advanced Expense Analytics"),
-        description: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.advanced_expense_analytics_desc", "Enterprise spending insights, budget tracking, and performance metrics"),
+        id: 'advanced-expense-analytics',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.advanced_expense_analytics',
+          'Advanced Expense Analytics'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.advanced_expense_analytics_desc',
+          'Enterprise spending insights, budget tracking, and performance metrics'
+        ),
         icon: ChartLine,
-        category: "reporting",
-        kpiType: "analytics",
-        buttonLabel: getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.view_advanced_analytics", "View Advanced Analytics"),
-        buttonAction: "navigate-advanced-analytics",
-      });
+        category: 'reporting',
+        kpiType: 'analytics',
+        buttonLabel: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.view_advanced_analytics',
+          'View Advanced Analytics'
+        ),
+        buttonAction: 'navigate-advanced-analytics'
+      })
     } else if (showFinanceView) {
       // Finance view: specialized finance cards
       if (canViewPersonalExpenses()) {
@@ -937,13 +1044,18 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
             <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
-            <AlertTitle>{getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.error_loading_stats", "Error Loading Stats")}</AlertTitle>
+            <AlertTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.error_loading_stats',
+                'Error Loading Stats'
+              )}
+            </AlertTitle>
             <AlertDescription>
               {error}
               <div className="mt-2">
                 <Button size="sm" variant="outline" onClick={refetch}>
                   <RemixIcons.RiRefreshLine className="h-4 w-4 mr-1" />
-                  {getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.retry", "Retry")}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.retry', 'Retry')}
                 </Button>
               </div>
             </AlertDescription>
@@ -961,8 +1073,11 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       headerKpis={headerKpis}
       sections={sections}
       quickActions={launcherQuickActions}
-      quickActionsTitle={getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.quick_actions", "Quick Actions")}
-      quickActionsDescription={getTranslationFromI18nKeyAndLabel("lowcoder:expenses_launcher.quick_actions_desc", "Frequently used expense functions and shortcuts")}
+      quickActionsTitle={getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.quick_actions', 'Quick Actions')}
+      quickActionsDescription={getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expenses_launcher.quick_actions_desc',
+        'Frequently used expense functions and shortcuts'
+      )}
       variant={moduleColor}
     />
   )

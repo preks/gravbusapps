@@ -96,7 +96,7 @@ export function useAccountAiSummary(accountId: string, accessToken: string): Use
         console.warn('No activities, notes, or tasks found for account', accountId)
       }
 
-      let inputData = `Account Context: ${JSON.stringify(accountContext, null, 2)}
+      const inputData = `Account Context: ${JSON.stringify(accountContext, null, 2)}
 
 Recent Activities (${sortedActivities.length} items): ${JSON.stringify(sortedActivities, null, 2)}
 

@@ -32,7 +32,7 @@ export const useContactQualityData = (accessToken: string) => {
 
         const contactsWithScores = contacts.map((c: any) => {
           let score = 0
-          let max = 10
+          const max = 10
           if (c.firstName) score += 1
           if (c.lastName) score += 1
           if (c.email) score += 1

@@ -1,12 +1,13 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_PLANS_BY_MANAGER } from '../queries/expensePlans'
 import { GET_EXPENSE_REQUESTS_BY_MANAGER } from '../queries/expenseRequests'
 import { GET_EXPENSE_ITEMS_BY_MANAGER } from '../queries/expenseItems'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER } from '../queries/advancePayments'
 import { getExpenseRequestStatusDisplay, getExpensePlanStatusDisplay, getAdvancePaymentStatusDisplay } from '../utils'
+import { useManagerExpensesOverview } from './useManagerExpensesOverview'
 
 // Define report types
 export enum ReportType {
@@ -118,7 +119,7 @@ export const useExpenseReportData = ({
   userInfo
 }: BusinessAppContextProps): UseExpenseReportDataReturn => {
   // Initialize GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   // Get managerId from userInfo or use a fallback UUID for development
   const managerId = userInfo?.employeeDetails?.employeeId || userInfo?.id || '00000000-0000-0000-0000-000000000000'
@@ -187,6 +188,122 @@ export const useExpenseReportData = ({
     }
   ]
 
+  // Consolidated overview for requests, plans, and advance payments
+  // We request all three lists with current paging; selection decides which to map
+  const overview = useManagerExpensesOverview(
+    { accessToken, userInfo },
+    {
+      managerId,
+      currencyRef: undefined,
+      searchTerm,
+      requests: { limit: pageSize, offset: (currentPage - 1) * pageSize },
+      plans: { limit: pageSize, offset: (currentPage - 1) * pageSize },
+      payments: { limit: pageSize, offset: (currentPage - 1) * pageSize }
+    }
+  )
+
+  // Map overview lists to report row shapes
+  const mapRequestsFromOverview = useCallback((rows: any[]): ExpenseRequestReport[] => {
+    return (rows || []).map((request: any) => {
+      const statusDisplay = request.status
+        ? getExpenseRequestStatusDisplay(request.status)
+        : { label: '', type: 'draft' }
+      return {
+        id: request.id,
+        code: request.code || '',
+        planCode: request.expensePlan?.code || '',
+        title: request.title || '',
+        requestDate: request.requestDate || '',
+        createdAt: request.createdAt || '',
+        status: statusDisplay.label,
+        totalAmount: Number(request.totalAmount || 0),
+        currency: request.currencyRef ? String(request.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+        employeeName: buildEmployeeDisplayName(request.employee)
+      } as ExpenseRequestReport
+    })
+  }, [])
+
+  const mapPlansFromOverview = useCallback((rows: any[]): ExpensePlanReport[] => {
+    return (rows || []).map((plan: any) => {
+      const statusDisplay = plan.status ? getExpensePlanStatusDisplay(plan.status) : { label: '', type: 'draft' }
+      return {
+        id: plan.id,
+        code: plan.code || '',
+        title: plan.title || '',
+        startDate: plan.startDate || '',
+        endDate: plan.endDate || '',
+        status: statusDisplay.label,
+        totalAmount: Number(plan.totalAmount || 0),
+        currency: plan.currencyRef ? String(plan.currencyRef).split(':').pop() || 'EUR' : 'EUR',
+        employeeName: buildEmployeeDisplayName(plan.employee),
+        expenseRequestCode:
+          Array.isArray(plan.expenseRequest) && plan.expenseRequest.length > 0 ? plan.expenseRequest[0].code || '' : '',
+        createdAt: plan.createdAt || ''
+      } as ExpensePlanReport
+    })
+  }, [])
+
+  const mapPaymentsFromOverview = useCallback((rows: any[]): AdvancePaymentReport[] => {
+    return (rows || []).map((p: any) => {
+      const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
+      return {
+        id: p.id,
+        code: p.expensePlan?.code || p.code || '',
+        title: p.expensePlan?.title || '',
+        requestDate: p.createdAt || '',
+        status: statusDisplay.label,
+        amount: Number(p.amount || 0),
+        employeeName: buildEmployeeDisplayName(p.expensePlan?.employee) || buildEmployeeDisplayName(p.employee),
+        paymentMethod: p.paymentMethod || undefined,
+        costCenter: p.costCenter?.name || p.costCenter?.code || undefined,
+        currency: p.currencyRef ? String(p.currencyRef).split(':').pop() || 'EUR' : 'EUR'
+      } as AdvancePaymentReport
+    })
+  }, [])
+
+  // Sync state with overview when not using the EXPENSE_ITEM report type
+  useEffect(() => {
+    if (!selectedReportType || selectedReportType === ReportType.EXPENSE_ITEM) return
+    setIsLoading(overview.isLoading)
+    if (overview.error) {
+      setError(overview.error)
+      return
+    }
+    if (!overview.isLoading) {
+      switch (selectedReportType) {
+        case ReportType.EXPENSE_REQUEST: {
+          const rows = mapRequestsFromOverview(overview.data?.expenseRequests || [])
+          setReportData(rows)
+          setTotalCount(overview.data?.expenseRequestsTotal || 0)
+          setError(null)
+          break
+        }
+        case ReportType.EXPENSE_PLAN: {
+          const rows = mapPlansFromOverview(overview.data?.expensePlans || [])
+          setReportData(rows)
+          setTotalCount(overview.data?.expensePlansTotal || 0)
+          setError(null)
+          break
+        }
+        case ReportType.ADVANCE_PAYMENT: {
+          const rows = mapPaymentsFromOverview(overview.data?.advancePayments || [])
+          setReportData(rows)
+          setTotalCount(overview.data?.advancePaymentsTotal || 0)
+          setError(null)
+          break
+        }
+      }
+    }
+  }, [
+    selectedReportType,
+    overview.data,
+    overview.isLoading,
+    overview.error,
+    mapRequestsFromOverview,
+    mapPlansFromOverview,
+    mapPaymentsFromOverview
+  ])
+
   /**
    * Build the Hasura where clause for ExpenseRequest queries.
    * Duplicated in multiple places previously; centralised here to keep
@@ -236,7 +353,11 @@ export const useExpenseReportData = ({
           ? String(item.expenseRequest.currencyRef).split(':').pop() || 'EUR'
           : 'EUR',
         // Keep raw date; UI/export formats via ensureShortDateFormat
-        date: item.expenseRequest?.createdAt || '',
+        // Correct date: EXPENSES → item.expenseDate; TRIP → expenseRequest.startDate
+        date:
+          item.expenseRequest?.requestTypeRef === 'ExpenseRequestType:v1:TRIP'
+            ? item.expenseRequest?.startDate || ''
+            : item.expenseDate || '',
         title: item.title || '',
         description: item.description || '',
         category: expenseGroup,
@@ -322,88 +443,7 @@ export const useExpenseReportData = ({
     }
   }, [graphqlClient, pageSize, currentPage, searchTerm, managerId])
 
-  // Fetch expense plans report
-  const fetchExpensePlans = useCallback(async () => {
-    if (!graphqlClient) return
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      // Use the real manager ID from userInfo
-      const result = await graphqlClient.request(GET_EXPENSE_PLANS_BY_MANAGER, {
-        managerId: managerId, // Use real manager ID from userInfo
-        limit: pageSize,
-        offset: (currentPage - 1) * pageSize,
-        searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
-      })
-
-      const processedData = processExpensePlansData(result)
-      setReportData(processedData)
-      setTotalCount(result?.ExpensePlanAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      console.error('Error fetching expense plans:', err)
-      setError('Failed to load expense plans data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphqlClient, pageSize, currentPage, searchTerm, managerId])
-
-  // Fetch expense requests report
-  const fetchExpenseRequests = useCallback(async () => {
-    if (!graphqlClient) return
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      // Use shared where-clause builder
-      const where = buildExpenseRequestWhere(managerId, searchTerm)
-
-      const result = await graphqlClient.request(GET_EXPENSE_REQUESTS_BY_MANAGER, {
-        where,
-        limit: pageSize,
-        offset: (currentPage - 1) * pageSize,
-        orderBy: [{ requestDate: 'DESC' }]
-      })
-
-      const processedData = processExpenseRequestsData(result)
-      setReportData(processedData)
-      setTotalCount(result?.ExpenseRequestAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      console.error('Error fetching expense requests:', err)
-      setError('Failed to load expense requests data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphqlClient, pageSize, currentPage, searchTerm, managerId])
-
-  // Fetch advance payments report
-  const fetchAdvancePayments = useCallback(async () => {
-    if (!graphqlClient) return
-
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const result = await graphqlClient.request(GET_ADVANCE_PAYMENTS_REPORT_BY_MANAGER, {
-        managerId: managerId,
-        limit: pageSize,
-        offset: (currentPage - 1) * pageSize,
-        searchTerm: searchTerm ? `%${searchTerm}%` : '%%'
-      })
-
-      const rows: AdvancePaymentReport[] = (result?.AdvancePayment || []).map(mapAdvancePaymentToReport)
-
-      setReportData(rows)
-      setTotalCount(result?.AdvancePaymentAggregate?.aggregate?.count || 0)
-    } catch (err) {
-      console.error('Error fetching advance payments:', err)
-      setError('Failed to load advance payments data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [graphqlClient, pageSize, currentPage, searchTerm, managerId])
+  // (legacy list fetchers for plans/requests/payments removed; overview handles lists)
 
   const mapAdvancePaymentToReport = useCallback((p: any): AdvancePaymentReport => {
     const statusDisplay = p.status ? getAdvancePaymentStatusDisplay(p.status) : { label: '', type: 'draft' }
@@ -542,24 +582,25 @@ export const useExpenseReportData = ({
   // Main function to fetch report data based on selected type
   const fetchReportData = useCallback(async () => {
     if (!selectedReportType) return
-
-    switch (selectedReportType) {
-      case ReportType.EXPENSE_ITEM:
-        await fetchExpenseItems()
-        break
-      case ReportType.EXPENSE_PLAN:
-        await fetchExpensePlans()
-        break
-      case ReportType.EXPENSE_REQUEST:
-        await fetchExpenseRequests()
-        break
-      case ReportType.ADVANCE_PAYMENT:
-        await fetchAdvancePayments()
-        break
-      default:
-        if (import.meta.env?.DEV) console.warn(`Unknown report type: ${selectedReportType}`)
+    // For items, use legacy fetchers; for others, overview effect will sync state
+    if (selectedReportType === ReportType.EXPENSE_ITEM) {
+      await fetchExpenseItems()
     }
-  }, [selectedReportType, fetchExpenseItems, fetchExpensePlans, fetchExpenseRequests, fetchAdvancePayments])
+  }, [selectedReportType, fetchExpenseItems])
+
+  // StrictMode-safe: run once per parameter signature
+  const lastFetchSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify({
+      selectedReportType,
+      currentPage,
+      pageSize,
+      searchTerm
+    })
+    if (lastFetchSignatureRef.current === signature) return
+    lastFetchSignatureRef.current = signature
+    void fetchReportData()
+  }, [selectedReportType, currentPage, pageSize, searchTerm, fetchReportData])
 
   return {
     reportTypes,

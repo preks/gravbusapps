@@ -49,7 +49,7 @@ const JobLevelGroupDetails: React.FC<JobLevelGroupDetailsProps> = context => {
   const [accordionValue, setAccordionValue] = useState<string | string[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   const [selectedRows, setSelectedRows] = useState<any[]>([])
 
   const handleDelete = async (type: 'group' | 'level', item: JobLevelGroup | JobLevel) => {

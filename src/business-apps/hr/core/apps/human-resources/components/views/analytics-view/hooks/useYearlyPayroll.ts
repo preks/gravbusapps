@@ -86,8 +86,8 @@ export const useYearlyPayroll = (accessToken: string) => {
 
       // Extract current payroll and employee count from the aggregate response
       const aggregateData = response.EmployeeWorkingConditionAggregate.aggregate
-      let currentPayroll = aggregateData.sum.annualGrossSalary || 0
-      let currentEmployeeCount = aggregateData.count || 0
+      const currentPayroll = aggregateData.sum.annualGrossSalary || 0
+      const currentEmployeeCount = aggregateData.count || 0
 
       console.log(`[useYearlyPayroll] Current payroll = ${currentPayroll}, Employee count = ${currentEmployeeCount}`)
 

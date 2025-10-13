@@ -1,23 +1,14 @@
-import React, { useMemo, useEffect } from 'react'
+import React, { useMemo, useEffect, useCallback, useState, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetExpenseRequests } from '../../../hooks/useGetExpenseRequests'
 import { useExpenseRequestFilters } from '../../../hooks/useExpenseRequestFilters'
 import ExpenseRequestStatistics from './ExpenseRequestStatistics'
 import ExpenseRequestsTable from './ExpenseRequestsTable'
+import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
+import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {
-  moduleColor?: string
-}
+export interface ExpenseRequestsTabProps extends BusinessAppContextProps {}
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
-  const contextProps = useMemo(
-    () => ({
-      accessToken: props.accessToken,
-      userInfo: props.userInfo
-    }),
-    [props.accessToken, props.userInfo]
-  )
-
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
   const {
@@ -36,32 +27,132 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     userInfo: props.userInfo
   })
 
-  const { requestStats, requestStatsLoading, requestStatsError, fetchRequestStatistics } = useGetExpenseRequests({
-    ...contextProps,
-    currentCurrencyFilter: primaryCurrency,
-    statisticsOnly: true
+  // Stats will be computed from overview (declared below)
+
+  // Local paging + sorting managed here; overview hook refetches on dependency change
+  const [pageSize, setPageSize] = useState<number>(10)
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [sortBy, setSortBy] = useState<string>('requestDate:desc')
+
+  const reqOrderBy = useMemo(() => {
+    const [field, dirRaw] = String(sortBy || 'requestDate:desc').split(':')
+    const dir = (dirRaw || 'desc').toUpperCase()
+    switch (field) {
+      case 'title':
+        return [{ title: dir } as any]
+      case 'startDate':
+        return [{ startDate: dir } as any]
+      case 'endDate':
+        return [{ endDate: dir } as any]
+      case 'employee.fullName':
+        return [{ employee: { fullName: dir } } as any]
+      case 'requestDate':
+        return [{ requestDate: dir } as any]
+      case 'amount':
+        return [{ totalAmount: dir } as any]
+      case 'status':
+        return [{ status: dir } as any]
+      default:
+        return [{ requestDate: 'DESC' } as any]
+    }
+  }, [sortBy])
+
+  const currencyRef = useMemo(
+    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
+    [primaryCurrency]
+  )
+
+  const overview = useManagerExpensesOverview(props, {
+    managerId,
+    currencyRef,
+    searchTerm,
+    requests: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: reqOrderBy },
+    requestsStatus: selectedFilters,
+    plans: { limit: 0, offset: 0 },
+    payments: { limit: 0, offset: 0 }
   })
 
-  const {
-    requests: expenseRequests,
-    isLoading: requestsLoading,
-    error: requestsError,
-    totalCount,
-    fetchRequests
-  } = useGetExpenseRequests({
-    ...contextProps,
-    pageSize: 10,
-    searchTerm,
-    currentStatusFilter: selectedFilters,
-    currentCurrencyFilter: primaryCurrency,
-    statisticsOnly: false
-  })
+  // Use ref to keep the last valid stats to prevent flickering/height changes
+  const lastValidStatsRef = useRef<any>(null)
+
+  // Compute stats from overview now that it's declared
+  const requestStats = useMemo(() => {
+    const newStats = overview.data
+      ? {
+          // Use currency-agnostic counts for card totals
+          pendingCount: overview.data.pendingRequestsAll || 0,
+          pendingAmount: overview.data.requestPendingAmount || 0,
+          totalRequestsSubmitted: overview.data.totalRequestsAll || 0,
+          totalSubmittedAmount: overview.data.requestSubmittedAmount || 0
+        }
+      : null
+
+    // Update ref with new stats if available
+    if (newStats) {
+      lastValidStatsRef.current = newStats
+    }
+
+    // Return new stats if available, otherwise return last valid stats to prevent flickering
+    return newStats || lastValidStatsRef.current
+  }, [overview.data])
+
+  // Only show loading on initial load when there's no cached data
+  const requestStatsLoading = overview.isLoading && !overview.data
+  const requestStatsError = overview.error
+  const fetchRequestStatistics = useCallback(async () => {
+    await overview.refetch()
+  }, [overview])
+
+  const expenseRequests = useMemo(() => {
+    const rows = overview.data?.expenseRequests || []
+    return rows.map((r: any) => {
+      // Extract currency code from currencyRef (format: "Currency:v1:EUR" -> "EUR")
+      let currency: string | undefined
+      if (typeof r?.currencyRef === 'string') {
+        currency = r.currencyRef.includes(':') ? r.currencyRef.split(':').pop() : r.currencyRef
+      }
+
+      return {
+        id: r.id,
+        code: r.code,
+        title: r.title,
+        requestDate: r.requestDate,
+        startDate: r.startDate,
+        endDate: r.endDate,
+        description: r.description,
+        amount: Number(r.totalAmount ?? 0),
+        currency: currency || primaryCurrency || 'EUR',
+        status: r.status,
+        createdAt: r.createdAt,
+        updatedAt: r.updatedAt,
+        employeeDocument: r.employeeDocument || null,
+        expensePlan: r.expensePlan || null,
+        employee: r.employee || null
+      } as any
+    })
+  }, [overview.data?.expenseRequests, primaryCurrency])
+
+  // Only show loading on initial load when there's no cached data
+  const requestsLoading = overview.isLoading && !overview.data
+  const requestsError = overview.error
+  const totalCount = overview.data?.expenseRequestsTotal ?? 0
+
+  const fetchRequests = useCallback(
+    (newSearchTerm?: string, page?: number, newPageSize?: number, newSortBy?: string) => {
+      if (typeof newSearchTerm === 'string') setSearchTerm(newSearchTerm)
+      if (typeof page === 'number') setCurrentPage(page)
+      if (typeof newPageSize === 'number') setPageSize(newPageSize)
+      if (typeof newSortBy === 'string' && newSortBy.length > 0) setSortBy(newSortBy)
+      return Promise.resolve()
+    },
+    [setSearchTerm]
+  )
 
   useEffect(() => {
     if (props.accessToken) {
-      fetchRequests('', 1, 10, 'requestDate:desc', selectedFilters, undefined, primaryCurrency)
+      // Ensure initial load via overview hook defaults
     }
-  }, [props.accessToken, fetchRequests, selectedFilters, primaryCurrency])
+  }, [props.accessToken])
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
@@ -81,7 +172,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       <div className="gba:flex-1">
         <div data-testid="expense-requests-table-container">
           <ExpenseRequestsTable
-            {...contextProps}
+            accessToken={props.accessToken}
+            userInfo={props.userInfo}
             expenseRequests={expenseRequests}
             loading={requestsLoading}
             error={requestsError}

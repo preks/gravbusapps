@@ -297,7 +297,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
   }, [accessToken])
 
   useEffect(() => {
-    let leadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId
+    const leadId = additionalData?.leadId || additionalData?.psi_taskPayload?.psi_initialParameters?.leadId
     async function fetchLead() {
       setLoading(true)
       try {

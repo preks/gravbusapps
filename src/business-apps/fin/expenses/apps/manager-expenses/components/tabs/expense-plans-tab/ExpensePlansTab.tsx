@@ -1,29 +1,21 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useRef } from 'react'
 import { PiFileText } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer'
-import { ExpensePlan, useMainViewExpensePlans } from '../../../hooks/useMainViewExpensePlans'
+import { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters'
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
 import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
+import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
+import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
   employeeId?: string
-  moduleColor?: string
 }
 
 const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
-  // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = useMemo(
-    () => ({
-      accessToken: props.accessToken,
-      userInfo: props.userInfo
-    }),
-    [props.accessToken, props.userInfo]
-  )
-
   // Get managerId from userInfo for currency filtering
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
@@ -45,31 +37,130 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   // State for page size
   const [pageSize, setPageSize] = useState<number>(10)
 
-  // Use the statistics-only hook to get KPI data without interfering with table data
-  const { planStats, statsLoading, statsError } = useMainViewExpensePlans({
-    ...contextProps,
-    currentCurrencyFilter: primaryCurrency, // Use primaryCurrency from filters hook
-    statisticsOnly: true // This prevents race conditions with the table data
-  })
+  // Stats from overview aggregates (declared after overview)
+  let planStats: any = null
+  let statsLoading = false
+  let statsError: any = null
 
   // Use the main data hook to fetch expense plans data
-  const {
-    plans: expensePlans,
-    loading: plansLoading,
-    error: plansError,
-    totalCount,
-    currentPage,
-    setCurrentPage,
-    sorting,
-    updateSorting
-  } = useMainViewExpensePlans({
-    ...contextProps,
-    pageSize,
-    searchTerm,
-    currentStatusFilter: statusFilter,
-    currentCurrencyFilter: primaryCurrency,
-    statisticsOnly: false // This fetches the main data
+  // Local paging + sorting state for overview-driven list
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [sorting, setSorting] = useState<{ field: any; order: 'ASC' | 'DESC' | null; lastField?: any }>({
+    field: null,
+    order: null
   })
+
+  const planOrderBy = useMemo(() => {
+    if (!sorting.field || !sorting.order) return [{ planDate: 'DESC' } as any]
+    const dir = sorting.order
+    switch (sorting.field) {
+      case 'title':
+        return [{ title: dir } as any]
+      case 'startDate':
+        return [{ startDate: dir } as any]
+      case 'endDate':
+        return [{ endDate: dir } as any]
+      case 'employee.fullName':
+        return [{ employee: { fullName: dir } } as any]
+      case 'createdAt':
+        return [{ createdAt: dir } as any]
+      case 'totalAmount':
+        return [{ totalAmount: dir } as any]
+      case 'status':
+        return [{ status: dir } as any]
+      default:
+        return [{ planDate: 'DESC' } as any]
+    }
+  }, [sorting])
+
+  const currencyRef = useMemo(
+    () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
+    [primaryCurrency]
+  )
+
+  const overview = useManagerExpensesOverview(props, {
+    managerId,
+    currencyRef,
+    searchTerm,
+    plans: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: planOrderBy },
+    plansStatus: statusFilter,
+    requests: { limit: 0, offset: 0 },
+    payments: { limit: 0, offset: 0 }
+  })
+
+  // Use ref to keep the last valid stats to prevent flickering/height changes
+  const lastValidStatsRef = useRef<any>(null)
+
+  // Compute stats from overview now that it's declared
+  planStats = useMemo(() => {
+    const newStats = overview.data
+      ? {
+          // Use currency-agnostic counts for card totals
+          totalCount: overview.data.totalPlansAll || 0,
+          sumTotalAmount: overview.data.planTotalAmount || 0,
+          pendingCount: overview.data.pendingPlansAll || 0,
+          pendingAmount: overview.data.planPendingAmount || 0
+        }
+      : null
+
+    // Update ref with new stats if available
+    if (newStats) {
+      lastValidStatsRef.current = newStats
+    }
+
+    // Return new stats if available, otherwise return last valid stats to prevent flickering
+    return newStats || lastValidStatsRef.current
+  }, [overview.data])
+
+  // Only show loading on initial load when there's no cached data
+  statsLoading = overview.isLoading && !overview.data
+  statsError = overview.error ? new Error(overview.error) : null
+
+  const expensePlans: ExpensePlan[] = useMemo(() => {
+    const rows = overview.data?.expensePlans || []
+    return rows.map((p: any) => {
+      // Extract currency code from currencyRef (format: "Currency:v1:EUR" -> "EUR")
+      let currency: string | undefined
+      if (typeof p?.currencyRef === 'string') {
+        currency = p.currencyRef.includes(':') ? p.currencyRef.split(':').pop() : p.currencyRef
+      }
+
+      return {
+        id: p.id,
+        code: p.code,
+        title: p.title,
+        description: p.description ?? null,
+        status: p.status,
+        startDate: p.startDate,
+        endDate: p.endDate,
+        planDate: p.planDate,
+        totalAmount: Number(p.totalAmount ?? 0),
+        currency: currency || primaryCurrency || 'EUR',
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        expenseRequest: Array.isArray(p.expenseRequest) ? p.expenseRequest : [],
+        employeeDocument: p.employeeDocument || null,
+        employee: p.employee
+      } as ExpensePlan
+    })
+  }, [overview.data?.expensePlans, primaryCurrency])
+
+  // Only show loading on initial load when there's no cached data
+  const plansLoading = overview.isLoading && !overview.data
+  const plansError = overview.error ? new Error(overview.error) : null
+  const totalCount = overview.data?.expensePlansTotal ?? 0
+
+  const updateSorting = useCallback((field: any) => {
+    setSorting(prev => {
+      if (prev.field === field) {
+        if (prev.order === 'ASC') return { field, order: 'DESC' }
+        if (prev.order === 'DESC') return { field: null, order: null }
+        return { field, order: 'ASC' }
+      }
+      return { field, order: 'ASC' }
+    })
+    setCurrentPage(1)
+  }, [])
 
   // State for selected plan details
   const [selectedPlan, setSelectedPlan] = useState<ExpensePlan | null>(null)
@@ -125,23 +216,43 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: statusFilter,
+          filter: primaryCurrency ? [...statusFilter, `currency:${primaryCurrency}`] : statusFilter,
           setSearch: handleSearchChange,
           setFilter: newFilters => {
-            // Convert filters to string IDs for comparison
-            const currentFilters = statusFilter.map(status => status as unknown as string)
-            const incomingFilters = newFilters.map(status => status as unknown as string)
+            // Separate currency and status filters
+            const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
+            const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
 
-            // Find filters to remove and add
+            // Convert current status filters to string IDs for comparison
+            const currentFilters = statusFilter.map(status => status as unknown as string)
+            const incomingFilters = statusFiltersIncoming.map(status => status as unknown as string)
+
+            // Find status filters to remove and add
             const filtersToRemove = currentFilters.filter(f => !incomingFilters.includes(f))
             const filtersToAdd = incomingFilters.filter(f => !currentFilters.includes(f))
 
-            // Apply filter changes
-            filtersToRemove.forEach(filter => handleDataFilterChange(filter, false))
-            filtersToAdd.forEach(filter => handleDataFilterChange(filter, true))
+            // Apply status filter changes
+            for (const filter of filtersToRemove) {
+              handleDataFilterChange(filter, false)
+            }
+            for (const filter of filtersToAdd) {
+              handleDataFilterChange(filter, true)
+            }
+
+            // Handle currency filter changes - when clearing all, reset currency to most used
+            const hadCurrency = primaryCurrency && primaryCurrency.length > 0
+            const hasCurrency = currencyFilters.length > 0
+
+            if (hadCurrency && !hasCurrency) {
+              // Currency filter was removed - reset to most used by clearing the selection
+              handleDataFilterChange(`currency:${primaryCurrency}`, false)
+            }
           },
 
-          filterLabelMap: filterLabelMap,
+          filterLabelMap: {
+            ...filterLabelMap,
+            ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
+          },
           listTitle: (
             <div className="gba:flex gba:items-center gba:gap-4">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -161,7 +272,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         dataBody={
           <div data-testid="expense-plans-table-container">
             <ExpensePlansTable
-              {...contextProps}
+              accessToken={props.accessToken}
+              userInfo={props.userInfo}
               search={searchTerm}
               onSearchChange={handleSearchChange}
               activeFilter={statusFilter}
@@ -190,7 +302,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
                 title: selectedPlan.title || 'Expense Plan Details',
                 icon: <PiFileText />,
                 content: (
-                  <ExpensePlanDetails {...contextProps} selectedItem={selectedPlan} onClose={handleCloseDetails} />
+                  <ExpensePlanDetails
+                    accessToken={props.accessToken}
+                    userInfo={props.userInfo}
+                    selectedItem={selectedPlan}
+                    onClose={handleCloseDetails}
+                  />
                 ),
                 onClose: handleCloseDetails,
                 footer: null

@@ -404,7 +404,7 @@ const EntitlementsDetails: React.FC<EntitlementsDetailsProps> = ({
       const whereConditions = buildWhereConditions()
 
       // Build order by clause (map sort fields to GraphQL field names)
-      let orderBy: any[] = []
+      const orderBy: any[] = []
       if (sortField && sortOrder) {
         const graphqlSortOrder = sortOrder.toUpperCase() // Convert to uppercase for GraphQL
         if (sortField === 'employeeName') {

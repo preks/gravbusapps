@@ -11,16 +11,20 @@ interface AdvancePaymentStatisticsProps {
   statsLoading: boolean
   statsError: Error | null
   fetchAdvancePaymentStatistics: () => Promise<void>
+  currencyFilter: string | null
 }
 
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   advancePaymentStats,
   statsLoading,
   statsError,
-  fetchAdvancePaymentStatistics
+  fetchAdvancePaymentStatistics,
+  currencyFilter
 }) => {
-  // Use the global currency store - use primary currency (user's selection) for both cards
+  // Use currencyFilter from tab (synced with selected filter) instead of global store
   const { primaryCurrency } = useCurrencyStore()
+  // Fallback to primaryCurrency if currencyFilter is not set
+  const effectiveCurrency = currencyFilter || primaryCurrency
 
   // Transform the stats data into widgets format (memoized to avoid infinite effect loops)
   const widgets: WidgetItem[] = useMemo(() => {
@@ -33,8 +37,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           'Total Advance Payments'
         ),
         value: advancePaymentStats.sumAmount
-          ? formatCurrencyDisplay(advancePaymentStats.sumAmount, primaryCurrency)
-          : formatCurrencyDisplay(0, primaryCurrency),
+          ? formatCurrencyDisplay(advancePaymentStats.sumAmount, effectiveCurrency)
+          : formatCurrencyDisplay(0, effectiveCurrency),
         prefix: <DollarOutlined />,
         color: 'var(--nw-success)',
         valueIsString: true,
@@ -50,8 +54,8 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
           'Pending Amount'
         ),
         value: advancePaymentStats.pendingAmount
-          ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, primaryCurrency)
-          : formatCurrencyDisplay(0, primaryCurrency),
+          ? formatCurrencyDisplay(advancePaymentStats.pendingAmount, effectiveCurrency)
+          : formatCurrencyDisplay(0, effectiveCurrency),
         prefix: <ClockCircleOutlined />,
         color: 'var(--nw-destructive)',
         valueIsString: true,
@@ -61,7 +65,7 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
         )
       }
     ]
-  }, [advancePaymentStats, primaryCurrency])
+  }, [advancePaymentStats, effectiveCurrency])
 
   return (
     <WidgetGroup

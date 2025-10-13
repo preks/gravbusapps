@@ -58,12 +58,12 @@ export const useExpensePlanCurrencies = (context: BusinessAppContextProps, manag
         const countCurrencies = (plans: { currencyRef: string }[]): CurrencyCount[] => {
           const currencyMap = new Map<string, number>()
 
-          plans.forEach(plan => {
+          for (const plan of plans) {
             if (plan.currencyRef) {
               const currency = plan.currencyRef.replaceAll('Currency:v1:', '')
               currencyMap.set(currency, (currencyMap.get(currency) || 0) + 1)
             }
-          })
+          }
 
           return Array.from(currencyMap.entries()).map(([currency, count]) => ({
             currency,

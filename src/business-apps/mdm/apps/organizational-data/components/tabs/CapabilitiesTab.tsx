@@ -15,7 +15,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import CardTabHeaderComponent from '../../../generic-components/card'
-import { ColumnDef } from '@tanstack/react-table'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import {
   ArrowsDownUpIcon,
   FileCodeIcon,
@@ -88,6 +88,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const filteredCapabilities = capabilities.filter(
     capability =>
@@ -257,15 +258,12 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
 
     return (
       <DataTable
-        defaultDataSetId="job-profiles"
-        dataSets={[
-          {
-            id: 'job-profiles',
-            label: 'Job Profiles',
-            data: dataTable,
-            columns: columns
-          }
-        ]}
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        enableSorting
+        enablePagination
+        sorting={sorting}
+        onSortingChange={setSorting}
       />
     )
   }
@@ -392,7 +390,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
       )}
 
       <CardContent>
-        <div className="gba:relative gba:max-w-sm">
+        <div className="gba:mb-6 gba:relative gba:max-w-sm">
           <Input
             placeholder="Search capabilities..."
             value={searchTerm}
@@ -430,6 +428,7 @@ const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
                 layers={layers}
                 capability={selectedCapability}
                 isDrawerActive={true}
+                key={selectedCapability.id}
               />
             ]}
           />

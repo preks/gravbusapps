@@ -208,7 +208,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
 
     const processedData = allowanceData
       .map(element => {
-        let updatedElement = { ...element }
+        const updatedElement = { ...element }
 
         // Set default cost center for all allowances if it exists
         if (!updatedElement.costCenterId && defaultCostCenter) {

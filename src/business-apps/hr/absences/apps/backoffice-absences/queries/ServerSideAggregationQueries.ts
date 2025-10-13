@@ -171,7 +171,7 @@ export const getHybridDataQuery = (timeFilter: string) => {
   }
 
   // Optimized where clause for raw data (minimal fields needed)
-  let absenceWhere = `where: ${buildBaseWhere(dateFilters.startDate, dateFilters.endDate)}`
+  const absenceWhere = `where: ${buildBaseWhere(dateFilters.startDate, dateFilters.endDate)}`
 
   return `
   query GetHybridData {
