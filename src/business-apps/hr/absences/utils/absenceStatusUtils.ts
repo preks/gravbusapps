@@ -1,5 +1,5 @@
-import type { BadgeProps } from "@newwork/nw-design-system";
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import type { BadgeProps } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
  * Absence status utilities following the same pattern as expenses
@@ -10,11 +10,11 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
  * Configuration for absence status display
  */
 export interface AbsenceStatusConfig {
-  label: string;
-  variant: BadgeProps["variant"];
-  color: string;
-  type: string;
-  status: string; // Original status value (e.g., "PLANNED", "PENDING")
+  label: string
+  variant: BadgeProps['variant']
+  color: string
+  type: string
+  status: string // Original status value (e.g., "PLANNED", "PENDING")
 }
 
 /**
@@ -23,73 +23,71 @@ export interface AbsenceStatusConfig {
  * @param status - The absence status
  * @returns Object with user-friendly label, Badge variant, color, and type
  */
-export function getAbsenceStatusConfig(
-  status?: string
-): AbsenceStatusConfig {
+export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
   if (!status) {
-    return { 
-      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown'), 
-      variant: "outline",
+    return {
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown'),
+      variant: 'outline',
       color: '#6b7280',
       type: 'unknown',
       status: 'UNKNOWN'
-    };
+    }
   }
 
   switch (status.toUpperCase()) {
-    case "PLANNED":
+    case 'PLANNED':
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        variant: "secondary", // Gray - indicates draft/planned state
+        variant: 'secondary', // Gray - indicates draft/planned state
         color: '#6b7280',
         type: 'draft',
         status: 'PLANNED'
-      };
+      }
 
-    case "PENDING":
+    case 'PENDING':
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        variant: "warning", // Orange - indicates pending approval
+        variant: 'warning', // Orange - indicates pending approval
         color: '#f59e0b',
         type: 'pending',
         status: 'PENDING'
-      };
+      }
 
-    case "APPROVED":
+    case 'APPROVED':
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        variant: "success", // Green - indicates approved
+        variant: 'success', // Green - indicates approved
         color: '#10b981',
         type: 'approved',
         status: 'APPROVED'
-      };
+      }
 
-    case "REJECTED":
+    case 'REJECTED':
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        variant: "destructive", // Red - indicates rejected
+        variant: 'destructive', // Red - indicates rejected
         color: '#ef4444',
         type: 'rejected',
         status: 'REJECTED'
-      };
+      }
 
-    case "CANCELLED":
+    case 'CANCELLED':
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'),
-        variant: "secondary", // Gray - indicates cancelled
+        variant: 'secondary', // Gray - indicates cancelled
         color: '#6b7280',
         type: 'cancelled',
         status: 'CANCELLED'
-      };
+      }
 
     default:
       return {
-        label: status,
-        variant: "secondary",
+        label: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Unknown',
+        variant: 'secondary',
         color: '#6b7280',
         type: 'unknown',
-        status: status.toUpperCase()
-      };
+        status: status ? status.toUpperCase() : 'UNKNOWN'
+      }
   }
 }
 
@@ -99,7 +97,7 @@ export function getAbsenceStatusConfig(
  * @returns Translated status label
  */
 export function getAbsenceStatusLabel(status?: string): string {
-  return getAbsenceStatusConfig(status).label;
+  return getAbsenceStatusConfig(status).label
 }
 
 /**
@@ -107,8 +105,8 @@ export function getAbsenceStatusLabel(status?: string): string {
  * @param status - The absence status
  * @returns Badge variant
  */
-export function getAbsenceStatusBadgeVariant(status?: string): BadgeProps["variant"] {
-  return getAbsenceStatusConfig(status).variant;
+export function getAbsenceStatusBadgeVariant(status?: string): BadgeProps['variant'] {
+  return getAbsenceStatusConfig(status).variant
 }
 
 /**
@@ -117,7 +115,7 @@ export function getAbsenceStatusBadgeVariant(status?: string): BadgeProps["varia
  * @returns Color hex code
  */
 export function getAbsenceStatusColor(status?: string): string {
-  return getAbsenceStatusConfig(status).color;
+  return getAbsenceStatusConfig(status).color
 }
 
 /**
@@ -126,7 +124,7 @@ export function getAbsenceStatusColor(status?: string): string {
  * @returns Status type string
  */
 export function getAbsenceStatusType(status?: string): string {
-  return getAbsenceStatusConfig(status).type;
+  return getAbsenceStatusConfig(status).type
 }
 
 /**
@@ -135,7 +133,7 @@ export function getAbsenceStatusType(status?: string): string {
  * @returns Badge variant that matches the original color meaning
  */
 export function getAbsenceStatusDisplay(status?: string): AbsenceStatusConfig {
-  return getAbsenceStatusConfig(status);
+  return getAbsenceStatusConfig(status)
 }
 
 /**
@@ -143,8 +141,8 @@ export function getAbsenceStatusDisplay(status?: string): AbsenceStatusConfig {
  * @returns Array of all status configurations with original status values
  */
 export function getAllAbsenceStatusConfigs(): AbsenceStatusConfig[] {
-  const statuses = ['PLANNED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'];
-  return statuses.map(status => getAbsenceStatusConfig(status));
+  const statuses = ['PLANNED', 'PENDING', 'APPROVED', 'REJECTED', 'CANCELLED']
+  return statuses.map(status => getAbsenceStatusConfig(status))
 }
 
 /**
@@ -153,9 +151,9 @@ export function getAllAbsenceStatusConfigs(): AbsenceStatusConfig[] {
  * @returns True if status is active
  */
 export function isActiveAbsenceStatus(status?: string): boolean {
-  if (!status) return false;
-  const upperStatus = status.toUpperCase();
-  return upperStatus === 'PENDING' || upperStatus === 'APPROVED' || upperStatus === 'REJECTED';
+  if (!status) return false
+  const upperStatus = status.toUpperCase()
+  return upperStatus === 'PENDING' || upperStatus === 'APPROVED' || upperStatus === 'REJECTED'
 }
 
 /**
@@ -164,7 +162,7 @@ export function isActiveAbsenceStatus(status?: string): boolean {
  * @returns True if status is approved
  */
 export function isApprovedAbsenceStatus(status?: string): boolean {
-  return status?.toUpperCase() === 'APPROVED';
+  return status?.toUpperCase() === 'APPROVED'
 }
 
 /**
@@ -173,7 +171,7 @@ export function isApprovedAbsenceStatus(status?: string): boolean {
  * @returns True if status is pending
  */
 export function isPendingAbsenceStatus(status?: string): boolean {
-  return status?.toUpperCase() === 'PENDING';
+  return status?.toUpperCase() === 'PENDING'
 }
 
 /**
@@ -182,5 +180,5 @@ export function isPendingAbsenceStatus(status?: string): boolean {
  * @returns True if status is rejected
  */
 export function isRejectedAbsenceStatus(status?: string): boolean {
-  return status?.toUpperCase() === 'REJECTED';
+  return status?.toUpperCase() === 'REJECTED'
 }
