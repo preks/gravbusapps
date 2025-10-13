@@ -96,12 +96,12 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     },
     {
       label: 'Place of Birth',
-      value: employee.birthPlace?.value || '',
+      value: employee.birthPlace || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
       label: 'Nationality',
-      value: employee.nationality?.value || '',
+      value: employee.nationality?.translations?.[0]?.value || employee.nationality?.value || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {

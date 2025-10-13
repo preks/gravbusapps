@@ -230,6 +230,13 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         healthInsuranceName
         healthInsuranceTypeRef
       }
+      nationality {
+        value
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          value
+        }
+      }
+      birthPlace
     }
   }
   Subordinates: EmployeePosition(where: {supervisorEmployeeId: {_eq: $employeeId}}) {
