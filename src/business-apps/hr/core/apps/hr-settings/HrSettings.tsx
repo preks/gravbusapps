@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Typography } from 'antd'
-import { RiSettings4Fill, RiSearchLine } from '@remixicon/react'
+import { RiSearchLine } from '@remixicon/react'
 import { PiUsersThreeDuotone } from 'react-icons/pi'
 import { HrSettingsCard, HrSettingsCardProps } from './components/HrSettingsCard'
 import { useHrSettingsCards } from './hooks/useHrSettingsCards'
-import { cn } from '@/common/utils/cn'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface HrSettingsProps {
   className?: string
@@ -42,12 +42,12 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
   return (
     <PageLayout
       headerIcon={<PiUsersThreeDuotone color="#254469" />}
-      headerLabel={t('hr.hr_settings')}
+      headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
       className={className}
       pageHeaderRight={
         <Input
           prefix={<RiSearchLine style={{ color: '#9ca3af' }} />}
-          placeholder={t('common.search_placeholder')}
+          placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
           style={{ maxWidth: '320px' }}
           allowClear
           value={searchTerm}
