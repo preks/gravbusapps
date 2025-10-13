@@ -117,25 +117,25 @@ export const managerExpenseAreas: ExpenseArea[] = [
 export const quickActions: QuickAction[] = [
   {
     id: 'create-plan',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.create_plan', 'Create Plan'),
+    label: 'Create Plan',
     icon: Plus,
     action: 'create-plan'
   },
   {
     id: 'add-expense-item',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.add_expense_item', 'Add Expense Item'),
+    label: 'Add Expense Item',
     icon: Plus,
     action: 'create-expense-item'
   },
   {
     id: 'request-advance',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.request_advance', 'Request Advance'),
+    label: 'Request Advance',
     icon: Plus,
     action: 'request-advance'
   },
   {
     id: 'submit-request',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.submit_request', 'Submit Request'),
+    label: 'Submit Request',
     icon: Plus,
     action: 'submit-request'
   }

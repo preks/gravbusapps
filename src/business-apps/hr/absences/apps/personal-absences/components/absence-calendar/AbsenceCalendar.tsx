@@ -9,6 +9,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import calendarIcon from '@/assets/icons/calendarIcon.svg'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { getAbsenceStatusLabel, getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 dayjs.extend(isSameOrAfter)
@@ -29,7 +30,6 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
   showTabsSwitch = true,
   filterOptions,
   activeFilter,
-  onFilterChange,
   ...props
 }) => {
   const [upcomingPage, setUpcomingPage] = useState(1)
@@ -50,19 +50,18 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
 
   const mapAbsence = (absence: EmployeeAbsence) => {
     let tagColor: string | undefined = undefined
-    const objectValue =
-      absence.type && typeof absence.type === 'object' && 'objectValue' in absence.type
-        ? (absence.type as any).objectValue
-        : undefined
+    const objectValue = absence.type?.objectValue
     if (objectValue && typeof objectValue.color === 'string') {
       tagColor = `#${objectValue.color.replace(/^#/, '')}`
     }
+    const originalStatus = absence.status || ''
     return {
       id: absence.id,
       startDate: absence.startDate,
       endDate: absence.endDate,
       type: absence.type.value,
-      status: absence.status || '',
+      status: getAbsenceStatusLabel(originalStatus), // Translated status
+      originalStatus: originalStatus, // Keep original status for color logic
       tagColor,
       description: absence.description || ''
     }
@@ -70,10 +69,13 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
 
   const mappedAbsences = Array.isArray(absences) ? absences.map(mapAbsence) : []
 
-  const filteredAbsences =
-    Array.isArray(absences) && filterOptions && activeFilter && activeFilter !== 'All'
-      ? mappedAbsences.filter(a => a.type === activeFilter)
-      : mappedAbsences
+  const filteredAbsences = useMemo(() => {
+    if (!Array.isArray(absences)) return []
+    if (filterOptions && activeFilter && activeFilter !== 'All') {
+      return mappedAbsences.filter(a => a.type === activeFilter)
+    }
+    return mappedAbsences
+  }, [absences, mappedAbsences, filterOptions, activeFilter])
 
   const upcomingAbsences = useMemo(
     () =>
@@ -101,16 +103,19 @@ const AbsenceCalendar: React.FC<AbsenceCalendarProps> = ({
 
   const dateCellRender = (value: any) => {
     const dateStr = value.format('YYYY-MM-DD')
-    const items = filteredAbsences.filter(
-      absence => absence.startDate && absence.endDate && dateStr >= absence.startDate && dateStr <= absence.endDate
-    )
+    const items = filteredAbsences.filter(absence => {
+      if (!absence.startDate || !absence.endDate) return false
+      const startDate = dayjs(absence.startDate).format('YYYY-MM-DD')
+      const endDate = dayjs(absence.endDate).format('YYYY-MM-DD')
+      return dateStr >= startDate && dateStr <= endDate
+    })
     return items.length ? (
       <ul data-testid={`absence-calendar-cell-list-${dateStr}`}>
         {items.map(item => (
           <li key={item.id} data-testid={`absence-calendar-cell-list-item-${item.id}`}>
             <Tag
-              color={item.tagColor || (item.status === 'Approved' ? 'green' : 'orange')}
-              className={`gba:absence-calendar-tag${item.status === 'PENDING' ? ' gba:absence-pending' : ''}`}
+              color={item.tagColor || getAbsenceStatusConfig(item.originalStatus).color}
+              className={`gba:absence-calendar-tag${getAbsenceStatusConfig(item.originalStatus).type === 'pending' ? ' gba:absence-pending' : ''}`}
             >
               <div className="gba:absence-calendar-type">{item.type}</div>
             </Tag>
