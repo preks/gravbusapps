@@ -8,8 +8,14 @@
 export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, requestTypes?: string[]): string => {
   const includeDepartment = Boolean(selectedDepartment)
 
+  // Department condition for ExpensePlan and ExpenseItem (direct employee relationship)
   const departmentCondition = includeDepartment
     ? `{ employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },`
+    : ''
+
+  // Department condition for nested filters (e.g., inside expenseItem)
+  const nestedDepartmentCondition = includeDepartment
+    ? `employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } },`
     : ''
 
   // Build query signature
@@ -117,7 +123,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
             { expenseItem: {
               status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
               currencyRef: { _eq: $currency },
-              ${departmentCondition}
+              ${nestedDepartmentCondition}
               isDeleted: { _eq: false },
               _or: [
                 ${buildRequestTypeConditions('$startDate', '$endDate')}
@@ -138,7 +144,7 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
             { expenseItem: {
               status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
               currencyRef: { _eq: $currency },
-              ${departmentCondition}
+              ${nestedDepartmentCondition}
               isDeleted: { _eq: false },
               _or: [
                 ${buildRequestTypeConditions('$previousStartDate', '$previousEndDate')}
