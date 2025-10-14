@@ -196,7 +196,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
 
   const handleViewExpensePlanDetails = useCallback((record: ExpensePlan) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-      expensePlanId: record.id
+      expensePlanId: record.id,
+      referrer: '/platform/fin/expenses/personal-expenses?tab=expense-plans'
     })
     navigateTo(url)
   }, [])

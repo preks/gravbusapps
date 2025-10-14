@@ -137,7 +137,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   // Handle viewing details for a plan
   const handleViewDetails = useCallback((plan: ExpensePlan) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-      expensePlanId: plan.id
+      expensePlanId: plan.id,
+      referrer: '/platform/fin/expenses/manager-expenses?tab=expense-plans'
     })
     navigateTo(url)
   }, [])
