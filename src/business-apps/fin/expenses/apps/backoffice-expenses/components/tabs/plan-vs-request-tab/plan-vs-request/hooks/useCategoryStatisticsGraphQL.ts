@@ -19,14 +19,14 @@ interface CategoryStatisticsVariables {
   selectedDepartment?: string
 }
 
-interface ExpenseItem {
+interface ExpensePosition {
   expenseGroupRef: string
   reimbursableAmount: number
 }
 
 interface GraphQLResponse {
-  currentPeriod?: ExpenseItem[]
-  previousPeriod?: ExpenseItem[]
+  currentPeriod?: ExpensePosition[]
+  previousPeriod?: ExpensePosition[]
 }
 
 /**
@@ -174,16 +174,19 @@ export const useCategoryStatisticsGraphQL = ({
         query GetCategoryStatistics(
           $currency: String!${includeDepartment ? ',\n          $selectedDepartment: uuid' : ''}
         ) {
-          currentPeriod: ExpenseItem(
+          currentPeriod: ExpensePosition(
             where: {
               _and: [
-                { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-                { currencyRef: { _eq: $currency } },
-                ${departmentCondition}
                 { isDeleted: { _eq: false } },
-                { _or: [
-                  ${buildRequestTypeConditions(`"${currentStartDate}"`, `"${currentEndDate}"`, requestTypes)}
-                ] }
+                { expenseItem: {
+                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+                  currencyRef: { _eq: $currency },
+                  ${departmentCondition}
+                  isDeleted: { _eq: false },
+                  _or: [
+                    ${buildRequestTypeConditions(`"${currentStartDate}"`, `"${currentEndDate}"`, requestTypes)}
+                  ]
+                }}
               ]
             }
           ) {
@@ -191,16 +194,19 @@ export const useCategoryStatisticsGraphQL = ({
             reimbursableAmount
           }
           
-          previousPeriod: ExpenseItem(
+          previousPeriod: ExpensePosition(
             where: {
               _and: [
-                { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-                { currencyRef: { _eq: $currency } },
-                ${departmentCondition}
                 { isDeleted: { _eq: false } },
-                { _or: [
-                  ${buildRequestTypeConditions(`"${previousStartDate}"`, `"${previousEndDate}"`, requestTypes)}
-                ] }
+                { expenseItem: {
+                  status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+                  currencyRef: { _eq: $currency },
+                  ${departmentCondition}
+                  isDeleted: { _eq: false },
+                  _or: [
+                    ${buildRequestTypeConditions(`"${previousStartDate}"`, `"${previousEndDate}"`, requestTypes)}
+                  ]
+                }}
               ]
             }
           ) {
