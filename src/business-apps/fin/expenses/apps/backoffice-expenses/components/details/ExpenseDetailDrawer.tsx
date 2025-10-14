@@ -13,8 +13,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  Badge,
-  Separator,
   Spinner,
   Alert,
   Card,
@@ -24,7 +22,6 @@ import {
 } from '@newwork/nw-design-system'
 import { PiCalendar, PiGlobe, PiCurrencyDollar, PiUser, PiChatCircle } from 'react-icons/pi'
 import useExpenseRequestDetails from '../../hooks/useExpenseRequestDetails'
-import { getExpenseRequestStatusConfig } from '../../utils/badgeUtils'
 
 interface ExpenseDetailDrawerProps {
   visible: boolean
@@ -58,10 +55,18 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   const data = type === 'advance-payment' ? advancePaymentData : expenseRequestData
 
   // Format currency amount
-  const formatCurrency = (amount: number, currencyCode: string = 'USD') => {
+  const formatCurrency = (amount: number, currencyIdentifier: string = 'USD') => {
+    // Extract currency code from API format (e.g., "Currency:v1:EUR" -> "EUR")
+    const currencyCode = currencyIdentifier.includes(':') 
+      ? currencyIdentifier.split(':').pop() || 'EUR'
+      : currencyIdentifier
+    
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currencyCode
+      currency: currencyCode,
+      currencyDisplay: 'code',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount)
   }
 
@@ -75,12 +80,6 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
       hour: '2-digit',
       minute: '2-digit'
     })
-  }
-
-  // ✅ MIGRATED: Render status badge using nw-design-system and centralized utilities
-  const renderStatusBadge = (status: string) => {
-    const { label, variant } = getExpenseRequestStatusConfig(status)
-    return <Badge variant={variant}>{label}</Badge>
   }
 
   // ✅ MIGRATED: Custom Description components using nw-design-system
@@ -164,7 +163,6 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           <DescriptionsSection title="Advance Payment Information">
             <DescriptionItem label="Payment Code">{data.code || 'N/A'}</DescriptionItem>
             <DescriptionItem label="Description">{data.description || 'N/A'}</DescriptionItem>
-            <DescriptionItem label="Status">{renderStatusBadge(data.status)}</DescriptionItem>
             <DescriptionItem label="Amount">{data.amount ? `€${data.amount}` : 'N/A'}</DescriptionItem>
           </DescriptionsSection>
 
@@ -186,7 +184,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
                 {`${data.expensePlan.employee.firstName || ''} ${data.expensePlan.employee.lastName || ''}`.trim() ||
                   'N/A'}
               </DescriptionItem>
-              <DescriptionItem label="Employee ID">{data.expensePlan.employee.id || 'N/A'}</DescriptionItem>
+              <DescriptionItem label="Employee Code">{data.expensePlan.employee.code || 'N/A'}</DescriptionItem>
             </DescriptionsSection>
           )}
         </div>
@@ -201,7 +199,6 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           <DescriptionItem label="Request Code">{data.code}</DescriptionItem>
           <DescriptionItem label="Title">{data.title}</DescriptionItem>
           <DescriptionItem label="Description">{data.description}</DescriptionItem>
-          <DescriptionItem label="Status">{renderStatusBadge(data.status)}</DescriptionItem>
           <DescriptionItem label="Total Amount">{formatCurrency(data.totalAmount, data.currency)}</DescriptionItem>
           <DescriptionItem label="Created At">{formatDate(data.createdAt)}</DescriptionItem>
           <DescriptionItem label="Last Updated">{formatDate(data.updatedAt)}</DescriptionItem>
@@ -320,10 +317,14 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   }
 
   return (
-    <Sheet open={visible} onOpenChange={onClose}>
-      <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+    <Sheet 
+      open={visible} 
+      onOpenChange={onClose}
+      title={type === 'advance-payment' ? 'Advance Payment Details' : 'Expense Request Details'}
+    >
+      <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none !gba:z-[99999]" style={{ zIndex: 99999 }}>
         <SheetHeader>
-          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
             {type === 'advance-payment' ? 'Advance Payment Details' : 'Expense Request Details'}
           </SheetTitle>
         </SheetHeader>

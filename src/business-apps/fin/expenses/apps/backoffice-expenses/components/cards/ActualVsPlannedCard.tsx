@@ -7,6 +7,7 @@ import React from 'react'
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
 import { getExpenseIconColor } from '../../utils/colorConstants'
 import { ActualVsPlannedData } from '../../types'
+import { formatCurrency } from '../../utils/currencyUtils'
 
 export interface ActualVsPlannedCardProps {
   loading: boolean
@@ -16,15 +17,6 @@ export interface ActualVsPlannedCardProps {
 }
 
 const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, error, actualVsPlanned, period }) => {
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value)
-  }
-
   const getPeriodDisplay = () => {
     const currentYear = new Date().getFullYear()
     const currentMonth = new Date().toLocaleString('default', { month: 'long' })

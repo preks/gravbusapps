@@ -18,9 +18,10 @@ import {
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
-import { BarChart, Bar, XAxis, YAxis } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { MonthlyExpenseTrend } from '../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatCurrencyForChart } from '../../utils/currencyUtils'
 import { ChartBarIcon } from '@phosphor-icons/react'
 
 export interface MonthlyExpenseTrendsCardProps {
@@ -40,13 +41,23 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
 }) => {
   const currentYear = new Date().getFullYear()
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: selectedCurrencyCode,
-      minimumFractionDigits: 2
-    }).format(value)
-  }
+  // Type guard for IconAvatar variant (from nw-design-system)
+  type IconAvatarVariant = 
+    | 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'info' | 'offline'
+    | 'decorative' | 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8'
+    | 'pending'
+
+  // Validate and get safe variant with proper typing
+  const safeVariant: IconAvatarVariant | undefined = (() => {
+    const validVariants: IconAvatarVariant[] = [
+      'default', 'secondary', 'success', 'warning', 'destructive', 'info', 'offline',
+      'decorative', 'ext1', 'ext2', 'ext3', 'ext4', 'ext5', 'ext6', 'ext7', 'ext8',
+      'pending'
+    ]
+    return moduleColor && validVariants.includes(moduleColor as IconAvatarVariant) 
+      ? (moduleColor as IconAvatarVariant) 
+      : undefined
+  })()
 
   // Helper function to translate month names
   const getTranslatedMonthName = (monthName: string): string => {
@@ -77,7 +88,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
       <Card data-testid="monthly-expense-trends-loading">
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
+            <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
               'Monthly Expense Trends'
@@ -99,7 +110,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
       <Card data-testid="monthly-expense-trends-error">
         <CardHeader>
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
+            <IconAvatar icon={ChartBarIcon} variant={safeVariant} size="md" decorative />
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
               'Monthly Expense Trends'
@@ -132,7 +143,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
     <Card data-testid="monthly-expense-trends-card">
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
-          <IconAvatar icon={ChartBarIcon} variant={moduleColor as any} size="md" decorative />
+          <IconAvatar icon={ChartBarIcon} variant={safeVariant as any} size="md" decorative />
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:team_expenses_page.dashboard_tab.monthly_expense_trends',
             'Monthly Expense Trends'
@@ -154,8 +165,9 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
             data-testid="monthly-expense-trends-chart"
           >
             <BarChart data={monthlyTrends} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="monthName" tick={{ fontSize: 12 }} interval={0} tickFormatter={getTranslatedMonthName} />
-              <YAxis tickFormatter={formatCurrency} tick={{ fontSize: 12 }} />
+              <YAxis tickFormatter={(value) => formatCurrencyForChart(value, selectedCurrencyCode)} tick={{ fontSize: 12 }} />
               <ChartTooltip content={<ChartTooltipContent labelKey="monthName" />} />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar
@@ -164,6 +176,7 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
                 stroke={`var(--color-totalAmount)`}
                 fill={`var(--color-totalAmount)`}
                 fillOpacity={0.8}
+                radius={[4, 4, 0, 0]}
               />
             </BarChart>
           </ChartContainer>

@@ -3,8 +3,8 @@
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 import { GET_ORGANIZATIONAL_UNITS, GET_EXPENSE_CURRENCIES } from '../queries/filterData.queries'
 
@@ -12,7 +12,7 @@ import { GET_ORGANIZATIONAL_UNITS, GET_EXPENSE_CURRENCIES } from '../queries/fil
 const createHash = (input: string): string => {
   let hash = 0
   for (let i = 0; i < input.length; i++) {
-    const char = input.charCodeAt(i)
+    const char = input.codePointAt(i) ?? 0
     hash = (hash << 5) - hash + char
     hash = hash & hash // Convert to 32bit integer
   }
@@ -46,31 +46,110 @@ interface UseFilterDataResult {
   mostUsedCurrency: string | null
   loading: boolean
   error: Error | null
-  refetch: () => void
+  refetch: () => Promise<void>
 }
 
 // ⚡ PERFORMANCE OPTIMIZATION: Add simple cache to prevent refetching
 const FILTER_DATA_CACHE = new Map<string, { data: any; timestamp: number }>()
 const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 
-export const useFilterData = ({ accessToken }: Pick<BusinessAppContextProps, 'accessToken'>): UseFilterDataResult => {
+export const useFilterData = ({ accessToken }: { accessToken: string | null | undefined }): UseFilterDataResult => {
   const [organizationalUnits, setOrganizationalUnits] = useState<OrganizationalUnit[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [mostUsedCurrency, setMostUsedCurrency] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+  // Initialize loading as false when accessToken is undefined (parent provides data)
+  const [loading, setLoading] = useState(!!accessToken)
   const [error, setError] = useState<Error | null>(null)
 
-  const client = useGraphqlClient(accessToken)
+  // Type assertion - safe because parent component validates token before rendering
+  const client = useGraphqlClient(accessToken as string)
+
+  // Helper: Process organizational units (reduces cognitive complexity)
+  const processOrganizationalUnits = useCallback((orgUnitsResponse: any, structureId: string | null) => {
+    const allOrgUnits = new Map<string, any>()
+
+    for (const orgUnit of orgUnitsResponse.OrganizationalUnit || []) {
+      if (orgUnit && orgUnit.id) {
+        allOrgUnits.set(orgUnit.id, {
+          id: orgUnit.id,
+          name: orgUnit.name || '',
+          code: orgUnit.code || '',
+          description: orgUnit.description || '',
+          structureId: orgUnit.structureId || structureId,
+          displayName: orgUnit.name || '',
+          structureName: orgUnit.structureId || '',
+          company: orgUnit.company || null
+        })
+      }
+    }
+
+    return Array.from(allOrgUnits.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [])
+
+  // Helper: Process currencies (reduces cognitive complexity)
+  const processCurrencies = useCallback((currenciesResponse: any) => {
+    const allCurrencies = new Map<string, Currency>()
+    const currencyCounts = new Map<string, number>()
+
+    if (currenciesResponse?.ExpenseRequest) {
+      currenciesResponse.ExpenseRequest.forEach((item: any) => {
+        if (item.currency && item.currencyRef) {
+          const currencyCode = item.currency.code || item.currencyRef.split(':').pop() || 'EUR'
+          allCurrencies.set(item.currencyRef, {
+            code: currencyCode,
+            value: item.currency.value || currencyCode,
+            currencyRef: item.currencyRef
+          })
+
+          const count = currencyCounts.get(item.currencyRef) || 0
+          currencyCounts.set(item.currencyRef, count + 1)
+        }
+      })
+    }
+
+    const uniqueCurrencies = Array.from(allCurrencies.values()).sort((a, b) => a.code.localeCompare(b.code))
+    const finalCurrencies =
+      uniqueCurrencies.length > 0
+        ? uniqueCurrencies
+        : [
+            { code: 'EUR', value: 'Euro', currencyRef: 'Currency:v1:EUR' },
+            { code: 'USD', value: 'US Dollar', currencyRef: 'Currency:v1:USD' },
+            { code: 'GBP', value: 'British Pound', currencyRef: 'Currency:v1:GBP' }
+          ]
+
+    // Find most used currency
+    let maxCount = 0
+    let mostUsed = null
+    currencyCounts.forEach((count, currencyRef) => {
+      if (count > maxCount) {
+        maxCount = count
+        mostUsed = currencyRef
+      }
+    })
+
+    mostUsed ??= 'Currency:v1:EUR'
+
+    return { currencies: finalCurrencies, mostUsedCurrency: mostUsed }
+  }, [])
 
   const fetchFilterData = useCallback(async () => {
-    if (!accessToken || !client) {
-      setError(new Error('Access token and GraphQL client are required.'))
+    // ⚡ CRITICAL: Early return when accessToken is invalid (prevents 401 errors)
+    // Dashboard mounts before auth completes - must validate token before ANY requests
+    if (!accessToken || typeof accessToken !== 'string' || accessToken.trim() === '') {
       setLoading(false)
       return
     }
 
-    // ⚡ SECURITY: Use hashed access token for cache key
-    const cacheKey = `filter_data_${createHash(accessToken)}`
+    if (!client) {
+      setLoading(false)
+      return
+    }
+
+    // ⚡ SECURITY & PERFORMANCE: Get structureId early for cache key
+    const structureId = getCurrentActiveStructureId()
+
+    // ⚡ SECURITY: Use hashed access token AND structureId for cache key
+    const cacheKey = `filter_data_${createHash(accessToken)}_${structureId || 'no_structure'}`
     const cached = FILTER_DATA_CACHE.get(cacheKey)
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       setOrganizationalUnits(cached.data.orgUnits)
@@ -80,98 +159,25 @@ export const useFilterData = ({ accessToken }: Pick<BusinessAppContextProps, 'ac
       return
     }
 
-    // Clear cache for debugging
-    FILTER_DATA_CACHE.delete(cacheKey)
-
     setLoading(true)
     setError(null)
 
     try {
-      // Execute queries in parallel
+      // Fetch organizational units and currencies in parallel
       const [orgUnitsResponse, currenciesResponse] = await Promise.all([
-        client.request(GET_ORGANIZATIONAL_UNITS, {}),
+        structureId
+          ? client.request(GET_ORGANIZATIONAL_UNITS, { structureId })
+          : Promise.resolve({ OrganizationalUnit: [] }),
         client.request(GET_EXPENSE_CURRENCIES, {})
       ])
 
-      // Process organizational units from expense requests
-      const allOrgUnits = new Map<string, any>()
-
-      if (orgUnitsResponse?.ExpenseRequest) {
-        orgUnitsResponse.ExpenseRequest.forEach((item: any, index: number) => {
-          const orgUnit = item.employeePosition?.organizationalUnit
-          if (orgUnit && orgUnit.id) {
-            allOrgUnits.set(orgUnit.id, {
-              ...orgUnit,
-              displayName: orgUnit.name,
-              structureName: 'Unknown Structure' // Default since no structure field
-            })
-          }
-        })
-      }
-
-      // Convert to array and sort by name
-      const orgUnits = Array.from(allOrgUnits.values()).sort((a, b) => a.name.localeCompare(b.name))
+      // Process organizational units using helper function
+      const orgUnits = processOrganizationalUnits(orgUnitsResponse, structureId)
       setOrganizationalUnits(orgUnits)
 
-      // Process currencies from expense requests
-      const allCurrencies = new Map<string, Currency>()
-      const currencyCounts = new Map<string, number>()
-
-      if (currenciesResponse?.ExpenseRequest) {
-        currenciesResponse.ExpenseRequest.forEach((item: any) => {
-          if (item.currency && item.currencyRef) {
-            const currencyCode = item.currency.code || item.currencyRef.split(':').pop()
-            allCurrencies.set(item.currencyRef, {
-              code: currencyCode,
-              value: item.currency.value || currencyCode,
-              currencyRef: item.currencyRef
-            })
-
-            // Count currency usage
-            const count = currencyCounts.get(item.currencyRef) || 0
-            currencyCounts.set(item.currencyRef, count + 1)
-          }
-        })
-      }
-
-      // Convert to array and sort by code
-      const uniqueCurrencies = Array.from(allCurrencies.values()).sort((a, b) => a.code.localeCompare(b.code))
-
-      // If no currencies found, provide some defaults
-      const finalCurrencies =
-        uniqueCurrencies.length > 0
-          ? uniqueCurrencies
-          : [
-              { code: 'EUR', value: 'Euro', currencyRef: 'Currency:v1:EUR' },
-              {
-                code: 'USD',
-                value: 'US Dollar',
-                currencyRef: 'Currency:v1:USD'
-              },
-              {
-                code: 'GBP',
-                value: 'British Pound',
-                currencyRef: 'Currency:v1:GBP'
-              }
-            ]
-
+      // Process currencies using helper function
+      const { currencies: finalCurrencies, mostUsedCurrency: mostUsed } = processCurrencies(currenciesResponse)
       setCurrencies(finalCurrencies)
-
-      // Find most used currency
-      let maxCount = 0
-      let mostUsed = null
-      currencyCounts.forEach((count, currencyRef) => {
-        if (count > maxCount) {
-          maxCount = count
-          mostUsed = currencyRef
-        }
-      })
-
-      // If no most used currency found, default to EUR
-      if (!mostUsed) {
-        mostUsed = 'Currency:v1:EUR'
-      }
-
       setMostUsedCurrency(mostUsed)
 
       // ⚡ Store in cache
@@ -184,15 +190,30 @@ export const useFilterData = ({ accessToken }: Pick<BusinessAppContextProps, 'ac
         timestamp: Date.now()
       })
     } catch (err) {
+      // Log error without sensitive details (per hook guidelines)
+      console.error(
+        '[useFilterData] Failed to fetch filter data:',
+        err instanceof Error ? err.message : 'Unknown error'
+      )
+
+      // Reset state to empty arrays on failure (standard fallback behavior)
+      setOrganizationalUnits([])
+      setCurrencies([])
+      setMostUsedCurrency(null)
+
       setError(err instanceof Error ? err : new Error('Failed to fetch filter data'))
     } finally {
       setLoading(false)
     }
-  }, [accessToken, client])
+  }, [accessToken, client, processOrganizationalUnits, processCurrencies])
 
   useEffect(() => {
-    fetchFilterData()
-  }, [fetchFilterData])
+    // ⚡ CRITICAL: Only fetch if accessToken is valid (prevents 401 errors)
+    // Don't fetch when parent provides data or when auth is not ready
+    if (accessToken && accessToken.trim() !== '') {
+      fetchFilterData()
+    }
+  }, [fetchFilterData, accessToken])
 
   return {
     organizationalUnits,
