@@ -7,8 +7,13 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Helper function to get comparison data based on chart view
 const getComparisonProps = (stats: DashboardStats, chartView: string | number) => {
+  // Get translated period labels for comparison
+  const quarterlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly', 'Quarterly')
+  const yearlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly', 'Yearly')
+  const monthlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly', 'Monthly')
+  
   switch (chartView) {
-    case 'Quarterly':
+    case quarterlyLabel:
       return {
         title: getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.quarterly_comparison',
@@ -19,7 +24,7 @@ const getComparisonProps = (stats: DashboardStats, chartView: string | number) =
         currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_quarter', 'This Quarter'),
         previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_quarter', 'Last Quarter')
       }
-    case 'Yearly':
+    case yearlyLabel:
       return {
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly_comparison', 'Yearly Comparison'),
         currentValue: stats.currentYearExpenses?.total || 0,
@@ -27,7 +32,7 @@ const getComparisonProps = (stats: DashboardStats, chartView: string | number) =
         currentLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.this_year', 'This Year'),
         previousLabel: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.last_year', 'Last Year')
       }
-    case 'Monthly':
+    case monthlyLabel:
     default:
       return {
         title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly_comparison', 'Monthly Comparison'),

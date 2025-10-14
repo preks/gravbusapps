@@ -21,12 +21,17 @@ const CHART_COLORS = ['#1890FF', '#2FC25B', '#FACC14', '#223273', '#8543E0', '#1
 
 export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats, chartView }) => {
   const getExpensesByType = () => {
+    // Get translated period labels for comparison
+    const quarterlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly', 'Quarterly')
+    const yearlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly', 'Yearly')
+    const monthlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly', 'Monthly')
+    
     switch (chartView) {
-      case 'Quarterly':
+      case quarterlyLabel:
         return stats?.expensesByTypeQuarter || {}
-      case 'Yearly':
+      case yearlyLabel:
         return stats?.expensesByTypeYear || {}
-      case 'Monthly':
+      case monthlyLabel:
       default:
         return stats?.expensesByTypeMonth || {}
     }
