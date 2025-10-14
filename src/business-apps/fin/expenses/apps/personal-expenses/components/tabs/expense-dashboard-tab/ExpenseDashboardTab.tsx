@@ -9,6 +9,7 @@ import { SpendingOverview, ActionFeed, QuickActionCards, PersonalExpenseFilterBa
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { PERIOD_TYPE } from '../../../constants/periodTypes'
 
 interface ExpenseDashboardTabProps extends BusinessAppContextProps {}
 
@@ -20,12 +21,12 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   const { stats, isLoading, error } = useGetExpenseDashboard(props, filters)
   const chartView = useMemo(() => {
     switch (filters.period) {
-      case 'yearly':
-        return 'Yearly'
-      case 'quarterly':
-        return 'Quarterly'
+      case PERIOD_TYPE.YEARLY:
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly', 'Yearly')
+      case PERIOD_TYPE.QUARTERLY:
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly', 'Quarterly')
       default:
-        return 'Monthly'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly', 'Monthly')
     }
   }, [filters.period])
 
