@@ -34,6 +34,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     loading
   } = useWorkingConditionsLookups(context)
 
+  console.log(regions, 'regions')
+
   const [employmentType, setEmploymentType] = useState<string | undefined>(undefined)
   const [contractType, setContractType] = useState<string | undefined>(undefined)
   const [remote, setRemote] = useState<string | undefined>(undefined)
@@ -41,6 +43,11 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+
+  const truncate = (text?: string, max: number = 50): string => {
+    if (!text) return ''
+    return text.length > max ? `${text.slice(0, max)}...` : text
+  }
 
   useEffect(() => {
     if (current) {
@@ -58,6 +65,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       setEndDate(toDateInput(current.endDate))
     }
   }, [current])
+
+  // If country has no regions, hook returns a single option (country). Select it by default.
+  useEffect(() => {
+    if (!region && Array.isArray(regions) && regions.length === 1) {
+      setRegion(regions[0].id)
+    }
+  }, [regions, region])
 
   const isValid = useMemo(() => {
     return Boolean(employmentType && contractType && remote && region && startDate)
@@ -184,7 +198,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {employmentTypes.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncate(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -206,7 +220,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {contractTypes.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncate(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -227,7 +241,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {remoteOptions.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncate(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -248,7 +262,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {regions.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncate(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
