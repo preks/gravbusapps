@@ -85,9 +85,15 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
                   {formatCurrency(cat.currentPeriodAmount)}
                 </TableCell>
                 <TableCell className="gba:text-right" data-testid={`category-variance-cell-${cat.id}`}>
-                  <Badge variant={cat.variance >= 0 ? 'destructive' : 'success'} className="gba:font-medium">
-                    {`${cat.variance >= 0 ? '+' : ''}${cat.variance}%`}
-                  </Badge>
+                  {cat.previousPeriodAmount === 0 && cat.currentPeriodAmount > 0 ? (
+                    <Badge variant="info" className="gba:font-medium">
+                      {getTranslationFromI18nKeyAndLabel('expense.newSpend', 'New spend')}
+                    </Badge>
+                  ) : (
+                    <Badge variant={cat.variance >= 0 ? 'destructive' : 'success'} className="gba:font-medium">
+                      {`${cat.variance >= 0 ? '+' : ''}${cat.variance}%`}
+                    </Badge>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

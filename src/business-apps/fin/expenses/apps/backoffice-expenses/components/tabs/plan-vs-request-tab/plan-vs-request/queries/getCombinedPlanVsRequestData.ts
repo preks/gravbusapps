@@ -8,8 +8,14 @@
 export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, requestTypes?: string[]): string => {
   const includeDepartment = Boolean(selectedDepartment)
 
+  // Department condition for ExpensePlan and ExpenseItem (direct employee relationship)
   const departmentCondition = includeDepartment
     ? `{ employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },`
+    : ''
+
+  // Department condition for nested filters (e.g., inside expenseItem)
+  const nestedDepartmentCondition = includeDepartment
+    ? `employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } },`
     : ''
 
   // Build query signature
@@ -109,17 +115,20 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
         }
       ) { aggregate { sum { reimbursableAmount } } }
 
-      # 3. Current Period Category Statistics
-      currentPeriodCategories: ExpenseItem(
+      # 3. Current Period Category Statistics (Query ExpensePosition for reliable expenseGroupRef)
+      currentPeriodCategories: ExpensePosition(
         where: {
           _and: [
-            { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-            { currencyRef: { _eq: $currency } },
-            ${departmentCondition}
             { isDeleted: { _eq: false } },
-            { _or: [
-              ${buildRequestTypeConditions('$startDate', '$endDate')}
-            ] }
+            { expenseItem: {
+              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              currencyRef: { _eq: $currency },
+              ${nestedDepartmentCondition}
+              isDeleted: { _eq: false },
+              _or: [
+                ${buildRequestTypeConditions('$startDate', '$endDate')}
+              ]
+            }}
           ]
         }
       ) {
@@ -127,17 +136,20 @@ export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, 
         reimbursableAmount
       }
 
-      # 4. Previous Period Category Statistics
-      previousPeriodCategories: ExpenseItem(
+      # 4. Previous Period Category Statistics (Query ExpensePosition for reliable expenseGroupRef)
+      previousPeriodCategories: ExpensePosition(
         where: {
           _and: [
-            { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-            { currencyRef: { _eq: $currency } },
-            ${departmentCondition}
             { isDeleted: { _eq: false } },
-            { _or: [
-              ${buildRequestTypeConditions('$previousStartDate', '$previousEndDate')}
-            ] }
+            { expenseItem: {
+              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              currencyRef: { _eq: $currency },
+              ${nestedDepartmentCondition}
+              isDeleted: { _eq: false },
+              _or: [
+                ${buildRequestTypeConditions('$previousStartDate', '$previousEndDate')}
+              ]
+            }}
           ]
         }
       ) {
