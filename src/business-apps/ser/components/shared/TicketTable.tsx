@@ -805,7 +805,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                       onClick={() => onTicketSelect?.(ticket)}
                     >
                       {visibleColumns.includes('requestId') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <code 
                             className="gba:text-sm gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:text-muted-foreground"
                             data-testid={`request-id-${ticket.requestId}`}
@@ -815,7 +815,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('stepName') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <div className="gba:max-w-xs">
                             <div 
                               className="gba:font-medium gba:text-sm gba:text-blue-600 hover:gba:text-blue-800 gba:cursor-pointer gba:hover:underline gba:break-words"
@@ -838,7 +838,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('requester') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           {(() => {
                             const requesterUserId = ticket.flowInitiatedBy || ticket.requesterId;
                             const requesterName = requesterUserId ? batchedDisplayNames.get(requesterUserId) : null;
@@ -861,7 +861,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('status') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <Badge 
                             variant={getStatusVariant(ticket.status)}
                             data-testid={`status-badge-${ticket.status}`}
@@ -872,7 +872,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('urgency') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           {(() => {
                             const urgencyLevel = (ticket as any).urgency_level || 'medium';
                             const priorityOption = PRIORITY_OPTIONS.find(p => p.value === urgencyLevel);
@@ -891,7 +891,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('slaDue') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           {(() => {
                             const dueDate = calculateSLADue(ticket);
                             if (!dueDate) {
@@ -920,7 +920,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('assignee') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           {(() => {
                             // Priority: claimedByUserId > assignedToUserId
                             const assigneeUserId = ticket.claimedByUserId || ticket.assignedToUserId;
@@ -951,7 +951,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('updated') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           {(() => {
                             const date = ticket.updatedAt ? new Date(ticket.updatedAt) : new Date(ticket.startedAt || Date.now());
                             return (
@@ -971,7 +971,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('debug') && (
-                        <TableCell className="gba:align-top" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="gba:align-middle" onClick={(e) => e.stopPropagation()}>
                           <Button
                             variant="outline"
                             size="sm"
@@ -988,7 +988,7 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('actions') && (
-                        <TableCell className="gba:align-top" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="gba:align-middle" onClick={(e) => e.stopPropagation()}>
                           <div className="gba:flex gba:gap-2 gba:flex-nowrap">
                             {actions.map((action, index) => {
                               if (!action.show(ticket, currentUserId)) return null;

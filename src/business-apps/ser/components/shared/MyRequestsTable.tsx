@@ -764,7 +764,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                       onClick={() => onRequestSelect?.(request)}
                     >
                       {visibleColumns.includes('requestId') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <code 
                             className="gba:text-sm gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded gba:text-muted-foreground"
                             data-testid={`request-id-${request.id}`}
@@ -774,7 +774,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('name') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <div className="gba:max-w-xs">
                             <div 
                               className="gba:font-medium gba:text-sm gba:text-blue-600 hover:gba:text-blue-800 gba:cursor-pointer gba:hover:underline gba:break-words"
@@ -810,7 +810,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('comments') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <div className="gba:text-center">
                             <CommentCountIndicator 
                               flowId={request.id} 
@@ -821,7 +821,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('progress') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           {(() => {
                             // Calculate progress for submitted requests
                             let percentage, completed, total;
@@ -872,7 +872,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('category') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <Badge 
                             variant="outline" 
                             className="gba:text-xs gba:font-medium gba:px-2.5 gba:py-1"
@@ -884,7 +884,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('status') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <Badge 
                             variant={getStatusVariant(request.status)}
                             data-testid={`status-badge-${request.status}`}
@@ -895,7 +895,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('createdAt') && (
-                        <TableCell className="gba:align-top">
+                        <TableCell className="gba:align-middle">
                           <div className="gba:space-y-1.5 gba:py-1">
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <Calendar className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
@@ -921,7 +921,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('debug') && (
-                        <TableCell className="gba:align-top" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="gba:align-middle" onClick={(e) => e.stopPropagation()}>
                           <Button
                             variant="outline"
                             size="sm"
@@ -938,7 +938,7 @@ export const MyRequestsTable: React.FC<MyRequestsTableProps> = ({
                         </TableCell>
                       )}
                       {visibleColumns.includes('actions') && (
-                        <TableCell className="gba:align-top" onClick={(e) => e.stopPropagation()}>
+                        <TableCell className="gba:align-middle" onClick={(e) => e.stopPropagation()}>
                           <div className="gba:flex gba:gap-2 gba:flex-nowrap">
                             {actions.map((action, index) => {
                               if (!action.show(request, currentUserId)) return null;
