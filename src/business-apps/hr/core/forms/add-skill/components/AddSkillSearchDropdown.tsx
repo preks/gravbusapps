@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, Card, CardContent } from '@newwork/nw-design-system'
+import { Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface AddSkillSearchDropdownProps {
@@ -24,9 +24,12 @@ export const AddSkillSearchDropdown: React.FC<AddSkillSearchDropdownProps> = ({
   const showNoResults = !isSearching && filteredResults.length === 0 && searchTerm.trim().length > 0
 
   return (
-    <Card className="gba:w-full" data-testid="add-skill-search-dropdown">
-      <CardContent
-        className={`gba:p-2 gba:space-y-1 gba:w-full gba:max-h-[250px] gba:overflow-y-auto ${showNoResults ? 'gba:px-3' : ''}`}
+    <div
+      className="gba:w-full gba:bg-card gba:text-card-foreground gba:border gba:rounded-lg"
+      data-testid="add-skill-search-dropdown"
+    >
+      <div
+        className={`gba:p-2 gba:space-y-1 gba:w-full gba:max-h-[250px] gba:overflow-y-auto gba:!text-left gba:font-normal gba:[&>*]:gba:mb-1 ${showNoResults ? 'gba:px-3 gba:py-3' : ''}`}
       >
         {isSearching && (
           <div className="gba:text-muted-foreground" data-testid="add-skill-search-loading">
@@ -43,11 +46,13 @@ export const AddSkillSearchDropdown: React.FC<AddSkillSearchDropdownProps> = ({
               key={sk.id}
               variant="ghost"
               type="button"
-              className="gba:w-full gba:justify-start gba:text-left gba:items-start gba:py-2 gba:whitespace-normal gba:break-words gba:h-auto gba:min-h-10 gba:leading-normal"
+              className="gba:w-full gba:block gba:!justify-start gba:!text-left gba:!items-start gba:py-2 gba:!whitespace-normal gba:!h-auto gba:!min-h-10 gba:!leading-normal gba:font-normal"
               onClick={() => onSelect({ id: sk.id, name: sk.name })}
               data-testid={`flw_addSkills_searchOption${index}`}
             >
-              <span className="gba:block gba:break-all">{sk.name}</span>
+              <span className="gba:block gba:w-full gba:break-words gba:!break-words gba:!whitespace-normal gba:!text-left gba:!leading-normal gba:font-normal">
+                {sk.name}
+              </span>
             </Button>
           ))}
 
@@ -71,7 +76,7 @@ export const AddSkillSearchDropdown: React.FC<AddSkillSearchDropdownProps> = ({
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
