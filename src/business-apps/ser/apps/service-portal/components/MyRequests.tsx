@@ -806,6 +806,11 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
   const handleViewRequest = (request: SubmittedRequest) => {
     setSelectedRequest(request);
     setIsDrawerOpen(true);
+    
+    // Update URL query parameter
+    const url = new URL(window.location.href);
+    url.searchParams.set('requestId', request.id);
+    window.history.pushState({}, '', url.toString());
   };
 
   // Handle closing drawer
@@ -813,6 +818,11 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     setIsDrawerOpen(false);
     // Delay clearing selected request for smooth animation
     setTimeout(() => setSelectedRequest(null), 300);
+    
+    // Remove requestId from URL query parameter
+    const url = new URL(window.location.href);
+    url.searchParams.delete('requestId');
+    window.history.pushState({}, '', url.toString());
   };
 
   // Handle keyboard events (Escape to close drawer)
@@ -845,6 +855,54 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
 
     loadRequests();
   }, [workflowEngine]);
+
+  // Handle URL query parameter on mount and when requests are loaded
+  useEffect(() => {
+    // Only process URL parameter after requests are loaded
+    if (isLoading || requests.length === 0) return;
+    
+    const url = new URL(window.location.href);
+    const requestIdFromUrl = url.searchParams.get('requestId');
+    
+    if (requestIdFromUrl) {
+      // Find the request by ID
+      const requestToOpen = requests.find(r => r.id === requestIdFromUrl);
+      
+      if (requestToOpen) {
+        // Open the drawer with this request
+        setSelectedRequest(requestToOpen);
+        setIsDrawerOpen(true);
+      } else {
+        // Request ID in URL not found - remove invalid parameter
+        url.searchParams.delete('requestId');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [requests, isLoading]);
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const url = new URL(window.location.href);
+      const requestIdFromUrl = url.searchParams.get('requestId');
+      
+      if (requestIdFromUrl) {
+        // Open drawer if requestId is in URL
+        const requestToOpen = requests.find(r => r.id === requestIdFromUrl);
+        if (requestToOpen) {
+          setSelectedRequest(requestToOpen);
+          setIsDrawerOpen(true);
+        }
+      } else {
+        // Close drawer if no requestId in URL
+        setIsDrawerOpen(false);
+        setTimeout(() => setSelectedRequest(null), 300);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [requests]);
 
   // Calculate KPI statistics with enhanced modern features
   const kpiCards: KpiCardData[] = useMemo(() => {
