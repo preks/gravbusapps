@@ -11,14 +11,10 @@ import {
   ResponsiveContainer,
   Legend,
   LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell
+  Line
 } from 'recharts'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useSalesPerformanceData } from '../../../hooks/useSalesPerformanceData'
-import { PipelineStageData } from '../../../types'
 
 const { Text } = Typography
 

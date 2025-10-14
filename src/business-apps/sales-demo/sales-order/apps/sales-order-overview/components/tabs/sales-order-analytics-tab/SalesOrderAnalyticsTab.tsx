@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Card, List, Typography, Alert, Button } from 'antd'
+import { Card, List, Typography, Button } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AIActionItem } from '../../../types'

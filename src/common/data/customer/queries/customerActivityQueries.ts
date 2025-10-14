@@ -2,7 +2,6 @@
 import {
   CUSTOMER_SALES_ACTIVITY,
   CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_CONTACT_REF,
   CUSTOMER_OPPORTUNITY_REF,
   CUSTOMER_LEAD_REF
 } from './fragments/customerRelationFragments'

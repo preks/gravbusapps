@@ -6,13 +6,12 @@
  */
 
 import React from 'react'
-import { Drawer, Typography, Descriptions, Tag, Divider, Empty, Spin, Alert, Dropdown, Button, Space } from 'antd'
+import { Drawer, Typography, Descriptions, Divider, Empty, Dropdown, Button } from 'antd'
 import {
   ShoppingCartOutlined,
   DollarOutlined,
   InfoCircleOutlined,
   SettingOutlined,
-  MoreOutlined,
   DownOutlined,
   EnvironmentOutlined
 } from '@ant-design/icons'

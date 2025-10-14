@@ -4,7 +4,7 @@ import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getBillOfMaterials, getBomKPIs, searchBillOfMaterials } from '../queries/bomQuery'
+import { getBillOfMaterials, getBomKPIs } from '../queries/bomQuery'
 import { generateDemoBoms, generateDemoBomKPIData } from './demoData'
 
 // Extend dayjs with plugins
