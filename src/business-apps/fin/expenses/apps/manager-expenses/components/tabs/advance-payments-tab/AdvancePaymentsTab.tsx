@@ -8,9 +8,7 @@ import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
 import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
 
-interface AdvancePaymentsTabProps extends BusinessAppContextProps {}
-
-const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
+const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   // Get managerId from userInfo for currency filtering
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
@@ -142,17 +140,28 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
   }, [overview.data?.distinctCurrencies])
 
   // Initialize currencyFilter with first available currency if empty
+  // Use ref to track if we've ever attempted initialization to prevent duplicates on refresh
   const hasInitializedCurrency = useRef(false)
+
   useEffect(() => {
-    if (!currencyFilter && availableCurrencies.length > 0 && !hasInitializedCurrency.current) {
+    // Only initialize once per component lifetime - strict guard
+    if (hasInitializedCurrency.current) {
+      return
+    }
+
+    // Check if we need to initialize (no currency set and currencies are available)
+    if (!currencyFilter && availableCurrencies.length > 0) {
+      // Mark as initialized IMMEDIATELY before any async operations
       hasInitializedCurrency.current = true
+
       // Extract ISO code if in "Currency:v1:EUR" format and tokenize
       const rawCurrency = availableCurrencies[0]
       const code = String(rawCurrency).includes(':') ? String(rawCurrency).split(':').pop() || rawCurrency : rawCurrency
+
+      // Initialize currency synchronously
       baseHandleDataFilterChange(`currency:${code}`, true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currencyFilter, availableCurrencies]) // Intentionally omitting baseHandleDataFilterChange to prevent loop
+  }, [currencyFilter, availableCurrencies, baseHandleDataFilterChange])
 
   // Build filter groups with currencies from overview
   const filterGroups = useMemo(() => {
@@ -249,28 +258,34 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: currencyFilter ? [...(statusFilter || []), `currency:${currencyFilter}`] : statusFilter || [],
+          filter: (() => {
+            // Build filter array with deduplication to prevent duplicate currency filters on refresh
+            const statusFilters = (statusFilter || []).filter(f => !f.startsWith('currency:'))
+            return currencyFilter ? [...statusFilters, `currency:${currencyFilter}`] : statusFilters
+          })(),
           setSearch: handleSearchChange,
           setFilter: (newFilters: string[]) => {
             // Separate currency and status filters
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
             const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
 
-            // Update status filters directly in one go
-            if (statusFiltersIncoming.length > 0) {
-              setStatusFilter(statusFiltersIncoming)
-            } else {
-              setStatusFilter([])
-            }
+            // Update status filters - always update to match incoming filters
+            setStatusFilter(statusFiltersIncoming.length > 0 ? statusFiltersIncoming : [])
 
-            // Handle currency filter changes - when clearing all, reset currency
-            const hadCurrency = currencyFilter && currencyFilter.length > 0
+            // Handle currency filter changes
+            // Note: Currency filter should remain even when "Clear all filters" is clicked
+            // Only change currency if user explicitly selects a different one from the filter panel
             const hasCurrency = currencyFilters.length > 0
 
-            if (hadCurrency && !hasCurrency) {
-              // Currency filter was removed - trigger reset via handleDataFilterChange
-              handleDataFilterChange(currencyFilter, false)
+            // Only process currency change if there's an actual currency in newFilters
+            // If newFilters has no currency but we had one, it means "Clear all" was clicked
+            // In that case, keep the current currency (don't clear it)
+            if (hasCurrency && currencyFilters[0] !== `currency:${currencyFilter}`) {
+              // User selected a different currency - extract and apply it
+              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
+              handleDataFilterChange(`currency:${newCurrencyCode}`, true)
             }
+            // Don't clear currency when clearing all filters - currency always stays selected
           },
           filterLabelMap: {
             ...filterLabelMap,

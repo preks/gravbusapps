@@ -216,7 +216,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: primaryCurrency ? [...statusFilter, `currency:${primaryCurrency}`] : statusFilter,
+          filter: (() => {
+            // Build filter array with deduplication to prevent duplicate currency filters on refresh
+            const statusFilters = statusFilter.filter(f => !String(f).startsWith('currency:'))
+            return primaryCurrency ? [...statusFilters, `currency:${primaryCurrency}`] : statusFilters
+          })(),
           setSearch: handleSearchChange,
           setFilter: newFilters => {
             // Separate currency and status filters
@@ -239,14 +243,17 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
               handleDataFilterChange(filter, true)
             }
 
-            // Handle currency filter changes - when clearing all, reset currency to most used
-            const hadCurrency = primaryCurrency && primaryCurrency.length > 0
+            // Handle currency filter changes
+            // Note: Currency filter should remain even when "Clear all filters" is clicked
             const hasCurrency = currencyFilters.length > 0
 
-            if (hadCurrency && !hasCurrency) {
-              // Currency filter was removed - reset to most used by clearing the selection
-              handleDataFilterChange(`currency:${primaryCurrency}`, false)
+            // Only process currency change if user explicitly selected a different one
+            if (hasCurrency && currencyFilters[0] !== `currency:${primaryCurrency}`) {
+              // User selected a different currency
+              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
+              handleDataFilterChange(`currency:${newCurrencyCode}`, true)
             }
+            // Don't clear currency when clearing all filters - currency always stays selected
           },
 
           filterLabelMap: {
