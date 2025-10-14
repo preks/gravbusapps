@@ -173,7 +173,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const { handleTransferPayment, handleBulkTransferPayment } = useExpenseRequestTransfer(
     props,
-    fetchData,
+    () => fetchData(true), // Force refresh after transfer
     clearSelection
   )
 

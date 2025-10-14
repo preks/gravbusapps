@@ -292,7 +292,7 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     []
   )
 
-  const fetchData = async () => {
+  const fetchData = async (force: boolean = false) => {
     if (!accessToken || !client) {
       setError('Access token and GraphQL client are required.')
       setLoading(false)
@@ -316,11 +316,12 @@ export const useExpenseRequests = (context: BusinessAppContextProps, isActive: b
     })
 
     // Enhanced deduplication: check if same request OR already loading
-    if (requestKey === lastRequestKey.current) {
+    // Skip deduplication if force is true (e.g., after transfer operations)
+    if (!force && requestKey === lastRequestKey.current) {
       return
     }
 
-    if (isLoadingRef.current) {
+    if (!force && isLoadingRef.current) {
       return
     }
 
