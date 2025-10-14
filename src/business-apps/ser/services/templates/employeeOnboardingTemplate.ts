@@ -1,8 +1,8 @@
-import type { ServiceRequestTemplate } from 'packages/services-plus-core';
+import type { ServiceRequestTemplate } from '../../packages/services-plus-core/src'
 
 /**
  * Employee Onboarding Service Request Template
- * 
+ *
  * This template defines the service portal interface for employee onboarding requests.
  * It integrates with the Custom Flow Engine's employee-onboarding-service.json template
  * to provide a complete end-to-end onboarding workflow.
@@ -12,8 +12,9 @@ export const employeeOnboardingServiceTemplate: ServiceRequestTemplate = {
   categoryId: 'hr',
   key: 'employee-onboarding-request',
   title: 'Employee Onboarding Request',
-  description: 'Complete onboarding process for new employees including equipment, access, training, and workspace setup',
-  
+  description:
+    'Complete onboarding process for new employees including equipment, access, training, and workspace setup',
+
   formSchema: {
     type: 'object',
     title: 'Employee Onboarding Request',
@@ -59,35 +60,15 @@ export const employeeOnboardingServiceTemplate: ServiceRequestTemplate = {
       workLocation: {
         type: 'string',
         title: 'Work Location',
-        enum: [
-          'office-main',
-          'office-branch',
-          'remote',
-          'hybrid'
-        ],
-        enumNames: [
-          'Main Office',
-          'Branch Office',
-          'Remote',
-          'Hybrid'
-        ],
+        enum: ['office-main', 'office-branch', 'remote', 'hybrid'],
+        enumNames: ['Main Office', 'Branch Office', 'Remote', 'Hybrid'],
         description: 'Primary work location'
       },
       laptopType: {
         type: 'string',
         title: 'Laptop Type',
-        enum: [
-          'macbook-pro',
-          'macbook-air',
-          'windows-laptop',
-          'linux-laptop'
-        ],
-        enumNames: [
-          'MacBook Pro',
-          'MacBook Air', 
-          'Windows Laptop',
-          'Linux Laptop'
-        ],
+        enum: ['macbook-pro', 'macbook-air', 'windows-laptop', 'linux-laptop'],
+        enumNames: ['MacBook Pro', 'MacBook Air', 'Windows Laptop', 'Linux Laptop'],
         description: 'Preferred laptop type for the employee'
       },
       accessories: {
@@ -95,14 +76,7 @@ export const employeeOnboardingServiceTemplate: ServiceRequestTemplate = {
         title: 'Additional Equipment',
         items: {
           type: 'string',
-          enum: [
-            'external-monitor',
-            'keyboard',
-            'mouse',
-            'headset',
-            'webcam',
-            'docking-station'
-          ]
+          enum: ['external-monitor', 'keyboard', 'mouse', 'headset', 'webcam', 'docking-station']
         },
         uniqueItems: true,
         description: 'Additional equipment needed by the employee'
@@ -110,16 +84,8 @@ export const employeeOnboardingServiceTemplate: ServiceRequestTemplate = {
       urgency: {
         type: 'string',
         title: 'Urgency Level',
-        enum: [
-          'standard',
-          'urgent',
-          'critical'
-        ],
-        enumNames: [
-          'Standard (5-7 business days)',
-          'Urgent (2-3 business days)',
-          'Critical (1 business day)'
-        ],
+        enum: ['standard', 'urgent', 'critical'],
+        enumNames: ['Standard (5-7 business days)', 'Urgent (2-3 business days)', 'Critical (1 business day)'],
         default: 'standard',
         description: 'How quickly the onboarding needs to be completed'
       },
@@ -182,7 +148,7 @@ export const employeeOnboardingServiceTemplate: ServiceRequestTemplate = {
     },
     laptopType: {
       'ui:widget': 'radio',
-      'ui:help': 'Select the laptop type based on the employee\'s role and preferences'
+      'ui:help': "Select the laptop type based on the employee's role and preferences"
     },
     accessories: {
       'ui:widget': 'checkboxes',
@@ -267,21 +233,22 @@ export const employeeOnboardingServiceTemplate: ServiceRequestTemplate = {
       slaHours: 0.5,
       requires: ['manager-notification'],
       inputs: {
-        description: 'Final confirmation that all onboarding preparations are complete and employee is ready for first day'
+        description:
+          'Final confirmation that all onboarding preparations are complete and employee is ready for first day'
       }
     }
   ],
 
   version: 1,
   enabled: true
-};
+}
 
 /**
  * Helper function to get the employee onboarding template
  */
 export const getEmployeeOnboardingTemplate = (): ServiceRequestTemplate => {
-  return employeeOnboardingServiceTemplate;
-};
+  return employeeOnboardingServiceTemplate
+}
 
 /**
  * Template metadata for service catalog
@@ -292,9 +259,16 @@ export const employeeOnboardingTemplateMetadata = {
   estimatedDuration: '5-7 business days',
   complexity: 'medium' as const,
   isPopular: true,
-  requiredCapabilities: ['HR_SPECIALIST', 'IT_SPECIALIST', 'ACCESS_ADMIN', 'LEARNING_DEVELOPMENT', 'FACILITIES_MANAGEMENT'],
+  requiredCapabilities: [
+    'HR_SPECIALIST',
+    'IT_SPECIALIST',
+    'ACCESS_ADMIN',
+    'LEARNING_DEVELOPMENT',
+    'FACILITIES_MANAGEMENT'
+  ],
   description: {
-    overview: 'Streamlined onboarding process that coordinates across multiple departments to ensure new employees have everything they need for their first day.',
+    overview:
+      'Streamlined onboarding process that coordinates across multiple departments to ensure new employees have everything they need for their first day.',
     whatYouGet: [
       'Complete HR documentation and contract setup',
       'Fully configured laptop and IT equipment',
@@ -310,4 +284,4 @@ export const employeeOnboardingTemplateMetadata = {
     ],
     sla: 'Standard: 5-7 business days, Urgent: 2-3 business days, Critical: 1 business day'
   }
-};
+}

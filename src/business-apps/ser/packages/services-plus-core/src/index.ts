@@ -3,7 +3,7 @@
  * Provides core types and interfaces for Services+ platform
  */
 
-export * from './types';
+export * from './types'
 
 // Re-export key types for convenience
 export type {
@@ -23,4 +23,4 @@ export type {
   TaskStatistics,
   ServicesAnalyticsEvent,
   AnalyticsPayload
-} from './types';
+} from './types'

@@ -1,4 +1,4 @@
-import { ServiceCategory } from '@newwork/services-plus-core';
+import { ServiceCategory } from '../../services-plus-core/src'
 
 /**
  * Seed service categories for Services+ POC
@@ -96,17 +96,17 @@ export const serviceCategories: ServiceCategory[] = [
     description: 'Office supplies, events, and general administrative support',
     order: 13
   }
-];
+]
 
 // Helper functions
 export const getCategoryById = (id: string): ServiceCategory | undefined => {
-  return serviceCategories.find(category => category.id === id);
-};
+  return serviceCategories.find(category => category.id === id)
+}
 
 export const getCategoriesByIds = (ids: string[]): ServiceCategory[] => {
-  return serviceCategories.filter(category => ids.includes(category.id));
-};
+  return serviceCategories.filter(category => ids.includes(category.id))
+}
 
 export const getSortedCategories = (): ServiceCategory[] => {
-  return [...serviceCategories].sort((a, b) => a.order - b.order);
-};
+  return [...serviceCategories].sort((a, b) => a.order - b.order)
+}

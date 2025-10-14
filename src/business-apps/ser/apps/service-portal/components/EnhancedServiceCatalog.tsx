@@ -1,37 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useServicesFeatureFlag } from '../../../utils/featureFlags';
-import { 
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useServicesFeatureFlag } from '../../../utils/featureFlags'
+import {
   createConductorWorkflowEngine,
-  employeeOnboardingServiceTemplate, 
-  employeeOnboardingTemplateMetadata 
-} from '../../../services';
-import type { WorkflowEngine, ServiceCategory } from 'packages/services-plus-core';
-import { serviceCategories } from 'packages/services-plus-seed';
+  employeeOnboardingServiceTemplate,
+  employeeOnboardingTemplateMetadata
+} from '../../../services'
+import type { WorkflowEngine } from '../../../packages/services-plus-core/src'
+import { serviceCategories } from '../../../packages/services-plus-seed/src'
 
 // UI Components - TODO: Replace with @newwork/nw-design-system when migrated
-import { Card, Button, Badge, Spin, Alert, Input, Tabs } from 'antd';
-import { 
-  UserOutlined, 
-  LaptopOutlined, 
-  ClockCircleOutlined, 
+import { Card, Button, Badge, Alert, Input, Tabs } from 'antd'
+import {
+  UserOutlined,
+  LaptopOutlined,
+  ClockCircleOutlined,
   CheckCircleOutlined,
-  SearchOutlined,
   RightOutlined
-} from '@ant-design/icons';
+} from '@ant-design/icons'
 
-const { Search } = Input;
-const { TabPane } = Tabs;
+const { Search } = Input
+const { TabPane } = Tabs
 
 export interface EnhancedServiceCatalogProps extends BusinessAppContextProps {
-  onServiceSelect?: (templateKey: string) => void;
-  onMyRequestsClick?: () => void;
-  onServiceDeskClick?: () => void;
+  onServiceSelect?: (templateKey: string) => void
+  onMyRequestsClick?: () => void
+  onServiceDeskClick?: () => void
 }
 
 /**
  * Enhanced Service Catalog with Real Workflow Integration
- * 
+ *
  * This component provides an enhanced service catalog that integrates with the
  * Custom Flow Engine for real workflow execution. It includes the employee
  * onboarding service template and demonstrates end-to-end integration.
@@ -42,54 +41,54 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
   onServiceDeskClick,
   ...contextProps
 }) => {
-  const { isEnabled } = useServicesFeatureFlag();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [isStartingRequest, setIsStartingRequest] = useState(false);
-  const [workflowEngine, setWorkflowEngine] = useState<WorkflowEngine | null>(null);
-  const [recentRequests, setRecentRequests] = useState<any[]>([]);
+  const { isEnabled } = useServicesFeatureFlag()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [isStartingRequest, setIsStartingRequest] = useState(false)
+  const [workflowEngine, setWorkflowEngine] = useState<WorkflowEngine | null>(null)
+  const [recentRequests, setRecentRequests] = useState<any[]>([])
 
   // Initialize workflow engine
   useEffect(() => {
     if (contextProps.accessToken) {
       try {
-        const engine = createConductorWorkflowEngine(contextProps);
-        setWorkflowEngine(engine);
-        console.log('[EnhancedServiceCatalog] Conductor workflow engine initialized');
+        const engine = createConductorWorkflowEngine(contextProps)
+        setWorkflowEngine(engine)
+        console.log('[EnhancedServiceCatalog] Conductor workflow engine initialized')
       } catch (error) {
-        console.error('[EnhancedServiceCatalog] Error initializing workflow engine:', error);
+        console.error('[EnhancedServiceCatalog] Error initializing workflow engine:', error)
       }
     }
-  }, [contextProps.accessToken]);
+  }, [contextProps.accessToken])
 
   // Load recent requests
   useEffect(() => {
     const loadRecentRequests = async () => {
       if (workflowEngine) {
         try {
-          const requests = await workflowEngine.getMyRequests();
-          setRecentRequests(requests.slice(0, 3)); // Show last 3 requests
+          const requests = await workflowEngine.getMyRequests()
+          setRecentRequests(requests.slice(0, 3)) // Show last 3 requests
         } catch (error) {
-          console.error('[EnhancedServiceCatalog] Error loading recent requests:', error);
+          console.error('[EnhancedServiceCatalog] Error loading recent requests:', error)
         }
       }
-    };
+    }
 
-    loadRecentRequests();
-  }, [workflowEngine]);
+    loadRecentRequests()
+  }, [workflowEngine])
 
   // Handle service request initiation
   const handleStartOnboardingRequest = async () => {
     if (!workflowEngine) {
-      console.error('[EnhancedServiceCatalog] Workflow engine not initialized');
-      return;
+      console.error('[EnhancedServiceCatalog] Workflow engine not initialized')
+      return
     }
 
-    setIsStartingRequest(true);
-    
+    setIsStartingRequest(true)
+
     try {
-      console.log('[EnhancedServiceCatalog] Starting employee onboarding request...');
-      
+      console.log('[EnhancedServiceCatalog] Starting employee onboarding request...')
+
       // Start the workflow with sample data (using real IDs from organizational structure)
       const requestId = await workflowEngine.startRequest('employee-onboarding-request', {
         employeeName: 'John Doe',
@@ -104,39 +103,39 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
         accessories: ['external-monitor', 'keyboard'],
         urgency: 'standard',
         specialRequirements: 'Developer workspace setup required'
-      });
+      })
 
-      console.log(`[EnhancedServiceCatalog] Request started successfully: ${requestId}`);
-      
+      console.log(`[EnhancedServiceCatalog] Request started successfully: ${requestId}`)
+
       // Navigate to My Requests to show the new request
       if (onMyRequestsClick) {
-        onMyRequestsClick();
+        onMyRequestsClick()
       }
-
     } catch (error) {
-      console.error('[EnhancedServiceCatalog] Error starting request:', error);
+      console.error('[EnhancedServiceCatalog] Error starting request:', error)
     } finally {
-      setIsStartingRequest(false);
+      setIsStartingRequest(false)
     }
-  };
+  }
 
   // Handle custom service selection
   const handleServiceSelect = (templateKey: string) => {
     if (onServiceSelect) {
-      onServiceSelect(templateKey);
+      onServiceSelect(templateKey)
     }
-  };
+  }
 
   // Filter categories based on search
   const filteredCategories = serviceCategories.filter(category => {
-    const matchesSearch = !searchTerm || 
+    const matchesSearch =
+      !searchTerm ||
       category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      category.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCategory = selectedCategory === 'all' || category.id === selectedCategory;
-    
-    return matchesSearch && matchesCategory;
-  });
+      category.description?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesCategory = selectedCategory === 'all' || category.id === selectedCategory
+
+    return matchesSearch && matchesCategory
+  })
 
   if (!isEnabled) {
     return (
@@ -149,7 +148,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
           className="gba:max-w-md gba:mx-auto"
         />
       </div>
-    );
+    )
   }
 
   return (
@@ -158,9 +157,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
       <div className="gba:mb-8">
         <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
           <div>
-            <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:mb-2">
-              Service Catalog
-            </h1>
+            <h1 className="gba:text-3xl gba:font-bold gba:text-gray-900 gba:mb-2">Service Catalog</h1>
             <p className="gba:text-gray-600">
               Request services and track progress through our integrated workflow platform
             </p>
@@ -174,11 +171,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
             >
               My Requests
             </Button>
-            <Button
-              type="default"
-              onClick={onServiceDeskClick}
-              data-testid="service-desk-button"
-            >
+            <Button type="default" onClick={onServiceDeskClick} data-testid="service-desk-button">
               Service Desk
             </Button>
           </div>
@@ -189,15 +182,11 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
           <Search
             placeholder="Search services..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="gba:flex-1"
             data-testid="service-search"
           />
-          <Tabs
-            activeKey={selectedCategory}
-            onChange={setSelectedCategory}
-            className="gba:min-w-0"
-          >
+          <Tabs activeKey={selectedCategory} onChange={setSelectedCategory} className="gba:min-w-0">
             <TabPane tab="All" key="all" />
             <TabPane tab="HR" key="hr" />
             <TabPane tab="IT" key="it" />
@@ -226,10 +215,8 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
                   <Badge color="blue" text="Integrated with Custom Flow Engine" />
                 </div>
               </div>
-              
-              <p className="gba:text-gray-600 gba:mb-4">
-                {employeeOnboardingServiceTemplate.description}
-              </p>
+
+              <p className="gba:text-gray-600 gba:mb-4">{employeeOnboardingServiceTemplate.description}</p>
 
               <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:mb-4">
                 <div className="gba:flex gba:items-center gba:gap-2">
@@ -246,9 +233,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
                 </div>
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <LaptopOutlined className="gba:text-purple-600" />
-                  <span className="gba:text-sm gba:text-gray-600">
-                    Multi-department coordination
-                  </span>
+                  <span className="gba:text-sm gba:text-gray-600">Multi-department coordination</span>
                 </div>
               </div>
 
@@ -286,9 +271,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
       {/* Recent Requests */}
       {recentRequests.length > 0 && (
         <div className="gba:mb-8">
-          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-4">
-            Recent Requests
-          </h2>
+          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-4">Recent Requests</h2>
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
             {recentRequests.map((request, index) => (
               <Card
@@ -298,9 +281,7 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
                 data-testid={`recent-request-${index}`}
               >
                 <div>
-                  <h4 className="gba:font-medium gba:text-gray-900 gba:mb-1">
-                    {request.titleSnapshot}
-                  </h4>
+                  <h4 className="gba:font-medium gba:text-gray-900 gba:mb-1">{request.titleSnapshot}</h4>
                   <p className="gba:text-sm gba:text-gray-600 gba:mb-2">
                     Status: <Badge status="processing" text={request.status} />
                   </p>
@@ -316,11 +297,9 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
 
       {/* Service Categories */}
       <div>
-        <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-4">
-          Service Categories
-        </h2>
+        <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900 gba:mb-4">Service Categories</h2>
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
-          {filteredCategories.map((category) => (
+          {filteredCategories.map(category => (
             <Card
               key={category.id}
               hoverable
@@ -340,18 +319,12 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
                       {category.id === 'legal' && '⚖️'}
                       {!['hr', 'it', 'facilities', 'finance', 'procurement', 'legal'].includes(category.id) && '📋'}
                     </div>
-                    <h3 className="gba:font-semibold gba:text-gray-900">
-                      {category.name}
-                    </h3>
+                    <h3 className="gba:font-semibold gba:text-gray-900">{category.name}</h3>
                   </div>
-                  
-                  <p className="gba:text-sm gba:text-gray-600 gba:mb-4">
-                    {category.description}
-                  </p>
-                  
-                  {category.id === 'hr' && (
-                    <Badge color="blue" text="Employee Onboarding Available" />
-                  )}
+
+                  <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{category.description}</p>
+
+                  {category.id === 'hr' && <Badge color="blue" text="Employee Onboarding Available" />}
                 </div>
                 <RightOutlined className="gba:text-gray-400 gba:ml-2" />
               </div>
@@ -364,22 +337,14 @@ export const EnhancedServiceCatalog: React.FC<EnhancedServiceCatalogProps> = ({
       <div className="gba:mt-8 gba:p-4 gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
           <CheckCircleOutlined className="gba:text-green-600" />
-          <h4 className="gba:font-medium gba:text-green-900">
-            Integration Status
-          </h4>
+          <h4 className="gba:font-medium gba:text-green-900">Integration Status</h4>
         </div>
         <div className="gba:text-sm gba:text-green-700 gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
-          <div>
-            ✅ Custom Flow Engine: {workflowEngine ? 'Connected' : 'Connecting...'}
-          </div>
-          <div>
-            ✅ Employee Onboarding Template: Ready
-          </div>
-          <div>
-            ✅ Service Desk Integration: Active
-          </div>
+          <div>✅ Custom Flow Engine: {workflowEngine ? 'Connected' : 'Connecting...'}</div>
+          <div>✅ Employee Onboarding Template: Ready</div>
+          <div>✅ Service Desk Integration: Active</div>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

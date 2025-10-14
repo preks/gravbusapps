@@ -1,11 +1,11 @@
-import { ConductorWorkflowEngineAdapter } from './ConductorWorkflowEngineAdapter';
-import type { WorkflowEngine } from 'packages/services-plus-core';
-import type { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { ConductorWorkflowEngineAdapter } from './ConductorWorkflowEngineAdapter'
+import type { WorkflowEngine } from '../packages/services-plus-core/src'
+import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 /**
  * Singleton instance of the workflow engine
  */
-let workflowEngineInstance: WorkflowEngine | null = null;
+let workflowEngineInstance: WorkflowEngine | null = null
 
 /**
  * Create a new ConductorWorkflowEngineAdapter instance
@@ -13,7 +13,7 @@ let workflowEngineInstance: WorkflowEngine | null = null;
  * @returns New ConductorWorkflowEngineAdapter instance
  */
 export function createConductorEngine(context: BusinessAppContextProps): ConductorWorkflowEngineAdapter {
-  return new ConductorWorkflowEngineAdapter(context);
+  return new ConductorWorkflowEngineAdapter(context)
 }
 
 /**
@@ -24,10 +24,10 @@ export function createConductorEngine(context: BusinessAppContextProps): Conduct
  */
 export function getWorkflowEngine(context: BusinessAppContextProps): WorkflowEngine {
   if (!workflowEngineInstance) {
-    console.log('🔧 Creating ConductorWorkflowEngineAdapter instance');
-    workflowEngineInstance = createConductorEngine(context);
+    console.log('🔧 Creating ConductorWorkflowEngineAdapter instance')
+    workflowEngineInstance = createConductorEngine(context)
   }
-  return workflowEngineInstance;
+  return workflowEngineInstance
 }
 
 /**
@@ -35,14 +35,14 @@ export function getWorkflowEngine(context: BusinessAppContextProps): WorkflowEng
  * @param engine - WorkflowEngine instance to use
  */
 export function setWorkflowEngine(engine: WorkflowEngine): void {
-  workflowEngineInstance = engine;
+  workflowEngineInstance = engine
 }
 
 /**
  * Reset the singleton instance (useful for testing)
  */
 export function resetWorkflowEngine(): void {
-  workflowEngineInstance = null;
+  workflowEngineInstance = null
 }
 
 /**
@@ -53,7 +53,7 @@ export function resetWorkflowEngine(): void {
 export function setWorkflowEngineCurrentUser(userId: string): void {
   // No-op: ConductorWorkflowEngineAdapter uses context from BusinessAppContextProps
   // This function is preserved for backward compatibility
-  console.log('🔧 setWorkflowEngineCurrentUser called (no-op in live data mode):', userId);
+  console.log('🔧 setWorkflowEngineCurrentUser called (no-op in live data mode):', userId)
 }
 
 /**
@@ -62,7 +62,7 @@ export function setWorkflowEngineCurrentUser(userId: string): void {
  * @returns ConductorWorkflowEngineAdapter instance
  */
 export function useWorkflowEngine(context: BusinessAppContextProps): WorkflowEngine {
-  return getWorkflowEngine(context);
+  return getWorkflowEngine(context)
 }
 
 /**
@@ -73,16 +73,18 @@ export const mockDataHelpers = {
   /**
    * Seed the engine with sample data (no-op in live data mode)
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async seedSampleData(_engine: WorkflowEngine): Promise<void> {
-    console.log('🔧 mockDataHelpers.seedSampleData called (no-op in live data mode)');
+    console.log('🔧 mockDataHelpers.seedSampleData called (no-op in live data mode)')
     // No-op: Live data mode doesn't seed mock data
   },
 
   /**
    * Clear all data from engine (no-op in live data mode)
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   clearData(_engine: WorkflowEngine): void {
-    console.log('🔧 mockDataHelpers.clearData called (no-op in live data mode)');
+    console.log('🔧 mockDataHelpers.clearData called (no-op in live data mode)')
     // No-op: Live data mode doesn't manage mock data
-  },
-};
+  }
+}

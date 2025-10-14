@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useRealEmployeeData, getEmployeeOptions } from '../hooks/useRealEmployeeData';
-import { useEmploymentTypeCatalog, getEmploymentTypeOptions } from '../hooks/useEmploymentTypeCatalog';
-import { createConductorWorkflowEngine } from '../../../services';
-import type { WorkflowEngine } from 'packages/services-plus-core';
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useRealEmployeeData } from '../hooks/useRealEmployeeData'
+import { useEmploymentTypeCatalog, getEmploymentTypeOptions } from '../hooks/useEmploymentTypeCatalog'
+import { createConductorWorkflowEngine } from '../../../services'
+import type { WorkflowEngine } from '../../../packages/services-plus-core/src'
 
 // UI Components - TODO: Replace with @newwork/nw-design-system when migrated
-import { Card, Form, Input, Select, DatePicker, Button, Checkbox, Alert, Spin, Row, Col } from 'antd';
-import { UserOutlined, LaptopOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Card, Form, Input, Select, DatePicker, Button, Checkbox, Alert, Spin, Row, Col } from 'antd'
+import { UserOutlined, LaptopOutlined, ClockCircleOutlined } from '@ant-design/icons'
 
-const { Option } = Select;
-const { TextArea } = Input;
+const { Option } = Select
+const { TextArea } = Input
 
 export interface EmployeeOnboardingFormProps extends BusinessAppContextProps {
-  onSuccess?: (requestId: string) => void;
-  onCancel?: () => void;
+  onSuccess?: (requestId: string) => void
+  onCancel?: () => void
 }
 
 /**
  * Employee Onboarding Request Form with Real Data Integration
- * 
+ *
  * This component demonstrates the complete integration between:
  * - Service Portal UI with real GraphQL data loading
  * - Custom Flow Engine workflow execution
@@ -30,10 +30,10 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
   onCancel,
   ...contextProps
 }) => {
-  const [form] = Form.useForm();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
-  const [workflowEngine, setWorkflowEngine] = useState<WorkflowEngine | null>(null);
+  const [form] = Form.useForm()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null)
+  const [workflowEngine, setWorkflowEngine] = useState<WorkflowEngine | null>(null)
 
   // Load real employee data from GraphQL
   const {
@@ -43,49 +43,49 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
     isLoading: employeeDataLoading,
     error: employeeDataError,
     fetchJobPositions
-  } = useRealEmployeeData(contextProps);
+  } = useRealEmployeeData(contextProps)
 
   // Load employment types from catalog
   const {
     employmentTypes,
     isLoading: employmentTypesLoading,
     error: employmentTypesError
-  } = useEmploymentTypeCatalog(contextProps);
+  } = useEmploymentTypeCatalog(contextProps)
 
   // Initialize workflow engine
   useEffect(() => {
     if (contextProps.accessToken) {
       try {
-        const engine = createConductorWorkflowEngine(contextProps);
-        setWorkflowEngine(engine);
-        console.log('[EmployeeOnboardingForm] Conductor workflow engine initialized');
+        const engine = createConductorWorkflowEngine(contextProps)
+        setWorkflowEngine(engine)
+        console.log('[EmployeeOnboardingForm] Conductor workflow engine initialized')
       } catch (error) {
-        console.error('[EmployeeOnboardingForm] Error initializing workflow engine:', error);
+        console.error('[EmployeeOnboardingForm] Error initializing workflow engine:', error)
       }
     }
-  }, [contextProps.accessToken]);
+  }, [contextProps.accessToken])
 
   // Handle department selection and cascade job positions
   const handleDepartmentChange = (departmentId: string) => {
-    setSelectedDepartmentId(departmentId);
-    form.setFieldsValue({ position: undefined, reportingManager: undefined });
-    
+    setSelectedDepartmentId(departmentId)
+    form.setFieldsValue({ position: undefined, reportingManager: undefined })
+
     if (departmentId) {
-      fetchJobPositions('', departmentId);
+      fetchJobPositions('', departmentId)
     }
-  };
+  }
 
   // Handle form submission
   const handleSubmit = async (values: any) => {
     if (!workflowEngine) {
-      console.error('[EmployeeOnboardingForm] Workflow engine not initialized');
-      return;
+      console.error('[EmployeeOnboardingForm] Workflow engine not initialized')
+      return
     }
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
 
     try {
-      console.log('[EmployeeOnboardingForm] Submitting onboarding request:', values);
+      console.log('[EmployeeOnboardingForm] Submitting onboarding request:', values)
 
       // Start the employee onboarding workflow
       const requestId = await workflowEngine.startRequest('employee-onboarding-request', {
@@ -93,57 +93,58 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
         employeeName: values.employeeName,
         employeeEmail: values.employeeEmail,
         startDate: values.startDate?.format('YYYY-MM-DD'),
-        
+
         // Position & Organization (using real IDs)
         department: values.department,
         position: values.position,
         reportingManager: values.reportingManager,
         employmentType: values.employmentType,
-        
+
         // Work Setup
         workLocation: values.workLocation,
         laptopType: values.laptopType,
         accessories: values.accessories || [],
-        
+
         // Request Settings
         urgency: values.urgency || 'standard',
         specialRequirements: values.specialRequirements || '',
-        
+
         // Metadata
         requestedBy: contextProps.userInfo?.id,
         requestDate: new Date().toISOString()
-      });
+      })
 
-      console.log(`[EmployeeOnboardingForm] Request submitted successfully: ${requestId}`);
-      
+      console.log(`[EmployeeOnboardingForm] Request submitted successfully: ${requestId}`)
+
       if (onSuccess) {
-        onSuccess(requestId);
+        onSuccess(requestId)
       }
-
     } catch (error) {
-      console.error('[EmployeeOnboardingForm] Error submitting request:', error);
-      form.setFields([{
-        name: 'submit',
-        errors: [error instanceof Error ? error.message : 'Failed to submit request']
-      }]);
+      console.error('[EmployeeOnboardingForm] Error submitting request:', error)
+      form.setFields([
+        {
+          name: 'submit',
+          errors: [error instanceof Error ? error.message : 'Failed to submit request']
+        }
+      ])
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // Filter job positions based on selected department
-  const filteredJobPositions = jobPositions.filter(position => 
-    !selectedDepartmentId || position.departmentId === selectedDepartmentId
-  );
+  const filteredJobPositions = jobPositions.filter(
+    position => !selectedDepartmentId || position.departmentId === selectedDepartmentId
+  )
 
   // Filter managers based on selected department
-  const filteredManagers = employees.filter(employee => 
-    employee.jobTitle.toLowerCase().includes('manager') || 
-    employee.jobTitle.toLowerCase().includes('director')
-  );
+  const filteredManagers = employees.filter(
+    employee =>
+      employee.jobTitle.toLowerCase().includes('manager') || employee.jobTitle.toLowerCase().includes('director')
+  )
 
-  const isLoading = employeeDataLoading || employmentTypesLoading;
-  const hasError = employeeDataError || employmentTypesError;
+  const isLoading = employeeDataLoading || employmentTypesLoading
+  const hasError = employeeDataError || employmentTypesError
 
   if (isLoading) {
     return (
@@ -151,7 +152,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
         <Spin size="large" />
         <span className="gba:ml-3">Loading organizational data...</span>
       </div>
-    );
+    )
   }
 
   if (hasError) {
@@ -163,7 +164,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
         showIcon
         className="gba:m-6"
       />
-    );
+    )
   }
 
   return (
@@ -179,10 +180,10 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
       >
         <div className="gba:mb-6">
           <p className="gba:text-gray-600 gba:mb-4">
-            Submit a comprehensive onboarding request that will automatically coordinate across HR, IT, 
-            Facilities, and other departments to ensure the new employee has everything ready for their first day.
+            Submit a comprehensive onboarding request that will automatically coordinate across HR, IT, Facilities, and
+            other departments to ensure the new employee has everything ready for their first day.
           </p>
-          
+
           <div className="gba:bg-blue-50 gba:border gba:border-blue-200 gba:rounded-lg gba:p-4">
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <ClockCircleOutlined className="gba:text-blue-600" />
@@ -198,20 +199,13 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
           </div>
         </div>
 
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          data-testid="onboarding-form"
-        >
+        <Form form={form} layout="vertical" onFinish={handleSubmit} data-testid="onboarding-form">
           <Row gutter={[16, 0]}>
             {/* Employee Information Section */}
             <Col span={24}>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-4">
-                Employee Information
-              </h3>
+              <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-4">Employee Information</h3>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="employeeName"
@@ -222,7 +216,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 <Input placeholder="John Doe" />
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="employeeEmail"
@@ -236,7 +230,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 <Input placeholder="john.doe@personal-email.com" />
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="startDate"
@@ -254,7 +248,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 Position & Organization
               </h3>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="department"
@@ -278,7 +272,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="position"
@@ -302,7 +296,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="reportingManager"
@@ -325,7 +319,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="employmentType"
@@ -345,11 +339,9 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
 
             {/* Work Setup Section */}
             <Col span={24}>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-4 gba:mt-6">
-                Work Setup
-              </h3>
+              <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-4 gba:mt-6">Work Setup</h3>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="workLocation"
@@ -365,7 +357,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
               <Form.Item
                 name="laptopType"
@@ -381,33 +373,36 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
-              <Form.Item
-                name="accessories"
-                label="Additional Equipment"
-                data-testid="accessories-field"
-              >
+              <Form.Item name="accessories" label="Additional Equipment" data-testid="accessories-field">
                 <Checkbox.Group>
                   <Row>
-                    <Col span={12}><Checkbox value="external-monitor">External Monitor</Checkbox></Col>
-                    <Col span={12}><Checkbox value="keyboard">External Keyboard</Checkbox></Col>
-                    <Col span={12}><Checkbox value="mouse">Mouse</Checkbox></Col>
-                    <Col span={12}><Checkbox value="headset">Headset</Checkbox></Col>
-                    <Col span={12}><Checkbox value="webcam">Webcam</Checkbox></Col>
-                    <Col span={12}><Checkbox value="docking-station">Docking Station</Checkbox></Col>
+                    <Col span={12}>
+                      <Checkbox value="external-monitor">External Monitor</Checkbox>
+                    </Col>
+                    <Col span={12}>
+                      <Checkbox value="keyboard">External Keyboard</Checkbox>
+                    </Col>
+                    <Col span={12}>
+                      <Checkbox value="mouse">Mouse</Checkbox>
+                    </Col>
+                    <Col span={12}>
+                      <Checkbox value="headset">Headset</Checkbox>
+                    </Col>
+                    <Col span={12}>
+                      <Checkbox value="webcam">Webcam</Checkbox>
+                    </Col>
+                    <Col span={12}>
+                      <Checkbox value="docking-station">Docking Station</Checkbox>
+                    </Col>
                   </Row>
                 </Checkbox.Group>
               </Form.Item>
             </Col>
-            
+
             <Col xs={24} md={12}>
-              <Form.Item
-                name="urgency"
-                label="Urgency Level"
-                initialValue="standard"
-                data-testid="urgency-field"
-              >
+              <Form.Item name="urgency" label="Urgency Level" initialValue="standard" data-testid="urgency-field">
                 <Select>
                   <Option value="standard">Standard (5-7 business days)</Option>
                   <Option value="urgent">Urgent (2-3 business days)</Option>
@@ -415,7 +410,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
                 </Select>
               </Form.Item>
             </Col>
-            
+
             <Col span={24}>
               <Form.Item
                 name="specialRequirements"
@@ -450,9 +445,7 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
               </div>
               {!workflowEngine && (
                 <div className="gba:text-center gba:mt-2">
-                  <span className="gba:text-xs gba:text-gray-500">
-                    Connecting to workflow engine...
-                  </span>
+                  <span className="gba:text-xs gba:text-gray-500">Connecting to workflow engine...</span>
                 </div>
               )}
             </Col>
@@ -460,5 +453,5 @@ export const EmployeeOnboardingForm: React.FC<EmployeeOnboardingFormProps> = ({
         </Form>
       </Card>
     </div>
-  );
-};
+  )
+}
