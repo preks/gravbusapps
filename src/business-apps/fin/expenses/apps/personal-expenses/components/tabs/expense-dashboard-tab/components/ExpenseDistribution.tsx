@@ -1,14 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system'
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
-} from '@newwork/nw-design-system'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell } from 'recharts'
-import { formatCurrency } from '../utils/formatters'
 import { DashboardStats } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -25,7 +18,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
     const quarterlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly', 'Quarterly')
     const yearlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly', 'Yearly')
     const monthlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly', 'Monthly')
-    
+
     switch (chartView) {
       case quarterlyLabel:
         return stats?.expensesByTypeQuarter || {}
