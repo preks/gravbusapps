@@ -54,7 +54,7 @@ export enum ReportScope {
 // Performance-related enums
 export enum ActivityCategory {
   PROSPECTING = 'PROSPECTING',
-  NURTURING = 'NURTURING', 
+  NURTURING = 'NURTURING',
   CLOSING = 'CLOSING',
   FOLLOW_UP = 'FOLLOW_UP'
 }

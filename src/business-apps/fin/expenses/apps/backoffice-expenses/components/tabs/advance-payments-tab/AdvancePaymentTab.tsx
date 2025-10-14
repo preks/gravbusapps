@@ -3,38 +3,44 @@
  * Delegates table functionality to AdvancePaymentsTable and manages statistics
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Alert } from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import AdvancePaymentsTable from './AdvancePaymentsTable';
-import { useAdvancePayments } from '../../../hooks/useAdvancePayment';
+import React, { useState, useEffect, useCallback } from 'react'
+import { Alert } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import AdvancePaymentsTable from './AdvancePaymentsTable'
+import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 
 interface AdvancePaymentTabProps extends BusinessAppContextProps {
-  onContentHeaderChange?: (header: React.ReactNode) => void;
+  onContentHeaderChange?: (header: React.ReactNode) => void
+  isActive?: boolean // ⚡ PERFORMANCE: Only fetch data when tab is active
 }
 
-const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = (props) => {
-  const { onContentHeaderChange } = props;
-  
-  // Search term state for synchronization with table
-  const [searchTerm, setSearchTerm] = useState<string>('');
+const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = props => {
+  const { onContentHeaderChange, isActive = true } = props
 
-  // Extract only the necessary props for fetching statistics
+  // Search term state for synchronization with table
+  const [searchTerm, setSearchTerm] = useState<string>('')
+
+  // Extract only the necessary props for statistics display
   const contextProps = {
     accessToken: props.accessToken,
-  };
+    isActive // ⚡ PERFORMANCE: Only initialize loading state when tab is active
+  }
 
-  const {
-    totalCount,
-    advancePaymentStats,
-    fetchAdvancePaymentStatistics,
-    statsLoading,
-  } = useAdvancePayments(contextProps);
+  const { totalCount, advancePaymentStats, isLoading } = useAdvancePayments(contextProps)
 
-  // Fetch statistics on component mount
-  useEffect(() => {
-    fetchAdvancePaymentStatistics();
-  }, [fetchAdvancePaymentStatistics]);
+  // Note: Statistics are now automatically fetched with the main payments query
+  // No separate fetch call needed
+
+  // Helper to get total amount display text (avoids nested ternary)
+  const getTotalAmountText = useCallback((): string => {
+    if (isLoading) {
+      return 'Loading statistics...'
+    }
+    if (advancePaymentStats?.totalAmount) {
+      return `Total Amount: ${advancePaymentStats.totalAmount}`
+    }
+    return 'Total Amount: $0'
+  }, [isLoading, advancePaymentStats?.totalAmount])
 
   // Create statistics header and pass to parent via onContentHeaderChange
   useEffect(() => {
@@ -44,21 +50,19 @@ const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = (props) => {
           <Alert variant="default" data-testid="advance-payment-stats-alert">
             <div>
               <h4 className="gba:font-semibold">{totalCount || 0} Advance Payments</h4>
-              <p className="gba:text-sm gba:mt-1">
-                {advancePaymentStats?.totalAmount ? `Total Amount: ${advancePaymentStats.totalAmount}` : 'Loading statistics...'}
-              </p>
+              <p className="gba:text-sm gba:mt-1">{getTotalAmountText()}</p>
             </div>
           </Alert>
         </div>
-      );
-      onContentHeaderChange(header);
+      )
+      onContentHeaderChange(header)
     }
-  }, [onContentHeaderChange, totalCount, advancePaymentStats, statsLoading]);
+  }, [onContentHeaderChange, totalCount, getTotalAmountText])
 
   // Handle search changes from the table
   const handleSearchChange = useCallback((search: string) => {
-    setSearchTerm(search);
-  }, []);
+    setSearchTerm(search)
+  }, [])
 
   return (
     <AdvancePaymentsTable
@@ -66,9 +70,10 @@ const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = (props) => {
       userInfo={props.userInfo}
       search={searchTerm}
       onSearchChange={handleSearchChange}
+      isActive={isActive}
       data-testid="advance-payments-table-component"
     />
-  );
-};
+  )
+}
 
-export default AdvancePaymentTab;
+export default AdvancePaymentTab

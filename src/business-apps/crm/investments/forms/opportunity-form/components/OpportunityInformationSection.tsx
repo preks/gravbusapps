@@ -1,49 +1,44 @@
-import React from "react";
-import {
-  Card,
-  CardContent,
-  Alert,
-  AlertDescription,
-} from "@newwork/nw-design-system";
-import { useOpportunityFormContext } from "../context/OpportunityFormContext";
-import { useOpportunityFormFieldClearing } from "../hooks";
+import React from 'react'
+import { Card, CardContent, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { useOpportunityFormContext } from '../context/OpportunityFormContext'
+import { useOpportunityFormFieldClearing } from '../hooks'
 import {
   OwnerBasicInfoSection,
   DealTypePipelineSection,
   OpportunityInvestmentSelectionSection,
   OpportunityFinancialFieldsSection,
-  AmountDateSection,
-} from "./sections";
+  AmountDateSection
+} from './sections'
 
 const OpportunityInformationSection: React.FC = () => {
-  const { error } = useOpportunityFormContext();
-  
+  const { error } = useOpportunityFormContext()
+
   // Apply form field clearing logic
-  useOpportunityFormFieldClearing();
+  useOpportunityFormFieldClearing()
 
   return (
     <Card
       className="gba:border-0 gba:shadow-none gba:bg-transparent"
       style={{
-        border: "0",
-        borderWidth: "0",
-        borderStyle: "none",
-        borderColor: "transparent",
-        boxShadow: "none",
-        padding: "0",
-        background: "transparent",
+        border: '0',
+        borderWidth: '0',
+        borderStyle: 'none',
+        borderColor: 'transparent',
+        boxShadow: 'none',
+        padding: '0',
+        background: 'transparent'
       }}
     >
       <CardContent
         className="gba:space-y-6 gba:p-0"
         style={{
-          border: "0",
-          borderWidth: "0",
-          borderStyle: "none",
-          borderColor: "transparent",
-          boxShadow: "none",
-          padding: "0",
-          background: "transparent",
+          border: '0',
+          borderWidth: '0',
+          borderStyle: 'none',
+          borderColor: 'transparent',
+          boxShadow: 'none',
+          padding: '0',
+          background: 'transparent'
         }}
       >
         {error && (
@@ -59,7 +54,7 @@ const OpportunityInformationSection: React.FC = () => {
         <OpportunityFinancialFieldsSection />
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default OpportunityInformationSection;
+export default OpportunityInformationSection

@@ -91,7 +91,7 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENTS = `
       }
     }
   }
-`;
+`
 
 // Query for advance payment statistics in the main view
 export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
@@ -140,4 +140,4 @@ export const GET_MAIN_VIEW_ADVANCE_PAYMENT_STATISTICS = `
     }
     # Currency stats are now handled at the app level via useAppCurrency
   }
-`;
+`

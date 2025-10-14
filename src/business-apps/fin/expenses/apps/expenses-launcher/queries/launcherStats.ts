@@ -221,4 +221,4 @@ export const GET_LAUNCHER_STATS_BY_EMPLOYEE = `
       }
     }
   }
-`; 
+`

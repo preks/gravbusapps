@@ -9,33 +9,35 @@ import {
   InvestmentActivity,
   InvestmentNote,
   InvestmentDocument
-} from '../types';
+} from '../types'
 
 /**
  * Transform BaseInvestmentTask (GraphQL response) to InvestmentTask (enhanced with computed fields)
  */
 export function toInvestmentTask(base: BaseInvestmentTask): InvestmentTask {
   // Extract labels from catalog entries
-  const taskTypeLabel = base.taskType?.value || base.taskType?.code;
-  const taskPriorityLabel = base.taskPriority?.value || base.taskPriority?.code;
-  const taskStatusLabel = base.taskStatus?.value || base.taskStatus?.code;
-  
+  const taskTypeLabel = base.taskType?.value || base.taskType?.code
+  const taskPriorityLabel = base.taskPriority?.value || base.taskPriority?.code
+  const taskStatusLabel = base.taskStatus?.value || base.taskStatus?.code
+
   // Employee display names
-  const creatorDisplayName = base.creatorEmployee?.displayName || 
-    `${base.creatorEmployee?.firstName || ''} ${base.creatorEmployee?.lastName || ''}`.trim();
-  const assignedDisplayName = base.assignedEmployee?.displayName || 
-    `${base.assignedEmployee?.firstName || ''} ${base.assignedEmployee?.lastName || ''}`.trim();
-  
+  const creatorDisplayName =
+    base.creatorEmployee?.displayName ||
+    `${base.creatorEmployee?.firstName || ''} ${base.creatorEmployee?.lastName || ''}`.trim()
+  const assignedDisplayName =
+    base.assignedEmployee?.displayName ||
+    `${base.assignedEmployee?.firstName || ''} ${base.assignedEmployee?.lastName || ''}`.trim()
+
   // Entity display names
-  const accountDisplayName = base.account?.name || base.account?.code;
-  const contactDisplayName = base.contact?.fullName || 
-    `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim();
-  const leadDisplayName = base.lead?.firstName && base.lead?.lastName ? 
-    `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code;
-  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code;
+  const accountDisplayName = base.account?.name || base.account?.code
+  const contactDisplayName =
+    base.contact?.fullName || `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim()
+  const leadDisplayName =
+    base.lead?.firstName && base.lead?.lastName ? `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code
+  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code
 
   // Create computed display name
-  const displayName = base.name || base.code || `Task ${base.id}`;
+  const displayName = base.name || base.code || `Task ${base.id}`
 
   return {
     ...base,
@@ -49,7 +51,7 @@ export function toInvestmentTask(base: BaseInvestmentTask): InvestmentTask {
     contactDisplayName,
     leadDisplayName,
     opportunityDisplayName
-  };
+  }
 }
 
 /**
@@ -57,22 +59,23 @@ export function toInvestmentTask(base: BaseInvestmentTask): InvestmentTask {
  */
 export function toInvestmentActivity(base: BaseInvestmentActivity): InvestmentActivity {
   // Extract labels from catalog entries
-  const activityTypeLabel = base.activityType?.value || base.activityType?.code;
-  
+  const activityTypeLabel = base.activityType?.value || base.activityType?.code
+
   // Employee display name
-  const ownerDisplayName = base.ownerEmployee?.displayName || 
-    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim();
-  
+  const ownerDisplayName =
+    base.ownerEmployee?.displayName ||
+    `${base.ownerEmployee?.firstName || ''} ${base.ownerEmployee?.lastName || ''}`.trim()
+
   // Entity display names
-  const accountDisplayName = base.account?.name || base.account?.code;
-  const contactDisplayName = base.contact?.fullName || 
-    `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim();
-  const leadDisplayName = base.lead?.firstName && base.lead?.lastName ? 
-    `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code;
-  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code;
+  const accountDisplayName = base.account?.name || base.account?.code
+  const contactDisplayName =
+    base.contact?.fullName || `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim()
+  const leadDisplayName =
+    base.lead?.firstName && base.lead?.lastName ? `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code
+  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code
 
   // Create computed display name
-  const displayName = base.title || `Activity ${base.id}`;
+  const displayName = base.title || `Activity ${base.id}`
 
   return {
     ...base,
@@ -83,7 +86,7 @@ export function toInvestmentActivity(base: BaseInvestmentActivity): InvestmentAc
     contactDisplayName,
     leadDisplayName,
     opportunityDisplayName
-  };
+  }
 }
 
 /**
@@ -91,19 +94,20 @@ export function toInvestmentActivity(base: BaseInvestmentActivity): InvestmentAc
  */
 export function toInvestmentNote(base: BaseInvestmentNote): InvestmentNote {
   // Employee display name
-  const authorDisplayName = base.authorEmployee?.displayName || 
-    `${base.authorEmployee?.firstName || ''} ${base.authorEmployee?.lastName || ''}`.trim();
-  
+  const authorDisplayName =
+    base.authorEmployee?.displayName ||
+    `${base.authorEmployee?.firstName || ''} ${base.authorEmployee?.lastName || ''}`.trim()
+
   // Entity display names
-  const accountDisplayName = base.account?.name || base.account?.code;
-  const contactDisplayName = base.contact?.fullName || 
-    `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim();
-  const leadDisplayName = base.lead?.firstName && base.lead?.lastName ? 
-    `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code;
-  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code;
+  const accountDisplayName = base.account?.name || base.account?.code
+  const contactDisplayName =
+    base.contact?.fullName || `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim()
+  const leadDisplayName =
+    base.lead?.firstName && base.lead?.lastName ? `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code
+  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code
 
   // Create computed display name
-  const displayName = base.title || `Note ${base.id}`;
+  const displayName = base.title || `Note ${base.id}`
 
   return {
     ...base,
@@ -113,7 +117,7 @@ export function toInvestmentNote(base: BaseInvestmentNote): InvestmentNote {
     contactDisplayName,
     leadDisplayName,
     opportunityDisplayName
-  };
+  }
 }
 
 /**
@@ -121,22 +125,22 @@ export function toInvestmentNote(base: BaseInvestmentNote): InvestmentNote {
  */
 export function toInvestmentDocument(base: BaseInvestmentDocument): InvestmentDocument {
   // Extract labels from catalog entries
-  const documentGroupLabel = base.documentGroup?.value || base.documentGroup?.code;
-  const documentTypeLabel = base.documentType?.value || base.documentType?.code;
-  
+  const documentGroupLabel = base.documentGroup?.value || base.documentGroup?.code
+  const documentTypeLabel = base.documentType?.value || base.documentType?.code
+
   // Format file size
-  const fileSizeFormatted = base.fileSize ? formatFileSize(base.fileSize) : undefined;
-  
+  const fileSizeFormatted = base.fileSize ? formatFileSize(base.fileSize) : undefined
+
   // Entity display names
-  const accountDisplayName = base.account?.name || base.account?.code;
-  const contactDisplayName = base.contact?.fullName || 
-    `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim();
-  const leadDisplayName = base.lead?.firstName && base.lead?.lastName ? 
-    `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code;
-  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code;
+  const accountDisplayName = base.account?.name || base.account?.code
+  const contactDisplayName =
+    base.contact?.fullName || `${base.contact?.firstName || ''} ${base.contact?.lastName || ''}`.trim()
+  const leadDisplayName =
+    base.lead?.firstName && base.lead?.lastName ? `${base.lead.firstName} ${base.lead.lastName}` : base.lead?.code
+  const opportunityDisplayName = base.opportunity?.name || base.opportunity?.code
 
   // Create computed display name
-  const displayName = base.name || `Document ${base.id}`;
+  const displayName = base.name || `Document ${base.id}`
 
   return {
     ...base,
@@ -148,18 +152,18 @@ export function toInvestmentDocument(base: BaseInvestmentDocument): InvestmentDo
     contactDisplayName,
     leadDisplayName,
     opportunityDisplayName
-  };
+  }
 }
 
 /**
  * Helper function to format file size in human-readable format
  */
 function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  if (bytes === 0) return '0 Bytes'
+
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }

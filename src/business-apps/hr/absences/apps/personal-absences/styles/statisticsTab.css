@@ -1,0 +1,720 @@
+/* StatisticsTab styles with gba: prefix */
+
+.gba\:statisticsGrid {
+  display: flex;
+  gap: 32px;
+  width: 100%;
+  margin-top: 0;
+  align-items: flex-start;
+}
+
+.gba\:statisticsSection.gba\:statisticsSection--half {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 1.5px 8px 0 rgba(60, 70, 90, 0.06);
+  padding: 28px 32px 30px 32px;
+  width: 50%;
+  min-width: 410px;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.gba\:statisticsSectionTitle {
+  font-size: 1.32rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: #191e23;
+}
+.gba\:statisticsSubTitle {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 18px;
+}
+
+/* Year Comparison Section */
+.gba\:yearComparisonRows {
+  margin: 10px 0 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gba\:yearComparisonRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gba\:yearComparisonLabel {
+  min-width: 120px;
+  font-weight: 600;
+  color: #222;
+  font-size: 16px;
+}
+.gba\:yearComparisonBarBg {
+  background: #f3f4f6;
+  border-radius: 8px;
+  width: 200px;
+  height: 12px;
+  position: relative;
+  overflow: hidden;
+  margin-right: 12px;
+}
+.gba\:yearComparisonBarFg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+  height: 100%;
+  transition: width 0.3s;
+}
+.gba\:yearComparisonValue {
+  font-weight: 700;
+  font-size: 16px;
+  color: #222;
+  margin-left: 4px;
+}
+.gba\:yearComparisonImprovement {
+  margin: 0 0 18px 0;
+  background: #e8fbf2;
+  color: #27ae60;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+.gba\:improvementIcon {
+  font-size: 19px;
+  margin-right: 5px;
+}
+.gba\:leaveTypeTitle {
+  font-weight: 700;
+  font-size: 17px;
+  margin: 18px 0 12px 0;
+  color: #222;
+}
+.gba\:leaveTypeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.gba\:leaveTypeRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 0;
+  flex-direction: column;
+}
+.gba\:leaveTypeYear {
+  font-size: 16px;
+  margin: 2px 0px 6px 0px;
+  width: 100%;
+  justify-content: space-between;
+  display: flex;
+  align-self: flex-end;
+  color: #8a939b;
+  font-weight: 500;
+}
+/* .gba\:leaveTypeBarBg {
+  background: #f3f4f6;
+  border-radius: 8px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  margin-right: 10px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+} */
+.gba\:leaveTypeBarFg {
+  height: 100%;
+  transition: width 0.3s;
+  display: inline-block;
+}
+.gba\:leaveTypeLegendTypes {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.gba\:leaveTypeTotal {
+  min-width: 80px;
+  font-size: 15px;
+  font-weight: 700;
+  margin-left: 10px;
+  margin-top: 2px;
+  color: #e74c3c;
+}
+.gba\:leaveTypeLegend {
+  display: flex;
+  gap: 8px;
+  font-size: 15px;
+  margin-left: 10px;
+  margin-top: 2px;
+}
+.gba\:leaveTypeLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  color: #222;
+}
+.gba\:leaveTypeLegendSwatch {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  margin-right: 3px;
+}
+
+/* Work Patterns Section */
+.gba\:workPatternsCurrentStreakCard {
+  background: #f7faff;
+  border-radius: 12px;
+  padding: 28px 0 16px 0;
+  text-align: center;
+  margin: 18px 0 22px 0;
+}
+.gba\:workPatternsCurrentStreakValue {
+  font-size: 42px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 7px;
+}
+.gba\:workPatternsCurrentStreakLabel {
+  font-size: 18px;
+  color: #555;
+  font-weight: 500;
+}
+.gba\:workPatternsCurrentStreakSub {
+  font-size: 15px;
+  color: #5b8def;
+  font-weight: 400;
+  margin-top: 2px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.gba\:workPatternsStat {
+  width: 100%;
+  box-sizing: border-box;
+}
+.gba\:workPatternsStat {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px 24px 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: none;
+  border: 1px solid #f2f2f2;
+  min-width: 110px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+.gba\:workPatternsStat:last-child {
+  border-right: none;
+}
+.gba\:workPatternsStatLabel {
+  font-size: 16px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 2px;
+}
+.gba\:workPatternsStatSub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 7px;
+}
+.gba\:workPatternsStatValue {
+  font-size: 25px;
+  font-weight: 700;
+  color: #222;
+  margin-right: 4px;
+  display: inline-block;
+}
+.gba\:workPatternsStatValue--red {
+  color: #e74c3c;
+}
+.gba\:workPatternsStatValue--green {
+  color: #27ae60;
+}
+.gba\:workPatternsStatUnit {
+  font-size: 15px;
+  color: #888;
+  display: inline-block;
+}
+.gba\:workPatternsRecommendation {
+  display: flex;
+  align-items: flex-start;
+  background: #fffbe6;
+  border-radius: 8px;
+  border: 1px solid #ffe58f;
+  padding: 13px 16px;
+  font-size: 15px;
+  margin-top: 16px;
+  box-shadow: none;
+}
+.gba\:workPatternsRecommendationIcon {
+  font-size: 22px;
+  margin-right: 10px;
+  margin-top: 3px;
+}
+.gba\:workPatternsRecommendationText {
+  display: flex;
+  flex-direction: column;
+}
+.gba\:workPatternsRecommendationTitle {
+  font-weight: 700;
+  color: #b8860b;
+  margin-bottom: 2px;
+}
+.gba\:workPatternsRecommendationBody {
+  color: #b8860b;
+  font-size: 15px;
+}
+
+/* Year Comparison Section */
+.gba\:yearComparisonRows {
+  margin: 20px 0 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gba\:yearComparisonRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.gba\:yearComparisonLabel {
+  min-width: 110px;
+  font-weight: 500;
+  color: #222;
+  font-size: 16px;
+}
+.gba\:yearComparisonBarBg {
+  background: #f3f4f6;
+  border-radius: 8px;
+  width: 180px;
+  height: 12px;
+  position: relative;
+  overflow: hidden;
+  margin-right: 12px;
+}
+.gba\:yearComparisonBarFg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 8px;
+  height: 100%;
+  transition: width 0.3s;
+}
+.gba\:yearComparisonValue {
+  font-weight: 700;
+  font-size: 16px;
+  color: #222;
+  margin-left: 4px;
+}
+.gba\:yearComparisonImprovement {
+  margin: 0 0 18px 0;
+  background: #e8fbf2;
+  color: #27ae60;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gba\:improvementIcon {
+  font-size: 19px;
+  margin-right: 5px;
+}
+.gba\:leaveTypeTitle {
+  font-weight: 600;
+  font-size: 17px;
+  margin: 18px 0 12px 0;
+}
+
+.gba\:leaveTypeBarBg {
+  background: #f3f4f6;
+  border-radius: 8px;
+  height: 18px;
+  width: 320px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.gba\:leaveTypeBarFg {
+  height: 100%;
+  transition: width 0.3s;
+  display: inline-block;
+  position: relative;
+}
+.gba\:leaveTypeTotal {
+  min-width: 80px;
+  font-size: 15px;
+  font-weight: 600;
+  margin-left: 10px;
+  margin-top: 2px;
+}
+.gba\:leaveTypeLegend {
+  display: flex;
+  gap: 8px;
+  font-size: 14px;
+  margin-left: 10px;
+  margin-top: 2px;
+}
+.gba\:leaveTypeLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.gba\:leaveTypeLegendSwatch {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  margin-right: 3px;
+}
+
+/* Work Patterns Section */
+.gba\:workPatternsCurrentStreakCard {
+  background: #f7faff;
+  border-radius: 12px;
+  padding: 28px 0 16px 0;
+  text-align: center;
+  margin: 18px 0 22px 0;
+}
+.gba\:workPatternsCurrentStreakValue {
+  font-size: 42px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 7px;
+}
+.gba\:workPatternsCurrentStreakLabel {
+  font-size: 18px;
+  color: #555;
+  font-weight: 500;
+}
+.gba\:workPatternsCurrentStreakSub {
+  font-size: 15px;
+  color: #5b8def;
+  font-weight: 400;
+  margin-top: 2px;
+}
+.gba\:workPatternsStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.gba\:workPatternsStat {
+  flex: 1;
+  padding: 16px 18px 12px 18px;
+  background: rgb(249 250 251);
+  min-width: 110px;
+  text-align: left;
+}
+.gba\:workPatternsStatRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 4px;
+}
+.gba\:workPatternsStat:last-child {
+  border-right: none;
+}
+.gba\:workPatternsStatLabel {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
+}
+.gba\:workPatternsStatSub {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 7px;
+}
+.gba\:workPatternsStatValue {
+  font-size: 25px;
+  font-weight: 700;
+  color: #222;
+  margin-right: 4px;
+  display: inline-block;
+}
+.gba\:workPatternsStatValue--red {
+  color: #e74c3c;
+}
+.gba\:workPatternsStatValue--green {
+  color: #27ae60;
+}
+.gba\:workPatternsStatUnit {
+  font-size: 15px;
+  color: #888;
+  display: inline-block;
+}
+.gba\:workPatternsRecommendation {
+  display: flex;
+  align-items: flex-start;
+  background: #fffbe6;
+  border-radius: 8px;
+  border: 1px solid #ffe58f;
+  padding: 13px 16px;
+  font-size: 15px;
+  margin-top: 16px;
+}
+.gba\:workPatternsRecommendationIcon {
+  font-size: 22px;
+  margin-right: 10px;
+  margin-top: 3px;
+}
+.gba\:workPatternsRecommendationText {
+  display: flex;
+  flex-direction: column;
+}
+.gba\:workPatternsRecommendationTitle {
+  font-weight: 600;
+  color: #b8860b;
+  margin-bottom: 2px;
+}
+.gba\:workPatternsRecommendationBody {
+  color: #b8860b;
+  font-size: 15px;
+}
+
+.gba\:statisticsRoot {
+  padding: 0;
+  width: 100%;
+}
+
+.gba\:statisticsSection {
+  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  margin-bottom: 28px;
+  padding: 28px 32px 28px 32px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.gba\:statisticsKeyInsights,
+.gba\:statisticsTrends,
+.gba\:statisticsMonthlyBarChart,
+.gba\:statisticsWeekBarChart,
+.gba\:statisticsSubSection {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.gba\:statisticsKeyInsights {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 0;
+}
+
+.gba\:statisticsMonthlyBarChart {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.gba\:statisticsWeekBarChart {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.gba\:statisticsKeyInsights {
+  display: flex;
+  gap: 18px;
+  margin-bottom: 0;
+}
+
+.gba\:insightCard {
+  flex: 1;
+  background: #f7faff;
+  border-radius: 12px;
+  padding: 24px 20px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  min-height: 80px;
+  box-shadow: none;
+  border: none;
+}
+.gba\:insightCard--blue {
+  background: #f0f5ff;
+}
+.gba\:insightCard--green {
+  background: #f4fbf5;
+}
+.gba\:insightCard--purple {
+  background: #faf6ff;
+}
+.gba\:insightValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #3b82f6;
+  margin-bottom: 2px;
+}
+.gba\:insightCard--green .gba\:insightValue {
+  color: #27ae60;
+}
+.gba\:insightCard--purple .gba\:insightValue {
+  color: #a259ec;
+}
+.gba\:insightTitle {
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 2px;
+  color: #222;
+}
+.gba\:insightSub {
+  font-size: 0.92rem;
+  color: #6b7280;
+}
+.gba\:statisticsSectionTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.gba\:statisticsSubTitle {
+  font-size: 1rem;
+  color: #666;
+  margin-bottom: 16px;
+}
+.gba\:statisticsSubSection {
+  margin-bottom: 24px;
+}
+.gba\:statisticsSubSectionTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.gba\:statisticsMonthlyBarChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.gba\:monthlyBarCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  width: 100%;
+}
+
+.gba\:monthlyBarBg {
+  width: 100%;
+  height: 64px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.gba\:monthlyBarFg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #3390ff;
+  border-radius: 8px 8px 0 0;
+  width: 100%;
+  transition: height 0.3s;
+}
+
+.gba\:monthlyBarMonth {
+  margin-top: 2px;
+  font-size: 14px;
+  color: #444;
+  font-weight: 500;
+}
+
+.gba\:monthlyBarValue {
+  font-weight: 600;
+  font-size: 15px;
+  margin-top: 1px;
+  color: #222;
+}
+
+.gba\:statisticsWeekBarChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+.gba\:weekBarCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  width: 100%;
+}
+
+.gba\:weekBarBg {
+  width: 100%;
+  height: 64px;
+  background: #f3f4f6;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+}
+.gba\:weekBarFg {
+  height: 8px;
+  background: #27ae60;
+  border-radius: 6px;
+  transition: width 0.3s;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 12px;
+  background: #17b66d;
+  border-radius: 8px 8px 0 0;
+  transition: height 0.3s;
+}
+.gba\:weekBarDay {
+  font-size: 0.93rem;
+  color: #888;
+  margin-top: 2px;
+}
+.gba\:weekBarValue {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222;
+  margin-top: 1px;
+}
+.gba\:weekBarNote {
+  font-size: 0.98rem;
+  color: #888;
+  margin-top: 2px;
+}

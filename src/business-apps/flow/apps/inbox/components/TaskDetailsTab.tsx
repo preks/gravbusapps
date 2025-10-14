@@ -1,51 +1,45 @@
-import React, { useState } from 'react';
-import { 
-  UserAddOutlined, 
-  CloseCircleOutlined, 
-  CheckCircleOutlined,
-  EyeOutlined,
-  LikeOutlined
-} from '@ant-design/icons';
-import { 
-  Badge, 
-  Button, 
-  Switch, 
+import React, { useState } from 'react'
+import { UserAddOutlined, CloseCircleOutlined, CheckCircleOutlined, EyeOutlined, LikeOutlined } from '@ant-design/icons'
+import {
+  Badge,
+  Button,
+  Switch,
   Textarea,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@newwork/nw-design-system';
-import { MessageSquare } from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { InputRenderer } from '../../creator/components/shared/InputRenderer';
-import { LinksRenderer } from '../../creator/components/shared/LinksRenderer';
-import { mockUsers, type User as MockUser } from '../../../data/mockUsers';
+} from '@newwork/nw-design-system'
+import { MessageSquare } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { InputRenderer } from '../../creator/components/shared/InputRenderer'
+import { LinksRenderer } from '../../creator/components/shared/LinksRenderer'
+import { mockUsers, type User as MockUser } from '../../../data/mockUsers'
 
 // Removed Ant Design destructuring - now using nw-design-system components
 // Using a generic Task type to avoid conflicts with parent component
 
 interface TaskDetailsTabProps extends BusinessAppContextProps {
-  task: any; // Using any to avoid type conflicts with parent Task interface
-  stepType?: string;
-  hasLinks: boolean;
-  hasInputBlocks: boolean;
-  taskFormData: any;
-  reassignUserId: string;
-  prefixDataTestId: string;
-  isCompleted?: boolean;
-  onComplete: () => void;
-  onClaim: () => void;
-  onRelease: () => void;
-  onReassign: () => void;
-  onReject: () => void;
-  setReassignUserId: (value: string) => void;
-  setRejectionComment: (value: string) => void;
-  setTaskFormData: (data: any) => void;
-  isTaskOverdue: (dueDate?: string) => boolean;
-  isTaskDueSoon: (dueDate?: string) => boolean;
-  isJustClaimable: (task: any) => boolean;
+  task: any // Using any to avoid type conflicts with parent Task interface
+  stepType?: string
+  hasLinks: boolean
+  hasInputBlocks: boolean
+  taskFormData: any
+  reassignUserId: string
+  prefixDataTestId: string
+  isCompleted?: boolean
+  onComplete: () => void
+  onClaim: () => void
+  onRelease: () => void
+  onReassign: () => void
+  onReject: () => void
+  setReassignUserId: (value: string) => void
+  setRejectionComment: (value: string) => void
+  setTaskFormData: (data: any) => void
+  isTaskOverdue: (dueDate?: string) => boolean
+  isTaskDueSoon: (dueDate?: string) => boolean
+  isJustClaimable: (task: any) => boolean
 }
 
 export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
@@ -69,17 +63,17 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
   isTaskDueSoon,
   isJustClaimable
 }) => {
-  const [showComment, setShowComment] = useState(false);
-  const [comment, setComment] = useState('');
-  const [showReassignUI, setShowReassignUI] = useState(false);
+  const [showComment, setShowComment] = useState(false)
+  const [comment, setComment] = useState('')
+  const [showReassignUI, setShowReassignUI] = useState(false)
 
   // Update parent comment state when local comment changes
   React.useEffect(() => {
-    setRejectionComment(comment);
-  }, [comment, setRejectionComment]);
+    setRejectionComment(comment)
+  }, [comment, setRejectionComment])
 
   // Use the same mock users as the main TaskInbox component
-  const availableUsers = mockUsers;
+  const availableUsers = mockUsers
 
   return (
     <div className="gba:space-y-4">
@@ -87,32 +81,30 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
       <div className="gba:mb-4">
         <div className="gba:flex gba:flex-wrap gba:gap-2">
           {stepType && (
-            <Badge 
-              variant="secondary" 
-              className="gba:text-sm gba:px-3 gba:py-1 gba:font-medium"
-            >
+            <Badge variant="secondary" className="gba:text-sm gba:px-3 gba:py-1 gba:font-medium">
               {stepType.toUpperCase()}
             </Badge>
           )}
-          
+
           {/* Due Date and Scheduled Time */}
           {task.dueDate && (
-            <Badge 
-              variant="outline" 
-              style={{ 
-                borderColor: isTaskOverdue(task.dueDate) 
-                  ? 'var(--color-danger-500)' 
-                  : isTaskDueSoon(task.dueDate) 
-                    ? 'var(--color-warning-500)' 
+            <Badge
+              variant="outline"
+              style={{
+                borderColor: isTaskOverdue(task.dueDate)
+                  ? 'var(--color-danger-500)'
+                  : isTaskDueSoon(task.dueDate)
+                    ? 'var(--color-warning-500)'
                     : 'var(--color-success-500)',
-                color: isTaskOverdue(task.dueDate) 
-                  ? 'var(--color-danger-700)' 
-                  : isTaskDueSoon(task.dueDate) 
-                    ? 'var(--color-warning-700)' 
+                color: isTaskOverdue(task.dueDate)
+                  ? 'var(--color-danger-700)'
+                  : isTaskDueSoon(task.dueDate)
+                    ? 'var(--color-warning-700)'
                     : 'var(--color-success-700)'
               }}
             >
-              Due: {new Date(task.dueDate).toLocaleDateString()} {new Date(task.dueDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              Due: {new Date(task.dueDate).toLocaleDateString()}{' '}
+              {new Date(task.dueDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Badge>
           )}
           {/* Scheduled pill removed per request */}
@@ -122,15 +114,21 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
       {/* Task Message/Description */}
       {task.message && (
         <div className="gba:mb-4 gba:mt-6">
-          <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>Description</h3>
-          <p className="gba:text-sm" style={{ color: 'var(--color-text-secondary)' }}>{task.message}</p>
+          <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
+            Description
+          </h3>
+          <p className="gba:text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            {task.message}
+          </p>
         </div>
       )}
 
       {/* Links Section */}
       {hasLinks && (
         <div className="gba:mb-4">
-          <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>Attachments</h3>
+          <h3 className="gba:text-base gba:font-medium gba:mb-2" style={{ color: 'var(--color-text-primary)' }}>
+            Attachments
+          </h3>
           <LinksRenderer links={task.links!} />
         </div>
       )}
@@ -143,17 +141,17 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
           </h3>
           <div className="gba:space-y-4">
             {(task.form || task.inputs)!.map((input: any, index: number) => (
-              <InputRenderer 
+              <InputRenderer
                 key={index}
                 input={input}
                 index={index}
                 value={taskFormData[input.name] || ''}
-                onChange={(value) => {
-                  console.log('Field changed:', input.name, value);
+                onChange={value => {
+                  console.log('Field changed:', input.name, value)
                   setTaskFormData({
                     ...taskFormData,
                     [input.name]: value
-                  });
+                  })
                 }}
               />
             ))}
@@ -166,13 +164,15 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
         <div className="gba:mb-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
             <MessageSquare className="gba:h-4 gba:w-4" />
-            <span className="gba:text-sm" style={{ color: 'var(--color-text-primary)' }}>Add Comment (Optional)</span>
+            <span className="gba:text-sm" style={{ color: 'var(--color-text-primary)' }}>
+              Add Comment (Optional)
+            </span>
             <Switch
               checked={showComment}
-              onCheckedChange={(checked) => {
-                setShowComment(checked);
+              onCheckedChange={checked => {
+                setShowComment(checked)
                 if (!checked) {
-                  setComment('');
+                  setComment('')
                 }
               }}
             />
@@ -181,12 +181,12 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
             <Textarea
               rows={3}
               placeholder={
-                stepType === 'APPROVAL' 
-                  ? "Add approval comment or rejection reason..." 
-                  : "Add comment about this action..."
+                stepType === 'APPROVAL'
+                  ? 'Add approval comment or rejection reason...'
+                  : 'Add comment about this action...'
               }
               value={comment}
-              onChange={(e) => setComment(e.target.value)}
+              onChange={e => setComment(e.target.value)}
               maxLength={500}
               className="gba:w-full"
             />
@@ -196,25 +196,26 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
 
       {/* Reassignment UI - Only show for active tasks */}
       {!isCompleted && task.availableActions?.canReassign && showReassignUI && (
-        <div className="gba:mb-4 gba:p-3 gba:rounded-md" style={{ border: '1px solid var(--color-border-default)', backgroundColor: 'var(--color-surface-secondary)' }}>
+        <div
+          className="gba:mb-4 gba:p-3 gba:rounded-md"
+          style={{ border: '1px solid var(--color-border-default)', backgroundColor: 'var(--color-surface-secondary)' }}
+        >
           <div className="gba:mb-3">
-            <h4 className="gba:text-base gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>Reassign Task</h4>
+            <h4 className="gba:text-base gba:font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+              Reassign Task
+            </h4>
           </div>
           <div className="gba:mb-3">
-            <p className="gba:text-sm gba:mb-2" style={{ color: 'var(--color-text-secondary)' }}>Select a user to reassign this task to:</p>
-            <Select 
-              value={reassignUserId || ""} 
-              onValueChange={setReassignUserId}
-            >
+            <p className="gba:text-sm gba:mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+              Select a user to reassign this task to:
+            </p>
+            <Select value={reassignUserId || ''} onValueChange={setReassignUserId}>
               <SelectTrigger className="gba:w-full">
                 <SelectValue placeholder="Select user to reassign to..." />
               </SelectTrigger>
               <SelectContent>
                 {availableUsers.map((user: MockUser) => (
-                  <SelectItem 
-                    key={user.id} 
-                    value={user.id}
-                  >
+                  <SelectItem key={user.id} value={user.id}>
                     {user.name} - {user.role}
                   </SelectItem>
                 ))}
@@ -227,8 +228,8 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               size="sm"
               disabled={!reassignUserId}
               onClick={() => {
-                onReassign();
-                setShowReassignUI(false);
+                onReassign()
+                setShowReassignUI(false)
               }}
             >
               Reassign to User
@@ -237,9 +238,9 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               variant="outline"
               size="sm"
               onClick={() => {
-                setReassignUserId(''); // Clear user to release back to pool
-                onReassign();
-                setShowReassignUI(false);
+                setReassignUserId('') // Clear user to release back to pool
+                onReassign()
+                setShowReassignUI(false)
               }}
             >
               Release to Pool
@@ -248,8 +249,8 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => {
-                setShowReassignUI(false);
-                setReassignUserId('');
+                setShowReassignUI(false)
+                setReassignUserId('')
               }}
             >
               Cancel
@@ -260,18 +261,21 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
 
       {/* Action Buttons - Only show for active tasks */}
       {!isCompleted && (
-        <div className="gba:flex gba:gap-2 gba:flex-wrap gba:mt-6 gba:pt-4 gba:border-t" style={{ borderColor: 'var(--color-border-default)' }}>
+        <div
+          className="gba:flex gba:gap-2 gba:flex-wrap gba:mt-6 gba:pt-4 gba:border-t"
+          style={{ borderColor: 'var(--color-border-default)' }}
+        >
           {/* Primary Complete Action - context-aware based on task type */}
           {task.availableActions?.canComplete && (
             <Button
               variant="default"
               onClick={() => {
-                console.log('Completing task with form data:', taskFormData);
-                onComplete();
+                console.log('Completing task with form data:', taskFormData)
+                onComplete()
               }}
               data-testid={`${prefixDataTestId}-complete-button`}
               className="gba:flex gba:items-center gba:gap-2"
-              style={{ 
+              style={{
                 backgroundColor: 'var(--color-primary)',
                 color: 'var(--color-primary-foreground)',
                 borderColor: 'var(--color-primary)'
@@ -281,7 +285,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               {getCompleteButtonLabel(stepType)}
             </Button>
           )}
-          
+
           {/* Reject Button - Only for APPROVAL tasks */}
           {task.availableActions?.canReject && stepType === 'APPROVAL' && (
             <Button
@@ -294,7 +298,7 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               Reject
             </Button>
           )}
-          
+
           {/* Secondary Actions */}
           {task.availableActions?.canClaim && (
             <Button
@@ -307,17 +311,13 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
               Claim
             </Button>
           )}
-          
+
           {task.availableActions?.canRelease && (
-            <Button
-              variant="secondary"
-              onClick={onRelease}
-              data-testid={`${prefixDataTestId}-release-button`}
-            >
+            <Button variant="secondary" onClick={onRelease} data-testid={`${prefixDataTestId}-release-button`}>
               Release
             </Button>
           )}
-          
+
           {task.availableActions?.canUnclaim && (
             <Button
               variant="secondary"
@@ -332,36 +332,36 @@ export const TaskDetailsTab: React.FC<TaskDetailsTabProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
 // Helper functions for context-aware button labels and icons
 const getCompleteButtonLabel = (stepType?: string): string => {
   switch (stepType) {
     case 'APPROVAL':
-      return 'Approve';
+      return 'Approve'
     case 'INFORMATION':
-      return 'Mark as Read';
+      return 'Mark as Read'
     case 'ACKNOWLEDGE':
     case 'ACKNOWLEDGEMENT': // Handle both variations for backward compatibility
-      return 'Acknowledge';
+      return 'Acknowledge'
     case 'TASK':
     default:
-      return 'Complete';
+      return 'Complete'
   }
-};
+}
 
 const getCompleteButtonIcon = (stepType?: string) => {
   switch (stepType) {
     case 'APPROVAL':
-      return <LikeOutlined />;
+      return <LikeOutlined />
     case 'INFORMATION':
-      return <EyeOutlined />;
+      return <EyeOutlined />
     case 'ACKNOWLEDGE':
     case 'ACKNOWLEDGEMENT': // Handle both variations for backward compatibility
-      return <CheckCircleOutlined />;
+      return <CheckCircleOutlined />
     case 'TASK':
     default:
-      return <CheckCircleOutlined />;
+      return <CheckCircleOutlined />
   }
-}; 
+}

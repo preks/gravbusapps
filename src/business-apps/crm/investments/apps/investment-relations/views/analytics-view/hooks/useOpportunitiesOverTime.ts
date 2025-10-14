@@ -1,64 +1,55 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export type TimeFilter =
-  | "month"
-  | "quarter"
-  | "sixMonths"
-  | "year"
-  | "historical";
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 export interface OpportunityTimeSeriesData {
-  date: string;
-  count: number;
-  value: number;
-  opportunitiesCreated: number;
-  opportunitiesWon: number;
+  date: string
+  count: number
+  value: number
+  opportunitiesCreated: number
+  opportunitiesWon: number
 }
 
-export const useOpportunitiesOverTime = (
-  accessToken: string,
-  timeFilter: TimeFilter,
-  selectedPipelineId?: string
-) => {
-  const [data, setData] = useState<OpportunityTimeSeriesData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const graphqlClient = useGraphQLClient(accessToken);
+export const useOpportunitiesOverTime = (accessToken: string, timeFilter: TimeFilter, selectedPipelineId?: string) => {
+  const [data, setData] = useState<OpportunityTimeSeriesData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const fetchOpportunitiesOverTime = useCallback(async () => {
     if (!accessToken) {
-      setError("Access token is required");
-      setIsLoading(false);
-      return;
+      setError('Access token is required')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Calculate date range based on selected time filter
-      const endDate = new Date();
-      const startDate = new Date();
+      const endDate = new Date()
+      const startDate = new Date()
 
       switch (timeFilter) {
-        case "month":
-          startDate.setMonth(endDate.getMonth() - 1);
-          break;
-        case "quarter":
-          startDate.setMonth(endDate.getMonth() - 3);
-          break;
-        case "sixMonths":
-          startDate.setMonth(endDate.getMonth() - 6);
-          break;
-        case "year":
-          startDate.setFullYear(endDate.getFullYear() - 1);
-          break;
-        case "historical":
-          startDate.setFullYear(endDate.getFullYear() - 3);
-          break;
+        case 'month':
+          startDate.setMonth(endDate.getMonth() - 1)
+          break
+        case 'quarter':
+          startDate.setMonth(endDate.getMonth() - 3)
+          break
+        case 'sixMonths':
+          startDate.setMonth(endDate.getMonth() - 6)
+          break
+        case 'year':
+          startDate.setFullYear(endDate.getFullYear() - 1)
+          break
+        case 'historical':
+          startDate.setFullYear(endDate.getFullYear() - 3)
+          break
         default:
-          startDate.setMonth(endDate.getMonth() - 3);
+          startDate.setMonth(endDate.getMonth() - 3)
       }
 
       const query = selectedPipelineId
@@ -139,20 +130,20 @@ export const useOpportunitiesOverTime = (
             }
           }
         }
-      `;
+      `
 
       const variables: any = {
-        startDate: startDate.toISOString(),
-      };
+        startDate: startDate.toISOString()
+      }
 
       if (selectedPipelineId) {
-        variables.pipelineId = selectedPipelineId;
+        variables.pipelineId = selectedPipelineId
       }
 
       const result = await graphqlClient.request<{
-        allOpportunities: any[];
-        wonOpportunities: any[];
-      }>(query, variables);
+        allOpportunities: any[]
+        wonOpportunities: any[]
+      }>(query, variables)
 
       // Create time series data
       const timeSeriesData = createTimeSeriesData(
@@ -161,23 +152,23 @@ export const useOpportunitiesOverTime = (
         startDate,
         endDate,
         timeFilter
-      );
+      )
 
-      setData(timeSeriesData);
+      setData(timeSeriesData)
     } catch (err) {
       // console.error("Error fetching opportunities over time:", err);
-      setError(err instanceof Error ? err.message : "Unknown error");
+      setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [accessToken, graphqlClient, timeFilter, selectedPipelineId]);
+  }, [accessToken, graphqlClient, timeFilter, selectedPipelineId])
 
   useEffect(() => {
-    fetchOpportunitiesOverTime();
-  }, [fetchOpportunitiesOverTime]);
+    fetchOpportunitiesOverTime()
+  }, [fetchOpportunitiesOverTime])
 
-  return { data, isLoading, error, refetch: fetchOpportunitiesOverTime };
-};
+  return { data, isLoading, error, refetch: fetchOpportunitiesOverTime }
+}
 
 // Helper function to create time series data
 function createTimeSeriesData(
@@ -188,105 +179,95 @@ function createTimeSeriesData(
   timeFilter: TimeFilter
 ): OpportunityTimeSeriesData[] {
   // Create map for won opportunities lookup
-  const wonOppsMap = new Map<string, any>();
-  wonOpportunities.forEach((opp) => {
-    const dateKey = new Date(opp.createdAt).toISOString().split("T")[0];
+  const wonOppsMap = new Map<string, any>()
+  wonOpportunities.forEach(opp => {
+    const dateKey = new Date(opp.createdAt).toISOString().split('T')[0]
     if (!wonOppsMap.has(dateKey)) {
-      wonOppsMap.set(dateKey, []);
+      wonOppsMap.set(dateKey, [])
     }
-    wonOppsMap.get(dateKey)!.push(opp);
-  });
+    wonOppsMap.get(dateKey)!.push(opp)
+  })
 
   // For month filter: return daily data, for others: aggregate into monthly periods
-  if (timeFilter === "month") {
+  if (timeFilter === 'month') {
     // Generate daily data points
-    const dailyData = new Map<string, OpportunityTimeSeriesData>();
+    const dailyData = new Map<string, OpportunityTimeSeriesData>()
 
     // Initialize all days in the range
-    const current = new Date(startDate);
+    const current = new Date(startDate)
     while (current <= endDate) {
-      const dateKey = current.toISOString().split("T")[0];
+      const dateKey = current.toISOString().split('T')[0]
       dailyData.set(dateKey, {
         date: dateKey,
         count: 0,
         value: 0,
         opportunitiesCreated: 0,
-        opportunitiesWon: 0,
-      });
-      current.setDate(current.getDate() + 1);
+        opportunitiesWon: 0
+      })
+      current.setDate(current.getDate() + 1)
     }
 
     // Aggregate opportunities by day
-    allOpportunities.forEach((opp) => {
-      const dateKey = new Date(opp.createdAt).toISOString().split("T")[0];
-      const dayData = dailyData.get(dateKey);
+    allOpportunities.forEach(opp => {
+      const dateKey = new Date(opp.createdAt).toISOString().split('T')[0]
+      const dayData = dailyData.get(dateKey)
       if (dayData) {
-        dayData.count += 1;
-        dayData.value += opp.estimatedAmount || 0;
-        dayData.opportunitiesCreated += 1;
+        dayData.count += 1
+        dayData.value += opp.estimatedAmount || 0
+        dayData.opportunitiesCreated += 1
       }
-    });
+    })
 
     // Add won opportunities
-    wonOpportunities.forEach((opp) => {
-      const dateKey = new Date(opp.createdAt).toISOString().split("T")[0];
-      const dayData = dailyData.get(dateKey);
+    wonOpportunities.forEach(opp => {
+      const dateKey = new Date(opp.createdAt).toISOString().split('T')[0]
+      const dayData = dailyData.get(dateKey)
       if (dayData) {
-        dayData.opportunitiesWon += 1;
+        dayData.opportunitiesWon += 1
       }
-    });
+    })
 
-    return Array.from(dailyData.values()).sort((a, b) =>
-      a.date.localeCompare(b.date)
-    );
+    return Array.from(dailyData.values()).sort((a, b) => a.date.localeCompare(b.date))
   } else {
     // Aggregate into monthly periods
-    const monthlyData = new Map<string, OpportunityTimeSeriesData>();
+    const monthlyData = new Map<string, OpportunityTimeSeriesData>()
 
     // Initialize months in the range
-    const current = new Date(startDate);
+    const current = new Date(startDate)
     while (current <= endDate) {
-      const monthKey = `${current.getFullYear()}-${String(
-        current.getMonth() + 1
-      ).padStart(2, "0")}-01`;
+      const monthKey = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-01`
       monthlyData.set(monthKey, {
         date: monthKey,
         count: 0,
         value: 0,
         opportunitiesCreated: 0,
-        opportunitiesWon: 0,
-      });
-      current.setMonth(current.getMonth() + 1);
+        opportunitiesWon: 0
+      })
+      current.setMonth(current.getMonth() + 1)
     }
 
     // Aggregate opportunities by month
-    allOpportunities.forEach((opp) => {
-      const date = new Date(opp.createdAt);
-      const monthKey = `${date.getFullYear()}-${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}-01`;
-      const monthData = monthlyData.get(monthKey);
+    allOpportunities.forEach(opp => {
+      const date = new Date(opp.createdAt)
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+      const monthData = monthlyData.get(monthKey)
       if (monthData) {
-        monthData.count += 1;
-        monthData.value += opp.estimatedAmount || 0;
-        monthData.opportunitiesCreated += 1;
+        monthData.count += 1
+        monthData.value += opp.estimatedAmount || 0
+        monthData.opportunitiesCreated += 1
       }
-    });
+    })
 
     // Add won opportunities
-    wonOpportunities.forEach((opp) => {
-      const date = new Date(opp.createdAt);
-      const monthKey = `${date.getFullYear()}-${String(
-        date.getMonth() + 1
-      ).padStart(2, "0")}-01`;
-      const monthData = monthlyData.get(monthKey);
+    wonOpportunities.forEach(opp => {
+      const date = new Date(opp.createdAt)
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+      const monthData = monthlyData.get(monthKey)
       if (monthData) {
-        monthData.opportunitiesWon += 1;
+        monthData.opportunitiesWon += 1
       }
-    });
+    })
 
-    return Array.from(monthlyData.values()).sort((a, b) =>
-      a.date.localeCompare(b.date)
-    );
+    return Array.from(monthlyData.values()).sort((a, b) => a.date.localeCompare(b.date))
   }
 }

@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface ContactOwner {
-  id: string;
-  name: string;
-  displayName?: string;
-  firstName?: string;
-  lastName?: string;
+  id: string
+  name: string
+  displayName?: string
+  firstName?: string
+  lastName?: string
 }
 
 const GET_CONTACT_OWNERS_QUERY = `
@@ -26,26 +26,22 @@ const GET_CONTACT_OWNERS_QUERY = `
       }
     }
   }
-`;
+`
 
-export const useGetContactOwners = (
-  context: BusinessAppContextProps,
-  search: string = "",
-  offset: number = 0
-) => {
-  const [contactOwners, setContactOwners] = useState<ContactOwner[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<any>(null);
+export const useGetContactOwners = (context: BusinessAppContextProps, search: string = '', offset: number = 0) => {
+  const [contactOwners, setContactOwners] = useState<ContactOwner[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchContactOwners = useCallback(async () => {
     if (!context.accessToken) {
-      return;
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Build where condition with employee search
@@ -60,25 +56,22 @@ export const useGetContactOwners = (
                     _or: [
                       { firstName: { _ilike: `%${search}%` } },
                       { lastName: { _ilike: `%${search}%` } },
-                      { displayName: { _ilike: `%${search}%` } },
-                    ],
-                  },
+                      { displayName: { _ilike: `%${search}%` } }
+                    ]
+                  }
                 ]
-              : []),
-          ],
-        },
-      };
+              : [])
+          ]
+        }
+      }
 
       const variables = {
         where: whereCondition,
         limit: 20,
-        offset,
-      };
+        offset
+      }
 
-      const result = await graphqlClient.request(
-        GET_CONTACT_OWNERS_QUERY,
-        variables
-      );
+      const result = await graphqlClient.request(GET_CONTACT_OWNERS_QUERY, variables)
 
       if (result?.Contact) {
         const owners = result.Contact.filter((contact: any) => contact.ownerEmployee) // Ensure ownerEmployee exists
@@ -86,39 +79,38 @@ export const useGetContactOwners = (
             id: contact.ownerEmployee.id,
             name:
               contact.ownerEmployee.displayName ||
-              `${contact.ownerEmployee.firstName || ""} ${
-                contact.ownerEmployee.lastName || ""
-              }`.trim() || "Unknown Owner",
+              `${contact.ownerEmployee.firstName || ''} ${contact.ownerEmployee.lastName || ''}`.trim() ||
+              'Unknown Owner',
             displayName: contact.ownerEmployee.displayName,
             firstName: contact.ownerEmployee.firstName,
-            lastName: contact.ownerEmployee.lastName,
+            lastName: contact.ownerEmployee.lastName
           }))
           .filter((owner: ContactOwner, index: number, self: ContactOwner[]) => {
             // Remove duplicates by owner ID
-            return self.findIndex(o => o.id === owner.id) === index;
+            return self.findIndex(o => o.id === owner.id) === index
           })
-          .slice(0, 20); // Frontend enforcement of limit
+          .slice(0, 20) // Frontend enforcement of limit
 
-        setContactOwners(owners);
+        setContactOwners(owners)
       } else {
-        setContactOwners([]);
+        setContactOwners([])
       }
     } catch (err) {
-      console.error("Error fetching contact owners:", err);
-      setError(err);
-      setContactOwners([]);
+      console.error('Error fetching contact owners:', err)
+      setError(err)
+      setContactOwners([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, search, offset, graphqlClient]);
+  }, [context.accessToken, search, offset, graphqlClient])
 
   useEffect(() => {
-    fetchContactOwners();
-  }, [fetchContactOwners]);
+    fetchContactOwners()
+  }, [fetchContactOwners])
 
   return {
     contactOwners,
     isLoading,
-    error,
-  };
-}; 
+    error
+  }
+}

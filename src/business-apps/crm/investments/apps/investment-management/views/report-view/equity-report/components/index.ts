@@ -1,1 +1,1 @@
-export { EquityAnalyticsTable } from './EquityAnalyticsTable';
+export { EquityAnalyticsTable } from './EquityAnalyticsTable'

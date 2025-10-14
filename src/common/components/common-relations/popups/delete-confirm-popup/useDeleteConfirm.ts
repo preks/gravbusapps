@@ -1,85 +1,85 @@
-import { useState, useCallback } from 'react';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { useState, useCallback } from 'react'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 export interface DeleteConfirmConfig {
   /** The title of the item being deleted */
-  itemTitle: string;
-  
+  itemTitle: string
+
   /** The type of item being deleted (e.g., "document", "activity", "note", "contact") */
-  itemType: string;
-  
+  itemType: string
+
   /** Custom confirmation message (optional) */
-  customMessage?: string;
-  
+  customMessage?: string
+
   /** Additional warning text (optional) */
-  warningText?: string;
-  
+  warningText?: string
+
   /** Custom button text for confirm action (default: "Delete") */
-  confirmButtonText?: string;
-  
+  confirmButtonText?: string
+
   /** Custom button text for cancel action (default: "Cancel") */
-  cancelButtonText?: string;
-  
+  cancelButtonText?: string
+
   /** Data test ID prefix for testing */
-  'data-testid'?: string;
+  'data-testid'?: string
 
   // Flow Registry Configuration (Recommended)
-  
+
   /** Access token for Flow Registry authentication */
-  accessToken?: string;
-  
+  accessToken?: string
+
   /** Flow context name for the entity (e.g., customerActivityEntity, investmentActivityEntity) */
-  flowContextName?: FlowContextName;
-  
+  flowContextName?: FlowContextName
+
   /** External context data to pass to the Flow Registry (e.g., { activityId: '123', leadId: '456' }) */
-  externalContextData?: Record<string, any>;
-  
+  externalContextData?: Record<string, any>
+
   /** Callback when Flow Registry deletion is successful */
-  onFlowSuccess?: () => void;
-  
+  onFlowSuccess?: () => void
+
   /** Callback when Flow Registry deletion fails */
-  onFlowError?: (error: any) => void;
+  onFlowError?: (error: any) => void
 
   // Legacy Configuration (Not recommended for new code)
-  
+
   /** Function to call when delete is confirmed (legacy mode) */
-  onConfirm?: () => void | Promise<void>;
+  onConfirm?: () => void | Promise<void>
 }
 
 export interface UseDeleteConfirmReturn {
   /** Whether the delete confirmation popup is open */
-  isOpen: boolean;
-  
+  isOpen: boolean
+
   /** Whether a delete operation is currently in progress */
-  isLoading: boolean;
-  
+  isLoading: boolean
+
   /** Configuration for the delete confirmation popup */
-  config: DeleteConfirmConfig | null;
-  
+  config: DeleteConfirmConfig | null
+
   /** Function to show the delete confirmation popup */
-  showDeleteConfirm: (config: DeleteConfirmConfig) => void;
-  
+  showDeleteConfirm: (config: DeleteConfirmConfig) => void
+
   /** Function to close the delete confirmation popup */
-  closeDeleteConfirm: () => void;
-  
+  closeDeleteConfirm: () => void
+
   /** Function to handle the delete confirmation (used internally by the popup) */
-  handleDeleteConfirm: () => Promise<void>;
+  handleDeleteConfirm: () => Promise<void>
 }
 
 /**
  * Hook for managing delete confirmation popups
- * 
+ *
  * @example
  * ```tsx
- * const { 
- *   isOpen, 
- *   isLoading, 
- *   config, 
- *   showDeleteConfirm, 
- *   closeDeleteConfirm, 
- *   handleDeleteConfirm 
+ * const {
+ *   isOpen,
+ *   isLoading,
+ *   config,
+ *   showDeleteConfirm,
+ *   closeDeleteConfirm,
+ *   handleDeleteConfirm
  * } = useDeleteConfirm();
- * 
+ *
  * const handleDeleteActivity = (activity) => {
  *   showDeleteConfirm({
  *     itemTitle: activity.title,
@@ -90,11 +90,11 @@ export interface UseDeleteConfirmReturn {
  *     }
  *   });
  * };
- * 
+ *
  * return (
  *   <>
  *     <Button onClick={() => handleDeleteActivity(activity)}>Delete</Button>
- *     
+ *
  *     {config && (
  *       <DeleteConfirmPopup
  *         isOpen={isOpen}
@@ -109,42 +109,42 @@ export interface UseDeleteConfirmReturn {
  * ```
  */
 export const useDeleteConfirm = (): UseDeleteConfirmReturn => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [config, setConfig] = useState<DeleteConfirmConfig | null>(null);
+  const [isOpen, setIsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [config, setConfig] = useState<DeleteConfirmConfig | null>(null)
 
   const showDeleteConfirm = useCallback((newConfig: DeleteConfirmConfig) => {
-    setConfig(newConfig);
-    setIsOpen(true);
-  }, []);
+    setConfig(newConfig)
+    setIsOpen(true)
+  }, [])
 
   const closeDeleteConfirm = useCallback(() => {
     if (!isLoading) {
-      setIsOpen(false);
-      setConfig(null);
+      setIsOpen(false)
+      setConfig(null)
     }
-  }, [isLoading]);
+  }, [isLoading])
 
   const handleDeleteConfirm = useCallback(async () => {
     // Only used in legacy mode - Flow Registry mode handles this through AppAction
     if (!config?.onConfirm || isLoading) {
-      return;
+      return
     }
 
-    setIsLoading(true);
+    setIsLoading(true)
     try {
-      await config.onConfirm();
+      await config.onConfirm()
       // Close the popup after successful deletion
-      setIsOpen(false);
-      setConfig(null);
+      setIsOpen(false)
+      setConfig(null)
     } catch (error) {
       // Don't close the popup on error - let the parent handle error display
-      console.error('Delete confirmation error:', error);
-      throw error; // Re-throw so parent can handle
+      console.error('Delete confirmation error:', error)
+      throw error // Re-throw so parent can handle
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [config, isLoading]);
+  }, [config, isLoading])
 
   return {
     isOpen,
@@ -152,8 +152,8 @@ export const useDeleteConfirm = (): UseDeleteConfirmReturn => {
     config,
     showDeleteConfirm,
     closeDeleteConfirm,
-    handleDeleteConfirm,
-  };
-};
+    handleDeleteConfirm
+  }
+}
 
-export default useDeleteConfirm;
+export default useDeleteConfirm

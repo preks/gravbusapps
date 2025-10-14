@@ -1,13 +1,13 @@
-import React from 'react';
-import { LeadFormProvider } from './context/LeadFormContext';
-import LeadFormComponent from './components/LeadFormComponent';
-import { LeadFormValues } from './types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { LeadFormProvider } from './context/LeadFormContext'
+import LeadFormComponent from './components/LeadFormComponent'
+import { LeadFormValues } from './types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface LeadFormProps {
-  initialValues?: Partial<LeadFormValues>;
-  onSubmit?: (values: LeadFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
+  initialValues?: Partial<LeadFormValues>
+  onSubmit?: (values: LeadFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
 }
 
 const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
@@ -25,14 +25,14 @@ const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
     additionalData
-  };
+  }
 
   return (
     <LeadFormProvider
@@ -43,7 +43,7 @@ const LeadForm: React.FC<BusinessAppContextProps & LeadFormProps> = ({
     >
       <LeadFormComponent />
     </LeadFormProvider>
-  );
-};
+  )
+}
 
-export default LeadForm;
+export default LeadForm

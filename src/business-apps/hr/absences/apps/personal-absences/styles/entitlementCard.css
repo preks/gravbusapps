@@ -1,0 +1,186 @@
+/* EntitlementCard styles with gba: prefix */
+.gba\:entitlementCard {
+  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid #e5e7eb;
+  margin-bottom: 18px;
+  padding: 22px 32px 18px 32px;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.gba\:entitlementCard--simple {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  min-height: 48px;
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 8px;
+  border: 1.5px solid #e5e7eb;
+  margin-bottom: 12px;
+}
+.gba\:entitlementSimpleTitle {
+  font-weight: 500;
+  color: #222;
+  font-size: 15px;
+  flex: 1;
+  padding-left: 12px;
+}
+.gba\:entitlementSimpleRight {
+  text-align: right;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.gba\:entitlementSimpleValue {
+  font-weight: 700;
+  font-size: 22px;
+  color: #222;
+  line-height: 1.1;
+}
+.gba\:entitlementSimpleYear {
+  font-size: 13px;
+  color: #8c8c8c;
+  margin-top: 0;
+  line-height: 1.1;
+}
+
+.gba\:entitlementCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+.gba\:entitlementHeaderSummary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-left: 24px;
+  min-width: 110px;
+}
+.gba\:entitlementHeaderUsed {
+  font-size: 16px;
+  color: #425066;
+  font-weight: 400;
+  line-height: 1.1;
+}
+.gba\:entitlementHeaderPending {
+  font-size: 16px;
+  color: #c88719;
+  font-weight: 500;
+  margin-top: 2px;
+  line-height: 1.1;
+}
+
+.gba\:entitlementIcon {
+  width: 8px;
+  height: 28px;
+  border-radius: 4px;
+  margin-right: 8px;
+  background: #a78bfa;
+  display: inline-block;
+}
+.gba\:entitlementIcon--purple {
+  background: #a78bfa;
+}
+.gba\:entitlementIcon--blue {
+  background: #1976d2;
+}
+.gba\:entitlementIcon--orange {
+  background: #fb8c00;
+}
+.gba\:entitlementIcon--green {
+  background: #27ae60;
+}
+.gba\:entitlementIcon--red {
+  background: #e53935;
+}
+.gba\:entitlementTitle {
+  font-weight: 600;
+  font-size: 16px;
+  color: #18181a;
+  flex: 1;
+}
+.gba\:entitlementRightNumber {
+  font-size: 22px;
+  font-weight: 700;
+  color: #222;
+  margin-left: 16px;
+}
+
+.gba\:entitlementYear {
+  font-size: 13px;
+  color: #b0b0b0;
+  margin-left: auto;
+  font-weight: 400;
+}
+
+.gba\:entitlementUsedTotal {
+  font-size: 14px;
+  color: #222;
+  font-weight: 400;
+  flex: 1;
+  text-align: left;
+  margin-left: 0;
+}
+
+.gba\:entitlementPending {
+  font-size: 14px;
+  color: #fb8c00;
+  font-weight: 500;
+  flex: 1;
+  text-align: center;
+  margin-left: 0;
+}
+
+.gba\:entitlementProgressBar {
+  width: 100%;
+  height: 7px;
+  background: #f3f3f3;
+  border-radius: 3.5px;
+  overflow: hidden;
+  margin: 10px 0 0 0;
+}
+
+.gba\:entitlementProgressBarFill {
+  height: 100%;
+  background: #222;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+.gba\:entitlementCardDetails {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  width: 100%;
+}
+.gba\:entitlementUsedTotal {
+  font-size: 14px;
+  color: #222;
+  font-weight: 400;
+  flex: 1;
+  text-align: left;
+}
+.gba\:entitlementPending {
+  font-size: 14px;
+  color: #fb8c00;
+  font-weight: 500;
+  flex: 1;
+  text-align: center;
+  margin-left: 0;
+}
+.gba\:entitlementAvailable {
+  color: #222;
+  font-weight: 600;
+  flex: 1;
+  text-align: right;
+  margin-left: 0;
+}

@@ -1,1 +1,1 @@
-export { AccountView } from './AccountView';
+export { AccountView } from './AccountView'

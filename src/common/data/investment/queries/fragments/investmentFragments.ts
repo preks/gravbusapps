@@ -1,8 +1,7 @@
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
-
-export const INVESTMENT_REF=`
+export const INVESTMENT_REF = `
     id
     code
     name
@@ -21,7 +20,7 @@ export const INVESTMENT_REF=`
     currency {
     ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const INVESTMENT = `
     id
@@ -91,7 +90,7 @@ export const INVESTMENT = `
             ${CATALOG_ENTRY}
         }
     }
-`;
+`
 
 // Investment specialization fragments
 export const EQUITY_INVESTMENT_REF = `
@@ -101,7 +100,7 @@ export const EQUITY_INVESTMENT_REF = `
     ebitdaAmount
     turnoverAmount
     additionalProperties
-`;
+`
 
 export const EQUITY_INVESTMENT = `
     id
@@ -144,7 +143,7 @@ export const EQUITY_INVESTMENT = `
         marketValue
         additionalProperties
     }
-`;
+`
 
 export const REAL_ESTATE_INVESTMENT_REF = `
     id
@@ -160,7 +159,7 @@ export const REAL_ESTATE_INVESTMENT_REF = `
     locality
     postalCode
     additionalProperties
-`;
+`
 
 export const REAL_ESTATE_INVESTMENT = `
     id
@@ -215,7 +214,7 @@ export const REAL_ESTATE_INVESTMENT = `
         additionalProperties
         ${AUDIT_FIELDS}
     }
-`;
+`
 
 export const LIQUID_FUND_INVESTMENT_REF = `
     id
@@ -231,7 +230,7 @@ export const LIQUID_FUND_INVESTMENT_REF = `
     investmentLiquidFundType {
         ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const LIQUID_FUND_INVESTMENT = `
     id
@@ -277,4 +276,4 @@ export const LIQUID_FUND_INVESTMENT = `
         additionalProperties
         ${AUDIT_FIELDS}
     }
-`;
+`

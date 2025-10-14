@@ -1,1 +1,1 @@
-export * from './EquityTypes';
+export * from './EquityTypes'

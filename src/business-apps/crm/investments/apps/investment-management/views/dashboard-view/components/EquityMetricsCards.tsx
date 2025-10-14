@@ -1,41 +1,44 @@
-import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@newwork/nw-design-system";
-import { DollarSign, TrendingUp, Target, Clock } from "lucide-react";
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { DollarSign, TrendingUp, Target, Clock } from 'lucide-react'
 // Using generic shape to decouple from removed hook
 interface EnhancedInvestmentLike {
-  type: string;
-  status: string;
-  rawData: { investment: { initialInvestmentAmount: number; bookValue: number } };
+  type: string
+  status: string
+  rawData: { investment: { initialInvestmentAmount: number; bookValue: number } }
 }
 
-interface EquityMetricsCardsProps { investments: EnhancedInvestmentLike[]; }
+interface EquityMetricsCardsProps {
+  investments: EnhancedInvestmentLike[]
+}
 
 /**
  * Component displaying key equity metrics cards for the equity tab
  */
 const EquityMetricsCards: React.FC<EquityMetricsCardsProps> = ({ investments }) => {
   // Filter equity investments
-  const equityInvestments = investments.filter(inv => inv.type === 'Equity');
+  const equityInvestments = investments.filter(inv => inv.type === 'Equity')
 
   // Calculate metrics
-  const totalInvested = equityInvestments.reduce((sum, inv) => 
-    sum + inv.rawData.investment.initialInvestmentAmount, 0
-  );
-  
-  const totalBookValue = equityInvestments.reduce((sum, inv) => 
-    sum + inv.rawData.investment.bookValue, 0
-  );
+  const totalInvested = equityInvestments.reduce((sum, inv) => sum + inv.rawData.investment.initialInvestmentAmount, 0)
 
-  const bookValueChange = totalBookValue - totalInvested;
-  const changePercent = totalInvested > 0 ? (bookValueChange / totalInvested) * 100 : 0;
+  const totalBookValue = equityInvestments.reduce((sum, inv) => sum + inv.rawData.investment.bookValue, 0)
 
-  const avgROI = equityInvestments.length > 0 ? 
-    equityInvestments.reduce((sum, inv) => {
-      const roi = ((inv.rawData.investment.bookValue - inv.rawData.investment.initialInvestmentAmount) / inv.rawData.investment.initialInvestmentAmount) * 100;
-      return sum + roi;
-    }, 0) / equityInvestments.length : 0;
+  const bookValueChange = totalBookValue - totalInvested
+  const changePercent = totalInvested > 0 ? (bookValueChange / totalInvested) * 100 : 0
 
-  const activeInvestments = equityInvestments.filter(inv => inv.status === 'active' || inv.status === 'Active').length;
+  const avgROI =
+    equityInvestments.length > 0
+      ? equityInvestments.reduce((sum, inv) => {
+          const roi =
+            ((inv.rawData.investment.bookValue - inv.rawData.investment.initialInvestmentAmount) /
+              inv.rawData.investment.initialInvestmentAmount) *
+            100
+          return sum + roi
+        }, 0) / equityInvestments.length
+      : 0
+
+  const activeInvestments = equityInvestments.filter(inv => inv.status === 'active' || inv.status === 'Active').length
 
   // Format currency
   const formatCurrency = (amount: number): string => {
@@ -44,8 +47,8 @@ const EquityMetricsCards: React.FC<EquityMetricsCardsProps> = ({ investments }) 
       currency: 'EUR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
-  };
+    }).format(amount)
+  }
 
   return (
     <div className="gba:grid gba:gap-4 gba:grid-cols-1 gba:md:grid-cols-4">
@@ -58,11 +61,12 @@ const EquityMetricsCards: React.FC<EquityMetricsCardsProps> = ({ investments }) 
         <CardContent>
           <div className="gba:text-2xl gba:font-bold">{formatCurrency(totalInvested)}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
-            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}
+            {changePercent.toFixed(1)}%)
           </p>
         </CardContent>
       </Card>
-      
+
       {/* Book Value Card */}
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
@@ -72,11 +76,12 @@ const EquityMetricsCards: React.FC<EquityMetricsCardsProps> = ({ investments }) 
         <CardContent>
           <div className="gba:text-2xl gba:font-bold">{formatCurrency(totalBookValue)}</div>
           <p className="gba:text-xs gba:text-muted-foreground">
-            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+            {formatCurrency(bookValueChange)} ({changePercent >= 0 ? '+' : ''}
+            {changePercent.toFixed(1)}%)
           </p>
         </CardContent>
       </Card>
-      
+
       {/* Avg. Expected ROI Card */}
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
@@ -85,12 +90,10 @@ const EquityMetricsCards: React.FC<EquityMetricsCardsProps> = ({ investments }) 
         </CardHeader>
         <CardContent>
           <div className="gba:text-2xl gba:font-bold">{avgROI.toFixed(1)}%</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            across {equityInvestments.length} equity investments
-          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">across {equityInvestments.length} equity investments</p>
         </CardContent>
       </Card>
-      
+
       {/* Active Investments Card */}
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-2">
@@ -99,13 +102,11 @@ const EquityMetricsCards: React.FC<EquityMetricsCardsProps> = ({ investments }) 
         </CardHeader>
         <CardContent>
           <div className="gba:text-2xl gba:font-bold">{activeInvestments}</div>
-          <p className="gba:text-xs gba:text-muted-foreground">
-            of {equityInvestments.length} total
-          </p>
+          <p className="gba:text-xs gba:text-muted-foreground">of {equityInvestments.length} total</p>
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default EquityMetricsCards;
+export default EquityMetricsCards

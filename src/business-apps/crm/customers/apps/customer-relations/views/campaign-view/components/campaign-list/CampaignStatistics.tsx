@@ -1,18 +1,13 @@
-import React from 'react';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  ChartBar, 
-  Play, 
-  CheckCircle, 
-  Clock 
-} from '@phosphor-icons/react';
-import { SalesCampaignStatistics } from './types/SalesCampaignTypes';
+import React from 'react'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { ChartBar, Play, CheckCircle, Clock } from '@phosphor-icons/react'
+import { SalesCampaignStatistics } from './types/SalesCampaignTypes'
 
 interface CampaignStatisticsProps {
-  statistics: SalesCampaignStatistics;
-  isLoading?: boolean;
-  error?: string | null;
-  onRetry?: () => void;
+  statistics: SalesCampaignStatistics
+  isLoading?: boolean
+  error?: string | null
+  onRetry?: () => void
 }
 
 const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
@@ -23,10 +18,10 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
 }) => {
   // Helper function to format duration
   const formatDuration = (days: number): string => {
-    if (days === 0) return '0 days';
-    if (days === 1) return '1 day';
-    return `${days} days`;
-  };
+    if (days === 0) return '0 days'
+    if (days === 1) return '1 day'
+    return `${days} days`
+  }
 
   // Mock trend data (in a real app, this would come from historical data)
   const getTrendData = (currentValue: number, metric: string) => {
@@ -36,18 +31,18 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       activeCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 3)),
       completedCampaigns: Math.max(0, currentValue - Math.floor(Math.random() * 4)),
       averageDuration: Math.max(0, currentValue - Math.floor(Math.random() * 10))
-    };
-    
-    const previousValue = mockPreviousValues[metric as keyof typeof mockPreviousValues] || 0;
-    const change = currentValue - previousValue;
-    const changePercent = previousValue > 0 ? ((change / previousValue) * 100) : 0;
-    
+    }
+
+    const previousValue = mockPreviousValues[metric as keyof typeof mockPreviousValues] || 0
+    const change = currentValue - previousValue
+    const changePercent = previousValue > 0 ? (change / previousValue) * 100 : 0
+
     return {
       value: `${change > 0 ? '+' : ''}${changePercent.toFixed(1)}%`,
       positive: change > 0,
       description: `vs last period`
-    };
-  };
+    }
+  }
 
   // Transform stats data into widgets format
   const widgets: WidgetItem[] = [
@@ -92,7 +87,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
       description: 'Average campaign duration in days',
       trend: getTrendData(statistics.averageDuration, 'averageDuration')
     }
-  ];
+  ]
 
   return (
     <div data-testid="campaign-statistics-container">
@@ -106,7 +101,7 @@ const CampaignStatistics: React.FC<CampaignStatisticsProps> = ({
         data-testid="campaign-statistics"
       />
     </div>
-  );
-};
+  )
+}
 
-export default CampaignStatistics; 
+export default CampaignStatistics

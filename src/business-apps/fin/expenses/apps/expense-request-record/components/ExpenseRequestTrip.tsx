@@ -1,88 +1,103 @@
-import React, { useState } from 'react';
-import { Table, Card, Typography, Timeline, Button, Space } from 'antd';
-import Pill from '@/components/pill';
-import type { ColumnsType } from 'antd/es/table';
-import { ExpenseRequestTripType } from '../types/expenseRequestRecord.types';
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils';
-import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi';
+import React, { useState } from 'react'
+import { Table, Card, Typography, Timeline, Button, Space } from 'antd'
+import Pill from '@/components/pill'
+import type { ColumnsType } from 'antd/es/table'
+import { ExpenseRequestTripType } from '../types/expenseRequestRecord.types'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { PiMapPin, PiArrowRight, PiArrowLeft, PiMapTrifold, PiFlag, PiTable, PiChartLine } from 'react-icons/pi'
 
 interface ExpenseRequestTripProps {
-  expenseRequestTrips: ExpenseRequestTripType[];
+  expenseRequestTrips: ExpenseRequestTripType[]
 }
 
-const { Text, Paragraph } = Typography;
+const { Text, Paragraph } = Typography
 
 const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestTrips }) => {
   // State to toggle between table and timeline view
-  const [viewMode, setViewMode] = useState<'table' | 'timeline'>('timeline');
+  const [viewMode, setViewMode] = useState<'table' | 'timeline'>('timeline')
   // Use shared formatDate util for display consistency
 
   // Sort trips by order
-  const sortedTrips = [...expenseRequestTrips].sort((a, b) => a.tripOrder - b.tripOrder);
+  const sortedTrips = [...expenseRequestTrips].sort((a, b) => a.tripOrder - b.tripOrder)
 
   // Get point type icon
   const getPointTypeIcon = (pointType: string) => {
     switch (pointType) {
       case 'START_POINT':
-        return <PiFlag className="gba:text-green-500" />;
+        return <PiFlag className="gba:text-green-500" />
       case 'END_POINT':
-        return <PiFlag className="gba:text-red-500" />;
+        return <PiFlag className="gba:text-red-500" />
       case 'DESTINATION_POINT':
-        return <PiMapPin className="gba:text-blue-500" />;
+        return <PiMapPin className="gba:text-blue-500" />
       case 'REGION_ARRIVAL':
-        return <PiMapTrifold className="gba:text-purple-500" />;
+        return <PiMapTrifold className="gba:text-purple-500" />
       default:
-        return <PiMapPin />;
+        return <PiMapPin />
     }
-  };
+  }
 
   // Get direction icon
   const getDirectionIcon = (direction: string) => {
     switch (direction) {
       case 'GO':
-        return <PiArrowRight className="gba:text-blue-500" />;
+        return <PiArrowRight className="gba:text-blue-500" />
       case 'BACK':
-        return <PiArrowLeft className="gba:text-orange-500" />;
+        return <PiArrowLeft className="gba:text-orange-500" />
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   // Get point type label
   const getPointTypeLabel = (pointType: string) => {
     switch (pointType) {
       case 'START_POINT':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.transformer_rule', 'Start Point');
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_request.add_request_trip_details.transformer_rule',
+          'Start Point'
+        )
       case 'END_POINT':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.end_location', 'End Point');
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_overview.trip_list.location_title.end_location',
+          'End Point'
+        )
       case 'DESTINATION_POINT':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.destination', 'Destination');
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_overview.trip_list.location_title.destination',
+          'Destination'
+        )
       case 'REGION_ARRIVAL':
-        return getTranslationFromI18nKeyAndLabel('expense.trip.pointType.regionArrival', 'Region Arrival');
+        return getTranslationFromI18nKeyAndLabel('expense.trip.pointType.regionArrival', 'Region Arrival')
       default:
-        return pointType;
+        return pointType
     }
-  };
+  }
 
   // Get direction label
   const getDirectionLabel = (direction: string) => {
     switch (direction) {
       case 'GO':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.outbound', 'Outbound');
+        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.outbound', 'Outbound')
       case 'BACK':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.start_location', 'Return');
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expense_request_overview.trip_list.location_title.start_location',
+          'Return'
+        )
       default:
-        return direction;
+        return direction
     }
-  };
+  }
 
   const columns: ColumnsType<ExpenseRequestTripType> = [
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_config_calculation_rule_list.expense_table.order', 'Order'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_config_calculation_rule_list.expense_table.order',
+        'Order'
+      ),
       dataIndex: 'tripOrder',
       key: 'tripOrder',
       width: 80,
-      align: 'center',
+      align: 'center'
     },
     {
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.date_time', 'Date & Time'),
@@ -93,10 +108,13 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
           {formatDate(date, 'date.short')}, {formatDate(date, 'time.short')}
         </>
       ),
-      sorter: (a, b) => new Date(a.tripDateTime).getTime() - new Date(b.tripDateTime).getTime(),
+      sorter: (a, b) => new Date(a.tripDateTime).getTime() - new Date(b.tripDateTime).getTime()
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.trip_list_title', 'Direction'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_overview.trip_list.trip_list_title',
+        'Direction'
+      ),
       dataIndex: 'tripDirection',
       key: 'tripDirection',
       render: (direction: string) => (
@@ -106,13 +124,28 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
         </div>
       ),
       filters: [
-        { text: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.destination_info', 'Outbound'), value: 'GO' },
-        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.start_location', 'Return'), value: 'BACK' },
+        {
+          text: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.add_request_trip_details.destination_info',
+            'Outbound'
+          ),
+          value: 'GO'
+        },
+        {
+          text: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_overview.trip_list.location_title.start_location',
+            'Return'
+          ),
+          value: 'BACK'
+        }
       ],
-      onFilter: (value, record) => record.tripDirection === value,
+      onFilter: (value, record) => record.tripDirection === value
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.destination', 'Point Type'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_request_overview.trip_list.location_title.destination',
+        'Point Type'
+      ),
       dataIndex: 'pointType',
       key: 'pointType',
       render: (pointType: string) => (
@@ -122,32 +155,62 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
         </div>
       ),
       filters: [
-        { text: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.transformer_rule', 'Start Point'), value: 'START_POINT' },
-        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.end_location', 'End Point'), value: 'END_POINT' },
-        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.location_title.destination', 'Destination'), value: 'DESTINATION_POINT' },
-        { text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.region_arrival', 'Region Arrival'), value: 'REGION_ARRIVAL' },
+        {
+          text: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.add_request_trip_details.transformer_rule',
+            'Start Point'
+          ),
+          value: 'START_POINT'
+        },
+        {
+          text: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_overview.trip_list.location_title.end_location',
+            'End Point'
+          ),
+          value: 'END_POINT'
+        },
+        {
+          text: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_request_overview.trip_list.location_title.destination',
+            'Destination'
+          ),
+          value: 'DESTINATION_POINT'
+        },
+        {
+          text: getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.request.region_arrival', 'Region Arrival'),
+          value: 'REGION_ARRIVAL'
+        }
       ],
-      onFilter: (value, record) => record.pointType === value,
+      onFilter: (value, record) => record.pointType === value
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.start_location', 'Address'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.add_request_trip_details.start_location',
+        'Address'
+      ),
       dataIndex: 'address',
       key: 'address',
-      render: (text: string) => <Paragraph ellipsis={{ rows: 2, tooltip: text }}>{text}</Paragraph>,
+      render: (text: string) => <Paragraph ellipsis={{ rows: 2, tooltip: text }}>{text}</Paragraph>
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.start_location', 'Country'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.add_request_trip_details.start_location',
+        'Country'
+      ),
       dataIndex: ['country', 'value'],
       key: 'country',
-      render: (text: string) => <Pill type="waiting" label={text} data-testid="country-pill" />,
+      render: (text: string) => <Pill type="waiting" label={text} data-testid="country-pill" />
     },
     {
-      title: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_label', 'Travel Region'),
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:create_expense_request.add_request_trip_details.select_start_region_rule_label',
+        'Travel Region'
+      ),
       dataIndex: ['travelRegion', 'value'],
       key: 'travelRegion',
-      render: (text: string) => <Pill type="task" label={text} data-testid="travel-region-pill" />,
-    },
-  ];
+      render: (text: string) => <Pill type="task" label={text} data-testid="travel-region-pill" />
+    }
+  ]
 
   // Timeline view of the trip
   const renderTripTimeline = () => {
@@ -155,7 +218,7 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
       <Timeline
         mode="left"
         className="gba:mt-6"
-        items={sortedTrips.map((trip) => ({
+        items={sortedTrips.map(trip => ({
           label: `${formatDate(trip.tripDateTime, 'date.short')}, ${formatDate(trip.tripDateTime, 'time.short')}`,
           children: (
             <div className="gba:space-y-1">
@@ -172,17 +235,17 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
               </div>
             </div>
           ),
-          color: trip.tripDirection === 'GO' ? 'blue' : 'orange',
+          color: trip.tripDirection === 'GO' ? 'blue' : 'orange'
         }))}
       />
-    );
-  };
+    )
+  }
 
   // Render view mode toggle buttons
   const renderViewModeToggle = () => {
     return (
       <Space className="gba:ml-2" data-testid="trip-view-toggle-buttons">
-        <Button 
+        <Button
           type={viewMode === 'table' ? 'primary' : 'default'}
           icon={<PiTable />}
           onClick={() => setViewMode('table')}
@@ -190,7 +253,7 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
         >
           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.table', 'Table')}
         </Button>
-        <Button 
+        <Button
           type={viewMode === 'timeline' ? 'primary' : 'default'}
           icon={<PiChartLine />}
           onClick={() => setViewMode('timeline')}
@@ -199,20 +262,23 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
           {getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.timeline', 'Timeline')}
         </Button>
       </Space>
-    );
-  };
+    )
+  }
 
   return (
     <div className="gba:space-y-6" data-testid="expense-request-trip">
-      <Card 
+      <Card
         title={
           <div className="gba:flex gba:items-center gba:justify-between">
             <span>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.trip_list.trip_list_title', 'Trip Information')}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expense_request_overview.trip_list.trip_list_title',
+                'Trip Information'
+              )}
             </span>
             {renderViewModeToggle()}
           </div>
-        } 
+        }
         className="gba:border-none"
         data-testid={`expense-request-trip-${viewMode}-view`}
       >
@@ -228,7 +294,7 @@ const ExpenseRequestTrip: React.FC<ExpenseRequestTripProps> = ({ expenseRequestT
         )}
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseRequestTrip;
+export default ExpenseRequestTrip

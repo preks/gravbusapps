@@ -1,38 +1,35 @@
 /**
  * Expense Detail Drawer Component
- * 
+ *
  * Displays detailed information about a selected expense request in a side drawer.
  * Includes trip details, expense items, allowances, and approval metadata.
- * 
+ *
  * ✅ MIGRATED: Now uses @newwork/nw-design-system Sheet components
  */
 
-import React from 'react';
-import { 
-  Sheet, 
-  SheetContent, 
-  SheetHeader, 
+import React from 'react'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
   SheetTitle,
-  Badge,
-  Separator,
   Spinner,
   Alert,
   Card,
   CardContent,
   CardHeader,
   CardTitle
-} from '@newwork/nw-design-system';
-import { PiCalendar, PiGlobe, PiCurrencyDollar, PiUser, PiChatCircle } from 'react-icons/pi';
-import useExpenseRequestDetails from '../../hooks/useExpenseRequestDetails';
-import { getExpenseRequestStatusConfig } from '../../utils/badgeUtils';
+} from '@newwork/nw-design-system'
+import { PiCalendar, PiGlobe, PiCurrencyDollar, PiUser, PiChatCircle } from 'react-icons/pi'
+import useExpenseRequestDetails from '../../hooks/useExpenseRequestDetails'
 
 interface ExpenseDetailDrawerProps {
-  visible: boolean;
-  expenseId: string | null;
-  onClose: () => void;
-  accessToken?: string;
-  type?: 'expense-request' | 'advance-payment';
-  advancePaymentData?: any; // For advance payments, we already have the data from the table
+  visible: boolean
+  expenseId: string | null
+  onClose: () => void
+  accessToken?: string
+  type?: 'expense-request' | 'advance-payment'
+  advancePaymentData?: any // For advance payments, we already have the data from the table
 }
 
 const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
@@ -44,40 +41,46 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   advancePaymentData
 }) => {
   // Use the custom hook to fetch expense request details only for expense requests
-  const shouldFetchExpenseRequest = type === 'expense-request' && expenseId;
-  const { data: expenseRequestData, loading, error } = useExpenseRequestDetails({ 
-    requestId: shouldFetchExpenseRequest ? expenseId : null, 
-    accessToken 
-  });
-  
+  const shouldFetchExpenseRequest = type === 'expense-request' && expenseId
+  const {
+    data: expenseRequestData,
+    loading,
+    error
+  } = useExpenseRequestDetails({
+    requestId: shouldFetchExpenseRequest ? expenseId : null,
+    accessToken
+  })
+
   // Use appropriate data based on type
-  const data = type === 'advance-payment' ? advancePaymentData : expenseRequestData;
+  const data = type === 'advance-payment' ? advancePaymentData : expenseRequestData
 
   // Format currency amount
-  const formatCurrency = (amount: number, currencyCode: string = 'USD') => {
+  const formatCurrency = (amount: number, currencyIdentifier: string = 'USD') => {
+    // Extract currency code from API format (e.g., "Currency:v1:EUR" -> "EUR")
+    const currencyCode = currencyIdentifier.includes(':')
+      ? currencyIdentifier.split(':').pop() || 'EUR'
+      : currencyIdentifier
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyCode,
-    }).format(amount);
-  };
+      currencyDisplay: 'code',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
 
   // Format date
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return 'N/A'
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
-    });
-  };
-
-  // ✅ MIGRATED: Render status badge using nw-design-system and centralized utilities
-  const renderStatusBadge = (status: string) => {
-    const { label, variant } = getExpenseRequestStatusConfig(status);
-    return <Badge variant={variant}>{label}</Badge>;
-  };
+    })
+  }
 
   // ✅ MIGRATED: Custom Description components using nw-design-system
   const DescriptionsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -85,24 +88,22 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
       <CardHeader>
         <CardTitle className="gba:text-lg gba:font-semibold gba:text-gray-900">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="gba:space-y-3">
-        {children}
-      </CardContent>
+      <CardContent className="gba:space-y-3">{children}</CardContent>
     </Card>
-  );
+  )
 
   const DescriptionItem: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
     <div className="gba:flex gba:justify-between gba:items-start gba:py-2 gba:border-b gba:border-gray-100 last:gba:border-b-0">
       <span className="gba:text-sm gba:font-medium gba:text-gray-700 gba:w-1/3">{label}</span>
       <span className="gba:text-sm gba:text-gray-900 gba:w-2/3 gba:text-right">{children}</span>
     </div>
-  );
+  )
 
-  const ListItem: React.FC<{ title: string; description?: string; amount?: string; children?: React.ReactNode }> = ({ 
-    title, 
-    description, 
-    amount, 
-    children 
+  const ListItem: React.FC<{ title: string; description?: string; amount?: string; children?: React.ReactNode }> = ({
+    title,
+    description,
+    amount,
+    children
   }) => (
     <div className="gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:mb-3">
       <div className="gba:flex gba:justify-between gba:items-start">
@@ -111,18 +112,16 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           {description && <p className="gba:text-sm gba:text-gray-600 gba:mt-1">{description}</p>}
           {children}
         </div>
-        {amount && (
-          <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:ml-4">{amount}</span>
-        )}
+        {amount && <span className="gba:text-sm gba:font-medium gba:text-gray-900 gba:ml-4">{amount}</span>}
       </div>
     </div>
-  );
+  )
 
   const EmptyState: React.FC<{ description: string }> = ({ description }) => (
     <div className="gba:text-center gba:py-8">
       <p className="gba:text-gray-500 gba:text-sm">{description}</p>
     </div>
-  );
+  )
 
   // ✅ MIGRATED: Helper function to render the main content using nw-design-system
   const renderContent = () => {
@@ -133,7 +132,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           <Spinner />
           <p className="gba:text-gray-600 gba:text-sm gba:mt-4">Loading expense details...</p>
         </div>
-      );
+      )
     }
 
     // Only show errors for expense requests (advance payments don't use the hook)
@@ -145,11 +144,15 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
             <p className="gba:text-sm gba:mt-1">Failed to load expense details: {error.message}</p>
           </div>
         </Alert>
-      );
+      )
     }
 
     if (!data) {
-      return <EmptyState description={`No ${type === 'advance-payment' ? 'advance payment' : 'expense'} details available`} />;
+      return (
+        <EmptyState
+          description={`No ${type === 'advance-payment' ? 'advance payment' : 'expense'} details available`}
+        />
+      )
     }
 
     // Render content based on type
@@ -160,10 +163,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           <DescriptionsSection title="Advance Payment Information">
             <DescriptionItem label="Payment Code">{data.code || 'N/A'}</DescriptionItem>
             <DescriptionItem label="Description">{data.description || 'N/A'}</DescriptionItem>
-            <DescriptionItem label="Status">{renderStatusBadge(data.status)}</DescriptionItem>
-            <DescriptionItem label="Amount">
-              {data.amount ? `€${data.amount}` : 'N/A'}
-            </DescriptionItem>
+            <DescriptionItem label="Amount">{data.amount ? `€${data.amount}` : 'N/A'}</DescriptionItem>
           </DescriptionsSection>
 
           {/* Expense Plan Information */}
@@ -171,7 +171,9 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
             <DescriptionsSection title="Expense Plan Information">
               <DescriptionItem label="Plan Code">{data.expensePlan.code || 'N/A'}</DescriptionItem>
               <DescriptionItem label="Plan Title">{data.expensePlan.title || 'N/A'}</DescriptionItem>
-              <DescriptionItem label="Start Date">{data.expensePlan.startDate ? formatDate(data.expensePlan.startDate) : 'N/A'}</DescriptionItem>
+              <DescriptionItem label="Start Date">
+                {data.expensePlan.startDate ? formatDate(data.expensePlan.startDate) : 'N/A'}
+              </DescriptionItem>
             </DescriptionsSection>
           )}
 
@@ -179,13 +181,14 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           {data.expensePlan?.employee && (
             <DescriptionsSection title="Employee Information">
               <DescriptionItem label="Name">
-                {`${data.expensePlan.employee.firstName || ''} ${data.expensePlan.employee.lastName || ''}`.trim() || 'N/A'}
+                {`${data.expensePlan.employee.firstName || ''} ${data.expensePlan.employee.lastName || ''}`.trim() ||
+                  'N/A'}
               </DescriptionItem>
-              <DescriptionItem label="Employee ID">{data.expensePlan.employee.id || 'N/A'}</DescriptionItem>
+              <DescriptionItem label="Employee Code">{data.expensePlan.employee.code || 'N/A'}</DescriptionItem>
             </DescriptionsSection>
           )}
         </div>
-      );
+      )
     }
 
     // Default content for expense requests
@@ -196,10 +199,7 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           <DescriptionItem label="Request Code">{data.code}</DescriptionItem>
           <DescriptionItem label="Title">{data.title}</DescriptionItem>
           <DescriptionItem label="Description">{data.description}</DescriptionItem>
-          <DescriptionItem label="Status">{renderStatusBadge(data.status)}</DescriptionItem>
-          <DescriptionItem label="Total Amount">
-            {formatCurrency(data.totalAmount, data.currency)}
-          </DescriptionItem>
+          <DescriptionItem label="Total Amount">{formatCurrency(data.totalAmount, data.currency)}</DescriptionItem>
           <DescriptionItem label="Created At">{formatDate(data.createdAt)}</DescriptionItem>
           <DescriptionItem label="Last Updated">{formatDate(data.updatedAt)}</DescriptionItem>
         </DescriptionsSection>
@@ -209,12 +209,8 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           <DescriptionItem label="Name">
             {`${data.employee?.firstName || ''} ${data.employee?.lastName || ''}`.trim() || 'N/A'}
           </DescriptionItem>
-          <DescriptionItem label="Employee Code">
-            {data.employee?.businessKey || 'N/A'}
-          </DescriptionItem>
-          <DescriptionItem label="Email">
-            {data.employee?.email || 'N/A'}
-          </DescriptionItem>
+          <DescriptionItem label="Employee Code">{data.employee?.businessKey || 'N/A'}</DescriptionItem>
+          <DescriptionItem label="Email">{data.employee?.email || 'N/A'}</DescriptionItem>
           <DescriptionItem label="Cost Center">
             {data.costCenter ? `${data.costCenter.name} (${data.costCenter.code})` : 'N/A'}
           </DescriptionItem>
@@ -317,23 +313,25 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
           </CardContent>
         </Card>
       </div>
-    );
-  };
+    )
+  }
 
   return (
-    <Sheet open={visible} onOpenChange={onClose}>
-      <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+    <Sheet
+      open={visible}
+      onOpenChange={onClose}
+      title={type === 'advance-payment' ? 'Advance Payment Details' : 'Expense Request Details'}
+    >
+      <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none !gba:z-[99999]" style={{ zIndex: 99999 }}>
         <SheetHeader>
-          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+          <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
             {type === 'advance-payment' ? 'Advance Payment Details' : 'Expense Request Details'}
           </SheetTitle>
         </SheetHeader>
-        <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-          {renderContent()}
-        </div>
+        <div className="gba:mt-6 gba:px-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">{renderContent()}</div>
       </SheetContent>
     </Sheet>
-  );
-};
+  )
+}
 
-export default ExpenseDetailDrawer;
+export default ExpenseDetailDrawer

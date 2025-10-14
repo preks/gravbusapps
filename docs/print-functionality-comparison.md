@@ -1,14 +1,17 @@
 # Print Functionality Comparison: Personal vs Manager Expenses
 
 ## Issue Summary
+
 The print button in manager expenses tables doesn't work because the `employeeDocument` field is **missing from the GraphQL queries**.
 
 ## Root Cause Analysis
 
 ### ✅ Personal Expenses (WORKING)
+
 The GraphQL queries in personal expenses include the `employeeDocument` field with all necessary data:
 
 **File**: `src/business-apps/fin/expenses/apps/personal-expenses/queries/expensePlans.ts`
+
 ```graphql
 ExpensePlan(...) {
   id
@@ -27,9 +30,11 @@ ExpensePlan(...) {
 ```
 
 ### ❌ Manager Expenses (BROKEN)
+
 The GraphQL queries in manager expenses **DO NOT** include the `employeeDocument` field:
 
 **File**: `src/business-apps/fin/expenses/apps/manager-expenses/queries/expensePlans.ts` (Lines 46-74)
+
 ```graphql
 ExpensePlan(...) {
   id
@@ -46,6 +51,7 @@ ExpensePlan(...) {
 ```
 
 **File**: `src/business-apps/fin/expenses/apps/manager-expenses/queries/expenseRequests.ts`
+
 - ✅ `GET_EXPENSE_REQUESTS_BY_MANAGER` **HAS** `employeeDocument` (Lines 33-36)
 - ✅ `GET_EXPENSE_REQUEST_DETAIL` **HAS** `employeeDocument` (Lines 125-128)
 - This means print works for expense **requests** but not expense **plans**!
@@ -53,14 +59,18 @@ ExpensePlan(...) {
 ## Print Service Behavior
 
 ### How Print Works
+
 Both personal and manager expenses use the **same** print service:
+
 - **File**: `src/business-apps/fin/expenses/apps/personal-expenses/utils/expensePlanFileService.ts`
 - **Key Line 34**: `if (!record.employeeDocument?.file) { return { success: false, error: 'No employee document file ID available for printing' }; }`
 
 The service requires `employeeDocument.file` to fetch the PDF from the file storage.
 
 ### Manager Expenses Mapping
+
 Manager expenses tries to map its data to the personal expenses format:
+
 - **ExpensePlansTable.tsx** (Lines 152-176): Maps `plan.employeeDocument` to `mappedPlan.employeeDocument`
 - **ExpenseRequestsTable.tsx** (Lines 188-225): Maps `request.employeeDocument` to `mappedPlan.employeeDocument`
 
@@ -69,6 +79,7 @@ However, since `employeeDocument` is **not fetched** in the expense plans query,
 ## Required Fix
 
 ### Step 1: Update `expensePlans.ts` Query
+
 Add `employeeDocument` field to the `GET_EXPENSE_PLANS_BY_MANAGER` query:
 
 ```graphql
@@ -112,29 +123,32 @@ ExpensePlan(...) {
 ```
 
 ### Step 2: Update TypeScript Interface
+
 Update the `ExpensePlan` interface in `useGetExpensePlans.ts` to include:
 
 ```typescript
 export interface ExpensePlan {
-  id: string;
-  code: string;
-  title: string;
+  id: string
+  code: string
+  title: string
   // ... other fields ...
   employeeDocument?: {
-    id: string;
-    file: string;
-    fileSize?: number;
-    fileName?: string;
-    mimeType?: string;
-  } | null;
+    id: string
+    file: string
+    fileSize?: number
+    fileName?: string
+    mimeType?: string
+  } | null
   // ... rest of interface
 }
 ```
 
 ### Step 3: Update Statistics Query (Optional)
+
 If statistics or other queries also need print support, add `employeeDocument` there too:
 
 **File**: `src/business-apps/fin/expenses/apps/manager-expenses/queries/mainViewExpensePlans.ts`
+
 - Already has `employeeDocument` (Lines 33-36) ✅
 
 ## Testing Checklist
@@ -170,4 +184,3 @@ After implementing the fix:
 - **High value**: Enables print functionality for expense plans in manager view
 - **Consistent**: Aligns manager expenses with personal expenses pattern
 - **No breaking changes**: TypeScript interfaces already accept optional `employeeDocument`
-

@@ -1,6 +1,6 @@
-import React from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { AppActionForm } from "@/components/app-action-form/AppActionForm";
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import {
   FormField,
   FormItem,
@@ -11,131 +11,143 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@newwork/nw-design-system";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { CatalogSelect, CatalogSelectProvider } from "@/components/catalog-select";
+  SelectValue
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { CatalogSelect, CatalogSelectProvider } from '@/components/catalog-select'
 
 /**
  * Enhanced CatalogSelect Example Form
- * 
+ *
  * This form demonstrates the enhanced catalog select configuration that supports:
  * - Multiple instances of the same catalog (Birth Country vs Residence Country)
  * - Explicit version specification (all catalogs use ":v1")
  * - Simplified bi-directional dependencies using parentConfigId/childConfigId
  * - Uni-directional dependencies (InvestmentGroup -> InvestmentType)
  * - External filtering (Pipeline Type filters Pipeline Stage)
- * 
+ *
  * Key features:
  * - Same catalog (Country:v1) used for both birth and residence
  * - Clean dependency syntax: parentConfigId for filtering, childConfigId for bi-directional
  * - Instance IDs separate from catalog identifiers
  */
-const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) => {
+const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = context => {
   type FormValues = {
-    birthCountry: string;
-    birthRegion: string;
-    residenceCountry: string;
-    residenceRegion: string;
-    language: string;
-    investmentGroup: string;
-    investmentType: string;
-    pipelineType: string;
-    pipelineStage: string;
-    content_type: string;
-  };
+    birthCountry: string
+    birthRegion: string
+    residenceCountry: string
+    residenceRegion: string
+    language: string
+    investmentGroup: string
+    investmentType: string
+    pipelineType: string
+    pipelineStage: string
+    content_type: string
+  }
 
   const schema = z.object({
-    language: z.string().min(1, "Language is required"),
-    birthCountry: z.string().min(1, "Birth Country is required"),
-    birthRegion: z.string().min(1, "Birth Region is required"),
-    residenceCountry: z.string().min(1, "Residence Country is required"),
-    residenceRegion: z.string().min(1, "Residence Region is required"),
-    investmentGroup: z.string().min(1, "InvestmentGroup is required"),
-    investmentType: z.string().min(1, "InvestmentType is required"),
-    pipelineType: z.string().min(1, "Type is required"),
-    pipelineStage: z.string().min(1, "Pipeline Stage is required"),
-    content_type: z.string().min(1, "Content Type is required"),
-  });
+    language: z.string().min(1, 'Language is required'),
+    birthCountry: z.string().min(1, 'Birth Country is required'),
+    birthRegion: z.string().min(1, 'Birth Region is required'),
+    residenceCountry: z.string().min(1, 'Residence Country is required'),
+    residenceRegion: z.string().min(1, 'Residence Region is required'),
+    investmentGroup: z.string().min(1, 'InvestmentGroup is required'),
+    investmentType: z.string().min(1, 'InvestmentType is required'),
+    pipelineType: z.string().min(1, 'Type is required'),
+    pipelineStage: z.string().min(1, 'Pipeline Stage is required'),
+    content_type: z.string().min(1, 'Content Type is required')
+  })
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      birthCountry: "",
-      birthRegion: "",
-      residenceCountry: "",
-      residenceRegion: "",
-      language: "",
-      investmentGroup: "",
-      investmentType: "",
-      pipelineType: "",
-      pipelineStage: "",
-      content_type: "",
+      birthCountry: '',
+      birthRegion: '',
+      residenceCountry: '',
+      residenceRegion: '',
+      language: '',
+      investmentGroup: '',
+      investmentType: '',
+      pipelineType: '',
+      pipelineStage: '',
+      content_type: ''
     },
-    mode: "onSubmit",
-  });
+    mode: 'onSubmit'
+  })
 
   const catalogsConfig = React.useMemo(
     () => [
       // standalone Language
-      { id: "language", catalogIdentifier: "Language:v1", prefetch: true, pageSize: 25 },
+      { id: 'language', catalogIdentifier: 'Language:v1', prefetch: true, pageSize: 25 },
 
       // a) Multiple Country instances - Birth Country/Region (bi-directional)
-      { id: "birthCountry", catalogIdentifier: "Country:v1", prefetch: true, pageSize: 25, childConfigId: "birthRegion" },
       {
-        id: "birthRegion",
-        catalogIdentifier: "CountryRegion:v1",
+        id: 'birthCountry',
+        catalogIdentifier: 'Country:v1',
         prefetch: true,
         pageSize: 25,
-        parentConfigId: "birthCountry",
+        childConfigId: 'birthRegion'
+      },
+      {
+        id: 'birthRegion',
+        catalogIdentifier: 'CountryRegion:v1',
+        prefetch: true,
+        pageSize: 25,
+        parentConfigId: 'birthCountry'
       },
 
       // b) Multiple Country instances - Residence Country/Region (bi-directional)
-      { id: "residenceCountry", catalogIdentifier: "Country:v1", prefetch: true, pageSize: 25, childConfigId: "residenceRegion" },
       {
-        id: "residenceRegion",
-        catalogIdentifier: "CountryRegion:v1",
+        id: 'residenceCountry',
+        catalogIdentifier: 'Country:v1',
         prefetch: true,
         pageSize: 25,
-        parentConfigId: "residenceCountry",
+        childConfigId: 'residenceRegion'
+      },
+      {
+        id: 'residenceRegion',
+        catalogIdentifier: 'CountryRegion:v1',
+        prefetch: true,
+        pageSize: 25,
+        parentConfigId: 'residenceCountry'
       },
 
       // c) Uni-directional InvestmentGroup -> InvestmentType
-      { id: "investmentGroup", catalogIdentifier: "InvestmentGroup:v1", prefetch: true, pageSize: 25 },
+      { id: 'investmentGroup', catalogIdentifier: 'InvestmentGroup:v1', prefetch: true, pageSize: 25 },
       {
-        id: "investmentType",
-        catalogIdentifier: "InvestmentType:v1",
+        id: 'investmentType',
+        catalogIdentifier: 'InvestmentType:v1',
         prefetch: true,
         pageSize: 25,
-        parentConfigId: "investmentGroup",
-        requireSourceForEnable: true,
+        parentConfigId: 'investmentGroup',
+        requireSourceForEnable: true
       },
 
       // d) External Type -> InvestmentOpportunityPipelineStage
       {
-        id: "pipelineStage",
-        catalogIdentifier: "InvestmentOpportunityPipelineStage:v1",
+        id: 'pipelineStage',
+        catalogIdentifier: 'InvestmentOpportunityPipelineStage:v1',
         prefetch: true,
         pageSize: 25,
         requireSourceForEnable: true,
-        externalEqualsFilters: [{ externalKey: "pipelineType", field: "type" }],
+        externalEqualsFilters: [{ externalKey: 'pipelineType', field: 'type' }]
       },
 
       // standalone Content Type
-      { id: "contentType", catalogIdentifier: "content_type:v1", prefetch: true, pageSize: 25 },
+      { id: 'contentType', catalogIdentifier: 'content_type:v1', prefetch: true, pageSize: 25 }
     ],
-    [],
-  );
+    []
+  )
 
   const handleSubmit = React.useCallback(async (data: FormValues) => {
-    return data;
-  }, []);
+    return data
+  }, [])
 
   const handleCancel = React.useCallback(() => {
-    form.reset();
-  }, [form]);
+    form.reset()
+  }, [form])
 
   return (
     <AppActionForm
@@ -150,7 +162,7 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
       <CatalogSelectProvider
         {...context}
         configs={catalogsConfig}
-        externalValues={{ pipelineType: form.watch("pipelineType") || null }}
+        externalValues={{ pipelineType: form.watch('pipelineType') || null }}
       >
         {/* standalone Language on one line */}
         <FormField
@@ -162,8 +174,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
               <FormControl>
                 <CatalogSelect
                   catalogInstanceId="language"
-                  value={field.value || ""}
-                  onValueChange={(v) => field.onChange(v)}
+                  value={field.value || ''}
+                  onValueChange={v => field.onChange(v)}
                   data-testid="language-combobox"
                   {...context}
                 />
@@ -186,8 +198,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
                 <FormControl>
                   <CatalogSelect
                     catalogInstanceId="birthCountry"
-                    value={field.value || ""}
-                    onValueChange={(v) => field.onChange(v)}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
                     data-testid="birth-country-combobox"
                     {...context}
                   />
@@ -205,8 +217,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
                 <FormControl>
                   <CatalogSelect
                     catalogInstanceId="birthRegion"
-                    value={field.value || ""}
-                    onValueChange={(v) => field.onChange(v)}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
                     data-testid="birth-region-combobox"
                     {...context}
                   />
@@ -231,8 +243,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
                 <FormControl>
                   <CatalogSelect
                     catalogInstanceId="residenceCountry"
-                    value={field.value || ""}
-                    onValueChange={(v) => field.onChange(v)}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
                     data-testid="residence-country-combobox"
                     {...context}
                   />
@@ -250,8 +262,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
                 <FormControl>
                   <CatalogSelect
                     catalogInstanceId="residenceRegion"
-                    value={field.value || ""}
-                    onValueChange={(v) => field.onChange(v)}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
                     data-testid="residence-region-combobox"
                     {...context}
                   />
@@ -276,8 +288,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
                 <FormControl>
                   <CatalogSelect
                     catalogInstanceId="investmentGroup"
-                    value={field.value || ""}
-                    onValueChange={(v) => field.onChange(v)}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
                     data-testid="investment-group-combobox"
                     {...context}
                   />
@@ -296,8 +308,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
                   <CatalogSelect
                     catalogInstanceId="investmentType"
                     variant="select"
-                    value={field.value || ""}
-                    onValueChange={(v) => field.onChange(v)}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
                     data-testid="investment-type-combobox"
                     {...context}
                   />
@@ -320,7 +332,7 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
               <FormItem className="gba:w-full" data-testid="pipeline-type-field">
                 <FormLabel data-testid="pipeline-type-label">Pipeline Type</FormLabel>
                 <FormControl>
-                  <Select value={field.value || ""} onValueChange={(v) => field.onChange(v)}>
+                  <Select value={field.value || ''} onValueChange={v => field.onChange(v)}>
                     <SelectTrigger className="gba:w-full" data-testid="pipeline-type-select">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -341,14 +353,12 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
             name="pipelineStage"
             render={({ field }) => (
               <FormItem className="gba:w-full" data-testid="pipeline-stage-field">
-                <FormLabel data-testid="pipeline-stage-label">
-                  Pipeline Stage
-                </FormLabel>
+                <FormLabel data-testid="pipeline-stage-label">Pipeline Stage</FormLabel>
                 <FormControl>
                   <CatalogSelect
                     catalogInstanceId="pipelineStage"
-                    value={field.value || ""}
-                    onValueChange={(v) => field.onChange(v)}
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
                     data-testid="pipeline-stage-combobox"
                     {...context}
                   />
@@ -369,8 +379,8 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
                 <CatalogSelect
                   catalogInstanceId="contentType"
                   variant="combobox"
-                  value={field.value || ""}
-                  onValueChange={(v) => field.onChange(v)}
+                  value={field.value || ''}
+                  onValueChange={v => field.onChange(v)}
                   data-testid="language-combobox"
                   {...context}
                 />
@@ -381,7 +391,7 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = (context) =>
         />
       </CatalogSelectProvider>
     </AppActionForm>
-  );
-};
+  )
+}
 
-export default ExampleCatalogSelectForm;
+export default ExampleCatalogSelectForm

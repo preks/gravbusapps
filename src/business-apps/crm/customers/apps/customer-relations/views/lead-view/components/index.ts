@@ -1,1 +1,1 @@
-export { LeadTable } from './LeadTable'; 
+export { LeadTable } from './LeadTable'

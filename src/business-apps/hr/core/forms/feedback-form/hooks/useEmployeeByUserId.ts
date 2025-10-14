@@ -1,52 +1,52 @@
-import { useState, useEffect, useCallback } from "react";
-import { useGraphQLClient } from "@/common/network/graphql/useGraphQLClient";
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeByUserIdData {
-  id: string;
-  employeeId: string;
-  firstName: string;
-  lastName: string;
-  hireDate: string | null;
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  hireDate: string | null
   employee: {
-    id: string;
-    displayName: string;
-    picture: string | null;
-    pictureThumbnail: string | null;
-    userId: string | null;
-  };
+    id: string
+    displayName: string
+    picture: string | null
+    pictureThumbnail: string | null
+    userId: string | null
+  }
   jobPosition: {
-    id: string;
-    name: string;
+    id: string
+    name: string
     jobFunction: {
-      name: string;
-    } | null;
+      name: string
+    } | null
     jobLevel: {
-      name: string;
-    } | null;
-  };
+      name: string
+    } | null
+  }
   organizationalUnit: {
-    id: string;
-    name: string;
-    code: string | null;
-    description: string;
-  };
+    id: string
+    name: string
+    code: string | null
+    description: string
+  }
 }
 
 export interface EmployeeByUserIdResponse {
-  EmployeePosition: EmployeeByUserIdData[];
+  EmployeePosition: EmployeeByUserIdData[]
 }
 
 export interface UseEmployeeByUserIdProps {
-  accessToken: string;
-  userId?: string;
+  accessToken: string
+  userId?: string
 }
 
 export interface UseEmployeeByUserIdReturn {
-  employee: EmployeeByUserIdData | null;
-  employeeId: string | null;
-  loading: boolean;
-  error: string | null;
-  fetchEmployeeByUserId: (userId: string) => Promise<void>;
+  employee: EmployeeByUserIdData | null
+  employeeId: string | null
+  loading: boolean
+  error: string | null
+  fetchEmployeeByUserId: (userId: string) => Promise<void>
 }
 
 export const GET_EMPLOYEE_BY_USER_ID = (userId: string): string => {
@@ -86,59 +86,59 @@ export const GET_EMPLOYEE_BY_USER_ID = (userId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 /**
  * Custom hook for fetching a single employee by userId
  */
-export const useEmployeeByUserId = ({
-  accessToken,
-  userId,
-}: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
-  const [employee, setEmployee] = useState<EmployeeByUserIdData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const graphqlClient = useGraphQLClient(accessToken);
+export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
+  const [employee, setEmployee] = useState<EmployeeByUserIdData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const graphqlClient = useGraphQLClient(accessToken)
 
-  const fetchEmployeeByUserId = useCallback(async (targetUserId: string) => {
-    if (!accessToken || !targetUserId) {
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const query = GET_EMPLOYEE_BY_USER_ID(targetUserId);
-      const result = await graphqlClient.request<EmployeeByUserIdResponse>(query);
-
-      if (result.EmployeePosition && result.EmployeePosition.length > 0) {
-        setEmployee(result.EmployeePosition[0]);
-      } else {
-        setEmployee(null);
-        setError('Employee not found');
+  const fetchEmployeeByUserId = useCallback(
+    async (targetUserId: string) => {
+      if (!accessToken || !targetUserId) {
+        return
       }
-    } catch (err) {
-      console.error('Error fetching employee by userId:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch employee');
-      setEmployee(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken, graphqlClient]);
+
+      setLoading(true)
+      setError(null)
+
+      try {
+        const query = GET_EMPLOYEE_BY_USER_ID(targetUserId)
+        const result = await graphqlClient.request<EmployeeByUserIdResponse>(query)
+
+        if (result.EmployeePosition && result.EmployeePosition.length > 0) {
+          setEmployee(result.EmployeePosition[0])
+        } else {
+          setEmployee(null)
+          setError('Employee not found')
+        }
+      } catch (err) {
+        console.error('Error fetching employee by userId:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch employee')
+        setEmployee(null)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [accessToken, graphqlClient]
+  )
 
   useEffect(() => {
     if (userId) {
-      fetchEmployeeByUserId(userId);
+      fetchEmployeeByUserId(userId)
     }
-  }, [userId, fetchEmployeeByUserId]);
+  }, [userId, fetchEmployeeByUserId])
 
   return {
     employee,
     employeeId: employee?.employeeId || null,
     loading,
     error,
-    fetchEmployeeByUserId,
-  };
-};
+    fetchEmployeeByUserId
+  }
+}

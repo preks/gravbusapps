@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetInvestmentKPIs, InvestmentKPIData, InvestmentKPIComparison } from '../queries/InvestmentKPIQueries';
+import { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetInvestmentKPIs, InvestmentKPIData, InvestmentKPIComparison } from '../queries/InvestmentKPIQueries'
 
 export interface InvestmentKPIIntegration {
-  current: InvestmentKPIData;
-  previous: InvestmentKPIData;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
+  current: InvestmentKPIData
+  previous: InvestmentKPIData
+  isLoading: boolean
+  error: string | null
+  refetch: () => Promise<void>
 }
 
 export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): InvestmentKPIIntegration => {
@@ -15,47 +15,47 @@ export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): I
     totalInvestments: 0,
     totalInvested: 0,
     averageStakePercentage: 0,
-    totalMarketValue: 0,
-  });
-  
+    totalMarketValue: 0
+  })
+
   const [previous, setPrevious] = useState<InvestmentKPIData>({
     totalInvestments: 0,
     totalInvested: 0,
     averageStakePercentage: 0,
-    totalMarketValue: 0,
-  });
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+    totalMarketValue: 0
+  })
 
-  const { fetchInvestmentKPIs } = useGetInvestmentKPIs(context);
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const { fetchInvestmentKPIs } = useGetInvestmentKPIs(context)
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      setError('Access token is required');
-      setIsLoading(false);
-      return;
+      setError('Access token is required')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
-    
+    setIsLoading(true)
+    setError(null)
+
     try {
-      const data: InvestmentKPIComparison = await fetchInvestmentKPIs();
-      setCurrent(data.current);
-      setPrevious(data.previous);
+      const data: InvestmentKPIComparison = await fetchInvestmentKPIs()
+      setCurrent(data.current)
+      setPrevious(data.previous)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('Error loading investment KPI data:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      console.error('Error loading investment KPI data:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken, fetchInvestmentKPIs]);
+  }, [context.accessToken, fetchInvestmentKPIs])
 
   useEffect(() => {
-    loadData();
-  }, [context.accessToken]); // Only depend on accessToken, not loadData
+    loadData()
+  }, [context.accessToken]) // Only depend on accessToken, not loadData
 
   return {
     current,
@@ -63,5 +63,5 @@ export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): I
     isLoading,
     error,
     refetch: loadData
-  };
-};
+  }
+}

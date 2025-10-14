@@ -1,8 +1,8 @@
-import React from "react";
-import { useFormContext } from "react-hook-form";
-import { ContactSegmentProps } from "./types";
-import { useCatalogOptions } from "../shared/hooks/useCatalogOptions";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+import React from 'react'
+import { useFormContext } from 'react-hook-form'
+import { ContactSegmentProps } from './types'
+import { useCatalogOptions } from '../shared/hooks/useCatalogOptions'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import {
   Input,
   Textarea,
@@ -14,14 +14,14 @@ import {
   Spinner,
   Card,
   CardContent,
-  Button,
-} from "@newwork/nw-design-system";
-import { EmployeeSelect } from "@/components/employee-select";
-import { EntitySelect } from "../shared/components";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@newwork/nw-design-system";
+  Button
+} from '@newwork/nw-design-system'
+import { EmployeeSelect } from '@/components/employee-select'
+import { EntitySelect } from '../shared/components'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
 
-const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
-  const form = useFormContext<any>();
+const ContactSegment: React.FC<ContactSegmentProps> = props => {
+  const form = useFormContext<any>()
 
   const {
     ownerLabel,
@@ -67,149 +67,164 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
     entitiesHasMore,
     onEntityLoadMore,
     initialEntityFromContext,
-    "data-testid": dataTestId = "contact-segment",
-  } = props;
+    'data-testid': dataTestId = 'contact-segment'
+  } = props
 
   // Prime entity search on mount if needed
   React.useEffect(() => {
     if (showEntitySelection && onEntitySearch && (!entities || entities.length === 0)) {
-      onEntitySearch("");
+      onEntitySearch('')
     }
-  }, [showEntitySelection, onEntitySearch, entities]);
+  }, [showEntitySelection, onEntitySearch, entities])
 
   // Apply initial entity from context when none is set yet
   React.useEffect(() => {
-    if (!showEntitySelection || !initialEntityFromContext || !form) return;
+    if (!showEntitySelection || !initialEntityFromContext || !form) return
     const hasEntity = Boolean(
-      form.getValues("account") || form.getValues("contact") || form.getValues("opportunity") || form.getValues("lead")
-    );
-    if (hasEntity) return;
+      form.getValues('account') || form.getValues('contact') || form.getValues('opportunity') || form.getValues('lead')
+    )
+    if (hasEntity) return
 
-    const { accountId, contactId, opportunityId, leadId } = initialEntityFromContext || {};
-    const map: Array<{ key: "account" | "contact" | "opportunity" | "lead"; id?: string }> = [
-      { key: "account", id: accountId },
-      { key: "contact", id: contactId },
-      { key: "opportunity", id: opportunityId },
-      { key: "lead", id: leadId },
-    ];
-    const found = map.find((m) => m.id);
+    const { accountId, contactId, opportunityId, leadId } = initialEntityFromContext || {}
+    const map: Array<{ key: 'account' | 'contact' | 'opportunity' | 'lead'; id?: string }> = [
+      { key: 'account', id: accountId },
+      { key: 'contact', id: contactId },
+      { key: 'opportunity', id: opportunityId },
+      { key: 'lead', id: leadId }
+    ]
+    const found = map.find(m => m.id)
     if (found?.id) {
-      form.setValue(found.key, { id: found.id });
-      form.setValue("relatedEntityId", found.id);
+      form.setValue(found.key, { id: found.id })
+      form.setValue('relatedEntityId', found.id)
     }
-  }, [showEntitySelection, initialEntityFromContext, form]);
+  }, [showEntitySelection, initialEntityFromContext, form])
 
   // Prime assignee search when empty
   React.useEffect(() => {
     if (onAssigneeSearch && (assignees?.length || 0) === 0) {
-      onAssigneeSearch("");
+      onAssigneeSearch('')
     }
-  }, [onAssigneeSearch, assignees?.length]);
+  }, [onAssigneeSearch, assignees?.length])
 
-  const assigneeOptions = React.useMemo(() => (assignees || []).map((a) => ({
-    id: a.id,
-    displayName: a.displayName,
-    pictureThumbnail: a.pictureThumbnail,
-    organizationalUnitName: a.organizationalUnitName,
-    jobPositionName: a.jobPositionName,
-  })), [assignees]);
+  const assigneeOptions = React.useMemo(
+    () =>
+      (assignees || []).map(a => ({
+        id: a.id,
+        displayName: a.displayName,
+        pictureThumbnail: a.pictureThumbnail,
+        organizationalUnitName: a.organizationalUnitName,
+        jobPositionName: a.jobPositionName
+      })),
+    [assignees]
+  )
 
   const academicState = useCatalogOptions({
     accessToken,
     catalog: academicTitleCatalog,
     providedOptions: academicTitleOptions,
-    fetchOptions: fetchAcademicTitleOptions,
-  });
+    fetchOptions: fetchAcademicTitleOptions
+  })
   const languageState = useCatalogOptions({
     accessToken,
     catalog: languageCatalog,
     providedOptions: languageOptions,
-    fetchOptions: fetchLanguageOptions,
-  });
+    fetchOptions: fetchLanguageOptions
+  })
   const contactTypeState = useCatalogOptions({
     accessToken,
     catalog: contactTypeCatalog,
-    providedOptions: undefined,
-  });
+    providedOptions: undefined
+  })
   const salutationState = useCatalogOptions({
     accessToken,
     catalog: salutationCatalog,
-    providedOptions: undefined,
-  });
+    providedOptions: undefined
+  })
   const channelState = useCatalogOptions({
     accessToken,
     catalog: communicationChannelCatalog,
-    providedOptions: undefined,
-  });
+    providedOptions: undefined
+  })
   const countryState = useCatalogOptions({
     accessToken,
     catalog: countryCatalog,
-    providedOptions: undefined,
-  });
+    providedOptions: undefined
+  })
   const addressTypeState = useCatalogOptions({
     accessToken,
     catalog: addressTypeCatalog,
-    providedOptions: undefined,
-  });
+    providedOptions: undefined
+  })
 
   // Map of communicationChannel id -> lowercased type (email|tel|url|text)
-  const [channelTypeMap, setChannelTypeMap] = React.useState<Record<string, string>>({});
-  const catalogClient = accessToken ? useCatalogManagerClient(accessToken) : null;
+  const [channelTypeMap, setChannelTypeMap] = React.useState<Record<string, string>>({})
+  const catalogClient = accessToken ? useCatalogManagerClient(accessToken) : null
   React.useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
     const load = async () => {
-      if (!catalogClient || !communicationChannelCatalog) return;
+      if (!catalogClient || !communicationChannelCatalog) return
       try {
         const res = await catalogClient.getCatalogEntriesList(
           { catalogIdentifier: communicationChannelCatalog.identifier, version: communicationChannelCatalog.version },
           { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
-        );
-        const map: Record<string, string> = {};
-        (res?.data || []).forEach((e: any) => {
-          const t = String(e?.type || '').toLowerCase();
-          const normalized = t === 'email' || t === 'tel' || t === 'url' ? t : 'text';
-          map[e.id] = normalized;
-        });
-        if (!cancelled) setChannelTypeMap(map);
+        )
+        const map: Record<string, string> = {}
+        ;(res?.data || []).forEach((e: any) => {
+          const t = String(e?.type || '').toLowerCase()
+          const normalized = t === 'email' || t === 'tel' || t === 'url' ? t : 'text'
+          map[e.id] = normalized
+        })
+        if (!cancelled) setChannelTypeMap(map)
       } catch {
-        if (!cancelled) setChannelTypeMap({});
+        if (!cancelled) setChannelTypeMap({})
       }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, [catalogClient, communicationChannelCatalog?.identifier, communicationChannelCatalog?.version]);
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [catalogClient, communicationChannelCatalog?.identifier, communicationChannelCatalog?.version])
 
-  const mapChannelTypeToInputType = React.useCallback((channelRef?: string): string => {
-    const t = channelRef ? channelTypeMap[channelRef] : undefined;
-    if (t === 'email' || t === 'tel' || t === 'url') return t;
-    return 'text';
-  }, [channelTypeMap]);
+  const mapChannelTypeToInputType = React.useCallback(
+    (channelRef?: string): string => {
+      const t = channelRef ? channelTypeMap[channelRef] : undefined
+      if (t === 'email' || t === 'tel' || t === 'url') return t
+      return 'text'
+    },
+    [channelTypeMap]
+  )
 
   const handleAddChannel = React.useCallback(() => {
-    const list = (form.getValues('communicationChannels') || []) as Array<any>;
-    const next = [...list, { channelRef: '', value: '' }];
-    form.setValue('communicationChannels', next, { shouldDirty: true, shouldValidate: true });
-  }, [form]);
+    const list = (form.getValues('communicationChannels') || []) as Array<any>
+    const next = [...list, { channelRef: '', value: '' }]
+    form.setValue('communicationChannels', next, { shouldDirty: true, shouldValidate: true })
+  }, [form])
 
-  const handleRemoveChannel = React.useCallback((idx: number) => {
-    const list = (form.getValues('communicationChannels') || []) as Array<any>;
-    if (idx < 0 || idx >= list.length) return;
-    const next = list.slice(0, idx).concat(list.slice(idx + 1));
-    form.setValue('communicationChannels', next, { shouldDirty: true, shouldValidate: true });
-  }, [form]);
+  const handleRemoveChannel = React.useCallback(
+    (idx: number) => {
+      const list = (form.getValues('communicationChannels') || []) as Array<any>
+      if (idx < 0 || idx >= list.length) return
+      const next = list.slice(0, idx).concat(list.slice(idx + 1))
+      form.setValue('communicationChannels', next, { shouldDirty: true, shouldValidate: true })
+    },
+    [form]
+  )
 
   const handleAddAddress = React.useCallback(() => {
-    const list = (form.getValues('addresses') || []) as Array<any>;
-    const next = [...list, { addressTypeRef: '', countryRef: '', line1: '', line2: '', postalCode: '', city: '' }];
-    form.setValue('addresses', next, { shouldDirty: true, shouldValidate: true });
-  }, [form]);
+    const list = (form.getValues('addresses') || []) as Array<any>
+    const next = [...list, { addressTypeRef: '', countryRef: '', line1: '', line2: '', postalCode: '', city: '' }]
+    form.setValue('addresses', next, { shouldDirty: true, shouldValidate: true })
+  }, [form])
 
-  const handleRemoveAddress = React.useCallback((idx: number) => {
-    const list = (form.getValues('addresses') || []) as Array<any>;
-    if (idx < 0 || idx >= list.length) return;
-    const next = list.slice(0, idx).concat(list.slice(idx + 1));
-    form.setValue('addresses', next, { shouldDirty: true, shouldValidate: true });
-  }, [form]);
+  const handleRemoveAddress = React.useCallback(
+    (idx: number) => {
+      const list = (form.getValues('addresses') || []) as Array<any>
+      if (idx < 0 || idx >= list.length) return
+      const next = list.slice(0, idx).concat(list.slice(idx + 1))
+      form.setValue('addresses', next, { shouldDirty: true, shouldValidate: true })
+    },
+    [form]
+  )
 
   return (
     <>
@@ -248,7 +263,12 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
             <FormItem>
               <FormLabel>{pictureUploadLabel}</FormLabel>
               <FormControl>
-                <Input type="file" accept="image/*" data-testid="contact-segment-picture-file" onChange={(e) => field.onChange(e.target.files?.[0] || null)} />
+                <Input
+                  type="file"
+                  accept="image/*"
+                  data-testid="contact-segment-picture-file"
+                  onChange={e => field.onChange(e.target.files?.[0] || null)}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -272,8 +292,10 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {(contactTypeState.options || []).map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    {(contactTypeState.options || []).map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -296,8 +318,10 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {(salutationState.options || []).map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    {(salutationState.options || []).map(opt => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -393,7 +417,7 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {academicState.options.map((opt) => (
+                    {academicState.options.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -420,7 +444,7 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {languageState.options.map((opt) => (
+                    {languageState.options.map(opt => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
@@ -501,7 +525,7 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                       Add Channel
                     </Button>
                   </div>
-                  {(form.getValues("communicationChannels") || []).map((_: any, idx: number) => (
+                  {(form.getValues('communicationChannels') || []).map((_: any, idx: number) => (
                     <div key={idx} className="gba:space-y-2">
                       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
                         <FormField
@@ -517,8 +541,10 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {(channelState.options || []).map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  {(channelState.options || []).map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -534,7 +560,9 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                               <FormLabel>Value</FormLabel>
                               <FormControl>
                                 <Input
-                                  type={mapChannelTypeToInputType(form.getValues(`communicationChannels.${idx}.channelRef`))}
+                                  type={mapChannelTypeToInputType(
+                                    form.getValues(`communicationChannels.${idx}.channelRef`)
+                                  )}
                                   data-testid={`contact-segment-channel-value-${idx}`}
                                   {...field}
                                 />
@@ -578,7 +606,7 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                       Add Address
                     </Button>
                   </div>
-                  {(form.getValues("addresses") || []).map((_: any, idx: number) => (
+                  {(form.getValues('addresses') || []).map((_: any, idx: number) => (
                     <div key={idx} className="gba:space-y-2">
                       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
                         <FormField
@@ -589,13 +617,18 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                               <FormLabel>Address Type</FormLabel>
                               <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
-                                  <SelectTrigger className="gba:w-full" data-testid={`contact-segment-address-type-${idx}`}>
+                                  <SelectTrigger
+                                    className="gba:w-full"
+                                    data-testid={`contact-segment-address-type-${idx}`}
+                                  >
                                     <SelectValue placeholder="Please Select..." />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {(addressTypeState.options || []).map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  {(addressTypeState.options || []).map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -616,8 +649,10 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  {(countryState.options || []).map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  {(countryState.options || []).map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
@@ -721,21 +756,21 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{entityLabel || "Related Entity"}</FormLabel>
+              <FormLabel>{entityLabel || 'Related Entity'}</FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={(entities || []) as any}
                   value={field.value || ''}
                   onValueChange={(v: string | null) => {
-                    field.onChange(v);
-                    const id = String(v || "");
-                    const e = (entities || []).find((x) => x.id === id);
-                    form.setValue("account", undefined);
-                    form.setValue("contact", undefined);
-                    form.setValue("opportunity", undefined);
-                    form.setValue("lead", undefined);
+                    field.onChange(v)
+                    const id = String(v || '')
+                    const e = (entities || []).find(x => x.id === id)
+                    form.setValue('account', undefined)
+                    form.setValue('contact', undefined)
+                    form.setValue('opportunity', undefined)
+                    form.setValue('lead', undefined)
                     if (e) {
-                      form.setValue(e.type, { id: e.id });
+                      form.setValue(e.type, { id: e.id })
                     }
                   }}
                   onSearch={onEntitySearch}
@@ -751,9 +786,7 @@ const ContactSegment: React.FC<ContactSegmentProps> = (props) => {
         />
       )}
     </>
-  );
-};
+  )
+}
 
-export default ContactSegment;
-
-
+export default ContactSegment

@@ -1,4 +1,4 @@
-import LiquidFundInvestmentsReport from './LiquidFundInvestmentsReport';
+import LiquidFundInvestmentsReport from './LiquidFundInvestmentsReport'
 
-export { LiquidFundInvestmentsReport };
-export default LiquidFundInvestmentsReport; 
+export { LiquidFundInvestmentsReport }
+export default LiquidFundInvestmentsReport

@@ -1,33 +1,33 @@
-import React from 'react';
-import { Card } from 'antd';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast';
+import React from 'react'
+import { Card } from 'antd'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
 
 interface CompanySalaryForecastChartProps extends BusinessAppContextProps {
-  kpiData: WorkingConditionKpiResult;
+  kpiData: WorkingConditionKpiResult
 }
 
 // Helper: Generate mock forecast trend for the next 12 months
 function getSalaryForecastTrend(data: any[]): { month: string; salary: number }[] {
   // For now, use current total salary and project a 2% increase per month
-  const now = new Date();
-  const totalSalary = data.reduce((sum, wc) => sum + (wc.salary || 0), 0);
+  const now = new Date()
+  const totalSalary = data.reduce((sum, wc) => sum + (wc.salary || 0), 0)
   const months = Array.from({ length: 12 }, (_, i) => {
-    const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const label = date.toLocaleString(undefined, { month: 'short', year: '2-digit' });
+    const date = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    const label = date.toLocaleString(undefined, { month: 'short', year: '2-digit' })
     return {
       month: label,
-      salary: Math.round(totalSalary * Math.pow(1.02, i)),
-    };
-  });
-  return months;
+      salary: Math.round(totalSalary * Math.pow(1.02, i))
+    }
+  })
+  return months
 }
 
 const CompanySalaryForecastChart: React.FC<CompanySalaryForecastChartProps> = ({ kpiData }) => {
-  const { data, loading } = kpiData;
-  const chartData = getSalaryForecastTrend(data);
+  const { data, loading } = kpiData
+  const chartData = getSalaryForecastTrend(data)
 
   return (
     <Card
@@ -41,15 +41,15 @@ const CompanySalaryForecastChart: React.FC<CompanySalaryForecastChartProps> = ({
           <LineChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" className="gba:text-xs" />
-            <YAxis className="gba:text-xs" tickFormatter={v => `$${v.toLocaleString()}`}/>
+            <YAxis className="gba:text-xs" tickFormatter={v => `$${v.toLocaleString()}`} />
             <Tooltip formatter={v => `$${v.toLocaleString()}`} />
             <Line type="monotone" dataKey="salary" stroke="#3182ce" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
     </Card>
-  );
-};
+  )
+}
 
-export default CompanySalaryForecastChart;
-export { CompanySalaryForecastChart };
+export default CompanySalaryForecastChart
+export { CompanySalaryForecastChart }

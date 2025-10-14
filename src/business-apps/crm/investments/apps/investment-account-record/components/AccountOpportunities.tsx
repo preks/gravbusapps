@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardContent, 
-  Spinner, 
-  Alert, 
+import React, { useState, useEffect } from 'react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Spinner,
+  Alert,
   Badge,
   Table,
   TableHeader,
@@ -14,60 +14,57 @@ import {
   TableRow,
   TableCell,
   Button
-} from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities';
-import type { InvestmentOpportunity } from '@/common/data/investment/types';
-import { navigateTo } from '@/common/utils/navigationUtils';
-import { buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { BarChartOutlined } from '@ant-design/icons';
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetInvestmentOpportunities } from '@/common/data/investment/hooks/useInvestmentOpportunities'
+import type { InvestmentOpportunity } from '@/common/data/investment/types'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { BarChartOutlined } from '@ant-design/icons'
 
 interface AccountOpportunitiesProps {
-  accountId: string;
-  context: BusinessAppContextProps;
+  accountId: string
+  context: BusinessAppContextProps
 }
 
 interface Opportunity extends InvestmentOpportunity {
   // Additional properties specific to this component
 }
 
-export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({ 
-  accountId, 
-  context 
-}) => {
-  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({ accountId, context }) => {
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context);
+  const { fetchInvestmentOpportunities } = useGetInvestmentOpportunities(context)
 
   useEffect(() => {
     const fetchOpportunities = async () => {
       if (!accountId || !context.accessToken) {
-        setLoading(false);
-        return;
+        setLoading(false)
+        return
       }
 
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
 
       try {
-        const result = await fetchInvestmentOpportunities({ 
+        const result = await fetchInvestmentOpportunities({
           accountIds: [accountId], // Fix: use accountIds array instead of accountId
           limit: 50,
           orderBy: [{ field: 'createdAt', direction: 'DESC' }]
-        });
-        setOpportunities(result.InvestmentOpportunity || []);
+        })
+        setOpportunities(result.InvestmentOpportunity || [])
       } catch (err) {
-        console.error('Error fetching account opportunities:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load opportunities');
+        console.error('Error fetching account opportunities:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load opportunities')
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchOpportunities();
-  }, [accountId, context.accessToken, fetchInvestmentOpportunities]);
+    fetchOpportunities()
+  }, [accountId, context.accessToken, fetchInvestmentOpportunities])
 
   const formatCurrency = (amount: number, currencyCode: string = 'EUR') => {
     return new Intl.NumberFormat('en-US', {
@@ -75,61 +72,55 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
       currency: currencyCode,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
-    }).format(amount);
-  };
-
-
+    }).format(amount)
+  }
 
   const handleOpportunityClick = (opportunityId: string) => {
-    const url = buildPlatformUrl('/platform/irm/opportunity-record', { 
-      opportunityId, 
-      source: 'investments' 
-    });
-    navigateTo(url);
-  };
+    const url = buildPlatformUrl('/platform/irm/opportunity-record', {
+      opportunityId,
+      source: 'investments'
+    })
+    navigateTo(url)
+  }
 
   const getStageVariant = (stage: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'NEW_OPPORTUNITY': 'default',
-      'IN_QUALIFICATION': 'secondary',
-      'PROPOSAL_IN_PROGRESS': 'outline',
-      'NEGOTIATION': 'secondary',
-      'CLOSED': 'default'
-    };
-    return variants[stage] || 'outline';
-  };
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      NEW_OPPORTUNITY: 'default',
+      IN_QUALIFICATION: 'secondary',
+      PROPOSAL_IN_PROGRESS: 'outline',
+      NEGOTIATION: 'secondary',
+      CLOSED: 'default'
+    }
+    return variants[stage] || 'outline'
+  }
 
   const getStatusVariant = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      'Open': 'default',
-      'Won': 'default',
-      'Lost': 'destructive'
-    };
-    return variants[status] || 'outline';
-  };
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      Open: 'default',
+      Won: 'default',
+      Lost: 'destructive'
+    }
+    return variants[status] || 'outline'
+  }
 
   // Calculate total value and detect currency
-  const totalValue = opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0);
-  
+  const totalValue = opportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0)
+
   // Get unique currencies from opportunities
-  const currencies = Array.from(new Set(
-    opportunities
-      .filter(opp => opp.currency?.code)
-      .map(opp => opp.currency!.code)
-  ));
-  
+  const currencies = Array.from(new Set(opportunities.filter(opp => opp.currency?.code).map(opp => opp.currency!.code)))
+
   // Use single currency if all opportunities share the same currency, otherwise indicate mixed
-  const totalCurrency = currencies.length === 1 ? currencies[0] : null;
-  const isMixedCurrency = currencies.length > 1;
-  
+  const totalCurrency = currencies.length === 1 ? currencies[0] : null
+  const isMixedCurrency = currencies.length > 1
+
   const openOpportunities = opportunities.filter(opp => {
-    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || '';
-    return status !== 'Lost' && status !== 'Won';
-  });
+    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || ''
+    return status !== 'Lost' && status !== 'Won'
+  })
   const wonOpportunities = opportunities.filter(opp => {
-    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || '';
-    return status === 'Won';
-  });
+    const status = opp.opportunityStatus?.value || opp.opportunityStatus?.code || ''
+    return status === 'Won'
+  })
 
   return (
     <Card className="gba:w-full" data-testid="account-opportunities-card">
@@ -151,12 +142,11 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
             <div className="gba:text-center">
               <div className="gba:font-medium gba:text-muted-foreground">Total Value</div>
               <div className="gba:font-semibold">
-                {totalCurrency 
+                {totalCurrency
                   ? formatCurrency(totalValue, totalCurrency)
-                  : isMixedCurrency 
+                  : isMixedCurrency
                     ? `${new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(totalValue)} (Mixed)`
-                    : '-'
-                }
+                    : '-'}
               </div>
             </div>
           </div>
@@ -176,12 +166,8 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
         ) : opportunities.length === 0 ? (
           <div className="gba:text-center gba:py-10" data-testid="no-opportunities-message">
             <div className="gba:text-4xl gba:mb-4">💼</div>
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
-              No Opportunities Found
-            </h3>
-            <p className="gba:text-muted-foreground">
-              This account doesn't have any opportunities yet.
-            </p>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No Opportunities Found</h3>
+            <p className="gba:text-muted-foreground">This account doesn't have any opportunities yet.</p>
           </div>
         ) : (
           <div className="gba:w-full" data-testid="opportunities-table">
@@ -198,7 +184,7 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {opportunities.map((opportunity) => (
+                {opportunities.map(opportunity => (
                   <TableRow key={opportunity.id}>
                     <TableCell>
                       <Button
@@ -211,49 +197,53 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
                       </Button>
                     </TableCell>
                     <TableCell>
-                      {opportunity.estimatedAmount 
+                      {opportunity.estimatedAmount
                         ? formatCurrency(opportunity.estimatedAmount, opportunity.currency?.code || 'EUR')
-                        : '-'
-                      }
+                        : '-'}
                     </TableCell>
                     <TableCell>
-                      <Badge 
-                        variant={getStageVariant(opportunity.opportunityPipelineStage?.value || opportunity.opportunityPipelineStage?.code || '')}
+                      <Badge
+                        variant={getStageVariant(
+                          opportunity.opportunityPipelineStage?.value ||
+                            opportunity.opportunityPipelineStage?.code ||
+                            ''
+                        )}
                         data-testid={`opportunity-stage-${opportunity.id}`}
                       >
-                        {opportunity.opportunityPipelineStage?.value || opportunity.opportunityPipelineStage?.code || '-'}
+                        {opportunity.opportunityPipelineStage?.value ||
+                          opportunity.opportunityPipelineStage?.code ||
+                          '-'}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       {opportunity.opportunityStatus ? (
-                        <Badge variant={getStatusVariant(opportunity.opportunityStatus.value || opportunity.opportunityStatus.code || '')}>
+                        <Badge
+                          variant={getStatusVariant(
+                            opportunity.opportunityStatus.value || opportunity.opportunityStatus.code || ''
+                          )}
+                        >
                           {opportunity.opportunityStatus.value || opportunity.opportunityStatus.code || '-'}
                         </Badge>
-                      ) : '-'}
+                      ) : (
+                        '-'
+                      )}
                     </TableCell>
                     <TableCell>
-                      {opportunity.ownerEmployee 
+                      {opportunity.ownerEmployee
                         ? `${opportunity.ownerEmployee.firstName || ''} ${opportunity.ownerEmployee.lastName || ''}`.trim()
-                        : '-'
-                      }
+                        : '-'}
                     </TableCell>
                     <TableCell>
-                      {opportunity.closeDate 
-                        ? new Date(opportunity.closeDate).toLocaleDateString()
-                        : '-'
-                      }
+                      {opportunity.closeDate ? new Date(opportunity.closeDate).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell>
-                      {opportunity.createdAt 
-                        ? new Date(opportunity.createdAt).toLocaleDateString()
-                        : '-'
-                      }
+                      {opportunity.createdAt ? new Date(opportunity.createdAt).toLocaleDateString() : '-'}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-            
+
             {/* Simple pagination info */}
             <div className="gba:mt-4 gba:text-sm gba:text-muted-foreground gba:text-center">
               Showing {opportunities.length} opportunities
@@ -262,5 +252,5 @@ export const AccountOpportunities: React.FC<AccountOpportunitiesProps> = ({
         )}
       </CardContent>
     </Card>
-  );
-}; 
+  )
+}

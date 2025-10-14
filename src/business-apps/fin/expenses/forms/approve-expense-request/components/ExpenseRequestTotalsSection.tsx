@@ -1,16 +1,16 @@
-import React from 'react';
-import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ExpenseRequestTotalsSectionProps {
-  totalAmount: number;
-  reimbursableAmount: number;
-  nonReimbursableAmount: number;
-  advancePaymentAmount: number;
-  currencyCode: string;
-  formatCurrency: (amount: number, currencyCode: string) => string;
-  expensePlanTotalAmount?: number;
-  isExpensePlan: boolean;
-  remainingAmount: number;
+  totalAmount: number
+  reimbursableAmount: number
+  nonReimbursableAmount: number
+  advancePaymentAmount: number
+  currencyCode: string
+  formatCurrency: (amount: number, currencyCode: string) => string
+  expensePlanTotalAmount?: number
+  isExpensePlan: boolean
+  remainingAmount: number
 }
 
 const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = ({
@@ -26,37 +26,44 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
 }) => {
   // Calculate plan comparison if plan data is available
   const getPlanComparison = () => {
-    if (!expensePlanTotalAmount) return null;
-    
-    const difference = totalAmount - expensePlanTotalAmount;
-    const absDifference = formatNumberFunction(String(Math.abs(difference)), "0.00[,]00");
-    
+    if (!expensePlanTotalAmount) return null
+
+    const difference = totalAmount - expensePlanTotalAmount
+    const absDifference = formatNumberFunction(String(Math.abs(difference)), '0.00[,]00')
+
     if (difference === 0) {
       return {
-        description: window?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_equal', 'Equals planned amount') || 'Equals planned amount',
+        description:
+          window?.lowcoder?.translate?.(
+            'lowcoder:approve_expense_request.comparison_with_plan_equal',
+            'Equals planned amount'
+          ) || 'Equals planned amount',
         color: '#0ab874'
-      };
+      }
     } else if (difference < 0) {
       return {
         description: `${absDifference} ${currencyCode} ${window?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_less', 'Less than planned') || 'Less than planned'}`,
         color: '#0ab874'
-      };
+      }
     } else if (difference > 0) {
       return {
         description: `${absDifference} ${currencyCode} ${window?.lowcoder?.translate?.('lowcoder:approve_expense_request.comparison_with_plan_more', 'More than planned') || 'More than planned'}`,
         color: '#ffc61a'
-      };
+      }
     }
-    
-    return null;
-  };
 
-  const planComparison = getPlanComparison();
+    return null
+  }
+
+  const planComparison = getPlanComparison()
 
   return (
     <>
       {/* Delimiting gray section */}
-      <div className="gba:h-[20px] gba:bg-gray-100 gba:mb-3 gba:rounded-sm" data-testid="approve-expense-request-delimiter-section" />
+      <div
+        className="gba:h-[20px] gba:bg-gray-100 gba:mb-3 gba:rounded-sm"
+        data-testid="approve-expense-request-delimiter-section"
+      />
 
       {/* Total Expenses */}
       <div className="gba:mb-6 gba:pl-6" data-testid="approve-expense-request-total">
@@ -68,14 +75,12 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
             {formatCurrency(totalAmount, currencyCode)}
           </div>
         </div>
-        
+
         {/* Plan comparison if available */}
         {planComparison && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-1">
-            <div className="gba:text-sm gba:text-muted-foreground">
-              {/* Empty space to align with the amount */}
-            </div>
-            <div 
+            <div className="gba:text-sm gba:text-muted-foreground">{/* Empty space to align with the amount */}</div>
+            <div
               className="gba:text-sm gba:font-medium"
               style={{ color: planComparison.color }}
               data-testid="approve-expense-request-plan-comparison"
@@ -85,7 +90,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
           </div>
         )}
 
-         {isExpensePlan && advancePaymentAmount !== 0 && (
+        {isExpensePlan && advancePaymentAmount !== 0 && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
             <div className="gba:text-md gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
@@ -98,7 +103,10 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
         {nonReimbursableAmount !== 0 && (
           <div className="gba:flex gba:justify-between gba:items-center gba:mt-2">
             <div className="gba:text-md gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.non_reimbursable', 'Not Reimbursable Amount')}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:approve_expense_request.non_reimbursable',
+                'Not Reimbursable Amount'
+              )}
             </div>
             <div className="gba:text-md gba:font-semibold" style={{ color: '#A2519A' }}>
               {formatCurrency(nonReimbursableAmount, currencyCode)}
@@ -117,7 +125,7 @@ const ExpenseRequestTotalsSection: React.FC<ExpenseRequestTotalsSectionProps> = 
         )}
       </div>
     </>
-  );
-};
+  )
+}
 
-export default ExpenseRequestTotalsSection; 
+export default ExpenseRequestTotalsSection

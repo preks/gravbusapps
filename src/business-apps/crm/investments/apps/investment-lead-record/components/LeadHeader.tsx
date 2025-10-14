@@ -1,30 +1,24 @@
-import React from "react";
-import { Button } from "antd";
-import { TagsOutlined, StarOutlined, UserOutlined } from "@ant-design/icons";
-import {
-  Badge,
-  Tooltip,
-  TooltipProvider,
-  TooltipTrigger,
-  TooltipContent,
-} from "@newwork/nw-design-system";
-import { Flag } from "lucide-react";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { startProcess } from "@/common/utils/start-process";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { useMarkLeadAsLost } from "../hooks/useMarkLeadAsLost";
-import { Lead } from "../types";
-import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button';
-import { useAiSummary } from '../hooks/useAiSummary';
+import React from 'react'
+import { Button } from 'antd'
+import { TagsOutlined, StarOutlined, UserOutlined } from '@ant-design/icons'
+import { Badge, Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
+import { Flag } from 'lucide-react'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { startProcess } from '@/common/utils/start-process'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useMarkLeadAsLost } from '../hooks/useMarkLeadAsLost'
+import { Lead } from '../types'
+import { AiSummaryButton } from '@/common/components/common-relations/record-sections/header-section/ai-summary-button'
+import { useAiSummary } from '../hooks/useAiSummary'
 
 interface LeadHeaderProps {
-  lead: Lead;
-  leadData: any;
-  leadId: string;
-  additionalData?: any;
-  accessToken: string;
-  onStatusUpdate?: () => void;
+  lead: Lead
+  leadData: any
+  leadId: string
+  additionalData?: any
+  accessToken: string
+  onStatusUpdate?: () => void
 }
 
 export const LeadHeader: React.FC<LeadHeaderProps> = ({
@@ -33,96 +27,82 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
   leadId,
   additionalData,
   accessToken,
-  onStatusUpdate,
+  onStatusUpdate
 }) => {
-  const { markAsLost, isLoading } = useMarkLeadAsLost({ accessToken } as any);
+  const { markAsLost, isLoading } = useMarkLeadAsLost({ accessToken } as any)
 
   const handleMarkAsLost = async () => {
-    const version =
-      typeof lead.version === "string"
-        ? lead.version
-        : lead.version?.toString() || "1";
-    await markAsLost(leadId, version, onStatusUpdate);
-  };
+    const version = typeof lead.version === 'string' ? lead.version : lead.version?.toString() || '1'
+    await markAsLost(leadId, version, onStatusUpdate)
+  }
 
   const handleConvertLead = () => {
     startProcess({
-      domain: "investments",
-      processName: "convertInvestmentLead",
+      domain: 'investments',
+      processName: 'convertInvestmentLead',
       payload: {
         leadId,
-        employeeId: additionalData?.employeeId,
+        employeeId: additionalData?.employeeId
       },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+      builderType: 'NATIVE_SCREEN'
+    })
+  }
 
-  const staticActions = [];
+  const staticActions = []
 
   // Add "Mark as Lost" action if conditions are met
-  if (
-    lead.leadStatus?.value?.toLowerCase() !== "lost" &&
-    !lead.convertedOpportunity
-  ) {
+  if (lead.leadStatus?.value?.toLowerCase() !== 'lost' && !lead.convertedOpportunity) {
     staticActions.push({
-      key: "mark-as-lost",
-      label: getTranslationFromI18nKeyAndLabel(
-        "crm:lead.markAsLost",
-        "Mark as Lost"
-      ),
+      key: 'mark-as-lost',
+      label: getTranslationFromI18nKeyAndLabel('crm:lead.markAsLost', 'Mark as Lost'),
       onClick: handleMarkAsLost,
-      icon: "StopOutlined",
+      icon: 'StopOutlined',
       loading: isLoading,
-      category: "ACTION",
-    });
+      category: 'ACTION'
+    })
   }
 
   // Add "Convert Lead" action if not already converted
   if (!lead.convertedOpportunity) {
     staticActions.push({
-      key: "convert-lead",
-      label: getTranslationFromI18nKeyAndLabel(
-        "crm:lead.convertLead",
-        "Convert Lead"
-      ),
+      key: 'convert-lead',
+      label: getTranslationFromI18nKeyAndLabel('crm:lead.convertLead', 'Convert Lead'),
       onClick: handleConvertLead,
-      icon: "ArrowRightOutlined",
-      category: "ACTION",
-    });
+      icon: 'ArrowRightOutlined',
+      category: 'ACTION'
+    })
   }
 
   return (
     <div
       className="gba:lead-header"
       style={{
-        marginBottom: "24px",
-        backgroundColor: "white",
-        borderRadius: "8px",
-        padding: "20px",
+        marginBottom: '24px',
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        padding: '20px'
       }}
     >
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div>
             <div
               style={{
-                fontSize: "24px",
-                fontWeight: "bold",
-                marginBottom: "4px",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
+                fontSize: '24px',
+                fontWeight: 'bold',
+                marginBottom: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
               }}
             >
-              {lead.displayName ||
-                `${lead.firstName || ""} ${lead.lastName || ""}`.trim() ||
-                "Investment Lead"}
+              {lead.displayName || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || 'Investment Lead'}
               {lead.sensitive === true && (
                 <TooltipProvider>
                   <Tooltip>
@@ -143,29 +123,27 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
             {/* Lead-specific fields */}
             <div
               style={{
-                color: "#8c8c8c",
-                fontSize: "14px",
-                marginBottom: "8px",
+                color: '#8c8c8c',
+                fontSize: '14px',
+                marginBottom: '8px'
               }}
             >
-              <TagsOutlined style={{ marginRight: "4px" }} />
-              <span>Source: {lead.leadSource?.value || "Unknown"}</span>
-              <span style={{ margin: "0 8px" }}>•</span>
-              <StarOutlined style={{ marginRight: "4px" }} />
-              <span>Rating: {lead.leadRating?.value || "Unknown"}</span>
-              <span style={{ margin: "0 8px" }}>•</span>
-              <UserOutlined style={{ marginRight: "4px" }} />
+              <TagsOutlined style={{ marginRight: '4px' }} />
+              <span>Source: {lead.leadSource?.value || 'Unknown'}</span>
+              <span style={{ margin: '0 8px' }}>•</span>
+              <StarOutlined style={{ marginRight: '4px' }} />
+              <span>Rating: {lead.leadRating?.value || 'Unknown'}</span>
+              <span style={{ margin: '0 8px' }}>•</span>
+              <UserOutlined style={{ marginRight: '4px' }} />
               <span>
-                Owner:{" "}
-                {lead.ownerEmployee
-                  ? `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}`
-                  : "Unknown"}
+                Owner:{' '}
+                {lead.ownerEmployee ? `${lead.ownerEmployee.firstName} ${lead.ownerEmployee.lastName}` : 'Unknown'}
               </span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* AI Summary Button */}
           {accessToken && leadId && (
             <AiSummaryButton
@@ -178,25 +156,24 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
               dataTestId={`lead-update-button-${leadId}`}
             />
           )}
-          
+
           {accessToken && (
             <AppActionButton
               data-testid="investment-lead-record-action-button"
               size="default"
               contextsArray={[FlowContextName.investmentLeadEntity]}
               externalContextData={{
-                leadId: leadId,
+                leadId: leadId
               }}
               //staticFlowData={staticActions}
               prefixDataTestId="lead-record-action"
               accessToken={accessToken}
               emptyStateBehavior="hide"
               deferMainContextRequestsUntilClick={false}
-            >
-            </AppActionButton>
+            ></AppActionButton>
           )}
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

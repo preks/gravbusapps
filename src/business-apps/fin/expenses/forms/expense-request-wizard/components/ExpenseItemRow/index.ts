@@ -1,4 +1,4 @@
-import ExpenseItemRow from './ExpenseItemRow';
+import ExpenseItemRow from './ExpenseItemRow'
 
-export { ExpenseItemRow };
-export default ExpenseItemRow;
+export { ExpenseItemRow }
+export default ExpenseItemRow

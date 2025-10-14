@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
   Button,
   Textarea,
@@ -10,96 +10,96 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardContent,
-} from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { AppActionForm } from '@/components/app-action-form/AppActionForm';
-import { InvestmentReportApproveData } from './types';
-import dayjs from 'dayjs';
+  CardContent
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { AppActionForm } from '@/components/app-action-form/AppActionForm'
+import { InvestmentReportApproveData } from './types'
+import dayjs from 'dayjs'
 
 interface InvestmentReportApproveFormProps extends BusinessAppContextProps {
-  onClose?: () => void;
+  onClose?: () => void
 }
 
 const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormProps> = ({
   accessToken,
   additionalData,
   userInfo,
-  onClose = () => {},
+  onClose = () => {}
 }) => {
-  const [approveData, setApproveData] = useState<InvestmentReportApproveData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [approveData, setApproveData] = useState<InvestmentReportApproveData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [message, setMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     // Extract data from psi_taskPayload (directly without parameters wrapper)
     if (additionalData?.psi_taskPayload?.investmentReportProcessContext) {
       setApproveData({
-        investmentReportProcessContext: additionalData.psi_taskPayload.investmentReportProcessContext,
-      });
+        investmentReportProcessContext: additionalData.psi_taskPayload.investmentReportProcessContext
+      })
     }
-    setIsLoading(false);
-  }, [additionalData]);
+    setIsLoading(false)
+  }, [additionalData])
 
   const formatCurrency = (amount: number | null, currencyRef: string | null) => {
-    if (amount === null) return 'N/A';
-    
-    const currencyCode = currencyRef?.split(':').pop() || 'EUR';
+    if (amount === null) return 'N/A'
+
+    const currencyCode = currencyRef?.split(':').pop() || 'EUR'
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currencyCode,
-    }).format(amount);
-  };
+      currency: currencyCode
+    }).format(amount)
+  }
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'N/A';
-    return dayjs(dateString).format('DD.MM.YYYY');
-  };
+    if (!dateString) return 'N/A'
+    return dayjs(dateString).format('DD.MM.YYYY')
+  }
 
   const formatPercentage = (value: number | null) => {
-    if (value === null) return 'N/A';
-    return `${value}%`;
-  };
+    if (value === null) return 'N/A'
+    return `${value}%`
+  }
 
   const handleApprove = async () => {
-    if (!approveData) return;
+    if (!approveData) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
       dispatchProcessContinueEvent('pse_submit', {
         updatedInvestment: approveData.investmentReportProcessContext.updatedInvestment,
         comment: message || '',
-        userId: userInfo?.employeeDetails?.employeeId,
-      });
+        userId: userInfo?.employeeDetails?.employeeId
+      })
 
-      onClose();
+      onClose()
     } catch (err) {
-      console.error('Error approving investment report:', err);
+      console.error('Error approving investment report:', err)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleReject = async () => {
-    if (!approveData) return;
+    if (!approveData) return
 
-    setIsSubmitting(true);
+    setIsSubmitting(true)
     try {
       dispatchProcessContinueEvent('pse_reject', {
         comment: message || '',
-        userId: userInfo?.employeeDetails?.employeeId,
-      });
+        userId: userInfo?.employeeDetails?.employeeId
+      })
 
-      onClose();
+      onClose()
     } catch (err) {
-      console.error('Error rejecting investment report:', err);
+      console.error('Error rejecting investment report:', err)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   if (!accessToken) {
     return (
@@ -108,14 +108,12 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
           <div className="gba:p-6">
             <Alert variant="destructive">
               <AlertTitle>Configuration Error</AlertTitle>
-              <AlertDescription>
-                Missing access token. Please check the platform configuration.
-              </AlertDescription>
+              <AlertDescription>Missing access token. Please check the platform configuration.</AlertDescription>
             </Alert>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   if (isLoading) {
@@ -129,7 +127,7 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   if (!approveData) {
@@ -146,14 +144,14 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
           </div>
         </div>
       </div>
-    );
+    )
   }
 
-  const { currentInvestment, updatedInvestment, extractedReports } = approveData.investmentReportProcessContext;
-  const currentInv = currentInvestment.investment;
-  const updatedInv = updatedInvestment.investment;
-  const currentRealEstate = currentInvestment.realEstateInvestment;
-  const updatedRealEstate = updatedInvestment.realEstateInvestment;
+  const { currentInvestment, updatedInvestment, extractedReports } = approveData.investmentReportProcessContext
+  const currentInv = currentInvestment.investment
+  const updatedInv = updatedInvestment.investment
+  const currentRealEstate = currentInvestment.realEstateInvestment
+  const updatedRealEstate = updatedInvestment.realEstateInvestment
 
   const renderComparisonField = (
     label: string,
@@ -161,44 +159,32 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
     updatedValue: any,
     formatter?: (val: any) => string
   ) => {
-    const formatValue = formatter || ((val: any) => val?.toString() || 'N/A');
-    const hasChange = currentValue !== updatedValue;
+    const formatValue = formatter || ((val: any) => val?.toString() || 'N/A')
+    const hasChange = currentValue !== updatedValue
 
     return (
       <div className="gba:flex gba:justify-between gba:items-start gba:py-2">
-        <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-          {label}:
-        </span>
+        <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">{label}:</span>
         <div className="gba:ml-4 gba:text-right gba:flex-1">
           {hasChange ? (
             <div className="gba:space-y-1">
-              <div className="gba:text-destructive gba:line-through">
-                {formatValue(currentValue)}
-              </div>
-              <div className="gba:text-success gba:font-semibold">
-                {formatValue(updatedValue)}
-              </div>
+              <div className="gba:text-destructive gba:line-through">{formatValue(currentValue)}</div>
+              <div className="gba:text-success gba:font-semibold">{formatValue(updatedValue)}</div>
             </div>
           ) : (
             <div className="gba:text-foreground">{formatValue(currentValue)}</div>
           )}
         </div>
       </div>
-    );
-  };
+    )
+  }
 
   return (
-    <div
-      className="gba:border-0"
-      data-testid="investment-report-approve-container"
-    >
+    <div className="gba:border-0" data-testid="investment-report-approve-container">
       <div className="gba:shadow-none gba:bg-background gba:rounded-lg">
         <div className="gba:p-0">
           {/* Header Section */}
-          <div
-            className="gba:text-center gba:mb-6 gba:px-6 gba:pt-8"
-            data-testid="investment-report-approve-header"
-          >
+          <div className="gba:text-center gba:mb-6 gba:px-6 gba:pt-8" data-testid="investment-report-approve-header">
             <h1
               className="gba:text-2xl gba:font-semibold gba:m-0 gba:text-foreground gba:mb-2"
               data-testid="investment-report-approve-title"
@@ -217,12 +203,8 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
 
           {/* Investment Name Display */}
           <div className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:mb-8">
-            <h2 className="gba:text-xl gba:font-bold gba:text-foreground gba:m-0">
-              {currentInv.name}
-            </h2>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-              Investment ID: {currentInv.id}
-            </p>
+            <h2 className="gba:text-xl gba:font-bold gba:text-foreground gba:m-0">{currentInv.name}</h2>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">Investment ID: {currentInv.id}</p>
           </div>
 
           {/* Investment Data Comparison */}
@@ -241,13 +223,13 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                   'Market Value',
                   currentInv.investmentMarketValue,
                   updatedInv.investmentMarketValue,
-                  (val) => formatCurrency(val, currentInv.currencyRef)
+                  val => formatCurrency(val, currentInv.currencyRef)
                 )}
                 {renderComparisonField(
                   'Total Investment Amount',
                   currentInv.totalInvestmentAmount,
                   updatedInv.totalInvestmentAmount,
-                  (val) => formatCurrency(val, currentInv.currencyRef)
+                  val => formatCurrency(val, currentInv.currencyRef)
                 )}
                 {renderComparisonField(
                   'Stake Percentage',
@@ -259,13 +241,13 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                   'Forecasted Revenue',
                   currentInv.forecastedRevenueAmount,
                   updatedInv.forecastedRevenueAmount,
-                  (val) => formatCurrency(val, currentInv.currencyRef)
+                  val => formatCurrency(val, currentInv.currencyRef)
                 )}
                 {renderComparisonField(
                   'Forecasted Profit',
                   currentInv.forecastedProfitAmount,
                   updatedInv.forecastedProfitAmount,
-                  (val) => formatCurrency(val, currentInv.currencyRef)
+                  val => formatCurrency(val, currentInv.currencyRef)
                 )}
               </CardContent>
             </Card>
@@ -288,7 +270,7 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                     'Annual Net Cold Rent',
                     currentRealEstate.annualNetColdRent,
                     updatedRealEstate.annualNetColdRent,
-                    (val) => formatCurrency(val, currentInv.currencyRef)
+                    val => formatCurrency(val, currentInv.currencyRef)
                   )}
                   {renderComparisonField(
                     'Occupancy',
@@ -301,17 +283,11 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                     currentRealEstate.numberOfUnits,
                     updatedRealEstate.numberOfUnits
                   )}
-                  {renderComparisonField(
-                    'Size',
-                    currentRealEstate.size,
-                    updatedRealEstate.size,
-                    (val) => val ? `${val} m²` : 'N/A'
+                  {renderComparisonField('Size', currentRealEstate.size, updatedRealEstate.size, val =>
+                    val ? `${val} m²` : 'N/A'
                   )}
-                  {renderComparisonField(
-                    'Funding',
-                    currentRealEstate.funding,
-                    updatedRealEstate.funding,
-                    (val) => formatCurrency(val, currentInv.currencyRef)
+                  {renderComparisonField('Funding', currentRealEstate.funding, updatedRealEstate.funding, val =>
+                    formatCurrency(val, currentInv.currencyRef)
                   )}
                 </CardContent>
               </Card>
@@ -334,19 +310,26 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                   {extractedReports.map((report, index) => (
                     <div key={index} className="gba:mb-4 gba:last:mb-0">
                       <div className="gba:font-semibold gba:text-foreground gba:mb-2">
-                        Report {index + 1} - {report.investmentReport.scope} ({formatDate(report.investmentReport.date)})
+                        Report {index + 1} - {report.investmentReport.scope} ({formatDate(report.investmentReport.date)}
+                        )
                       </div>
                       <div className="gba:space-y-1 gba:text-sm">
                         <div className="gba:flex gba:justify-between">
                           <span className="gba:text-muted-foreground">Market Value:</span>
                           <span className="gba:text-foreground gba:font-medium">
-                            {formatCurrency(report.investmentReport.investmentMarketValue, report.investmentReport.currencyRef)}
+                            {formatCurrency(
+                              report.investmentReport.investmentMarketValue,
+                              report.investmentReport.currencyRef
+                            )}
                           </span>
                         </div>
                         <div className="gba:flex gba:justify-between">
                           <span className="gba:text-muted-foreground">Total Investment:</span>
                           <span className="gba:text-foreground gba:font-medium">
-                            {formatCurrency(report.investmentReport.totalInvestmentAmount, report.investmentReport.currencyRef)}
+                            {formatCurrency(
+                              report.investmentReport.totalInvestmentAmount,
+                              report.investmentReport.currencyRef
+                            )}
                           </span>
                         </div>
                         {report.realEstateInvestmentReport && (
@@ -354,7 +337,10 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                             <div className="gba:flex gba:justify-between">
                               <span className="gba:text-muted-foreground">Annual Net Cold Rent:</span>
                               <span className="gba:text-foreground gba:font-medium">
-                                {formatCurrency(report.realEstateInvestmentReport.annualNetColdRent, report.investmentReport.currencyRef)}
+                                {formatCurrency(
+                                  report.realEstateInvestmentReport.annualNetColdRent,
+                                  report.investmentReport.currencyRef
+                                )}
                               </span>
                             </div>
                             <div className="gba:flex gba:justify-between">
@@ -377,10 +363,7 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
           {/* Message Section */}
           <div className="gba:px-6 gba:mb-8">
             <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:investment_report.approve.comment',
-                'Comment'
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:investment_report.approve.comment', 'Comment')}
             </h3>
             <Textarea
               placeholder={getTranslationFromI18nKeyAndLabel(
@@ -388,7 +371,7 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
                 'Add your comment or feedback...'
               )}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={e => setMessage(e.target.value)}
               className="gba:min-h-24 gba:resize-y gba:w-full"
               data-testid="investment-report-approve-message-input"
             />
@@ -402,36 +385,30 @@ const InvestmentReportApproveFormContent: React.FC<InvestmentReportApproveFormPr
               disabled={isSubmitting}
               data-testid="investment-report-approve-reject-button"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:investment_report.approve.reject_button',
-                'Reject'
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:investment_report.approve.reject_button', 'Reject')}
             </Button>
             <Button
               onClick={handleApprove}
               disabled={isSubmitting}
               data-testid="investment-report-approve-approve-button"
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:investment_report.approve.approve_button',
-                'Approve'
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:investment_report.approve.approve_button', 'Approve')}
             </Button>
           </div>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-const InvestmentReportApproveForm: React.FC<BusinessAppContextProps> = (props) => {
+const InvestmentReportApproveForm: React.FC<BusinessAppContextProps> = props => {
   return (
     <AppActionForm
       processType="custom"
       submitEventType="pse_submit"
       cancelEventType="pse_reject"
       onSubmit={async () => {
-        return {};
+        return {}
       }}
       formData={{}}
       businessAppContext={props}
@@ -440,8 +417,7 @@ const InvestmentReportApproveForm: React.FC<BusinessAppContextProps> = (props) =
     >
       <InvestmentReportApproveFormContent {...props} />
     </AppActionForm>
-  );
-};
+  )
+}
 
-export default InvestmentReportApproveForm;
-
+export default InvestmentReportApproveForm

@@ -1,2 +1,1 @@
-export { default as ConditionSection } from './ConditionSection';
-
+export { default as ConditionSection } from './ConditionSection'

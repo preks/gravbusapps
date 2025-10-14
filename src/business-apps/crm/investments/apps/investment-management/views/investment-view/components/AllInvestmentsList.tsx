@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import {
   Table,
   TableBody,
@@ -10,75 +10,73 @@ import {
   Spinner,
   Alert,
   Button
-} from "@newwork/nw-design-system";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useGetInvestments } from "@/common/data/investment/hooks/useInvestments";
-import type { Investment } from "@/common/data/investment/types";
-import type { InvestmentQueryVariables } from "@/common/data/investment/queries/investmentQueries";
-import { DataContainer } from "@/components/layout/dataContainer/DataContainer";
-import { AppAction } from "@/components/app-action/AppAction";
-import { AppActionButton } from "@/components/app-action-button/AppActionButton";
-import { FlowContextName } from "@/common/types/FlowRegistryTypes";
-import { Building2, Calendar, ChevronUp, ChevronDown, Plus } from "lucide-react";
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import { formatDate } from "@/common/data/investment";
-import { formatCurrencyParts } from '@/common/utils/numberFormatter';
-import { ColumnConfig } from "@/components/dataController";
-import { useInvestmentListController } from "../hooks/useInvestmentListController";
-import { useAllInvestmentsFilters } from "../hooks/useAllInvestmentsFilters";
-import { OwnerDisplay } from "../../../../../components/shared";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
+import type { Investment } from '@/common/data/investment/types'
+import type { InvestmentQueryVariables } from '@/common/data/investment/queries/investmentQueries'
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { AppAction } from '@/components/app-action/AppAction'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { Building2, Calendar, ChevronUp, ChevronDown, Plus } from 'lucide-react'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { formatDate } from '@/common/data/investment'
+import { formatCurrencyParts } from '@/common/utils/numberFormatter'
+import { ColumnConfig } from '@/components/dataController'
+import { useInvestmentListController } from '../hooks/useInvestmentListController'
+import { useAllInvestmentsFilters } from '../hooks/useAllInvestmentsFilters'
+import { OwnerDisplay } from '../../../../../components/shared'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
   // Handle specific cases for better display
   if (groupName === 'RealEstate') {
-    return 'Real Estate';
+    return 'Real Estate'
   }
   if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
-    return 'Liquid Fund';
+    return 'Liquid Fund'
   }
-  
+
   // For other cases, add spaces before capital letters (camelCase to Title Case)
-  return groupName.replace(/([A-Z])/g, ' $1').trim();
-};
+  return groupName.replace(/([A-Z])/g, ' $1').trim()
+}
 
 // Sortable table header component
 const SortableTableHead: React.FC<{
-  children: React.ReactNode;
-  field: string;
-  currentSortField: string;
-  currentSortOrder: "ASC" | "DESC";
-  onSort: (field: string, order: "ASC" | "DESC" | "") => void;
-  className?: string;
+  children: React.ReactNode
+  field: string
+  currentSortField: string
+  currentSortOrder: 'ASC' | 'DESC'
+  onSort: (field: string, order: 'ASC' | 'DESC' | '') => void
+  className?: string
 }> = ({ children, field, currentSortField, currentSortOrder, onSort, className }) => {
-  const isSorted = currentSortField === field;
-  const nextOrder = isSorted 
-    ? (currentSortOrder === "ASC" ? "DESC" : "")
-    : "ASC";
+  const isSorted = currentSortField === field
+  const nextOrder = isSorted ? (currentSortOrder === 'ASC' ? 'DESC' : '') : 'ASC'
 
   return (
-    <TableHead 
+    <TableHead
       className={`gba:cursor-pointer gba:select-none ${className || ''}`}
       onClick={() => onSort(field, nextOrder)}
     >
       <div className="gba:flex gba:items-center gba:gap-1">
         {children}
-        {isSorted && (
-          currentSortOrder === "ASC" ? 
-            <ChevronUp className="gba:w-4 gba:h-4" /> : 
+        {isSorted &&
+          (currentSortOrder === 'ASC' ? (
+            <ChevronUp className="gba:w-4 gba:h-4" />
+          ) : (
             <ChevronDown className="gba:w-4 gba:h-4" />
-        )}
+          ))}
       </div>
     </TableHead>
-  );
-};
+  )
+}
 
 export interface AllInvestmentsListProps extends BusinessAppContextProps {}
 
-const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
-  const { accessToken } = context;
+const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
+  const { accessToken } = context
 
   // Use the investment list controller hook
   const {
@@ -91,8 +89,8 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     initialLoadDone,
     handlePaginationChange,
     handleSortingChange,
-    updateURLParams,
-  } = useInvestmentListController();
+    updateURLParams
+  } = useInvestmentListController()
 
   // Use the filters hook
   const {
@@ -107,157 +105,161 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
     createdAfter,
     createdBefore,
     setCreatedAfter,
-    setCreatedBefore,
-  } = useAllInvestmentsFilters(context);
+    setCreatedBefore
+  } = useAllInvestmentsFilters(context)
 
-  const { fetchInvestments } = useGetInvestments(context);
+  const { fetchInvestments } = useGetInvestments(context)
 
-  const [investments, setInvestments] = useState<Investment[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [investments, setInvestments] = useState<Investment[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Column configuration for visibility
   const [columnConfig, setColumnConfig] = useState<ColumnConfig[]>([
-    { id: "investment", label: "Investment", visible: true },
-    { id: "group", label: "Group", visible: true },
-    { id: "type", label: "Type", visible: true },
-    { id: "owner", label: "Owner", visible: true },
-    { id: "status", label: "Status", visible: true },
-    { id: "created", label: "Created", visible: true },
+    { id: 'investment', label: 'Investment', visible: true },
+    { id: 'group', label: 'Group', visible: true },
+    { id: 'type', label: 'Type', visible: true },
+    { id: 'owner', label: 'Owner', visible: true },
+    { id: 'status', label: 'Status', visible: true },
+    { id: 'created', label: 'Created', visible: true },
     // Actions column must be LAST
-    { id: "actions", label: "Actions", visible: true, disabled: true },
-  ]);
+    { id: 'actions', label: 'Actions', visible: true, disabled: true }
+  ])
   // Currency helpers to match IRM Opportunity list (number-only + narrow symbol)
   const renderAmount = (amount: number | undefined, currencyCode?: string) => {
-    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>;
-    const { number, symbol } = formatCurrencyParts(amount, { currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    if (typeof amount !== 'number') return <span className="gba:text-gray-400">-</span>
+    const { number, symbol } = formatCurrencyParts(amount, {
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    })
     return (
       <div className="gba:w-full gba:flex gba:justify-end gba:items-baseline">
         <span className="gba:text-sm gba:[font-variant-numeric:tabular-nums]">{number}</span>
-        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">{symbol}</span>
+        <span className="gba:text-xs gba:text-gray-400 gba:inline-block gba:text-right gba:shrink-0 gba:w-[5ch]">
+          {symbol}
+        </span>
       </div>
-    );
-  };
+    )
+  }
 
   // Calculate visible columns from column configuration
   const visibleColumns = useMemo(() => {
-    return columnConfig.filter(col => col.visible).map(col => col.id);
-  }, [columnConfig]);
+    return columnConfig.filter(col => col.visible).map(col => col.id)
+  }, [columnConfig])
 
   const handleColumnVisibilityChange = useCallback((columnId: string, visible: boolean) => {
-    setColumnConfig(prev => 
-      prev.map(col => col.id === columnId ? { ...col, visible } : col)
-    );
-  }, []);
+    setColumnConfig(prev => prev.map(col => (col.id === columnId ? { ...col, visible } : col)))
+  }, [])
 
   // Visible filter groups (implementing the pattern from other lists)
   const visibleFilterGroups = useMemo(() => {
     const result = filterGroups.filter(group => {
       // Show groups that have filters or custom components
-      return group.filters.length > 0 || group.customComponent;
-    });
+      return group.filters.length > 0 || group.customComponent
+    })
 
     // Debug filter groups
     const groupStats = {
       totalGroups: filterGroups.length,
       visibleGroups: result.length,
       visibleFilterGroups: result.map(g => ({ id: g.id, title: g.title, filterCount: g.filters.length }))
-    };
+    }
 
-    return result;
-  }, [filterGroups]);
+    return result
+  }, [filterGroups])
 
-  const queryVariables: InvestmentQueryVariables = useMemo(() => ({
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-    search: search.trim() || undefined,
-    orderBy: sortField ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }] : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-    ...getFilters(),
-  }), [currentPage, pageSize, search, sortField, sortOrder, getFilters]);
+  const queryVariables: InvestmentQueryVariables = useMemo(
+    () => ({
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      search: search.trim() || undefined,
+      orderBy: sortField
+        ? [{ field: sortField, direction: sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST' }]
+        : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
+      ...getFilters()
+    }),
+    [currentPage, pageSize, search, sortField, sortOrder, getFilters]
+  )
 
   const loadData = useCallback(async () => {
-    if (!accessToken) return;
-    setIsLoading(true);
-    setError(null);
+    if (!accessToken) return
+    setIsLoading(true)
+    setError(null)
     try {
-      const result = await fetchInvestments(queryVariables);
-      setInvestments(result.Investment || []);
-      setTotalCount(result.InvestmentAggregate?.aggregate?.count || 0);
+      const result = await fetchInvestments(queryVariables)
+      setInvestments(result.Investment || [])
+      setTotalCount(result.InvestmentAggregate?.aggregate?.count || 0)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error occurred");
+      setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [accessToken, fetchInvestments, queryVariables]);
+  }, [accessToken, fetchInvestments, queryVariables])
 
   // Trigger initial data loading when component mounts and filters are initialized
   useEffect(() => {
     if (!initialLoadDone.current && accessToken && filtersInitialized) {
-      initialLoadDone.current = true;
-      loadData();
+      initialLoadDone.current = true
+      loadData()
     }
-  }, [accessToken, filtersInitialized, loadData]);
+  }, [accessToken, filtersInitialized, loadData])
 
   // Trigger search when search term changes
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      updateURLParams({ search, page: 1 });
-      loadData();
+      updateURLParams({ search, page: 1 })
+      loadData()
     }
-  }, [search, filtersInitialized, loadData, updateURLParams]);
+  }, [search, filtersInitialized, loadData, updateURLParams])
 
   // Trigger reload when filters change
   useEffect(() => {
     if (initialLoadDone.current && filtersInitialized) {
-      loadData();
+      loadData()
     }
-  }, [
-    JSON.stringify(selectedFilters),
-    filtersInitialized,
-    loadData,
-  ]);
+  }, [JSON.stringify(selectedFilters), filtersInitialized, loadData])
 
   // Trigger reload when sorting changes
   useEffect(() => {
     if (initialLoadDone.current) {
-      loadData();
+      loadData()
     }
-  }, [sortField, sortOrder, loadData]);
+  }, [sortField, sortOrder, loadData])
 
   // Trigger reload when pagination changes
   useEffect(() => {
     if (initialLoadDone.current) {
-      loadData();
+      loadData()
     }
-  }, [currentPage, pageSize, loadData]);
+  }, [currentPage, pageSize, loadData])
 
   // Listen for process completion events to refresh data
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
-        
         // Check for successful completion
         if (event.detail?.resolution === 'success') {
-          loadData();
-          return;
+          loadData()
+          return
         }
-        
+
         // Check for different event structures
-        const response = event.detail?.response;
+        const response = event.detail?.response
         if (response?.detail?.resolution === 'success' || response?.investment) {
-          loadData();
-          return;
+          loadData()
+          return
         }
-        
+
         // Check for continue events with payload (investment creation/update)
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
-          loadData();
+          loadData()
         }
       } catch (err) {
         // Error handling process completion
       }
-    };
+    }
 
     // Listen to multiple possible event names for investment updates
     const eventNames = [
@@ -270,27 +272,27 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
       'taskCompleted',
       'processCompleted',
       'task-completion',
-      'process-completion',
-    ];
+      'process-completion'
+    ]
 
-    eventNames.forEach((eventName) => {
-      window.addEventListener(eventName, handleProcessCompletion);
-    });
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion)
+    })
 
     return () => {
-      eventNames.forEach((eventName) => {
-        window.removeEventListener(eventName, handleProcessCompletion);
-      });
-    };
-  }, [loadData]);
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion)
+      })
+    }
+  }, [loadData])
 
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId);
+      selected ? addFilter(filterId) : removeFilter(filterId)
     },
     [addFilter, removeFilter]
-  );
+  )
 
   // Function for DataController setFilter requirement
   const handleSetFilter = useCallback(
@@ -298,33 +300,31 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
       // This is called by DataController's "Clear all filters" button or individual filter removal
       if (filters.length === 0) {
         // Clear all filters
-        clearAllFilters();
+        clearAllFilters()
       } else {
         // Handle individual filter removal - find which filters were removed and remove them
-        const removedFilters = selectedFilters.filter(
-          (f) => !filters.includes(f)
-        );
-        removedFilters.forEach((filterId) => removeFilter(filterId));
+        const removedFilters = selectedFilters.filter(f => !filters.includes(f))
+        removedFilters.forEach(filterId => removeFilter(filterId))
       }
     },
     [clearAllFilters, selectedFilters, removeFilter]
-  );
+  )
 
   const handleRowClick = useCallback((investmentId: string) => {
-    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', { 
+    const detailsUrl = buildPlatformUrl('/platform/irm/investment-record', {
       investmentId,
       fromView: 'investments',
       fromSubView: 'overview'
-    });
-    navigateTo(detailsUrl);
-  }, []);
+    })
+    navigateTo(detailsUrl)
+  }, [])
 
   if (isLoading && investments.length === 0) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -337,7 +337,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
           </Button>
         </div>
       </Alert>
-    );
+    )
   }
 
   return (
@@ -352,7 +352,10 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
         dateRange: {
           createdAfter,
           createdBefore,
-          onClear: () => { setCreatedAfter(undefined); setCreatedBefore(undefined); }
+          onClear: () => {
+            setCreatedAfter(undefined)
+            setCreatedBefore(undefined)
+          }
         },
         listTitle: (
           <div className="gba:flex gba:items-center gba:gap-4">
@@ -365,7 +368,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
         actions: (
           <AppAction
             contextsArray={[FlowContextName.createInvestment]}
-            externalContextData={{ 
+            externalContextData={{
               fromView: 'investments',
               fromSubView: 'overview'
             }}
@@ -389,11 +392,11 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
           columns: columnConfig,
           onColumnVisibilityChange: handleColumnVisibilityChange,
           'data-testid': 'all-investments-column-visibility'
-        },
+        }
       }}
       dataFilterProps={{
         filterGroups: visibleFilterGroups,
-        onFilterChange: handleFilterChange,
+        onFilterChange: handleFilterChange
       }}
       dataBody={
         <div className="gba:bg-white gba:rounded-lg gba:border">
@@ -401,31 +404,57 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
             <TableHeader>
               <TableRow>
                 {visibleColumns.includes('investment') && (
-                  <SortableTableHead field="name" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Investment</SortableTableHead>
+                  <SortableTableHead
+                    field="name"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSortingChange}
+                  >
+                    Investment
+                  </SortableTableHead>
                 )}
-                {visibleColumns.includes('group') && (
-                  <TableHead>Group</TableHead>
-                )}
-                {visibleColumns.includes('type') && (
-                  <TableHead>Type</TableHead>
-                )}
+                {visibleColumns.includes('group') && <TableHead>Group</TableHead>}
+                {visibleColumns.includes('type') && <TableHead>Type</TableHead>}
                 {visibleColumns.includes('owner') && (
-                  <SortableTableHead field="ownerEmployee.displayName" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Owner</SortableTableHead>
+                  <SortableTableHead
+                    field="ownerEmployee.displayName"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSortingChange}
+                  >
+                    Owner
+                  </SortableTableHead>
                 )}
                 {visibleColumns.includes('status') && (
-                  <SortableTableHead field="investmentStatus.value" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Status</SortableTableHead>
+                  <SortableTableHead
+                    field="investmentStatus.value"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSortingChange}
+                  >
+                    Status
+                  </SortableTableHead>
                 )}
                 {visibleColumns.includes('created') && (
-                  <SortableTableHead field="createdAt" currentSortField={sortField} currentSortOrder={sortOrder} onSort={handleSortingChange}>Created</SortableTableHead>
+                  <SortableTableHead
+                    field="createdAt"
+                    currentSortField={sortField}
+                    currentSortOrder={sortOrder}
+                    onSort={handleSortingChange}
+                  >
+                    Created
+                  </SortableTableHead>
                 )}
-                {visibleColumns.includes('actions') && (
-                  <TableHead className="gba:w-[60px]">Actions</TableHead>
-                )}
+                {visibleColumns.includes('actions') && <TableHead className="gba:w-[60px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {investments.map((investment) => (
-                <TableRow key={investment.id} className="gba:cursor-pointer" onClick={() => handleRowClick(investment.id)}>
+              {investments.map(investment => (
+                <TableRow
+                  key={investment.id}
+                  className="gba:cursor-pointer"
+                  onClick={() => handleRowClick(investment.id)}
+                >
                   {visibleColumns.includes('investment') && (
                     <TableCell>
                       <div className="gba:flex gba:items-center gba:gap-2">
@@ -436,17 +465,17 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                   )}
                   {visibleColumns.includes('group') && (
                     <TableCell>
-                      <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || "Unknown")}</Badge>
+                      <Badge variant="outline">{formatGroupName(investment.investmentGroup?.value || 'Unknown')}</Badge>
                     </TableCell>
                   )}
                   {visibleColumns.includes('type') && (
                     <TableCell>
-                      <Badge variant="secondary">{investment.investmentType?.value || "Unknown"}</Badge>
+                      <Badge variant="secondary">{investment.investmentType?.value || 'Unknown'}</Badge>
                     </TableCell>
                   )}
                   {visibleColumns.includes('owner') && (
                     <TableCell>
-                      <OwnerDisplay 
+                      <OwnerDisplay
                         ownerEmployee={investment.ownerEmployee}
                         entityId={investment.id}
                         testIdPrefix="investment"
@@ -455,8 +484,8 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                   )}
                   {visibleColumns.includes('status') && (
                     <TableCell>
-                      <Badge variant={investment.investmentStatus?.code === "ACTIVE" ? "default" : "secondary"}>
-                        {investment.investmentStatus?.value || "Unknown"}
+                      <Badge variant={investment.investmentStatus?.code === 'ACTIVE' ? 'default' : 'secondary'}>
+                        {investment.investmentStatus?.value || 'Unknown'}
                       </Badge>
                     </TableCell>
                   )}
@@ -484,40 +513,37 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                   )}
                   {visibleColumns.includes('isin') && (
                     <TableCell>
-                      <span className="gba:text-sm gba:font-mono">
-                        {investment.isin || '-'}
-                      </span>
+                      <span className="gba:text-sm gba:font-mono">{investment.isin || '-'}</span>
                     </TableCell>
                   )}
                   {visibleColumns.includes('currency') && (
                     <TableCell>
-                      <Badge variant="outline">
-                        {investment.currency?.value || 'EUR'}
-                      </Badge>
+                      <Badge variant="outline">{investment.currency?.value || 'EUR'}</Badge>
                     </TableCell>
                   )}
                   {visibleColumns.includes('fundManager') && (
                     <TableCell>
-                      <span className="gba:text-sm">
-                        {investment.fundManagerName || '-'}
-                      </span>
+                      <span className="gba:text-sm">{investment.fundManagerName || '-'}</span>
                     </TableCell>
                   )}
                   {visibleColumns.includes('phase') && (
                     <TableCell>
-                      <Badge variant="outline">
-                        {investment.investmentPhase?.value || 'Unknown'}
-                      </Badge>
+                      <Badge variant="outline">{investment.investmentPhase?.value || 'Unknown'}</Badge>
                     </TableCell>
                   )}
                   {visibleColumns.includes('riskLevel') && (
                     <TableCell>
-                      <Badge variant={
-                        investment.investmentRiskLevel?.code === 'LOW' ? 'default' :
-                        investment.investmentRiskLevel?.code === 'MEDIUM' ? 'secondary' :
-                        investment.investmentRiskLevel?.code === 'HIGH' ? 'destructive' :
-                        'outline'
-                      }>
+                      <Badge
+                        variant={
+                          investment.investmentRiskLevel?.code === 'LOW'
+                            ? 'default'
+                            : investment.investmentRiskLevel?.code === 'MEDIUM'
+                              ? 'secondary'
+                              : investment.investmentRiskLevel?.code === 'HIGH'
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                      >
                         {investment.investmentRiskLevel?.value || 'Unknown'}
                       </Badge>
                     </TableCell>
@@ -547,7 +573,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                     </TableCell>
                   )}
                   {visibleColumns.includes('actions') && (
-                    <TableCell onClick={(e) => e.stopPropagation()}>
+                    <TableCell onClick={e => e.stopPropagation()}>
                       <div className="gba:flex gba:justify-start gba:gap-2">
                         <AppActionButton
                           data-testid={`all-investment-update-button-${investment.id}`}
@@ -558,7 +584,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                           accessToken={accessToken}
                           emptyStateBehavior="enable"
                           deferMainContextRequestsUntilClick={true}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={e => e.stopPropagation()}
                         />
                       </div>
                     </TableCell>
@@ -567,16 +593,13 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
               ))}
             </TableBody>
           </Table>
-          
+
           {/* Pagination */}
           <div
             className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-4 gba:border-t"
             data-testid="all-investments-pagination"
           >
-            <div
-              className="gba:text-sm gba:text-muted-foreground"
-              data-testid="all-investments-pagination-info"
-            >
+            <div className="gba:text-sm gba:text-muted-foreground" data-testid="all-investments-pagination-info">
               {`${(currentPage - 1) * pageSize + 1}-${Math.min(
                 currentPage * pageSize,
                 totalCount
@@ -587,7 +610,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
                 <p className="gba:text-sm gba:font-medium">Rows per page</p>
                 <select
                   value={pageSize}
-                  onChange={(e) => handlePaginationChange(1, Number(e.target.value))}
+                  onChange={e => handlePaginationChange(1, Number(e.target.value))}
                   className="gba:h-8 gba:w-[70px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
                   data-testid="all-investments-page-size-select"
                 >
@@ -628,9 +651,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = (context) => {
         </div>
       }
     />
-  );
-};
+  )
+}
 
-export default AllInvestmentsList;
-
-
+export default AllInvestmentsList

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,29 +9,33 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { PieChart, Pie, LabelList } from "recharts";
-import { ChartPieSliceIcon } from "@phosphor-icons/react";
-import pieChartData from "../../data/pieChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { PieChart, Pie, LabelList } from 'recharts'
+import { ChartPieSliceIcon } from '@phosphor-icons/react'
+import pieChartData from '../../data/pieChartData.json'
 
 interface PieChartLabelProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const PieChartLabel: React.FC<PieChartLabelProps> = ({ moduleColor }) => {
-  const chartData = pieChartData.label;
+  const chartData = pieChartData.label
 
-  const chartConfig = useMemo(() => ({
-    // Data dimension - used for pie sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    chrome: { label: "Chrome" },
-    safari: { label: "Safari" },
-    firefox: { label: "Firefox" },
-    edge: { label: "Edge" },
-    other: { label: "Other" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimension - used for pie sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        chrome: { label: 'Chrome' },
+        safari: { label: 'Safari' },
+        firefox: { label: 'Firefox' },
+        edge: { label: 'Edge' },
+        other: { label: 'Other' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="pie-chart-label">
@@ -43,22 +47,10 @@ const PieChartLabel: React.FC<PieChartLabelProps> = ({ moduleColor }) => {
         </div>
       </CardHeader>
       <CardContent className="gba:flex-1 gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <PieChart>
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
-            <Pie
-              data={chartData}
-              dataKey="visitors"
-              nameKey="browser"
-              innerRadius={0}
-              strokeWidth={5}
-            >
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <Pie data={chartData} dataKey="visitors" nameKey="browser" innerRadius={0} strokeWidth={5}>
               <LabelList
                 dataKey="browser"
                 className="gba:fill-background"
@@ -71,7 +63,7 @@ const PieChartLabel: React.FC<PieChartLabelProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default PieChartLabel;
+export default PieChartLabel

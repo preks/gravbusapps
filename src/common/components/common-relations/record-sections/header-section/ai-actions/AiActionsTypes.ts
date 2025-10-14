@@ -1,11 +1,11 @@
-import { UseInformationExtractionReturn } from '@/common/hooks/useInformationExtraction';
+import { UseInformationExtractionReturn } from '@/common/hooks/useInformationExtraction'
 
 /**
  * Standard schema for AI summary responses across all CRM entities
  */
 export interface AiSummaryContent {
-  summary: string;
-  keyInsights: string[];
+  summary: string
+  keyInsights: string[]
 }
 
 /**
@@ -13,36 +13,36 @@ export interface AiSummaryContent {
  */
 export interface AiActionConfig {
   /** Display name for the entity type (e.g., "investment", "lead", "account") */
-  entityType: string;
+  entityType: string
   /** Custom loading message for the specific entity type */
-  loadingMessage?: string;
+  loadingMessage?: string
   /** Custom loading subtitle for the specific entity type */
-  loadingSubtitle?: string;
+  loadingSubtitle?: string
   /** Custom empty state message */
-  emptyStateMessage?: string;
+  emptyStateMessage?: string
 }
 
 /**
  * Hook interface that must be implemented for each entity type
  */
-export type AiSummaryHook = UseInformationExtractionReturn<AiSummaryContent>;
+export type AiSummaryHook = UseInformationExtractionReturn<AiSummaryContent>
 
 /**
  * Individual AI action definition
  */
 export interface AiAction {
   /** Unique key for the action */
-  key: string;
+  key: string
   /** Display label for the action */
-  label: string;
+  label: string
   /** Icon to display with the action */
-  icon: React.ReactNode;
+  icon: React.ReactNode
   /** Hook that provides AI functionality for this action */
-  hook: AiSummaryHook;
+  hook: AiSummaryHook
   /** Configuration for this specific action */
-  config: AiActionConfig;
+  config: AiActionConfig
   /** Whether this action is currently disabled */
-  disabled?: boolean;
+  disabled?: boolean
 }
 
 /**
@@ -50,15 +50,15 @@ export interface AiAction {
  */
 export interface AiActionsProps {
   /** Array of AI actions to display */
-  actions: AiAction[];
+  actions: AiAction[]
   /** Custom test ID prefix for the button */
-  dataTestId?: string;
+  dataTestId?: string
   /** Custom button text (defaults to "AI Actions") */
-  buttonText?: string;
+  buttonText?: string
   /** Additional CSS classes for the button */
-  className?: string;
+  className?: string
   /** Button variant */
-  variant?: "default" | "secondary" | "outline" | "ghost";
+  variant?: 'default' | 'secondary' | 'outline' | 'ghost'
   /** Button size */
-  size?: "default" | "sm" | "lg" | "icon" | "iconSm" | "iconLg";
+  size?: 'default' | 'sm' | 'lg' | 'icon' | 'iconSm' | 'iconLg'
 }

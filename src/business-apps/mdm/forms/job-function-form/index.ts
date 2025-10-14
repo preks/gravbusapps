@@ -1,4 +1,4 @@
-import JobFunctionForm from './JobFunctionForm';
+import JobFunctionForm from './JobFunctionForm'
 
-export { JobFunctionForm };
-export default JobFunctionForm;
+export { JobFunctionForm }
+export default JobFunctionForm

@@ -1,8 +1,8 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import {  getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { showToast } from "@/business-apps/fin/expenses/utils/notificationUtils";
-import { formatDateWithTimezone } from "./utils/dateUtils";
-import useFlowClient from '@/common/network/flows/useFlowClient';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
+import { formatDateWithTimezone } from './utils/dateUtils'
+import useFlowClient from '@/common/network/flows/useFlowClient'
 
 /**
  * GraphQL query for fetching expense catalogue data
@@ -94,7 +94,7 @@ export const fetchExpenseCatalogueDataQuery = `
       costCenterId
     }
   }
-`;
+`
 
 /**
  * GraphQL query for fetching structure cost centers and projects
@@ -113,12 +113,11 @@ export const getStructureCostCenterQuery = `
       validTo
     }
   }
-`;
-
+`
 
 export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps, 'accessToken'>) => {
-  const flowClient = useFlowClient(contextProps);
-  
+  const flowClient = useFlowClient(contextProps)
+
   /**
    * Fetch employee rule data
    * @param employeeId Employee ID
@@ -127,18 +126,21 @@ export const useEmployeeRuleQuery = (contextProps: Pick<BusinessAppContextProps,
    */
   const fetchEmployeeRule = async (employeeId: string, date: string) => {
     try {
-      const formattedDate = formatDateWithTimezone(date);
-      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`;
-      
-      return await flowClient.getResource(path);
+      const formattedDate = formatDateWithTimezone(date)
+      const path = `employee-expense/getEmployeeRule/${employeeId}/${formattedDate}`
+
+      return await flowClient.getResource(path)
     } catch (error) {
       showToast(
-        getTranslationFromI18nKeyAndLabel("lowcoder:create_expense_type_item.process_error_data_fetch", "Error fetching data"),
-        "error"
-      );
-      return null;
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:create_expense_type_item.process_error_data_fetch',
+          'Error fetching data'
+        ),
+        'error'
+      )
+      return null
     }
-  };
-  
-  return { fetchEmployeeRule };
-};
+  }
+
+  return { fetchEmployeeRule }
+}

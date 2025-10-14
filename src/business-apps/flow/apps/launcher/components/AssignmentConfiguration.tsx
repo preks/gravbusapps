@@ -1,14 +1,25 @@
-import React from 'react';
-import { Card, CardHeader, CardContent, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Label } from '@newwork/nw-design-system';
-import { Users, User } from 'lucide-react';
-import { mockUsers } from '../../../data/mockUsers';
-import { ExecutionAssignment } from '../types';
+import React from 'react'
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label
+} from '@newwork/nw-design-system'
+import { Users, User } from 'lucide-react'
+import { mockUsers } from '../../../data/mockUsers'
+import { ExecutionAssignment } from '../types'
 
 interface AssignmentConfigurationProps {
-  assignments: ExecutionAssignment[];
-  onChange: (assignments: ExecutionAssignment[]) => void;
-  compact?: boolean;
-  'data-testid'?: string;
+  assignments: ExecutionAssignment[]
+  onChange: (assignments: ExecutionAssignment[]) => void
+  compact?: boolean
+  'data-testid'?: string
 }
 
 export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = ({
@@ -18,13 +29,13 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
   'data-testid': testId
 }) => {
   const handleAssignmentChange = (index: number, selectedUsers: string[]) => {
-    const updatedAssignments = [...assignments];
+    const updatedAssignments = [...assignments]
     updatedAssignments[index] = {
       ...updatedAssignments[index],
       assignedUsers: selectedUsers
-    };
-    onChange(updatedAssignments);
-  };
+    }
+    onChange(updatedAssignments)
+  }
 
   if (assignments.length === 0) {
     return compact ? (
@@ -43,7 +54,7 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
           </p>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   if (compact) {
@@ -63,101 +74,19 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
             </div>
             <div className="gba:space-y-3">
               <div>
-                <Label htmlFor={`assignment-${assignment.stepIndex}`} className="gba:text-sm gba:font-medium gba:text-gray-700">
+                <Label
+                  htmlFor={`assignment-${assignment.stepIndex}`}
+                  className="gba:text-sm gba:font-medium gba:text-gray-700"
+                >
                   Assign to users:
                 </Label>
                 <Select
                   value={assignment.assignedUsers.length > 0 ? assignment.assignedUsers[0] : ''}
-                  onValueChange={(value) => {
-                    handleAssignmentChange(index, value ? [value] : []);
+                  onValueChange={value => {
+                    handleAssignmentChange(index, value ? [value] : [])
                   }}
                 >
                   <SelectTrigger id={`assignment-${assignment.stepIndex}`} className="gba:w-full gba:mt-1">
-                    <SelectValue placeholder="Select users for this task" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mockUsers.map((user) => (
-                      <SelectItem key={user.id} value={user.id}>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <User className="gba:h-4 gba:w-4 gba:text-gray-500" />
-                          <span>{user.name}</span>
-                          <span className="gba:text-xs gba:text-gray-500">({user.role})</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {assignment.assignedUsers.length > 0 && (
-                <div>
-                  <p className="gba:text-xs gba:font-medium gba:text-gray-700 gba:mb-2">Selected users:</p>
-                  <div className="gba:flex gba:gap-2 gba:flex-wrap">
-                    {assignment.assignedUsers.map((userId) => {
-                      const user = mockUsers.find((u) => u.id === userId);
-                      return user ? (
-                        <Badge key={userId} variant="secondary" className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs">
-                          {user.name}
-                        </Badge>
-                      ) : null;
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <Card className="gba:shadow-sm gba:border gba:border-gray-200 gba:bg-white" data-testid={testId}>
-      <CardHeader className="gba:pb-3">
-        <div className="gba:flex gba:items-center gba:gap-3">
-          <div className="gba:p-2 gba:bg-blue-50 gba:rounded-lg">
-            <Users className="gba:h-5 gba:w-5 gba:text-blue-600" />
-          </div>
-          <div>
-            <h3 className="gba:text-base gba:font-medium gba:text-gray-900">
-              Task Assignments
-            </h3>
-            <p className="gba:text-sm gba:text-gray-600">
-              Configure who should be assigned to each task in this workflow.
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="gba:pt-0 gba:space-y-4">
-        {assignments.map((assignment, index) => (
-          <div 
-            key={assignment.stepIndex}
-            className="gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:bg-gray-50"
-            data-testid={`${testId}-assignment-${assignment.stepIndex}`}
-          >
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-              <h4 className="gba:font-medium gba:text-sm gba:text-gray-900">
-                {assignment.stepTitle}
-              </h4>
-              <Badge variant="outline" className="gba:text-xs gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200">
-                {assignment.assignmentMode} Mode
-              </Badge>
-            </div>
-            
-            <div className="gba:space-y-3">
-              <div>
-                <Label htmlFor={`assignment-${assignment.stepIndex}`} className="gba:text-sm gba:font-medium gba:text-gray-700">
-                  Assign to users:
-                </Label>
-                <Select
-                  value={assignment.assignedUsers.length > 0 ? assignment.assignedUsers[0] : ''}
-                  onValueChange={(value) => {
-                    handleAssignmentChange(index, value ? [value] : []);
-                  }}
-                >
-                  <SelectTrigger 
-                    id={`assignment-${assignment.stepIndex}`}
-                    className="gba:w-full gba:mt-1"
-                  >
                     <SelectValue placeholder="Select users for this task" />
                   </SelectTrigger>
                   <SelectContent>
@@ -173,24 +102,107 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
                   </SelectContent>
                 </Select>
               </div>
-              
               {assignment.assignedUsers.length > 0 && (
                 <div>
-                  <p className="gba:text-xs gba:font-medium gba:text-gray-700 gba:mb-2">
-                    Selected users:
-                  </p>
+                  <p className="gba:text-xs gba:font-medium gba:text-gray-700 gba:mb-2">Selected users:</p>
                   <div className="gba:flex gba:gap-2 gba:flex-wrap">
                     {assignment.assignedUsers.map(userId => {
-                      const user = mockUsers.find(u => u.id === userId);
+                      const user = mockUsers.find(u => u.id === userId)
                       return user ? (
-                        <Badge 
+                        <Badge
                           key={userId}
                           variant="secondary"
                           className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs"
                         >
                           {user.name}
                         </Badge>
-                      ) : null;
+                      ) : null
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="gba:shadow-sm gba:border gba:border-gray-200 gba:bg-white" data-testid={testId}>
+      <CardHeader className="gba:pb-3">
+        <div className="gba:flex gba:items-center gba:gap-3">
+          <div className="gba:p-2 gba:bg-blue-50 gba:rounded-lg">
+            <Users className="gba:h-5 gba:w-5 gba:text-blue-600" />
+          </div>
+          <div>
+            <h3 className="gba:text-base gba:font-medium gba:text-gray-900">Task Assignments</h3>
+            <p className="gba:text-sm gba:text-gray-600">
+              Configure who should be assigned to each task in this workflow.
+            </p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="gba:pt-0 gba:space-y-4">
+        {assignments.map((assignment, index) => (
+          <div
+            key={assignment.stepIndex}
+            className="gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:bg-gray-50"
+            data-testid={`${testId}-assignment-${assignment.stepIndex}`}
+          >
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+              <h4 className="gba:font-medium gba:text-sm gba:text-gray-900">{assignment.stepTitle}</h4>
+              <Badge variant="outline" className="gba:text-xs gba:bg-blue-50 gba:text-blue-700 gba:border-blue-200">
+                {assignment.assignmentMode} Mode
+              </Badge>
+            </div>
+
+            <div className="gba:space-y-3">
+              <div>
+                <Label
+                  htmlFor={`assignment-${assignment.stepIndex}`}
+                  className="gba:text-sm gba:font-medium gba:text-gray-700"
+                >
+                  Assign to users:
+                </Label>
+                <Select
+                  value={assignment.assignedUsers.length > 0 ? assignment.assignedUsers[0] : ''}
+                  onValueChange={value => {
+                    handleAssignmentChange(index, value ? [value] : [])
+                  }}
+                >
+                  <SelectTrigger id={`assignment-${assignment.stepIndex}`} className="gba:w-full gba:mt-1">
+                    <SelectValue placeholder="Select users for this task" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockUsers.map(user => (
+                      <SelectItem key={user.id} value={user.id}>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <User className="gba:h-4 gba:w-4 gba:text-gray-500" />
+                          <span>{user.name}</span>
+                          <span className="gba:text-xs gba:text-gray-500">({user.role})</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {assignment.assignedUsers.length > 0 && (
+                <div>
+                  <p className="gba:text-xs gba:font-medium gba:text-gray-700 gba:mb-2">Selected users:</p>
+                  <div className="gba:flex gba:gap-2 gba:flex-wrap">
+                    {assignment.assignedUsers.map(userId => {
+                      const user = mockUsers.find(u => u.id === userId)
+                      return user ? (
+                        <Badge
+                          key={userId}
+                          variant="secondary"
+                          className="gba:bg-blue-100 gba:text-blue-800 gba:text-xs"
+                        >
+                          {user.name}
+                        </Badge>
+                      ) : null
                     })}
                   </div>
                 </div>
@@ -200,5 +212,5 @@ export const AssignmentConfiguration: React.FC<AssignmentConfigurationProps> = (
         ))}
       </CardContent>
     </Card>
-  );
-};
+  )
+}

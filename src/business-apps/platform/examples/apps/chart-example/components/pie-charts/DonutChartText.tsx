@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,33 +9,37 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { PieChart, Pie } from "recharts";
-import { CircleHalfIcon } from "@phosphor-icons/react";
-import pieChartData from "../../data/pieChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { PieChart, Pie } from 'recharts'
+import { CircleHalfIcon } from '@phosphor-icons/react'
+import pieChartData from '../../data/pieChartData.json'
 
 interface DonutChartTextProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const DonutChartText: React.FC<DonutChartTextProps> = ({ moduleColor }) => {
-  const chartData = pieChartData.donutText;
-  
-  const totalVisitors = useMemo(() => {
-    return chartData.reduce((acc, curr) => acc + curr.visitors, 0);
-  }, [chartData]);
+  const chartData = pieChartData.donutText
 
-  const chartConfig = useMemo(() => ({
-    // Data dimension - used for pie sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    chrome: { label: "Chrome" },
-    safari: { label: "Safari" },
-    firefox: { label: "Firefox" },
-    edge: { label: "Edge" },
-    other: { label: "Other" },
-  }) satisfies ChartConfig, []);
+  const totalVisitors = useMemo(() => {
+    return chartData.reduce((acc, curr) => acc + curr.visitors, 0)
+  }, [chartData])
+
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimension - used for pie sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        chrome: { label: 'Chrome' },
+        safari: { label: 'Safari' },
+        firefox: { label: 'Firefox' },
+        edge: { label: 'Edge' },
+        other: { label: 'Other' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="donut-chart-text">
@@ -47,22 +51,10 @@ const DonutChartText: React.FC<DonutChartTextProps> = ({ moduleColor }) => {
         </div>
       </CardHeader>
       <CardContent className="gba:flex-1 gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <PieChart>
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
-            <Pie
-              data={chartData}
-              dataKey="visitors"
-              nameKey="browser"
-              innerRadius={60}
-              strokeWidth={5}
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <Pie data={chartData} dataKey="visitors" nameKey="browser" innerRadius={60} strokeWidth={5} />
             {/* Center text */}
             <text
               x="50%"
@@ -87,7 +79,7 @@ const DonutChartText: React.FC<DonutChartTextProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default DonutChartText;
+export default DonutChartText

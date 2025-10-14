@@ -1,61 +1,79 @@
-import React, { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, Button, Checkbox, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis } from "recharts";
-import { ChartLineIcon, CalendarIcon, EyeIcon } from "@phosphor-icons/react";
+import React, { useState, useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Checkbox,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis } from 'recharts'
+import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
 
-export type TimeFilter = "month" | "quarter" | "year" | "historical";
+export type TimeFilter = 'month' | 'quarter' | 'year' | 'historical'
 
 export interface ContactsOverTimePoint {
-  date: string;
-  count: number;
-  cumulative: number;
+  date: string
+  count: number
+  cumulative: number
 }
 
 export interface ContactLifecycleChartProps {
-  data: ContactsOverTimePoint[];
-  selectedTimeFilter: TimeFilter;
-  onTimeFilterChange: (filter: TimeFilter) => void;
-  moduleColor?: string;
+  data: ContactsOverTimePoint[]
+  selectedTimeFilter: TimeFilter
+  onTimeFilterChange: (filter: TimeFilter) => void
+  moduleColor?: string
 }
 
 const timeFilterOptions = [
-  { key: "month" as TimeFilter, label: "Last Month" },
-  { key: "quarter" as TimeFilter, label: "Last Quarter" },
-  { key: "year" as TimeFilter, label: "Last Year" },
-  { key: "historical" as TimeFilter, label: "Historical" },
-];
+  { key: 'month' as TimeFilter, label: 'Last Month' },
+  { key: 'quarter' as TimeFilter, label: 'Last Quarter' },
+  { key: 'year' as TimeFilter, label: 'Last Year' },
+  { key: 'historical' as TimeFilter, label: 'Historical' }
+]
 
 export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
   data,
   selectedTimeFilter,
   onTimeFilterChange,
-  moduleColor = "default",
+  moduleColor = 'default'
 }) => {
   // Remove unused variable warning
-  const _ = moduleColor;
+  const _ = moduleColor
   const [visibleLines, setVisibleLines] = useState({
     totalContacts: true,
-    accountLinked: true,
-  });
+    accountLinked: true
+  })
 
   const lineOptions = [
-    { key: "totalContacts" as keyof typeof visibleLines, label: "Monthly Created", dataKey: "count" },
-    { key: "accountLinked" as keyof typeof visibleLines, label: "Cumulative Total", dataKey: "cumulative" },
-  ];
+    { key: 'totalContacts' as keyof typeof visibleLines, label: 'Monthly Created', dataKey: 'count' },
+    { key: 'accountLinked' as keyof typeof visibleLines, label: 'Cumulative Total', dataKey: 'cumulative' }
+  ]
 
   const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
-    setVisibleLines(prev => ({ ...prev, [lineKey]: !prev[lineKey] }));
-  };
+    setVisibleLines(prev => ({ ...prev, [lineKey]: !prev[lineKey] }))
+  }
 
   const formatXAxisLabel = (value: string) => {
-    const date = new Date(value);
-    if (selectedTimeFilter === "month") {
-      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const date = new Date(value)
+    if (selectedTimeFilter === 'month') {
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     }
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-  };
+    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  }
 
-  const chartData = data;
+  const chartData = data
 
   return (
     <Card data-testid="contact-lifecycle-chart">
@@ -72,7 +90,7 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {timeFilterOptions.map((option) => (
+                  {timeFilterOptions.map(option => (
                     <SelectItem key={option.key} value={option.key}>
                       {option.label}
                     </SelectItem>
@@ -83,10 +101,10 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2">
               <CalendarIcon size={16} className="gba:text-gray-500" />
               <div className="gba:flex gba:gap-1" data-testid="contact-time-filters">
-                {timeFilterOptions.map((option) => (
+                {timeFilterOptions.map(option => (
                   <Button
                     key={option.key}
-                    variant={selectedTimeFilter === option.key ? "default" : "outline"}
+                    variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => onTimeFilterChange(option.key)}
                     data-testid={`contact-filter-${option.key}`}
@@ -105,17 +123,17 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Lines:</span>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid="contact-line-filters">
-              {lineOptions.map((line) => (
+              {lineOptions.map(line => (
                 <label
                   key={line.key}
                   className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
                   data-testid={`contact-line-filter-${line.key}`}
                 >
-                  <Checkbox
-                    checked={visibleLines[line.key]}
-                    onCheckedChange={() => toggleLineVisibility(line.key)}
+                  <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => toggleLineVisibility(line.key)} />
+                  <div
+                    className="gba:w-3 gba:h-3 gba:rounded"
+                    style={{ backgroundColor: `var(--color-${line.dataKey})` }}
                   />
-                  <div className="gba:w-3 gba:h-3 gba:rounded" style={{ backgroundColor: `var(--color-${line.dataKey})` }} />
                   <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
                 </label>
               ))}
@@ -134,10 +152,13 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
           </div>
         ) : (
           <ChartContainer
-            config={useMemo(() => ({
-              count: { label: "Monthly Created" },
-              cumulative: { label: "Cumulative Total" },
-            }), [])}
+            config={useMemo(
+              () => ({
+                count: { label: 'Monthly Created' },
+                cumulative: { label: 'Cumulative Total' }
+              }),
+              []
+            )}
             className="gba:h-[400px] gba:w-full"
             data-testid="contact-lifecycle-chart-container"
           >
@@ -175,7 +196,7 @@ export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default ContactLifecycleChart;
+export default ContactLifecycleChart

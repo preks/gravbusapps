@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -12,8 +12,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox,
-} from '@newwork/nw-design-system';
+  Checkbox
+} from '@newwork/nw-design-system'
 import {
   PiTrendUp,
   PiTrendDown,
@@ -22,13 +22,13 @@ import {
   PiCurrencyDollar,
   PiChartLine,
   PiRanking,
-  PiArrowRight,
-} from 'react-icons/pi';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils';
-import { TeamInfo } from '../../types/userRoles';
-import { useTeamPerformanceData } from '../../hooks/useTeamPerformanceData';
+  PiArrowRight
+} from 'react-icons/pi'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { formatCurrency } from '@/business-apps/crm/common/utils/currencyUtils'
+import { TeamInfo } from '../../types/userRoles'
+import { useTeamPerformanceData } from '../../hooks/useTeamPerformanceData'
 import {
   BarChart,
   Bar,
@@ -43,69 +43,69 @@ import {
   Cell,
   ComposedChart,
   Area,
-  AreaChart,
-} from 'recharts';
+  AreaChart
+} from 'recharts'
 
-const DATA_TEST_ID_PREFIX = 'CEOTeamComparison';
+const DATA_TEST_ID_PREFIX = 'CEOTeamComparison'
 
 interface CEOTeamComparisonDashboardProps extends BusinessAppContextProps {
-  availableTeams: TeamInfo[];
-  onTeamSelect?: (teamId: string, teamName: string) => void;
+  availableTeams: TeamInfo[]
+  onTeamSelect?: (teamId: string, teamName: string) => void
 }
 
-type ComparisonMetric = 'revenue' | 'winRate' | 'activities' | 'pipeline' | 'efficiency';
+type ComparisonMetric = 'revenue' | 'winRate' | 'activities' | 'pipeline' | 'efficiency'
 
 export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProps> = ({
   availableTeams,
   onTeamSelect,
-  accessToken,
+  accessToken
 }) => {
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([]);
-  const [comparisonMetric, setComparisonMetric] = useState<ComparisonMetric>('revenue');
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([])
+  const [comparisonMetric, setComparisonMetric] = useState<ComparisonMetric>('revenue')
 
   // Initialize with first 3 teams selected
   useEffect(() => {
     if (availableTeams.length > 0 && selectedTeams.length === 0) {
-      setSelectedTeams(availableTeams.slice(0, Math.min(3, availableTeams.length)).map(t => t.id));
+      setSelectedTeams(availableTeams.slice(0, Math.min(3, availableTeams.length)).map(t => t.id))
     }
-  }, [availableTeams, selectedTeams.length]);
+  }, [availableTeams, selectedTeams.length])
 
   // Prepare selected teams data for the hook
   const selectedTeamsData = useMemo(() => {
-    return selectedTeams.map(teamId => {
-      const team = availableTeams.find(t => t.id === teamId);
-      return team; // Return the full TeamInfo object since it now has memberIds
-    }).filter(team => team && team.memberIds.length > 0) as TeamInfo[]; // Only include teams with members
-  }, [selectedTeams, availableTeams]);
+    return selectedTeams
+      .map(teamId => {
+        const team = availableTeams.find(t => t.id === teamId)
+        return team // Return the full TeamInfo object since it now has memberIds
+      })
+      .filter(team => team && team.memberIds.length > 0) as TeamInfo[] // Only include teams with members
+  }, [selectedTeams, availableTeams])
 
   // Fetch real team performance data
   const { teamsData, isLoading, error, refetch } = useTeamPerformanceData({
     accessToken,
-    teams: selectedTeamsData,
-  });
-
-
+    teams: selectedTeamsData
+  })
 
   // Handle team selection
   const handleTeamSelection = (teamId: string, checked: boolean) => {
     if (checked) {
-      setSelectedTeams(prev => [...prev, teamId]);
+      setSelectedTeams(prev => [...prev, teamId])
     } else {
-      setSelectedTeams(prev => prev.filter(id => id !== teamId));
+      setSelectedTeams(prev => prev.filter(id => id !== teamId))
     }
-  };
+  }
 
   // Create company-wide KPI widgets
   const createCompanyKPIWidgets = (): WidgetItem[] => {
-    if (teamsData.length === 0) return [];
+    if (teamsData.length === 0) return []
 
-    const totalRevenue = teamsData.reduce((sum, team) => sum + team.totalRevenue, 0);
-    const avgWinRate = teamsData.reduce((sum, team) => sum + team.winRate, 0) / teamsData.length;
-    const totalActivities = teamsData.reduce((sum, team) => sum + team.totalActivities, 0);
-    const totalPipeline = teamsData.reduce((sum, team) => sum + team.pipelineValue, 0);
-    
+    const totalRevenue = teamsData.reduce((sum, team) => sum + team.totalRevenue, 0)
+    const avgWinRate = teamsData.reduce((sum, team) => sum + team.winRate, 0) / teamsData.length
+    const totalActivities = teamsData.reduce((sum, team) => sum + team.totalActivities, 0)
+    const totalPipeline = teamsData.reduce((sum, team) => sum + team.pipelineValue, 0)
+
     // Get currency code from the first team (all teams should use same currency)
-    const currencyCode = teamsData.length > 0 ? teamsData[0].currencyCode : 'EUR';
+    const currencyCode = teamsData.length > 0 ? teamsData[0].currencyCode : 'EUR'
 
     return [
       {
@@ -115,7 +115,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         prefix: <PiCurrencyDollar />,
         color: '#10b981',
         description: `Across ${teamsData.length} selected teams`,
-        valueIsString: true,
+        valueIsString: true
       },
       {
         key: 'company-win-rate',
@@ -125,7 +125,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         color: '#1677ff',
         description: 'Company-wide average',
         precision: 1,
-        suffix: '%',
+        suffix: '%'
       },
       {
         key: 'company-activities',
@@ -133,7 +133,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         value: totalActivities,
         prefix: <PiUsers />,
         color: '#722ed1',
-        description: 'All team activities combined',
+        description: 'All team activities combined'
       },
       {
         key: 'company-pipeline',
@@ -142,10 +142,10 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         prefix: <PiChartLine />,
         color: '#ff9500',
         description: 'Company-wide pipeline',
-        valueIsString: true,
-      },
-    ];
-  };
+        valueIsString: true
+      }
+    ]
+  }
 
   // Prepare chart data
   const chartData = useMemo(() => {
@@ -156,36 +156,48 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
       winRate: team.winRate,
       activities: team.totalActivities,
       pipeline: team.pipelineValue / 1000,
-      efficiency: team.averageRevenuePerMember / 1000,
-    }));
-  }, [teamsData]);
+      efficiency: team.averageRevenuePerMember / 1000
+    }))
+  }, [teamsData])
 
   const getMetricLabel = (metric: ComparisonMetric): string => {
     switch (metric) {
-      case 'revenue': return 'Revenue (K)';
-      case 'winRate': return 'Win Rate (%)';
-      case 'activities': return 'Activities';
-      case 'pipeline': return 'Pipeline (K)';
-      case 'efficiency': return 'Revenue per Member (K)';
-      default: return 'Revenue (K)';
+      case 'revenue':
+        return 'Revenue (K)'
+      case 'winRate':
+        return 'Win Rate (%)'
+      case 'activities':
+        return 'Activities'
+      case 'pipeline':
+        return 'Pipeline (K)'
+      case 'efficiency':
+        return 'Revenue per Member (K)'
+      default:
+        return 'Revenue (K)'
     }
-  };
+  }
 
   const getMetricColor = (metric: ComparisonMetric): string => {
     switch (metric) {
-      case 'revenue': return '#10b981';
-      case 'winRate': return '#1677ff';
-      case 'activities': return '#722ed1';
-      case 'pipeline': return '#ff9500';
-      case 'efficiency': return '#f59e0b';
-      default: return '#10b981';
+      case 'revenue':
+        return '#10b981'
+      case 'winRate':
+        return '#1677ff'
+      case 'activities':
+        return '#722ed1'
+      case 'pipeline':
+        return '#ff9500'
+      case 'efficiency':
+        return '#f59e0b'
+      default:
+        return '#10b981'
     }
-  };
+  }
 
   // Enhanced activities chart data
   const activitiesChartData = useMemo(() => {
-    if (comparisonMetric !== 'activities') return [];
-    
+    if (comparisonMetric !== 'activities') return []
+
     return teamsData.map(team => ({
       name: team.teamName.length > 12 ? team.teamName.substring(0, 10) + '...' : team.teamName,
       fullName: team.teamName,
@@ -196,30 +208,31 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
       emails: Math.round(team.totalActivities * 0.3),
       meetings: Math.round(team.totalActivities * 0.2),
       tasks: Math.round(team.totalActivities * 0.1),
-      efficiency: Math.round((team.totalRevenue / Math.max(team.totalActivities, 1)) / 1000), // Revenue per activity (K)
-    }));
-  }, [teamsData, comparisonMetric]);
+      efficiency: Math.round(team.totalRevenue / Math.max(team.totalActivities, 1) / 1000) // Revenue per activity (K)
+    }))
+  }, [teamsData, comparisonMetric])
 
   // Activity type breakdown data for pie chart
   const activityTypeData = useMemo(() => {
-    if (comparisonMetric !== 'activities' || activitiesChartData.length === 0) return [];
-    
-    const totals = activitiesChartData.reduce((acc, team) => ({
-      calls: acc.calls + team.calls,
-      emails: acc.emails + team.emails,
-      meetings: acc.meetings + team.meetings,
-      tasks: acc.tasks + team.tasks,
-    }), { calls: 0, emails: 0, meetings: 0, tasks: 0 });
+    if (comparisonMetric !== 'activities' || activitiesChartData.length === 0) return []
+
+    const totals = activitiesChartData.reduce(
+      (acc, team) => ({
+        calls: acc.calls + team.calls,
+        emails: acc.emails + team.emails,
+        meetings: acc.meetings + team.meetings,
+        tasks: acc.tasks + team.tasks
+      }),
+      { calls: 0, emails: 0, meetings: 0, tasks: 0 }
+    )
 
     return [
       { name: 'Calls', value: totals.calls, color: '#10b981' },
       { name: 'Emails', value: totals.emails, color: '#1677ff' },
       { name: 'Meetings', value: totals.meetings, color: '#f59e0b' },
-      { name: 'Tasks', value: totals.tasks, color: '#ef4444' },
-    ];
-  }, [activitiesChartData, comparisonMetric]);
-
-
+      { name: 'Tasks', value: totals.tasks, color: '#ef4444' }
+    ]
+  }, [activitiesChartData, comparisonMetric])
 
   if (error) {
     return (
@@ -242,41 +255,38 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
           </div>
         </Alert>
       </div>
-    );
+    )
   }
 
   console.log('CEO Dashboard render states:', {
     isLoading,
     teamsDataCount: teamsData.length,
     selectedTeamsCount: selectedTeams.length,
-    teamsDataSample: teamsData.length > 0 ? {
-      firstTeam: {
-        name: teamsData[0].teamName,
-        revenue: teamsData[0].totalRevenue,
-        activities: teamsData[0].totalActivities,
-        memberCount: teamsData[0].memberCount,
-        winRate: teamsData[0].winRate
-      }
-    } : null,
+    teamsDataSample:
+      teamsData.length > 0
+        ? {
+            firstTeam: {
+              name: teamsData[0].teamName,
+              revenue: teamsData[0].totalRevenue,
+              activities: teamsData[0].totalActivities,
+              memberCount: teamsData[0].memberCount,
+              winRate: teamsData[0].winRate
+            }
+          }
+        : null,
     selectedTeamsDataCount: selectedTeamsData.length
-  });
+  })
 
   return (
-    <div
-      className="gba:bg-white gba:min-h-screen gba:p-6 gba:space-y-6"
-      data-testid={DATA_TEST_ID_PREFIX}
-    >
-
+    <div className="gba:bg-white gba:min-h-screen gba:p-6 gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
       {/* Header Section */}
-      <div 
+      <div
         className="gba:bg-gradient-to-r gba:from-purple-50 gba:to-indigo-50 gba:rounded-lg gba:p-6"
         data-testid={`${DATA_TEST_ID_PREFIX}-header`}
       >
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:mb-2">
-              Cross-Team Performance Analysis
-            </h1>
+            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:mb-2">Cross-Team Performance Analysis</h1>
             <p className="gba:text-gray-600">
               Compare performance across sales teams and identify strategic opportunities
             </p>
@@ -289,10 +299,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
       </div>
 
       {/* Company Overview KPIs - Moved Above */}
-      <div 
-        className="gba:mb-8"
-        data-testid={`${DATA_TEST_ID_PREFIX}-kpi-section`}
-      >
+      <div className="gba:mb-8" data-testid={`${DATA_TEST_ID_PREFIX}-kpi-section`}>
         <WidgetGroup
           widgets={createCompanyKPIWidgets()}
           isLoading={isLoading}
@@ -319,18 +326,14 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                     <Checkbox
                       id={`team-${team.id}`}
                       checked={selectedTeams.includes(team.id)}
-                      onCheckedChange={(checked) => 
-                        handleTeamSelection(team.id, checked as boolean)
-                      }
+                      onCheckedChange={checked => handleTeamSelection(team.id, checked as boolean)}
                     />
-                    <label 
+                    <label
                       htmlFor={`team-${team.id}`}
                       className="gba:text-sm gba:font-medium gba:cursor-pointer gba:flex-1"
                     >
                       {team.name}
-                      <span className="gba:text-gray-500 gba:ml-2">
-                        ({team.memberCount} members)
-                      </span>
+                      <span className="gba:text-gray-500 gba:ml-2">({team.memberCount} members)</span>
                     </label>
                   </div>
                 ))
@@ -364,9 +367,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                 <SelectItem value="efficiency">Revenue per Member</SelectItem>
               </SelectContent>
             </Select>
-            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">
-              Teams will be ranked by this metric
-            </p>
+            <p className="gba:text-sm gba:text-gray-600 gba:mt-2">Teams will be ranked by this metric</p>
           </CardContent>
         </Card>
       </div>
@@ -393,8 +394,8 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={activitiesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="name" 
+                      <XAxis
+                        dataKey="name"
                         tick={{ fontSize: 11 }}
                         interval={0}
                         angle={-45}
@@ -402,15 +403,15 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                         height={60}
                       />
                       <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value, name) => {
-                          if (name === 'totalActivities') return [value, 'Total Activities'];
-                          if (name === 'activitiesPerMember') return [value, 'Activities per Member'];
-                          return [value, name];
+                          if (name === 'totalActivities') return [value, 'Total Activities']
+                          if (name === 'activitiesPerMember') return [value, 'Activities per Member']
+                          return [value, name]
                         }}
-                        labelFormatter={(label) => {
-                          const team = activitiesChartData.find(d => d.name === label);
-                          return team?.fullName || label;
+                        labelFormatter={label => {
+                          const team = activitiesChartData.find(d => d.name === label)
+                          return team?.fullName || label
                         }}
                       />
                       <Bar dataKey="totalActivities" fill="#722ed1" radius={[4, 4, 0, 0]} />
@@ -449,7 +450,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value) => [value, 'Activities']} />
+                        <Tooltip formatter={value => [value, 'Activities']} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
@@ -477,8 +478,8 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                   <ResponsiveContainer width="100%" height={300}>
                     <ComposedChart data={activitiesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="name" 
+                      <XAxis
+                        dataKey="name"
                         tick={{ fontSize: 11 }}
                         interval={0}
                         angle={-45}
@@ -487,15 +488,15 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                       />
                       <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
                       <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value, name) => {
-                          if (name === 'totalActivities') return [value, 'Total Activities'];
-                          if (name === 'efficiency') return [`€${value}K`, 'Revenue per Activity'];
-                          return [value, name];
+                          if (name === 'totalActivities') return [value, 'Total Activities']
+                          if (name === 'efficiency') return [`€${value}K`, 'Revenue per Activity']
+                          return [value, name]
                         }}
-                        labelFormatter={(label) => {
-                          const team = activitiesChartData.find(d => d.name === label);
-                          return team?.fullName || label;
+                        labelFormatter={label => {
+                          const team = activitiesChartData.find(d => d.name === label)
+                          return team?.fullName || label
                         }}
                       />
                       <Bar yAxisId="left" dataKey="totalActivities" fill="#722ed1" />
@@ -523,8 +524,8 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                   <ResponsiveContainer width="100%" height={300}>
                     <AreaChart data={activitiesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="name" 
+                      <XAxis
+                        dataKey="name"
                         tick={{ fontSize: 11 }}
                         interval={0}
                         angle={-45}
@@ -532,18 +533,18 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                         height={60}
                       />
                       <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip 
-                        formatter={(value) => [value, 'Activities per Member']}
-                        labelFormatter={(label) => {
-                          const team = activitiesChartData.find(d => d.name === label);
-                          return team?.fullName || label;
+                      <Tooltip
+                        formatter={value => [value, 'Activities per Member']}
+                        labelFormatter={label => {
+                          const team = activitiesChartData.find(d => d.name === label)
+                          return team?.fullName || label
                         }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="activitiesPerMember" 
-                        stroke="#ff9500" 
-                        fill="#ff9500" 
+                      <Area
+                        type="monotone"
+                        dataKey="activitiesPerMember"
+                        stroke="#ff9500"
+                        fill="#ff9500"
                         fillOpacity={0.3}
                       />
                     </AreaChart>
@@ -573,23 +574,16 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
               <ResponsiveContainer width="100%" height={400}>
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fontSize: 12 }}
-                    interval={0}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} interval={0} angle={-45} textAnchor="end" height={80} />
                   <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip 
-                    formatter={(value) => [value, getMetricLabel(comparisonMetric)]}
-                    labelFormatter={(label) => {
-                      const team = chartData.find(d => d.name === label);
-                      return team?.fullName || label;
+                  <Tooltip
+                    formatter={value => [value, getMetricLabel(comparisonMetric)]}
+                    labelFormatter={label => {
+                      const team = chartData.find(d => d.name === label)
+                      return team?.fullName || label
                     }}
                   />
-                  <Bar 
+                  <Bar
                     dataKey={comparisonMetric === 'winRate' ? 'winRate' : comparisonMetric}
                     fill={getMetricColor(comparisonMetric)}
                     radius={[4, 4, 0, 0]}
@@ -626,27 +620,28 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                   </tr>
                 </thead>
                 <tbody>
-                  {teamsData.map((team) => (
-                    <tr 
-                      key={team.teamId}
-                      className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors"
-                    >
+                  {teamsData.map(team => (
+                    <tr key={team.teamId} className="gba:border-b gba:hover:bg-gray-50 gba:transition-colors">
                       <td className="gba:p-3">
-                        <div className={`
+                        <div
+                          className={`
                           gba:w-8 gba:h-8 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-sm gba:font-bold
-                          ${team.ranking === 1 ? 'gba:bg-yellow-100 gba:text-yellow-800' : 
-                            team.ranking <= 3 ? 'gba:bg-blue-100 gba:text-blue-800' : 
-                            'gba:bg-gray-100 gba:text-gray-600'}
-                        `}>
+                          ${
+                            team.ranking === 1
+                              ? 'gba:bg-yellow-100 gba:text-yellow-800'
+                              : team.ranking <= 3
+                                ? 'gba:bg-blue-100 gba:text-blue-800'
+                                : 'gba:bg-gray-100 gba:text-gray-600'
+                          }
+                        `}
+                        >
                           {team.ranking}
                         </div>
                       </td>
                       <td className="gba:p-3">
                         <div>
                           <div className="gba:font-medium">{team.teamName}</div>
-                          <div className="gba:text-sm gba:text-gray-500">
-                            {team.memberCount} members
-                          </div>
+                          <div className="gba:text-sm gba:text-gray-500">{team.memberCount} members</div>
                         </div>
                       </td>
                       <td className="gba:p-3">{formatCurrency(team.totalRevenue)}</td>
@@ -662,12 +657,18 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                           ) : (
                             <div className="gba:w-4 gba:h-4 gba:bg-gray-400 gba:rounded-full"></div>
                           )}
-                          <span className={`
+                          <span
+                            className={`
                             gba:text-sm
-                            ${team.trend === 'up' ? 'gba:text-green-600' : 
-                              team.trend === 'down' ? 'gba:text-red-600' : 
-                              'gba:text-gray-600'}
-                          `}>
+                            ${
+                              team.trend === 'up'
+                                ? 'gba:text-green-600'
+                                : team.trend === 'down'
+                                  ? 'gba:text-red-600'
+                                  : 'gba:text-gray-600'
+                            }
+                          `}
+                          >
                             {team.trendPercentage.toFixed(1)}%
                           </span>
                         </div>
@@ -692,7 +693,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         </Card>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default CEOTeamComparisonDashboard;
+export default CEOTeamComparisonDashboard

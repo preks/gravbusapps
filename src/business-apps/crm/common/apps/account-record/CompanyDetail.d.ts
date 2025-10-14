@@ -1,8 +1,8 @@
-import React from 'react';
+import React from 'react'
 
 interface CompanyDetailProps {
-  companyId?: string;
+  companyId?: string
 }
 
-declare const CompanyDetail: React.FC<CompanyDetailProps>;
-export default CompanyDetail;
+declare const CompanyDetail: React.FC<CompanyDetailProps>
+export default CompanyDetail

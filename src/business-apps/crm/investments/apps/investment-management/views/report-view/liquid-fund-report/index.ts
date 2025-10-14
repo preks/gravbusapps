@@ -1,1 +1,1 @@
-export { LiquidFundReport } from './LiquidFundReport';
+export { LiquidFundReport } from './LiquidFundReport'

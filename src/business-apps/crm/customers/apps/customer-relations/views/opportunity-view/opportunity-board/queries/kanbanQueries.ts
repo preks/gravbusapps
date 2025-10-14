@@ -21,7 +21,7 @@ export const GET_OPPORTUNITIES = `
       salesPipelineStageRef
     }
   }
-`;
+`
 
 export const GET_PIPELINES = `
   query GetPipelines {
@@ -32,7 +32,7 @@ export const GET_PIPELINES = `
       isDefault
     }
   }
-`;
+`
 
 export const GET_PIPELINE_STAGES = `
   query GetPipelineStages($pipelineId: String!) {
@@ -46,7 +46,7 @@ export const GET_PIPELINE_STAGES = `
       order
     }
   }
-`;
+`
 
 export const GET_PIPELINE_OPPORTUNITIES = `
   query GetPipelineOpportunities($pipelineRef: String!) {
@@ -67,7 +67,7 @@ export const GET_PIPELINE_OPPORTUNITIES = `
       tags
     }
   }
-`;
+`
 
 export const UPDATE_OPPORTUNITY_STAGE = `
   mutation UpdateOpportunityStage($id: String!, $stageId: String!, $lastActivityAt: String!) {
@@ -83,4 +83,4 @@ export const UPDATE_OPPORTUNITY_STAGE = `
       lastActivityAt
     }
   }
-`; 
+`

@@ -1,12 +1,12 @@
-import React from 'react';
-import { Button } from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ActionButtonsProps {
-  submitting: boolean;
-  onApprove: () => void;
-  onReturn: () => void;
-  prefixDataTestId?: string;
+  submitting: boolean
+  onApprove: () => void
+  onReturn: () => void
+  prefixDataTestId?: string
 }
 
 const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -34,7 +34,7 @@ const ActionButtons: React.FC<ActionButtonsProps> = ({
         {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.approve_button', 'Approve')}
       </Button>
     </div>
-  );
-};
+  )
+}
 
-export default ActionButtons; 
+export default ActionButtons

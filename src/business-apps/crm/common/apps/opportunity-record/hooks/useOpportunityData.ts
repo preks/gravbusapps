@@ -1,71 +1,70 @@
-import { useState, useEffect } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from '../queries/GetOpportunityByIdQueries';
-import { useGetSalesActivities } from '../queries/OpportunityActivityQueries';
-import { useGetSalesTasks } from '../queries/OpportunityTaskQueries';
-import { useGetCrmNotes } from '../queries/CrmNoteQueries';
-import { useGetCrmDocuments } from '../queries/CrmDocumentQueries';
-import { useSalesPipelineStages } from './useSalesPipelineStages';
-import { Opportunity, ReferenceData } from '../types';
+import { useState, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { GET_OPPORTUNITY_BY_ID, GetOpportunityByIdResponse } from '../queries/GetOpportunityByIdQueries'
+import { useGetSalesActivities } from '../queries/OpportunityActivityQueries'
+import { useGetSalesTasks } from '../queries/OpportunityTaskQueries'
+import { useGetCrmNotes } from '../queries/CrmNoteQueries'
+import { useGetCrmDocuments } from '../queries/CrmDocumentQueries'
+import { useSalesPipelineStages } from './useSalesPipelineStages'
+import { Opportunity, ReferenceData } from '../types'
 
 export const useOpportunityData = (opportunityId: string, accessToken: string) => {
-  const [opportunity, setOpportunity] = useState<Opportunity | null>(null);
-  const [opportunityData, setOpportunityData] = useState<any>(null);
-  const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [opportunityStatuses, setOpportunityStatuses] = useState<ReferenceData[]>([]);
-  const [loadingStatuses, setLoadingStatuses] = useState(false);
+  const [opportunity, setOpportunity] = useState<Opportunity | null>(null)
+  const [opportunityData, setOpportunityData] = useState<any>(null)
+  const [stageConditionStatuses, setStageConditionStatuses] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [opportunityStatuses, setOpportunityStatuses] = useState<ReferenceData[]>([])
+  const [loadingStatuses, setLoadingStatuses] = useState(false)
 
   // New states for activities, tasks, notes, and documents
-  const [activities, setActivities] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [notes, setNotes] = useState<any[]>([]);
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loadingActivities, setLoadingActivities] = useState(false);
-  const [loadingTasks, setLoadingTasks] = useState(false);
-  const [loadingNotes, setLoadingNotes] = useState(false);
-  const [loadingDocuments, setLoadingDocuments] = useState(false);
+  const [activities, setActivities] = useState<any[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [documents, setDocuments] = useState<any[]>([])
+  const [loadingActivities, setLoadingActivities] = useState(false)
+  const [loadingTasks, setLoadingTasks] = useState(false)
+  const [loadingNotes, setLoadingNotes] = useState(false)
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
 
-  const graphQLClient = useGraphQLClient(accessToken);
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const graphQLClient = useGraphQLClient(accessToken)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   // Use the new pipeline stages hook
   const {
     pipelineStages: opportunityStages,
     loadingPipelineStages: loadingStages,
     errorPipelineStages: stagesError
-  } = useSalesPipelineStages(opportunityData?.salesPipelineRef, accessToken);
+  } = useSalesPipelineStages(opportunityData?.salesPipelineRef, accessToken)
 
   // Initialize the new query hooks
-  const { fetchSalesActivities } = useGetSalesActivities({ accessToken });
-  const { fetchSalesTasks } = useGetSalesTasks({ accessToken });
-  const { fetchCrmNotes } = useGetCrmNotes({ accessToken });
-  const { fetchCrmDocuments } = useGetCrmDocuments({ accessToken });
+  const { fetchSalesActivities } = useGetSalesActivities({ accessToken })
+  const { fetchSalesTasks } = useGetSalesTasks({ accessToken })
+  const { fetchCrmNotes } = useGetCrmNotes({ accessToken })
+  const { fetchCrmDocuments } = useGetCrmDocuments({ accessToken })
 
   const fetchOpportunityData = async () => {
     // Use a fallback ID if none provided
-    const safeOpportunityId = opportunityId || '2cabb386-82b8-4a9b-8a91-e8d008b4b2e8';
+    const safeOpportunityId = opportunityId || '2cabb386-82b8-4a9b-8a91-e8d008b4b2e8'
 
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
 
-      console.log('Fetching opportunity data for ID:', safeOpportunityId);
+      console.log('Fetching opportunity data for ID:', safeOpportunityId)
 
-      const result = await graphQLClient.request<GetOpportunityByIdResponse>(
-        GET_OPPORTUNITY_BY_ID,
-        { id: safeOpportunityId }
-      );
+      const result = await graphQLClient.request<GetOpportunityByIdResponse>(GET_OPPORTUNITY_BY_ID, {
+        id: safeOpportunityId
+      })
 
       if (result && result.Opportunity && result.Opportunity.length > 0) {
-        const rawOpportunityData = result.Opportunity[0];
-        setOpportunityData(rawOpportunityData);
-        
+        const rawOpportunityData = result.Opportunity[0]
+        setOpportunityData(rawOpportunityData)
+
         // Set stage condition statuses if available
         if (rawOpportunityData.stageConditionStatuses) {
-          setStageConditionStatuses(rawOpportunityData.stageConditionStatuses);
+          setStageConditionStatuses(rawOpportunityData.stageConditionStatuses)
         }
 
         // Transform the data for the UI
@@ -112,40 +111,44 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
             name: ''
           },
           accountId: rawOpportunityData.account?.id || '',
-          account: rawOpportunityData.account ? {
-            id: rawOpportunityData.account.id,
-            version: rawOpportunityData.account.version || '1',
-            name: rawOpportunityData.account.name || '',
-            industryRef: rawOpportunityData.account.industryRef || '',
-            industry: {
-              code: rawOpportunityData.account.industry?.code || '',
-              id: rawOpportunityData.account.industry?.id || '',
-              type: 'industry',
-              value: rawOpportunityData.account.industry?.value || ''
-            },
-            numberOfEmployees: {
-              type: 'numberOfEmployees',
-              value: rawOpportunityData.account.numberOfEmployees?.value || '',
-              id: rawOpportunityData.account.numberOfEmployees?.id || '',
-              code: rawOpportunityData.account.numberOfEmployees?.code || ''
-            },
-            numberOfEmployeesRef: rawOpportunityData.account.numberOfEmployees?.id || '',
-            addressLine: rawOpportunityData.account.addresses?.[0]?.addressLine || '',
-            foundationDate: rawOpportunityData.account.foundationDate || '',
-            annualRevenueRef: rawOpportunityData.account.annualRevenue?.id || '',
-            annualRevenue: {
-              type: 'annualRevenue',
-              value: rawOpportunityData.account.annualRevenue?.value || '',
-              id: rawOpportunityData.account.annualRevenue?.id || '',
-              code: rawOpportunityData.account.annualRevenue?.code || ''
-            },
-            website: rawOpportunityData.account.website || '',
-            ownerEmployeeId: rawOpportunityData.account.ownerEmployee?.firstName || '',
-            ownerEmployee: rawOpportunityData.account.ownerEmployee ? {
-              firstName: rawOpportunityData.account.ownerEmployee.firstName,
-              lastName: rawOpportunityData.account.ownerEmployee.lastName
-            } : undefined
-          } : null,
+          account: rawOpportunityData.account
+            ? {
+                id: rawOpportunityData.account.id,
+                version: rawOpportunityData.account.version || '1',
+                name: rawOpportunityData.account.name || '',
+                industryRef: rawOpportunityData.account.industryRef || '',
+                industry: {
+                  code: rawOpportunityData.account.industry?.code || '',
+                  id: rawOpportunityData.account.industry?.id || '',
+                  type: 'industry',
+                  value: rawOpportunityData.account.industry?.value || ''
+                },
+                numberOfEmployees: {
+                  type: 'numberOfEmployees',
+                  value: rawOpportunityData.account.numberOfEmployees?.value || '',
+                  id: rawOpportunityData.account.numberOfEmployees?.id || '',
+                  code: rawOpportunityData.account.numberOfEmployees?.code || ''
+                },
+                numberOfEmployeesRef: rawOpportunityData.account.numberOfEmployees?.id || '',
+                addressLine: rawOpportunityData.account.addresses?.[0]?.addressLine || '',
+                foundationDate: rawOpportunityData.account.foundationDate || '',
+                annualRevenueRef: rawOpportunityData.account.annualRevenue?.id || '',
+                annualRevenue: {
+                  type: 'annualRevenue',
+                  value: rawOpportunityData.account.annualRevenue?.value || '',
+                  id: rawOpportunityData.account.annualRevenue?.id || '',
+                  code: rawOpportunityData.account.annualRevenue?.code || ''
+                },
+                website: rawOpportunityData.account.website || '',
+                ownerEmployeeId: rawOpportunityData.account.ownerEmployee?.firstName || '',
+                ownerEmployee: rawOpportunityData.account.ownerEmployee
+                  ? {
+                      firstName: rawOpportunityData.account.ownerEmployee.firstName,
+                      lastName: rawOpportunityData.account.ownerEmployee.lastName
+                    }
+                  : undefined
+              }
+            : null,
           contact: {
             id: '',
             version: '1',
@@ -156,131 +159,134 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
             jobTitle: ''
           },
           leadId: rawOpportunityData.lead?.id || '',
-          lead: rawOpportunityData.lead ? {
-            id: rawOpportunityData.lead.id,
-            name: rawOpportunityData.lead.companyName || '',
-            status: rawOpportunityData.lead.leadStatus?.value || ''
-          } : undefined,
+          lead: rawOpportunityData.lead
+            ? {
+                id: rawOpportunityData.lead.id,
+                name: rawOpportunityData.lead.companyName || '',
+                status: rawOpportunityData.lead.leadStatus?.value || ''
+              }
+            : undefined,
           activities: [],
           tasks: [],
           competitors: [],
           products: [],
           aiSummary: {
-            text: "",
+            text: '',
             insights: [],
             recommendations: []
           }
-        };
+        }
 
-        setOpportunity(transformedOpportunity);
+        setOpportunity(transformedOpportunity)
       } else {
-        setError('Opportunity not found');
+        setError('Opportunity not found')
       }
     } catch (err) {
-      console.error('Error fetching opportunity data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch opportunity data');
+      console.error('Error fetching opportunity data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch opportunity data')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const fetchOpportunityStatuses = async (sourceApp?: string) => {
     try {
-      setLoadingStatuses(true);
+      setLoadingStatuses(true)
       // Choose correct catalog per source app
-      const catalogIdentifier = sourceApp === 'IRM' || sourceApp === 'investment-relations'
-        ? 'InvestmentOpportunityStatus'
-        : 'SalesOpportunityStatus';
+      const catalogIdentifier =
+        sourceApp === 'IRM' || sourceApp === 'investment-relations'
+          ? 'InvestmentOpportunityStatus'
+          : 'SalesOpportunityStatus'
 
       const response = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier, version: 'v1' },
         { limit: 100, offset: 0, returnTotalRecords: true }
-      );
+      )
 
       if (response && response.data && Array.isArray(response.data)) {
         const statusData = response.data.map((entry: any) => ({
           id: entry.id,
           code: entry.code,
-          value: entry.value,
-        }));
-        setOpportunityStatuses(statusData);
+          value: entry.value
+        }))
+        setOpportunityStatuses(statusData)
       } else {
         // Set empty array if no data
-        setOpportunityStatuses([]);
+        setOpportunityStatuses([])
       }
     } catch (err) {
-      console.error('Error fetching opportunity statuses:', err);
+      console.error('Error fetching opportunity statuses:', err)
       // Set empty array on error to prevent undefined .map() calls
-      setOpportunityStatuses([]);
+      setOpportunityStatuses([])
     } finally {
-      setLoadingStatuses(false);
+      setLoadingStatuses(false)
     }
-  };
+  }
 
   // New fetch functions for activities, tasks, notes, and documents
   const fetchActivities = async () => {
     try {
-      setLoadingActivities(true);
-      const result = await fetchSalesActivities({ opportunityId });
-      setActivities(result.SalesActivity || []);
+      setLoadingActivities(true)
+      const result = await fetchSalesActivities({ opportunityId })
+      setActivities(result.SalesActivity || [])
     } catch (err) {
-      console.error('Error fetching activities:', err);
+      console.error('Error fetching activities:', err)
     } finally {
-      setLoadingActivities(false);
+      setLoadingActivities(false)
     }
-  };
+  }
 
   const fetchTasks = async () => {
     try {
-      setLoadingTasks(true);
-      const result = await fetchSalesTasks({ opportunityId });
-      setTasks(result.SalesTask || []);
+      setLoadingTasks(true)
+      const result = await fetchSalesTasks({ opportunityId })
+      setTasks(result.SalesTask || [])
     } catch (err) {
-      console.error('Error fetching tasks:', err);
+      console.error('Error fetching tasks:', err)
     } finally {
-      setLoadingTasks(false);
+      setLoadingTasks(false)
     }
-  };
+  }
 
   const fetchNotes = async () => {
     try {
-      setLoadingNotes(true);
-      const result = await fetchCrmNotes({ opportunityId });
-      setNotes(result.CrmNote || []);
+      setLoadingNotes(true)
+      const result = await fetchCrmNotes({ opportunityId })
+      setNotes(result.CrmNote || [])
     } catch (err) {
-      console.error('Error fetching notes:', err);
+      console.error('Error fetching notes:', err)
     } finally {
-      setLoadingNotes(false);
+      setLoadingNotes(false)
     }
-  };
+  }
 
   const fetchDocuments = async () => {
     try {
-      setLoadingDocuments(true);
-      const result = await fetchCrmDocuments({ opportunityId });
-      setDocuments(result.CrmDocument || []);
+      setLoadingDocuments(true)
+      const result = await fetchCrmDocuments({ opportunityId })
+      setDocuments(result.CrmDocument || [])
     } catch (err) {
-      console.error('Error fetching documents:', err);
+      console.error('Error fetching documents:', err)
     } finally {
-      setLoadingDocuments(false);
+      setLoadingDocuments(false)
     }
-  };
+  }
 
   useEffect(() => {
     if (opportunityId && accessToken) {
-      (async () => {
-        await fetchOpportunityData();
+      ;(async () => {
+        await fetchOpportunityData()
         // After opportunityData is populated, decide which catalog to load
-        const srcApp = (opportunityData as any)?.sourceApp;
-        await fetchOpportunityStatuses(srcApp);
-        fetchActivities();
-        fetchTasks();
-        fetchNotes();
-        fetchDocuments();
-      })();
+        const srcApp = (opportunityData as any)?.sourceApp
+        await fetchOpportunityStatuses(srcApp)
+        fetchActivities()
+        fetchTasks()
+        fetchNotes()
+        fetchDocuments()
+      })()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunityId, accessToken]);
+  }, [opportunityId, accessToken])
 
   return {
     opportunity,
@@ -306,5 +312,5 @@ export const useOpportunityData = (opportunityId: string, accessToken: string) =
     refetchTasks: fetchTasks,
     refetchNotes: fetchNotes,
     refetchDocuments: fetchDocuments
-  };
-}; 
+  }
+}

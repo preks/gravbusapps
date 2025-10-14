@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,23 +9,27 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { CircleWavyIcon } from "@phosphor-icons/react";
-import radarChartData from "../../data/radarChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { CircleWavyIcon } from '@phosphor-icons/react'
+import radarChartData from '../../data/radarChartData.json'
 
 interface RadarChartGridProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const RadarChartGrid: React.FC<RadarChartGridProps> = ({ moduleColor }) => {
-  const chartData = radarChartData.simple;
+  const chartData = radarChartData.simple
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="radar-chart-grid">
@@ -37,22 +41,12 @@ const RadarChartGrid: React.FC<RadarChartGridProps> = ({ moduleColor }) => {
         </div>
       </CardHeader>
       <CardContent className="gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <RadarChart data={chartData}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <PolarAngleAxis dataKey="month" />
-            <PolarRadiusAxis
-              domain={[0, 400]}
-              tick={false}
-              tickCount={6}
-            />
-            <PolarGrid
-              gridType="polygon"
-              radialLines={true}
-            />
+            <PolarRadiusAxis domain={[0, 400]} tick={false} tickCount={6} />
+            <PolarGrid gridType="polygon" radialLines={true} />
             <Radar
               dataKey="desktop"
               stroke="var(--color-desktop)"
@@ -71,7 +65,7 @@ const RadarChartGrid: React.FC<RadarChartGridProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RadarChartGrid;
+export default RadarChartGrid

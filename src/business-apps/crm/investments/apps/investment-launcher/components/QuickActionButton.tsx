@@ -1,42 +1,42 @@
-import React from 'react';
-import { Card, CardContent } from '@newwork/nw-design-system';
-import * as RemixIcons from '@remixicon/react';
-import { InvestmentQuickActionButtonProps } from '../types';
+import React from 'react'
+import { Card, CardContent } from '@newwork/nw-design-system'
+import * as RemixIcons from '@remixicon/react'
+import { InvestmentQuickActionButtonProps } from '../types'
 
 const InvestmentQuickActionButton: React.FC<InvestmentQuickActionButtonProps> = ({ action, onClick }) => {
   // Get the icon component dynamically
-  const IconComponent = (RemixIcons as any)[action.icon] || RemixIcons.RiQuestionLine;
+  const IconComponent = (RemixIcons as any)[action.icon] || RemixIcons.RiQuestionLine
 
   // Get button color based on action type
   const getActionColor = (actionId: string) => {
     switch (actionId) {
       case 'add-lead':
       case 'create-opportunity':
-        return '#10B981'; // Green for sales actions
+        return '#10B981' // Green for sales actions
       case 'add-contact':
       case 'add-account':
-        return '#3B82F6'; // Blue for customer actions
+        return '#3B82F6' // Blue for customer actions
       case 'add-investment':
-        return '#F59E0B'; // Amber/gold for investment actions
+        return '#F59E0B' // Amber/gold for investment actions
       case 'generate-report':
-        return '#8B5CF6'; // Purple for analytics actions
+        return '#8B5CF6' // Purple for analytics actions
       default:
-        return '#6B7280'; // Gray for other actions
+        return '#6B7280' // Gray for other actions
     }
-  };
+  }
 
-  const actionColor = getActionColor(action.id);
+  const actionColor = getActionColor(action.id)
 
   const handleClick = () => {
-    onClick(action);
-  };
+    onClick(action)
+  }
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      onClick(action);
+      event.preventDefault()
+      onClick(action)
     }
-  };
+  }
 
   return (
     <Card
@@ -49,12 +49,12 @@ const InvestmentQuickActionButton: React.FC<InvestmentQuickActionButtonProps> = 
       data-testid={`investment-quick-action-${action.id}`}
     >
       <CardContent className="gba:p-4 gba:text-center gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center">
-        <div 
+        <div
           className="gba:p-3 gba:rounded-xl gba:mb-3 gba:transition-all gba:duration-200 group-hover:gba:scale-110"
           style={{ backgroundColor: `${actionColor}15` }}
         >
-          <IconComponent 
-            className="gba:h-6 gba:w-6 gba:transition-colors gba:duration-200" 
+          <IconComponent
+            className="gba:h-6 gba:w-6 gba:transition-colors gba:duration-200"
             style={{ color: actionColor }}
             data-testid={`investment-quick-action-icon-${action.id}`}
           />
@@ -64,7 +64,7 @@ const InvestmentQuickActionButton: React.FC<InvestmentQuickActionButtonProps> = 
         </span>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default InvestmentQuickActionButton; 
+export default InvestmentQuickActionButton

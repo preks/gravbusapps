@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'
 import {
   Select,
   SelectContent,
@@ -9,30 +9,25 @@ import {
   Button,
   Badge,
   Alert,
-  AlertDescription,
-} from '@newwork/nw-design-system';
-import { PiMagnifyingGlass } from 'react-icons/pi';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { SelectOption } from '../types';
-import { useContactFormContext } from '../context/ContactFormContext';
+  AlertDescription
+} from '@newwork/nw-design-system'
+import { PiMagnifyingGlass } from 'react-icons/pi'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { SelectOption } from '../types'
+import { useContactFormContext } from '../context/ContactFormContext'
 
 interface AccountSelectorProps {
-  value: Array<string | { id: string; name: string }>;
-  onChange: (accountIds: Array<string | { id: string; name: string }>) => void;
-  dataTestId?: string;
-  error?: string | null;
+  value: Array<string | { id: string; name: string }>
+  onChange: (accountIds: Array<string | { id: string; name: string }>) => void
+  dataTestId?: string
+  error?: string | null
 }
 
-const AccountSelector: React.FC<AccountSelectorProps> = ({
-  value,
-  onChange,
-  dataTestId,
-  error,
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [hasInitialized, setHasInitialized] = useState(false);
-  const [mergedAccounts, setMergedAccounts] = useState<SelectOption[]>([]);
+const AccountSelector: React.FC<AccountSelectorProps> = ({ value, onChange, dataTestId, error }) => {
+  const [isOpen, setIsOpen] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [hasInitialized, setHasInitialized] = useState(false)
+  const [mergedAccounts, setMergedAccounts] = useState<SelectOption[]>([])
 
   const {
     accounts,
@@ -41,95 +36,92 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
     accountsHasMore: hasMore,
     searchAccounts: search,
     loadMoreAccounts: loadMore,
-    clearAccountSearch: clearSearch,
-  } = useContactFormContext();
+    clearAccountSearch: clearSearch
+  } = useContactFormContext()
 
   // Merge pre-selected accounts with loaded accounts
   useEffect(() => {
-    const preSelectedAccounts: SelectOption[] = [];
-    
+    const preSelectedAccounts: SelectOption[] = []
+
     // Add pre-selected account if it has name and isn't already in the list
     if (value.length > 0) {
-      const firstValue = value[0];
+      const firstValue = value[0]
       if (typeof firstValue === 'object' && firstValue.id && firstValue.name) {
-        const existsInLoadedAccounts = accounts.some(a => a.id === firstValue.id);
+        const existsInLoadedAccounts = accounts.some(a => a.id === firstValue.id)
         if (!existsInLoadedAccounts) {
           preSelectedAccounts.push({
             id: firstValue.id,
             value: firstValue.id,
             label: firstValue.name,
-            name: firstValue.name,
-          });
+            name: firstValue.name
+          })
         }
       }
     }
-    
+
     // Merge: pre-selected accounts first, then loaded accounts
-    setMergedAccounts([...preSelectedAccounts, ...accounts]);
-  }, [value, accounts]);
+    setMergedAccounts([...preSelectedAccounts, ...accounts])
+  }, [value, accounts])
 
   // Load initial accounts
   useEffect(() => {
     if (!hasInitialized && accounts.length === 0 && !loading) {
-      clearSearch();
-      setHasInitialized(true);
+      clearSearch()
+      setHasInitialized(true)
     }
-  }, [accounts.length, loading, clearSearch, hasInitialized]);
+  }, [accounts.length, loading, clearSearch, hasInitialized])
 
   // Handle search
   useEffect(() => {
     if (searchTerm !== '') {
-      search(searchTerm);
+      search(searchTerm)
     } else {
-      clearSearch();
+      clearSearch()
     }
-  }, [searchTerm, search, clearSearch]);
+  }, [searchTerm, search, clearSearch])
 
   // Helper function to extract ID from value (string or object)
   const getAccountId = (accountValue: string | { id: string; name: string }): string => {
-    return typeof accountValue === 'object' ? accountValue.id : accountValue;
-  };
+    return typeof accountValue === 'object' ? accountValue.id : accountValue
+  }
 
   // Get current account ID
-  const currentAccountId = value.length > 0 ? getAccountId(value[0]) : '';
+  const currentAccountId = value.length > 0 ? getAccountId(value[0]) : ''
 
   // Helper to get account name for display
   const getAccountLabel = (): string | undefined => {
-    if (value.length === 0) return undefined;
-    
-    const firstValue = value[0];
+    if (value.length === 0) return undefined
+
+    const firstValue = value[0]
     if (typeof firstValue === 'object' && firstValue.name) {
-      return firstValue.name;
+      return firstValue.name
     }
-    
+
     // Try to find in the merged accounts list
-    const account = mergedAccounts.find(a => a.id === currentAccountId);
-    return account?.label;
-  };
+    const account = mergedAccounts.find(a => a.id === currentAccountId)
+    return account?.label
+  }
 
   const handleLoadMore = () => {
     if (hasMore && !loading) {
-      loadMore();
+      loadMore()
     }
-  };
+  }
 
   return (
     <div className="gba:space-y-2">
-      <Label className="gba:text-sm gba:font-medium gba:text-gray-900">
-        Related Account
-      </Label>
-      
+      <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Related Account</Label>
 
       {/* Account Selection Dropdown */}
       <Select
         value={currentAccountId}
-        onValueChange={(selectedValue) => {
+        onValueChange={selectedValue => {
           if (selectedValue && selectedValue !== currentAccountId) {
-            const selectedAccount = mergedAccounts.find(a => a.id === selectedValue);
+            const selectedAccount = mergedAccounts.find(a => a.id === selectedValue)
             if (selectedAccount) {
-              onChange([{ id: selectedValue, name: selectedAccount.label }]);
+              onChange([{ id: selectedValue, name: selectedAccount.label }])
             } else {
-              onChange([selectedValue]);
+              onChange([selectedValue])
             }
           }
         }}
@@ -142,10 +134,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
         </SelectTrigger>
         <SelectContent className="gba:border-gray-300 gba:bg-white">
           {/* Search Input */}
-          <div
-            className="gba:p-2 gba:border-b gba:border-gray-200"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="gba:p-2 gba:border-b gba:border-gray-200" onClick={e => e.stopPropagation()}>
             <div className="gba:relative">
               <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-2 gba:flex gba:items-center gba:pointer-events-none gba:z-10">
                 <PiMagnifyingGlass className="gba:h-4 gba:w-4 gba:text-gray-400" />
@@ -154,9 +143,9 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
                 type="text"
                 placeholder="Search..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={e => setSearchTerm(e.target.value)}
                 className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:text-sm gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
-                style={{ paddingLeft: "28px" }}
+                style={{ paddingLeft: '28px' }}
                 data-testid={formatDataTestId(dataTestId || 'account-selector', 'search-input')}
                 autoFocus
               />
@@ -165,7 +154,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
 
           {/* Account Options */}
           <div className="gba:max-h-48 gba:overflow-y-auto">
-            {mergedAccounts.map((account) => (
+            {mergedAccounts.map(account => (
               <SelectItem
                 key={account.id}
                 value={account.value}
@@ -207,13 +196,11 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
       {/* Error Display */}
       {(error || accountsError) && (
         <Alert variant="destructive">
-          <AlertDescription>
-            {error || accountsError}
-          </AlertDescription>
+          <AlertDescription>{error || accountsError}</AlertDescription>
         </Alert>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default AccountSelector;
+export default AccountSelector

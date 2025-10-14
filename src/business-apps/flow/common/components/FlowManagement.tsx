@@ -1,25 +1,25 @@
-import React, { useState } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { FlowList, FlowListProps } from './FlowList';
-import { FlowDetailView } from './flow-detail/FlowDetailView';
+import React, { useState } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { FlowList, FlowListProps } from './FlowList'
+import { FlowDetailView } from './flow-detail/FlowDetailView'
 
 export interface FlowManagementProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  variant?: 'monitoring' | 'inbox' | 'management';
-  
+  prefixDataTestId?: string
+  variant?: 'monitoring' | 'inbox' | 'management'
+
   // Flow list configuration
-  listTitle?: string;
-  filterType?: 'all' | 'initiated' | 'participated';
-  hideFilters?: boolean;
-  userId?: string;
-  
+  listTitle?: string
+  filterType?: 'all' | 'initiated' | 'participated'
+  hideFilters?: boolean
+  userId?: string
+
   // Flow detail configuration
-  showBackButton?: boolean;
-  hiddenTabs?: string[];
-  showActions?: boolean;
-  
+  showBackButton?: boolean
+  hiddenTabs?: string[]
+  showActions?: boolean
+
   // Callbacks
-  onFlowAction?: (action: string, flowId: string) => void;
+  onFlowAction?: (action: string, flowId: string) => void
 }
 
 export const FlowManagement: React.FC<FlowManagementProps> = ({
@@ -36,19 +36,19 @@ export const FlowManagement: React.FC<FlowManagementProps> = ({
   accessToken,
   ...context
 }) => {
-  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
+  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null)
 
   const handleFlowSelect = (flowId: string) => {
-    setSelectedFlowId(flowId);
-  };
+    setSelectedFlowId(flowId)
+  }
 
   const handleBack = () => {
-    setSelectedFlowId(null);
-  };
+    setSelectedFlowId(null)
+  }
 
   const handleFlowAction = (action: string, flowId: string) => {
-    onFlowAction?.(action, flowId);
-  };
+    onFlowAction?.(action, flowId)
+  }
 
   // If a flow is selected, show the detail view
   if (selectedFlowId) {
@@ -64,7 +64,7 @@ export const FlowManagement: React.FC<FlowManagementProps> = ({
         accessToken={accessToken}
         {...context}
       />
-    );
+    )
   }
 
   // Show the flow list
@@ -79,5 +79,5 @@ export const FlowManagement: React.FC<FlowManagementProps> = ({
       accessToken={accessToken}
       {...context}
     />
-  );
-};
+  )
+}

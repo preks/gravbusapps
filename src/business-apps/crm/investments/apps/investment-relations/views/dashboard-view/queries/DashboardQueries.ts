@@ -1,15 +1,15 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCallback } from 'react';
- 
-import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCallback } from 'react'
+
+import { enforceQueryLimit } from '@/business-apps/crm/common/utils/queryLimits'
 
 export interface DashboardQueryVariables {
-  pipelineRef?: string;
-  startDate: string;
-  endDate: string;
-  limit?: number;
-  offset?: number;
+  pipelineRef?: string
+  startDate: string
+  endDate: string
+  limit?: number
+  offset?: number
 }
 
 // Get all available pipelines
@@ -34,7 +34,7 @@ export const GET_PIPELINES = `
       }
     }
   }
-`;
+`
 
 // Get pipeline stages
 export const GET_PIPELINE_STAGES = `
@@ -60,7 +60,7 @@ export const GET_PIPELINE_STAGES = `
       }
     }
   }
-`;
+`
 
 // Get opportunities for a specific pipeline
 export const GET_PIPELINE_OPPORTUNITIES = `
@@ -113,7 +113,7 @@ export const GET_PIPELINE_OPPORTUNITIES = `
       }
     }
   }
-`;
+`
 
 // Get recent leads
 export const GET_RECENT_LEADS = `
@@ -151,7 +151,7 @@ export const GET_RECENT_LEADS = `
       }
     }
   }
-`;
+`
 
 // Get open leads for potential revenue source calculation
 export const GET_OPEN_LEADS_FOR_REVENUE_SOURCE = `
@@ -190,7 +190,7 @@ export const GET_OPEN_LEADS_FOR_REVENUE_SOURCE = `
       accountAnnualRevenueBandRef
     }
   }
-`;
+`
 
 // Get sales activities
 export const GET_SALES_ACTIVITIES = `
@@ -232,7 +232,7 @@ export const GET_SALES_ACTIVITIES = `
       }
     }
   }
-`;
+`
 
 // Get win rate data for a pipeline
 export const GET_WIN_RATE_DATA = `
@@ -276,7 +276,7 @@ export const GET_WIN_RATE_DATA = `
       closeDate
     }
   }
-`;
+`
 
 // Get sales rep performance for leaderboard
 export const GET_SALES_REP_PERFORMANCE = `
@@ -324,7 +324,7 @@ export const GET_SALES_REP_PERFORMANCE = `
       activityTypeRef
     }
   }
-`;
+`
 
 export const GET_TODAYS_ACTIVITIES = (): string => {
   return `
@@ -379,8 +379,8 @@ export const GET_TODAYS_ACTIVITIES = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_TODAYS_TASKS = (): string => {
   return `
@@ -452,179 +452,184 @@ export const GET_TODAYS_TASKS = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useDashboardQueries = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchPipelines = useCallback(async () => {
     try {
       const result = await graphqlClient.request<{
-        pipelines: any[];
-      }>(GET_PIPELINES);
-      return result.pipelines;
+        pipelines: any[]
+      }>(GET_PIPELINES)
+      return result.pipelines
     } catch (error) {
       // Error handled by caller
-      throw error;
+      throw error
     }
-  }, [graphqlClient]);
+  }, [graphqlClient])
 
-  const fetchPipelineStages = useCallback(async (pipelineRef: string) => {
-    try {
-      const result = await graphqlClient.request<{
-        stages: any[];
-      }>(GET_PIPELINE_STAGES, { pipelineRef });
-      return result.stages;
-    } catch (error) {
-      // Error handled by caller
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchPipelineStages = useCallback(
+    async (pipelineRef: string) => {
+      try {
+        const result = await graphqlClient.request<{
+          stages: any[]
+        }>(GET_PIPELINE_STAGES, { pipelineRef })
+        return result.stages
+      } catch (error) {
+        // Error handled by caller
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  const fetchPipelineOpportunities = useCallback(async (variables: DashboardQueryVariables) => {
-    try {
-      const safeVariables = {
-        ...variables,
-        limit: enforceQueryLimit(variables.limit || 50)
-      };
-      const result = await graphqlClient.request<{
-        opportunities: any[];
-      }>(GET_PIPELINE_OPPORTUNITIES, safeVariables);
-      return result.opportunities;
-    } catch (error) {
-      // Error handled by caller
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchPipelineOpportunities = useCallback(
+    async (variables: DashboardQueryVariables) => {
+      try {
+        const safeVariables = {
+          ...variables,
+          limit: enforceQueryLimit(variables.limit || 50)
+        }
+        const result = await graphqlClient.request<{
+          opportunities: any[]
+        }>(GET_PIPELINE_OPPORTUNITIES, safeVariables)
+        return result.opportunities
+      } catch (error) {
+        // Error handled by caller
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  const fetchRecentLeads = useCallback(async (startDate: string, limit: number = 5) => {
-    try {
-      const safeLimit = enforceQueryLimit(limit);
-      const result = await graphqlClient.request<{
-        leads: any[];
-      }>(GET_RECENT_LEADS, { startDate, limit: safeLimit });
-      return result.leads;
-    } catch (error) {
-      // Error handled by caller
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchRecentLeads = useCallback(
+    async (startDate: string, limit: number = 5) => {
+      try {
+        const safeLimit = enforceQueryLimit(limit)
+        const result = await graphqlClient.request<{
+          leads: any[]
+        }>(GET_RECENT_LEADS, { startDate, limit: safeLimit })
+        return result.leads
+      } catch (error) {
+        // Error handled by caller
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  const fetchSalesActivities = useCallback(async (variables: {
-    startDate: string;
-    endDate: string;
-    pipelineRef?: string;
-  }) => {
-    try {
-      const result = await graphqlClient.request<{
-        activities: any[];
-      }>(GET_SALES_ACTIVITIES, variables);
-      return result.activities;
-    } catch (error) {
-      // Error handled by caller
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchSalesActivities = useCallback(
+    async (variables: { startDate: string; endDate: string; pipelineRef?: string }) => {
+      try {
+        const result = await graphqlClient.request<{
+          activities: any[]
+        }>(GET_SALES_ACTIVITIES, variables)
+        return result.activities
+      } catch (error) {
+        // Error handled by caller
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  const fetchWinRateData = useCallback(async (variables: {
-    pipelineRef: string;
-    monthStart: string;
-    quarterStart: string;
-    endDate: string;
-  }) => {
-    try {
-      const result = await graphqlClient.request<{
-        monthOpportunities: any[];
-        quarterOpportunities: any[];
-      }>(GET_WIN_RATE_DATA, variables);
-      return result;
-    } catch (error) {
-      // Error handled by caller
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchWinRateData = useCallback(
+    async (variables: { pipelineRef: string; monthStart: string; quarterStart: string; endDate: string }) => {
+      try {
+        const result = await graphqlClient.request<{
+          monthOpportunities: any[]
+          quarterOpportunities: any[]
+        }>(GET_WIN_RATE_DATA, variables)
+        return result
+      } catch (error) {
+        // Error handled by caller
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  const fetchSalesRepPerformance = useCallback(async (variables: {
-    pipelineRef: string;
-    startDate: string;
-    endDate: string;
-    activityStartDate: string;
-    activityEndDate: string;
-  }) => {
-    try {
-      const result = await graphqlClient.request<{
-        opportunities: any[];
-        activities: any[];
-      }>(GET_SALES_REP_PERFORMANCE, variables);
-      return result;
-    } catch (error) {
-      // Error handled by caller
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchSalesRepPerformance = useCallback(
+    async (variables: {
+      pipelineRef: string
+      startDate: string
+      endDate: string
+      activityStartDate: string
+      activityEndDate: string
+    }) => {
+      try {
+        const result = await graphqlClient.request<{
+          opportunities: any[]
+          activities: any[]
+        }>(GET_SALES_REP_PERFORMANCE, variables)
+        return result
+      } catch (error) {
+        // Error handled by caller
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
   const fetchTodaysActivities = useCallback(async (): Promise<any[]> => {
     if (!context.accessToken) {
-      throw new Error('Access token is required');
+      throw new Error('Access token is required')
     }
 
     try {
-      const now = new Date();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
-      
-      const query = GET_TODAYS_ACTIVITIES();
-      const result = await graphqlClient.request<{ InvestmentActivity: any[] }>(
-        query,
-        {
-          startDate: startOfDay,
-          endDate: endOfDay
-        }
-      );
-      
-      return result.InvestmentActivity || [];
+      const now = new Date()
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
+      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString()
+
+      const query = GET_TODAYS_ACTIVITIES()
+      const result = await graphqlClient.request<{ InvestmentActivity: any[] }>(query, {
+        startDate: startOfDay,
+        endDate: endOfDay
+      })
+
+      return result.InvestmentActivity || []
     } catch (error) {
       // Error handled by caller
-      throw error;
+      throw error
     }
-  }, [graphqlClient, context.accessToken]);
+  }, [graphqlClient, context.accessToken])
 
   const fetchTodaysTasks = useCallback(async (): Promise<any[]> => {
     if (!context.accessToken) {
-      throw new Error('Access token is required');
+      throw new Error('Access token is required')
     }
 
     try {
-      const query = GET_TODAYS_TASKS();
-      const result = await graphqlClient.request<{ InvestmentTask: any[] }>(query);
-      
-      return result.InvestmentTask || [];
-    } catch (error) {
-      // Error handled by caller
-      throw error;
-    }
-  }, [graphqlClient, context.accessToken]);
+      const query = GET_TODAYS_TASKS()
+      const result = await graphqlClient.request<{ InvestmentTask: any[] }>(query)
 
-  const fetchOpenLeadsForRevenueSource = useCallback(async (variables: {
-    startDate: string;
-    endDate: string;
-    limit?: number;
-  }) => {
-    try {
-      const safeVariables = {
-        ...variables,
-        limit: enforceQueryLimit(variables.limit || 50)
-      };
-      const result = await graphqlClient.request<{
-        leads: any[];
-      }>(GET_OPEN_LEADS_FOR_REVENUE_SOURCE, safeVariables);
-      return result.leads;
+      return result.InvestmentTask || []
     } catch (error) {
       // Error handled by caller
-      throw error;
+      throw error
     }
-  }, [graphqlClient]);
+  }, [graphqlClient, context.accessToken])
+
+  const fetchOpenLeadsForRevenueSource = useCallback(
+    async (variables: { startDate: string; endDate: string; limit?: number }) => {
+      try {
+        const safeVariables = {
+          ...variables,
+          limit: enforceQueryLimit(variables.limit || 50)
+        }
+        const result = await graphqlClient.request<{
+          leads: any[]
+        }>(GET_OPEN_LEADS_FOR_REVENUE_SOURCE, safeVariables)
+        return result.leads
+      } catch (error) {
+        // Error handled by caller
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
   return {
     fetchPipelines,
@@ -637,5 +642,5 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
     fetchTodaysActivities,
     fetchTodaysTasks,
     fetchOpenLeadsForRevenueSource
-  };
-};
+  }
+}

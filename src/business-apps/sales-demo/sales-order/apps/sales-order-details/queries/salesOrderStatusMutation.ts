@@ -14,7 +14,7 @@ export const UPDATE_SALES_ORDER_STATUS = `
       }
     }
   }
-`;
+`
 
 export const UPDATE_LINE_ITEM_STATUS = `
   mutation UpdateLineItemStatus($lineItemId: uuid!, $statusCode: String!) {
@@ -30,4 +30,4 @@ export const UPDATE_LINE_ITEM_STATUS = `
       }
     }
   }
-`;
+`

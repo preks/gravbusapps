@@ -1,16 +1,16 @@
-import React from 'react';
-import { Button, Alert, AlertDescription } from '@newwork/nw-design-system';
-import { ApprovalRequest } from '../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { Button, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { ApprovalRequest } from '../types'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface ApprovalTableActionsProps {
-  selectedTasks: ApprovalRequest[];
-  validationError: string | null;
-  approvalError: string | null;
-  isApproving: boolean;
-  onClearSelection: () => void;
-  onApproveClick: () => void;
-  dataTestIdPrefix: string;
+  selectedTasks: ApprovalRequest[]
+  validationError: string | null
+  approvalError: string | null
+  isApproving: boolean
+  onClearSelection: () => void
+  onApproveClick: () => void
+  dataTestIdPrefix: string
 }
 
 const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
@@ -20,7 +20,7 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
   isApproving,
   onClearSelection,
   onApproveClick,
-  dataTestIdPrefix,
+  dataTestIdPrefix
 }) => {
   return (
     <>
@@ -45,7 +45,7 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
               ? 'Approving...'
               : `${getTranslationFromI18nKeyAndLabel(
                   'lowcoder:approve_expense_request.approve_button',
-                  'Approve',
+                  'Approve'
                 )} ${selectedTasks.length} Task${selectedTasks.length > 1 ? 's' : ''}`}
           </Button>
         </div>
@@ -60,7 +60,7 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
         </Alert>
       )}
     </>
-  );
-};
+  )
+}
 
-export default ApprovalTableActions;
+export default ApprovalTableActions

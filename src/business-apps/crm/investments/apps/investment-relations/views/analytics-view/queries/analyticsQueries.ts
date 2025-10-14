@@ -51,7 +51,7 @@ export const GET_CRM_OVERVIEW_ANALYTICS = `
       }
     }
   }
-`;
+`
 
 // Leads Analytics Query
 export const GET_LEADS_ANALYTICS = `
@@ -101,7 +101,7 @@ export const GET_LEADS_ANALYTICS = `
       }
     }
   }
-`;
+`
 
 // Accounts Analytics Query
 export const GET_ACCOUNTS_ANALYTICS = `
@@ -134,21 +134,13 @@ export const GET_ACCOUNTS_ANALYTICS = `
       }
     }
   }
-`;
+`
 
 // Opportunities Analytics Query
 export const GET_OPPORTUNITIES_ANALYTICS = (() => {
-  const now = new Date();
-  const previousMonthStart = new Date(
-    now.getFullYear(),
-    now.getMonth() - 1,
-    1
-  ).toISOString();
-  const currentMonthStart = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1
-  ).toISOString();
+  const now = new Date()
+  const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
   return `
   query GetOpportunitiesAnalytics {
@@ -296,8 +288,8 @@ export const GET_OPPORTUNITIES_ANALYTICS = (() => {
       }
     }
   }
-`;
-})();
+`
+})()
 
 // Contacts Analytics Query
 export const GET_CONTACTS_ANALYTICS = `
@@ -332,4 +324,4 @@ export const GET_CONTACTS_ANALYTICS = `
       }
     }
   }
-`;
+`

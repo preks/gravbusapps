@@ -1,14 +1,29 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore';
-import { InputBlock, InputType } from '@/common/network/flows/FlowTemplateClient';
-import { Input, Label, Textarea, Button, Card, CardContent, CardHeader, CardTitle, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch } from '@newwork/nw-design-system';
-import { Plus, X } from 'lucide-react';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../hooks/useFlowTemplateStore'
+import { InputBlock, InputType } from '@/common/network/flows/FlowTemplateClient'
+import {
+  Input,
+  Label,
+  Textarea,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch
+} from '@newwork/nw-design-system'
+import { Plus, X } from 'lucide-react'
 
 interface InputBlockEditorProps {
-  input: InputBlock;
-  onChange: (input: InputBlock) => void;
-  'data-testid'?: string;
+  input: InputBlock
+  onChange: (input: InputBlock) => void
+  'data-testid'?: string
 }
 
 /**
@@ -20,8 +35,8 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
   'data-testid': testId = 'input-block-editor'
 }) => {
   const handleUpdate = (updates: Partial<InputBlock>) => {
-    onChange({ ...input, ...updates });
-  };
+    onChange({ ...input, ...updates })
+  }
 
   return (
     <div className="gba:space-y-3" data-testid={testId}>
@@ -58,7 +73,7 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
           <Input
             id={`${testId}-name`}
             value={input.name}
-            onChange={(e) => handleUpdate({ name: e.target.value })}
+            onChange={e => handleUpdate({ name: e.target.value })}
             placeholder="input_name"
             data-testid={`${testId}-name-input`}
           />
@@ -72,7 +87,7 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
         <Input
           id={`${testId}-label`}
           value={input.label}
-          onChange={(e) => handleUpdate({ label: e.target.value })}
+          onChange={e => handleUpdate({ label: e.target.value })}
           placeholder="Enter field label"
           data-testid={`${testId}-label-input`}
         />
@@ -81,7 +96,7 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
       <div className="gba:flex gba:items-center gba:space-x-2">
         <Switch
           checked={input.required || false}
-          onCheckedChange={(required) => handleUpdate({ required })}
+          onCheckedChange={required => handleUpdate({ required })}
           data-testid={`${testId}-required-switch`}
         />
         <Label htmlFor={`${testId}-required`}>
@@ -92,28 +107,26 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
       {/* Options for SELECT and MULTISELECT */}
       {(input.type === InputType.SELECT || input.type === InputType.MULTISELECT) && (
         <div className="gba:space-y-2">
-          <Label>
-            {getTranslationFromI18nKeyAndLabel('flow.creator.input.options', 'Options')}
-          </Label>
+          <Label>{getTranslationFromI18nKeyAndLabel('flow.creator.input.options', 'Options')}</Label>
           <div className="gba:space-y-2">
             {input.options?.map((option, index) => (
               <div key={index} className="gba:flex gba:items-center gba:space-x-2">
                 <Input
                   value={option.value}
-                  onChange={(e) => {
-                    const newOptions = [...(input.options || [])];
-                    newOptions[index] = { ...option, value: e.target.value };
-                    handleUpdate({ options: newOptions });
+                  onChange={e => {
+                    const newOptions = [...(input.options || [])]
+                    newOptions[index] = { ...option, value: e.target.value }
+                    handleUpdate({ options: newOptions })
                   }}
                   placeholder="Value"
                   className="gba:flex-1"
                 />
                 <Input
                   value={option.label}
-                  onChange={(e) => {
-                    const newOptions = [...(input.options || [])];
-                    newOptions[index] = { ...option, label: e.target.value };
-                    handleUpdate({ options: newOptions });
+                  onChange={e => {
+                    const newOptions = [...(input.options || [])]
+                    newOptions[index] = { ...option, label: e.target.value }
+                    handleUpdate({ options: newOptions })
                   }}
                   placeholder="Label"
                   className="gba:flex-1"
@@ -123,8 +136,8 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    const newOptions = input.options?.filter((_, i) => i !== index) || [];
-                    handleUpdate({ options: newOptions });
+                    const newOptions = input.options?.filter((_, i) => i !== index) || []
+                    handleUpdate({ options: newOptions })
                   }}
                 >
                   <X className="gba:w-4 gba:h-4" />
@@ -136,8 +149,8 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
               variant="outline"
               size="sm"
               onClick={() => {
-                const newOptions = [...(input.options || []), { value: '', label: '' }];
-                handleUpdate({ options: newOptions });
+                const newOptions = [...(input.options || []), { value: '', label: '' }]
+                handleUpdate({ options: newOptions })
               }}
             >
               <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -147,28 +160,28 @@ const InputBlockEditor: React.FC<InputBlockEditorProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
 /**
  * Init step configuration section for SELF_SERVICE flows
  */
 export const InitStepSection: React.FC = () => {
-  const { 
+  const {
     flowTemplate,
     updateInitStepTitle,
     updateInitStepMessage,
     addInitStepInput,
     removeInitStepInput,
     updateInitStepInput
-  } = useFlowTemplateStore();
+  } = useFlowTemplateStore()
 
   // Only show for SELF_SERVICE flows
   if (flowTemplate.type !== 'SELF_SERVICE') {
-    return null;
+    return null
   }
 
-  const initStep = flowTemplate.initStep;
+  const initStep = flowTemplate.initStep
 
   const handleAddInput = () => {
     const newInput: InputBlock = {
@@ -176,9 +189,9 @@ export const InitStepSection: React.FC = () => {
       name: `input_${Date.now()}`,
       label: 'New Input',
       required: false
-    };
-    addInitStepInput(newInput);
-  };
+    }
+    addInitStepInput(newInput)
+  }
 
   return (
     <Card className="gba:w-full" data-testid="init-step-section">
@@ -187,10 +200,13 @@ export const InitStepSection: React.FC = () => {
           {getTranslationFromI18nKeyAndLabel('flow.creator.init_step.title', 'Initial Step Configuration')}
         </CardTitle>
         <p className="gba:text-sm gba:text-gray-600">
-          {getTranslationFromI18nKeyAndLabel('flow.creator.init_step.description', 'Configure the initial step that users will see when starting this self-service flow')}
+          {getTranslationFromI18nKeyAndLabel(
+            'flow.creator.init_step.description',
+            'Configure the initial step that users will see when starting this self-service flow'
+          )}
         </p>
       </CardHeader>
-      
+
       <CardContent className="gba:space-y-6">
         {/* Init Step Title */}
         <div className="gba:space-y-2">
@@ -200,8 +216,11 @@ export const InitStepSection: React.FC = () => {
           <Input
             id="init-step-title"
             value={initStep?.title || ''}
-            onChange={(e) => updateInitStepTitle(e.target.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.init_step.step_title_placeholder', 'Enter step title')}
+            onChange={e => updateInitStepTitle(e.target.value)}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'flow.creator.init_step.step_title_placeholder',
+              'Enter step title'
+            )}
             data-testid="init-step-title-input"
           />
         </div>
@@ -214,8 +233,11 @@ export const InitStepSection: React.FC = () => {
           <Textarea
             id="init-step-message"
             value={initStep?.message || ''}
-            onChange={(e) => updateInitStepMessage(e.target.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel('flow.creator.init_step.step_message_placeholder', 'Enter step message or instructions')}
+            onChange={e => updateInitStepMessage(e.target.value)}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'flow.creator.init_step.step_message_placeholder',
+              'Enter step message or instructions'
+            )}
             rows={3}
             data-testid="init-step-message-input"
           />
@@ -245,7 +267,8 @@ export const InitStepSection: React.FC = () => {
                 <div key={index} className="gba:border gba:rounded-lg gba:p-4 gba:bg-gray-50">
                   <div className="gba:flex gba:items-start gba:justify-between gba:mb-4">
                     <Label className="gba:text-sm gba:font-medium gba:text-gray-700">
-                      {getTranslationFromI18nKeyAndLabel('flow.creator.init_step.input_field', 'Input Field')} {index + 1}
+                      {getTranslationFromI18nKeyAndLabel('flow.creator.init_step.input_field', 'Input Field')}{' '}
+                      {index + 1}
                     </Label>
                     <Button
                       type="button"
@@ -257,7 +280,7 @@ export const InitStepSection: React.FC = () => {
                       <X className="gba:w-4 gba:h-4" />
                     </Button>
                   </div>
-                  
+
                   <InputBlockEditor
                     input={input}
                     onChange={(updatedInput: InputBlock) => updateInitStepInput(index, updatedInput)}
@@ -272,12 +295,15 @@ export const InitStepSection: React.FC = () => {
                 {getTranslationFromI18nKeyAndLabel('flow.creator.init_step.no_inputs', 'No input fields configured')}
               </p>
               <p className="gba:text-xs gba:mt-1">
-                {getTranslationFromI18nKeyAndLabel('flow.creator.init_step.add_inputs_help', 'Add input fields to collect information from users when they start this flow')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'flow.creator.init_step.add_inputs_help',
+                  'Add input fields to collect information from users when they start this flow'
+                )}
               </p>
             </div>
           )}
         </div>
       </CardContent>
     </Card>
-  );
-}; 
+  )
+}

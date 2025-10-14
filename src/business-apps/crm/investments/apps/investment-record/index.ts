@@ -1,4 +1,4 @@
-import InvestmentRecord from './InvestmentRecord';
+import InvestmentRecord from './InvestmentRecord'
 
-export { InvestmentRecord };
-export default InvestmentRecord; 
+export { InvestmentRecord }
+export default InvestmentRecord

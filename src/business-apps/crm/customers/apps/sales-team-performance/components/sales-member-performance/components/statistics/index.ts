@@ -1,1 +1,1 @@
-export { PerformanceStatistics } from './PerformanceStatistics'; 
+export { PerformanceStatistics } from './PerformanceStatistics'

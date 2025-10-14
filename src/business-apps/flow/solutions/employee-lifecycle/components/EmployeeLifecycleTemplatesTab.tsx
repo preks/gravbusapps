@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React, { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Button,
   Alert,
@@ -25,16 +25,16 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@newwork/nw-design-system';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
-import { WidgetGroup, WidgetItem } from '@/components/widget-group';
-import { 
-  FileText, 
-  Plus, 
-  Search, 
-  Play, 
-  Users, 
-  UserPlus, 
+} from '@newwork/nw-design-system'
+import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import {
+  FileText,
+  Plus,
+  Search,
+  Play,
+  Users,
+  UserPlus,
   UserMinus,
   Clock,
   Tag,
@@ -45,183 +45,182 @@ import {
   RefreshCw,
   Calendar,
   ExternalLink
-} from 'lucide-react';
-import { EmployeeLifecycleFlowService } from '../services/EmployeeLifecycleFlowService';
-import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient';
-import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils';
+} from 'lucide-react'
+import { EmployeeLifecycleFlowService } from '../services/EmployeeLifecycleFlowService'
+import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 
 export interface EmployeeLifecycleTemplatesTabProps extends BusinessAppContextProps {}
 
-export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesTabProps> = (context) => {
-  const [templates, setTemplates] = useState<FlowTemplate[]>([]);
-  const [filteredTemplates, setFilteredTemplates] = useState<FlowTemplate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesTabProps> = context => {
+  const [templates, setTemplates] = useState<FlowTemplate[]>([])
+  const [filteredTemplates, setFilteredTemplates] = useState<FlowTemplate[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null)
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
 
   const loadTemplates = useCallback(async () => {
-    if (!context.accessToken) return;
-    
+    if (!context.accessToken) return
+
     try {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
 
       // Fetch employee lifecycle templates
       const { templates } = await EmployeeLifecycleFlowService.listTemplates(context.accessToken, {
         limit: 100,
         offset: 0
-      });
-      
-      setTemplates(templates);
-      setFilteredTemplates(templates);
+      })
+
+      setTemplates(templates)
+      setFilteredTemplates(templates)
     } catch (err) {
-      console.error('Error loading employee lifecycle templates:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load templates');
+      console.error('Error loading employee lifecycle templates:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load templates')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [context.accessToken]);
+  }, [context.accessToken])
 
   // Load templates on mount and when notified of changes
   useEffect(() => {
-    loadTemplates();
-    const handler = () => loadTemplates();
-    window.addEventListener('employee-lifecycle-template-created', handler);
-    window.addEventListener('employee-lifecycle-template-updated', handler);
+    loadTemplates()
+    const handler = () => loadTemplates()
+    window.addEventListener('employee-lifecycle-template-created', handler)
+    window.addEventListener('employee-lifecycle-template-updated', handler)
     return () => {
-      window.removeEventListener('employee-lifecycle-template-created', handler);
-      window.removeEventListener('employee-lifecycle-template-updated', handler);
-    };
-  }, [context.accessToken, loadTemplates]);
+      window.removeEventListener('employee-lifecycle-template-created', handler)
+      window.removeEventListener('employee-lifecycle-template-updated', handler)
+    }
+  }, [context.accessToken, loadTemplates])
 
   // Filter templates based on search term and filters
   useEffect(() => {
-    let filtered = templates;
+    let filtered = templates
 
     // Filter by type
     if (typeFilter !== 'all') {
       filtered = filtered.filter(template => {
-        const templateType = getTemplateType(template).toLowerCase();
-        return templateType === typeFilter;
-      });
+        const templateType = getTemplateType(template).toLowerCase()
+        return templateType === typeFilter
+      })
     }
 
     // Filter by search term
     if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter((template) =>
-        template.name.toLowerCase().includes(searchLower) ||
-        template.description?.toLowerCase().includes(searchLower) ||
-        template.id?.toLowerCase().includes(searchLower)
-      );
+      const searchLower = searchTerm.toLowerCase()
+      filtered = filtered.filter(
+        template =>
+          template.name.toLowerCase().includes(searchLower) ||
+          template.description?.toLowerCase().includes(searchLower) ||
+          template.id?.toLowerCase().includes(searchLower)
+      )
     }
 
-    setFilteredTemplates(filtered);
-  }, [templates, searchTerm, typeFilter]);
+    setFilteredTemplates(filtered)
+  }, [templates, searchTerm, typeFilter])
 
   // Calculate statistics
-  const totalTemplates = templates.length;
-  const onboardingTemplates = templates.filter((t) => 
-    t.name.toLowerCase().includes('onboarding') || 
-    t.description?.toLowerCase().includes('onboarding')
-  ).length;
-  const offboardingTemplates = templates.filter((t) => 
-    t.name.toLowerCase().includes('offboarding') || 
-    t.description?.toLowerCase().includes('offboarding')
-  ).length;
-  const recruitingTemplates = templates.filter((t) => 
-    t.name.toLowerCase().includes('recruiting') || 
-    t.description?.toLowerCase().includes('recruiting')
-  ).length;
+  const totalTemplates = templates.length
+  const onboardingTemplates = templates.filter(
+    t => t.name.toLowerCase().includes('onboarding') || t.description?.toLowerCase().includes('onboarding')
+  ).length
+  const offboardingTemplates = templates.filter(
+    t => t.name.toLowerCase().includes('offboarding') || t.description?.toLowerCase().includes('offboarding')
+  ).length
+  const recruitingTemplates = templates.filter(
+    t => t.name.toLowerCase().includes('recruiting') || t.description?.toLowerCase().includes('recruiting')
+  ).length
 
   // Widget configuration for statistics
   const widgets: WidgetItem[] = [
     {
-      key: "total-templates",
-      title: "Total Templates",
+      key: 'total-templates',
+      title: 'Total Templates',
       value: totalTemplates,
       prefix: <FileText className="gba:h-5 gba:w-5 gba:text-blue-600" />,
-      color: "#3b82f6",
-      description: "All lifecycle templates",
+      color: '#3b82f6',
+      description: 'All lifecycle templates'
     },
     {
-      key: "onboarding-templates",
-      title: "Onboarding",
+      key: 'onboarding-templates',
+      title: 'Onboarding',
       value: onboardingTemplates,
       prefix: <UserPlus className="gba:h-5 gba:w-5 gba:text-green-600" />,
-      color: "#16a34a",
-      description: "Onboarding templates",
+      color: '#16a34a',
+      description: 'Onboarding templates'
     },
     {
-      key: "recruiting-templates",
-      title: "Recruiting",
+      key: 'recruiting-templates',
+      title: 'Recruiting',
       value: recruitingTemplates,
       prefix: <Users className="gba:h-5 gba:w-5 gba:text-purple-600" />,
-      color: "#9333ea",
-      description: "Recruiting templates",
+      color: '#9333ea',
+      description: 'Recruiting templates'
     },
     {
-      key: "offboarding-templates",
-      title: "Offboarding",
+      key: 'offboarding-templates',
+      title: 'Offboarding',
       value: offboardingTemplates,
       prefix: <UserMinus className="gba:h-5 gba:w-5 gba:text-orange-600" />,
-      color: "#ea580c",
-      description: "Offboarding templates",
-    },
-  ];
+      color: '#ea580c',
+      description: 'Offboarding templates'
+    }
+  ]
 
   const handleLaunchTemplate = async (template: FlowTemplate) => {
     try {
       await EmployeeLifecycleFlowService.executeTemplate(context.accessToken, template.id!, {
         initiator: context.userInfo?.id || 'unknown'
-      });
-      showToast(`Flow "${template.name}" started successfully`, 'success', 'Flow Started');
+      })
+      showToast(`Flow "${template.name}" started successfully`, 'success', 'Flow Started')
     } catch (e) {
-      showToast(
-        `Error starting flow: ${e instanceof Error ? e.message : 'Unknown error'}`,
-        'error',
-        'Start Failed'
-      );
+      showToast(`Error starting flow: ${e instanceof Error ? e.message : 'Unknown error'}`, 'error', 'Start Failed')
     }
-  };
+  }
 
   const handleViewTemplate = (template: FlowTemplate) => {
-    setSelectedTemplate(template);
-    setIsViewModalOpen(true);
-  };
+    setSelectedTemplate(template)
+    setIsViewModalOpen(true)
+  }
 
   const getTemplateType = (template: FlowTemplate): string => {
-    const name = template.name.toLowerCase();
-    const description = template.description?.toLowerCase() || '';
-    
+    const name = template.name.toLowerCase()
+    const description = template.description?.toLowerCase() || ''
+
     if (name.includes('onboarding') || description.includes('onboarding')) {
-      return 'Onboarding';
+      return 'Onboarding'
     }
     if (name.includes('offboarding') || description.includes('offboarding')) {
-      return 'Offboarding';
+      return 'Offboarding'
     }
     if (name.includes('recruiting') || description.includes('recruiting')) {
-      return 'Recruiting';
+      return 'Recruiting'
     }
     if (name.includes('training') || description.includes('training')) {
-      return 'Training';
+      return 'Training'
     }
-    return 'General';
-  };
+    return 'General'
+  }
 
   const getTemplateTypeColor = (type: string): string => {
     switch (type) {
-      case 'Onboarding': return 'gba:bg-green-100 gba:text-green-800';
-      case 'Offboarding': return 'gba:bg-orange-100 gba:text-orange-800';
-      case 'Recruiting': return 'gba:bg-purple-100 gba:text-purple-800';
-      case 'Training': return 'gba:bg-blue-100 gba:text-blue-800';
-      default: return 'gba:bg-gray-100 gba:text-gray-800';
+      case 'Onboarding':
+        return 'gba:bg-green-100 gba:text-green-800'
+      case 'Offboarding':
+        return 'gba:bg-orange-100 gba:text-orange-800'
+      case 'Recruiting':
+        return 'gba:bg-purple-100 gba:text-purple-800'
+      case 'Training':
+        return 'gba:bg-blue-100 gba:text-blue-800'
+      default:
+        return 'gba:bg-gray-100 gba:text-gray-800'
     }
-  };
+  }
 
   return (
     <div className="gba:space-y-6" data-testid="employee-lifecycle-templates-tab">
@@ -324,7 +323,7 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
         <CardContent>
           {isLoading ? (
             <div className="gba:space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
+              {[1, 2, 3, 4, 5].map(i => (
                 <div key={i} className="gba:flex gba:items-center gba:gap-4">
                   <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-48 gba:animate-pulse"></div>
                   <div className="gba:h-4 gba:bg-gray-200 gba:rounded gba:w-24 gba:animate-pulse"></div>
@@ -341,12 +340,7 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
                   <h4 className="gba:font-medium">Error Loading Templates</h4>
                   <p className="gba:text-sm">{error}</p>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={loadTemplates} 
-                  data-testid="templates-retry-button"
-                >
+                <Button variant="outline" size="sm" onClick={loadTemplates} data-testid="templates-retry-button">
                   Retry
                 </Button>
               </div>
@@ -356,10 +350,9 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
               <FileText className="gba:h-12 gba:w-12 gba:mx-auto gba:mb-4 gba:text-gray-300" />
               <p>No lifecycle templates found</p>
               <p className="gba:text-sm">
-                {searchTerm || typeFilter !== 'all' 
+                {searchTerm || typeFilter !== 'all'
                   ? 'Try adjusting your filters'
-                  : 'Lifecycle templates will appear here once they are created'
-                }
+                  : 'Lifecycle templates will appear here once they are created'}
               </p>
             </div>
           ) : (
@@ -376,10 +369,10 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredTemplates.map((template) => {
-                    const templateType = getTemplateType(template);
-                    const typeColorClass = getTemplateTypeColor(templateType);
-                    
+                  {filteredTemplates.map(template => {
+                    const templateType = getTemplateType(template)
+                    const typeColorClass = getTemplateTypeColor(templateType)
+
                     return (
                       <TableRow key={template.id} data-testid={`template-row-${template.id}`}>
                         <TableCell>
@@ -410,9 +403,7 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="gba:text-sm gba:text-gray-500">
-                            v{template.version || 1}
-                          </div>
+                          <div className="gba:text-sm gba:text-gray-500">v{template.version || 1}</div>
                         </TableCell>
                         <TableCell>
                           <div className="gba:flex gba:gap-1">
@@ -437,7 +428,7 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
                           </div>
                         </TableCell>
                       </TableRow>
-                    );
+                    )
                   })}
                 </TableBody>
               </Table>
@@ -451,11 +442,9 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
         <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Template Details</DialogTitle>
-            <DialogDescription>
-              Review template configuration and workflow steps
-            </DialogDescription>
+            <DialogDescription>Review template configuration and workflow steps</DialogDescription>
           </DialogHeader>
-          
+
           {selectedTemplate && (
             <div className="gba:space-y-4">
               {/* Template Basic Info */}
@@ -521,27 +510,17 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
                             {index + 1}
                           </div>
                           <div className="gba:flex-1 gba:min-w-0">
-                            <h5 className="gba:font-medium gba:text-sm gba:text-gray-900 gba:mb-1">
-                              {step.title}
-                            </h5>
-                            {step.message && (
-                              <p className="gba:text-xs gba:text-gray-600 gba:mb-2">
-                                {step.message}
-                              </p>
-                            )}
+                            <h5 className="gba:font-medium gba:text-sm gba:text-gray-900 gba:mb-1">{step.title}</h5>
+                            {step.message && <p className="gba:text-xs gba:text-gray-600 gba:mb-2">{step.message}</p>}
                             <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-gray-500">
-                              <span className="gba:bg-gray-200 gba:px-2 gba:py-1 gba:rounded">
-                                {step.type}
-                              </span>
+                              <span className="gba:bg-gray-200 gba:px-2 gba:py-1 gba:rounded">{step.type}</span>
                               {step.dueInMinutes && (
                                 <div className="gba:flex gba:items-center gba:gap-1">
                                   <Clock className="gba:h-3 gba:w-3" />
                                   <span>{step.dueInMinutes}min</span>
                                 </div>
                               )}
-                              {step.form && step.form.length > 0 && (
-                                <span>{step.form.length} form fields</span>
-                              )}
+                              {step.form && step.form.length > 0 && <span>{step.form.length} form fields</span>}
                             </div>
                           </div>
                         </div>
@@ -555,7 +534,7 @@ export const EmployeeLifecycleTemplatesTab: React.FC<EmployeeLifecycleTemplatesT
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
+  )
+}
 
-export default EmployeeLifecycleTemplatesTab;
+export default EmployeeLifecycleTemplatesTab

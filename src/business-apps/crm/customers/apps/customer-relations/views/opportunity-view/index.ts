@@ -1,3 +1,2 @@
-export { OpportunityView } from './OpportunityView';
-export { default as OpportunityViewDefault } from './OpportunityView';
-
+export { OpportunityView } from './OpportunityView'
+export { default as OpportunityViewDefault } from './OpportunityView'

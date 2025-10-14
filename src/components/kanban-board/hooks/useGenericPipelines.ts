@@ -1,23 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import type { KanbanPipeline } from '../types';
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import type { KanbanPipeline } from '../types'
 
 export interface UseGenericPipelinesReturn {
-  pipelines: KanbanPipeline[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
+  pipelines: KanbanPipeline[]
+  isLoading: boolean
+  error: string | null
+  refetch: () => void
 }
 
-export const useGenericPipelines = (
-  accessToken: string, 
-  catalogIdentifier: string
-): UseGenericPipelinesReturn => {
-  const [pipelines, setPipelines] = useState<KanbanPipeline[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export const useGenericPipelines = (accessToken: string, catalogIdentifier: string): UseGenericPipelinesReturn => {
+  const [pipelines, setPipelines] = useState<KanbanPipeline[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const graphQLClient = useGraphQLClient(accessToken);
+  const graphQLClient = useGraphQLClient(accessToken)
 
   const GET_PIPELINES = `
     query GetPipelines($catalogIdentifier: String!) {
@@ -35,49 +32,49 @@ export const useGenericPipelines = (
         additionalValue3
       }
     }
-  `;
+  `
 
   const fetchPipelines = useCallback(async () => {
     if (!accessToken) {
-      setError('Access token not available');
-      setIsLoading(false);
-      return;
+      setError('Access token not available')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-                 const result = await graphQLClient.request<{
-             pipelines: KanbanPipeline[];
-           }>(GET_PIPELINES, { catalogIdentifier });
+      const result = await graphQLClient.request<{
+        pipelines: KanbanPipeline[]
+      }>(GET_PIPELINES, { catalogIdentifier })
 
       if (result && result.pipelines) {
-        setPipelines(result.pipelines);
+        setPipelines(result.pipelines)
       } else {
-        setPipelines([]);
+        setPipelines([])
       }
     } catch (err) {
-      console.error(`Error fetching pipelines from ${catalogIdentifier}:`, err);
-      setError(err instanceof Error ? err.message : `Failed to fetch pipelines from ${catalogIdentifier}`);
-      setPipelines([]);
+      console.error(`Error fetching pipelines from ${catalogIdentifier}:`, err)
+      setError(err instanceof Error ? err.message : `Failed to fetch pipelines from ${catalogIdentifier}`)
+      setPipelines([])
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [accessToken, graphQLClient, catalogIdentifier]);
+  }, [accessToken, graphQLClient, catalogIdentifier])
 
   const refetch = useCallback(() => {
-    fetchPipelines();
-  }, [fetchPipelines]);
+    fetchPipelines()
+  }, [fetchPipelines])
 
   useEffect(() => {
-    fetchPipelines();
-  }, [fetchPipelines]);
+    fetchPipelines()
+  }, [fetchPipelines])
 
   return {
     pipelines,
     isLoading,
     error,
     refetch
-  };
-};
+  }
+}

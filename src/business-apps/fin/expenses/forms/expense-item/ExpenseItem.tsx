@@ -1,28 +1,33 @@
-import React from "react";
-import { useTranslation } from "react-i18next";
-import { ExpenseItemProvider, useExpenseItem } from './context';
-import { Button } from "@newwork/gravity-ui-catalog";
-import { Typography, Divider } from "antd";
-import { ExpenseItemProps } from "./types";
-import StartScreenComponent from "./components/StartScreenComponent";
-import FormScreenComponent from "./components/FormScreenComponent";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { ICONS } from "../../utils/icons";
-import { FORM_STEPS } from "./constants/constants";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
-import { showToast } from "../../utils/notificationUtils";
+import React from 'react'
+import { useTranslation } from 'react-i18next'
+import { ExpenseItemProvider, useExpenseItem } from './context'
+import { Button } from '@newwork/gravity-ui-catalog'
+import { Typography, Divider } from 'antd'
+import { ExpenseItemProps } from './types'
+import StartScreenComponent from './components/StartScreenComponent'
+import FormScreenComponent from './components/FormScreenComponent'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { ICONS } from '../../utils/icons'
+import { FORM_STEPS } from './constants/constants'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { showToast } from '../../utils/notificationUtils'
 
-const { Title } = Typography;
+const { Title } = Typography
 
-const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ accessToken, userInfo, additionalData, onClose }) => {
+const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
+  accessToken,
+  userInfo,
+  additionalData,
+  onClose
+}) => {
   // Get URL query parameters
   const [localAdditionalData, setLocalAdditionalData] = React.useState(() => {
     return {
       ...additionalData,
       expenseRequestId: additionalData?.expenseRequestId,
       itemCurrency: additionalData?.itemCurrency
-    };
-  });
+    }
+  })
 
   // Update localAdditionalData when additionalData changes
   React.useEffect(() => {
@@ -33,37 +38,37 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
         // Prioritize additionalData over URL parameters
         expenseRequestId: additionalData.expenseRequestId || prevData.expenseRequestId,
         itemCurrency: additionalData.itemCurrency || prevData.itemCurrency
-      }));
+      }))
     }
-  }, [additionalData]);
-  
+  }, [additionalData])
+
   // For backward compatibility, still listen for the custom event
   React.useEffect(() => {
     const handleShowExpenseItem = (event: CustomEvent) => {
       if (event.detail) {
-        const { expenseRequestId, itemCurrency } = event.detail;
-        
+        const { expenseRequestId, itemCurrency } = event.detail
+
         // Update additionalData with the parameters from the event
         setLocalAdditionalData((prevData: any) => ({
           ...prevData,
           expenseRequestId,
           itemCurrency
-        }));
+        }))
       }
-    };
-    
+    }
+
     // Add event listener
-    document.addEventListener('expense-item-show', handleShowExpenseItem as EventListener);
-    
+    document.addEventListener('expense-item-show', handleShowExpenseItem as EventListener)
+
     // Clean up
     return () => {
-      document.removeEventListener('expense-item-show', handleShowExpenseItem as EventListener);
-    };
-  }, []);
+      document.removeEventListener('expense-item-show', handleShowExpenseItem as EventListener)
+    }
+  }, [])
 
   const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void }> = ({ onClose }) => {
-    const { t } = useTranslation();
-    
+    const { t } = useTranslation()
+
     const {
       form,
       currentStep,
@@ -90,77 +95,93 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
       calculateTotal,
       currencies,
       isEditMode
-    } = useExpenseItem();
+    } = useExpenseItem()
 
     // Modified handleCancel to use onClose callback if provided
     // Do NOT refetch when cancelling to preserve selected items in the wizard
     const handleCancelWithCallback = () => {
       if (onClose) {
-        onClose(false);
-        handleCancel(true);
+        onClose(false)
+        handleCancel(true)
+      } else {
+        handleCancel()
       }
-      else {
-        handleCancel();
-      }
-    };
+    }
 
     // Modified handleSubmit to use onClose callback if provided
     // When successful, pass true to onClose to indicate we need to refetch expense request data
     const handleSubmitWithCallback = async () => {
       try {
-        await handleSubmit();
+        await handleSubmit()
         if (onClose) {
           // Pass true to indicate we should refetch the expense request data
           // This is needed because we've created a new expense item
           // The hideExpenseItem function in ExpenseRequestWizardContext will handle the refetch
-          onClose(true);
+          onClose(true)
         }
       } catch (error) {
         showToast(
-              getTranslationFromI18nKeyAndLabel(
-                "lowcoder:expense_summary_request.no_expense_items",
-                "No expense items created"
-              ),
-              "error"
-            )
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expense_summary_request.no_expense_items',
+            'No expense items created'
+          ),
+          'error'
+        )
       }
-    };
+    }
 
     return (
-              <div className="gba:mx-auto gba:font-primary gba:flex gba:flex-col" style={{ width: '100%', maxWidth: '800px', height: '100%', minHeight: 'calc(100vh - 10px)' }} data-testid="expense-item-main-container">
-        <div className="gba:flex gba:items-center gba:pt-10 gba:font-primary gba:relative gba:pb-[30px] gba:box-content" style={{ height: '32px' }} data-testid="expense-item-header-container">
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col"
+        style={{ width: '100%', maxWidth: '800px', height: '100%', minHeight: 'calc(100vh - 10px)' }}
+        data-testid="expense-item-main-container"
+      >
+        <div
+          className="gba:flex gba:items-center gba:pt-10 gba:font-primary gba:relative gba:pb-[30px] gba:box-content"
+          style={{ height: '32px' }}
+          data-testid="expense-item-header-container"
+        >
           {currentStep === FORM_STEPS.FORM && (
             <Button
               variant="ghost"
               onClick={() => {
-                setCurrentStep(FORM_STEPS.START);
-                setFileList([]);
+                setCurrentStep(FORM_STEPS.START)
+                setFileList([])
               }}
               className="gba:z-[1] gba:relative"
               data-testid="back-button"
             >
-              <img 
-                src={ICONS.BACK_ARROW} 
-                alt={t('lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn', 'Back')} 
+              <img
+                src={ICONS.BACK_ARROW}
+                alt={t(
+                  'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn',
+                  'Back'
+                )}
                 className="gba:w-6 gba:h-6"
                 width="24"
                 height="24"
               />
             </Button>
           )}
-          <div className="gba:absolute gba:left-0 gba:right-0 gba:flex gba:justify-center gba:pointer-events-none" data-testid="expense-item-title-container">
-                                  <Title level={4} className="gba:mb-0 gba:m-0 gba:font-primary gba:pointer-events-auto" data-testid="expense-item-header-title">
-              {isEditMode 
-                ? t("lowcoder:create_expense_type_item.header_container_title_edit", "Edit Item | Expense")
-                : t("lowcoder:create_expense_type_item.header_container_title_new", "New Item | Expense")
-              }
+          <div
+            className="gba:absolute gba:left-0 gba:right-0 gba:flex gba:justify-center gba:pointer-events-none"
+            data-testid="expense-item-title-container"
+          >
+            <Title
+              level={4}
+              className="gba:mb-0 gba:m-0 gba:font-primary gba:pointer-events-auto"
+              data-testid="expense-item-header-title"
+            >
+              {isEditMode
+                ? t('lowcoder:create_expense_type_item.header_container_title_edit', 'Edit Item | Expense')
+                : t('lowcoder:create_expense_type_item.header_container_title_new', 'New Item | Expense')}
             </Title>
           </div>
         </div>
         <Divider className="gba:m-0 gba:ml-0 gba:mb-[30px]" data-testid="expense-item-header-divider" />
 
         {currentStep === FORM_STEPS.START ? (
-          <StartScreenComponent 
+          <StartScreenComponent
             fileList={fileList}
             setFileList={setFileList}
             setCurrentStep={setCurrentStep}
@@ -190,18 +211,20 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({ acc
             handleRemovePosition={handleRemovePosition}
             loading={loading}
             calculateTotal={calculateTotal}
-            isEmbeddedInRequestWizard={Boolean(localAdditionalData?.expenseRequestId && localAdditionalData.expenseRequestId !== "0")}
+            isEmbeddedInRequestWizard={Boolean(
+              localAdditionalData?.expenseRequestId && localAdditionalData.expenseRequestId !== '0'
+            )}
           />
         )}
       </div>
-    );
-  };
-  
+    )
+  }
+
   return (
     <ExpenseItemProvider accessToken={accessToken} userInfo={userInfo} additionalData={localAdditionalData}>
       <ExpenseItemContent onClose={onClose} />
     </ExpenseItemProvider>
-  );
-};
+  )
+}
 
-export default ExpenseItem;
+export default ExpenseItem

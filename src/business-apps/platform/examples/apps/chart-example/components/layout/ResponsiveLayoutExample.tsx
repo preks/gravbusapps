@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,30 +9,34 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
 
 interface ResponsiveLayoutExampleProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const performanceData = [
-  { month: "January", desktop: 186, mobile: 80, tablet: 45 },
-  { month: "February", desktop: 305, mobile: 200, tablet: 120 },
-  { month: "March", desktop: 237, mobile: 120, tablet: 75 },
-  { month: "April", desktop: 73, mobile: 190, tablet: 95 },
-  { month: "May", desktop: 209, mobile: 130, tablet: 85 },
-  { month: "June", desktop: 214, mobile: 140, tablet: 90 },
-];
+  { month: 'January', desktop: 186, mobile: 80, tablet: 45 },
+  { month: 'February', desktop: 305, mobile: 200, tablet: 120 },
+  { month: 'March', desktop: 237, mobile: 120, tablet: 75 },
+  { month: 'April', desktop: 73, mobile: 190, tablet: 95 },
+  { month: 'May', desktop: 209, mobile: 130, tablet: 85 },
+  { month: 'June', desktop: 214, mobile: 140, tablet: 90 }
+]
 
 const ResponsiveLayoutExample: React.FC<ResponsiveLayoutExampleProps> = ({ moduleColor }) => {
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-    tablet: { label: "Tablet" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' },
+        tablet: { label: 'Tablet' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <div data-testid="responsive-layout-example">
@@ -55,7 +59,7 @@ const ResponsiveLayoutExample: React.FC<ResponsiveLayoutExampleProps> = ({ modul
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
-                  tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+                  tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
                 />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="dot" />} />
@@ -97,9 +101,7 @@ const ResponsiveLayoutExample: React.FC<ResponsiveLayoutExampleProps> = ({ modul
             </CardHeader>
             <CardContent>
               <div className="gba:text-3xl gba:font-bold gba:text-primary">67%</div>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                +12% from last month
-              </p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">+12% from last month</p>
             </CardContent>
           </Card>
 
@@ -110,9 +112,7 @@ const ResponsiveLayoutExample: React.FC<ResponsiveLayoutExampleProps> = ({ modul
             </CardHeader>
             <CardContent>
               <div className="gba:text-3xl gba:font-bold gba:text-success">+24%</div>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                Year over year growth
-              </p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">Year over year growth</p>
             </CardContent>
           </Card>
 
@@ -123,15 +123,13 @@ const ResponsiveLayoutExample: React.FC<ResponsiveLayoutExampleProps> = ({ modul
             </CardHeader>
             <CardContent>
               <div className="gba:text-3xl gba:font-bold">1.2M</div>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                Active monthly users
-              </p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">Active monthly users</p>
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default ResponsiveLayoutExample;
+export default ResponsiveLayoutExample

@@ -1,4 +1,4 @@
-import ExpenseRequestRecord from './ExpenseRequestRecord';
+import ExpenseRequestRecord from './ExpenseRequestRecord'
 
-export { ExpenseRequestRecord };
-export default ExpenseRequestRecord;
+export { ExpenseRequestRecord }
+export default ExpenseRequestRecord

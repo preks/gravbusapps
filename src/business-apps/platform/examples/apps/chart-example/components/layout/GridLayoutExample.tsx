@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,57 +11,69 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from "recharts";
-import { ChartPieSliceIcon, ChartBarIcon, TrendUpIcon } from "@phosphor-icons/react";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts'
+import { ChartPieSliceIcon, ChartBarIcon, TrendUpIcon } from '@phosphor-icons/react'
 
 interface GridLayoutExampleProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 // Sample data for different charts
 const salesData = [
-  { region: "North", sales: 4000, fill: "var(--color-north)" },
-  { region: "South", sales: 3000, fill: "var(--color-south)" },
-  { region: "East", sales: 2000, fill: "var(--color-east)" },
-  { region: "West", sales: 2780, fill: "var(--color-west)" },
-];
+  { region: 'North', sales: 4000, fill: 'var(--color-north)' },
+  { region: 'South', sales: 3000, fill: 'var(--color-south)' },
+  { region: 'East', sales: 2000, fill: 'var(--color-east)' },
+  { region: 'West', sales: 2780, fill: 'var(--color-west)' }
+]
 
 const monthlyData = [
-  { month: "Jan", revenue: 4000, costs: 2400 },
-  { month: "Feb", revenue: 3000, costs: 1398 },
-  { month: "Mar", revenue: 2000, costs: 9800 },
-  { month: "Apr", revenue: 2780, costs: 3908 },
-  { month: "May", revenue: 1890, costs: 4800 },
-  { month: "Jun", revenue: 2390, costs: 3800 },
-];
+  { month: 'Jan', revenue: 4000, costs: 2400 },
+  { month: 'Feb', revenue: 3000, costs: 1398 },
+  { month: 'Mar', revenue: 2000, costs: 9800 },
+  { month: 'Apr', revenue: 2780, costs: 3908 },
+  { month: 'May', revenue: 1890, costs: 4800 },
+  { month: 'Jun', revenue: 2390, costs: 3800 }
+]
 
 const trendData = [
-  { month: "Jan", visitors: 186 },
-  { month: "Feb", visitors: 305 },
-  { month: "Mar", visitors: 237 },
-  { month: "Apr", visitors: 273 },
-  { month: "May", visitors: 209 },
-  { month: "Jun", visitors: 214 },
-];
+  { month: 'Jan', visitors: 186 },
+  { month: 'Feb', visitors: 305 },
+  { month: 'Mar', visitors: 237 },
+  { month: 'Apr', visitors: 273 },
+  { month: 'May', visitors: 209 },
+  { month: 'Jun', visitors: 214 }
+]
 
 const GridLayoutExample: React.FC<GridLayoutExampleProps> = ({ moduleColor }) => {
-  const salesConfig = useMemo(() => ({
-    north: { label: "North" },
-    south: { label: "South" },
-    east: { label: "East" },
-    west: { label: "West" },
-  }) satisfies ChartConfig, []);
+  const salesConfig = useMemo(
+    () =>
+      ({
+        north: { label: 'North' },
+        south: { label: 'South' },
+        east: { label: 'East' },
+        west: { label: 'West' }
+      }) satisfies ChartConfig,
+    []
+  )
 
-  const monthlyConfig = useMemo(() => ({
-    revenue: { label: "Revenue" },
-    costs: { label: "Costs" },
-  }) satisfies ChartConfig, []);
+  const monthlyConfig = useMemo(
+    () =>
+      ({
+        revenue: { label: 'Revenue' },
+        costs: { label: 'Costs' }
+      }) satisfies ChartConfig,
+    []
+  )
 
-  const trendConfig = useMemo(() => ({
-    visitors: { label: "Visitors" },
-  }) satisfies ChartConfig, []);
+  const trendConfig = useMemo(
+    () =>
+      ({
+        visitors: { label: 'Visitors' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <div data-testid="grid-layout-example">
@@ -76,21 +88,10 @@ const GridLayoutExample: React.FC<GridLayoutExampleProps> = ({ moduleColor }) =>
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={salesConfig}
-              className="gba:mx-auto gba:aspect-square gba:w-full gba:max-h-[250px]"
-            >
+            <ChartContainer config={salesConfig} className="gba:mx-auto gba:aspect-square gba:w-full gba:max-h-[250px]">
               <PieChart>
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent hideLabel nameKey="region" />}
-                />
-                <Pie
-                  data={salesData}
-                  dataKey="sales"
-                  nameKey="region"
-                  innerRadius={0}
-                />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="region" />} />
+                <Pie data={salesData} dataKey="sales" nameKey="region" innerRadius={0} />
                 <ChartLegend
                   content={<ChartLegendContent nameKey="region" />}
                   className="-gba:translate-y-2 gba:flex-wrap gba:gap-2 [&>*]:gba:basis-1/4 [&>*]:gba:justify-center"
@@ -113,12 +114,7 @@ const GridLayoutExample: React.FC<GridLayoutExampleProps> = ({ moduleColor }) =>
             <ChartContainer config={monthlyConfig} className="gba:w-full gba:h-[250px]">
               <BarChart data={monthlyData} margin={{ left: 12, right: 12 }}>
                 <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                 <ChartTooltip content={<ChartTooltipContent indicator="dashed" />} />
                 <ChartLegend content={<ChartLegendContent />} />
@@ -142,12 +138,7 @@ const GridLayoutExample: React.FC<GridLayoutExampleProps> = ({ moduleColor }) =>
             <ChartContainer config={trendConfig} className="gba:w-full gba:h-[250px]">
               <LineChart data={trendData} margin={{ left: 12, right: 12 }}>
                 <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
                 <Line
@@ -156,10 +147,10 @@ const GridLayoutExample: React.FC<GridLayoutExampleProps> = ({ moduleColor }) =>
                   stroke="var(--color-visitors)"
                   strokeWidth={2}
                   dot={{
-                    fill: "var(--color-visitors)",
+                    fill: 'var(--color-visitors)'
                   }}
                   activeDot={{
-                    r: 6,
+                    r: 6
                   }}
                 />
               </LineChart>
@@ -168,7 +159,7 @@ const GridLayoutExample: React.FC<GridLayoutExampleProps> = ({ moduleColor }) =>
         </Card>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default GridLayoutExample;
+export default GridLayoutExample

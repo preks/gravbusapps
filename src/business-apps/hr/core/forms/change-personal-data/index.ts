@@ -1,4 +1,4 @@
-import { ChangePersonalData } from './ChangePersonalData';
+import { ChangePersonalData } from './ChangePersonalData'
 
-export { ChangePersonalData };
-export default ChangePersonalData;
+export { ChangePersonalData }
+export default ChangePersonalData

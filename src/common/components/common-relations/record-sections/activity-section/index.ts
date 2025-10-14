@@ -1,2 +1,2 @@
-export { default as ActivitySection } from './ActivitySection';
-export * from './translationService';
+export { default as ActivitySection } from './ActivitySection'
+export * from './translationService'

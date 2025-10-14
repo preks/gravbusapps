@@ -10,4 +10,4 @@ export {
   type InvestmentReport,
   type InvestmentReportQueryResponse,
   type InvestmentReportByIdData
-} from './useInvestmentReports';
+} from './useInvestmentReports'

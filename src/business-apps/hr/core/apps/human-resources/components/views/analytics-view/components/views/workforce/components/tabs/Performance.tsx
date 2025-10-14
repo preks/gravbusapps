@@ -1,153 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Card, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Spinner, Alert } from '@newwork/nw-design-system';
-import { usePerformanceData, WorkdaysData } from '../../../../../hooks/usePerformanceData';
-import PerformanceStatistics from '../components/PerformanceStatistics';
-import MonthlyWorkdaysTable from '../components/MonthlyWorkdaysTable';
-import WorkdaysTrendChart from '../components/WorkdaysTrendChart';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  Card,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
+  Alert
+} from '@newwork/nw-design-system'
+import { usePerformanceData, WorkdaysData } from '../../../../../hooks/usePerformanceData'
+import PerformanceStatistics from '../components/PerformanceStatistics'
+import MonthlyWorkdaysTable from '../components/MonthlyWorkdaysTable'
+import WorkdaysTrendChart from '../components/WorkdaysTrendChart'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 interface PerformanceProps extends BusinessAppContextProps {}
 
-export type OrgEntityType = 'location' | 'company' | 'costCenter' | 'organizationalUnit';
+export type OrgEntityType = 'location' | 'company' | 'costCenter' | 'organizationalUnit'
 
 interface PerformanceStatisticsData {
-  totalWorkdays: number;
-  averageWorkdaysPerEntity: number;
-  totalEntities: number;
-  totalEmployees: number;
+  totalWorkdays: number
+  averageWorkdaysPerEntity: number
+  totalEntities: number
+  totalEmployees: number
 }
 
 interface WorkdaysTrendData {
-  month: string;
-  workdays: number;
-  employees: number;
+  month: string
+  workdays: number
+  employees: number
 }
 
 interface EntityOption {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
-const Performance: React.FC<PerformanceProps> = (context) => {
-  const [selectedEntityType, setSelectedEntityType] = useState<OrgEntityType>('location');
-  const [selectedEntityId, setSelectedEntityId] = useState<string>('all');
-  const [workdaysData, setWorkdaysData] = useState<WorkdaysData[]>([]);
+const Performance: React.FC<PerformanceProps> = context => {
+  const [selectedEntityType, setSelectedEntityType] = useState<OrgEntityType>('location')
+  const [selectedEntityId, setSelectedEntityId] = useState<string>('all')
+  const [workdaysData, setWorkdaysData] = useState<WorkdaysData[]>([])
   const [statistics, setStatistics] = useState<PerformanceStatisticsData>({
     totalWorkdays: 0,
     averageWorkdaysPerEntity: 0,
     totalEntities: 0,
     totalEmployees: 0
-  });
-  const [workdaysTrend, setWorkdaysTrend] = useState<WorkdaysTrendData[]>([]);
-  const [availableEntities, setAvailableEntities] = useState<EntityOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  })
+  const [workdaysTrend, setWorkdaysTrend] = useState<WorkdaysTrendData[]>([])
+  const [availableEntities, setAvailableEntities] = useState<EntityOption[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const {
-    fetchWorkdaysByLocation,
-    fetchWorkdaysByCompany,
-    fetchWorkdaysByOrgUnit,
-    fetchWorkdaysByCostCenter,
-  } = usePerformanceData(context);
+  const { fetchWorkdaysByLocation, fetchWorkdaysByCompany, fetchWorkdaysByOrgUnit, fetchWorkdaysByCostCenter } =
+    usePerformanceData(context)
 
-  const structureId = getCurrentActiveStructureId();
-  const dataTestId = 'performance-tab';
+  const structureId = getCurrentActiveStructureId()
+  const dataTestId = 'performance-tab'
 
   // Get the appropriate fetch function based on entity type
   const getFetchFunction = () => {
     switch (selectedEntityType) {
       case 'location':
-        return fetchWorkdaysByLocation;
+        return fetchWorkdaysByLocation
       case 'company':
-        return fetchWorkdaysByCompany;
+        return fetchWorkdaysByCompany
       case 'costCenter':
-        return fetchWorkdaysByCostCenter;
+        return fetchWorkdaysByCostCenter
       case 'organizationalUnit':
-        return fetchWorkdaysByOrgUnit;
+        return fetchWorkdaysByOrgUnit
       default:
-        return fetchWorkdaysByLocation;
+        return fetchWorkdaysByLocation
     }
-  };
+  }
 
   // Generate trend data from current workdays data
   const generateTrendData = (data: WorkdaysData[]): WorkdaysTrendData[] => {
-    const currentDate = new Date();
-    const trendData: WorkdaysTrendData[] = [];
-    
+    const currentDate = new Date()
+    const trendData: WorkdaysTrendData[] = []
+
     for (let i = 5; i >= 0; i--) {
-      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const monthStr = monthDate.toISOString().slice(0, 7); // YYYY-MM format
-      
-      const totalWorkdays = data.reduce((sum, entity) => sum + entity.totalWorkdays, 0);
-      const totalEmployees = data.reduce((sum, entity) => sum + entity.employeeCount, 0);
-      
+      const monthDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1)
+      const monthStr = monthDate.toISOString().slice(0, 7) // YYYY-MM format
+
+      const totalWorkdays = data.reduce((sum, entity) => sum + entity.totalWorkdays, 0)
+      const totalEmployees = data.reduce((sum, entity) => sum + entity.employeeCount, 0)
+
       // Simulate some variation for historical data
-      const variation = 1 + (Math.sin(i) * 0.05); // ±5% variation
-      
+      const variation = 1 + Math.sin(i) * 0.05 // ±5% variation
+
       trendData.push({
         month: monthStr,
         workdays: Math.round(totalWorkdays * variation),
         employees: totalEmployees
-      });
+      })
     }
-    
-    return trendData;
-  };
+
+    return trendData
+  }
 
   // Calculate statistics from workdays data
   const calculateStatistics = (data: WorkdaysData[]): PerformanceStatisticsData => {
-    const totalWorkdays = data.reduce((sum, entity) => sum + entity.totalWorkdays, 0);
-    const totalEmployees = data.reduce((sum, entity) => sum + entity.employeeCount, 0);
-    const totalEntities = data.length;
-    const averageWorkdaysPerEntity = totalEntities > 0 ? totalWorkdays / totalEntities : 0;
+    const totalWorkdays = data.reduce((sum, entity) => sum + entity.totalWorkdays, 0)
+    const totalEmployees = data.reduce((sum, entity) => sum + entity.employeeCount, 0)
+    const totalEntities = data.length
+    const averageWorkdaysPerEntity = totalEntities > 0 ? totalWorkdays / totalEntities : 0
 
     return {
       totalWorkdays,
       averageWorkdaysPerEntity: Math.round(averageWorkdaysPerEntity * 100) / 100,
       totalEntities,
       totalEmployees
-    };
-  };
+    }
+  }
 
   // Load data when entity type or entity ID changes
   const loadData = async () => {
-    if (!context.accessToken || !structureId) return;
+    if (!context.accessToken || !structureId) return
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const fetchFunction = getFetchFunction();
+      const fetchFunction = getFetchFunction()
       const variables = {
         structureId,
         ...(selectedEntityId !== 'all' && { entityId: selectedEntityId })
-      };
+      }
 
-      const result = await fetchFunction(variables);
-      
+      const result = await fetchFunction(variables)
+
       // Filter data if specific entity is selected
-      const filteredData = selectedEntityId === 'all' 
-        ? result 
-        : result.filter(entity => entity.id === selectedEntityId);
+      const filteredData = selectedEntityId === 'all' ? result : result.filter(entity => entity.id === selectedEntityId)
 
-      setWorkdaysData(filteredData);
-      setStatistics(calculateStatistics(filteredData));
-      setWorkdaysTrend(generateTrendData(filteredData));
-      setAvailableEntities(result.map(entity => ({ id: entity.id, name: entity.name })));
-
+      setWorkdaysData(filteredData)
+      setStatistics(calculateStatistics(filteredData))
+      setWorkdaysTrend(generateTrendData(filteredData))
+      setAvailableEntities(result.map(entity => ({ id: entity.id, name: entity.name })))
     } catch (err) {
-      console.error('Error loading performance data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load performance data');
+      console.error('Error loading performance data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load performance data')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Load data on component mount and when dependencies change
   useEffect(() => {
-    loadData();
-  }, [selectedEntityType, selectedEntityId, context.accessToken, structureId]);
+    loadData()
+  }, [selectedEntityType, selectedEntityId, context.accessToken, structureId])
 
   if (error) {
     return (
@@ -156,7 +158,7 @@ const Performance: React.FC<PerformanceProps> = (context) => {
           <div className="gba:space-y-2">
             <h4 className="gba:text-red-800 gba:font-medium">Error Loading Performance Data</h4>
             <p className="gba:text-red-700">{error}</p>
-            <button 
+            <button
               onClick={loadData}
               className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-white gba:rounded gba:text-sm hover:gba:bg-red-700"
             >
@@ -165,17 +167,17 @@ const Performance: React.FC<PerformanceProps> = (context) => {
           </div>
         </Alert>
       </div>
-    );
+    )
   }
 
   const handleEntityTypeChange = (value: OrgEntityType) => {
-    setSelectedEntityType(value);
-    setSelectedEntityId('all'); // Reset entity selection when type changes
-  };
+    setSelectedEntityType(value)
+    setSelectedEntityId('all') // Reset entity selection when type changes
+  }
 
   const handleEntityIdChange = (value: string) => {
-    setSelectedEntityId(value);
-  };
+    setSelectedEntityId(value)
+  }
 
   // Convert WorkdaysData to the format expected by components
   const monthlyWorkdays = workdaysData.map(entity => ({
@@ -186,7 +188,7 @@ const Performance: React.FC<PerformanceProps> = (context) => {
     nextMonth: entity.monthlyData.nextMonth,
     averageWorkdays: entity.averageWorkdays,
     totalEmployees: entity.employeeCount
-  }));
+  }))
 
   if (isLoading) {
     return (
@@ -196,7 +198,7 @@ const Performance: React.FC<PerformanceProps> = (context) => {
           <p className="gba:text-gray-600">Loading performance data...</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -205,9 +207,7 @@ const Performance: React.FC<PerformanceProps> = (context) => {
       <Card className="gba:p-4">
         <div className="gba:flex gba:gap-4 gba:items-center">
           <div className="gba:flex-1">
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">
-              Entity Type
-            </label>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Entity Type</label>
             <Select value={selectedEntityType} onValueChange={handleEntityTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select entity type" />
@@ -222,16 +222,14 @@ const Performance: React.FC<PerformanceProps> = (context) => {
           </div>
 
           <div className="gba:flex-1">
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">
-              Specific Entity
-            </label>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Specific Entity</label>
             <Select value={selectedEntityId} onValueChange={handleEntityIdChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select specific entity" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All {selectedEntityType}s</SelectItem>
-                {availableEntities.map((entity) => (
+                {availableEntities.map(entity => (
                   <SelectItem key={entity.id} value={entity.id}>
                     {entity.name}
                   </SelectItem>
@@ -243,27 +241,19 @@ const Performance: React.FC<PerformanceProps> = (context) => {
       </Card>
 
       {/* Statistics */}
-      <PerformanceStatistics 
-        statistics={statistics}
-        isLoading={false}
-        dataTestId={`${dataTestId}-statistics`}
-      />
+      <PerformanceStatistics statistics={statistics} isLoading={false} dataTestId={`${dataTestId}-statistics`} />
 
       {/* Monthly Workdays Table */}
-      <MonthlyWorkdaysTable 
+      <MonthlyWorkdaysTable
         data={monthlyWorkdays}
         entityType={selectedEntityType}
         dataTestId={`${dataTestId}-workdays-table`}
       />
 
       {/* Workdays Trend Chart */}
-      <WorkdaysTrendChart 
-        data={workdaysTrend}
-        isLoading={false}
-        dataTestId={`${dataTestId}-trend-chart`}
-      />
+      <WorkdaysTrendChart data={workdaysTrend} isLoading={false} dataTestId={`${dataTestId}-trend-chart`} />
     </div>
-  );
-};
+  )
+}
 
-export default Performance; 
+export default Performance

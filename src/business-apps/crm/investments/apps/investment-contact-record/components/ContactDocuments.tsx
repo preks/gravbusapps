@@ -1,44 +1,44 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Trash2, Edit, Download } from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { startProcess } from '@/common/utils/start-process';
-import { useGetInvestmentDocumentsByContactId } from '@/common/data/investment/hooks/useInvestmentContacts';
-import type { InvestmentDocument } from '@/common/data/investment/types';
-import { useProcessCompletion } from '@/common/hooks/useProcessCompletion';
-import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { env } from '@/common/env/EnvUtils';
-import { toast } from 'sonner';
+import React, { useState, useEffect, useMemo } from 'react'
+import { Trash2, Edit, Download } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { startProcess } from '@/common/utils/start-process'
+import { useGetInvestmentDocumentsByContactId } from '@/common/data/investment/hooks/useInvestmentContacts'
+import type { InvestmentDocument } from '@/common/data/investment/types'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { env } from '@/common/env/EnvUtils'
+import { toast } from 'sonner'
 
 // Use the actual investment document type
-type Document = InvestmentDocument;
+type Document = InvestmentDocument
 
 interface ContactDocumentsProps {
-  contactId: string;
-  context: BusinessAppContextProps;
+  contactId: string
+  context: BusinessAppContextProps
 }
 
 const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context }) => {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Fetch documents using the existing hook
-  const { fetchInvestmentDocumentsByContactId } = useGetInvestmentDocumentsByContactId(context);
+  const { fetchInvestmentDocumentsByContactId } = useGetInvestmentDocumentsByContactId(context)
 
   // Function to load documents
   const loadDocuments = async () => {
     try {
-      setIsLoading(true);
-    setError(null);
-      const documentsData = await fetchInvestmentDocumentsByContactId(contactId);
-      setDocuments(documentsData);
+      setIsLoading(true)
+      setError(null)
+      const documentsData = await fetchInvestmentDocumentsByContactId(contactId)
+      setDocuments(documentsData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load documents');
+      setError(err instanceof Error ? err.message : 'Failed to load documents')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   // Transform documents to match DocumentItem interface
   const transformedDocuments = useMemo(() => {
@@ -48,68 +48,82 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
       description: doc.description,
       createdAt: doc.createdAt,
       expirationDate: doc.expirationDate,
-      documentType: doc.documentType ? {
-        id: doc.documentType.id,
-        value: doc.documentType.value || '',
-        code: doc.documentType.code
-      } : null,
-      documentGroup: doc.documentGroup ? {
-        id: doc.documentGroup.id,
-        value: doc.documentGroup.value || '',
-        code: doc.documentGroup.code
-      } : null,
+      documentType: doc.documentType
+        ? {
+            id: doc.documentType.id,
+            value: doc.documentType.value || '',
+            code: doc.documentType.code
+          }
+        : null,
+      documentGroup: doc.documentGroup
+        ? {
+            id: doc.documentGroup.id,
+            value: doc.documentGroup.value || '',
+            code: doc.documentGroup.code
+          }
+        : null,
       file: doc.file,
       mimeType: doc.mimeType,
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,
-      parentDocument: typeof doc.parentDocument === 'object' ? doc.parentDocument?.id ?? null : doc.parentDocument ?? null,
+      parentDocument:
+        typeof doc.parentDocument === 'object' ? (doc.parentDocument?.id ?? null) : (doc.parentDocument ?? null),
       folder: doc.folder === true, // Use direct folder property like opportunity documents
       version: doc.version,
       updatedAt: doc.updatedAt,
       updatedBy: doc.updatedBy
-    }));
-  }, [documents]);
+    }))
+  }, [documents])
 
   // Load documents on mount and when contactId changes
   useEffect(() => {
     if (contactId && context.accessToken) {
-      loadDocuments();
+      loadDocuments()
     }
-  }, [contactId, context.accessToken]);
+  }, [contactId, context.accessToken])
 
   // Process completion handler for refreshing documents after operations
   useProcessCompletion({
     onSuccess: () => {
-      loadDocuments();
+      loadDocuments()
     }
-  });
+  })
 
   // Memoized action props for document operations
-  const documentCreateFolderActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentCreate],
-    externalContextData: { 
-      contactId,
-      folder: true
-    },
-    prefixDataTestId: 'contact-document-create-folder'
-  }), [contactId]);
+  const documentCreateFolderActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentCreate],
+      externalContextData: {
+        contactId,
+        folder: true
+      },
+      prefixDataTestId: 'contact-document-create-folder'
+    }),
+    [contactId]
+  )
 
-  const documentUploadActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentCreate],
-    externalContextData: { 
-      contactId
-    },
-    prefixDataTestId: 'contact-document-upload'
-  }), [contactId]);
+  const documentUploadActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentCreate],
+      externalContextData: {
+        contactId
+      },
+      prefixDataTestId: 'contact-document-upload'
+    }),
+    [contactId]
+  )
 
-  const documentDeleteActionProps = useMemo(() => ({
-    contextsArray: [FlowContextName.investmentDocumentDelete],
-    externalContextData: { 
-      contactId,
-      entityType: 'contact'
-    },
-    prefixDataTestId: 'contact-document-delete'
-  }), [contactId]);
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      externalContextData: {
+        contactId,
+        entityType: 'contact'
+      },
+      prefixDataTestId: 'contact-document-delete'
+    }),
+    [contactId]
+  )
 
   return (
     <DocumentSection
@@ -135,15 +149,15 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
           onClick: (_documentId: string, document: any, entityId: string) => {
             // Handle document download using the same pattern as OpportunityDocuments
             if (!document.file) {
-              toast.warning('No file available to download');
-              return;
+              toast.warning('No file available to download')
+              return
             }
-            
+
             try {
-              const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || '';
+              const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || ''
               const getFileExtension = (doc: any): string => {
                 if (doc.name && doc.name.includes('.')) {
-                  return doc.name.split('.').pop() || 'pdf';
+                  return doc.name.split('.').pop() || 'pdf'
                 }
                 const mimeTypeExtensions: Record<string, string> = {
                   'application/pdf': 'pdf',
@@ -154,31 +168,31 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
                   'image/png': 'png',
                   'image/jpeg': 'jpg',
                   'text/plain': 'txt'
-                };
-                return (doc.mimeType && mimeTypeExtensions[doc.mimeType]) || 'pdf';
-              };
-
-              const fileExtension = getFileExtension(document);
-              const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/contacts/${entityId}/documents/`;
-              
-              let fileUrl: string;
-              if (document.file.includes('.')) {
-                fileUrl = `${baseUrl}${document.file}`;
-              } else {
-                fileUrl = `${baseUrl}${document.file}.${fileExtension}`;
+                }
+                return (doc.mimeType && mimeTypeExtensions[doc.mimeType]) || 'pdf'
               }
-              
-              const downloadFilename = document.name || `document.${fileExtension}`;
-              
-              const link = window.document.createElement('a');
-              link.href = fileUrl;
-              link.download = downloadFilename;
-              window.document.body.appendChild(link);
-              link.click();
-              window.document.body.removeChild(link);
+
+              const fileExtension = getFileExtension(document)
+              const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/contacts/${entityId}/documents/`
+
+              let fileUrl: string
+              if (document.file.includes('.')) {
+                fileUrl = `${baseUrl}${document.file}`
+              } else {
+                fileUrl = `${baseUrl}${document.file}.${fileExtension}`
+              }
+
+              const downloadFilename = document.name || `document.${fileExtension}`
+
+              const link = window.document.createElement('a')
+              link.href = fileUrl
+              link.download = downloadFilename
+              window.document.body.appendChild(link)
+              link.click()
+              window.document.body.removeChild(link)
             } catch (error) {
-              console.error('Error downloading document:', error);
-              toast.error('Failed to download document');
+              console.error('Error downloading document:', error)
+              toast.error('Failed to download document')
             }
           }
         },
@@ -202,11 +216,11 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
                   documentTypeRef: document.documentType?.id,
                   expirationDate: document.expirationDate,
                   description: document.description,
-                  folder: document.folder || false,
-                },
+                  folder: document.folder || false
+                }
               },
-                                        builderType: 'NATIVE_SCREEN',
-                                      });
+              builderType: 'NATIVE_SCREEN'
+            })
           }
         },
         {
@@ -223,8 +237,8 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
       data-testid="contact-document-section"
       {...context}
     />
-  );
-};
+  )
+}
 
-export { ContactDocuments };
-export default ContactDocuments; 
+export { ContactDocuments }
+export default ContactDocuments

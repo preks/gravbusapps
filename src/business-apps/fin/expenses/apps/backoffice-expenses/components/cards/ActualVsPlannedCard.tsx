@@ -3,66 +3,61 @@
  * Displays actual vs planned expense comparison with period-based data
  */
 
-import React from 'react';
-import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system';
-import { getExpenseIconColor } from '../../utils/colorConstants';
-import { ActualVsPlannedData } from '../../types';
+import React from 'react'
+import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
+import { getExpenseIconColor } from '../../utils/colorConstants'
+import { ActualVsPlannedData } from '../../types'
+import { formatCurrency } from '../../utils/currencyUtils'
 
 export interface ActualVsPlannedCardProps {
-  loading: boolean;
-  error: Error | null;
-  actualVsPlanned: ActualVsPlannedData;
-  period: 'monthly' | 'quarterly' | 'yearly';
+  loading: boolean
+  error: Error | null
+  actualVsPlanned: ActualVsPlannedData
+  period: 'monthly' | 'quarterly' | 'yearly'
 }
 
 const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, error, actualVsPlanned, period }) => {
-  const formatCurrency = (value: number): string => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-
   const getPeriodDisplay = () => {
-    const currentYear = new Date().getFullYear();
-    const currentMonth = new Date().toLocaleString('default', { month: 'long' });
-    const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-    
+    const currentYear = new Date().getFullYear()
+    const currentMonth = new Date().toLocaleString('default', { month: 'long' })
+    const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3)
+
     switch (period) {
       case 'monthly':
-        return `${currentMonth} ${currentYear}`;
+        return `${currentMonth} ${currentYear}`
       case 'quarterly':
-        return `Q${currentQuarter} ${currentYear}`;
+        return `Q${currentQuarter} ${currentYear}`
       case 'yearly':
-        return currentYear.toString();
+        return currentYear.toString()
       default:
-        return currentYear.toString();
+        return currentYear.toString()
     }
-  };
+  }
 
   const calculateDifference = () => {
-    const actualAmount = actualVsPlanned.actualExpenses.totalAmount;
-    const plannedAmount = actualVsPlanned.plannedExpenses.totalAmount;
-    const difference = actualAmount - plannedAmount;
+    const actualAmount = actualVsPlanned.actualExpenses.totalAmount
+    const plannedAmount = actualVsPlanned.plannedExpenses.totalAmount
+    const difference = actualAmount - plannedAmount
 
-    let percentDifference = 0;
+    let percentDifference = 0
     if (plannedAmount > 0) {
-      percentDifference = (difference / plannedAmount) * 100;
+      percentDifference = (difference / plannedAmount) * 100
     } else if (actualAmount > 0) {
-      percentDifference = 100;
+      percentDifference = 100
     }
 
-    return { difference, percentDifference, isOverBudget: difference > 0 };
-  };
+    return { difference, percentDifference, isOverBudget: difference > 0 }
+  }
 
   if (loading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-32" data-testid="actual-vs-planned-loading">
+      <div
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-32"
+        data-testid="actual-vs-planned-loading"
+      >
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -75,14 +70,14 @@ const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, erro
           </div>
         </Alert>
       </div>
-    );
+    )
   }
 
-  const { percentDifference, isOverBudget } = calculateDifference();
-  const actualAmount = Number(actualVsPlanned.actualExpenses.totalAmount) || 0;
-  const plannedAmount = Number(actualVsPlanned.plannedExpenses.totalAmount) || 0;
-  const actualCount = actualVsPlanned.actualExpenses.count;
-  const plannedCount = actualVsPlanned.plannedExpenses.count;
+  const { percentDifference, isOverBudget } = calculateDifference()
+  const actualAmount = Number(actualVsPlanned.actualExpenses.totalAmount) || 0
+  const plannedAmount = Number(actualVsPlanned.plannedExpenses.totalAmount) || 0
+  const actualCount = actualVsPlanned.actualExpenses.count
+  const plannedCount = actualVsPlanned.plannedExpenses.count
 
   // Create KPI card data
   const kpiCardData: KpiCardData = {
@@ -99,16 +94,13 @@ const ActualVsPlannedCard: React.FC<ActualVsPlannedCardProps> = ({ loading, erro
     },
     icon: 'target',
     iconColor: getExpenseIconColor.actualVsPlanned(isOverBudget)
-  };
+  }
 
   return (
     <div data-testid="actual-vs-planned-card">
-      <SectionKpiCards 
-        cards={[kpiCardData]} 
-        data-testid="actual-vs-planned-kpi-cards"
-      />
+      <SectionKpiCards cards={[kpiCardData]} data-testid="actual-vs-planned-kpi-cards" />
     </div>
-  );
-};
+  )
+}
 
-export default ActualVsPlannedCard;
+export default ActualVsPlannedCard

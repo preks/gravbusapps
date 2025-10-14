@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { 
+import React, { useState } from 'react'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -20,34 +20,30 @@ import {
   SelectValue,
   Button,
   Textarea
-} from '@newwork/nw-design-system';
-import { 
-  Upload, 
-  FileText, 
-  FolderOpen
-} from '@phosphor-icons/react';
-import { useForm } from 'react-hook-form';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import type { Investment, InvestmentAccount, InvestmentContact, ReportScope } from '@/common/data/investment';
-import dayjs from 'dayjs';
+} from '@newwork/nw-design-system'
+import { Upload, FileText, FolderOpen } from '@phosphor-icons/react'
+import { useForm } from 'react-hook-form'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import type { Investment, InvestmentAccount, InvestmentContact, ReportScope } from '@/common/data/investment'
+import dayjs from 'dayjs'
 
 interface ReportUploadModalProps {
-  visible: boolean;
-  onCancel: () => void;
-  onSuccess: () => void;
-  investments: Investment[];
-  accounts: InvestmentAccount[];
-  contacts: InvestmentContact[];
-  prefixDataTestId: string;
+  visible: boolean
+  onCancel: () => void
+  onSuccess: () => void
+  investments: Investment[]
+  accounts: InvestmentAccount[]
+  contacts: InvestmentContact[]
+  prefixDataTestId: string
 }
 
 interface FormValues {
-  investmentId: string;
-  date: string;
-  scope: ReportScope;
-  description: string;
-  notes: string;
+  investmentId: string
+  date: string
+  scope: ReportScope
+  description: string
+  notes: string
 }
 
 export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
@@ -59,47 +55,47 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
   contacts,
   prefixDataTestId
 }) => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [fileList, setFileList] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false)
+  const [fileList, setFileList] = useState<any[]>([])
 
   const form = useForm<FormValues>({
     defaultValues: {
       date: dayjs().format('YYYY-MM-DD'),
       scope: 'MONTHLY' as ReportScope
     }
-  });
+  })
 
   const handleSubmit = async (values: FormValues) => {
     try {
-      setIsUploading(true);
+      setIsUploading(true)
 
       // Simulate upload process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 2000))
 
       // TODO: Implement actual file upload and report creation
       // This will be handled by the backend endpoints
-      console.log('Upload values:', values);
-      console.log('Files:', fileList);
+      console.log('Upload values:', values)
+      console.log('Files:', fileList)
 
       // TODO: Replace with proper toast notification
-      console.log('Report uploaded successfully');
-      setFileList([]);
-      form.reset();
-      onSuccess();
+      console.log('Report uploaded successfully')
+      setFileList([])
+      form.reset()
+      onSuccess()
     } catch (error) {
-      console.error('Upload error:', error);
+      console.error('Upload error:', error)
       // TODO: Replace with proper toast notification
-      console.error('Failed to upload report');
+      console.error('Failed to upload report')
     } finally {
-      setIsUploading(false);
+      setIsUploading(false)
     }
-  };
+  }
 
   const handleCancel = () => {
-    setFileList([]);
-    form.reset();
-    onCancel();
-  };
+    setFileList([])
+    form.reset()
+    onCancel()
+  }
 
   const uploadProps = {
     fileList,
@@ -111,28 +107,28 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
         'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'text/plain'
-      ].includes(file.type);
+      ].includes(file.type)
 
       if (!isValidType) {
         // TODO: Replace with proper toast notification
-        console.error('You can only upload PDF, Word, Excel, or text files!');
-        return false;
+        console.error('You can only upload PDF, Word, Excel, or text files!')
+        return false
       }
 
-      const isValidSize = file.size / 1024 / 1024 < 10;
+      const isValidSize = file.size / 1024 / 1024 < 10
       if (!isValidSize) {
         // TODO: Replace with proper toast notification
-        console.error('File must be smaller than 10MB!');
-        return false;
+        console.error('File must be smaller than 10MB!')
+        return false
       }
 
-      setFileList([file]);
-      return false; // Prevent auto upload
+      setFileList([file])
+      return false // Prevent auto upload
     },
     onRemove: () => {
-      setFileList([]);
+      setFileList([])
     }
-  };
+  }
 
   const reportScopeOptions = [
     { label: getTranslationFromI18nKeyAndLabel('filter.scope.daily', 'Daily'), value: 'DAILY' },
@@ -140,19 +136,17 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
     { label: getTranslationFromI18nKeyAndLabel('filter.scope.monthly', 'Monthly'), value: 'MONTHLY' },
     { label: getTranslationFromI18nKeyAndLabel('filter.scope.quarterly', 'Quarterly'), value: 'QUARTERLY' },
     { label: getTranslationFromI18nKeyAndLabel('filter.scope.yearly', 'Yearly'), value: 'YEARLY' }
-  ];
+  ]
 
   return (
-    <Dialog open={visible} onOpenChange={(open) => !open && handleCancel()}>
+    <Dialog open={visible} onOpenChange={open => !open && handleCancel()}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <FileText size={20} />
             {getTranslationFromI18nKeyAndLabel('report.upload.title', 'Upload Investment Report')}
           </DialogTitle>
-          <DialogDescription>
-            Upload a new investment report file and provide metadata
-          </DialogDescription>
+          <DialogDescription>Upload a new investment report file and provide metadata</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -166,25 +160,31 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
                 <FormItem>
                   <FormLabel>{getTranslationFromI18nKeyAndLabel('report.upload.file', 'Report File')}</FormLabel>
                   <FormControl>
-                    <div 
-                      style={{ 
-                        border: '2px dashed #d1d5db', 
-                        borderRadius: '8px', 
-                        padding: '32px', 
+                    <div
+                      style={{
+                        border: '2px dashed #d1d5db',
+                        borderRadius: '8px',
+                        padding: '32px',
                         textAlign: 'center',
                         cursor: 'pointer'
                       }}
                       onClick={() => {
                         // TODO: Implement file picker
-                        console.log('File picker clicked');
+                        console.log('File picker clicked')
                       }}
                     >
                       <FolderOpen size={48} style={{ color: '#9ca3af', marginBottom: '16px' }} />
                       <p style={{ margin: '8px 0', fontSize: '16px', fontWeight: '500' }}>
-                        {getTranslationFromI18nKeyAndLabel('report.upload.dragText', 'Click or drag file to this area to upload')}
+                        {getTranslationFromI18nKeyAndLabel(
+                          'report.upload.dragText',
+                          'Click or drag file to this area to upload'
+                        )}
                       </p>
                       <p style={{ margin: '8px 0', fontSize: '14px', color: '#6b7280' }}>
-                        {getTranslationFromI18nKeyAndLabel('report.upload.hint', 'Support for PDF, Word, Excel, and text files. Max size: 10MB.')}
+                        {getTranslationFromI18nKeyAndLabel(
+                          'report.upload.hint',
+                          'Support for PDF, Word, Excel, and text files. Max size: 10MB.'
+                        )}
                       </p>
                     </div>
                   </FormControl>
@@ -204,7 +204,12 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger>
-                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('report.upload.investment.placeholder', 'Select investment')} />
+                        <SelectValue
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'report.upload.investment.placeholder',
+                            'Select investment'
+                          )}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {investments.map(investment => (
@@ -229,10 +234,7 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
                 <FormItem>
                   <FormLabel>{getTranslationFromI18nKeyAndLabel('report.upload.date', 'Report Date')}</FormLabel>
                   <FormControl>
-                    <Input
-                      type="date"
-                      {...field}
-                    />
+                    <Input type="date" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -250,7 +252,12 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
                   <FormControl>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <SelectTrigger>
-                        <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('report.upload.scope.placeholder', 'Select scope')} />
+                        <SelectValue
+                          placeholder={getTranslationFromI18nKeyAndLabel(
+                            'report.upload.scope.placeholder',
+                            'Select scope'
+                          )}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {reportScopeOptions.map(option => (
@@ -275,7 +282,10 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
                   <FormLabel>{getTranslationFromI18nKeyAndLabel('report.upload.description', 'Description')}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder={getTranslationFromI18nKeyAndLabel('report.upload.description.placeholder', 'Optional description of the report content')}
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'report.upload.description.placeholder',
+                        'Optional description of the report content'
+                      )}
                       rows={3}
                       {...field}
                     />
@@ -294,7 +304,10 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
                   <FormLabel>{getTranslationFromI18nKeyAndLabel('report.upload.notes', 'Additional Notes')}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder={getTranslationFromI18nKeyAndLabel('report.upload.notes.placeholder', 'Any additional notes or comments')}
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'report.upload.notes.placeholder',
+                        'Any additional notes or comments'
+                      )}
                       rows={2}
                       {...field}
                     />
@@ -308,10 +321,7 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
               <Button variant="outline" onClick={handleCancel}>
                 {getTranslationFromI18nKeyAndLabel('button.cancel', 'Cancel')}
               </Button>
-              <Button
-                type="submit"
-                disabled={fileList.length === 0 || isUploading}
-              >
+              <Button type="submit" disabled={fileList.length === 0 || isUploading}>
                 {isUploading ? 'Uploading...' : getTranslationFromI18nKeyAndLabel('button.upload', 'Upload')}
               </Button>
             </DialogFooter>
@@ -319,5 +329,5 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
         </Form>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}

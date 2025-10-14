@@ -58,13 +58,13 @@ const SimpleBarChart = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
-export const verticalBarCode = `// Vertical bar chart implementation`;
-export const multipleBarCode = `// Multiple series bar chart implementation`;
-export const stackedBarCode = `// Stacked bar chart implementation`;
-export const barLabelCode = `// Bar chart with labels implementation`;
-export const negativeBarCode = `// Bar chart with negative values implementation`;
+export const verticalBarCode = `// Vertical bar chart implementation`
+export const multipleBarCode = `// Multiple series bar chart implementation`
+export const stackedBarCode = `// Stacked bar chart implementation`
+export const barLabelCode = `// Bar chart with labels implementation`
+export const negativeBarCode = `// Bar chart with negative values implementation`
 
 export const interactiveBarCode = `import React, { useMemo, useState } from "react";
 import {
@@ -157,10 +157,10 @@ const InteractiveBarChart = ({ moduleColor }) => {
       </CardContent>
     </Card>
   );
-};`;
+};`
 
-export const customLabelBarCode = `// Bar chart with custom formatted labels and positioning`;
+export const customLabelBarCode = `// Bar chart with custom formatted labels and positioning`
 
-export const mixedBarCode = `// Mixed chart combining bars and lines for different data types`;
+export const mixedBarCode = `// Mixed chart combining bars and lines for different data types`
 
-export const activeBarCode = `// Bar chart with hover effects and interactive highlighting`;
+export const activeBarCode = `// Bar chart with hover effects and interactive highlighting`

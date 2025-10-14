@@ -1,27 +1,20 @@
-import {
-  Input,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from '@newwork/nw-design-system';
-import { Control, FieldValues, Path } from 'react-hook-form';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { DynamicFieldDefinition } from '../DynamicFormField';
+import { Input, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@newwork/nw-design-system'
+import { Control, FieldValues, Path } from 'react-hook-form'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { DynamicFieldDefinition } from '../DynamicFormField'
 
 interface TextFieldProps<TFieldValues extends FieldValues = FieldValues> {
-  field: DynamicFieldDefinition;
-  fieldName: string;
-  control: Control<TFieldValues>;
-  testIdPrefix: string;
+  field: DynamicFieldDefinition
+  fieldName: string
+  control: Control<TFieldValues>
+  testIdPrefix: string
 }
 
 export function TextField<TFieldValues extends FieldValues = FieldValues>({
   field,
   fieldName,
   control,
-  testIdPrefix,
+  testIdPrefix
 }: TextFieldProps<TFieldValues>) {
   return (
     <FormField
@@ -45,6 +38,5 @@ export function TextField<TFieldValues extends FieldValues = FieldValues>({
         </FormItem>
       )}
     />
-  );
+  )
 }
-

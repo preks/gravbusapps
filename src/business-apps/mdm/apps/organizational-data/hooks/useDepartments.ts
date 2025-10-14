@@ -1,55 +1,45 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useRestClient } from "@/common/network/rest/useRestClient";
-import { env } from "@/common/env/EnvUtils";
-import {
-  OrganizationalStructureApiResponse,
-  Department,
-  OrganizationalUnitNode,
-  CostCenter,
-  Company,
-} from "../types";
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { OrganizationalStructureApiResponse, Department, OrganizationalUnitNode, CostCenter, Company } from '../types'
 
-const ORGCHART_BASE_URL = `${env("NEXT_PUBLIC_ORGCHART_API_URL")}/orgchart/api/v1`;
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 export const useDepartments = (context: BusinessAppContextProps) => {
-  const [rootDepartments, setRootDepartments] = useState<Department[]>([]);
-  const [allDepartments, setAllDepartments] = useState<Department[]>([]);
-  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [departmentMap, setDepartmentMap] = useState<Map<string, Department>>(new Map());
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const structureId = useRef<string>(context.additionalData?.structureId || "active");
+  const [rootDepartments, setRootDepartments] = useState<Department[]>([])
+  const [allDepartments, setAllDepartments] = useState<Department[]>([])
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([])
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [departmentMap, setDepartmentMap] = useState<Map<string, Department>>(new Map())
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const structureId = useRef<string>(context.additionalData?.structureId || 'active')
 
-  const restClient = useRestClient(ORGCHART_BASE_URL);
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
   // Transform API organizational unit node to UI-friendly Department interface
-  const transformDepartment = (
-    node: OrganizationalUnitNode,
-    allNodes: OrganizationalUnitNode[],
-  ): Department => {
-    const { data } = node;
-    const orgUnitData = data.organizationalUnitData;
+  const transformDepartment = (node: OrganizationalUnitNode, allNodes: OrganizationalUnitNode[]): Department => {
+    const { data } = node
+    const orgUnitData = data.organizationalUnitData
 
     // Find parent department name
-    const parentNode = allNodes.find((n) => n.id === node.parentNode);
-    const parentDepartmentName = parentNode?.data.organizationalUnitData.name;
+    const parentNode = allNodes.find(n => n.id === node.parentNode)
+    const parentDepartmentName = parentNode?.data.organizationalUnitData.name
 
     // Build supervisor name
     const supervisorName = data.supervisor
-      ? `${data.supervisor.firstName} ${data.supervisor.lastName}${data.supervisor.callName ? ` (${data.supervisor.callName})` : ""}`
-      : undefined;
+      ? `${data.supervisor.firstName} ${data.supervisor.lastName}${data.supervisor.callName ? ` (${data.supervisor.callName})` : ''}`
+      : undefined
 
     // Determine status based on having employees
-    const status: "Active" | "Inactive" =
-      data.numberOfAssignedEmployees > 0 ? "Active" : "Inactive";
+    const status: 'Active' | 'Inactive' = data.numberOfAssignedEmployees > 0 ? 'Active' : 'Inactive'
 
     return {
       id: orgUnitData.organizationUnitId,
       nodeId: node.id,
-      structureId: "", // Will be set later
+      structureId: '', // Will be set later
       name: orgUnitData.name,
       description: orgUnitData.description,
       code: orgUnitData.code,
@@ -79,250 +69,247 @@ export const useDepartments = (context: BusinessAppContextProps) => {
       level: 0, // Will be computed later
       children: [],
       hasChildren: data.numberOfChildUnits > 0,
-      hasSupervisor: Boolean(data.supervisor),
-    };
-  };
+      hasSupervisor: Boolean(data.supervisor)
+    }
+  }
 
   // Build hierarchical structure from flat node list
   const buildHierarchy = (departments: Department[]): Department[] => {
     // Create lookup map
-    const map = new Map<string, Department>();
-    departments.forEach((dept) => {
-      map.set(dept.nodeId, dept);
-    });
+    const map = new Map<string, Department>()
+    departments.forEach(dept => {
+      map.set(dept.nodeId, dept)
+    })
 
     // Build hierarchy
-    const roots: Department[] = [];
+    const roots: Department[] = []
 
-    departments.forEach((dept) => {
+    departments.forEach(dept => {
       if (dept.parentNodeId && map.has(dept.parentNodeId)) {
-        const parent = map.get(dept.parentNodeId)!;
-        dept.level = parent.level + 1;
-        parent.children.push(dept);
+        const parent = map.get(dept.parentNodeId)!
+        dept.level = parent.level + 1
+        parent.children.push(dept)
       } else {
-        dept.level = 0;
-        roots.push(dept);
+        dept.level = 0
+        roots.push(dept)
       }
-    });
+    })
 
     // Sort children by name
     const sortChildren = (dept: Department) => {
-      dept.children.sort((a, b) => a.name.localeCompare(b.name));
-      dept.children.forEach(sortChildren);
-    };
+      dept.children.sort((a, b) => a.name.localeCompare(b.name))
+      dept.children.forEach(sortChildren)
+    }
 
-    roots.forEach(sortChildren);
-    roots.sort((a, b) => a.name.localeCompare(b.name));
+    roots.forEach(sortChildren)
+    roots.sort((a, b) => a.name.localeCompare(b.name))
 
-    return roots;
-  };
+    return roots
+  }
 
   // Fetch organizational units from structures API
   const fetchDepartments = useCallback(async (): Promise<Department[]> => {
     try {
       if (!structureId) {
-        throw new Error("Structure ID is required to fetch departments");
+        throw new Error('Structure ID is required to fetch departments')
       }
 
-      const response = await restClient.get<OrganizationalStructureApiResponse>(
-        `/structures/active`,
-        {
-          params: {
-            nodeType: "organization_unit",
-            isPlanningMode: false,
-          },
-          headers: {
-            Authorization: `Bearer ${context.accessToken}`,
-          },
+      const response = await restClient.get<OrganizationalStructureApiResponse>(`/structures/active`, {
+        params: {
+          nodeType: 'organization_unit',
+          isPlanningMode: false
         },
-      );
+        headers: {
+          Authorization: `Bearer ${context.accessToken}`
+        }
+      })
 
-      structureId.current = response.structure.structureId;
+      structureId.current = response.structure.structureId
       // Transform nodes to departments
-      const departments = response.nodes.map((node) => {
-        const dept = transformDepartment(node, response.nodes);
-        dept.structureId = response.structure.structureId;
-        return dept;
-      });
+      const departments = response.nodes.map(node => {
+        const dept = transformDepartment(node, response.nodes)
+        dept.structureId = response.structure.structureId
+        return dept
+      })
 
-      return departments;
+      return departments
     } catch (error) {
-      console.error("Error fetching departments:", error);
-      throw new Error("Failed to fetch departments from orgchart API");
+      console.error('Error fetching departments:', error)
+      throw new Error('Failed to fetch departments from orgchart API')
     }
-  }, [context.accessToken, context.additionalData?.structureId, restClient]);
+  }, [context.accessToken, context.additionalData?.structureId, restClient])
 
   const fetchCostCenters = useCallback(async (): Promise<CostCenter[]> => {
     try {
       if (!structureId) {
-        throw new Error("Structure ID is required to fetch cost centers");
+        throw new Error('Structure ID is required to fetch cost centers')
       }
 
       const response = await restClient.get<CostCenter[]>(`/cost-centers`, {
         params: { structureId: structureId.current },
         headers: {
-          Authorization: `Bearer ${context.accessToken}`,
-        },
-      });
+          Authorization: `Bearer ${context.accessToken}`
+        }
+      })
 
       if (response?.length > 0) {
-        return response;
+        return response
       } else {
-        return [];
+        return []
       }
     } catch (error) {
-      console.error("Error fetching cost centers:", error);
-      throw new Error("Failed to fetch cost centers from orgchart API");
+      console.error('Error fetching cost centers:', error)
+      throw new Error('Failed to fetch cost centers from orgchart API')
     }
-  }, [context.accessToken, restClient]);
+  }, [context.accessToken, restClient])
 
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     try {
       if (!structureId) {
-        throw new Error("Structure ID is required to fetch departments");
+        throw new Error('Structure ID is required to fetch departments')
       }
 
       const response = await restClient.get<Company[]>(`/companies`, {
         params: { structureId: structureId.current },
         headers: {
-          Authorization: `Bearer ${context.accessToken}`,
-        },
-      });
+          Authorization: `Bearer ${context.accessToken}`
+        }
+      })
 
       if (response?.length > 0) {
-        return response;
+        return response
       } else {
-        return [];
+        return []
       }
     } catch (error) {
-      console.error("Error fetching departments:", error);
-      throw new Error("Failed to fetch departments from orgchart API");
+      console.error('Error fetching departments:', error)
+      throw new Error('Failed to fetch departments from orgchart API')
     }
-  }, []);
+  }, [])
 
   // Load initial data
   const loadData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
-      const departmentsData = await fetchDepartments();
-      const costCentersData = await fetchCostCenters();
-      const companiesData = await fetchCompanies();
+      const departmentsData = await fetchDepartments()
+      const costCentersData = await fetchCostCenters()
+      const companiesData = await fetchCompanies()
 
-      const hierarchicalDepartments = buildHierarchy(departmentsData);
+      const hierarchicalDepartments = buildHierarchy(departmentsData)
 
       // Create lookup map
-      const map = new Map<string, Department>();
-      departmentsData.forEach((dept) => {
-        map.set(dept.nodeId, dept);
-      });
+      const map = new Map<string, Department>()
+      departmentsData.forEach(dept => {
+        map.set(dept.nodeId, dept)
+      })
 
-      setAllDepartments(departmentsData);
-      setRootDepartments(hierarchicalDepartments);
-      setDepartmentMap(map);
-      setCostCenters(costCentersData);
-      setCompanies(companiesData);
+      setAllDepartments(departmentsData)
+      setRootDepartments(hierarchicalDepartments)
+      setDepartmentMap(map)
+      setCostCenters(costCentersData)
+      setCompanies(companiesData)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error occurred";
-      setError(errorMessage);
-      console.error("Error loading departments:", err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      console.error('Error loading departments:', err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [fetchDepartments, fetchCostCenters, fetchCompanies]);
+  }, [fetchDepartments, fetchCostCenters, fetchCompanies])
 
   // Expand to specific level
   const expandToLevel = useCallback(
     (level: number) => {
-      const newExpandedIds = new Set<string>();
+      const newExpandedIds = new Set<string>()
 
       const addToExpanded = (depts: Department[], currentLevel: number) => {
-        depts.forEach((dept) => {
+        depts.forEach(dept => {
           if (currentLevel < level && dept.hasChildren) {
-            newExpandedIds.add(dept.nodeId);
+            newExpandedIds.add(dept.nodeId)
           }
           if (dept.children.length > 0) {
-            addToExpanded(dept.children, currentLevel + 1);
+            addToExpanded(dept.children, currentLevel + 1)
           }
-        });
-      };
+        })
+      }
 
-      addToExpanded(rootDepartments, 0);
-      setExpandedIds(newExpandedIds);
+      addToExpanded(rootDepartments, 0)
+      setExpandedIds(newExpandedIds)
     },
-    [rootDepartments],
-  );
+    [rootDepartments]
+  )
 
   // Collapse all nodes
   const collapseAll = useCallback(() => {
-    setExpandedIds(new Set());
-  }, []);
+    setExpandedIds(new Set())
+  }, [])
 
   // Get department by node ID
   const getDepartmentByNodeId = useCallback(
     (nodeId: string): Department | undefined => {
-      return departmentMap.get(nodeId);
+      return departmentMap.get(nodeId)
     },
-    [departmentMap],
-  );
+    [departmentMap]
+  )
 
   // Search departments by name or description
   const searchDepartments = useCallback(
     (query: string): Department[] => {
-      const searchTerm = query.toLowerCase();
+      const searchTerm = query.toLowerCase()
       return allDepartments.filter(
-        (dept) =>
+        dept =>
           dept.name.toLowerCase().includes(searchTerm) ||
           dept.description.toLowerCase().includes(searchTerm) ||
           (dept.code && dept.code.toLowerCase().includes(searchTerm)) ||
-          (dept.supervisorName && dept.supervisorName.toLowerCase().includes(searchTerm)),
-      );
+          (dept.supervisorName && dept.supervisorName.toLowerCase().includes(searchTerm))
+      )
     },
-    [allDepartments],
-  );
+    [allDepartments]
+  )
 
   // Filter departments by type
   const getDepartmentsByType = useCallback(
-    (type: "TEAM" | "DEPARTMENT"): Department[] => {
-      return allDepartments.filter((dept) => dept.type === type);
+    (type: 'TEAM' | 'DEPARTMENT'): Department[] => {
+      return allDepartments.filter(dept => dept.type === type)
     },
-    [allDepartments],
-  );
+    [allDepartments]
+  )
 
   // Get active departments
   const getActiveDepartments = useCallback((): Department[] => {
-    return allDepartments.filter((dept) => dept.status === "Active");
-  }, [allDepartments]);
+    return allDepartments.filter(dept => dept.status === 'Active')
+  }, [allDepartments])
 
   // Get departments with supervisors
   const getDepartmentsWithSupervisors = useCallback((): Department[] => {
-    return allDepartments.filter((dept) => dept.hasSupervisor);
-  }, [allDepartments]);
+    return allDepartments.filter(dept => dept.hasSupervisor)
+  }, [allDepartments])
 
   // Get departments by company
   const getDepartmentsByCompany = useCallback(
     (companyId: string): Department[] => {
-      return allDepartments.filter((dept) => dept.companyId === companyId);
+      return allDepartments.filter(dept => dept.companyId === companyId)
     },
-    [allDepartments],
-  );
+    [allDepartments]
+  )
 
   // Get total employee count
   const getTotalEmployeeCount = useCallback((): number => {
-    return allDepartments.reduce((total, dept) => total + dept.numberOfAssignedEmployees, 0);
-  }, [allDepartments]);
+    return allDepartments.reduce((total, dept) => total + dept.numberOfAssignedEmployees, 0)
+  }, [allDepartments])
 
   const refetch = useCallback(() => {
-    return loadData();
-  }, [loadData]);
+    return loadData()
+  }, [loadData])
 
   // Load data on mount and when access token changes
   useEffect(() => {
     if (context.accessToken) {
-      loadData();
+      loadData()
     }
-  }, [context.accessToken, loadData]);
+  }, [context.accessToken, loadData])
 
   return {
     // Data
@@ -353,11 +340,11 @@ export const useDepartments = (context: BusinessAppContextProps) => {
 
     // Statistics
     totalDepartments: allDepartments.length,
-    teams: getDepartmentsByType("TEAM").length,
-    departments: getDepartmentsByType("DEPARTMENT").length,
+    teams: getDepartmentsByType('TEAM').length,
+    departments: getDepartmentsByType('DEPARTMENT').length,
     activeDepartments: getActiveDepartments().length,
     departmentsWithSupervisors: getDepartmentsWithSupervisors().length,
     totalEmployeeCount: getTotalEmployeeCount(),
-    structureId: structureId.current,
-  };
-};
+    structureId: structureId.current
+  }
+}

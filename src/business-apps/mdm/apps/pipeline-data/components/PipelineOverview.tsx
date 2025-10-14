@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Modal } from 'antd';
+import React, { useState } from 'react'
+import { Modal } from 'antd'
 import {
   Button,
   Card,
@@ -19,173 +19,164 @@ import {
   Textarea,
   Spinner,
   Alert,
-  AlertDescription,
-} from '@newwork/nw-design-system';
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  Settings,
-} from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { usePipelineDataIntegration } from '../hooks/usePipelineDataIntegration';
-import { useStageConditions } from '../hooks/useStageConditions';
-import { useSalesPipelineStages } from '../hooks/useSalesPipelineStages';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { getPipelineCatalogConfig } from '../utils/catalogConfig';
-import {
-  EnhancedSalesPipeline,
-  PipelineFormData,
-} from '../types';
-import { PipelineStagesModal } from './PipelineStagesModal';
-import { convertToScreamingSnakeCase } from '../utils';
+  AlertDescription
+} from '@newwork/nw-design-system'
+import { Plus, Edit, Trash2, Eye, Settings } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { usePipelineDataIntegration } from '../hooks/usePipelineDataIntegration'
+import { useStageConditions } from '../hooks/useStageConditions'
+import { useSalesPipelineStages } from '../hooks/useSalesPipelineStages'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { getPipelineCatalogConfig } from '../utils/catalogConfig'
+import { EnhancedSalesPipeline, PipelineFormData } from '../types'
+import { PipelineStagesModal } from './PipelineStagesModal'
+import { convertToScreamingSnakeCase } from '../utils'
 
 // Pipeline Type Options
 const PIPELINE_TYPE_OPTIONS = [
   { label: 'Customer Pipeline', value: 'CRM' },
-  { label: 'Investment Pipeline', value: 'IRM' },
-];
+  { label: 'Investment Pipeline', value: 'IRM' }
+]
 
 export interface PipelineOverviewProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  sourceApp?: 'CRM' | 'IRM'; // Add sourceApp parameter for filtering
+  prefixDataTestId?: string
+  sourceApp?: 'CRM' | 'IRM' // Add sourceApp parameter for filtering
 }
 
-export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
-  const { prefixDataTestId, sourceApp = 'CRM' } = props;
-  
+export const PipelineOverview: React.FC<PipelineOverviewProps> = props => {
+  const { prefixDataTestId, sourceApp = 'CRM' } = props
+
   // Modal states
-  const [isPipelineModalVisible, setIsPipelineModalVisible] = useState(false);
-  const [isStagesModalVisible, setIsStagesModalVisible] = useState(false);
-  const [editingPipeline, setEditingPipeline] = useState<EnhancedSalesPipeline | null>(null);
-  const [selectedPipeline, setSelectedPipeline] = useState<EnhancedSalesPipeline | null>(null);
-  const [operationLoading, setOperationLoading] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [pipelineToDelete, setPipelineToDelete] = useState<EnhancedSalesPipeline | null>(null);
-  
+  const [isPipelineModalVisible, setIsPipelineModalVisible] = useState(false)
+  const [isStagesModalVisible, setIsStagesModalVisible] = useState(false)
+  const [editingPipeline, setEditingPipeline] = useState<EnhancedSalesPipeline | null>(null)
+  const [selectedPipeline, setSelectedPipeline] = useState<EnhancedSalesPipeline | null>(null)
+  const [operationLoading, setOperationLoading] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [pipelineToDelete, setPipelineToDelete] = useState<EnhancedSalesPipeline | null>(null)
+
   // Pipeline condition counts state
-  const [pipelineConditionCounts, setPipelineConditionCounts] = useState<Record<string, number>>({});
-  const [loadingPipelineConditions, setLoadingPipelineConditions] = useState<Record<string, boolean>>({});
-  
+  const [pipelineConditionCounts, setPipelineConditionCounts] = useState<Record<string, number>>({})
+  const [loadingPipelineConditions, setLoadingPipelineConditions] = useState<Record<string, boolean>>({})
+
   const pipelineForm = useForm<PipelineFormData>({
     defaultValues: {
       value: '',
       description: '',
       type: sourceApp // Default to current sourceApp
     }
-  });
+  })
 
-  const { pipelines, isLoading, error, refetch } = usePipelineDataIntegration(props, { sourceApp });
-  const { fetchStageConditionsCount } = useStageConditions(props);
-  const { fetchSalesPipelineStagesByParent } = useSalesPipelineStages(props);
-  const catalogClient = useCatalogManagerClient(props.accessToken);
+  const { pipelines, isLoading, error, refetch } = usePipelineDataIntegration(props, { sourceApp })
+  const { fetchStageConditionsCount } = useStageConditions(props)
+  const { fetchSalesPipelineStagesByParent } = useSalesPipelineStages(props)
+  const catalogClient = useCatalogManagerClient(props.accessToken)
 
   // Load pipeline condition counts when pipelines change
   React.useEffect(() => {
     if (pipelines.length > 0) {
-      loadPipelineConditionCounts();
+      loadPipelineConditionCounts()
     }
-  }, [pipelines]);
+  }, [pipelines])
 
   const loadPipelineConditionCounts = async () => {
-    const counts: Record<string, number> = {};
-    const loading: Record<string, boolean> = {};
+    const counts: Record<string, number> = {}
+    const loading: Record<string, boolean> = {}
 
     // Set loading state for all pipelines
     pipelines.forEach(pipeline => {
-      loading[pipeline.id] = true;
-    });
-    setLoadingPipelineConditions(loading);
+      loading[pipeline.id] = true
+    })
+    setLoadingPipelineConditions(loading)
 
     // Fetch condition counts for each pipeline
-    const promises = pipelines.map(async (pipeline) => {
+    const promises = pipelines.map(async pipeline => {
       try {
         // First, get all stages for this pipeline
-        const stagesResponse = await fetchSalesPipelineStagesByParent(pipeline.id, { sourceApp });
-        const stages = stagesResponse.data.filter(entry => entry.parentEntryId === pipeline.id);
-        
-        // Then, get condition counts for each stage and sum them up
-        const conditionPromises = stages.map(stage => fetchStageConditionsCount(stage.code, sourceApp));
-        const stageCounts = await Promise.all(conditionPromises);
-        
-        // Sum all condition counts for this pipeline
-        const totalCount = stageCounts.reduce((sum, count) => sum + count, 0);
-        counts[pipeline.id] = totalCount;
-        loading[pipeline.id] = false;
-      } catch (error) {
-        console.error(`Error loading conditions for pipeline ${pipeline.value}:`, error);
-        counts[pipeline.id] = 0;
-        loading[pipeline.id] = false;
-      }
-    });
+        const stagesResponse = await fetchSalesPipelineStagesByParent(pipeline.id, { sourceApp })
+        const stages = stagesResponse.data.filter(entry => entry.parentEntryId === pipeline.id)
 
-    await Promise.all(promises);
-    
-    setPipelineConditionCounts(counts);
-    setLoadingPipelineConditions(loading);
-  };
+        // Then, get condition counts for each stage and sum them up
+        const conditionPromises = stages.map(stage => fetchStageConditionsCount(stage.code, sourceApp))
+        const stageCounts = await Promise.all(conditionPromises)
+
+        // Sum all condition counts for this pipeline
+        const totalCount = stageCounts.reduce((sum, count) => sum + count, 0)
+        counts[pipeline.id] = totalCount
+        loading[pipeline.id] = false
+      } catch (error) {
+        console.error(`Error loading conditions for pipeline ${pipeline.value}:`, error)
+        counts[pipeline.id] = 0
+        loading[pipeline.id] = false
+      }
+    })
+
+    await Promise.all(promises)
+
+    setPipelineConditionCounts(counts)
+    setLoadingPipelineConditions(loading)
+  }
 
   // Combined refresh function for pipelines and their condition counts
   const refreshPipelinesAndCounts = async () => {
-    await refetch();
+    await refetch()
     // Note: condition counts will be automatically reloaded via useEffect when pipelines change
-  };
+  }
 
   // Pipelines are already filtered by sourceApp in the hook
 
   const handleAddPipeline = () => {
-    setEditingPipeline(null);
+    setEditingPipeline(null)
     pipelineForm.reset({
       value: '',
       description: '',
       type: sourceApp // Default to current sourceApp
-    });
-    setIsPipelineModalVisible(true);
-  };
+    })
+    setIsPipelineModalVisible(true)
+  }
 
   const handleEditPipeline = (pipeline: EnhancedSalesPipeline) => {
-    setEditingPipeline(pipeline);
+    setEditingPipeline(pipeline)
     pipelineForm.reset({
       value: pipeline.value,
       description: pipeline.description,
-      type: pipeline.type || sourceApp,
-    });
-    setIsPipelineModalVisible(true);
-  };
+      type: pipeline.type || sourceApp
+    })
+    setIsPipelineModalVisible(true)
+  }
 
   const handleViewStages = (pipeline: EnhancedSalesPipeline) => {
-    setSelectedPipeline(pipeline);
-    setIsStagesModalVisible(true);
-  };
+    setSelectedPipeline(pipeline)
+    setIsStagesModalVisible(true)
+  }
 
   const handleDeletePipeline = (pipeline: EnhancedSalesPipeline) => {
-    setPipelineToDelete(pipeline);
-    setDeleteDialogOpen(true);
-  };
+    setPipelineToDelete(pipeline)
+    setDeleteDialogOpen(true)
+  }
 
   const confirmDelete = async () => {
-    if (!pipelineToDelete) return;
-    
+    if (!pipelineToDelete) return
+
     try {
-      setOperationLoading(true);
-      const cfg = getPipelineCatalogConfig(sourceApp);
-      await catalogClient.deleteCatalogEntry(cfg.pipelineCatalog, cfg.version, pipelineToDelete.id);
-      console.log(`Pipeline "${pipelineToDelete.value}" deleted successfully`);
-      await refreshPipelinesAndCounts();
+      setOperationLoading(true)
+      const cfg = getPipelineCatalogConfig(sourceApp)
+      await catalogClient.deleteCatalogEntry(cfg.pipelineCatalog, cfg.version, pipelineToDelete.id)
+      console.log(`Pipeline "${pipelineToDelete.value}" deleted successfully`)
+      await refreshPipelinesAndCounts()
     } catch (error) {
-      console.error('Error deleting pipeline:', error);
+      console.error('Error deleting pipeline:', error)
     } finally {
-      setOperationLoading(false);
-      setDeleteDialogOpen(false);
-      setPipelineToDelete(null);
+      setOperationLoading(false)
+      setDeleteDialogOpen(false)
+      setPipelineToDelete(null)
     }
-  };
+  }
 
   const handlePipelineModalSubmit = async (values: PipelineFormData) => {
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       if (editingPipeline) {
         // Update existing pipeline
@@ -196,65 +187,65 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
           type: values.type,
           objectValue: editingPipeline.objectValue || {},
           translations: []
-        };
+        }
 
         if (values.description) {
-          payload.additionalValue1 = values.description;
+          payload.additionalValue1 = values.description
         }
-        const cfg = getPipelineCatalogConfig(sourceApp);
-        await catalogClient.updateCatalogEntry(cfg.pipelineCatalog, cfg.version, editingPipeline.id, payload);
-        console.log(`Pipeline "${values.value}" updated successfully`);
+        const cfg = getPipelineCatalogConfig(sourceApp)
+        await catalogClient.updateCatalogEntry(cfg.pipelineCatalog, cfg.version, editingPipeline.id, payload)
+        console.log(`Pipeline "${values.value}" updated successfully`)
       } else {
         // Create new pipeline
-        const code = convertToScreamingSnakeCase(values.value);
-        
+        const code = convertToScreamingSnakeCase(values.value)
+
         const payload: any = {
           code,
           value: values.value,
           type: values.type,
           objectValue: {},
           translations: []
-        };
-
-        if (values.description) {
-          payload.additionalValue1 = values.description;
         }
 
-        const cfg = getPipelineCatalogConfig(sourceApp);
-        await catalogClient.createCatalogEntry(cfg.pipelineCatalog, cfg.version, payload);
-        console.log(`Pipeline "${values.value}" created successfully`);
+        if (values.description) {
+          payload.additionalValue1 = values.description
+        }
+
+        const cfg = getPipelineCatalogConfig(sourceApp)
+        await catalogClient.createCatalogEntry(cfg.pipelineCatalog, cfg.version, payload)
+        console.log(`Pipeline "${values.value}" created successfully`)
       }
 
-      setIsPipelineModalVisible(false);
-      await refreshPipelinesAndCounts();
+      setIsPipelineModalVisible(false)
+      await refreshPipelinesAndCounts()
     } catch (error) {
-      console.error('Error saving pipeline:', error);
+      console.error('Error saving pipeline:', error)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   const getPipelineTypeColor = (type: string) => {
     switch (type) {
       case 'CRM':
-        return 'default';
+        return 'default'
       case 'IRM':
-        return 'secondary';
+        return 'secondary'
       default:
-        return 'outline';
+        return 'outline'
     }
-  };
+  }
 
   const getPipelineTypeLabel = (type: string) => {
     switch (type) {
       case 'CRM':
-        return 'Customer';
+        return 'Customer'
       case 'IRM':
-        return 'Investment';
+        return 'Investment'
       default:
-        return type;
+        return type
     }
-  };
+  }
 
   if (isLoading) {
     return (
@@ -268,7 +259,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
           </span>
         </div>
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -276,24 +267,16 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
       <Alert variant="destructive" data-testid={`${prefixDataTestId}-error-alert`}>
         <AlertDescription>
           Error Loading Pipeline Data: {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={refreshPipelinesAndCounts}
-            className="gba:ml-2"
-          >
+          <Button variant="outline" size="sm" onClick={refreshPipelinesAndCounts} className="gba:ml-2">
             Retry
           </Button>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   return (
-    <div
-      data-testid={`${prefixDataTestId}-PipelineOverview`}
-      className="gba:h-full gba:p-6"
-    >
+    <div data-testid={`${prefixDataTestId}-PipelineOverview`} className="gba:h-full gba:p-6">
       {/* Action Button */}
       <div className="gba:flex gba:justify-end gba:mb-6">
         <Button
@@ -325,7 +308,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
         </div>
       ) : (
         <div className="gba:flex gba:flex-wrap gba:gap-6 gba:justify-start">
-          {pipelines.map((pipeline) => (
+          {pipelines.map(pipeline => (
             <Card
               key={pipeline.id}
               className="gba:max-w-96 gba:flex-1 gba:min-w-80 gba:border-gray-200 hover:gba:border-blue-400 hover:gba:shadow-lg gba:transition-all gba:relative gba:border-t-4 gba:border-t-blue-500 gba:shadow-md gba:duration-200 gba:rounded-xl gba:overflow-hidden"
@@ -336,9 +319,9 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditPipeline(pipeline);
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleEditPipeline(pipeline)
                   }}
                   className="gba:text-gray-400 hover:gba:text-blue-500 gba:p-1 gba:h-6 gba:w-6"
                   data-testid={`${prefixDataTestId}-edit-pipeline-${pipeline.id}`}
@@ -348,9 +331,9 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeletePipeline(pipeline);
+                  onClick={e => {
+                    e.stopPropagation()
+                    handleDeletePipeline(pipeline)
                   }}
                   className="gba:text-gray-400 hover:gba:text-red-500 gba:p-1 gba:h-6 gba:w-6"
                   data-testid={`${prefixDataTestId}-delete-pipeline-${pipeline.id}`}
@@ -363,9 +346,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                 {/* Header Section */}
                 <div className="gba:mb-3">
                   <div className="gba:flex gba:items-start gba:justify-between gba:gap-2 gba:mb-2">
-                    <h5 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:flex-1">
-                      {pipeline.value}
-                    </h5>
+                    <h5 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:flex-1">{pipeline.value}</h5>
                   </div>
 
                   {/* Pipeline Type Badge */}
@@ -387,7 +368,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                     )}
                   </p>
                 </div>
-                
+
                 {/* Pipeline Statistics - Middle Section */}
                 <div className="gba:bg-gray-50 gba:rounded-lg gba:p-3 gba:border gba:border-gray-200 gba:flex-1">
                   <div className="gba:flex gba:justify-between gba:items-center gba:mb-2">
@@ -395,7 +376,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                       <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full gba:flex-shrink-0"></div>
                       <span className="gba:text-sm gba:font-medium gba:text-gray-700">Stages:</span>
                     </div>
-                    <span 
+                    <span
                       className="gba:text-sm gba:font-semibold gba:text-blue-600"
                       data-testid={`${prefixDataTestId}-pipeline-stage-count-${pipeline.id}`}
                     >
@@ -407,7 +388,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                       <div className="gba:w-2 gba:h-2 gba:bg-orange-500 gba:rounded-full gba:flex-shrink-0"></div>
                       <span className="gba:text-sm gba:font-medium gba:text-gray-700">Conditions:</span>
                     </div>
-                    <span 
+                    <span
                       className="gba:text-sm gba:font-semibold gba:text-orange-600"
                       data-testid={`${prefixDataTestId}-pipeline-condition-count-${pipeline.id}`}
                     >
@@ -449,7 +430,6 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
         data-testid={`${prefixDataTestId}-pipeline-modal`}
       >
         <div>
-
           <Form {...pipelineForm}>
             <form onSubmit={pipelineForm.handleSubmit(handlePipelineModalSubmit)} className="gba:space-y-4">
               <FormField
@@ -460,8 +440,8 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                   <FormItem>
                     <FormLabel>Pipeline Name</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
+                      <Input
+                        {...field}
                         placeholder="Please Enter..."
                         data-testid={`${prefixDataTestId}-pipeline-name-input`}
                       />
@@ -504,8 +484,8 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
+                      <Textarea
+                        {...field}
                         placeholder="Describe the purpose and use case of this pipeline..."
                         rows={3}
                         data-testid={`${prefixDataTestId}-pipeline-description-input`}
@@ -551,8 +531,7 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
       >
         <div className="gba:py-4">
           <p>
-            Are you sure you want to delete pipeline "{pipelineToDelete?.value}"? 
-            This will also delete all its stages.
+            Are you sure you want to delete pipeline "{pipelineToDelete?.value}"? This will also delete all its stages.
           </p>
         </div>
 
@@ -581,13 +560,13 @@ export const PipelineOverview: React.FC<PipelineOverviewProps> = (props) => {
         pipeline={selectedPipeline}
         visible={isStagesModalVisible}
         onClose={() => {
-          setIsStagesModalVisible(false);
-          setSelectedPipeline(null);
-          refreshPipelinesAndCounts();
+          setIsStagesModalVisible(false)
+          setSelectedPipeline(null)
+          refreshPipelinesAndCounts()
         }}
         prefixDataTestId={prefixDataTestId}
         {...props}
       />
     </div>
-  );
-}; 
+  )
+}

@@ -1,2 +1,1 @@
-export { default as AccountSection } from './AccountSection';
-
+export { default as AccountSection } from './AccountSection'

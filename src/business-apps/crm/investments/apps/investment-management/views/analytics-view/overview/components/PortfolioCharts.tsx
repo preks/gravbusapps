@@ -1,29 +1,29 @@
-import React from 'react';
-import { PortfolioTimelineCharts } from './PortfolioTimelineCharts';
-import { PortfolioAnalyticsCharts } from './PortfolioAnalyticsCharts';
-import { PortfolioDistributionCharts } from './PortfolioDistributionCharts';
+import React from 'react'
+import { PortfolioTimelineCharts } from './PortfolioTimelineCharts'
+import { PortfolioAnalyticsCharts } from './PortfolioAnalyticsCharts'
+import { PortfolioDistributionCharts } from './PortfolioDistributionCharts'
 
 interface ChartData {
-  investmentTypeData: any[];
-  investmentGroupData: any[];
-  statusData: any[];
-  phaseData: any[];
-  riskLevelData: any[];
-  currencyData: any[];
-  roiData: any[];
-  valueOverTimeData: any[];
-  performanceTimelineData: any[];
-  sizeVsRoiData: any[];
-  leverageAnalysisData: any[];
-  riskReturnData: any[];
-  concentrationByGroupData: any[];
-  activePeriodData: any[];
-  valueByAccountData: any[];
-  roiDistributionData: any[];
+  investmentTypeData: any[]
+  investmentGroupData: any[]
+  statusData: any[]
+  phaseData: any[]
+  riskLevelData: any[]
+  currencyData: any[]
+  roiData: any[]
+  valueOverTimeData: any[]
+  performanceTimelineData: any[]
+  sizeVsRoiData: any[]
+  leverageAnalysisData: any[]
+  riskReturnData: any[]
+  concentrationByGroupData: any[]
+  activePeriodData: any[]
+  valueByAccountData: any[]
+  roiDistributionData: any[]
 }
 
 interface PortfolioChartsProps {
-  chartData: ChartData;
+  chartData: ChartData
 }
 
 export const PortfolioCharts: React.FC<PortfolioChartsProps> = ({ chartData }) => {
@@ -44,7 +44,7 @@ export const PortfolioCharts: React.FC<PortfolioChartsProps> = ({ chartData }) =
     activePeriodData,
     valueByAccountData,
     roiDistributionData
-  } = chartData;
+  } = chartData
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '24px' }}>
@@ -70,7 +70,5 @@ export const PortfolioCharts: React.FC<PortfolioChartsProps> = ({ chartData }) =
         roiDistributionData={roiDistributionData}
       />
     </div>
-  );
-};
-
-
+  )
+}

@@ -36,4 +36,4 @@ export const ONLINE_STATUS_COLORS: Record<OnlineStatus, string> = {
   [OnlineStatus.BE_RIGHT_BACK]: '#f97316', // Orange
   [OnlineStatus.OFFLINE]: '#9ca3af', // Grey
   [OnlineStatus.OUT_OF_OFFICE]: '#a855f7' // Purple
-};
+}

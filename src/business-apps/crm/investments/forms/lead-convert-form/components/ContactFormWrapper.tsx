@@ -1,16 +1,16 @@
-import React from 'react';
-import { ContactFormProvider } from '../../contact-form/context/ContactFormContext';
-import ContactFormComponent from '../../contact-form/components/ContactFormComponent';
-import ContactFormChangeMonitor from './ContactFormChangeMonitor';
-import { ContactFormValues } from '../../contact-form/types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { ContactFormProvider } from '../../contact-form/context/ContactFormContext'
+import ContactFormComponent from '../../contact-form/components/ContactFormComponent'
+import ContactFormChangeMonitor from './ContactFormChangeMonitor'
+import { ContactFormValues } from '../../contact-form/types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface ContactFormWrapperProps extends BusinessAppContextProps {
-  initialValues?: Partial<ContactFormValues>;
-  onFormChange?: (values: Partial<ContactFormValues>) => void;
-  onSubmit?: (values: ContactFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
-  hideActions?: boolean;
+  initialValues?: Partial<ContactFormValues>
+  onFormChange?: (values: Partial<ContactFormValues>) => void
+  onSubmit?: (values: ContactFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
+  hideActions?: boolean
 }
 
 const ContactFormWrapper: React.FC<ContactFormWrapperProps> = ({
@@ -21,24 +21,23 @@ const ContactFormWrapper: React.FC<ContactFormWrapperProps> = ({
   hideActions = true,
   accessToken,
   userInfo,
-  additionalData,
+  additionalData
 }) => {
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
         <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly
-          authenticated.
+          Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
-    additionalData,
-  };
+    additionalData
+  }
 
   return (
     <div data-testid="contact-form-wrapper">
@@ -53,7 +52,7 @@ const ContactFormWrapper: React.FC<ContactFormWrapperProps> = ({
         <ContactFormChangeMonitor onFormChange={onFormChange} />
       </ContactFormProvider>
     </div>
-  );
-};
+  )
+}
 
-export default ContactFormWrapper;
+export default ContactFormWrapper

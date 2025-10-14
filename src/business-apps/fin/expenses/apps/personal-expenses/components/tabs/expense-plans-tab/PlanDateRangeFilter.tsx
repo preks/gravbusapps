@@ -1,13 +1,13 @@
-import React from 'react';
-import { DatePicker } from 'antd';
-import dayjs, { Dayjs } from 'dayjs';
+import React from 'react'
+import { DatePicker } from 'antd'
+import dayjs, { Dayjs } from 'dayjs'
 
-const { RangePicker } = DatePicker;
+const { RangePicker } = DatePicker
 
 interface PlanDateRangeFilterProps {
-  planDateRange: [Date | null, Date | null] | null;
-  onDateRangeChange: (dateRange: [Date | null, Date | null] | null) => void;
-  placeholder?: [string, string];
+  planDateRange: [Date | null, Date | null] | null
+  onDateRangeChange: (dateRange: [Date | null, Date | null] | null) => void
+  placeholder?: [string, string]
 }
 
 const PlanDateRangeFilter: React.FC<PlanDateRangeFilterProps> = ({
@@ -17,18 +17,14 @@ const PlanDateRangeFilter: React.FC<PlanDateRangeFilterProps> = ({
 }) => {
   const handleDateChange = (dates: any) => {
     if (!dates || dates.length === 0) {
-      onDateRangeChange(null);
+      onDateRangeChange(null)
     } else {
-      onDateRangeChange([
-        dates[0]?.toDate() || null,
-        dates[1]?.toDate() || null
-      ]);
+      onDateRangeChange([dates[0]?.toDate() || null, dates[1]?.toDate() || null])
     }
-  };
+  }
 
-  const value = planDateRange && planDateRange[0] && planDateRange[1]
-    ? [dayjs(planDateRange[0]), dayjs(planDateRange[1])]
-    : null;
+  const value =
+    planDateRange && planDateRange[0] && planDateRange[1] ? [dayjs(planDateRange[0]), dayjs(planDateRange[1])] : null
 
   return (
     <RangePicker
@@ -38,7 +34,7 @@ const PlanDateRangeFilter: React.FC<PlanDateRangeFilterProps> = ({
       className="gba:w-full"
       data-testid="plan-date-range-filter"
     />
-  );
-};
+  )
+}
 
-export default PlanDateRangeFilter; 
+export default PlanDateRangeFilter

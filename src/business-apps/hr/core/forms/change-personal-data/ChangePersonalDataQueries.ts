@@ -38,7 +38,6 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!) {
 }
 `
 
-
 export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: String!) {
     schoolQualification: CatalogEntry(where: {catalog: {identifier: {_eq: "SchoolQualification"}}}) {
       value

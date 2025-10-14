@@ -1,61 +1,94 @@
-import React, { useMemo, useState } from 'react';
-import { Button, Input, Alert, AlertDescription, Spinner, Textarea, Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { useDocumentCatalogs } from '@/business-apps/crm/common/forms/document-upload-form/hooks/useDocumentCatalogs';
-import { fileClient } from '@/common/network/files/FileClient';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+import React, { useMemo, useState } from 'react'
+import {
+  Button,
+  Input,
+  Alert,
+  AlertDescription,
+  Spinner,
+  Textarea,
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { useDocumentCatalogs } from '@/business-apps/crm/common/forms/document-upload-form/hooks/useDocumentCatalogs'
+import { fileClient } from '@/common/network/files/FileClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-export type DocumentCreationEntityType = 'account' | 'contact' | 'lead';
+export type DocumentCreationEntityType = 'account' | 'contact' | 'lead'
 
 export interface DocumentCreationPopupValues {
-  entityType: DocumentCreationEntityType;
-  entityId: string;
-  parentDocument?: string | null;
-  folder: boolean;
-  name?: string;
+  entityType: DocumentCreationEntityType
+  entityId: string
+  parentDocument?: string | null
+  folder: boolean
+  name?: string
 }
 
 export interface DocumentCreationPopupProps extends BusinessAppContextProps {
-  initialValues?: Partial<DocumentCreationPopupValues>;
+  initialValues?: Partial<DocumentCreationPopupValues>
 }
 
-const prefixDataTestId = 'DocumentCreationPopup';
+const prefixDataTestId = 'DocumentCreationPopup'
 
 const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialValues = {}, ...props }) => {
   const values = useMemo<DocumentCreationPopupValues>(() => {
-    const src = { ...(props as any), ...(initialValues as any) } as any;
-    const ad = src?.additionalData || {};
-    const payload = ad?.payload || ad?.psi_taskPayload?.psi_initialParameters?.payload || ad?.psi_taskPayload?.initialParameters?.payload || {};
-    const crmFromAd = ad?.crmDocument || ad?.psi_taskPayload?.psi_initialParameters?.crmDocument || ad?.psi_taskPayload?.initialParameters?.crmDocument || payload?.crmDocument;
-    const crm = src?.crmDocument || crmFromAd || {};
-    const accountId = src?.accountId || src?.account || crm?.account || '';
-    const contactId = src?.contactId || src?.contact || crm?.contact || '';
-    const leadId = src?.leadId || src?.lead || crm?.lead || '';
+    const src = { ...(props as any), ...(initialValues as any) } as any
+    const ad = src?.additionalData || {}
+    const payload =
+      ad?.payload ||
+      ad?.psi_taskPayload?.psi_initialParameters?.payload ||
+      ad?.psi_taskPayload?.initialParameters?.payload ||
+      {}
+    const crmFromAd =
+      ad?.crmDocument ||
+      ad?.psi_taskPayload?.psi_initialParameters?.crmDocument ||
+      ad?.psi_taskPayload?.initialParameters?.crmDocument ||
+      payload?.crmDocument
+    const crm = src?.crmDocument || crmFromAd || {}
+    const accountId = src?.accountId || src?.account || crm?.account || ''
+    const contactId = src?.contactId || src?.contact || crm?.contact || ''
+    const leadId = src?.leadId || src?.lead || crm?.lead || ''
 
-    let entityType: DocumentCreationEntityType = 'account';
-    let entityId = '';
-    if (accountId) { entityType = 'account'; entityId = String(accountId); }
-    else if (contactId) { entityType = 'contact'; entityId = String(contactId); }
-    else if (leadId) { entityType = 'lead'; entityId = String(leadId); }
+    let entityType: DocumentCreationEntityType = 'account'
+    let entityId = ''
+    if (accountId) {
+      entityType = 'account'
+      entityId = String(accountId)
+    } else if (contactId) {
+      entityType = 'contact'
+      entityId = String(contactId)
+    } else if (leadId) {
+      entityType = 'lead'
+      entityId = String(leadId)
+    }
 
     // Folder mode only when explicitly requested or format pre-set as FOLDER
     const computedFolder = Boolean(
       // direct flags
-      src?.folder === true || src?.createFolder === true || src?.createFolder === 'true' ||
-      // additionalData level
-      (ad?.folder === true) || (ad?.createFolder === true) || (ad?.createFolder === 'true') ||
-      // common platform shapes
-      (ad?.psi_taskPayload?.psi_initialParameters?.createFolder === true) ||
-      (ad?.psi_taskPayload?.psi_initialParameters?.createFolder === 'true') ||
-      (ad?.psi_taskPayload?.initialParameters?.createFolder === true) ||
-      (ad?.psi_taskPayload?.initialParameters?.createFolder === 'true') ||
-      // payload nested
-      (payload?.folder === true) || (payload?.createFolder === true) || (payload?.createFolder === 'true') ||
-      // sometimes passed as crm.format
-      (crm?.format === 'FOLDER')
-    );
+      src?.folder === true ||
+        src?.createFolder === true ||
+        src?.createFolder === 'true' ||
+        // additionalData level
+        ad?.folder === true ||
+        ad?.createFolder === true ||
+        ad?.createFolder === 'true' ||
+        // common platform shapes
+        ad?.psi_taskPayload?.psi_initialParameters?.createFolder === true ||
+        ad?.psi_taskPayload?.psi_initialParameters?.createFolder === 'true' ||
+        ad?.psi_taskPayload?.initialParameters?.createFolder === true ||
+        ad?.psi_taskPayload?.initialParameters?.createFolder === 'true' ||
+        // payload nested
+        payload?.folder === true ||
+        payload?.createFolder === true ||
+        payload?.createFolder === 'true' ||
+        // sometimes passed as crm.format
+        crm?.format === 'FOLDER'
+    )
     const parentDocument =
       src?.parentDocument ??
       ad?.parentDocument ??
@@ -63,59 +96,68 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       ad?.psi_taskPayload?.initialParameters?.parentDocument ??
       payload?.parentDocument ??
       crm?.parentDocument ??
-      null;
-    const name = crm?.name ?? src?.name ?? '';
+      null
+    const name = crm?.name ?? src?.name ?? ''
 
     return {
       entityType,
       entityId,
       parentDocument,
       folder: computedFolder,
-      name,
-    } as DocumentCreationPopupValues;
-  }, [initialValues, props]);
+      name
+    } as DocumentCreationPopupValues
+  }, [initialValues, props])
 
-  const [name, setName] = useState<string>(values.name || '');
-  const [submitting, setSubmitting] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const [documentGroupRef, setDocumentGroupRef] = useState<string>('');
-  const [documentTypeRef, setDocumentTypeRef] = useState<string>('');
-  const [parentFolderId, setParentFolderId] = useState<string>(values.parentDocument || '');
+  const [name, setName] = useState<string>(values.name || '')
+  const [submitting, setSubmitting] = useState(false)
+  const [file, setFile] = useState<File | null>(null)
+  const [documentGroupRef, setDocumentGroupRef] = useState<string>('')
+  const [documentTypeRef, setDocumentTypeRef] = useState<string>('')
+  const [parentFolderId, setParentFolderId] = useState<string>(values.parentDocument || '')
   // Catalog dropdowns for file creation
-  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(props.accessToken || '', documentGroupRef);
-  const [description, setDescription] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
-  const [groupOpen, setGroupOpen] = useState<boolean>(false);
-  const [typeOpen, setTypeOpen] = useState<boolean>(false);
-  const [parentOpen, setParentOpen] = useState<boolean>(false);
-  const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([]);
-  const [parentLoading, setParentLoading] = useState<boolean>(false);
-  const graphqlClient = useGraphQLClient(props.accessToken || '');
+  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(props.accessToken || '', documentGroupRef)
+  const [description, setDescription] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
+  const [groupOpen, setGroupOpen] = useState<boolean>(false)
+  const [typeOpen, setTypeOpen] = useState<boolean>(false)
+  const [parentOpen, setParentOpen] = useState<boolean>(false)
+  const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([])
+  const [parentLoading, setParentLoading] = useState<boolean>(false)
+  const graphqlClient = useGraphQLClient(props.accessToken || '')
 
   // Rename mode detection (from payload/additionalData)
   const renameMode = useMemo(() => {
-    const src = { ...(props as any), ...(initialValues as any) } as any;
-    const ad = src?.additionalData || {};
-    const payload = ad?.payload || ad?.psi_taskPayload?.psi_initialParameters?.payload || ad?.psi_taskPayload?.initialParameters?.payload || {};
-    const modeFromAd = ad?.mode || ad?.psi_taskPayload?.psi_initialParameters?.mode || ad?.psi_taskPayload?.initialParameters?.mode;
-    return (src?.mode === 'rename') || (payload?.mode === 'rename') || (modeFromAd === 'rename');
-  }, [initialValues, props]);
+    const src = { ...(props as any), ...(initialValues as any) } as any
+    const ad = src?.additionalData || {}
+    const payload =
+      ad?.payload ||
+      ad?.psi_taskPayload?.psi_initialParameters?.payload ||
+      ad?.psi_taskPayload?.initialParameters?.payload ||
+      {}
+    const modeFromAd =
+      ad?.mode || ad?.psi_taskPayload?.psi_initialParameters?.mode || ad?.psi_taskPayload?.initialParameters?.mode
+    return src?.mode === 'rename' || payload?.mode === 'rename' || modeFromAd === 'rename'
+  }, [initialValues, props])
 
   // Load parent folders for the current entity (skip for rename mode)
   React.useEffect(() => {
-    if (renameMode) return;
+    if (renameMode) return
     const loadParents = async () => {
-      if (!props.accessToken || !values.entityId) return;
-      setParentLoading(true);
+      if (!props.accessToken || !values.entityId) return
+      setParentLoading(true)
       try {
         const idField = (() => {
           switch (values.entityType) {
-            case 'account': return 'accountId';
-            case 'contact': return 'contactId';
-            case 'lead': return 'leadId';
-            default: return 'accountId';
+            case 'account':
+              return 'accountId'
+            case 'contact':
+              return 'contactId'
+            case 'lead':
+              return 'leadId'
+            default:
+              return 'accountId'
           }
-        })();
+        })()
         const query = `
           query GetParentFolders($id: uuid!) {
             CrmDocument(where: { ${idField}: { _eq: $id }, format: { _eq: "FOLDER" }, isDeleted: { _eq: false } }) {
@@ -123,31 +165,37 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
               name
             }
           }
-        `;
-        const result = await graphqlClient.request<{ CrmDocument: { id: string; name: string }[] }>(query, { id: values.entityId });
-        setParentFolders(Array.isArray(result?.CrmDocument) ? result.CrmDocument : []);
+        `
+        const result = await graphqlClient.request<{ CrmDocument: { id: string; name: string }[] }>(query, {
+          id: values.entityId
+        })
+        setParentFolders(Array.isArray(result?.CrmDocument) ? result.CrmDocument : [])
       } catch (e) {
-        setParentFolders([]);
+        setParentFolders([])
       } finally {
-        setParentLoading(false);
+        setParentLoading(false)
       }
-    };
-    loadParents();
-  }, [props.accessToken, values.entityId, values.entityType, renameMode]);
+    }
+    loadParents()
+  }, [props.accessToken, values.entityId, values.entityType, renameMode])
 
   // Ensure parent folder dropdown is preselected when provided by payload
   React.useEffect(() => {
-    if (renameMode) return;
+    if (renameMode) return
     if (!parentFolderId && values.parentDocument) {
-      setParentFolderId(values.parentDocument);
+      setParentFolderId(values.parentDocument)
     }
-  }, [renameMode, values.parentDocument, parentFolderId, parentFolders.length]);
+  }, [renameMode, values.parentDocument, parentFolderId, parentFolders.length])
 
   // Detect update mode from incoming crmDocument (presence of id)
-  const sourcePayload = useMemo(() => ({ ...(props as any), ...(initialValues as any) } as any), [props, initialValues]);
+  const sourcePayload = useMemo(() => ({ ...(props as any), ...(initialValues as any) }) as any, [props, initialValues])
   const existingCrm = useMemo(() => {
-    const ad = sourcePayload?.additionalData || {};
-    const payload = ad?.payload || ad?.psi_taskPayload?.psi_initialParameters?.payload || ad?.psi_taskPayload?.initialParameters?.payload || {};
+    const ad = sourcePayload?.additionalData || {}
+    const payload =
+      ad?.payload ||
+      ad?.psi_taskPayload?.psi_initialParameters?.payload ||
+      ad?.psi_taskPayload?.initialParameters?.payload ||
+      {}
     return (
       sourcePayload?.crmDocument ||
       ad?.crmDocument ||
@@ -155,34 +203,45 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       ad?.psi_taskPayload?.initialParameters?.crmDocument ||
       payload?.crmDocument ||
       {}
-    );
-  }, [sourcePayload]);
-  const isUpdateMode = !!existingCrm?.id;
+    )
+  }, [sourcePayload])
+  const isUpdateMode = !!existingCrm?.id
 
   const title = useMemo(
-    () => (renameMode ? 'Rename Document' : (isUpdateMode ? 'Update Document' : (values.folder ? 'Create Folder' : 'Create Document'))),
+    () =>
+      renameMode
+        ? 'Rename Document'
+        : isUpdateMode
+          ? 'Update Document'
+          : values.folder
+            ? 'Create Folder'
+            : 'Create Document',
     [renameMode, isUpdateMode, values.folder]
-  );
+  )
   const actionLabel = useMemo(
-    () => (renameMode ? 'Save' : (isUpdateMode ? 'Save' : 'Create')),
+    () => (renameMode ? 'Save' : isUpdateMode ? 'Save' : 'Create'),
     [renameMode, isUpdateMode]
-  );
+  )
 
   const entityIdKey = useMemo(() => {
     switch (values.entityType) {
-      case 'account': return 'accountId';
-      case 'contact': return 'contactId';
-      case 'lead': return 'leadId';
-      default: return 'accountId';
+      case 'account':
+        return 'accountId'
+      case 'contact':
+        return 'contactId'
+      case 'lead':
+        return 'leadId'
+      default:
+        return 'accountId'
     }
-  }, [values.entityType]);
+  }, [values.entityType])
 
   // File reading no longer needed; we use File Service upload instead
 
   const getExtensionFromFile = (f: File): string | null => {
     // First try from filename
-    const match = /\.([^.]+)$/.exec(f.name || '');
-    if (match && match[1]) return match[1].toLowerCase();
+    const match = /\.([^.]+)$/.exec(f.name || '')
+    if (match && match[1]) return match[1].toLowerCase()
     // Fallback by mime type
     const map: Record<string, string> = {
       'application/pdf': 'pdf',
@@ -200,73 +259,85 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       'application/vnd.ms-powerpoint': 'ppt',
       'image/gif': 'gif',
       'image/webp': 'webp',
-      'application/zip': 'zip',
-    };
-    return map[f.type] || null;
-  };
+      'application/zip': 'zip'
+    }
+    return map[f.type] || null
+  }
 
   const ensureNameHasExtension = (baseName: string, f?: File | null): string => {
-    const nameHasExt = /\.[^.]+$/.test(baseName);
-    if (nameHasExt) return baseName;
+    const nameHasExt = /\.[^.]+$/.test(baseName)
+    if (nameHasExt) return baseName
     if (f) {
-      const ext = getExtensionFromFile(f);
-      if (ext) return `${baseName}.${ext}`;
+      const ext = getExtensionFromFile(f)
+      if (ext) return `${baseName}.${ext}`
     }
-    return baseName; // leave as-is if we can't determine (backend may still validate)
-  };
+    return baseName // leave as-is if we can't determine (backend may still validate)
+  }
 
   const handleSubmit = async () => {
-    setError(null);
-    const trimmed = (name || '').trim();
+    setError(null)
+    const trimmed = (name || '').trim()
     if (!trimmed) {
-      setError('Please provide a name.');
-      return;
+      setError('Please provide a name.')
+      return
     }
     if (!values.folder && !isUpdateMode && !renameMode && !file) {
-      setError('Please select a file.');
-      return;
+      setError('Please select a file.')
+      return
     }
     try {
-      setSubmitting(true);
+      setSubmitting(true)
       // Build crmDocument payload
       const entityBindingKey = (() => {
         switch (values.entityType) {
-          case 'account': return 'account';
-          case 'contact': return 'contact';
-          case 'lead': return 'lead';
-          default: return 'account';
+          case 'account':
+            return 'account'
+          case 'contact':
+            return 'contact'
+          case 'lead':
+            return 'lead'
+          default:
+            return 'account'
         }
-      })();
+      })()
 
       // Resolve a reliable entity id from multiple possible sources
-      const source = { ...(props as any), ...(initialValues as any) } as any;
-      const urlParams = new URLSearchParams(window.location.search);
+      const source = { ...(props as any), ...(initialValues as any) } as any
+      const urlParams = new URLSearchParams(window.location.search)
       const idFromUrl = (() => {
         switch (values.entityType) {
-          case 'account': return urlParams.get('accountId');
-          case 'contact': return urlParams.get('contactId');
-          case 'lead': return urlParams.get('leadId');
-          default: return null;
+          case 'account':
+            return urlParams.get('accountId')
+          case 'contact':
+            return urlParams.get('contactId')
+          case 'lead':
+            return urlParams.get('leadId')
+          default:
+            return null
         }
-      })();
+      })()
       const resolvedId =
         values.entityId ||
         source?.crmDocument?.[entityBindingKey] ||
         source?.[entityBindingKey] ||
-        source?.accountId || source?.contactId || source?.leadId ||
-        source?.account || source?.contact || source?.lead ||
+        source?.accountId ||
+        source?.contactId ||
+        source?.leadId ||
+        source?.account ||
+        source?.contact ||
+        source?.lead ||
         idFromUrl ||
-        '';
+        ''
 
       // Build base crmDocument
       const crmDocument: Record<string, any> = {
-        [entityBindingKey]: resolvedId,
-      };
+        [entityBindingKey]: resolvedId
+      }
 
       if (renameMode || isUpdateMode) {
         // Update: keep id/version and allow renaming without requiring file
-        crmDocument.id = existingCrm.id;
-        let effectiveVersion: number | undefined = existingCrm?.version;
+        crmDocument.id = existingCrm.id
+        let effectiveVersion: number | undefined = existingCrm?.version
         if (!effectiveVersion || Number.isNaN(Number(effectiveVersion)) || Number(effectiveVersion) <= 0) {
           // Fallback: fetch latest version from GraphQL by id to avoid outdated-version errors
           try {
@@ -277,64 +348,66 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
                   version
                 }
               }
-            `;
-            const res = await graphqlClient.request<{ CrmDocument: { id: string; version: number }[] }>(query, { id: crmDocument.id });
-            effectiveVersion = res?.CrmDocument?.[0]?.version ?? 0;
+            `
+            const res = await graphqlClient.request<{ CrmDocument: { id: string; version: number }[] }>(query, {
+              id: crmDocument.id
+            })
+            effectiveVersion = res?.CrmDocument?.[0]?.version ?? 0
           } catch {
-            effectiveVersion = 0;
+            effectiveVersion = 0
           }
         }
-        crmDocument.version = Number(effectiveVersion) || 0;
-        crmDocument.name = trimmed;
+        crmDocument.version = Number(effectiveVersion) || 0
+        crmDocument.name = trimmed
         if (!renameMode && (parentFolderId || values.parentDocument)) {
-          crmDocument.parentDocument = parentFolderId || values.parentDocument;
+          crmDocument.parentDocument = parentFolderId || values.parentDocument
         }
       } else {
         // Create
-        crmDocument.version = 0;
-        crmDocument.name = values.folder ? trimmed : ensureNameHasExtension(trimmed, file);
-        crmDocument.parentDocument = (parentFolderId || values.parentDocument) || undefined;
-        crmDocument.format = values.folder ? 'FOLDER' : 'FILE';
+        crmDocument.version = 0
+        crmDocument.name = values.folder ? trimmed : ensureNameHasExtension(trimmed, file)
+        crmDocument.parentDocument = parentFolderId || values.parentDocument || undefined
+        crmDocument.format = values.folder ? 'FOLDER' : 'FILE'
       }
 
       // Optional metadata (skip for rename)
       if (!renameMode) {
-        if (documentGroupRef) crmDocument.documentGroupRef = documentGroupRef;
-        if (documentTypeRef) crmDocument.documentTypeRef = documentTypeRef;
-        if (description) crmDocument.description = description;
+        if (documentGroupRef) crmDocument.documentGroupRef = documentGroupRef
+        if (documentTypeRef) crmDocument.documentTypeRef = documentTypeRef
+        if (description) crmDocument.description = description
       }
 
       // If uploading a file (create or update), upload to File Service and include returned fileId
       if (!renameMode && !values.folder && file) {
         // Ensure auth header
         if (props.accessToken) {
-          fileClient.setAccessToken(props.accessToken);
+          fileClient.setAccessToken(props.accessToken)
         }
 
         const folderEntity = (() => {
           switch (values.entityType) {
-            case 'account': return 'accounts';
-            case 'contact': return 'contacts';
-            case 'lead': return 'leads';
-            default: return 'accounts';
+            case 'account':
+              return 'accounts'
+            case 'contact':
+              return 'contacts'
+            case 'lead':
+              return 'leads'
+            default:
+              return 'accounts'
           }
-        })();
+        })()
 
-        const pathParams = { accessScope: 'public' } as const;
+        const pathParams = { accessScope: 'public' } as const
         const queryParams = {
           appName: 'crm',
-          folderPath: `/${folderEntity}/${resolvedId}/documents`,
-        } as const;
+          folderPath: `/${folderEntity}/${resolvedId}/documents`
+        } as const
 
-        const uploadResponse = await fileClient.uploadFile(
-          file,
-          pathParams,
-          queryParams
-        );
+        const uploadResponse = await fileClient.uploadFile(file, pathParams, queryParams)
 
-        crmDocument.file = uploadResponse.fileInfo.fileId;
-        crmDocument.fileSize = file.size;
-        crmDocument.mimeType = file.type || undefined;
+        crmDocument.file = uploadResponse.fileInfo.fileId
+        crmDocument.fileSize = file.size
+        crmDocument.mimeType = file.type || undefined
       }
 
       dispatchProcessContinueEvent('pse_submit', {
@@ -342,17 +415,17 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         folder: values.folder,
         name: trimmed,
         parentDocument: crmDocument.parentDocument,
-        crmDocument,
-      });
+        crmDocument
+      })
     } catch (e: any) {
-      setError(e?.message || 'Failed to submit');
-      setSubmitting(false);
+      setError(e?.message || 'Failed to submit')
+      setSubmitting(false)
     }
-  };
+  }
 
   const handleCancel = () => {
-    dispatchProcessContinueEvent('pse_pause', {});
-  };
+    dispatchProcessContinueEvent('pse_pause', {})
+  }
 
   return (
     <div className="gba:max-w-md gba:mx-auto gba:p-6" data-testid={formatDataTestId(prefixDataTestId, 'container')}>
@@ -363,7 +436,9 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       )}
 
       <div className="gba:mb-4">
-        <h2 className="gba:text-xl gba:font-semibold" data-testid={formatDataTestId(prefixDataTestId, 'Title')}>{title}</h2>
+        <h2 className="gba:text-xl gba:font-semibold" data-testid={formatDataTestId(prefixDataTestId, 'Title')}>
+          {title}
+        </h2>
       </div>
 
       {/* Conditional form */}
@@ -372,7 +447,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
           <Input
             placeholder="Document name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={e => setName(e.target.value)}
             data-testid={formatDataTestId(prefixDataTestId, 'RenameNameInput')}
           />
         </div>
@@ -381,7 +456,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
           <Input
             placeholder="Folder name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={e => setName(e.target.value)}
             data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
           />
         </div>
@@ -389,50 +464,82 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
           <Input
             type="file"
-            onChange={(e) => {
-              const f = e.target.files?.[0] || null;
-              setFile(f);
+            onChange={e => {
+              const f = e.target.files?.[0] || null
+              setFile(f)
               if (f && !name) {
-                setName(f.name);
+                setName(f.name)
               }
             }}
             data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
           />
           <div className="gba:flex gba:flex-col gba:gap-2">
             <label className="gba:text-sm">Document Group</label>
-            <Select value={documentGroupRef || undefined} onValueChange={(v) => { setDocumentGroupRef(v as string); setDocumentTypeRef(''); }} data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')} open={groupOpen} onOpenChange={setGroupOpen}>
+            <Select
+              value={documentGroupRef || undefined}
+              onValueChange={v => {
+                setDocumentGroupRef(v as string)
+                setDocumentTypeRef('')
+              }}
+              data-testid={formatDataTestId(prefixDataTestId, 'DocumentGroupSelect')}
+              open={groupOpen}
+              onOpenChange={setGroupOpen}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select group..." />
               </SelectTrigger>
               <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
                 {documentGroups.map(g => (
-                  <SelectItem key={g.id} value={g.id}>{g.value}</SelectItem>
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.value}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="gba:flex gba:flex-col gba:gap-2">
             <label className="gba:text-sm">Document Type</label>
-            <Select value={documentTypeRef || undefined} onValueChange={(v) => setDocumentTypeRef(v as string)} data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')} open={typeOpen} onOpenChange={setTypeOpen}>
-              <SelectTrigger disabled={!documentGroupRef} onClick={() => { if (!documentGroupRef) return; }}>
+            <Select
+              value={documentTypeRef || undefined}
+              onValueChange={v => setDocumentTypeRef(v as string)}
+              data-testid={formatDataTestId(prefixDataTestId, 'DocumentTypeSelect')}
+              open={typeOpen}
+              onOpenChange={setTypeOpen}
+            >
+              <SelectTrigger
+                disabled={!documentGroupRef}
+                onClick={() => {
+                  if (!documentGroupRef) return
+                }}
+              >
                 <SelectValue placeholder="Select type..." />
               </SelectTrigger>
               <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
                 {filteredDocumentTypes.map(t => (
-                  <SelectItem key={t.id} value={t.id}>{t.value}</SelectItem>
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.value}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="gba:flex gba:flex-col gba:gap-2">
             <label className="gba:text-sm">Parent Folder (optional)</label>
-            <Select value={parentFolderId || undefined} onValueChange={(v) => setParentFolderId(v as string)} data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')} open={parentOpen} onOpenChange={setParentOpen}>
+            <Select
+              value={parentFolderId || undefined}
+              onValueChange={v => setParentFolderId(v as string)}
+              data-testid={formatDataTestId(prefixDataTestId, 'ParentFolderSelect')}
+              open={parentOpen}
+              onOpenChange={setParentOpen}
+            >
               <SelectTrigger>
                 <SelectValue placeholder={parentLoading ? 'Loading...' : 'Select parent...'} />
               </SelectTrigger>
               <SelectContent className="gba:z-[10000]" style={{ zIndex: 100000 }}>
                 {parentFolders.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -440,13 +547,13 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
           <Input
             placeholder="Document name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={e => setName(e.target.value)}
             data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
           />
           <Textarea
             placeholder="Description (optional)"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={e => setDescription(e.target.value)}
             data-testid={formatDataTestId(prefixDataTestId, 'DescriptionInput')}
           />
         </div>
@@ -471,10 +578,8 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
         </Button>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default DocumentCreationPopup;
-export { DocumentCreationPopup };
-
-
+export default DocumentCreationPopup
+export { DocumentCreationPopup }

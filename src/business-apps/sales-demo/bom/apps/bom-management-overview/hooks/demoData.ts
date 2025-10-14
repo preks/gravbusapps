@@ -1,9 +1,9 @@
-import { BillOfMaterials, BomKPIData } from '../../../types';
-import dayjs from 'dayjs';
+import { BillOfMaterials, BomKPIData } from '../../../types'
+import dayjs from 'dayjs'
 
 // Helper function to generate realistic BOM demo data
-export const generateDemoBoms = (page: number, pageSize: number): { boms: BillOfMaterials[], total: number } => {
-  console.log(`Generating demo BOMs for page ${page}, pageSize ${pageSize}`);
+export const generateDemoBoms = (page: number, pageSize: number): { boms: BillOfMaterials[]; total: number } => {
+  console.log(`Generating demo BOMs for page ${page}, pageSize ${pageSize}`)
   const allBoms: BillOfMaterials[] = [
     // Complex Manufacturing BOMs
     {
@@ -204,7 +204,7 @@ export const generateDemoBoms = (page: number, pageSize: number): { boms: BillOf
       updatedAt: dayjs().subtract(1, 'week').toISOString(),
       isDeleted: false
     }
-  ];
+  ]
 
   // Add more BOMs to reach a realistic dataset size
   const additionalBoms = Array.from({ length: 44 }, (_, index) => ({
@@ -222,10 +222,18 @@ export const generateDemoBoms = (page: number, pageSize: number): { boms: BillOf
     bomType: ['PRODUCTION', 'ENGINEERING', 'SALES', 'COSTING'][index % 4] as any,
     bomLevel: Math.floor(index / 10) + 1,
     bomStatus: ['ACTIVE', 'INACTIVE', 'PENDING', 'OBSOLETE'][index % 4] as any,
-    activeFrom: dayjs().subtract(Math.floor(Math.random() * 12), 'months').toISOString(),
-    activeTo: dayjs().add(Math.floor(Math.random() * 24) + 6, 'months').toISOString(),
-    validFrom: dayjs().subtract(Math.floor(Math.random() * 12), 'months').toISOString(),
-    validTo: dayjs().add(Math.floor(Math.random() * 30) + 12, 'months').toISOString(),
+    activeFrom: dayjs()
+      .subtract(Math.floor(Math.random() * 12), 'months')
+      .toISOString(),
+    activeTo: dayjs()
+      .add(Math.floor(Math.random() * 24) + 6, 'months')
+      .toISOString(),
+    validFrom: dayjs()
+      .subtract(Math.floor(Math.random() * 12), 'months')
+      .toISOString(),
+    validTo: dayjs()
+      .add(Math.floor(Math.random() * 30) + 12, 'months')
+      .toISOString(),
     baseQuantity: 1,
     baseUom: 'EA',
     scrapFactor: Math.random() * 0.05,
@@ -236,25 +244,29 @@ export const generateDemoBoms = (page: number, pageSize: number): { boms: BillOf
     processInstanceId: `proc-${String(index + 7).padStart(3, '0')}`,
     createdBy: `user-${String((index % 4) + 1).padStart(3, '0')}`,
     updatedBy: `user-${String((index % 4) + 1).padStart(3, '0')}`,
-    createdAt: dayjs().subtract(Math.floor(Math.random() * 365), 'days').toISOString(),
-    updatedAt: dayjs().subtract(Math.floor(Math.random() * 30), 'days').toISOString(),
+    createdAt: dayjs()
+      .subtract(Math.floor(Math.random() * 365), 'days')
+      .toISOString(),
+    updatedAt: dayjs()
+      .subtract(Math.floor(Math.random() * 30), 'days')
+      .toISOString(),
     isDeleted: false
-  }));
+  }))
 
-  const fullDataset = [...allBoms, ...additionalBoms];
+  const fullDataset = [...allBoms, ...additionalBoms]
 
   // Paginate the results
-  const startIndex = (page - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const paginatedBoms = fullDataset.slice(startIndex, endIndex);
+  const startIndex = (page - 1) * pageSize
+  const endIndex = startIndex + pageSize
+  const paginatedBoms = fullDataset.slice(startIndex, endIndex)
 
-  console.log(`Generated ${paginatedBoms.length} BOMs out of ${fullDataset.length} total`);
+  console.log(`Generated ${paginatedBoms.length} BOMs out of ${fullDataset.length} total`)
 
   return {
     boms: paginatedBoms,
     total: fullDataset.length
-  };
-};
+  }
+}
 
 export const generateDemoBomKPIData = (): BomKPIData => {
   return {
@@ -274,5 +286,5 @@ export const generateDemoBomKPIData = (): BomKPIData => {
       value: 56.9,
       trend: -2.1
     }
-  };
-};
+  }
+}

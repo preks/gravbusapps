@@ -1,1 +1,1 @@
-export { useAccountAiSummary } from './useAccountAiSummary';
+export { useAccountAiSummary } from './useAccountAiSummary'

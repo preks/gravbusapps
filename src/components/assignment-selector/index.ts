@@ -1,3 +1,2 @@
-export { AssignmentSelector } from './AssignmentSelector';
-export type { AssignmentSelectorProps } from './AssignmentSelector';
-
+export { AssignmentSelector } from './AssignmentSelector'
+export type { AssignmentSelectorProps } from './AssignmentSelector'

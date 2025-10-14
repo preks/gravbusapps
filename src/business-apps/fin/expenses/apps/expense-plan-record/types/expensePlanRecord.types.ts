@@ -1,150 +1,150 @@
 export interface ExpensePlanRecordProps {
-  value: string;
+  value: string
   translations?: {
-    value: string;
-    localeCode: string;
-  }[];
-  code?: string;
+    value: string
+    localeCode: string
+  }[]
+  code?: string
 }
 
 export interface ExpensePlanItem {
-  code: string | null;
-  title: string;
+  code: string | null
+  title: string
   currency: {
-    code: string;
-  };
+    code: string
+  }
   expenseGroup: {
-    value: string;
-  };
+    value: string
+  }
   expenseClass: {
-    value: string;
-  };
-  expenseDate: string;
-  totalAmount: number;
-  reimbursableAmount: number;
-  nonDeductibleAmount: number;
-  deductibleAmount: number;
+    value: string
+  }
+  expenseDate: string
+  totalAmount: number
+  reimbursableAmount: number
+  nonDeductibleAmount: number
+  deductibleAmount: number
 }
 
 export interface ExpenseAllowance {
-  allowanceDate: string;
+  allowanceDate: string
   travelRegion: {
-    value: string;
-  };
-  dayRate: number;
-  breakfast: boolean;
-  lunch: boolean;
-  dinner: boolean;
-  overnight: boolean;
-  overnightAccommodation: boolean;
-  deductionLimit: number;
+    value: string
+  }
+  dayRate: number
+  breakfast: boolean
+  lunch: boolean
+  dinner: boolean
+  overnight: boolean
+  overnightAccommodation: boolean
+  deductionLimit: number
 }
 
 export interface ExpenseRequestTrip {
-  tripOrder: number;
-  tripDateTime: string;
-  tripDirection: string;
-  address: string;
-  pointType: string;
+  tripOrder: number
+  tripDateTime: string
+  tripDirection: string
+  address: string
+  pointType: string
   country: {
-    value: string;
-  };
+    value: string
+  }
   travelRegion: {
-    value: string;
-  };
+    value: string
+  }
 }
 
 export interface AdvancePaymentComment {
-  commentType?: string;
-  commentDate: string;
-  comment: string;
-  id: string;
+  commentType?: string
+  commentDate: string
+  comment: string
+  id: string
   authorEmployee: {
-    fullName: string;
-    firstName: string;
-    lastName: string;
-    pictureThumbnail: string;
-  };
+    fullName: string
+    firstName: string
+    lastName: string
+    pictureThumbnail: string
+  }
 }
 
 export interface AdvancePayment {
-  code: string | null;
-  description: string | null;
-  decisionDate: string | null;
-  amount: number;
+  code: string | null
+  description: string | null
+  decisionDate: string | null
+  amount: number
   currency: {
-    code: string;
-  };
-  paymentMethod: string;
-  status: string;
-  transactionDate: string | null;
-  transactionNumber: string | null;
-  transactionConfirmed: boolean;
-  transactionConfirmedByEmployee: string | null;
-  advancePaymentComment: AdvancePaymentComment[];
+    code: string
+  }
+  paymentMethod: string
+  status: string
+  transactionDate: string | null
+  transactionNumber: string | null
+  transactionConfirmed: boolean
+  transactionConfirmedByEmployee: string | null
+  advancePaymentComment: AdvancePaymentComment[]
 }
 
 export interface ExpensePlanComment {
-  comment: string;
-  commentDate: string;
-  commentType: string;
+  comment: string
+  commentDate: string
+  commentType: string
   authorEmployee: {
-    fullName: string; 
-    firstName: string;
-    lastName: string;
-    pictureThumbnail: string;
-  };
+    fullName: string
+    firstName: string
+    lastName: string
+    pictureThumbnail: string
+  }
 }
 
 export interface ExpensePlanRecord {
-  code: string;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  planDate: string;
-  decisionDate: string | null;
+  code: string
+  title: string
+  description: string
+  startDate: string
+  endDate: string
+  planDate: string
+  decisionDate: string | null
   requestType: {
-    value: string;
-  };
+    value: string
+  }
   costCenter: {
-    name: string;
-  };
+    name: string
+  }
   project: {
-    name: string;
-  };
+    name: string
+  }
   currency: {
-    code: string;
-  };
-  status: string;
+    code: string
+  }
+  status: string
   employee: {
-    fullName: string;
-    firstName: string;
-    lastName: string;
-    pictureThumbnail?: string;
+    fullName: string
+    firstName: string
+    lastName: string
+    pictureThumbnail?: string
     employeePosition?: {
       supervisor?: {
-        firstName: string;
-        lastName: string;
-        fullName: string;
-      };
-    };
-  };
-  totalAmount: number;
-  reimbursableAmount: number;
-  nonReimbursableAmount: number;
-  deductibleAmount: number;
-  nonDeductibleAmount: number;
-  expenseRequest: any[];
-  expensePlanComment: ExpensePlanComment[];
-  expensePlanItem: ExpensePlanItem[];
-  expenseAllowance: ExpenseAllowance[];
-  expenseRequestTrip: ExpenseRequestTrip[];
-  advancePayment: AdvancePayment[];
+        firstName: string
+        lastName: string
+        fullName: string
+      }
+    }
+  }
+  totalAmount: number
+  reimbursableAmount: number
+  nonReimbursableAmount: number
+  deductibleAmount: number
+  nonDeductibleAmount: number
+  expenseRequest: any[]
+  expensePlanComment: ExpensePlanComment[]
+  expensePlanItem: ExpensePlanItem[]
+  expenseAllowance: ExpenseAllowance[]
+  expenseRequestTrip: ExpenseRequestTrip[]
+  advancePayment: AdvancePayment[]
 }
 
 export interface ExpensePlanRecordResponse {
   data: {
-    ExpensePlan: ExpensePlanRecord[];
-  };
+    ExpensePlan: ExpensePlanRecord[]
+  }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react'
 import {
   Button,
   Input,
@@ -7,25 +7,25 @@ import {
   AvatarImage,
   AvatarFallback,
   Alert,
-  AlertDescription,
-} from "@newwork/nw-design-system";
-import { PiMagnifyingGlass, PiX, PiSpinner } from "react-icons/pi";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { SelectOption } from "../types";
+  AlertDescription
+} from '@newwork/nw-design-system'
+import { PiMagnifyingGlass, PiX, PiSpinner } from 'react-icons/pi'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { SelectOption } from '../types'
 
-const prefixDataTestId = "ContactEmployeeSelectionModal";
+const prefixDataTestId = 'ContactEmployeeSelectionModal'
 
 interface EmployeeSelectionModalProps {
-  isVisible: boolean;
-  onClose: () => void;
-  onSelect: (employee: SelectOption) => void;
-  employees: SelectOption[];
-  loading: boolean;
-  hasMore: boolean;
-  onLoadMore: () => void;
-  onSearch: (search: string) => void;
-  error: string | null;
-  selectedValue?: string;
+  isVisible: boolean
+  onClose: () => void
+  onSelect: (employee: SelectOption) => void
+  employees: SelectOption[]
+  loading: boolean
+  hasMore: boolean
+  onLoadMore: () => void
+  onSearch: (search: string) => void
+  error: string | null
+  selectedValue?: string
 }
 
 const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
@@ -38,53 +38,51 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
   onLoadMore,
   onSearch,
   error,
-  selectedValue,
+  selectedValue
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState('')
 
   // Handle search with debouncing
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
-      onSearch(searchTerm);
-    }, 300);
+      onSearch(searchTerm)
+    }, 300)
 
-    return () => clearTimeout(delayedSearch);
-  }, [searchTerm, onSearch]);
+    return () => clearTimeout(delayedSearch)
+  }, [searchTerm, onSearch])
 
   const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-  };
+    setSearchTerm(value)
+  }
 
   const handleEmployeeSelect = (employee: SelectOption) => {
-    onSelect(employee);
-    handleClose();
-  };
+    onSelect(employee)
+    handleClose()
+  }
 
   const handleClose = () => {
-    setSearchTerm("");
-    onClose();
-  };
+    setSearchTerm('')
+    onClose()
+  }
 
   // Restore original visibility check
-  if (!isVisible) return null;
+  if (!isVisible) return null
 
   return (
     <div className="gba:fixed gba:inset-0 gba:bg-black gba:bg-opacity-50 gba:flex gba:items-center gba:justify-center gba:z-50">
       <div
         className="gba:bg-white gba:rounded-xl gba:shadow-2xl gba:w-full gba:max-w-2xl gba:max-h-[80vh] gba:m-4 gba:flex gba:flex-col"
-        data-testid={formatDataTestId(prefixDataTestId, "Container")}
+        data-testid={formatDataTestId(prefixDataTestId, 'Container')}
       >
         {/* Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:p-6 gba:border-b gba:border-gray-200">
-          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
-            Select Contact Owner
-          </h2>
+          <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">Select Contact Owner</h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={handleClose}
             className="gba:p-2"
-            data-testid={formatDataTestId(prefixDataTestId, "CloseButton")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CloseButton')}
           >
             <PiX size={16} />
           </Button>
@@ -92,9 +90,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
 
         {/* Search Section */}
         <div className="gba:p-6 gba:border-b gba:border-gray-200">
-          <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">
-            Search Employees
-          </Label>
+          <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900 gba:mb-2">Search Employees</Label>
           <div className="gba:relative">
             <div className="gba:absolute gba:inset-y-0 gba:left-0 gba:pl-2 gba:flex gba:items-center gba:pointer-events-none gba:z-10">
               <PiMagnifyingGlass className="gba:h-5 gba:w-5 gba:text-gray-400" />
@@ -102,11 +98,11 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
             <Input
               name="search"
               value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
               placeholder="Type to search employees..."
               className="gba:border-gray-300 gba:bg-white"
-              style={{ paddingLeft: "32px" }}
-              data-testid={formatDataTestId(prefixDataTestId, "SearchInput")}
+              style={{ paddingLeft: '32px' }}
+              data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
             />
           </div>
         </div>
@@ -133,53 +129,46 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
           {!loading && employees.length === 0 && searchTerm && (
             <div className="gba:text-center gba:py-12 gba:text-gray-500">
               <p>No employees found matching "{searchTerm}"</p>
-              <p className="gba:text-sm gba:mt-2">
-                Try adjusting your search terms
-              </p>
+              <p className="gba:text-sm gba:mt-2">Try adjusting your search terms</p>
             </div>
           )}
 
           {/* Employee List */}
           {employees.length > 0 && (
             <div className="gba:space-y-3">
-              {employees.map((employee) => (
+              {employees.map(employee => (
                 <div
                   key={employee.value}
                   onClick={() => handleEmployeeSelect(employee)}
                   className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:cursor-pointer gba:transition-colors gba:hover:bg-gray-50 gba:hover:border-gray-300"
-                  data-testid={formatDataTestId(
-                    prefixDataTestId,
-                    `EmployeeOption-${employee.value}`
-                  )}
+                  data-testid={formatDataTestId(prefixDataTestId, `EmployeeOption-${employee.value}`)}
                 >
                   {/* Professional Avatar */}
                   <Avatar size="lg">
                     {employee.extraInfo?.pictureThumbnail ? (
                       <AvatarImage
                         src={`data:image/jpeg;base64,${employee.extraInfo.pictureThumbnail}`}
-                        alt={employee.name || "Employee"}
+                        alt={employee.name || 'Employee'}
                       />
                     ) : null}
                     <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold">
                       {employee.name
-                        ?.split(" ")
+                        ?.split(' ')
                         .map((n: string) => n[0])
-                        .join("")
+                        .join('')
                         .toUpperCase()
-                        .slice(0, 2) || "??"}
+                        .slice(0, 2) || '??'}
                     </AvatarFallback>
                   </Avatar>
 
                   {/* Employee Information */}
                   <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:truncate">
-                      {employee.name}
-                    </div>
+                    <div className="gba:text-sm gba:font-semibold gba:text-gray-900 gba:truncate">{employee.name}</div>
                     <div className="gba:text-xs gba:text-gray-600 gba:truncate gba:mt-1">
-                      {employee.extraInfo?.jobPosition || "No Position"}
+                      {employee.extraInfo?.jobPosition || 'No Position'}
                     </div>
                     <div className="gba:text-xs gba:text-gray-500 gba:truncate">
-                      {employee.extraInfo?.organizationalUnit || "No Unit"}
+                      {employee.extraInfo?.organizationalUnit || 'No Unit'}
                     </div>
                   </div>
 
@@ -199,21 +188,15 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
                     variant="secondary"
                     onClick={onLoadMore}
                     disabled={loading}
-                    data-testid={formatDataTestId(
-                      prefixDataTestId,
-                      "LoadMoreButton"
-                    )}
+                    data-testid={formatDataTestId(prefixDataTestId, 'LoadMoreButton')}
                   >
                     {loading ? (
                       <>
-                        <PiSpinner
-                          className="gba:animate-spin gba:mr-2"
-                          size={16}
-                        />
+                        <PiSpinner className="gba:animate-spin gba:mr-2" size={16} />
                         Loading...
                       </>
                     ) : (
-                      "Load More"
+                      'Load More'
                     )}
                   </Button>
                 </div>
@@ -227,14 +210,14 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
           <Button
             variant="secondary"
             onClick={handleClose}
-            data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+            data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
           >
             Cancel
           </Button>
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default EmployeeSelectionModal;
+export default EmployeeSelectionModal

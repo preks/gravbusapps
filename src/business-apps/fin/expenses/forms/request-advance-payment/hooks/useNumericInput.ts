@@ -3,29 +3,25 @@
  * Follows Single Responsibility Principle and Dependency Inversion
  */
 
-import { useState, useCallback } from 'react';
-import { 
-  validateKeyPress, 
-  validateNumericInput, 
-  validatePastedContent 
-} from '../utils/inputValidation';
+import { useState, useCallback } from 'react'
+import { validateKeyPress, validateNumericInput, validatePastedContent } from '../utils/inputValidation'
 
 export interface NumericInputOptions {
-  maxDecimals?: number;
-  allowNegative?: boolean;
-  maxValue?: number;
-  minValue?: number;
-  onValidationError?: (error: string) => void;
+  maxDecimals?: number
+  allowNegative?: boolean
+  maxValue?: number
+  minValue?: number
+  onValidationError?: (error: string) => void
 }
 
 export interface NumericInputHook {
-  displayValue: string;
-  numericValue: number;
-  handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handlePaste: (e: React.ClipboardEvent<HTMLInputElement>) => void;
-  setValue: (value: number) => void;
-  error: string | null;
+  displayValue: string
+  numericValue: number
+  handleKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void
+  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  handlePaste: (e: React.ClipboardEvent<HTMLInputElement>) => void
+  setValue: (value: number) => void
+  error: string | null
 }
 
 /**
@@ -39,79 +35,94 @@ export const useNumericInput = (
 ): NumericInputHook => {
   const [displayValue, setDisplayValue] = useState(
     initialValue > 0 ? initialValue.toFixed(options.maxDecimals || 2) : ''
-  );
-  const [error, setError] = useState<string | null>(null);
+  )
+  const [error, setError] = useState<string | null>(null)
 
   const clearError = useCallback(() => {
     if (error) {
-      setError(null);
+      setError(null)
     }
-  }, [error]);
+  }, [error])
 
-  const reportError = useCallback((errorMessage: string) => {
-    setError(errorMessage);
-    options.onValidationError?.(errorMessage);
-  }, [options]);
+  const reportError = useCallback(
+    (errorMessage: string) => {
+      setError(errorMessage)
+      options.onValidationError?.(errorMessage)
+    },
+    [options]
+  )
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    const validation = validateKeyPress(e);
-    
-    if (!validation.isAllowed && validation.shouldPreventDefault) {
-      e.preventDefault();
-      return;
-    }
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      const validation = validateKeyPress(e)
 
-    // Special handling for decimal point
-    if (e.key === '.' && displayValue.includes('.')) {
-      e.preventDefault();
-      return;
-    }
+      if (!validation.isAllowed && validation.shouldPreventDefault) {
+        e.preventDefault()
+        return
+      }
 
-    clearError();
-  }, [displayValue, clearError]);
+      // Special handling for decimal point
+      if (e.key === '.' && displayValue.includes('.')) {
+        e.preventDefault()
+        return
+      }
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    
-    const validation = validateNumericInput(inputValue, displayValue, options);
-    
-    if (!validation.isValid) {
-      reportError(validation.error || 'Invalid input');
-      return;
-    }
+      clearError()
+    },
+    [displayValue, clearError]
+  )
 
-    clearError();
-    setDisplayValue(validation.cleanedValue);
-    
-    const parsedValue = parseFloat(validation.cleanedValue) || 0;
-    onChange(parsedValue);
-  }, [displayValue, options, onChange, clearError, reportError]);
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value
 
-  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    
-    const pastedText = e.clipboardData.getData('text');
-    const validation = validatePastedContent(pastedText, displayValue, options);
-    
-    if (!validation.isValid) {
-      reportError(validation.error || 'Invalid paste content');
-      return;
-    }
+      const validation = validateNumericInput(inputValue, displayValue, options)
 
-    // Simulate change event with the new value
-    const newValue = displayValue + validation.cleanedValue;
-    const syntheticEvent = {
-      target: { value: newValue }
-    } as React.ChangeEvent<HTMLInputElement>;
-    
-    handleChange(syntheticEvent);
-  }, [displayValue, options, handleChange, reportError]);
+      if (!validation.isValid) {
+        reportError(validation.error || 'Invalid input')
+        return
+      }
 
-  const setValue = useCallback((value: number) => {
-    const formatted = value > 0 ? value.toFixed(options.maxDecimals || 2) : '';
-    setDisplayValue(formatted);
-    clearError();
-  }, [options.maxDecimals, clearError]);
+      clearError()
+      setDisplayValue(validation.cleanedValue)
+
+      const parsedValue = parseFloat(validation.cleanedValue) || 0
+      onChange(parsedValue)
+    },
+    [displayValue, options, onChange, clearError, reportError]
+  )
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLInputElement>) => {
+      e.preventDefault()
+
+      const pastedText = e.clipboardData.getData('text')
+      const validation = validatePastedContent(pastedText, displayValue, options)
+
+      if (!validation.isValid) {
+        reportError(validation.error || 'Invalid paste content')
+        return
+      }
+
+      // Simulate change event with the new value
+      const newValue = displayValue + validation.cleanedValue
+      const syntheticEvent = {
+        target: { value: newValue }
+      } as React.ChangeEvent<HTMLInputElement>
+
+      handleChange(syntheticEvent)
+    },
+    [displayValue, options, handleChange, reportError]
+  )
+
+  const setValue = useCallback(
+    (value: number) => {
+      const formatted = value > 0 ? value.toFixed(options.maxDecimals || 2) : ''
+      setDisplayValue(formatted)
+      clearError()
+    },
+    [options.maxDecimals, clearError]
+  )
 
   return {
     displayValue,
@@ -121,5 +132,5 @@ export const useNumericInput = (
     handlePaste,
     setValue,
     error
-  };
-};
+  }
+}

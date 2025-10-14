@@ -216,7 +216,7 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
 
 // Query to discover which currencies are used by the employee's expense plans
 // Used to build currency filter options and to preselect the most-used currency once
@@ -238,7 +238,7 @@ export const GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_PLAN_BY_ID = `
   query GetExpensePlanById($id: uuid!) {
@@ -278,7 +278,7 @@ export const GET_EXPENSE_PLAN_BY_ID = `
       }
     }
   }
-`;
+`
 
 // New query specifically for closed plans statistics
 export const GET_CLOSED_PLANS_STATISTICS = `
@@ -307,7 +307,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
   query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $activeUserLocale: String!, $currencyRef: String!) {
@@ -387,4 +387,4 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
       }
     }
   }
-`;
+`

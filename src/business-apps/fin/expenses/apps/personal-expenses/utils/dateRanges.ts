@@ -1,21 +1,21 @@
-import dayjs, { Dayjs } from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs'
 
-export type DashboardPeriod = 'monthly' | 'quarterly' | 'yearly';
+export type DashboardPeriod = 'monthly' | 'quarterly' | 'yearly'
 
 export interface PeriodRange {
-  start: Dayjs;
-  end: Dayjs;
+  start: Dayjs
+  end: Dayjs
 }
 
 export const buildPeriodRange = (now: Dayjs, period: DashboardPeriod): PeriodRange => {
   const start =
-    period === 'yearly' ? now.startOf('year') : period === 'quarterly' ? now.startOf('quarter') : now.startOf('month');
+    period === 'yearly' ? now.startOf('year') : period === 'quarterly' ? now.startOf('quarter') : now.startOf('month')
   const end =
-    period === 'yearly' ? now.endOf('year') : period === 'quarterly' ? now.endOf('quarter') : now.endOf('month');
-  return { start, end };
-};
+    period === 'yearly' ? now.endOf('year') : period === 'quarterly' ? now.endOf('quarter') : now.endOf('month')
+  return { start, end }
+}
 
-export const toIso = (d: Dayjs): string => d.toISOString();
+export const toIso = (d: Dayjs): string => d.toISOString()
 
 export const buildDashboardVariables = (
   employeeId: string,
@@ -23,8 +23,8 @@ export const buildDashboardVariables = (
   nowInput?: Dayjs,
   period: DashboardPeriod = 'monthly'
 ) => {
-  const now = nowInput ?? dayjs();
-  const { start: periodStart, end: periodEnd } = buildPeriodRange(now, period);
+  const now = nowInput ?? dayjs()
+  const { start: periodStart, end: periodEnd } = buildPeriodRange(now, period)
 
   return {
     employeeId,
@@ -47,8 +47,6 @@ export const buildDashboardVariables = (
     currentQuarterStartTz: toIso(now.startOf('quarter')),
     currentQuarterEndTz: toIso(now.endOf('quarter')),
     currentYearStartTz: toIso(now.startOf('year')),
-    currentYearEndTz: toIso(now.endOf('year')),
-  } as const;
-};
-
-
+    currentYearEndTz: toIso(now.endOf('year'))
+  } as const
+}

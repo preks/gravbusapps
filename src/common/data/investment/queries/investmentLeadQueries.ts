@@ -1,8 +1,15 @@
 // Investment Lead Queries - using shared fragments and generic query helpers
-import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments';
-import { INVESTMENT_LEAD, INVESTMENT_CONTACT_REF, INVESTMENT_TASK, INVESTMENT_ACTIVITY, INVESTMENT_NOTE, INVESTMENT_DOCUMENT } from './fragments/investmentRelationFragments';
-import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers';
-import type { Descriptor } from '@/common/network/graphql/queryHelpers';
+import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
+import {
+  INVESTMENT_LEAD,
+  INVESTMENT_CONTACT_REF,
+  INVESTMENT_TASK,
+  INVESTMENT_ACTIVITY,
+  INVESTMENT_NOTE,
+  INVESTMENT_DOCUMENT
+} from './fragments/investmentRelationFragments'
+import { buildOrderBy, buildSearch, buildFilter } from '@/common/network/graphql/queryHelpers'
+import type { Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Unified descriptors for InvestmentLead (search, sort, filters, and option metadata)
 export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
@@ -12,10 +19,30 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
   { key: 'email', searchPaths: ['email'], type: 'text' },
   { key: 'companyName', searchPaths: ['companyName'], type: 'text' },
   { key: 'city', searchPaths: ['locality'], sortPath: 'locality', type: 'text' },
-  { key: 'leadStatus', searchPaths: ['leadStatus.value', 'leadStatus.code'], sortPath: 'leadStatus.code', type: 'text' },
-  { key: 'leadRating', searchPaths: ['leadRating.value', 'leadRating.code'], sortPath: 'leadRating.code', type: 'text' },
-  { key: 'leadSource', searchPaths: ['leadSource.value', 'leadSource.code'], sortPath: 'leadSource.code', type: 'text' },
-  { key: 'ownerEmployee', searchPaths: ['ownerEmployee.displayName'], sortPath: 'ownerEmployee.displayName', type: 'text' },
+  {
+    key: 'leadStatus',
+    searchPaths: ['leadStatus.value', 'leadStatus.code'],
+    sortPath: 'leadStatus.code',
+    type: 'text'
+  },
+  {
+    key: 'leadRating',
+    searchPaths: ['leadRating.value', 'leadRating.code'],
+    sortPath: 'leadRating.code',
+    type: 'text'
+  },
+  {
+    key: 'leadSource',
+    searchPaths: ['leadSource.value', 'leadSource.code'],
+    sortPath: 'leadSource.code',
+    type: 'text'
+  },
+  {
+    key: 'ownerEmployee',
+    searchPaths: ['ownerEmployee.displayName'],
+    sortPath: 'ownerEmployee.displayName',
+    type: 'text'
+  },
   { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
 
   // Filters (IDs, strings, booleans, dates, custom)
@@ -33,14 +60,43 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     key: 'ownerEmployeeIds',
     path: 'ownerEmployee.id',
     kind: 'inIds',
-    optionSelectPaths: ['ownerEmployee.id', 'ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
+    optionSelectPaths: [
+      'ownerEmployee.id',
+      'ownerEmployee.displayName',
+      'ownerEmployee.firstName',
+      'ownerEmployee.lastName'
+    ],
     optionSearchPaths: ['ownerEmployee.firstName', 'ownerEmployee.lastName', 'ownerEmployee.displayName'],
     optionDistinctOn: ['ownerEmployeeId']
   },
-  { key: 'countryIds', path: 'country.id', kind: 'inIds', optionSelectPaths: ['country.id', 'country.code', 'country.value'], optionSearchPaths: ['country.code', 'country.value'] },
-  { key: 'companyNames', path: 'companyName', kind: 'inStrings', optionSelectPaths: ['companyName'], optionSearchPaths: ['companyName'] },
-  { key: 'regions', path: 'region.value', kind: 'inStrings', optionSelectPaths: ['region.id', 'region.code', 'region.value'], optionSearchPaths: ['region.value', 'region.code'] },
-  { key: 'localities', path: 'locality', kind: 'inStrings', optionSelectPaths: ['locality'], optionSearchPaths: ['locality'] },
+  {
+    key: 'countryIds',
+    path: 'country.id',
+    kind: 'inIds',
+    optionSelectPaths: ['country.id', 'country.code', 'country.value'],
+    optionSearchPaths: ['country.code', 'country.value']
+  },
+  {
+    key: 'companyNames',
+    path: 'companyName',
+    kind: 'inStrings',
+    optionSelectPaths: ['companyName'],
+    optionSearchPaths: ['companyName']
+  },
+  {
+    key: 'regions',
+    path: 'region.value',
+    kind: 'inStrings',
+    optionSelectPaths: ['region.id', 'region.code', 'region.value'],
+    optionSearchPaths: ['region.value', 'region.code']
+  },
+  {
+    key: 'localities',
+    path: 'locality',
+    kind: 'inStrings',
+    optionSelectPaths: ['locality'],
+    optionSearchPaths: ['locality']
+  },
   { key: 'conversionDateFrom', path: 'conversionDate', kind: 'dateFrom' },
   { key: 'conversionDateTo', path: 'conversionDate', kind: 'dateTo' },
   { key: 'createdAtFrom', path: 'createdAt', kind: 'dateFrom' },
@@ -52,80 +108,80 @@ export const INVESTMENT_LEAD_DESCRIPTORS: Descriptor[] = [
     optionSelectPaths: ['firstName', 'lastName'],
     optionSearchPaths: ['firstName', 'lastName'],
     build: (values: string[]) => {
-      if (!Array.isArray(values) || !values.length) return '';
-      const parts: string[] = [];
+      if (!Array.isArray(values) || !values.length) return ''
+      const parts: string[] = []
       for (const n of values) {
-        const [first, last] = String(n).split('|');
-        const f = (first || '').trim();
-        const l = (last || '').trim();
+        const [first, last] = String(n).split('|')
+        const f = (first || '').trim()
+        const l = (last || '').trim()
         if (f && l) {
-          parts.push(`{ _and: [ { firstName: { _ilike: "%${f}%" } }, { lastName: { _ilike: "%${l}%" } } ] }`);
+          parts.push(`{ _and: [ { firstName: { _ilike: "%${f}%" } }, { lastName: { _ilike: "%${l}%" } } ] }`)
         } else if (f) {
-          parts.push(`{ firstName: { _ilike: "%${f}%" } }`);
+          parts.push(`{ firstName: { _ilike: "%${f}%" } }`)
         } else if (l) {
-          parts.push(`{ lastName: { _ilike: "%${l}%" } }`);
+          parts.push(`{ lastName: { _ilike: "%${l}%" } }`)
         }
       }
-      return parts.length ? `{ _or: [${parts.join(', ')}] }` : '';
+      return parts.length ? `{ _or: [${parts.join(', ')}] }` : ''
     }
   }
-];
+]
 export interface InvestmentLeadQueryVariables {
-  ids?: string[];
-  search?: string;
-  sensitive?: boolean;
-  academicTitleIds?: string[];
-  salutationIds?: string[];
-  leadStatusIds?: string[];
-  leadStatusCodes?: string[];
-  leadSourceIds?: string[];
-  leadSourceCodes?: string[];
-  leadRatingIds?: string[];
-  leadRatingCodes?: string[];
-  industryClassIds?: string[];
-  companySizeIds?: string[];
-  ownerEmployeeIds?: string[];
-  conversionDateFrom?: string;
-  conversionDateTo?: string;
-  createdAtFrom?: string;
-  createdAtTo?: string;
-  countryIds?: string[];
-  companyNames?: string[];
-  regions?: string[];
-  localities?: string[];
-  contactFullNames?: string[]; // stored as "First|Last" and expanded in where
-  limit?: number;
-  offset?: number;
+  ids?: string[]
+  search?: string
+  sensitive?: boolean
+  academicTitleIds?: string[]
+  salutationIds?: string[]
+  leadStatusIds?: string[]
+  leadStatusCodes?: string[]
+  leadSourceIds?: string[]
+  leadSourceCodes?: string[]
+  leadRatingIds?: string[]
+  leadRatingCodes?: string[]
+  industryClassIds?: string[]
+  companySizeIds?: string[]
+  ownerEmployeeIds?: string[]
+  conversionDateFrom?: string
+  conversionDateTo?: string
+  createdAtFrom?: string
+  createdAtTo?: string
+  countryIds?: string[]
+  companyNames?: string[]
+  regions?: string[]
+  localities?: string[]
+  contactFullNames?: string[] // stored as "First|Last" and expanded in where
+  limit?: number
+  offset?: number
   orderBy?: Array<{
-    field: string;
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
-  }>;
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
 }
 
 // Build where condition for Investment Lead queries
 export const buildInvestmentLeadWhereCondition = (variables: InvestmentLeadQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }';
+  let whereClause = 'where: { isDeleted: { _eq: false }'
 
   // Generic search across dot-paths from descriptors
-  const searchOr = buildSearch(variables.search || '', INVESTMENT_LEAD_DESCRIPTORS);
-  if (searchOr) whereClause += `, ${searchOr}`;
+  const searchOr = buildSearch(variables.search || '', INVESTMENT_LEAD_DESCRIPTORS)
+  if (searchOr) whereClause += `, ${searchOr}`
 
   // Generic AND filters from descriptors
-  const andFilters = buildFilter(variables as any, INVESTMENT_LEAD_DESCRIPTORS);
-  if (andFilters) whereClause += `, ${andFilters}`;
+  const andFilters = buildFilter(variables as any, INVESTMENT_LEAD_DESCRIPTORS)
+  if (andFilters) whereClause += `, ${andFilters}`
 
-  whereClause += ' }';
-  return whereClause;
-};
+  whereClause += ' }'
+  return whereClause
+}
 
 // Get Investment Leads with full details
 export const GET_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  const where = buildInvestmentLeadWhereCondition(variables);
+  const limit = Math.min(variables.limit || 50, 100)
+  const offset = variables.offset || 0
+  const where = buildInvestmentLeadWhereCondition(variables)
 
-  const orderByBuilt = buildOrderBy(variables.orderBy || [], INVESTMENT_LEAD_DESCRIPTORS);
-  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]';
+  const orderByBuilt = buildOrderBy(variables.orderBy || [], INVESTMENT_LEAD_DESCRIPTORS)
+  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]'
 
   return `
     query GetInvestmentLeads {
@@ -162,8 +218,8 @@ export const GET_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables = {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Lead by ID
 export const GET_INVESTMENT_LEAD_BY_ID = (id: string): string => {
@@ -187,12 +243,12 @@ export const GET_INVESTMENT_LEAD_BY_ID = (id: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Search Investment Leads (lightweight for autocomplete)
 export const SEARCH_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables): string => {
-  const { search = '', limit = 10 } = variables;
+  const { search = '', limit = 10 } = variables
 
   return `
     query SearchInvestmentLeads {
@@ -237,8 +293,8 @@ export const SEARCH_INVESTMENT_LEADS = (variables: InvestmentLeadQueryVariables)
         }
       }
     }
-  `;
-};
+  `
+}
 
 // =====================================================
 // INVESTMENT LEAD RELATED ENTITIES QUERIES
@@ -266,8 +322,8 @@ export const GET_INVESTMENT_TASKS_BY_LEAD_ID = (leadId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Activities by Lead ID
 export const GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
@@ -291,8 +347,8 @@ export const GET_INVESTMENT_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => 
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Notes by Lead ID
 export const GET_INVESTMENT_NOTES_BY_LEAD_ID = (leadId: string): string => {
@@ -316,8 +372,8 @@ export const GET_INVESTMENT_NOTES_BY_LEAD_ID = (leadId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Investment Documents by Lead ID
 export const GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID = (leadId: string): string => {
@@ -339,5 +395,5 @@ export const GET_INVESTMENT_DOCUMENTS_BY_LEAD_ID = (leadId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}

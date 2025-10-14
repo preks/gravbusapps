@@ -1,31 +1,49 @@
-import React, { useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Checkbox, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
-import { AreaChart, Area, XAxis, YAxis } from 'recharts';
-import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react';
+import React, { useMemo, useState } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Checkbox,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis } from 'recharts'
+import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
 // SupportedVariant type defined inline
 
-export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical';
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 export interface RevenueTrendData {
-  month: string;
-  pipelineRevenue: number;
-  wonRevenue: number;
+  month: string
+  pipelineRevenue: number
+  wonRevenue: number
 }
 
 export interface RevenueTrendChartProps {
-  data: RevenueTrendData[];
-  isLoading?: boolean;
-  pipelines: Array<{ id: string; name: string }>;
-  selectedPipelineId?: string;
-  onPipelineChange?: (pipelineId: string | undefined) => void;
-  selectedTimeFilter?: TimeFilter;
-  onTimeFilterChange?: (timeFilter: TimeFilter) => void;
-  moduleColor?: string;
+  data: RevenueTrendData[]
+  isLoading?: boolean
+  pipelines: Array<{ id: string; name: string }>
+  selectedPipelineId?: string
+  onPipelineChange?: (pipelineId: string | undefined) => void
+  selectedTimeFilter?: TimeFilter
+  onTimeFilterChange?: (timeFilter: TimeFilter) => void
+  moduleColor?: string
 }
 
-export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({ 
-  data, 
-  isLoading, 
+export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
+  data,
+  isLoading,
   pipelines,
   selectedPipelineId,
   onPipelineChange,
@@ -49,13 +67,13 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
           </div>
         </CardContent>
       </Card>
-    );
+    )
   }
 
   const [visibleLines, setVisibleLines] = useState({
     pipelineRevenue: true,
     wonRevenue: true
-  });
+  })
 
   const timeFilterOptions = [
     { key: 'month' as TimeFilter, label: 'Last Month' },
@@ -63,28 +81,28 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
     { key: 'sixMonths' as TimeFilter, label: 'Last 6 Months' },
     { key: 'year' as TimeFilter, label: 'Last Year' },
     { key: 'historical' as TimeFilter, label: 'Historical' }
-  ];
+  ]
 
   const lineOptions = [
     { key: 'pipelineRevenue' as keyof typeof visibleLines, label: 'Pipeline Revenue' },
     { key: 'wonRevenue' as keyof typeof visibleLines, label: 'Won Revenue' }
-  ];
+  ]
 
   const toggleLineVisibility = (lineKey: keyof typeof visibleLines) => {
     setVisibleLines(prev => ({
       ...prev,
       [lineKey]: !prev[lineKey]
-    }));
-  };
+    }))
+  }
 
   const handlePipelineChange = (value: string) => {
-    const pipelineId = value === 'all' ? undefined : value;
-    onPipelineChange?.(pipelineId);
-  };
+    const pipelineId = value === 'all' ? undefined : value
+    onPipelineChange?.(pipelineId)
+  }
 
   const handleTimeFilterChange = (timeFilter: TimeFilter) => {
-    onTimeFilterChange?.(timeFilter);
-  };
+    onTimeFilterChange?.(timeFilter)
+  }
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -92,10 +110,11 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
       currency: 'USD',
       notation: 'compact',
       maximumFractionDigits: 1
-    }).format(value);
-  };
+    }).format(value)
+  }
 
-  const currentFilterLabel = timeFilterOptions.find(option => option.key === selectedTimeFilter)?.label || 'Last 6 Months';
+  const currentFilterLabel =
+    timeFilterOptions.find(option => option.key === selectedTimeFilter)?.label || 'Last 6 Months'
 
   return (
     <Card data-testid="revenue-trend-chart">
@@ -118,7 +137,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Pipelines</SelectItem>
-                  {pipelines.map((pipeline) => (
+                  {pipelines.map(pipeline => (
                     <SelectItem key={pipeline.id} value={pipeline.id}>
                       {pipeline.name}
                     </SelectItem>
@@ -129,7 +148,7 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
             <div className="gba:flex gba:items-center gba:gap-2">
               <CalendarIcon size={16} className="gba:text-gray-500" />
               <div className="gba:flex gba:gap-1" data-testid="revenue-time-filters">
-                {timeFilterOptions.map((option) => (
+                {timeFilterOptions.map(option => (
                   <Button
                     key={option.key}
                     variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
@@ -151,17 +170,17 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Data:</span>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid="revenue-line-filters">
-              {lineOptions.map((line) => (
+              {lineOptions.map(line => (
                 <label
                   key={line.key}
                   className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
                   data-testid={`revenue-line-filter-${line.key}`}
                 >
-                  <Checkbox
-                    checked={visibleLines[line.key]}
-                    onCheckedChange={() => toggleLineVisibility(line.key)}
+                  <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => toggleLineVisibility(line.key)} />
+                  <div
+                    className="gba:w-3 gba:h-3 gba:rounded"
+                    style={{ backgroundColor: `var(--color-${line.key})` }}
                   />
-                  <div className="gba:w-3 gba:h-3 gba:rounded" style={{ backgroundColor: `var(--color-${line.key})` }} />
                   <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
                 </label>
               ))}
@@ -180,10 +199,13 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
           </div>
         ) : (
           <ChartContainer
-            config={useMemo(() => ({
-              pipelineRevenue: { label: 'Pipeline Revenue' },
-              wonRevenue: { label: 'Won Revenue' },
-            }), [])}
+            config={useMemo(
+              () => ({
+                pipelineRevenue: { label: 'Pipeline Revenue' },
+                wonRevenue: { label: 'Won Revenue' }
+              }),
+              []
+            )}
             className="gba:h-[400px] gba:w-full gba:aspect-auto"
           >
             <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -192,18 +214,33 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
               <ChartTooltip content={<ChartTooltipContent labelKey="month" />} />
               <ChartLegend content={<ChartLegendContent />} />
               {visibleLines.pipelineRevenue && (
-                <Area type="monotone" dataKey="pipelineRevenue" name="pipelineRevenue" stroke={`var(--color-pipelineRevenue)`} fill={`var(--color-pipelineRevenue)`} fillOpacity={0.2} strokeWidth={2} />
+                <Area
+                  type="monotone"
+                  dataKey="pipelineRevenue"
+                  name="pipelineRevenue"
+                  stroke={`var(--color-pipelineRevenue)`}
+                  fill={`var(--color-pipelineRevenue)`}
+                  fillOpacity={0.2}
+                  strokeWidth={2}
+                />
               )}
               {visibleLines.wonRevenue && (
-                <Area type="monotone" dataKey="wonRevenue" name="wonRevenue" stroke={`var(--color-wonRevenue)`} fill={`var(--color-wonRevenue)`} fillOpacity={0.2} strokeWidth={2} />
+                <Area
+                  type="monotone"
+                  dataKey="wonRevenue"
+                  name="wonRevenue"
+                  stroke={`var(--color-wonRevenue)`}
+                  fill={`var(--color-wonRevenue)`}
+                  fillOpacity={0.2}
+                  strokeWidth={2}
+                />
               )}
             </AreaChart>
           </ChartContainer>
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RevenueTrendChart;
-
+export default RevenueTrendChart

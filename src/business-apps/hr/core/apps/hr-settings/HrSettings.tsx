@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Typography } from 'antd'
-import { RiSettings4Fill, RiSearchLine } from '@remixicon/react'
+import { RiSearchLine } from '@remixicon/react'
 import { PiUsersThreeDuotone } from 'react-icons/pi'
 import { HrSettingsCard, HrSettingsCardProps } from './components/HrSettingsCard'
 import { useHrSettingsCards } from './hooks/useHrSettingsCards'
-import { cn } from '@/common/utils/cn'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface HrSettingsProps {
   className?: string
@@ -15,10 +15,7 @@ export interface HrSettingsProps {
 
 const DATA_TEST_ID = 'HrSettings'
 
-const HrSettings: React.FC<HrSettingsProps> = ({ 
-  className, 
-  prefixDataTestId 
-}) => {
+const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const allCards = useHrSettingsCards()
   const { t } = useTranslation()
@@ -36,7 +33,7 @@ const HrSettings: React.FC<HrSettingsProps> = ({
       if (card.description?.toLowerCase().includes(normalizedSearchTerm)) return true
 
       // Search in card entries
-      if (card.entries?.some((entry) => entry.label.toLowerCase().includes(normalizedSearchTerm))) return true
+      if (card.entries?.some(entry => entry.label.toLowerCase().includes(normalizedSearchTerm))) return true
 
       return false
     })
@@ -44,13 +41,13 @@ const HrSettings: React.FC<HrSettingsProps> = ({
 
   return (
     <PageLayout
-      headerIcon={<PiUsersThreeDuotone color='#254469' />}
-      headerLabel={t('hr.hr_settings')}
+      headerIcon={<PiUsersThreeDuotone color="#254469" />}
+      headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
       className={className}
       pageHeaderRight={
         <Input
           prefix={<RiSearchLine style={{ color: '#9ca3af' }} />}
-          placeholder={t('common.search_placeholder')}
+          placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
           style={{ maxWidth: '320px' }}
           allowClear
           value={searchTerm}
@@ -59,23 +56,25 @@ const HrSettings: React.FC<HrSettingsProps> = ({
         />
       }
       contentContainer={
-        <div 
+        <div
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
-          style={{ 
+          style={{
             background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
             minHeight: '100%',
             padding: '32px'
           }}
         >
           {filteredCards.length === 0 ? (
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              height: '256px',
-              textAlign: 'center'
-            }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '256px',
+                textAlign: 'center'
+              }}
+            >
               <Typography.Title level={4} style={{ color: '#6b7280', marginBottom: '8px' }}>
                 {t('common.no_results_found')}
               </Typography.Title>
@@ -84,16 +83,18 @@ const HrSettings: React.FC<HrSettingsProps> = ({
               </Typography.Paragraph>
             </div>
           ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '24px',
-              gridAutoRows: 'min-content'
-            }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+                gap: '24px',
+                gridAutoRows: 'min-content'
+              }}
+            >
               {filteredCards.map((card: HrSettingsCardProps, idx: number) => (
-                <HrSettingsCard 
-                  key={`${idx}-${card.title}`} 
-                  {...card} 
+                <HrSettingsCard
+                  key={`${idx}-${card.title}`}
+                  {...card}
                   prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
                 />
               ))}
@@ -106,4 +107,4 @@ const HrSettings: React.FC<HrSettingsProps> = ({
 }
 
 export default HrSettings
-export { HrSettings } 
+export { HrSettings }

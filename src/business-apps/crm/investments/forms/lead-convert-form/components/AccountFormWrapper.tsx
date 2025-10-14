@@ -1,16 +1,16 @@
-import React from 'react';
-import { AccountFormProvider } from '../../account-form/context/AccountFormContext';
-import AccountFormComponent from '../../account-form/components/AccountFormComponent';
-import FormChangeMonitor from './FormChangeMonitor';
-import { AccountFormValues } from '../../account-form/types';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import React from 'react'
+import { AccountFormProvider } from '../../account-form/context/AccountFormContext'
+import AccountFormComponent from '../../account-form/components/AccountFormComponent'
+import FormChangeMonitor from './FormChangeMonitor'
+import { AccountFormValues } from '../../account-form/types'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface AccountFormWrapperProps extends BusinessAppContextProps {
-  initialValues?: Partial<AccountFormValues>;
-  onFormChange?: (values: Partial<AccountFormValues>) => void;
-  onSubmit?: (values: AccountFormValues) => Promise<void>;
-  onCancel?: () => Promise<void>;
-  hideActions?: boolean;
+  initialValues?: Partial<AccountFormValues>
+  onFormChange?: (values: Partial<AccountFormValues>) => void
+  onSubmit?: (values: AccountFormValues) => Promise<void>
+  onCancel?: () => Promise<void>
+  hideActions?: boolean
 }
 
 const AccountFormWrapper: React.FC<AccountFormWrapperProps> = ({
@@ -21,24 +21,23 @@ const AccountFormWrapper: React.FC<AccountFormWrapperProps> = ({
   hideActions = true,
   accessToken,
   userInfo,
-  additionalData,
+  additionalData
 }) => {
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
         <div className="gba:text-red-500">
-          Error: No access token found. Please ensure you are properly
-          authenticated.
+          Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>
-    );
+    )
   }
 
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
-    additionalData,
-  };
+    additionalData
+  }
 
   return (
     <div data-testid="account-form-wrapper">
@@ -53,7 +52,7 @@ const AccountFormWrapper: React.FC<AccountFormWrapperProps> = ({
         <FormChangeMonitor onFormChange={onFormChange} />
       </AccountFormProvider>
     </div>
-  );
-};
+  )
+}
 
-export default AccountFormWrapper;
+export default AccountFormWrapper

@@ -6,16 +6,12 @@ export const translateMultipleTexts = async (
 ): Promise<string[]> => {
   // Placeholder implementation
   // In a real implementation, this would call a translation API
-  console.log('Translation service called for:', { texts, targetLanguage });
-  return texts; // Return original texts for now
-};
+  console.log('Translation service called for:', { texts, targetLanguage })
+  return texts // Return original texts for now
+}
 
-export const translateText = async (
-  text: string,
-  targetLanguage: string,
-  accessToken: string
-): Promise<string> => {
+export const translateText = async (text: string, targetLanguage: string, accessToken: string): Promise<string> => {
   // Placeholder implementation
-  console.log('Translation service called for single text:', { text, targetLanguage });
-  return text; // Return original text for now
-};
+  console.log('Translation service called for single text:', { text, targetLanguage })
+  return text // Return original text for now
+}

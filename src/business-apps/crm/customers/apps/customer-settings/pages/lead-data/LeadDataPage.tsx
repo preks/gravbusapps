@@ -38,5 +38,3 @@ const LeadDataPage: React.FC<LeadDataPageProps> = ({ prefixDataTestId, onBack, i
 }
 
 export default LeadDataPage
-
-

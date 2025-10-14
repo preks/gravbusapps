@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { 
-  AiButton, 
-  Popover, 
-  PopoverContent, 
+import React, { useState } from 'react'
+import {
+  AiButton,
+  Popover,
+  PopoverContent,
   PopoverAnchor,
   Spinner,
   Icon,
@@ -11,14 +11,10 @@ import {
   CardTitle,
   CardContent,
   Button
-} from "@newwork/nw-design-system";
-import { 
-  ChartBarIcon, 
-  LightbulbIcon,
-  ArrowClockwiseIcon
-} from "@phosphor-icons/react";
-import { Bot } from "lucide-react";
-import { AiActionsProps, AiAction } from "./AiActionsTypes";
+} from '@newwork/nw-design-system'
+import { ChartBarIcon, LightbulbIcon, ArrowClockwiseIcon } from '@phosphor-icons/react'
+import { Bot } from 'lucide-react'
+import { AiActionsProps, AiAction } from './AiActionsTypes'
 
 /**
  * Centralized AI Actions component that provides consistent AI functionality
@@ -29,31 +25,31 @@ import { AiActionsProps, AiAction } from "./AiActionsTypes";
  */
 export const AiActions: React.FC<AiActionsProps> = ({
   actions,
-  dataTestId = "ai-actions-button",
-  buttonText = "AI Actions",
-  className = "",
-  variant = "default",
-  size = "default"
+  dataTestId = 'ai-actions-button',
+  buttonText = 'AI Actions',
+  className = '',
+  variant = 'default',
+  size = 'default'
 }) => {
-  const [activeAction, setActiveAction] = useState<string | null>(null);
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const [isProgrammaticallyOpening, setIsProgrammaticallyOpening] = useState(false);
+  const [activeAction, setActiveAction] = useState<string | null>(null)
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+  const [isProgrammaticallyOpening, setIsProgrammaticallyOpening] = useState(false)
 
   const handleActionClick = (action: AiAction) => {
-    setActiveAction(action.key);
-    setIsProgrammaticallyOpening(true);
-    setIsPopoverOpen(true);
-    
-    if (!action.hook.state || !["loading", "error", "success"].includes(action.hook.state.type)) {
-      action.hook.generateSummary();
+    setActiveAction(action.key)
+    setIsProgrammaticallyOpening(true)
+    setIsPopoverOpen(true)
+
+    if (!action.hook.state || !['loading', 'error', 'success'].includes(action.hook.state.type)) {
+      action.hook.generateSummary()
     }
-  };
+  }
 
   const closePopover = () => {
-    setIsPopoverOpen(false);
-    setActiveAction(null);
-    setIsProgrammaticallyOpening(false);
-  };
+    setIsPopoverOpen(false)
+    setActiveAction(null)
+    setIsProgrammaticallyOpening(false)
+  }
 
   const aiButtonActions = actions.map(action => ({
     key: action.key,
@@ -61,12 +57,11 @@ export const AiActions: React.FC<AiActionsProps> = ({
     icon: action.icon,
     onClick: () => handleActionClick(action),
     disabled: action.disabled || action.hook.state?.type === 'loading'
-  }));
+  }))
 
   // Render popover content for a specific action
   const renderActionPopover = (action: AiAction) => {
-
-    if (action.hook.state?.type === "loading") {
+    if (action.hook.state?.type === 'loading') {
       return (
         <div className="gba:w-96 gba:p-5" data-testid="ai-action-loading">
           <div className="gba:text-center">
@@ -79,25 +74,31 @@ export const AiActions: React.FC<AiActionsProps> = ({
             </div>
           </div>
         </div>
-      );
+      )
     }
 
-    if (action.hook.state?.type === "error") {
+    if (action.hook.state?.type === 'error') {
       return (
         <div className="gba:w-80 gba:p-5" data-testid="ai-action-error">
           <div className="gba:text-center">
             <div className="gba:text-sm gba:text-destructive gba:mb-3">
               Unable to generate {action.label.toLowerCase()}
             </div>
-            <Button variant="ghost" size="sm" onClick={() => action.hook.generateSummary()} className="gba:text-xs" data-testid="ai-action-retry-btn">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => action.hook.generateSummary()}
+              className="gba:text-xs"
+              data-testid="ai-action-retry-btn"
+            >
               Try Again
             </Button>
           </div>
         </div>
-      );
+      )
     }
 
-    if (action.hook.state?.type === "success" && action.hook.state.content) {
+    if (action.hook.state?.type === 'success' && action.hook.state.content) {
       return (
         <div className="gba:w-[600px] gba:p-5" style={{ paddingRight: '35px' }}>
           {/* Main Summary */}
@@ -108,9 +109,7 @@ export const AiActions: React.FC<AiActionsProps> = ({
                 {action.key === 'ai-summary' ? 'Executive Summary' : 'Generation Status'}
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {action.hook.state.content.summary}
-            </CardContent>
+            <CardContent>{action.hook.state.content.summary}</CardContent>
           </Card>
 
           {/* Key Insights */}
@@ -148,7 +147,7 @@ export const AiActions: React.FC<AiActionsProps> = ({
             </Button>
           </div>
         </div>
-      );
+      )
     }
 
     return (
@@ -158,51 +157,51 @@ export const AiActions: React.FC<AiActionsProps> = ({
           {action.label}
         </div>
         <div className="gba:text-xs gba:text-gray-500 gba:leading-tight">
-          {action.config.emptyStateMessage || 
+          {action.config.emptyStateMessage ||
             `Click to generate intelligent insights about this ${action.config.entityType}'s performance and next steps`}
         </div>
       </div>
-    );
-  };
+    )
+  }
 
-  const activeActionData = activeAction ? actions.find(a => a.key === activeAction) : null;
+  const activeActionData = activeAction ? actions.find(a => a.key === activeAction) : null
 
   return (
-    <Popover 
-      open={isPopoverOpen} 
-      onOpenChange={(open) => {
+    <Popover
+      open={isPopoverOpen}
+      onOpenChange={open => {
         // Ignore the automatic close when we're programmatically opening
         if (!open && !isProgrammaticallyOpening) {
-          closePopover();
+          closePopover()
         }
-        
+
         // Reset the flag after the first onOpenChange call
         if (isProgrammaticallyOpening) {
-          setIsProgrammaticallyOpening(false);
+          setIsProgrammaticallyOpening(false)
         }
       }}
     >
       {/* PopoverAnchor - the AiButton */}
       <PopoverAnchor asChild>
-          <AiButton
-            variant={variant}
-            size={size}
-            showIcon={true}
-            icon={<Bot size={16} />}
-            actions={aiButtonActions}
-            autoExecuteSingleAction={true}
-            emptyStateBehavior="hide"
-            closeOnSelect={true}
-            data-testid={dataTestId}
-            className={className}
-          >
-            {buttonText}
-          </AiButton>
+        <AiButton
+          variant={variant}
+          size={size}
+          showIcon={true}
+          icon={<Bot size={16} />}
+          actions={aiButtonActions}
+          autoExecuteSingleAction={true}
+          emptyStateBehavior="hide"
+          closeOnSelect={true}
+          data-testid={dataTestId}
+          className={className}
+        >
+          {buttonText}
+        </AiButton>
       </PopoverAnchor>
 
       {/* PopoverContent - shows content for the active action */}
-      <PopoverContent 
-        side="bottom" 
+      <PopoverContent
+        side="bottom"
         align="end"
         className="gba:w-auto gba:max-w-none gba:min-w-0 gba:p-0 gba:rounded-lg gba:overflow-visible gba:shadow-xl gba:border-0 gba:bg-gradient-to-bl gba:from-[var(--nw-color-white)] gba:to-[var(--nw-color-blue-200)] gba:min-w-[300px] gba:max-w-[600px]"
         sideOffset={8}
@@ -212,5 +211,5 @@ export const AiActions: React.FC<AiActionsProps> = ({
         {activeActionData ? renderActionPopover(activeActionData) : <div className="gba:p-4">No active action</div>}
       </PopoverContent>
     </Popover>
-  );
-};
+  )
+}

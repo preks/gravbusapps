@@ -1,5 +1,2 @@
-export { FlowDesigner } from './FlowDesigner';
-export { default } from './FlowDesigner';
-
-
-
+export { FlowDesigner } from './FlowDesigner'
+export { default } from './FlowDesigner'

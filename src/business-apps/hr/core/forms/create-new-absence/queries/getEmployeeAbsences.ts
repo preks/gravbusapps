@@ -28,7 +28,7 @@ export const getEmployeeAbsences = `
       }
     }
   }
-`;
+`
 
 export const getEmployeeAbsenceBalance = `
   query GetEmployeeAbsenceBalance($employeeId: uuid!, $typeRef: String!) {
@@ -48,7 +48,7 @@ export const getEmployeeAbsenceBalance = `
       validTo
     }
   }
-`;
+`
 
 export const getTodayAbsences = `
   query GetTodayAbsences($employeeId: uuid!, $today: timestamp!) {
@@ -85,4 +85,4 @@ export const getTodayAbsences = `
       }
     }
   }
-`;
+`

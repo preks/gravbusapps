@@ -1,6 +1,6 @@
 /**
  * GraphQL query to get all employee salaries for median salary calculation
- * 
+ *
  * This query fetches all employee working conditions with salary data
  * to calculate the median salary across all current employees.
  */
@@ -37,4 +37,4 @@ export const getMedianSalaryData = `
       }
     }
   }
-`;
+`

@@ -1,18 +1,21 @@
 ---
 alwaysApply: true
 ---
+
 # AppActionButton Table Integration Guidelines (Concise)
 
 ## Core Rule
+
 Every table component must include AppActionButton as the **FIRST column**.
 
 ## Required Imports & Props
+
 ```typescript
-import { AppActionButton } from '@/components/app-action-button/AppActionButton';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 
 interface TableProps {
-  accessToken: string; // REQUIRED
+  accessToken: string // REQUIRED
   // ... other props
 }
 ```
@@ -20,6 +23,7 @@ interface TableProps {
 ## Implementation Patterns
 
 ### DataTable (CRM: Account, Lead, Contact, Opportunity)
+
 ```typescript
 const columns = [
   {
@@ -47,6 +51,7 @@ const columns = [
 ```
 
 ### Custom Table (Investment Tables)
+
 ```tsx
 <TableHeader>
   <TableRow>
@@ -79,6 +84,7 @@ const columns = [
 ```
 
 ## Standard Configuration
+
 - **variant**: `"secondary"`
 - **emptyStateBehavior**: `"disable"`
 - **width**: `'60px'` (DataTable) or `gba:w-[60px]` (Custom)
@@ -87,21 +93,21 @@ const columns = [
 - **alignment**: `gba:justify-start`
 
 ## Entity Context Mapping
+
 ```typescript
 // CRM Entities
-[FlowContextName.customerLeadEntity]         // externalContextData: { leadId }
-[FlowContextName.customerAccountEntity]      // externalContextData: { accountId }
-[FlowContextName.customerAccountEntity]      // externalContextData: { contactId }
-[FlowContextName.customerOpportunityEntity]  // externalContextData: { opportunityId }
-
-// Investment Entities
-[FlowContextName.equityInvestmentEntity]        // externalContextData: { investmentId }
-[FlowContextName.liquidFundInvestmentEntity]    // externalContextData: { investmentId }
-[FlowContextName.privateEquityInvestmentEntity] // externalContextData: { investmentId }
-[FlowContextName.realEstateInvestmentEntity]    // externalContextData: { investmentId }
+;[FlowContextName.customerLeadEntity][FlowContextName.customerAccountEntity][FlowContextName.customerAccountEntity][ // externalContextData: { leadId } // externalContextData: { accountId } // externalContextData: { contactId }
+  FlowContextName.customerOpportunityEntity
+][ // externalContextData: { opportunityId }
+  // Investment Entities
+  FlowContextName.equityInvestmentEntity
+][FlowContextName.liquidFundInvestmentEntity][FlowContextName.privateEquityInvestmentEntity][ // externalContextData: { investmentId } // externalContextData: { investmentId } // externalContextData: { investmentId }
+  FlowContextName.realEstateInvestmentEntity
+] // externalContextData: { investmentId }
 ```
 
 ## ❌ Common Mistakes
+
 - Wrong position (not first column)
 - Missing `accessToken` prop
 - Wrong alignment (`justify-end` instead of `justify-start`)
@@ -110,10 +116,11 @@ const columns = [
 - Incorrect width specification
 
 ## ✅ Implementation Checklist
+
 - [ ] Import AppActionButton and FlowContextName
 - [ ] Add accessToken to props interface
 - [ ] Place as first column (index 0)
 - [ ] Use correct entity context
 - [ ] Set width to 60px
 - [ ] Include stopPropagation onClick
-- [ ] Update parent to pass accessToken 
+- [ ] Update parent to pass accessToken

@@ -24,7 +24,7 @@ import { CustomerSettings } from '@/business-apps/crm/customers/apps/customer-se
 
 function App() {
   return (
-    <CustomerSettings 
+    <CustomerSettings
       prefixDataTestId="MyApp"
       className="custom-class"
       accessToken="your-access-token"
@@ -54,6 +54,7 @@ The settings are organized into the following categories:
 ## Pipeline Data Integration
 
 This app integrates with the Pipeline Data MDM module (`/platform/mdm/pipeline-data`) with the following tabs:
+
 - Pipelines
 - Stages
 - Sources
@@ -69,4 +70,4 @@ Test IDs are automatically generated with the format: `{prefixDataTestId}-Custom
 - React 18+
 - Ant Design
 - react-i18next
-- @remixicon/react 
+- @remixicon/react

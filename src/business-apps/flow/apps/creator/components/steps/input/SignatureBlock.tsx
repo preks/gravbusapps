@@ -1,13 +1,13 @@
-import React from 'react';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore';
-import { Input } from '../../../types/flowTemplate';
+import React from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useFlowTemplateStore } from '../../../hooks/useFlowTemplateStore'
+import { Input } from '../../../types/flowTemplate'
 
 interface SignatureBlockProps {
-  taskId: string;
-  block: Input;
-  onRemove: () => void;
-  'data-testid'?: string;
+  taskId: string
+  block: Input
+  onRemove: () => void
+  'data-testid'?: string
 }
 
 /**
@@ -19,15 +19,15 @@ export const SignatureBlock: React.FC<SignatureBlockProps> = ({
   onRemove,
   'data-testid': testId = 'signature-block'
 }) => {
-  const { updateInputBlock } = useFlowTemplateStore();
+  const { updateInputBlock } = useFlowTemplateStore()
 
   const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { label: e.target.value });
-  };
+    updateInputBlock(taskId, block.id, { label: e.target.value })
+  }
 
   const handleRequiredChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateInputBlock(taskId, block.id, { required: e.target.checked });
-  };
+    updateInputBlock(taskId, block.id, { required: e.target.checked })
+  }
 
   return (
     <div className="gba:border gba:border-gray-200 gba:rounded gba:p-4 gba:bg-gray-50" data-testid={testId}>
@@ -37,16 +37,12 @@ export const SignatureBlock: React.FC<SignatureBlockProps> = ({
             {getTranslationFromI18nKeyAndLabel('flow.creator.signatureField', 'Signature Field')}
           </span>
         </div>
-        
-        <button
-          onClick={onRemove}
-          className="gba:text-red-500"
-          data-testid={`${testId}-remove-button`}
-        >
+
+        <button onClick={onRemove} className="gba:text-red-500" data-testid={`${testId}-remove-button`}>
           {getTranslationFromI18nKeyAndLabel('flow.creator.remove', 'Remove')}
         </button>
       </div>
-      
+
       <div className="gba:grid gba:grid-cols-1 gba:gap-4" data-testid={`${testId}-form`}>
         {/* Label */}
         <div className="gba:flex gba:flex-col gba:gap-1" data-testid={`${testId}-label-field`}>
@@ -63,7 +59,7 @@ export const SignatureBlock: React.FC<SignatureBlockProps> = ({
             data-testid={`${testId}-label-input`}
           />
         </div>
-        
+
         {/* Required checkbox */}
         <div className="gba:flex gba:items-center" data-testid={`${testId}-required-field`}>
           <input
@@ -80,5 +76,5 @@ export const SignatureBlock: React.FC<SignatureBlockProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}

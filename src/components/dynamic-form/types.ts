@@ -7,15 +7,15 @@
  */
 export interface DynamicFormFieldDefinition {
   /** Field type (DATE, TEXT, CATALOG_*, REF_*, etc.) */
-  type: string;
+  type: string
   /** Display label */
-  label: string;
+  label: string
   /** Property path (e.g., "investment.name", "equityInvestment.marketValue") */
-  property: string;
+  property: string
   /** Whether the field is required */
-  required: boolean;
+  required: boolean
   /** Display order within group (e.g., "1", "1.1", "1.2", "2") */
-  displayOrder: string | number;
+  displayOrder: string | number
 }
 
 /**
@@ -23,13 +23,13 @@ export interface DynamicFormFieldDefinition {
  */
 export interface DynamicFormFieldGroup {
   /** Unique group identifier */
-  groupId: string;
+  groupId: string
   /** Display label for the group */
-  groupLabel: string;
+  groupLabel: string
   /** Display order of the group */
-  displayOrder: number;
+  displayOrder: number
   /** Fields within this group */
-  fields: DynamicFormFieldDefinition[];
+  fields: DynamicFormFieldDefinition[]
 }
 
 /**
@@ -37,6 +37,5 @@ export interface DynamicFormFieldGroup {
  */
 export interface DynamicFormConfiguration {
   /** Array of field groups */
-  formFields: DynamicFormFieldGroup[];
+  formFields: DynamicFormFieldGroup[]
 }
-

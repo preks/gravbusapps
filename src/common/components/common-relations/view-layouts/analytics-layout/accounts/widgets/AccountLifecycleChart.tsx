@@ -1,28 +1,41 @@
-import React, { useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Checkbox, IconAvatar, ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@newwork/nw-design-system';
-import { AreaChart, Area, XAxis, YAxis } from 'recharts';
-import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react';
+import React, { useMemo } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Checkbox,
+  IconAvatar,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, YAxis } from 'recharts'
+import { ChartLineIcon, CalendarIcon, EyeIcon } from '@phosphor-icons/react'
 
-export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical';
+export type TimeFilter = 'month' | 'quarter' | 'sixMonths' | 'year' | 'historical'
 
 interface AccountLifecycleChartProps {
   data: Array<{
-    date: string;
-    count: number;
-    accountsCreated: number;
-    accountsWithOpportunities: number;
-    accountsActive: number;
-  }>;
-  selectedTimeFilter: TimeFilter;
-  onTimeFilterChange: (filter: TimeFilter) => void;
-  visibleLines: { accountsCreated: boolean; accountsWithOpportunities: boolean; accountsActive: boolean };
-  onToggleLineVisibility: (key: 'accountsCreated' | 'accountsWithOpportunities' | 'accountsActive') => void;
-  formatXAxisLabel: (value: string) => string;
-  formatTooltip: (value: any, name: string, props: any) => any[];
-  moduleColor?: string;
+    date: string
+    count: number
+    accountsCreated: number
+    accountsWithOpportunities: number
+    accountsActive: number
+  }>
+  selectedTimeFilter: TimeFilter
+  onTimeFilterChange: (filter: TimeFilter) => void
+  visibleLines: { accountsCreated: boolean; accountsWithOpportunities: boolean; accountsActive: boolean }
+  onToggleLineVisibility: (key: 'accountsCreated' | 'accountsWithOpportunities' | 'accountsActive') => void
+  formatXAxisLabel: (value: string) => string
+  formatTooltip: (value: any, name: string, props: any) => any[]
+  moduleColor?: string
 }
 
-const DATA_TEST_ID_PREFIX = 'account-lifecycle-overview';
+const DATA_TEST_ID_PREFIX = 'account-lifecycle-overview'
 
 export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   data,
@@ -32,23 +45,27 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   onToggleLineVisibility,
   formatXAxisLabel,
   formatTooltip,
-  moduleColor = "default"
+  moduleColor = 'default'
 }) => {
   // Remove unused variable warning
-  const _ = moduleColor;
+  const _ = moduleColor
   const timeFilterOptions = [
     { key: 'month' as TimeFilter, label: 'Last Month' },
     { key: 'quarter' as TimeFilter, label: 'Last Quarter' },
     { key: 'sixMonths' as TimeFilter, label: 'Last 6 Months' },
     { key: 'year' as TimeFilter, label: 'Last Year' },
     { key: 'historical' as TimeFilter, label: 'Historical' }
-  ];
+  ]
 
   const lineOptions = [
     { key: 'accountsCreated' as const, label: 'Accounts Created', dataKey: 'accountsCreated' },
-    { key: 'accountsWithOpportunities' as const, label: 'Accounts with Opportunities', dataKey: 'accountsWithOpportunities' },
+    {
+      key: 'accountsWithOpportunities' as const,
+      label: 'Accounts with Opportunities',
+      dataKey: 'accountsWithOpportunities'
+    },
     { key: 'accountsActive' as const, label: 'Active Accounts', dataKey: 'accountsActive' }
-  ];
+  ]
 
   return (
     <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -61,10 +78,10 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
           <div className="gba:flex gba:items-center gba:gap-2">
             <CalendarIcon size={16} className="gba:text-gray-500" />
             <div className="gba:flex gba:gap-1" data-testid={`${DATA_TEST_ID_PREFIX}-time-filters`}>
-              {timeFilterOptions.map((option) => (
+              {timeFilterOptions.map(option => (
                 <Button
                   key={option.key}
-                  variant={selectedTimeFilter === option.key ? "default" : "outline"}
+                  variant={selectedTimeFilter === option.key ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => onTimeFilterChange(option.key)}
                   data-testid={`${DATA_TEST_ID_PREFIX}-filter-${option.key}`}
@@ -82,17 +99,17 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
               <span className="gba:text-sm gba:font-medium gba:text-gray-700">Show Lines:</span>
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-4" data-testid={`${DATA_TEST_ID_PREFIX}-line-filters`}>
-              {lineOptions.map((line) => (
+              {lineOptions.map(line => (
                 <label
                   key={line.key}
                   className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer"
                   data-testid={`${DATA_TEST_ID_PREFIX}-line-filter-${line.key}`}
                 >
-                  <Checkbox
-                    checked={visibleLines[line.key]}
-                    onCheckedChange={() => onToggleLineVisibility(line.key)}
+                  <Checkbox checked={visibleLines[line.key]} onCheckedChange={() => onToggleLineVisibility(line.key)} />
+                  <div
+                    className="gba:w-3 gba:h-3 gba:rounded"
+                    style={{ backgroundColor: `var(--color-${line.dataKey})` }}
                   />
-                  <div className="gba:w-3 gba:h-3 gba:rounded" style={{ backgroundColor: `var(--color-${line.dataKey})` }} />
                   <span className="gba:text-sm gba:text-gray-700">{line.label}</span>
                 </label>
               ))}
@@ -105,15 +122,20 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
           <div className="gba:text-center gba:p-8" data-testid={`${DATA_TEST_ID_PREFIX}-empty-state`}>
             <ChartLineIcon className="gba:mx-auto gba:h-12 gba:w-12 gba:text-gray-400" />
             <h3 className="gba:mt-2 gba:text-sm gba:font-medium gba:text-gray-900">No data available</h3>
-            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">No account lifecycle data found for the selected time period.</p>
+            <p className="gba:mt-1 gba:text-sm gba:text-gray-500">
+              No account lifecycle data found for the selected time period.
+            </p>
           </div>
         ) : (
           <ChartContainer
-            config={useMemo(() => ({
-              accountsCreated: { label: "Accounts Created" },
-              accountsWithOpportunities: { label: "Accounts with Opportunities" },
-              accountsActive: { label: "Active Accounts" },
-            }), [])}
+            config={useMemo(
+              () => ({
+                accountsCreated: { label: 'Accounts Created' },
+                accountsWithOpportunities: { label: 'Accounts with Opportunities' },
+                accountsActive: { label: 'Active Accounts' }
+              }),
+              []
+            )}
             className="gba:h-[320px] gba:w-full"
             data-testid={`${DATA_TEST_ID_PREFIX}-chart`}
           >
@@ -163,9 +185,7 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default AccountLifecycleChart;
-
-
+export default AccountLifecycleChart

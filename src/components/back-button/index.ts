@@ -1,2 +1,2 @@
-export { BackButton, type BackButtonProps } from './BackButton';
-export { default } from './BackButton';
+export { BackButton, type BackButtonProps } from './BackButton'
+export { default } from './BackButton'
