@@ -7,8 +7,9 @@ import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { AddSkillProvider, useAddSkill } from './AddSkillContext'
 import { DebouncedInput } from '@/components/debounced-input'
-import { Button, Badge, Card, CardContent } from '@newwork/nw-design-system'
-import { XCircleIcon } from 'lucide-react'
+import { getSkillValidationError, buildEmployeeSkillsPayload } from './utils/addSkillUtils'
+import { AddSkillSearchDropdown } from './components/AddSkillSearchDropdown'
+import { SelectedSkillsChips } from './components/SelectedSkillsChips'
 
 interface AddSkillFormValues {
   targetEmployeeId?: string
@@ -84,6 +85,14 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const suppressOpenRef = useRef(false)
   const searchSeqRef = useRef(0)
 
+  const isSubmitDisabled = useMemo(() => {
+    const initial = ((employee?.skills || []) as Array<{ skill?: { id: string } }>)
+      .map(s => s.skill?.id)
+      .filter(Boolean)
+    const current = selectedSkills.map(s => s.id)
+    const changed = initial.length !== current.length || initial.some(id => !current.includes(id as string))
+    return !changed
+  }, [employee?.skills, selectedSkills])
   useEffect(() => {
     let isActive = true
     const run = async () => {
@@ -141,22 +150,9 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     const name = searchTerm.trim()
     if (!name) return
     // validations
-    if (!/[A-Za-z]/.test(name)) {
-      setAddError(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_profile.details_layout.add_skill_form.error_at_least_one_letter',
-          'The skill must have at least one letter'
-        )
-      )
-      return
-    }
-    if (name.length > 64) {
-      setAddError(
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_profile.details_layout.add_skill_form.error_max_64',
-          'The skill must have less than 65 characters'
-        )
-      )
+    const validationError = getSkillValidationError(name)
+    if (validationError) {
+      setAddError(validationError)
       return
     }
     setAddError(null)
@@ -205,7 +201,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
-      data-testid="add-skill-form-container"
+      data-testid="flw_addSkills_addSkillsContainer"
     >
       <FormHeader title={title} flowIconUrl={flowIconUrl} />
 
@@ -214,7 +210,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
         data-testid="add-skill-form-content"
       >
         {/* Header showing current employee name */}
-        <div className="gba:text-muted-foreground gba:font-bold gba:mb-2" data-testid="add-skill-employee-name">
+        <div className="gba:text-muted-foreground gba:font-bold gba:mb-2" data-testid="flw_addSkills_employeeText">
           {employeeFullName}
         </div>
 
@@ -224,16 +220,9 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
           formData={normalizedDefaults}
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
-          submitButtonTestId="flw_addSkill_submitButton"
-          cancelButtonTestId="flw_addSkill_cancelButton"
-          isSubmitDisabled={useMemo(() => {
-            const initial = ((employee?.skills || []) as Array<{ skill?: { id: string } }>)
-              .map(s => s.skill?.id)
-              .filter(Boolean)
-            const current = selectedSkills.map(s => s.id)
-            const changed = initial.length !== current.length || initial.some(id => !current.includes(id as string))
-            return !changed
-          }, [employee?.skills, selectedSkills])}
+          submitButtonTestId="flw_addSkills_submitButton"
+          cancelButtonTestId="flw_addSkills_cancelButton"
+          isSubmitDisabled={isSubmitDisabled}
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
           cancelButtonText={getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_request.initiate_cancel_button',
@@ -244,30 +233,12 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
             const existingSkills = employee?.skills || []
             const selectedIds = selectedSkills.map(s => s.id)
 
-            // Build a map of existing employeeSkill records by underlying skill id
-            const existingBySkillId: Record<string, { id?: string; version?: number }> = {}
-            ;(existingSkills as Array<{ id?: string; version?: number; skill?: { id?: string } }>).forEach(es => {
-              const sid = es?.skill?.id
-              if (sid) {
-                existingBySkillId[sid] = { id: es?.id, version: es?.version }
-              }
+            const payload = buildEmployeeSkillsPayload({
+              employeeId,
+              selectedSkillIds: selectedIds,
+              existingSkills: existingSkills as any,
+              event: 'pse_submit'
             })
-
-            const skillsPayload = selectedIds.map(skillId => {
-              const existing = existingBySkillId[skillId]
-              if (existing?.id && existing?.version !== undefined) {
-                return { id: existing.id, version: existing.version, employeeId, skill: skillId }
-              }
-              return { employeeId, skill: skillId }
-            })
-
-            const payload = { employeeSkills: { employeeId, skills: skillsPayload }, event: 'pse_submit' } as any
-
-            if (import.meta && import.meta.env && import.meta.env.DEV) {
-              // Debug-only log for payload classification
-              console.log('[AddSkill] submit payload', payload)
-            }
-
             return payload
           }}
           data-testid="add-skill-form"
@@ -283,60 +254,24 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                   'lowcoder:employee_profile.details_layout.add_skill_form.search_skill_placeholder',
                   'Search skill...'
                 )}
-                data-testid="add-skill-search-input"
+                data-testid="flw_addSkills_searchInput"
                 className="gba:w-full"
               />
 
               {/* Results dropdown */}
-              {isDropdownOpen &&
-                (isSearching || filteredResults.length > 0 || (searchTerm.trim() && filteredResults.length === 0)) && (
-                  <Card className="gba:w-full" data-testid="add-skill-search-dropdown">
-                    <CardContent
-                      className={`gba:p-2 gba:space-y-1 gba:w-full gba:max-h-[250px] gba:overflow-y-auto ${!isSearching && filteredResults.length === 0 && searchTerm.trim() ? 'gba:px-3' : ''}`}
-                    >
-                      {isSearching && (
-                        <div className="gba:text-muted-foreground" data-testid="add-skill-search-loading">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:employee_profile.details_layout.add_skill_form.loading_text',
-                            'Loading...'
-                          )}
-                        </div>
-                      )}
-                      {!isSearching &&
-                        filteredResults.slice(0, 5).map((sk: any) => (
-                          <Button
-                            key={sk.id}
-                            variant="ghost"
-                            className="gba:w-full gba:justify-start gba:text-left gba:items-start gba:py-2 gba:whitespace-normal gba:break-words gba:h-auto gba:min-h-10 gba:leading-normal"
-                            onClick={() => handleSelectSkill({ id: sk.id, name: sk.name })}
-                            data-testid={`add-skill-result-item-${sk.id}`}
-                          >
-                            <span className="gba:block gba:break-all">{sk.name}</span>
-                          </Button>
-                        ))}
-                      {!isSearching && filteredResults.length === 0 && searchTerm.trim() && (
-                        <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-                          <div className="gba:text-muted-foreground" data-testid="add-skill-no-results-text">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:employee_profile.details_layout.add_skill_form.no_skill_match_text',
-                              `No matching skill found for ${searchTerm.trim()}.`,
-                              {
-                                skillName: searchTerm.trim(),
-                                interpolation: { escapeValue: false }
-                              }
-                            )}
-                          </div>
-                          <Button size="sm" onClick={handleAddNewSkill} data-testid="add-skill-add-button">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:employee_profile.details_layout.add_skill_form.add_skill_button_text',
-                              'Add Skill'
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
+              <AddSkillSearchDropdown
+                isOpen={
+                  isDropdownOpen &&
+                  (isSearching ||
+                    filteredResults.length > 0 ||
+                    (searchTerm.trim().length > 0 && filteredResults.length === 0))
+                }
+                isSearching={isSearching}
+                filteredResults={filteredResults as any}
+                searchTerm={searchTerm}
+                onSelect={handleSelectSkill}
+                onAddNew={handleAddNewSkill}
+              />
             </div>
 
             {addError && (
@@ -356,61 +291,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
             </span>
 
             {/* Selected Skills chips (includes existing and newly selected) */}
-            {selectedSkills.length > 0 && (
-              <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="add-skill-selected-container">
-                {selectedSkills.map(s => (
-                  <Badge
-                    key={s.id}
-                    variant="secondary"
-                    className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:max-w-full"
-                    data-testid={`add-skill-selected-badge-${s.id}`}
-                  >
-                    <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={s.name}>
-                      {s.name}
-                    </span>
-                    {s.isNew && (
-                      <span
-                        className="gba:text-xs gba:text-muted-foreground gba:ml-2 gba:flex-shrink-0"
-                        data-testid={`add-skill-selected-badge-new-${s.id}`}
-                      >
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:employee_profile.details_layout.add_skill_form.new_badge_text',
-                          'New!'
-                        )}
-                      </span>
-                    )}
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      onMouseDown={evt => {
-                        evt.preventDefault()
-                        evt.stopPropagation()
-                      }}
-                      onClick={evt => {
-                        evt.preventDefault()
-                        evt.stopPropagation()
-                        handleRemoveSkill(s.id)
-                      }}
-                      onKeyDown={evt => {
-                        if (evt.key === 'Enter' || evt.key === ' ') {
-                          evt.preventDefault()
-                          evt.stopPropagation()
-                          handleRemoveSkill(s.id)
-                        }
-                      }}
-                      aria-label={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
-                        'Remove'
-                      )}
-                      className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center gba:flex-shrink-0 gba:ml-2"
-                      data-testid={`add-skill-selected-remove-${s.id}`}
-                    >
-                      <XCircleIcon className="gba:w-3 gba:h-3" />
-                    </span>
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <SelectedSkillsChips skills={selectedSkills as any} onRemove={handleRemoveSkill} />
           </div>
         </AppActionForm>
       </div>
