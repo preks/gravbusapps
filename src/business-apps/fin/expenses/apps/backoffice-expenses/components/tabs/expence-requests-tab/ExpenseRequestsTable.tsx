@@ -351,6 +351,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return expenses?.filter(expense => expense.status === 'BOOKED').length || 0
   }, [expenses])
 
+  // Count of selected bookable records
+  const selectedBookableCount = useMemo(() => {
+    return selectedRecords.filter(r => r.status === 'BOOKED').length
+  }, [selectedRecords])
+
   // Helper: Build unique status filters (reduces cognitive complexity)
   const buildStatusFilters = useCallback(() => {
     const byLabel = new Map<string, { id: string; label: string; selected: boolean }>()
@@ -1463,7 +1468,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                     size="sm"
                   >
                     {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} (
-                    {selectedRecords.filter(r => r.status === 'BOOKED').length}{' '}
+                    {selectedBookableCount}{' '}
                     {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
                   </Button>
                 ]
