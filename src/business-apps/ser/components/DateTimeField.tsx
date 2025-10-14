@@ -251,7 +251,7 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
               disabled={disabled}
               data-testid={`${testId}-trigger`}
             >
-              {displayValue || placeholder || `Select ${label.toLowerCase()}`}
+              {displayValue || placeholder || (type === 'datetime' ? 'Select date and time' : 'Select date')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="gba:w-auto gba:p-0" align="start">
