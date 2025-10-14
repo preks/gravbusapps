@@ -135,10 +135,15 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
                           <Badge
                             key={e.id}
                             variant="secondary"
-                            className="gba:flex gba:items-center gba:gap-1 gba:h-6 gba:py-0 gba:px-2 gba:text-xs gba:pointer-events-auto"
+                            className="gba:flex gba:items-center gba:gap-1 gba:h-6 gba:py-0 gba:px-2 gba:text-xs gba:pointer-events-auto gba:max-w-full"
                             data-testid={`change-personal-data-academic-title-chip-${e.id}`}
                           >
-                            <span className="gba:px-1">{getCatalogValue(e)}</span>
+                            <span
+                              className="gba:px-1 gba:max-w-[calc(100%-16px)] gba:truncate"
+                              title={getCatalogValue(e)}
+                            >
+                              {getCatalogValue(e)}
+                            </span>
                             <span
                               role="button"
                               tabIndex={0}
@@ -161,7 +166,7 @@ const QualificationFields: React.FC<QualificationFieldsProps> = ({ control, cata
                                 }
                               }}
                               aria-label="Remove"
-                              className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center"
+                              className="gba:cursor-pointer gba:rounded-full gba:p-0.5 gba:flex gba:items-center gba:flex-shrink-0"
                               data-testid={`change-personal-data-academic-title-remove-${e.id}`}
                               data-chip-action="remove"
                             >
