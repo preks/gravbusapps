@@ -1,24 +1,109 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { PiTrendUp, PiFlowArrow, PiAddressBook, PiListChecks } from 'react-icons/pi'
+import { PiTrendUp, PiFlowArrow, PiAddressBook, PiListChecks, PiDatabase, PiFileHtml } from 'react-icons/pi'
 import { SettingsLayout } from '@/components/layout/settings-layout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { LeadSettings } from '@/common/components/common-relations/setting-pages/lead/LeadSettings'
-import { EngagementSettings } from '@/common/components/common-relations/setting-pages/engagement/EngagementSettings'
+import LeadDataPage from './pages/lead-data/LeadDataPage'
+import EngagementDataPage from './pages/engagement-data/EngagementDataPage'
 import PipelineDataPage from './pages/pipeline-data/PipelineDataPage'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import InvestmentDataPage from './pages/investment-data/InvestmentDataPage'
+import TemplateDataPage from './pages/template-data/TemplateDataPage'
 
 export interface InvestmentSettingsProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
 }
 
+type LeadDataTab = 'ratings' | 'statuses' | 'sources'
+
+function isValidLeadTab(value: unknown): value is LeadDataTab {
+  return value === 'ratings' || value === 'statuses' || value === 'sources'
+}
+
 const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, prefixDataTestId, ...context }) => {
   const { t } = useTranslation()
   const [inlinePage, setInlinePage] = React.useState<{ key: string; tab?: string } | null>(null)
-  const catalogClient = useCatalogManagerClient(context.accessToken)
+
+  // Handle query parameters on component mount and browser back/forward
+  React.useEffect(() => {
+    const parseUrlAndSetPage = () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const page = urlParams.get('page')
+      const tab = urlParams.get('tab')
+
+      if (page) {
+        setInlinePage({ key: page, tab: tab || undefined })
+      } else {
+        setInlinePage(null)
+      }
+    }
+
+    // Initial mount
+    parseUrlAndSetPage()
+
+    // Handle browser back/forward navigation
+    const handlePopState = () => {
+      parseUrlAndSetPage()
+    }
+
+    window.addEventListener('popstate', handlePopState)
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [])
+
+  // Update URL when inline page changes
+  const handleInlinePageChange = (page: { key: string; tab?: string } | null) => {
+    setInlinePage(page)
+
+    const newSearchParams = new URLSearchParams(window.location.search)
+
+    if (page) {
+      newSearchParams.set('page', page.key)
+      if (page.tab) {
+        newSearchParams.set('tab', page.tab)
+      } else {
+        newSearchParams.delete('tab')
+      }
+    } else {
+      newSearchParams.delete('page')
+      newSearchParams.delete('tab')
+    }
+
+    // Update URL without page reload
+    const newURL = `${window.location.pathname}${newSearchParams.toString() ? '?' + newSearchParams.toString() : ''}`
+    window.history.replaceState({}, '', newURL)
+  }
 
   const cards = [
+    {
+      title: t('crm.investment_data', 'Investment Data'),
+      description: t(
+        'crm.investment_data_description',
+        'Configure form fields, record fields, and tile fields for investments'
+      ),
+      icon: PiDatabase,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.investment_configuration', 'Investment Configuration'),
+          onClick: () => handleInlinePageChange({ key: 'investment-data' })
+        }
+      ]
+    },
+    {
+      title: t('crm.document_templates', 'Document Templates'),
+      description: t('crm.document_templates_description', 'Create and manage HTML templates for investment documents'),
+      icon: PiFileHtml,
+      iconSize: 'md' as const,
+      entries: [
+        {
+          label: t('crm.templates', 'Templates'),
+          onClick: () => handleInlinePageChange({ key: 'template-data' })
+        }
+      ]
+    },
     {
       title: t('crm.opportunity_pipelines', 'Opportunity Pipelines'),
       description: t('crm.opportunity_pipelines_description', 'Manage opportunity pipelines and sales processes'),
@@ -27,7 +112,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       entries: [
         {
           label: t('crm.pipelines', 'Pipelines'),
-          onClick: () => setInlinePage({ key: 'pipeline' })
+          onClick: () => handleInlinePageChange({ key: 'pipeline' })
         }
       ]
     },
@@ -39,15 +124,15 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       entries: [
         {
           label: t('crm.lead_ratings', 'Ratings'),
-          onClick: () => setInlinePage({ key: 'lead', tab: 'ratings' })
+          onClick: () => handleInlinePageChange({ key: 'lead', tab: 'ratings' })
         },
         {
           label: t('crm.lead_statuses', 'Statuses'),
-          onClick: () => setInlinePage({ key: 'lead', tab: 'statuses' })
+          onClick: () => handleInlinePageChange({ key: 'lead', tab: 'statuses' })
         },
         {
           label: t('crm.lead_sources', 'Sources'),
-          onClick: () => setInlinePage({ key: 'lead', tab: 'sources' })
+          onClick: () => handleInlinePageChange({ key: 'lead', tab: 'sources' })
         }
       ]
     },
@@ -59,46 +144,63 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       entries: [
         {
           label: t('crm.activity_types', 'Activity Types'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'activity-types' })
+          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'activity-types' })
         },
         {
           label: t('crm.task_types', 'Task Types'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-types' })
+          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-types' })
         },
         {
           label: t('crm.task_priorities', 'Task Priorities'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-priorities' })
+          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-priorities' })
         },
         {
           label: t('crm.task_statuses', 'Task Statuses'),
-          onClick: () => setInlinePage({ key: 'engagement', tab: 'task-statuses' })
+          onClick: () => handleInlinePageChange({ key: 'engagement', tab: 'task-statuses' })
         }
       ]
     }
   ]
 
-  if (inlinePage?.key === 'lead') {
+  if (inlinePage?.key === 'investment-data') {
     return (
-      <LeadSettings
+      <InvestmentDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentDataSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'template-data') {
+    return (
+      <TemplateDataPage
+        {...context}
+        prefixDataTestId={`${prefixDataTestId || ''}-InvestmentTemplateSettings`}
+        onBack={() => handleInlinePageChange(null)}
+      />
+    )
+  }
+
+  if (inlinePage?.key === 'lead') {
+    const initialTab: LeadDataTab = isValidLeadTab(inlinePage.tab) ? inlinePage.tab : 'ratings'
+
+    return (
+      <LeadDataPage
+        {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentLeadSettings`}
-        initialTab={(inlinePage.tab as any) || 'ratings'}
-        onBack={() => setInlinePage(null)}
-        ratings={mkCatalogStateAndHandlers(catalogClient, 'InvestmentLeadRating')}
-        statuses={mkCatalogStateAndHandlers(catalogClient, 'InvestmentLeadStatus')}
-        sources={mkCatalogStateAndHandlers(catalogClient, 'InvestmentLeadSource')}
+        initialTab={initialTab}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
 
   if (inlinePage?.key === 'engagement') {
     return (
-      <EngagementSettings
+      <EngagementDataPage
+        {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentEngagementSettings`}
-        onBack={() => setInlinePage(null)}
-        activityTypes={mkCatalogStateAndHandlers(catalogClient, 'InvestmentActivityType')}
-        taskTypes={mkCatalogStateAndHandlers(catalogClient, 'InvestmentTaskType')}
-        taskPriorities={mkCatalogStateAndHandlers(catalogClient, 'InvestmentTaskPriority')}
-        taskStatuses={mkCatalogStateAndHandlers(catalogClient, 'InvestmentTaskStatus')}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
@@ -108,7 +210,7 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
       <PipelineDataPage
         {...context}
         prefixDataTestId={`${prefixDataTestId || ''}-InvestmentPipelineSettings`}
-        onBack={() => setInlinePage(null)}
+        onBack={() => handleInlinePageChange(null)}
       />
     )
   }
@@ -132,86 +234,3 @@ const InvestmentSettings: React.FC<InvestmentSettingsProps> = ({ className, pref
 
 export default InvestmentSettings
 export { InvestmentSettings }
-
-function mkCatalogStateAndHandlers(
-  catalogClient: ReturnType<typeof useCatalogManagerClient>,
-  catalogIdentifier: string
-) {
-  const [items, setItems] = React.useState<any[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [search, setSearch] = React.useState('')
-
-  const load = async () => {
-    try {
-      setIsLoading(true)
-      setError(null)
-      const response = await catalogClient.getCatalogEntriesList(
-        { catalogIdentifier, version: 'v1' },
-        {
-          limit: 100,
-          offset: 0,
-          returnTotalRecords: true,
-          includeChildCatalogEntries: false,
-          ...(search && { searchCriteria: search })
-        }
-      )
-      const entries = (response.data || []).map((entry: any) => ({
-        id: entry.id,
-        code: entry.code,
-        value: entry.value,
-        alternativeCode: entry.alternativeCode,
-        additionalValue1: entry.additionalValue1,
-        additionalValue2: entry.additionalValue2,
-        additionalValue3: entry.additionalValue3
-      }))
-      setItems(entries)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load data')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  React.useEffect(() => {
-    load()
-  }, [catalogIdentifier, catalogClient, search])
-
-  const create = async (data: any) => {
-    await catalogClient.createCatalogEntry(catalogIdentifier, 'v1', {
-      code: data.code,
-      value: data.value,
-      alternativeCode: data.alternativeCode,
-      additionalValue1: data.additionalValue1,
-      objectValue: {},
-      translations: []
-    })
-    await load()
-  }
-  const update = async (id: string, data: any) => {
-    await catalogClient.updateCatalogEntry(id, {
-      code: data.code,
-      value: data.value,
-      alternativeCode: data.alternativeCode,
-      additionalValue1: data.additionalValue1,
-      objectValue: {},
-      translations: []
-    })
-    await load()
-  }
-  const remove = async (id: string) => {
-    await catalogClient.deleteCatalogEntry(id)
-    await load()
-  }
-
-  return {
-    items,
-    isLoading,
-    error,
-    onRetry: load,
-    onCreate: create,
-    onUpdate: update,
-    onDelete: remove,
-    onSearchChange: setSearch
-  }
-}

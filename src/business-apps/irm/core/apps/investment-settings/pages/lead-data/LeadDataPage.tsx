@@ -10,11 +10,13 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 export interface LeadDataPageProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
+  onBack?: () => void
+  initialTab?: 'ratings' | 'statuses' | 'sources'
 }
 
 const DATA_TEST_ID = 'InvestmentLeadDataPage'
 
-const LeadDataPage: React.FC<LeadDataPageProps> = ({ prefixDataTestId, ...context }) => {
+const LeadDataPage: React.FC<LeadDataPageProps> = ({ prefixDataTestId, onBack, initialTab, ...context }) => {
   const catalogClient = useCatalogManagerClient(context.accessToken)
 
   const ratings = makeHandlers(catalogClient, 'InvestmentLeadRating')
@@ -24,6 +26,8 @@ const LeadDataPage: React.FC<LeadDataPageProps> = ({ prefixDataTestId, ...contex
   return (
     <LeadSettings
       prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+      initialTab={initialTab}
+      onBack={onBack}
       ratings={{ ...ratings.state, ...ratings.handlers }}
       statuses={{ ...statuses.state, ...statuses.handlers }}
       sources={{ ...sources.state, ...sources.handlers }}

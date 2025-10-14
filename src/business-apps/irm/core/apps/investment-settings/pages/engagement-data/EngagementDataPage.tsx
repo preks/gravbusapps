@@ -10,11 +10,12 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 export interface EngagementDataPageProps extends BusinessAppContextProps {
   className?: string
   prefixDataTestId?: string
+  onBack?: () => void
 }
 
 const DATA_TEST_ID = 'InvestmentEngagementDataPage'
 
-const EngagementDataPage: React.FC<EngagementDataPageProps> = ({ prefixDataTestId, ...context }) => {
+const EngagementDataPage: React.FC<EngagementDataPageProps> = ({ prefixDataTestId, onBack, ...context }) => {
   const catalogClient = useCatalogManagerClient(context.accessToken)
 
   const activityTypes = makeHandlers(catalogClient, 'InvestmentActivityType')
@@ -25,6 +26,7 @@ const EngagementDataPage: React.FC<EngagementDataPageProps> = ({ prefixDataTestI
   return (
     <EngagementSettings
       prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
+      onBack={onBack}
       activityTypes={{ ...activityTypes.state, ...activityTypes.handlers }}
       taskTypes={{ ...taskTypes.state, ...taskTypes.handlers }}
       taskPriorities={{ ...taskPriorities.state, ...taskPriorities.handlers }}
