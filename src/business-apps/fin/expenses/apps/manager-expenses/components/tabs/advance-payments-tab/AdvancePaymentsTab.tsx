@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import AdvancePaymentStatistics from './AdvancePaymentStatistics'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
@@ -240,10 +241,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: (() => {
-            const statusFilters = (statusFilter || []).filter(f => !f.startsWith('currency:'))
-            return currencyFilter ? [...statusFilters, `currency:${currencyFilter}`] : statusFilters
-          })(),
+          filter: buildDeduplicatedFilters(statusFilter ?? undefined, currencyFilter),
           setSearch: handleSearchChange,
           setFilter: (newFilters: string[]) => {
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))

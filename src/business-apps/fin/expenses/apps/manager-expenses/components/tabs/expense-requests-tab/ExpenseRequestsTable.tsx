@@ -29,6 +29,7 @@ import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 dayjs.extend(localizedFormat)
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import { ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
 import { pillTypeClassMap } from '../../../components/StatusLegend'
@@ -731,11 +732,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,
-          filter: (() => {
-            // Build filter array with deduplication to prevent duplicate currency filters on refresh
-            const statusFilters = selectedFilters.filter(f => !f.startsWith('currency:'))
-            return primaryCurrency ? [...statusFilters, `currency:${primaryCurrency}`] : statusFilters
-          })(),
+          filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
           setFilter: (newFilters: string[]): void => {
             // Separate currency and status filters
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))

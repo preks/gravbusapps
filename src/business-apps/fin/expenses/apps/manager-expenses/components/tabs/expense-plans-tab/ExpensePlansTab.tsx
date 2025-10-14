@@ -3,6 +3,7 @@ import { PiFileText } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer'
+import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters'
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
@@ -216,11 +217,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: (() => {
-            // Build filter array with deduplication to prevent duplicate currency filters on refresh
-            const statusFilters = statusFilter.filter(f => !String(f).startsWith('currency:'))
-            return primaryCurrency ? [...statusFilters, `currency:${primaryCurrency}`] : statusFilters
-          })(),
+          filter: buildDeduplicatedFilters(statusFilter, primaryCurrency),
           setSearch: handleSearchChange,
           setFilter: newFilters => {
             // Separate currency and status filters
