@@ -17,6 +17,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useWorkingConditionsLookups } from './queries/UpdateWorkingConditionsQueries'
 import flowSmall from '@/assets/icons/flowSmall.svg'
+import { truncateText } from '@/common/utils/textUtils'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 
@@ -58,6 +59,13 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
       setEndDate(toDateInput(current.endDate))
     }
   }, [current])
+
+  // If country has no regions, hook returns a single option (country). Select it by default.
+  useEffect(() => {
+    if (!region && Array.isArray(regions) && regions.length === 1) {
+      setRegion(regions[0].id)
+    }
+  }, [regions, region])
 
   const isValid = useMemo(() => {
     return Boolean(employmentType && contractType && remote && region && startDate)
@@ -175,13 +183,16 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.employmentType', 'Employment Type')}*
             </div>
             <Select value={employmentType} onValueChange={setEmploymentType} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_employmentTypeSelect">
+              <SelectTrigger
+                className="gba:w-full gba:truncate"
+                data-testid="flw_updateWorkingConditions_employmentTypeSelect"
+              >
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
                 {employmentTypes.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -194,13 +205,16 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.contractType', 'Contract Type')}*
             </div>
             <Select value={contractType} onValueChange={setContractType} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_contractTypeSelect">
+              <SelectTrigger
+                className="gba:w-full gba:truncate"
+                data-testid="flw_updateWorkingConditions_contractTypeSelect"
+              >
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
                 {contractTypes.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -213,7 +227,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.remote', 'Remote')}*
             </div>
             <Select value={remote} onValueChange={setRemote} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_remoteSelect">
+              <SelectTrigger className="gba:w-full gba:truncate" data-testid="flw_updateWorkingConditions_remoteSelect">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select remote')}
                 />
@@ -221,7 +235,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {remoteOptions.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -234,7 +248,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.region', 'Region')}*
             </div>
             <Select value={region} onValueChange={setRegion}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_regionSelect">
+              <SelectTrigger className="gba:w-full gba:truncate" data-testid="flw_updateWorkingConditions_regionSelect">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Region')}
                 />
@@ -242,7 +256,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {regions.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {o.label}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
