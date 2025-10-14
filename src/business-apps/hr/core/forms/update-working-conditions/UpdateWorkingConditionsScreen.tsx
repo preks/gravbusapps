@@ -17,6 +17,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useWorkingConditionsLookups } from './queries/UpdateWorkingConditionsQueries'
 import flowSmall from '@/assets/icons/flowSmall.svg'
+import { truncateText } from '@/common/utils/textUtils'
 
 const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 
@@ -34,8 +35,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     loading
   } = useWorkingConditionsLookups(context)
 
-  console.log(regions, 'regions')
-
   const [employmentType, setEmploymentType] = useState<string | undefined>(undefined)
   const [contractType, setContractType] = useState<string | undefined>(undefined)
   const [remote, setRemote] = useState<string | undefined>(undefined)
@@ -43,11 +42,6 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   const [startDate, setStartDate] = useState<string>('')
   const [probationEndDate, setProbationEndDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
-
-  const truncate = (text?: string, max: number = 50): string => {
-    if (!text) return ''
-    return text.length > max ? `${text.slice(0, max)}...` : text
-  }
 
   useEffect(() => {
     if (current) {
@@ -198,7 +192,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {employmentTypes.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {truncate(o.label)}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -220,7 +214,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {contractTypes.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {truncate(o.label)}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -241,7 +235,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {remoteOptions.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {truncate(o.label)}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -262,7 +256,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               <SelectContent>
                 {regions.map(o => (
                   <SelectItem key={o.id} value={o.id}>
-                    {truncate(o.label)}
+                    {truncateText(o.label)}
                   </SelectItem>
                 ))}
               </SelectContent>
