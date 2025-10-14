@@ -7,7 +7,11 @@ import {
   getTranslationFromI18nKeyAndLabel,
   getCurrentActiveUserLocale
 } from '../../../../../../../../../common/utils/windowUtils'
-import { getAbsenceStatusLabel, getAbsenceStatusColor, getAbsenceStatusType } from '@/business-apps/hr/absences/utils/absenceStatusUtils';
+import {
+  getAbsenceStatusLabel,
+  getAbsenceStatusColor,
+  getAbsenceStatusType
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 const { Option } = Select
 
 interface EmployeeAbsence {
@@ -162,7 +166,6 @@ const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
   }
 `
 
-
 const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphQLClient(accessToken)
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
@@ -185,8 +188,8 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   // Helper function to get translated status name - now using centralized utility
   const getStatusName = (status: string): string => {
-    return getAbsenceStatusLabel(status);
-  };
+    return getAbsenceStatusLabel(status)
+  }
 
   const fetchData = useCallback(
     async (departments: string[] = selectedOrgUnits) => {
@@ -421,13 +424,13 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
   // Status color mapping (like manager-absences)
   // Status color mapping - now using centralized utility
   const getStatusColor = (status: string): string => {
-    return getAbsenceStatusColor(status);
-  };
+    return getAbsenceStatusColor(status)
+  }
 
   // Status type mapping - now using centralized utility
   const getStatusType = (status: string): string => {
-    return getAbsenceStatusType(status);
-  };
+    return getAbsenceStatusType(status)
+  }
 
   // Create timeline events from absences (data is already filtered server-side)
   const timelineEvents = useMemo(() => {
@@ -461,21 +464,21 @@ const CalendarList: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo
 
   // Create status-based legend using centralized utilities
   const legendItems = [
-    { 
-      label: getAbsenceStatusLabel('APPROVED'), 
-      color: getAbsenceStatusColor('APPROVED') 
+    {
+      label: getAbsenceStatusLabel('APPROVED'),
+      color: getAbsenceStatusColor('APPROVED')
     },
-    { 
-      label: getAbsenceStatusLabel('PENDING'), 
-      color: getAbsenceStatusColor('PENDING') 
+    {
+      label: getAbsenceStatusLabel('PENDING'),
+      color: getAbsenceStatusColor('PENDING')
     },
-    { 
-      label: getAbsenceStatusLabel('REJECTED'), 
-      color: getAbsenceStatusColor('REJECTED') 
+    {
+      label: getAbsenceStatusLabel('REJECTED'),
+      color: getAbsenceStatusColor('REJECTED')
     },
-    { 
-      label: getAbsenceStatusLabel('CANCELLED'), 
-      color: getAbsenceStatusColor('CANCELLED') 
+    {
+      label: getAbsenceStatusLabel('CANCELLED'),
+      color: getAbsenceStatusColor('CANCELLED')
     }
   ]
 

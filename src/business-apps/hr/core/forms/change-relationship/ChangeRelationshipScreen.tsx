@@ -26,15 +26,9 @@ import { env } from '@/common/env/EnvUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { CongratulationsModal } from './CongratulationsModal'
 
-interface ChangeRelationshipScreenProps extends BusinessAppContextProps {}
-
 const prefixDataTestId = 'ChangeRelationshipScreen'
 
-const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
-  additionalData,
-  userInfo,
-  accessToken
-}) => {
+const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [relationshipTypeId, setRelationshipTypeId] = useState<string>('')
@@ -45,7 +39,11 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [isUploading, setIsUploading] = useState(false)
 
-  const { options: relationshipTypeOptions, relationships } = useRelationshipTypes({ accessToken, userInfo, additionalData } as any)
+  const { options: relationshipTypeOptions, relationships } = useRelationshipTypes({
+    accessToken,
+    userInfo,
+    additionalData
+  } as any)
 
   const fileClient = useFileClient({ accessToken, userInfo })
 
@@ -215,11 +213,11 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
           })
           const json = await r.json().catch(() => null)
           uploadedDocumentId = json?.employeeDocument?.id || fileIdNoExt
-        } catch (_) {
+        } catch {
           // Fallback to file id without extension if processes API fails
           uploadedDocumentId = fileIdNoExt
         }
-      } catch (e) {
+      } catch {
         // Silent fail for upload; form can continue without a document
       } finally {
         setIsUploading(false)
@@ -228,9 +226,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
 
     // Build payload with uploaded file info (like ChangeProfilePictureScreen)
     const selectedExisting =
-      selectedRelationshipId !== 'new'
-        ? (relationships || []).find((r: any) => r.id === selectedRelationshipId)
-        : null
+      selectedRelationshipId !== 'new' ? (relationships || []).find((r: any) => r.id === selectedRelationshipId) : null
     const employeeRelationship = {
       ...(selectedExisting?.id ? { id: selectedExisting.id } : {}),
       ...(typeof selectedExisting?.version === 'number' ? { version: selectedExisting.version } : {}),

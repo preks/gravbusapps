@@ -61,7 +61,14 @@ const ExpenseRequestTab: React.FC<ExpenseRequestTabProps> = props => {
     [props.accessToken, props.userInfo]
   )
 
-  return <ExpenseRequestsTable {...contextProps} search={searchTerm} onSearchChange={handleSearchChange} isActive={isActive} />
+  return (
+    <ExpenseRequestsTable
+      {...contextProps}
+      search={searchTerm}
+      onSearchChange={handleSearchChange}
+      isActive={isActive}
+    />
+  )
 }
 
 export default ExpenseRequestTab

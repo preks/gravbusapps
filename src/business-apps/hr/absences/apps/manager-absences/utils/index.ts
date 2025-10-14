@@ -1,12 +1,12 @@
-import { format } from 'date-fns';
-import { EmployeeAbsence, EnhancedAbsence } from '../types';
-import { getEmployeeName } from './absenceUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { 
-  getAbsenceStatusConfig, 
+import { format } from 'date-fns'
+import { EmployeeAbsence, EnhancedAbsence } from '../types'
+import { getEmployeeName } from './absenceUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getAbsenceStatusConfig,
   getAbsenceStatusBadgeVariant as getCentralizedStatusBadgeVariant,
   getAbsenceStatusLabel
-} from '../../../utils/absenceStatusUtils';
+} from '../../../utils/absenceStatusUtils'
 
 // Date utility functions
 export const formatDateRange = (startDate: Date | string, endDate: Date | string): string => {
@@ -102,12 +102,12 @@ export const getOriginalAbsenceGroupName = (
 
 // Status formatting and badge variants - now using centralized utilities
 export const getAbsenceStatusBadgeVariant = (status: string | null | undefined): string => {
-  return getCentralizedStatusBadgeVariant(status ?? undefined) ?? 'default';
-};
+  return getCentralizedStatusBadgeVariant(status ?? undefined) ?? 'default'
+}
 
 export const formatAbsenceStatus = (status: string | null | undefined): string => {
-  return getAbsenceStatusLabel(status ?? undefined);
-};
+  return getAbsenceStatusLabel(status ?? undefined)
+}
 
 // Duration formatting
 export const formatDuration = (calendarDays: number, effectiveDays: number): string => {
@@ -165,9 +165,9 @@ export const enhanceAbsence = (
     dateRange: formatDateRange(absence.startDate, absence.endDate),
     duration: formatDuration(absence.calendarDays, absence.effectiveDays),
     statusBadgeVariant: getAbsenceStatusBadgeVariant(absence.status),
-    translatedStatus: getAbsenceStatusLabel(absence.status),
-  };
-};
+    translatedStatus: getAbsenceStatusLabel(absence.status)
+  }
+}
 
 // Search and filter utilities
 export const filterAbsencesBySearch = (absences: EmployeeAbsence[], searchTerm: string): EmployeeAbsence[] => {
@@ -262,12 +262,12 @@ export const sortAbsencesByField = (
 }
 
 // Status display configuration for absence statuses - now using centralized utilities
-export type { AbsenceStatusConfig as AbsenceStatusDisplayConfig } from '../../../utils/absenceStatusUtils';
+export type { AbsenceStatusConfig as AbsenceStatusDisplayConfig } from '../../../utils/absenceStatusUtils'
 
 export const getAbsenceStatusDisplay = (status: string) => {
-  const config = getAbsenceStatusConfig(status);
+  const config = getAbsenceStatusConfig(status)
   return {
     label: config.label,
     type: config.type
-  };
-};
+  }
+}

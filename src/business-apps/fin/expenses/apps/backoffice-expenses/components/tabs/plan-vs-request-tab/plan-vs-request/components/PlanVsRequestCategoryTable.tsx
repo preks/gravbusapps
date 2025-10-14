@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   Card,
   CardHeader,
@@ -11,25 +11,25 @@ import {
   TableRow,
   TableCell,
   Badge
-} from '@newwork/nw-design-system';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+} from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface CategoryData {
-  id: string;
-  name: string;
-  code: string;
-  currentPeriodAmount: number;
-  previousPeriodAmount: number;
-  variance: number;
+  id: string
+  name: string
+  code: string
+  currentPeriodAmount: number
+  previousPeriodAmount: number
+  variance: number
 }
 
 interface PlanVsRequestCategoryTableProps {
-  categories: CategoryData[];
+  categories: CategoryData[]
   breakdownTotals: {
-    prev: number;
-    curr: number;
-  };
-  formatCurrency: (amount: number) => string;
+    prev: number
+    curr: number
+  }
+  formatCurrency: (amount: number) => string
 }
 
 export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProps> = ({
@@ -40,27 +40,37 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
   return (
     <Card data-testid="details-list">
       <CardHeader>
-        <CardTitle>
-          {getTranslationFromI18nKeyAndLabel('expense.categoryBreakdown', 'Category Breakdown')}
-        </CardTitle>
+        <CardTitle>{getTranslationFromI18nKeyAndLabel('expense.categoryBreakdown', 'Category Breakdown')}</CardTitle>
         <div className="gba:text-sm gba:text-muted-foreground gba:mt-2" data-testid="category-totals">
-          {getTranslationFromI18nKeyAndLabel('expense.previousTotal','Previous Total')}: {formatCurrency(breakdownTotals.prev)} {" | "}
-          {getTranslationFromI18nKeyAndLabel('expense.currentTotal','Current Total')}: {formatCurrency(breakdownTotals.curr)} {" | "}
-          Δ%: {breakdownTotals.prev > 0 ? Math.abs(((breakdownTotals.curr - breakdownTotals.prev) / breakdownTotals.prev) * 100).toFixed(1) : '0.0'}%
+          {getTranslationFromI18nKeyAndLabel('expense.previousTotal', 'Previous Total')}:{' '}
+          {formatCurrency(breakdownTotals.prev)} {' | '}
+          {getTranslationFromI18nKeyAndLabel('expense.currentTotal', 'Current Total')}:{' '}
+          {formatCurrency(breakdownTotals.curr)} {' | '}
+          Δ%:{' '}
+          {breakdownTotals.prev > 0
+            ? Math.abs(((breakdownTotals.curr - breakdownTotals.prev) / breakdownTotals.prev) * 100).toFixed(1)
+            : '0.0'}
+          %
         </div>
       </CardHeader>
       <CardContent>
         <Table data-testid="category-breakdown-table">
           <TableHeader data-testid="category-breakdown-header">
             <TableRow>
-              <TableHead>{getTranslationFromI18nKeyAndLabel('expense.category','Category')}</TableHead>
-              <TableHead className="gba:text-right">{getTranslationFromI18nKeyAndLabel('expense.previous','Previous')}</TableHead>
-              <TableHead className="gba:text-right">{getTranslationFromI18nKeyAndLabel('expense.current','Current')}</TableHead>
-              <TableHead className="gba:text-right">{getTranslationFromI18nKeyAndLabel('expense.variance','Variance')}</TableHead>
+              <TableHead>{getTranslationFromI18nKeyAndLabel('expense.category', 'Category')}</TableHead>
+              <TableHead className="gba:text-right">
+                {getTranslationFromI18nKeyAndLabel('expense.previous', 'Previous')}
+              </TableHead>
+              <TableHead className="gba:text-right">
+                {getTranslationFromI18nKeyAndLabel('expense.current', 'Current')}
+              </TableHead>
+              <TableHead className="gba:text-right">
+                {getTranslationFromI18nKeyAndLabel('expense.variance', 'Variance')}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody data-testid="category-breakdown-body">
-            {(categories || []).map((cat) => (
+            {(categories || []).map(cat => (
               <TableRow key={cat.id} data-testid={`details-category-row-${cat.id}`}>
                 <TableCell data-testid={`category-name-cell-${cat.id}`}>
                   <div>
@@ -75,10 +85,7 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
                   {formatCurrency(cat.currentPeriodAmount)}
                 </TableCell>
                 <TableCell className="gba:text-right" data-testid={`category-variance-cell-${cat.id}`}>
-                  <Badge 
-                    variant={cat.variance >= 0 ? 'destructive' : 'success'}
-                    className="gba:font-medium"
-                  >
+                  <Badge variant={cat.variance >= 0 ? 'destructive' : 'success'} className="gba:font-medium">
                     {`${cat.variance >= 0 ? '+' : ''}${cat.variance}%`}
                   </Badge>
                 </TableCell>
@@ -88,6 +95,5 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
         </Table>
       </CardContent>
     </Card>
-  );
-};
-
+  )
+}

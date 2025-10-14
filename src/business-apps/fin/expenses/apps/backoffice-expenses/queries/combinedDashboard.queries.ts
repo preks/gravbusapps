@@ -1,11 +1,11 @@
 /**
  * ⚡ PERFORMANCE OPTIMIZATION: Combined Dashboard Query
- * 
+ *
  * This file contains a single, optimized GraphQL query that fetches ALL dashboard statistics
  * in ONE request instead of making 10 separate queries.
- * 
+ *
  * Pattern inspired by manager-expenses/queries/expenseDashboard.ts
- * 
+ *
  * Benefits:
  * - Reduces network roundtrips from ~10 to 1
  * - Faster dashboard load times
@@ -36,8 +36,10 @@ const getAdvancePaymentDeptFilter = (hasDepartment: boolean) =>
  */
 export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => {
   // Generate variables for 12 months
-  const monthVars = Array.from({ length: 12 }, (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`).join(", ");
-  
+  const monthVars = Array.from({ length: 12 }, (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`).join(
+    ', '
+  )
+
   return `
   query GetCombinedDashboardStatsMonthly(
     $selectedCurrency: String!${hasDepartment ? ',\n    $selectedDepartment: uuid!' : ''},
@@ -296,7 +298,7 @@ export const GET_COMBINED_DASHBOARD_STATS_MONTHLY = (hasDepartment: boolean) => 
 
     # 11. Bulk Monthly Trends (all 12 months in one request)
 ${Array.from({ length: 12 }, (_, i) => {
-  const idx = i + 1;
+  const idx = i + 1
   return `    # Month ${idx}
     m${idx}_req: ExpenseRequestAggregate(
       where: {
@@ -337,10 +339,10 @@ ${Array.from({ length: 12 }, (_, i) => {
           ] }${getDeptFilter(hasDepartment)}
         ]
       }
-    ) { aggregate { count sum { reimbursableAmount } } }`;
+    ) { aggregate { count sum { reimbursableAmount } } }`
 }).join('\n\n')}
   }
-  `;
+  `
 }
 
 /**

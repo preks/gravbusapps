@@ -15,11 +15,9 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 
-export interface ChangePersonalDataFormProps extends BusinessAppContextProps {}
-
 // form values type moved to types.ts
 
-const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ accessToken, additionalData }) => {
+const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
   const { data } = useChangePersonalData()
 
@@ -185,7 +183,10 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
           formData={normalizedDefaults}
           submitEventType="pse_submit"
           cancelEventType="pse_abort"
-          cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
+          cancelButtonText={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.initiate_cancel_button',
+            'Cancel'
+          )}
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
           isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
           handlePreSubmit={async values => {
@@ -243,7 +244,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                     uploadedEmployeeDocumentId = undefined
                   })
               }
-            } catch (e) {
+            } catch {
               uploadedEmployeeDocumentId = undefined
             }
 
@@ -337,14 +338,13 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
               )}
             />
           </div>
-
         </AppActionForm>
       </div>
     </div>
   )
 }
 
-export const ChangePersonalData: React.FC<ChangePersonalDataFormProps> = context => {
+export const ChangePersonalData: React.FC<BusinessAppContextProps> = context => {
   return (
     <>
       <ChangePersonalDataProvider {...context}>

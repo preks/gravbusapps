@@ -26,8 +26,7 @@ const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = props => {
     isActive // ⚡ PERFORMANCE: Only initialize loading state when tab is active
   }
 
-  const { totalCount, advancePaymentStats, isLoading } =
-    useAdvancePayments(contextProps)
+  const { totalCount, advancePaymentStats, isLoading } = useAdvancePayments(contextProps)
 
   // Note: Statistics are now automatically fetched with the main payments query
   // No separate fetch call needed
@@ -35,13 +34,13 @@ const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = props => {
   // Helper to get total amount display text (avoids nested ternary)
   const getTotalAmountText = useCallback((): string => {
     if (isLoading) {
-      return 'Loading statistics...';
+      return 'Loading statistics...'
     }
     if (advancePaymentStats?.totalAmount) {
-      return `Total Amount: ${advancePaymentStats.totalAmount}`;
+      return `Total Amount: ${advancePaymentStats.totalAmount}`
     }
-    return 'Total Amount: $0';
-  }, [isLoading, advancePaymentStats?.totalAmount]);
+    return 'Total Amount: $0'
+  }, [isLoading, advancePaymentStats?.totalAmount])
 
   // Create statistics header and pass to parent via onContentHeaderChange
   useEffect(() => {
@@ -51,9 +50,7 @@ const AdvancePaymentTab: React.FC<AdvancePaymentTabProps> = props => {
           <Alert variant="default" data-testid="advance-payment-stats-alert">
             <div>
               <h4 className="gba:font-semibold">{totalCount || 0} Advance Payments</h4>
-              <p className="gba:text-sm gba:mt-1">
-                {getTotalAmountText()}
-              </p>
+              <p className="gba:text-sm gba:mt-1">{getTotalAmountText()}</p>
             </div>
           </Alert>
         </div>

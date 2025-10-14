@@ -7,8 +7,8 @@ import { ExpenseStatus } from '../../../../../utils/utils'
 // - ExpensePlan.endDate < $currentDate (strictly in the past)
 // - EXCLUDE plans already connected to an ExpenseRequest (i.e., no linked request)
 // - Optional: filter by department if selectedDepartment is provided
-export const getOverduePlansCountQuery = (hasDepartment: boolean): string => 
-`query GetOverduePlansCount($currentDate: timestamp!${hasDepartment ? ', $selectedDepartment: uuid!' : ''}) {
+export const getOverduePlansCountQuery = (hasDepartment: boolean): string =>
+  `query GetOverduePlansCount($currentDate: timestamp!${hasDepartment ? ', $selectedDepartment: uuid!' : ''}) {
     overduePlans: ExpensePlanAggregate(
       where: {
         _and: [
@@ -24,5 +24,4 @@ export const getOverduePlansCountQuery = (hasDepartment: boolean): string =>
       }
     }
   }
-`;
-
+`

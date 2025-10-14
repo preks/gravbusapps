@@ -1,28 +1,30 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { DataContainer } from '../../../../../../../../../components/layout/dataContainer';
-import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
-import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient';
-import { useCatalogManagerClient } from '../../../../../../../../../common/network/catalogs/useCatalogManagerClient';
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '../../../../../../../../../common/utils/windowUtils';
-import { getAllAbsenceStatusConfigs, AbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils';
-import dayjs from 'dayjs';
-import { DateRangeFilter } from './DateRangeFilter';
-import { CreationDateFilter } from './CreationDateFilter';
-import { AbsenceListTable } from './AbsenceListTable';
-import { EnhancedAbsence, DataFilterGroup } from '../../../../types';
-
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { DataContainer } from '../../../../../../../../../components/layout/dataContainer'
+import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
+import { useGraphQLClient } from '../../../../../../../../../common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '../../../../../../../../../common/network/catalogs/useCatalogManagerClient'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  getCurrentActiveUserLocale
+} from '../../../../../../../../../common/utils/windowUtils'
+import { getAllAbsenceStatusConfigs, AbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import dayjs from 'dayjs'
+import { DateRangeFilter } from './DateRangeFilter'
+import { CreationDateFilter } from './CreationDateFilter'
+import { AbsenceListTable } from './AbsenceListTable'
+import { EnhancedAbsence, DataFilterGroup } from '../../../../types'
 
 // Status option interface
 interface StatusOption {
-  id: string;
-  name: string;
+  id: string
+  name: string
 }
 
 // Status options using centralized status mapping
 const ABSENCE_STATUSES: StatusOption[] = getAllAbsenceStatusConfigs().map((config: AbsenceStatusConfig) => ({
   id: config.status,
   name: config.label
-}));
+}))
 
 // Extended interface for AbsenceList with initial filters
 interface AbsenceListProps extends BusinessAppContextProps {
@@ -70,7 +72,6 @@ export const AbsenceList: React.FC<AbsenceListProps> = props => {
       seeds.push('department-no-department')
     }
     return seeds
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [selectedFilters, setSelectedFilters] = useState<string[]>(seededInitialFilters)
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([])

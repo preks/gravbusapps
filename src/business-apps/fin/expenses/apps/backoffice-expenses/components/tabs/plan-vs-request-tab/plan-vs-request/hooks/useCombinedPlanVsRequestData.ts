@@ -220,7 +220,7 @@ export const useCombinedPlanVsRequestData = ({
       setError(null)
 
       // Generate the combined query
-      const query = generateCombinedPlanVsRequestQuery(period, currencyRef, selectedDepartment, requestTypes)
+      const query = generateCombinedPlanVsRequestQuery(selectedDepartment, requestTypes)
 
       // Prepare variables
       const variables: Record<string, any> = {

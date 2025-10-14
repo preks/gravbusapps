@@ -42,20 +42,48 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
   const currentYear = new Date().getFullYear()
 
   // Type guard for IconAvatar variant (from nw-design-system)
-  type IconAvatarVariant = 
-    | 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'info' | 'offline'
-    | 'decorative' | 'ext1' | 'ext2' | 'ext3' | 'ext4' | 'ext5' | 'ext6' | 'ext7' | 'ext8'
+  type IconAvatarVariant =
+    | 'default'
+    | 'secondary'
+    | 'success'
+    | 'warning'
+    | 'destructive'
+    | 'info'
+    | 'offline'
+    | 'decorative'
+    | 'ext1'
+    | 'ext2'
+    | 'ext3'
+    | 'ext4'
+    | 'ext5'
+    | 'ext6'
+    | 'ext7'
+    | 'ext8'
     | 'pending'
 
   // Validate and get safe variant with proper typing
   const safeVariant: IconAvatarVariant | undefined = (() => {
     const validVariants: IconAvatarVariant[] = [
-      'default', 'secondary', 'success', 'warning', 'destructive', 'info', 'offline',
-      'decorative', 'ext1', 'ext2', 'ext3', 'ext4', 'ext5', 'ext6', 'ext7', 'ext8',
+      'default',
+      'secondary',
+      'success',
+      'warning',
+      'destructive',
+      'info',
+      'offline',
+      'decorative',
+      'ext1',
+      'ext2',
+      'ext3',
+      'ext4',
+      'ext5',
+      'ext6',
+      'ext7',
+      'ext8',
       'pending'
     ]
-    return moduleColor && validVariants.includes(moduleColor as IconAvatarVariant) 
-      ? (moduleColor as IconAvatarVariant) 
+    return moduleColor && validVariants.includes(moduleColor as IconAvatarVariant)
+      ? (moduleColor as IconAvatarVariant)
       : undefined
   })()
 
@@ -167,7 +195,10 @@ const MonthlyExpenseTrendsCard: React.FC<MonthlyExpenseTrendsCardProps> = ({
             <BarChart data={monthlyTrends} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="monthName" tick={{ fontSize: 12 }} interval={0} tickFormatter={getTranslatedMonthName} />
-              <YAxis tickFormatter={(value) => formatCurrencyForChart(value, selectedCurrencyCode)} tick={{ fontSize: 12 }} />
+              <YAxis
+                tickFormatter={value => formatCurrencyForChart(value, selectedCurrencyCode)}
+                tick={{ fontSize: 12 }}
+              />
               <ChartTooltip content={<ChartTooltipContent labelKey="monthName" />} />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar
