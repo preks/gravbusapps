@@ -289,7 +289,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const handleCloseDetails = useCallback(() => {
     setSelectedExpense(null)
-    setSelectedRowKeys([])
+    // Don't clear selectedRowKeys - checkbox selections should remain when closing details panel
   }, [])
 
   // Bulk selection handlers
