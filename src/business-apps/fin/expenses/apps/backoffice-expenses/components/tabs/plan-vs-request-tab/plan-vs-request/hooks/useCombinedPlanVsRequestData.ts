@@ -113,7 +113,7 @@ export const useCombinedPlanVsRequestData = ({
 
         return {
           id,
-          name: extractCurrencyCode(id) || id,
+          name: id, // Keep full expense group ID for matching with catalog
           code: id,
           currentPeriodAmount: amounts.current,
           previousPeriodAmount: amounts.previous,

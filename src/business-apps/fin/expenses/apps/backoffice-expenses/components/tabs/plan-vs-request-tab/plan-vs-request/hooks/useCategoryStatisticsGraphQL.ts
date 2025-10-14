@@ -4,7 +4,8 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { calculatePeriodBoundaries } from '../utils/periodCalculations'
 
 export interface CategoryStatisticsData {
-  requestType: string
+  requestType: string // Keep for backward compatibility
+  id: string // Add for proper matching with catalog data
   currentPeriodAmount: number
   previousPeriodAmount: number
   differencePercentage: number
@@ -129,7 +130,8 @@ export const useCategoryStatisticsGraphQL = ({
         }
 
         results.push({
-          requestType: categoryId,
+          requestType: categoryId, // Keep for backward compatibility
+          id: categoryId, // Add id field for proper matching
           currentPeriodAmount: currentAmount,
           previousPeriodAmount: previousAmount,
           differencePercentage
