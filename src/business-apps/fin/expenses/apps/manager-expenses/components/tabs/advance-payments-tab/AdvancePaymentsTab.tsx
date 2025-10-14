@@ -140,25 +140,17 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   }, [overview.data?.distinctCurrencies])
 
   // Initialize currencyFilter with first available currency if empty
-  // Use ref to track if we've ever attempted initialization to prevent duplicates on refresh
   const hasInitializedCurrency = useRef(false)
 
   useEffect(() => {
-    // Only initialize once per component lifetime - strict guard
     if (hasInitializedCurrency.current) {
       return
     }
 
-    // Check if we need to initialize (no currency set and currencies are available)
     if (!currencyFilter && availableCurrencies.length > 0) {
-      // Mark as initialized IMMEDIATELY before any async operations
       hasInitializedCurrency.current = true
-
-      // Extract ISO code if in "Currency:v1:EUR" format and tokenize
       const rawCurrency = availableCurrencies[0]
       const code = String(rawCurrency).includes(':') ? String(rawCurrency).split(':').pop() || rawCurrency : rawCurrency
-
-      // Initialize currency synchronously
       baseHandleDataFilterChange(`currency:${code}`, true)
     }
   }, [currencyFilter, availableCurrencies, baseHandleDataFilterChange])
@@ -166,7 +158,6 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   // Build filter groups with currencies from overview
   const filterGroups = useMemo(() => {
     const currencyItems = availableCurrencies.map(curr => {
-      // Extract ISO code if in "Currency:v1:EUR" format
       const code = String(curr).includes(':') ? String(curr).split(':').pop() || curr : curr
       return {
         id: `currency:${code}`,
@@ -176,7 +167,6 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       }
     })
 
-    // Add currency group to the status filter group
     return [
       ...statusFilterGroup,
       {
@@ -191,7 +181,6 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     ]
   }, [statusFilterGroup, availableCurrencies, currencyFilter])
 
-  // Build filter label map with currencies
   const filterLabelMap = useMemo(() => {
     const map = { ...baseLabelMap }
     for (const curr of availableCurrencies) {
@@ -200,10 +189,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     return map
   }, [baseLabelMap, availableCurrencies])
 
-  // Enhanced data filter change handler that includes currencies
   const handleDataFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      // Handle all filters via the base handler (currencies and status)
       baseHandleDataFilterChange(filterId, selected)
     },
     [baseHandleDataFilterChange]
@@ -221,7 +208,6 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     setCurrentPage(1)
   }, [])
 
-  // Handle search term changes
   const handleSearchChange = useCallback(
     (search: string) => {
       setSearchTerm(search)
@@ -229,14 +215,10 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     [setSearchTerm]
   )
 
-  // Handle clear all filters
   const clearAllFilters = useCallback(() => {
     setSearchTerm('')
     setStatusFilter([])
   }, [setSearchTerm, setStatusFilter])
-
-  // Transform sorting to match expected format
-  // removed: transformedSorting now unused after overview migration
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
@@ -259,33 +241,22 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
         dataControllerProps={{
           search: searchTerm,
           filter: (() => {
-            // Build filter array with deduplication to prevent duplicate currency filters on refresh
             const statusFilters = (statusFilter || []).filter(f => !f.startsWith('currency:'))
             return currencyFilter ? [...statusFilters, `currency:${currencyFilter}`] : statusFilters
           })(),
           setSearch: handleSearchChange,
           setFilter: (newFilters: string[]) => {
-            // Separate currency and status filters
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
             const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
 
-            // Update status filters - always update to match incoming filters
             setStatusFilter(statusFiltersIncoming.length > 0 ? statusFiltersIncoming : [])
 
-            // Handle currency filter changes
-            // Note: Currency filter should remain even when "Clear all filters" is clicked
-            // Only change currency if user explicitly selects a different one from the filter panel
+            // Currency remains selected even when clearing all filters
             const hasCurrency = currencyFilters.length > 0
-
-            // Only process currency change if there's an actual currency in newFilters
-            // If newFilters has no currency but we had one, it means "Clear all" was clicked
-            // In that case, keep the current currency (don't clear it)
             if (hasCurrency && currencyFilters[0] !== `currency:${currencyFilter}`) {
-              // User selected a different currency - extract and apply it
               const newCurrencyCode = currencyFilters[0].replace('currency:', '')
               handleDataFilterChange(`currency:${newCurrencyCode}`, true)
             }
-            // Don't clear currency when clearing all filters - currency always stays selected
           },
           filterLabelMap: {
             ...filterLabelMap,
