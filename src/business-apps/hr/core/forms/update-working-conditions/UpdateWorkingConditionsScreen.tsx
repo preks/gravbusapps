@@ -175,7 +175,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.employmentType', 'Employment Type')}*
             </div>
             <Select value={employmentType} onValueChange={setEmploymentType} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_employmentTypeSelect">
+              <SelectTrigger
+                className="gba:w-full gba:truncate"
+                data-testid="flw_updateWorkingConditions_employmentTypeSelect"
+              >
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
@@ -194,7 +197,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.contractType', 'Contract Type')}*
             </div>
             <Select value={contractType} onValueChange={setContractType} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_contractTypeSelect">
+              <SelectTrigger
+                className="gba:w-full gba:truncate"
+                data-testid="flw_updateWorkingConditions_contractTypeSelect"
+              >
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
@@ -213,7 +219,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.remote', 'Remote')}*
             </div>
             <Select value={remote} onValueChange={setRemote} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_remoteSelect">
+              <SelectTrigger className="gba:w-full gba:truncate" data-testid="flw_updateWorkingConditions_remoteSelect">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select remote')}
                 />
@@ -234,7 +240,7 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.region', 'Region')}*
             </div>
             <Select value={region} onValueChange={setRegion}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_regionSelect">
+              <SelectTrigger className="gba:w-full gba:truncate" data-testid="flw_updateWorkingConditions_regionSelect">
                 <SelectValue
                   placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Region')}
                 />
