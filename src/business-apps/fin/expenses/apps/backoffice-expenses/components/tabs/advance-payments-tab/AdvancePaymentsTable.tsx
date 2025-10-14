@@ -1052,41 +1052,43 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const listAmount = totalCount > 0 ? `${totalCount}` : undefined
 
   return (
-    <DataContainer
-      contentBackground="white"
-      dataControllerProps={{
-        listTitle: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:backoffice_expense_landing_page.advance_title',
-          'Advance Payments'
-        ),
-        listAmount,
-        search: searchText,
-        setSearch: handleSearchChange,
-        placeholder: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:advance_payment_table.search_placeholder',
-          'Search in Advance Payments'
-        ),
-        filter: selectedFilters,
-        setFilter: setFilters,
-        filterLabelMap: filterLabelMap,
-        actions: []
-      }}
-      dataFilterProps={{
-        filterGroups: filterGroups,
-        onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
-      }}
-      dataBody={renderDataBody()}
-      dataDetails={
-        selectedItem
-          ? {
-              title: getDetailsTitle(selectedItem, selectedActionType),
-              content: renderAdvancePaymentDetails,
-              onClose: handleCloseDetails
-            }
-          : undefined
-      }
-      floatingDetails={true}
-    />
+    <div className="gba:-mx-6" data-testid="advance-payments-table-wrapper">
+      <DataContainer
+        contentBackground="white"
+        dataControllerProps={{
+          listTitle: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:backoffice_expense_landing_page.advance_title',
+            'Advance Payments'
+          ),
+          listAmount,
+          search: searchText,
+          setSearch: handleSearchChange,
+          placeholder: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:advance_payment_table.search_placeholder',
+            'Search in Advance Payments'
+          ),
+          filter: selectedFilters,
+          setFilter: setFilters,
+          filterLabelMap: filterLabelMap,
+          actions: []
+        }}
+        dataFilterProps={{
+          filterGroups: filterGroups,
+          onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
+        }}
+        dataBody={renderDataBody()}
+        dataDetails={
+          selectedItem
+            ? {
+                title: getDetailsTitle(selectedItem, selectedActionType),
+                content: renderAdvancePaymentDetails,
+                onClose: handleCloseDetails
+              }
+            : undefined
+        }
+        floatingDetails={true}
+      />
+    </div>
   )
 }
 

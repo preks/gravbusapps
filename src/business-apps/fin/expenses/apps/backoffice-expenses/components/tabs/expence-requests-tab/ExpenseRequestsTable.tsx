@@ -1384,10 +1384,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   // Keep DataContainer mounted at all times to avoid closing the filter sidebar during loading/errors
 
   return (
-    <div
-      className="gba:relative gba:w-full gba:h-full gba:-mx-6 gba:-my-6"
-      data-testid="expense-requests-table-wrapper"
-    >
+    <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="expense-requests-table-wrapper">
       {/* Export buttons overlay - positioned absolutely over the DataContainer header */}
       {/* Hide export buttons when records are selected to avoid overlap with bulk action buttons */}
       {selectedRecords.length === 0 && (
