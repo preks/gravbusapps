@@ -99,10 +99,11 @@ export const downloadCsv = (data: any[], columns: Array<{ key: string; title: st
 }
 
 /**
- * Downloads data as Excel-compatible HTML file
+ * Downloads data as Excel-compatible HTML file with proper Excel XML format
  *
- * NOTE: This generates an HTML table file, not a native Excel format (.xlsx/.xls).
- * The HTML file will open in Excel but has limitations:
+ * NOTE: This generates an Excel HTML/XML format that Excel can open natively.
+ * Uses proper XML namespace declarations to avoid Excel security warnings.
+ * The file opens in Excel without warnings but has limitations:
  * - No formulas, pivot tables, or advanced Excel features
  * - Larger file size compared to binary Excel formats
  * - Basic styling only
@@ -110,16 +111,29 @@ export const downloadCsv = (data: any[], columns: Array<{ key: string; title: st
  * For true Excel files with advanced features, consider using a library like 'xlsx'.
  */
 export const downloadExcel = (data: any[], columns: Array<{ key: string; title: string }>, filename: string) => {
-  const headerCells = columns.map(c => `<th>${htmlEscape(c.title)}</th>`).join('')
-  const bodyRows = data
-    .map(row => {
-      const tds = columns.map(c => `<td>${htmlEscape(formatCellValue(row[c.key]))}</td>`).join('')
-      return `<tr>${tds}</tr>`
-    })
-    .join('')
-
-  const headerHtml = `<thead><tr>${headerCells}</tr></thead>`
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table>${headerHtml}<tbody>${bodyRows}</tbody></table></body></html>`
+  // Use Excel HTML format with proper XML namespace to avoid security warnings
+  const html = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Worksheet ss:Name="Sheet1">
+  <Table>
+   <Row>
+    ${columns.map(c => `<Cell><Data ss:Type="String">${htmlEscape(c.title)}</Data></Cell>`).join('\n    ')}
+   </Row>
+   ${data
+     .map(
+       row => `<Row>
+    ${columns.map(c => `<Cell><Data ss:Type="String">${htmlEscape(formatCellValue(row[c.key]))}</Data></Cell>`).join('\n    ')}
+   </Row>`
+     )
+     .join('\n   ')}
+  </Table>
+ </Worksheet>
+</Workbook>`
 
   const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
 
