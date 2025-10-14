@@ -807,10 +807,15 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     setSelectedRequest(request);
     setIsDrawerOpen(true);
     
-    // Update URL query parameter
-    const url = new URL(window.location.href);
-    url.searchParams.set('requestId', request.id);
-    window.history.pushState({}, '', url.toString());
+    // Update URL query parameter without triggering navigation
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.set('requestId', request.id);
+      const newUrl = `${window.location.pathname}?${searchParams.toString()}${window.location.hash}`;
+      window.history.replaceState({ ...window.history.state, requestId: request.id }, '', newUrl);
+    } catch (error) {
+      console.warn('[MyRequests] Failed to update URL with requestId:', error);
+    }
   };
 
   // Handle closing drawer
@@ -819,10 +824,17 @@ export const MyRequests: React.FC<MyRequestsProps> = ({
     // Delay clearing selected request for smooth animation
     setTimeout(() => setSelectedRequest(null), 300);
     
-    // Remove requestId from URL query parameter
-    const url = new URL(window.location.href);
-    url.searchParams.delete('requestId');
-    window.history.pushState({}, '', url.toString());
+    // Remove requestId from URL query parameter without triggering navigation
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      searchParams.delete('requestId');
+      const newUrl = searchParams.toString() 
+        ? `${window.location.pathname}?${searchParams.toString()}${window.location.hash}`
+        : `${window.location.pathname}${window.location.hash}`;
+      window.history.replaceState({ ...window.history.state, requestId: undefined }, '', newUrl);
+    } catch (error) {
+      console.warn('[MyRequests] Failed to remove requestId from URL:', error);
+    }
   };
 
   // Handle keyboard events (Escape to close drawer)
