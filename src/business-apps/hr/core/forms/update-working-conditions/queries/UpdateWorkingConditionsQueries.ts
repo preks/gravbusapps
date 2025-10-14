@@ -110,6 +110,7 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
   const [firstName, setFirstName] = useState<string>('')
   const [lastName, setLastName] = useState<string>('')
   const [pictureThumbnail, setPictureThumbnail] = useState<string>('')
+  const [countryId, setCountryId] = useState<string>('')
 
   const toOptions = (arr?: any[]): SelectOption[] =>
     (arr || []).map((e: any) => ({ id: e.id, value: e.value, label: e.translations?.[0]?.value || e.value }))
@@ -128,19 +129,32 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
       setEmploymentTypes(toOptions(res?.employmentTypes))
       setContractTypes(toOptions(res?.contractTypes))
       setRemoteOptions(toOptions(res?.remote))
-      // Derive country id from primary address
-      const countryId = res?.employee?.[0]?.addresses?.[0]?.country?.id || ''
-      if (countryId) {
+      // Derive country id/value from primary address
+      const employeeCountry = res?.employee?.[0]?.addresses?.[0]?.country || null
+      const employeeCountryId = employeeCountry?.id || ''
+      const employeeCountryValue = employeeCountry?.value || ''
+      setCountryId(employeeCountryId)
+      if (employeeCountryId) {
         try {
           const regRes = await graphqlClient.request<any>(GET_REGIONS_BY_COUNTRY, {
-            countryId,
+            countryId: employeeCountryId,
             activeUserLocale: locale
           })
-          setRegions(toOptions(regRes?.CatalogEntry))
+          const regionOptions = toOptions(regRes?.CatalogEntry)
+          if (regionOptions.length > 0) {
+            setRegions(regionOptions)
+          } else {
+            // Country has no regions: use country as default region option
+            const label = employeeCountryValue?.split(':').pop() || employeeCountryValue || 'Country'
+            setRegions([{ id: employeeCountryId, value: employeeCountryValue, label }])
+          }
         } catch {
-          setRegions(toOptions(res?.allEmploymentRegions))
+          // On failure, still provide country as a single option
+          const label = employeeCountryValue?.split(':').pop() || employeeCountryValue || 'Country'
+          setRegions([{ id: employeeCountryId, value: employeeCountryValue, label }])
         }
       } else {
+        // No country found: fall back to all regions
         setRegions(toOptions(res?.allEmploymentRegions))
       }
       const wcRaw = res?.employee?.[0]?.workingCondition?.[0] || null
@@ -179,6 +193,7 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     contractTypes,
     remoteOptions,
     regions,
+    countryId,
     current,
     jobTitle,
     firstName,
