@@ -173,7 +173,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const { handleTransferPayment, handleBulkTransferPayment } = useExpenseRequestTransfer(
     props,
-    fetchData,
+    () => fetchData(true), // Force refresh after transfer
     clearSelection
   )
 
@@ -350,6 +350,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const bookableRecordsCount = useMemo(() => {
     return expenses?.filter(expense => expense.status === 'BOOKED').length || 0
   }, [expenses])
+
+  // Count of selected bookable records
+  const selectedBookableCount = useMemo(() => {
+    const count = selectedRecords.filter(r => r.status === 'BOOKED').length
+    console.log('[ExpenseRequestsTable] Selected records count:', {
+      totalSelected: selectedRecords.length,
+      bookableCount: count,
+      statuses: selectedRecords.map(r => ({ id: r.id, status: r.status }))
+    })
+    return count
+  }, [selectedRecords])
 
   // Helper: Build unique status filters (reduces cognitive complexity)
   const buildStatusFilters = useCallback(() => {
@@ -1027,6 +1038,25 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return `Export all ${totalItems} expense requests to Excel`
   }, [isExporting, totalItems])
 
+  // Memoize actions array to ensure it updates when selectedBookableCount changes
+  const dataControllerActions = useMemo(() => {
+    return hasBookableSelected
+      ? [
+          <Button
+            key={`bulk-transfer-${selectedBookableCount}`}
+            onClick={handleBulkTransfer}
+            data-testid="bulk-transfer-payment-button"
+            variant="outline"
+            size="sm"
+          >
+            {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} (
+            {selectedBookableCount}{' '}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
+          </Button>
+        ]
+      : []
+  }, [hasBookableSelected, selectedBookableCount])
+
   // Helper to build search condition (reduces cognitive complexity of buildQueryConditions)
   const buildSearchCondition = useCallback((searchValue: string): any => {
     return {
@@ -1452,23 +1482,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             startDate: getStartDateLabel(),
             endDate: getEndDateLabel()
           },
-          actions: [
-            ...(hasBookableSelected
-              ? [
-                  <Button
-                    key="bulk-transfer"
-                    onClick={handleBulkTransfer}
-                    data-testid="bulk-transfer-payment-button"
-                    variant="outline"
-                    size="sm"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} (
-                    {selectedRecords.filter(r => r.status === 'BOOKED').length}{' '}
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
-                  </Button>
-                ]
-              : [])
-          ]
+          actions: dataControllerActions
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
