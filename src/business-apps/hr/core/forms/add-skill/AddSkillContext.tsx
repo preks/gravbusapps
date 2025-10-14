@@ -4,11 +4,33 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ADD_SKILL_QUERY, SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from './AddSkillQueries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { env } from '@/common/env/EnvUtils'
 
-interface AddSkillDataResponse {
-  skill: Array<any>
-  employee: any
-  allEmployees: Array<any>
+export interface SkillRecord {
+  id: string
+  name: string
+  version: number
+}
+
+export interface EmployeeSkillLink {
+  id: string
+  version: number
+  skill: SkillRecord
+}
+
+export interface BasicEmployee {
+  id: string
+  firstName: string
+  lastName: string
+}
+
+export interface DetailedEmployee extends BasicEmployee {
+  skills: EmployeeSkillLink[]
+}
+
+export interface AddSkillDataResponse {
+  employee: DetailedEmployee
+  allEmployees: BasicEmployee[]
 }
 
 interface AddSkillContextValue {
@@ -16,8 +38,8 @@ interface AddSkillContextValue {
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
-  searchSkills: (term: string) => Promise<Array<any>>
-  createSkillAndFetchByNames: (name: string, namesAccumulator: string[]) => Promise<Array<any>>
+  searchSkills: (term: string) => Promise<SkillRecord[]>
+  createSkillAndFetchByNames: (name: string, namesAccumulator: string[]) => Promise<SkillRecord[]>
   employeeId?: string
 }
 
@@ -29,7 +51,7 @@ interface ProviderProps extends BusinessAppContextProps {
 
 export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToken, additionalData, userInfo }) => {
   const graphqlClient = useGraphQLClient(accessToken)
-  const restClient = useRestClient('https://newwork-dev.newwork.com')
+  const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
   const [data, setData] = useState<AddSkillDataResponse | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,11 +74,13 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
     setError(null)
     try {
       const structureId = getCurrentActiveStructureId()
-      const variables = { id: employeeId, structureId } as any
+      type AddSkillQueryVariables = { id: string; structureId: string }
+      const variables: AddSkillQueryVariables = { id: employeeId, structureId }
       const response = await graphqlClient.request<AddSkillDataResponse>(ADD_SKILL_QUERY, variables)
       setData(response)
-    } catch (e: any) {
-      setError(e?.message || 'Unknown error')
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Unknown error'
+      setError(message)
     } finally {
       setIsLoading(false)
     }
@@ -75,7 +99,10 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       const trimmed = (term || '').trim()
       if (!trimmed) return []
       const pattern = `%${trimmed}%`
-      const result = await graphqlClient.request<{ skill: Array<any> }>(SEARCH_SKILLS_QUERY, { search: pattern } as any)
+      type SearchSkillsVariables = { search: string }
+      const result = await graphqlClient.request<{ skill: SkillRecord[] }>(SEARCH_SKILLS_QUERY, {
+        search: pattern
+      } as SearchSkillsVariables)
       return result?.skill || []
     },
     createSkillAndFetchByNames: async (name: string, namesAccumulator: string[]) => {
@@ -95,9 +122,10 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       )
       // Query back skills by provided names
       const queryNames = Array.from(new Set([...(namesAccumulator || []), trimmed]))
-      const result = await graphqlClient.request<{ skill: Array<any> }>(GET_SKILLS_BY_NAMES, {
+      type GetSkillsByNamesVariables = { names: string[] }
+      const result = await graphqlClient.request<{ skill: SkillRecord[] }>(GET_SKILLS_BY_NAMES, {
         names: queryNames
-      } as any)
+      } as GetSkillsByNamesVariables)
       return result?.skill || []
     },
     employeeId

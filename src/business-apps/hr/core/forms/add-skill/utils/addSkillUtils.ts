@@ -22,7 +22,7 @@ export const getSkillValidationError = (name: string): string | null => {
   if (trimmed.length > 64) {
     return getTranslationFromI18nKeyAndLabel(
       'lowcoder:employee_profile.details_layout.add_skill_form.error_max_64',
-      'The skill must have less than 65 characters'
+      'The skill must have 64 characters or less'
     )
   }
   return null
