@@ -294,6 +294,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   // Bulk selection handlers
   const handleSelectRecord = useCallback((record: ExpenseData, checked: boolean) => {
+    // Only allow selecting BOOKED records for bulk transfer
+    if (record.status !== 'BOOKED') {
+      return
+    }
+
     if (checked) {
       setSelectedRecords(prev => [...prev, record])
       setSelectedRowKeys(prev => [...prev, record.id])
