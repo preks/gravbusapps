@@ -112,10 +112,21 @@ export const downloadCsv = (data: any[], columns: Array<{ key: string; title: st
  */
 export const downloadExcel = (data: any[], columns: Array<{ key: string; title: string }>, filename: string) => {
   // Use simple HTML table with BOM for Excel compatibility
-  const header = `<tr>${columns.map(c => `<th>${htmlEscape(c.title)}</th>`).join('')}</tr>`
-  const rows = data
-    .map(row => `<tr>${columns.map(c => `<td>${htmlEscape(formatCellValue(row[c.key]))}</td>`).join('')}</tr>`)
-    .join('\n')
+  const headerCells = columns.map(c => {
+    const escapedTitle = htmlEscape(c.title)
+    return `<th>${escapedTitle}</th>`
+  })
+  const header = `<tr>${headerCells.join('')}</tr>`
+
+  const bodyRows = data.map(row => {
+    const cells = columns.map(c => {
+      const cellValue = formatCellValue(row[c.key])
+      const escapedValue = htmlEscape(cellValue)
+      return `<td>${escapedValue}</td>`
+    })
+    return `<tr>${cells.join('')}</tr>`
+  })
+  const rows = bodyRows.join('\n')
 
   // Add UTF-8 BOM and meta tag for proper character encoding
   const html = `\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
