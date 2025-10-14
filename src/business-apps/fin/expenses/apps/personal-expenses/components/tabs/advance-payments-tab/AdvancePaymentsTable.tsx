@@ -265,7 +265,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     // For advance payments, we need to get the expense request from the expense plan
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
       expenseRequestId:
-        record.expensePlan && record.expensePlan.expenseRequest ? record?.expensePlan?.expenseRequest[0].id : ''
+        record.expensePlan && record.expensePlan.expenseRequest ? record?.expensePlan?.expenseRequest[0].id : '',
+      referrer: '/platform/fin/expenses/personal-expenses?tab=advance-payments'
     })
     navigateTo(url)
   }, [])

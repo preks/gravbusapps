@@ -100,7 +100,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     const expenseRequest = record.expenseRequest
     if (expenseRequest?.id) {
       const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-        expenseRequestId: expenseRequest.id
+        expenseRequestId: expenseRequest.id,
+        referrer: '/platform/fin/expenses/backoffice-expenses?tab=advance-payments'
       })
       navigateTo(url)
     }

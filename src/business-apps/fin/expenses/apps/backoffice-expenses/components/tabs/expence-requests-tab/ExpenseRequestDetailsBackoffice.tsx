@@ -245,7 +245,8 @@ const ExpenseRequestDetailsBackoffice: React.FC<ExpenseRequestDetailsBackofficeP
           variant="default"
           onClick={() => {
             const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-              expenseRequestId: selectedItem.id
+              expenseRequestId: selectedItem.id,
+              referrer: '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
             })
             navigateTo(url)
           }}

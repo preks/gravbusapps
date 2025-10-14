@@ -230,7 +230,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: request.id
+      expenseRequestId: request.id,
+      referrer: '/platform/fin/expenses/manager-expenses?tab=expense-requests'
     })
     navigateTo(url)
   }, [])
