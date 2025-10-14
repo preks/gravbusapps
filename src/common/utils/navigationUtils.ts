@@ -27,6 +27,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/fin/expenses/unallocated-expense-items': 'fin/expenses/apps/unallocated-expense-items',
   '/platform/fin/expenses/manager-expenses': 'fin/expenses/apps/manager-expenses',
   '/platform/fin/expenses/backoffice-expenses': 'fin/expenses/apps/backoffice-expenses',
+  '/platform/hr/absences/manager-absences': 'hr/absences/apps/manager-absences',
+  '/platform/hr/human-resources': 'hr/core/apps/human-resources',
   '/platform/employee-record': 'hr/core/apps/employee-record',
   '/platform/mdm/pipeline-data': 'mdm/apps/pipeline-data',
   '/platform/mdm/lead-data': 'mdm/apps/lead-data',
