@@ -1,4 +1,4 @@
-import { ChangeBankAccount } from './ChangeBankAccount';
+import { ChangeBankAccount } from './ChangeBankAccount'
 
-export { ChangeBankAccount };
-export default ChangeBankAccount;
+export { ChangeBankAccount }
+export default ChangeBankAccount

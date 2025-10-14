@@ -36,7 +36,7 @@ export interface MonthlySpendComparison {
   previousMonthTotal: number
   currentMonthCount: number
   previousMonthCount: number
-  percentChange: number
+  percentChange: number | null // null when previous period is 0 (division by zero)
   isIncrease: boolean
 }
 
@@ -52,7 +52,7 @@ export interface TotalCompanySpendComparison {
   previousPeriodTotal: number
   currentPeriodCount: number
   previousPeriodCount: number
-  percentChange: number
+  percentChange: number | null // null when previous period is 0 (division by zero)
   isIncrease: boolean
 }
 

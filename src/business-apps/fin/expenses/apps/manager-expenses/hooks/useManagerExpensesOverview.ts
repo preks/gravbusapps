@@ -158,7 +158,7 @@ function aggregateExpenseCategories(trendItems: any[]): Array<{ name: string; am
       const fallback = pos?.expenseGroup?.value || 'Uncategorized'
       const currentLocale = String(globalThis?.window?.lowcoder?.i18n?.selectedLocale || 'en-US').toLowerCase()
       const localized =
-        translations.find(t => String(t?.localeCode || '').toLowerCase() === currentLocale)?.value || fallback
+        translations.find((t: any) => String(t?.localeCode || '').toLowerCase() === currentLocale)?.value || fallback
 
       categoryMap.set(localized, (categoryMap.get(localized) || 0) + per)
     }

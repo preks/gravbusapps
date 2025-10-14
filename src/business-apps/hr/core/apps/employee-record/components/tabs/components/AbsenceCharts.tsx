@@ -4,6 +4,7 @@ import { Card } from '@newwork/gravity-ui-catalog'
 import { Spin } from 'antd'
 import { ChartsSectionProps } from '../../../queries/types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList, loading, error }) => {
   if (loading) {
@@ -239,14 +240,14 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
           {(() => {
             const absenceByStatus: Record<string, number> = {}
             absenceList.forEach(absence => {
-              const status =
-                absence.status || getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown')
-              if (!absenceByStatus[status]) {
-                absenceByStatus[status] = 0
+              const originalStatus = absence.originalStatus || 'UNKNOWN'
+              const translatedStatus = getAbsenceStatusLabel(originalStatus)
+              if (!absenceByStatus[translatedStatus]) {
+                absenceByStatus[translatedStatus] = 0
               }
               const durationMatch = absence.duration?.match(/(\d+)/)
               const duration = durationMatch ? parseInt(durationMatch[1]) : 0
-              absenceByStatus[status] += duration
+              absenceByStatus[translatedStatus] += duration
             })
             const chartColors = [
               'rgba(13, 188, 123, 1)',
@@ -277,8 +278,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
             const statusGroups: Record<string, { count: number; translatedStatus: string }> = {}
             absenceList.forEach(absence => {
               const originalStatus = absence.originalStatus || 'UNKNOWN'
-              const translatedStatus =
-                absence.status || getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown')
+              const translatedStatus = getAbsenceStatusLabel(originalStatus)
 
               if (!statusGroups[originalStatus]) {
                 statusGroups[originalStatus] = { count: 0, translatedStatus }
@@ -289,12 +289,14 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               statusGroups[originalStatus].count += duration
             })
 
-            const data = Object.keys(statusGroups).map(originalStatus => {
+            const data = Object.keys(absenceByStatus).map(translatedStatus => {
+              const originalStatus =
+                Object.keys(statusGroups).find(key => statusGroups[key].translatedStatus === translatedStatus) ||
+                'UNKNOWN'
               const colorIndex = getStatusColorIndex(originalStatus)
-              const group = statusGroups[originalStatus]
               return {
-                name: group.translatedStatus,
-                value: group.count,
+                name: translatedStatus,
+                value: absenceByStatus[translatedStatus],
                 color: chartColors[colorIndex]
               }
             })

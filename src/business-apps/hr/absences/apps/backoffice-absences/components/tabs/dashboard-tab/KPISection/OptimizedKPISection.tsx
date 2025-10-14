@@ -10,15 +10,15 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell,
-} from "recharts";
-import { RiBarChartLine, RiPieChart2Line, RiBarChart2Line } from "@remixicon/react";
-import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext';
-import { DashboardData, TimeFilter, AbsenceDetailsFilter } from '../../../../types';
-import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group';
-import { PiUsers, PiClock, PiCalendar, PiPercent } from 'react-icons/pi';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { getAbsenceStatusLabel, getAbsenceStatusColor } from '@/business-apps/hr/absences/utils/absenceStatusUtils';
+  Cell
+} from 'recharts'
+import { RiBarChartLine, RiPieChart2Line, RiBarChart2Line } from '@remixicon/react'
+import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
+import { DashboardData, TimeFilter, AbsenceDetailsFilter } from '../../../../types'
+import { WidgetGroup, WidgetItem } from '../../../../../../../../../components/widget-group'
+import { PiUsers, PiClock, PiCalendar, PiPercent } from 'react-icons/pi'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel, getAbsenceStatusColor } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 interface OptimizedKPISectionProps extends BusinessAppContextProps {
   dashboardData: DashboardData
@@ -51,14 +51,12 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
   } = dashboardData
 
   // Color palettes using centralized status utility
-  const statusColors: {[key: string]: string} = {
-    'PENDING': getAbsenceStatusColor('PENDING'),   
-    'APPROVED': getAbsenceStatusColor('APPROVED'),
-    'REJECTED': getAbsenceStatusColor('REJECTED'),
-    'CANCELLED': getAbsenceStatusColor('CANCELLED')
-  };
-  
-
+  const statusColors: { [key: string]: string } = {
+    PENDING: getAbsenceStatusColor('PENDING'),
+    APPROVED: getAbsenceStatusColor('APPROVED'),
+    REJECTED: getAbsenceStatusColor('REJECTED'),
+    CANCELLED: getAbsenceStatusColor('CANCELLED')
+  }
 
   // Transform data for visualizations
   const departmentChartData = departmentStats.map(dept => ({
@@ -72,7 +70,7 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
     totalRequests: dept.totalRequests
   }))
 
-  const pieChartData = statusBreakdown.map((status) => ({
+  const pieChartData = statusBreakdown.map(status => ({
     name: getAbsenceStatusLabel(status.status), // Use translated status name
     value: status.count, // Use count of requests, not total days
     status: status.status, // Keep original status for color mapping
@@ -455,12 +453,41 @@ export const OptimizedKPISection: React.FC<OptimizedKPISectionProps> = ({
                     const percent = totalAbsenceCount > 0 ? Math.round((entry.value / totalAbsenceCount) * 100) : 0
 
                     return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow"
-                           style={{ pointerEvents: 'none' }}>
+                      <div
+                        className="gba:bg-white gba:p-3 gba:border gba:rounded gba:shadow"
+                        style={{ pointerEvents: 'none' }}
+                      >
                         <p className="gba:font-medium">{entry.name}</p>
-                        <p>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.count', 'Count')}: {entry.value} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.requests', 'requests')}</p>
-                        <p>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'Days')}: {entry.totalDays} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total_days', 'total days')}</p>
-                        <p>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.share', 'Share')}: {percent}% {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.of_total_requests', 'of total requests')}</p>
+                        <p>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:absence_management_hub_backoffice.count',
+                            'Count'
+                          )}
+                          : {entry.value}{' '}
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:absence_management_hub_backoffice.requests',
+                            'requests'
+                          )}
+                        </p>
+                        <p>
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'Days')}
+                          : {entry.totalDays}{' '}
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:absence_management_hub_backoffice.total_days',
+                            'total days'
+                          )}
+                        </p>
+                        <p>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:absence_management_hub_backoffice.share',
+                            'Share'
+                          )}
+                          : {percent}%{' '}
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:absence_management_hub_backoffice.of_total_requests',
+                            'of total requests'
+                          )}
+                        </p>
                       </div>
                     )
                   }

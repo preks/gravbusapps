@@ -80,7 +80,8 @@ export const useExpenseRequestDetails = ({
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<Error | null>(null)
   const [data, setData] = useState<ExpenseRequestDetails | null>(null)
-  const client = useGraphqlClient(accessToken ?? '')
+  // CRITICAL: Do NOT pass empty string - it sets empty token on singleton client!
+  const client = useGraphqlClient(accessToken)
 
   useEffect(() => {
     if (!requestId) {

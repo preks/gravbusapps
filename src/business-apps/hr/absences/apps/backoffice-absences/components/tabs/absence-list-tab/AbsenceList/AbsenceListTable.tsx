@@ -8,14 +8,17 @@ import {
   TableCell,
   Card,
   CardContent,
-  Spinner, 
-  Button, 
-  Badge 
-} from '@newwork/nw-design-system';
-import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '../../../../../../../../../common/utils/windowUtils';
-import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '@/business-apps/hr/absences/utils/absenceStatusUtils';
-import { EnhancedAbsence } from '../../../../types';
+  Spinner,
+  Button,
+  Badge
+} from '@newwork/nw-design-system'
+import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '../../../../../../../../../common/utils/windowUtils'
+import {
+  getAbsenceStatusLabel,
+  getAbsenceStatusBadgeVariant
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
+import { EnhancedAbsence } from '../../../../types'
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList'
 
@@ -65,12 +68,12 @@ const getEmployeeName = (absence: EnhancedAbsence) => {
 
 // Status mapping functions now use centralized utilities
 const getTranslatedStatus = (status: string) => {
-  return getAbsenceStatusLabel(status);
-};
+  return getAbsenceStatusLabel(status)
+}
 
 const getStatusBadgeVariant = (status: string) => {
-  return getAbsenceStatusBadgeVariant(status);
-};
+  return getAbsenceStatusBadgeVariant(status)
+}
 
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'ASC' | 'DESC' | '') => {
   if (sortField !== field) return null

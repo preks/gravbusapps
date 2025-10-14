@@ -3,14 +3,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import AdvancePaymentStatistics from './AdvancePaymentStatistics'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
 import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
 
-interface AdvancePaymentsTabProps extends BusinessAppContextProps {}
-
-const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
+const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   // Get managerId from userInfo for currency filtering
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''
 
@@ -143,21 +142,23 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
 
   // Initialize currencyFilter with first available currency if empty
   const hasInitializedCurrency = useRef(false)
+
   useEffect(() => {
-    if (!currencyFilter && availableCurrencies.length > 0 && !hasInitializedCurrency.current) {
+    if (hasInitializedCurrency.current) {
+      return
+    }
+
+    if (!currencyFilter && availableCurrencies.length > 0) {
       hasInitializedCurrency.current = true
-      // Extract ISO code if in "Currency:v1:EUR" format and tokenize
       const rawCurrency = availableCurrencies[0]
       const code = String(rawCurrency).includes(':') ? String(rawCurrency).split(':').pop() || rawCurrency : rawCurrency
       baseHandleDataFilterChange(`currency:${code}`, true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currencyFilter, availableCurrencies]) // Intentionally omitting baseHandleDataFilterChange to prevent loop
+  }, [currencyFilter, availableCurrencies, baseHandleDataFilterChange])
 
   // Build filter groups with currencies from overview
   const filterGroups = useMemo(() => {
     const currencyItems = availableCurrencies.map(curr => {
-      // Extract ISO code if in "Currency:v1:EUR" format
       const code = String(curr).includes(':') ? String(curr).split(':').pop() || curr : curr
       return {
         id: `currency:${code}`,
@@ -167,7 +168,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
       }
     })
 
-    // Add currency group to the status filter group
     return [
       ...statusFilterGroup,
       {
@@ -182,7 +182,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     ]
   }, [statusFilterGroup, availableCurrencies, currencyFilter])
 
-  // Build filter label map with currencies
   const filterLabelMap = useMemo(() => {
     const map = { ...baseLabelMap }
     for (const curr of availableCurrencies) {
@@ -191,10 +190,8 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     return map
   }, [baseLabelMap, availableCurrencies])
 
-  // Enhanced data filter change handler that includes currencies
   const handleDataFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      // Handle all filters via the base handler (currencies and status)
       baseHandleDataFilterChange(filterId, selected)
     },
     [baseHandleDataFilterChange]
@@ -212,7 +209,6 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     setCurrentPage(1)
   }, [])
 
-  // Handle search term changes
   const handleSearchChange = useCallback(
     (search: string) => {
       setSearchTerm(search)
@@ -220,14 +216,10 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
     [setSearchTerm]
   )
 
-  // Handle clear all filters
   const clearAllFilters = useCallback(() => {
     setSearchTerm('')
     setStatusFilter([])
   }, [setSearchTerm, setStatusFilter])
-
-  // Transform sorting to match expected format
-  // removed: transformedSorting now unused after overview migration
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
@@ -249,27 +241,19 @@ const AdvancePaymentsTab: React.FC<AdvancePaymentsTabProps> = props => {
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
-          filter: currencyFilter ? [...(statusFilter || []), `currency:${currencyFilter}`] : statusFilter || [],
+          filter: buildDeduplicatedFilters(statusFilter ?? undefined, currencyFilter),
           setSearch: handleSearchChange,
           setFilter: (newFilters: string[]) => {
-            // Separate currency and status filters
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
             const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
 
-            // Update status filters directly in one go
-            if (statusFiltersIncoming.length > 0) {
-              setStatusFilter(statusFiltersIncoming)
-            } else {
-              setStatusFilter([])
-            }
+            setStatusFilter(statusFiltersIncoming.length > 0 ? statusFiltersIncoming : [])
 
-            // Handle currency filter changes - when clearing all, reset currency
-            const hadCurrency = currencyFilter && currencyFilter.length > 0
+            // Currency remains selected even when clearing all filters
             const hasCurrency = currencyFilters.length > 0
-
-            if (hadCurrency && !hasCurrency) {
-              // Currency filter was removed - trigger reset via handleDataFilterChange
-              handleDataFilterChange(currencyFilter, false)
+            if (hasCurrency && currencyFilters[0] !== `currency:${currencyFilter}`) {
+              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
+              handleDataFilterChange(`currency:${newCurrencyCode}`, true)
             }
           },
           filterLabelMap: {

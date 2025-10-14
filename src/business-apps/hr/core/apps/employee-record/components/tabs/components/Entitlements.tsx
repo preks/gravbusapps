@@ -1,6 +1,7 @@
 import React from 'react'
 import { EntitlementsProps } from '../../../queries/types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, error }) => {
   if (loading) {
@@ -87,9 +88,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
 
             {entitlement.pending > 0 && (
               <div className="gba:flex gba:justify-between gba:mt-2 gba:items-center">
-                <span className="gba:text-amber-500">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending', 'Pending')}
-                </span>
+                <span className="gba:text-amber-500">{getAbsenceStatusLabel('PENDING')}</span>
                 <div className="gba:flex gba:items-center gba:gap-1">
                   <span className="gba:text-amber-500 gba:font-medium">{entitlement.pending}</span>
                   <span className="gba:text-xs gba:text-gray-500">

@@ -51,7 +51,7 @@ export const useExpenseRequestTransfer = (
         )
       }
     },
-    [flowClient]
+    [flowClient, refetchData, clearSelection]
   )
 
   const handleBulkTransferPayment = useCallback(
@@ -92,7 +92,7 @@ export const useExpenseRequestTransfer = (
         )
       }
     },
-    [flowClient]
+    [flowClient, refetchData, clearSelection]
   )
 
   return {
