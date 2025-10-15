@@ -39,9 +39,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
         setExtractedPaymentId(paymentId)
       } else if (additionalData?.psi_taskPayload?.advancePayment?.id) {
         setExtractedPaymentId(additionalData.psi_taskPayload.advancePayment.id)
-      } else if (import.meta.env?.DEV) {
-        // Dev-only fallback for local testing
-        setExtractedPaymentId('e940c1eb-6453-4ce8-8c5a-a65b209a7352')
       }
     }
   }, [extractedPaymentId, paymentId, additionalData])
