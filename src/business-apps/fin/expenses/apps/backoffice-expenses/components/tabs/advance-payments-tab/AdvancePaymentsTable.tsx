@@ -3,7 +3,7 @@
  * Displays a table of advance payments with filtering and view capabilities
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import { useDebounce } from '@/common/hooks/useDebounce'
@@ -34,7 +34,6 @@ import {
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { FileText } from 'lucide-react'
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
 import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
@@ -73,9 +72,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Selection states
   const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [selectedActionType, setSelectedActionType] = useState<'advance-payment' | 'plan' | 'request'>(
-    'advance-payment'
-  )
 
   const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } =
     useAdvancePayments(context)
@@ -138,17 +134,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Handle debounced fetch payments
   useEffect(() => {
-    fetchPayments(
-      debouncedSearchText,
-      currentPage,
+    fetchPayments({
+      searchTerm: debouncedSearchText,
+      page: currentPage,
       pageSize,
-      statusFilter.length > 0 ? statusFilter.join(',') : undefined,
-      amountMinFilter,
-      amountMaxFilter,
-      advanceMinFilter,
-      advanceMaxFilter,
-      reporterFilter
-    )
+      status: statusFilter.length > 0 ? statusFilter.join(',') : undefined,
+      amountMin: amountMinFilter,
+      amountMax: amountMaxFilter,
+      advanceMin: advanceMinFilter,
+      advanceMax: advanceMaxFilter,
+      reporter: reporterFilter
+    })
   }, [
     debouncedSearchText,
     currentPage,
@@ -215,11 +211,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null)
-    setSelectedActionType('advance-payment')
   }, [])
 
   // Enhanced table change handler for sorting
-  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
+  const handleEnhancedTableChange = (pagination: any) => {
     setCurrentPage(pagination.current)
     setPageSize(pagination.pageSize)
   }
@@ -240,7 +235,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
     if (!payments || payments.length === 0) {
       return (
-        <div className="gba:p-8 gba:text-center gba:text-gray-500">
+        <div className="gba:p-8 gba:text-center gba:text-muted-foreground">
           <div>
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:advance_payment_table.no_advance_payments_found',
@@ -252,7 +247,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     }
 
     return (
-      <div className="gba:pr-6 gba:overflow-hidden">
+      <>
         <Card data-testid="advance-payments-container">
           <CardContent className="gba:p-0">
             {isLoading && (
@@ -261,62 +256,62 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
               </div>
             )}
 
-            <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-full">
+            <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
               <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
                 <TableHeader>
-                  <TableRow className="gba:border-b gba:bg-gray-50">
-                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">
+                  <TableRow className="gba:border-b gba:bg-muted">
+                    <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:employee_profile.employee_tabs.flows_button.actions',
                         'Actions'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                    <TableHead className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:manager_expense_request_list.expense_table.title',
                         'Title'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:manager_expense_request_list.expense_table.reporter',
                         'Reporter'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                    <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
                         'Org Unit'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:expense_request_overview.side_bar.request_cost_center',
                         'Cost Center'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                       {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
                     </TableHead>
-                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                    <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:expense_request_list.expense_plan_table.status',
                         'Status'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:expense_request_list.expense_plan_table.amount',
                         'Amount'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:manager_expense_request_list.expense_table.advance',
                         'Advance'
                       )}
                     </TableHead>
-                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                    <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.add_request_trip_details.payment_method',
                         'Payment Method'
@@ -342,7 +337,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                             setSelectedItem(record)
                           }
                         }}
-                        className="gba:cursor-pointer gba:hover:bg-gray-50"
+                        className="gba:cursor-pointer gba:hover:bg-muted"
                       >
                         <TableCell className="gba:w-[60px]">
                           <div
@@ -366,7 +361,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                                   onClick: (e?: React.MouseEvent) => {
                                     e?.stopPropagation()
                                     setSelectedItem(record)
-                                    setSelectedActionType('advance-payment')
                                   }
                                 },
                                 {
@@ -475,14 +469,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             {/* Pagination */}
             {totalCount > 0 && (
               <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
-                <div className="gba:text-sm gba:text-gray-600">
+                <div className="gba:text-sm gba:text-muted-foreground">
                   {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
                 </div>
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
-                        onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize }, {}, {})}
+                        onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize })}
                         className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
                       />
                     </PaginationItem>
@@ -500,8 +494,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                           )}
                           <PaginationItem>
                             <PaginationLink
-                              onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
-                              className={page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'}
+                              onClick={() => handleEnhancedTableChange({ current: page, pageSize })}
+                              className={
+                                page === currentPage
+                                  ? 'gba:bg-primary gba:text-primary-foreground'
+                                  : 'gba:cursor-pointer'
+                              }
                             >
                               {page}
                             </PaginationLink>
@@ -510,7 +508,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                       ))}
                     <PaginationItem>
                       <PaginationNext
-                        onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize }, {}, {})}
+                        onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize })}
                         className={
                           currentPage >= Math.ceil(totalCount / pageSize)
                             ? 'gba:pointer-events-none gba:opacity-50'
@@ -524,22 +522,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             )}
           </CardContent>
         </Card>
-      </div>
+      </>
     )
   }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleEnhancedTableChange, props.accessToken])
-
-  const renderAdvancePaymentDetails = useMemo(() => {
-    if (!selectedItem) return null
-
-    return (
-      <AdvancePaymentDetailsBackoffice
-        payment={selectedItem}
-        onClose={handleCloseDetails}
-        accessToken={props.accessToken}
-        userInfo={props.userInfo}
-      />
-    )
-  }, [selectedItem, handleCloseDetails, props.accessToken, props.userInfo])
 
   // Filter groups for DataContainer
   const filterGroups: DataFilterGroup[] = [
@@ -582,14 +567,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           {showReporterDropdown && reporterSearchText.trim() && (
             <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
               {reporterSearchLoading ? (
-                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:advance_payment_table.loading_reporters',
                     'Loading reporters...'
                   )}
                 </div>
               ) : reporterSearchResults.length === 0 ? (
-                <div className="gba:p-2 gba:text-sm gba:text-gray-500">
+                <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:advance_payment_table.no_reporters_found',
                     'No reporters found'
@@ -599,8 +584,10 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                 reporterSearchResults.map(reporter => (
                   <button
                     key={reporter}
-                    className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-gray-100 gba:transition-colors ${
-                      selectedReporters.includes(reporter) ? 'gba:bg-blue-50 gba:text-blue-700' : 'gba:text-gray-700'
+                    className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
+                      selectedReporters.includes(reporter)
+                        ? 'gba:bg-accent gba:text-accent-foreground'
+                        : 'gba:text-foreground'
                     }`}
                     onClick={() => {
                       const newSelected = selectedReporters.includes(reporter)
@@ -630,7 +617,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
             <input
               type="number"
               value={amountMinFilter}
@@ -644,7 +631,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             />
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
             <input
               type="number"
               value={amountMaxFilter}
@@ -670,7 +657,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       customComponent: (
         <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Min</span>
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
             <input
               type="number"
               value={advanceMinFilter}
@@ -684,7 +671,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             />
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-sm gba:text-gray-600 gba:w-8">Max</span>
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
             <input
               type="number"
               value={advanceMaxFilter}
@@ -733,7 +720,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     [availableStatuses, statusFilter]
   )
 
-  const setFilters = useCallback((filters: string[]) => {
+  const setFilters = useCallback(() => {
     // Clear all filters
     setStatusFilter([])
     setReporterFilter('')
@@ -746,8 +733,9 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   }, [])
 
   return (
-    <>
+    <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
       <DataContainer
+        contentBackground="white"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:backoffice_expense_landing_page.advance_title',
@@ -785,7 +773,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       >
         <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
           <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedItem?.title ||
                 selectedItem?.description ||
                 getTranslationFromI18nKeyAndLabel(
@@ -798,7 +786,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
             {selectedItem && (
               <AdvancePaymentDetailsBackoffice
                 payment={selectedItem}
-                onClose={handleCloseDetails}
                 accessToken={props.accessToken}
                 userInfo={props.userInfo}
               />
@@ -806,7 +793,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           </div>
         </SheetContent>
       </Sheet>
-    </>
+    </div>
   )
 }
 
