@@ -37,13 +37,14 @@ const formatCellValue = (key: string, raw: any): string => {
 
 const escapeCsv = (value: string) => {
   const needsQuotes = /[",\r\n]/.test(value)
-  const out = value.replace(/"/g, '""') // ES2020 compatibility: use replace with global flag
+  // SonarCloud: Using replace() for ES2020 compatibility (replaceAll requires ES2021)
+  const out = value.replace(/"/g, '""')
   return needsQuotes ? `"${out}"` : out
 }
 
+// SonarCloud: Using replace() for ES2020 compatibility (replaceAll requires ES2021)
 const htmlEscape = (value: string) =>
   value
-    // ES2020 compatibility: use replace with global flag instead of replaceAll
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
