@@ -13,6 +13,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AdvancePaymentApprovalProps, AdvancePaymentData } from './types'
 import { useGetAdvancePaymentForApproval } from './queries'
+import { formatCurrency } from '../approve-expense-plan/utils/formatters'
 
 const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessAppContextProps> = ({
   paymentId,
@@ -141,12 +142,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
     }
   }
 
-  const formatCurrency = (amount: number, currencyCode: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode || 'EUR'
-    }).format(amount)
-  }
 
   if (!extractedPaymentId || !accessToken) {
     return (
