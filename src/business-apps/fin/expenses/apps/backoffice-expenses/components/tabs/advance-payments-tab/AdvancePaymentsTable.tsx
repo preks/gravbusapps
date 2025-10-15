@@ -213,6 +213,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     setSelectedItem(null)
   }, [])
 
+  // Helper function to handle reporter selection (reduces nesting depth)
+  const handleReporterClick = useCallback(
+    (reporter: string) => {
+      const newSelected = selectedReporters.includes(reporter)
+        ? selectedReporters.filter(r => r !== reporter)
+        : [...selectedReporters, reporter]
+      setSelectedReporters(newSelected)
+      setReporterFilter(newSelected.join(','))
+      setCurrentPage(1)
+    },
+    [selectedReporters]
+  )
+
   // Helper function to render reporter dropdown content (reduces nested ternary complexity)
   const renderReporterDropdownContent = useCallback(() => {
     if (reporterSearchLoading) {
@@ -240,20 +253,13 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
           selectedReporters.includes(reporter) ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-foreground'
         }`}
-        onClick={() => {
-          const newSelected = selectedReporters.includes(reporter)
-            ? selectedReporters.filter(r => r !== reporter)
-            : [...selectedReporters, reporter]
-          setSelectedReporters(newSelected)
-          setReporterFilter(newSelected.join(','))
-          setCurrentPage(1)
-        }}
+        onClick={() => handleReporterClick(reporter)}
         data-testid={`reporter-option-${reporter}`}
       >
         {reporter}
       </button>
     ))
-  }, [reporterSearchLoading, reporterSearchResults, selectedReporters])
+  }, [reporterSearchLoading, reporterSearchResults, selectedReporters, handleReporterClick])
 
   // Enhanced table change handler for sorting
   const handleEnhancedTableChange = (pagination: any) => {
