@@ -382,26 +382,26 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
         buttonAction: 'navigate-calendar-view'
       })
 
-      // 5. My Expense Analytics (Manager card - shared)
-      areas.push({
-        id: 'my-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.my_expense_analytics',
-          'My Expense Analytics'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.my_expense_analytics_desc',
-          'Personal spending insights, trends, and budget analysis'
-        ),
-        icon: ChartBar,
-        category: 'manager',
-        kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.view_my_analytics',
-          'View My Analytics'
-        ),
-        buttonAction: 'navigate-personal-analytics'
-      })
+      // 5. My Expense Analytics (Manager card - shared) - HIDDEN
+      // areas.push({
+      //   id: 'my-expense-analytics',
+      //   title: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.my_expense_analytics',
+      //     'My Expense Analytics'
+      //   ),
+      //   description: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.my_expense_analytics_desc',
+      //     'Personal spending insights, trends, and budget analysis'
+      //   ),
+      //   icon: ChartBar,
+      //   category: 'manager',
+      //   kpiType: 'analytics',
+      //   buttonLabel: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.view_my_analytics',
+      //     'View My Analytics'
+      //   ),
+      //   buttonAction: 'navigate-personal-analytics'
+      // })
 
       // 6. Team Expense Analytics (Manager card)
       if (canViewTeamExpenses() || canManageBudgets()) {
@@ -456,26 +456,26 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
         buttonAction: 'navigate-finance-management'
       })
 
-      // 8. Advanced Expense Analytics (Finance-specific)
-      areas.push({
-        id: 'advanced-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.advanced_expense_analytics',
-          'Advanced Expense Analytics'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.advanced_expense_analytics_desc',
-          'Enterprise spending insights, budget tracking, and performance metrics'
-        ),
-        icon: ChartLine,
-        category: 'reporting',
-        kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.view_advanced_analytics',
-          'View Advanced Analytics'
-        ),
-        buttonAction: 'navigate-advanced-analytics'
-      })
+      // 8. Advanced Expense Analytics (Finance-specific) - HIDDEN
+      // areas.push({
+      //   id: 'advanced-expense-analytics',
+      //   title: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.advanced_expense_analytics',
+      //     'Advanced Expense Analytics'
+      //   ),
+      //   description: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.advanced_expense_analytics_desc',
+      //     'Enterprise spending insights, budget tracking, and performance metrics'
+      //   ),
+      //   icon: ChartLine,
+      //   category: 'reporting',
+      //   kpiType: 'analytics',
+      //   buttonLabel: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.view_advanced_analytics',
+      //     'View Advanced Analytics'
+      //   ),
+      //   buttonAction: 'navigate-advanced-analytics'
+      // })
     } else if (showFinanceView) {
       // Finance view: specialized finance cards
       if (canViewPersonalExpenses()) {
@@ -603,45 +603,47 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
         buttonAction: 'navigate-calendar-view'
       })
 
-      areas.push({
-        id: 'my-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.my_expense_analytics',
-          'My Expense Analytics'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.my_expense_analytics_desc',
-          'Personal spending insights, trends, and budget analysis'
-        ),
-        icon: ChartBar, // Now directly using PhosphorIcon components
-        category: 'manager',
-        kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.view_my_analytics',
-          'View My Analytics'
-        ),
-        buttonAction: 'navigate-personal-analytics'
-      })
+      // My Expense Analytics - HIDDEN (Finance view)
+      // areas.push({
+      //   id: 'my-expense-analytics',
+      //   title: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.my_expense_analytics',
+      //     'My Expense Analytics'
+      //   ),
+      //   description: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.my_expense_analytics_desc',
+      //     'Personal spending insights, trends, and budget analysis'
+      //   ),
+      //   icon: ChartBar, // Now directly using PhosphorIcon components
+      //   category: 'manager',
+      //   kpiType: 'analytics',
+      //   buttonLabel: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.view_my_analytics',
+      //     'View My Analytics'
+      //   ),
+      //   buttonAction: 'navigate-personal-analytics'
+      // })
 
-      areas.push({
-        id: 'advanced-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.advanced_expense_analytics',
-          'Advanced Expense Analytics'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.advanced_expense_analytics_desc',
-          'Enterprise spending insights, budget tracking, and performance metrics'
-        ),
-        icon: ChartLine, // Now directly using PhosphorIcon components
-        category: 'reporting',
-        kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.view_advanced_analytics',
-          'View Advanced Analytics'
-        ),
-        buttonAction: 'navigate-advanced-analytics'
-      })
+      // Advanced Expense Analytics - HIDDEN (Finance view)
+      // areas.push({
+      //   id: 'advanced-expense-analytics',
+      //   title: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.advanced_expense_analytics',
+      //     'Advanced Expense Analytics'
+      //   ),
+      //   description: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.advanced_expense_analytics_desc',
+      //     'Enterprise spending insights, budget tracking, and performance metrics'
+      //   ),
+      //   icon: ChartLine, // Now directly using PhosphorIcon components
+      //   category: 'reporting',
+      //   kpiType: 'analytics',
+      //   buttonLabel: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.view_advanced_analytics',
+      //     'View Advanced Analytics'
+      //   ),
+      //   buttonAction: 'navigate-advanced-analytics'
+      // })
     } else if (showManagerView) {
       if (canViewPersonalExpenses()) {
         areas.push({
@@ -787,25 +789,26 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
         buttonAction: 'navigate-calendar-view'
       })
 
-      areas.push({
-        id: 'my-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.my_expense_analytics',
-          'My Expense Analytics'
-        ),
-        description: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.my_expense_analytics_desc',
-          'Personal spending insights, trends, and budget analysis'
-        ),
-        icon: ChartBar, // Now directly using PhosphorIcon components
-        category: 'manager',
-        kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expenses_launcher.view_my_analytics',
-          'View My Analytics'
-        ),
-        buttonAction: 'navigate-personal-analytics'
-      })
+      // My Expense Analytics - HIDDEN (Manager view)
+      // areas.push({
+      //   id: 'my-expense-analytics',
+      //   title: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.my_expense_analytics',
+      //     'My Expense Analytics'
+      //   ),
+      //   description: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.my_expense_analytics_desc',
+      //     'Personal spending insights, trends, and budget analysis'
+      //   ),
+      //   icon: ChartBar, // Now directly using PhosphorIcon components
+      //   category: 'manager',
+      //   kpiType: 'analytics',
+      //   buttonLabel: getTranslationFromI18nKeyAndLabel(
+      //     'lowcoder:expenses_launcher.view_my_analytics',
+      //     'View My Analytics'
+      //   ),
+      //   buttonAction: 'navigate-personal-analytics'
+      // })
 
       if (canViewTeamExpenses() || canManageBudgets()) {
         areas.push({
@@ -1069,8 +1072,12 @@ const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
           })
           navigateTo(financeManagementUrl)
           break
-        case 'navigate-personal-analytics':
         case 'navigate-team-analytics':
+          // Navigate to team analytics (manager expenses with analytics view)
+          const teamAnalyticsUrl = buildPlatformUrl('/platform/fin/expenses/manager-expenses', { view: 'analytics' })
+          navigateTo(teamAnalyticsUrl)
+          break
+        case 'navigate-personal-analytics':
         case 'navigate-advanced-analytics':
         case 'navigate-finance-settings':
         case 'navigate-calendar-view':
