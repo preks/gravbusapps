@@ -721,7 +721,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return (
       <Card data-testid="expense-requests-container">
         <CardContent className="gba:p-0">
-          {loading && (
+          {loading && !expenses?.length && (
             <div className="gba:flex gba:justify-center gba:p-4">
               <Spinner />
             </div>
