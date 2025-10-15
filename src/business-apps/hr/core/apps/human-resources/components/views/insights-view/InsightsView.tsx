@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Spin, Alert, Table } from 'antd'
-import { 
-  CalendarOutlined, 
-  UserOutlined, 
-  TeamOutlined, 
-  ClockCircleOutlined, 
-  ExclamationCircleOutlined 
+import {
+  CalendarOutlined,
+  UserOutlined,
+  TeamOutlined,
+  ClockCircleOutlined,
+  ExclamationCircleOutlined
 } from '@ant-design/icons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 import { Avatar } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from 'react-i18next'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
@@ -56,7 +56,6 @@ const GET_EMPLOYEE_INSIGHTS = `
 `
 
 export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
-  const { t } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [birthdays, setBirthdays] = useState<EmployeeInsight[]>([])
@@ -157,7 +156,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       setProbationEnds(upcomingProbationEnds)
       setTerminations(upcomingTerminations)
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch insights data')
+      setError(err.message || getTranslationFromI18nKeyAndLabel('hr.insights.failed_to_fetch', 'Failed to fetch insights data'))
       console.error('Error fetching insights data:', err)
     } finally {
       setLoading(false)
@@ -207,31 +206,31 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     {
       key: 'birthdays',
       icon: <CalendarOutlined />,
-      label: t('hr.insights.birthdays', 'Birthdays'),
+      label: getTranslationFromI18nKeyAndLabel('hr.insights.birthdays', 'Birthdays'),
       count: birthdays.length
     },
     {
       key: 'anniversaries',
       icon: <UserOutlined />,
-      label: t('hr.insights.anniversaries', 'Anniversaries'),
+      label: getTranslationFromI18nKeyAndLabel('hr.insights.anniversaries', 'Anniversaries'),
       count: anniversaries.length
     },
     {
       key: 'new-hires',
       icon: <TeamOutlined />,
-      label: t('hr.insights.new_hires', 'New Hires'),
+      label: getTranslationFromI18nKeyAndLabel('hr.insights.new_hires', 'New Hires'),
       count: newHires.length
     },
     {
       key: 'probation-ends',
       icon: <ClockCircleOutlined />,
-      label: t('hr.insights.probation_ends', 'Probation Ends'),
+      label: getTranslationFromI18nKeyAndLabel('hr.insights.probation_ends', 'Probation Ends'),
       count: probationEnds.length
     },
     {
       key: 'terminations',
       icon: <ExclamationCircleOutlined />,
-      label: t('hr.insights.terminations', 'Terminations'),
+      label: getTranslationFromI18nKeyAndLabel('hr.insights.terminations', 'Terminations'),
       count: terminations.length
     }
   ]
@@ -247,7 +246,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
 
     const columns = [
       {
-        title: t('hr.insights.employee', 'Employee'),
+        title: getTranslationFromI18nKeyAndLabel('hr.insights.employee', 'Employee'),
         key: 'employee',
         render: (record: EmployeeInsight) => (
           <div className="gba:flex gba:items-center gba:space-x-3">
@@ -260,7 +259,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
               <div 
                 className="gba:font-medium gba:cursor-pointer gba:hover:text-blue-600 gba:hover:underline"
                 onClick={() => handleNavigateToEmployee(record.id)}
-                title={t('hr.insights.view_profile', 'View profile')}
+                title={getTranslationFromI18nKeyAndLabel('hr.insights.view_profile', 'View profile')}
               >
                 {record.fullName}
               </div>
@@ -270,23 +269,23 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         )
       },
       {
-        title: t('hr.insights.department', 'Department'),
+        title: getTranslationFromI18nKeyAndLabel('hr.insights.department', 'Department'),
         dataIndex: 'organizationalUnitName',
         key: 'department',
-        render: (text: string) => text || t('hr.insights.not_available', 'N/A')
+        render: (text: string) => text || getTranslationFromI18nKeyAndLabel('hr.insights.not_available', 'N/A')
       },
       {
-        title: t('hr.insights.role', 'Role'),
+        title: getTranslationFromI18nKeyAndLabel('hr.insights.role', 'Role'),
         dataIndex: 'jobPositionName',
         key: 'role',
-        render: (text: string) => text || t('hr.insights.not_available', 'N/A')
+        render: (text: string) => text || getTranslationFromI18nKeyAndLabel('hr.insights.not_available', 'N/A')
       },
       {
         title: dateLabel,
         key: 'date',
         render: (record: EmployeeInsight) => {
           const dateValue = record[dateField as keyof EmployeeInsight] as string
-          if (!dateValue) return t('hr.insights.not_available', 'N/A')
+          if (!dateValue) return getTranslationFromI18nKeyAndLabel('hr.insights.not_available', 'N/A')
           
           if (dateField === 'birthDate') {
             // For birthdays, show the date this year
@@ -312,7 +311,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         columns={columns}
         rowKey="id"
         pagination={{ pageSize: 10 }}
-        locale={{ emptyText: t('hr.insights.no_events', `No ${dateLabel.toLowerCase()} in the next 30 days.`) }}
+        locale={{ emptyText: getTranslationFromI18nKeyAndLabel('hr.insights.no_events', `No ${dateLabel.toLowerCase()} in the next 30 days.`) }}
       />
     )
   }
@@ -328,7 +327,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   if (error) {
     return (
       <div className="gba:p-6">
-        <Alert message={t('hr.insights.error_loading', 'Error loading insights')} description={error} type="error" showIcon />
+        <Alert message={getTranslationFromI18nKeyAndLabel('hr.insights.error_loading', 'Error loading insights')} description={error} type="error" showIcon />
       </div>
     )
   }
@@ -352,23 +351,23 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         </TabsList>
 
         <TabsContent value="birthdays" className="gba:mt-6">
-          {renderEmployeeTable(birthdays, 'birthDate', t('hr.insights.birthday_date', 'Birthday'))}
+          {renderEmployeeTable(birthdays, 'birthDate', getTranslationFromI18nKeyAndLabel('hr.insights.birthday_date', 'Birthday'))}
         </TabsContent>
 
         <TabsContent value="anniversaries" className="gba:mt-6">
-          {renderEmployeeTable(anniversaries, 'hireDate', t('hr.insights.anniversary_date', 'Anniversary'))}
+          {renderEmployeeTable(anniversaries, 'hireDate', getTranslationFromI18nKeyAndLabel('hr.insights.anniversary_date', 'Anniversary'))}
         </TabsContent>
 
         <TabsContent value="new-hires" className="gba:mt-6">
-          {renderEmployeeTable(newHires, 'hireDate', t('hr.insights.start_date', 'Start Date'))}
+          {renderEmployeeTable(newHires, 'hireDate', getTranslationFromI18nKeyAndLabel('hr.insights.start_date', 'Start Date'))}
         </TabsContent>
 
         <TabsContent value="probation-ends" className="gba:mt-6">
-          {renderEmployeeTable(probationEnds, 'probationEnd', t('hr.insights.probation_end_date', 'Probation End'))}
+          {renderEmployeeTable(probationEnds, 'probationEnd', getTranslationFromI18nKeyAndLabel('hr.insights.probation_end_date', 'Probation End'))}
         </TabsContent>
 
         <TabsContent value="terminations" className="gba:mt-6">
-          {renderEmployeeTable(terminations, 'exitDate', t('hr.insights.termination_date', 'Termination Date'))}
+          {renderEmployeeTable(terminations, 'exitDate', getTranslationFromI18nKeyAndLabel('hr.insights.termination_date', 'Termination Date'))}
         </TabsContent>
       </Tabs>
     </div>
