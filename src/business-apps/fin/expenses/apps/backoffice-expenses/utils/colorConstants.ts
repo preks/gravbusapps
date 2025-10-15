@@ -1,7 +1,7 @@
 /**
  * Color constants for backoffice expenses application
  * Using design tokens from @newwork/nw-design-system for consistency and theming support
- * 
+ *
  * ✅ MIGRATED: All hardcoded hex values replaced with design system tokens
  */
 

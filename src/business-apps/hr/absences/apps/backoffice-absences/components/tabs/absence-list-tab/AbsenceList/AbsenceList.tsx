@@ -15,11 +15,14 @@ import { useAbsenceFilters, useAbsenceData } from '../../../../hooks'
 interface StatusOption {
   id: string
   name: string
+  id: string
+  name: string
 }
 
 const ABSENCE_STATUSES: StatusOption[] = getAllAbsenceStatusConfigs().map((config: AbsenceStatusConfig) => ({
   id: config.status,
   name: config.label
+}))
 }))
 
 interface AbsenceListProps extends BusinessAppContextProps {

@@ -1,54 +1,81 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Input, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system';
-import { AppActionForm } from '@/components/app-action-form';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import { useWorkingConditionsLookups } from './queries/UpdateWorkingConditionsQueries';
-import flowSmall from '@/assets/icons/flowSmall.svg';
+import React, { useEffect, useMemo, useState } from 'react'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Input,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
+import { AppActionForm } from '@/components/app-action-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import { useWorkingConditionsLookups } from './queries/UpdateWorkingConditionsQueries'
+import flowSmall from '@/assets/icons/flowSmall.svg'
+import { truncateText } from '@/common/utils/textUtils'
 
-interface UpdateWorkingConditionsScreenProps extends BusinessAppContextProps {}
+const prefixDataTestId = 'UpdateWorkingConditionsScreen'
 
-const prefixDataTestId = 'UpdateWorkingConditionsScreen';
+const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context => {
+  const {
+    employmentTypes,
+    contractTypes,
+    remoteOptions,
+    regions,
+    current,
+    jobTitle,
+    firstName,
+    lastName,
+    pictureThumbnail,
+    loading
+  } = useWorkingConditionsLookups(context)
 
-const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps> = (context) => {
-  const { employmentTypes, contractTypes, remoteOptions, regions, current, jobTitle, firstName, lastName, pictureThumbnail, loading } = useWorkingConditionsLookups(context);
-
-  const [employmentType, setEmploymentType] = useState<string | undefined>(undefined);
-  const [contractType, setContractType] = useState<string | undefined>(undefined);
-  const [remote, setRemote] = useState<string | undefined>(undefined);
-  const [region, setRegion] = useState<string | undefined>(undefined);
-  const [startDate, setStartDate] = useState<string>('');
-  const [probationEndDate, setProbationEndDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [employmentType, setEmploymentType] = useState<string | undefined>(undefined)
+  const [contractType, setContractType] = useState<string | undefined>(undefined)
+  const [remote, setRemote] = useState<string | undefined>(undefined)
+  const [region, setRegion] = useState<string | undefined>(undefined)
+  const [startDate, setStartDate] = useState<string>('')
+  const [probationEndDate, setProbationEndDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
 
   useEffect(() => {
     if (current) {
-      setEmploymentType(current.employmentTypeRef);
-      setContractType(current.contractTypeRef);
-      setRemote(current.remoteRef);
-      setRegion(current.regionRef);
+      setEmploymentType(current.employmentTypeRef)
+      setContractType(current.contractTypeRef)
+      setRemote(current.remoteRef)
+      setRegion(current.regionRef)
       const toDateInput = (val?: string | null): string => {
-        if (!val) return '';
-        const idx = val.indexOf('T');
-        return idx > 0 ? val.substring(0, idx) : val;
-      };
-      setStartDate(toDateInput(current.startDate));
-      setProbationEndDate(toDateInput(current.probationEndDate));
-      setEndDate(toDateInput(current.endDate));
+        if (!val) return ''
+        const idx = val.indexOf('T')
+        return idx > 0 ? val.substring(0, idx) : val
+      }
+      setStartDate(toDateInput(current.startDate))
+      setProbationEndDate(toDateInput(current.probationEndDate))
+      setEndDate(toDateInput(current.endDate))
     }
-  }, [current]);
+  }, [current])
+
+  // If country has no regions, hook returns a single option (country). Select it by default.
+  useEffect(() => {
+    if (!region && Array.isArray(regions) && regions.length === 1) {
+      setRegion(regions[0].id)
+    }
+  }, [regions, region])
 
   const isValid = useMemo(() => {
-    return Boolean(employmentType && contractType && remote && region && startDate);
-  }, [employmentType, contractType, remote, region, startDate]);
+    return Boolean(employmentType && contractType && remote && region && startDate)
+  }, [employmentType, contractType, remote, region, startDate])
 
   const hasChanges = useMemo(() => {
-    if (!current) return true; // if nothing to compare against, allow submit when valid
-    const curStart = current.startDate ? current.startDate.split('T')[0] : '';
-    const curProb = current.probationEndDate ? current.probationEndDate.split('T')[0] : '';
-    const curEnd = current.endDate ? current.endDate.split('T')[0] : '';
+    if (!current) return true // if nothing to compare against, allow submit when valid
+    const curStart = current.startDate ? current.startDate.split('T')[0] : ''
+    const curProb = current.probationEndDate ? current.probationEndDate.split('T')[0] : ''
+    const curEnd = current.endDate ? current.endDate.split('T')[0] : ''
     return (
       employmentType !== current.employmentTypeRef ||
       contractType !== current.contractTypeRef ||
@@ -57,15 +84,20 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
       (startDate || '') !== curStart ||
       (probationEndDate || '') !== curProb ||
       (endDate || '') !== curEnd
-    );
-  }, [current, employmentType, contractType, remote, region, startDate, probationEndDate, endDate]);
+    )
+  }, [current, employmentType, contractType, remote, region, startDate, probationEndDate, endDate])
 
   const validateForm = () => {
     if (!isValid) {
-      return [getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.required', 'Please complete required fields')];
+      return [
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:working_conditions_form.required',
+          'Please complete required fields'
+        )
+      ]
     }
-    return null;
-  };
+    return null
+  }
 
   const handlePreSubmit = async () => {
     return {
@@ -80,16 +112,16 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
         probationEnd: probationEndDate || undefined,
         exitDate: endDate || undefined,
         employeeId: context.userInfo?.employeeDetails?.employeeId,
-        contractStatus: "ACTIVE",
+        contractStatus: 'ACTIVE'
       }
-    };
-  };
+    }
+  }
 
   return (
     <AppActionForm
       processType="update"
       formData={{}}
-      onSubmit={(data) => data}
+      onSubmit={data => data}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       isSubmitDisabled={!isValid || !hasChanges}
@@ -109,7 +141,7 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
               'The action has been canceled.'
             )
           }
-        });
+        })
       }}
     >
       <div className="gba:bg-white gba:max-w-3xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
@@ -124,11 +156,19 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
         {/* Employee Header */}
         <div className="gba:flex gba:items-center gba:gap-3 gba:pb-4">
           <Avatar className="gba:w-12 gba:h-12">
-            <AvatarImage src={pictureThumbnail ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined} alt={`${firstName || ''} ${lastName || ''}`} />
-            <AvatarFallback>{(firstName?.[0] || '').toUpperCase()}{(lastName?.[0] || '').toUpperCase()}</AvatarFallback>
+            <AvatarImage
+              src={pictureThumbnail ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined}
+              alt={`${firstName || ''} ${lastName || ''}`}
+            />
+            <AvatarFallback>
+              {(firstName?.[0] || '').toUpperCase()}
+              {(lastName?.[0] || '').toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           <div className="gba:flex gba:flex-col">
-            <div className="gba:text-base gba:font-medium">{firstName} {lastName}</div>
+            <div className="gba:text-base gba:font-medium">
+              {firstName} {lastName}
+            </div>
             <div className="gba:text-sm gba:text-muted-foreground">{jobTitle}</div>
           </div>
         </div>
@@ -143,12 +183,17 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.employmentType', 'Employment Type')}*
             </div>
             <Select value={employmentType} onValueChange={setEmploymentType} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_employmentTypeSelect">
+              <SelectTrigger
+                className="gba:w-full gba:truncate"
+                data-testid="flw_updateWorkingConditions_employmentTypeSelect"
+              >
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
-                {employmentTypes.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                {employmentTypes.map(o => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {truncateText(o.label)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -160,12 +205,17 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.contractType', 'Contract Type')}*
             </div>
             <Select value={contractType} onValueChange={setContractType} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_contractTypeSelect">
+              <SelectTrigger
+                className="gba:w-full gba:truncate"
+                data-testid="flw_updateWorkingConditions_contractTypeSelect"
+              >
                 <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Type')} />
               </SelectTrigger>
               <SelectContent>
-                {contractTypes.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                {contractTypes.map(o => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {truncateText(o.label)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -177,12 +227,16 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.remote', 'Remote')}*
             </div>
             <Select value={remote} onValueChange={setRemote} disabled={loading}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_remoteSelect">
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select remote')} />
+              <SelectTrigger className="gba:w-full gba:truncate" data-testid="flw_updateWorkingConditions_remoteSelect">
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select remote')}
+                />
               </SelectTrigger>
               <SelectContent>
-                {remoteOptions.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                {remoteOptions.map(o => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {truncateText(o.label)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -194,12 +248,16 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
               {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.region', 'Region')}*
             </div>
             <Select value={region} onValueChange={setRegion}>
-              <SelectTrigger className="gba:w-full" data-testid="flw_updateWorkingConditions_regionSelect">
-                <SelectValue placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Region')} />
+              <SelectTrigger className="gba:w-full gba:truncate" data-testid="flw_updateWorkingConditions_regionSelect">
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:common.select', 'Select Region')}
+                />
               </SelectTrigger>
               <SelectContent>
-                {regions.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+                {regions.map(o => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {truncateText(o.label)}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -208,24 +266,46 @@ const UpdateWorkingConditionsScreen: React.FC<UpdateWorkingConditionsScreenProps
           {/* Dates (stacked vertically like old form) */}
           <div className="gba:flex gba:flex-col gba:gap-4">
             <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.start_date', 'Start Date')}*</div>
-              <Input type="date" value={startDate} onChange={(e: any) => setStartDate(e.target.value)} data-testid="flw_updateWorkingConditions_startDatePicker" />
+              <div className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.start_date', 'Start Date')}*
+              </div>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e: any) => setStartDate(e.target.value)}
+                data-testid="flw_updateWorkingConditions_startDatePicker"
+              />
             </div>
             <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.probation_end_date', 'Probation End Date')}</div>
-              <Input type="date" value={probationEndDate} onChange={(e: any) => setProbationEndDate(e.target.value)} data-testid="flw_updateWorkingConditions_probationEndDatePicker" />
+              <div className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:working_conditions_form.probation_end_date',
+                  'Probation End Date'
+                )}
+              </div>
+              <Input
+                type="date"
+                value={probationEndDate}
+                onChange={(e: any) => setProbationEndDate(e.target.value)}
+                data-testid="flw_updateWorkingConditions_probationEndDatePicker"
+              />
             </div>
             <div className="gba:space-y-2">
-              <div className="gba:text-sm gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.end_date', 'End Date')}</div>
-              <Input type="date" value={endDate} onChange={(e: any) => setEndDate(e.target.value)} data-testid="flw_updateWorkingConditions_endDatePicker" />
+              <div className="gba:text-sm gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:working_conditions_form.end_date', 'End Date')}
+              </div>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e: any) => setEndDate(e.target.value)}
+                data-testid="flw_updateWorkingConditions_endDatePicker"
+              />
             </div>
           </div>
         </div>
       </div>
     </AppActionForm>
-  );
-};
+  )
+}
 
-export default UpdateWorkingConditionsScreen;
-
-
+export default UpdateWorkingConditionsScreen

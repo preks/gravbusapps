@@ -48,10 +48,7 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
           {(() => {
             const statusConfig: StatusDisplayConfig = getAdvancePaymentStatusDisplay(payment.status)
             return (
-              <Badge
-                variant={statusConfig.badgeVariant || 'outline'}
-                data-testid="advance-payment-status-badge"
-              >
+              <Badge variant={statusConfig.badgeVariant || 'outline'} data-testid="advance-payment-status-badge">
                 {statusConfig.label}
               </Badge>
             )
@@ -87,11 +84,8 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
             <div className="gba:flex gba:items-center gba:space-x-2">
               <PiClock className="gba:text-gray-500" />
               <span className="gba:text-sm gba:text-gray-700">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:personal_expenses.transaction_date',
-                  'Transaction Date'
-                )}
-                : {formatDate(payment.transactionDate, 'date.short')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.transaction_date', 'Transaction Date')}:{' '}
+                {formatDate(payment.transactionDate, 'date.short')}
               </span>
             </div>
           )}
@@ -107,136 +101,128 @@ const AdvancePaymentDetailsBackoffice: React.FC<AdvancePaymentDetailsBackofficeP
           )}
         </h3>
         <div className="gba:space-y-3">
-            {(payment.expensePlan?.employee || payment.expensePlan?.reporter) && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_overview.side_bar.requester',
-                    'Requester'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">
-                  {payment.expensePlan.employee?.fullName ||
-                    payment.expensePlan.employee?.displayName ||
-                    payment.expensePlan.reporter}
-                </span>
-              </div>
-            )}
+          {(payment.expensePlan?.employee || payment.expensePlan?.reporter) && (
+            <div className="gba:flex gba:justify-between">
+              <span className="gba:font-medium gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_overview.side_bar.requester', 'Requester')}
+                :
+              </span>
+              <span className="gba:text-gray-900">
+                {payment.expensePlan.employee?.fullName ||
+                  payment.expensePlan.employee?.displayName ||
+                  payment.expensePlan.reporter}
+              </span>
+            </div>
+          )}
 
-            {payment.expensePlan?.employee?.employeePosition?.supervisor && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.profile_icon_list.manager_title',
-                    'Manager'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">
-                  {payment.expensePlan.employee.employeePosition.supervisor.fullName}
-                </span>
-              </div>
-            )}
-
+          {payment.expensePlan?.employee?.employeePosition?.supervisor && (
             <div className="gba:flex gba:justify-between">
               <span className="gba:font-medium gba:text-gray-600">
                 {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.initial_expense_plan_select_label',
-                  'Expense Plan'
+                  'lowcoder:employee_profile.profile_icon_list.manager_title',
+                  'Manager'
                 )}
                 :
               </span>
               <span className="gba:text-gray-900">
-                {payment.expensePlan
-                  ? `${payment.expensePlan.code || payment.expensePlan.title}`
-                  : getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_calculation_rule_details.query_params_no',
-                      'No'
-                    ) +
-                    ' ' +
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_calculation_rule_details.query_params_expense_plan',
-                      'Expense Plan'
-                    )}
+                {payment.expensePlan.employee.employeePosition.supervisor.fullName}
               </span>
             </div>
+          )}
 
-            {(payment.costCenter?.name ||
-              payment.expensePlan?.costCenter?.name ||
-              payment.expensePlan?.employee?.employeePosition?.costCenter?.name) && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                    'Cost Center'
+          <div className="gba:flex gba:justify-between">
+            <span className="gba:font-medium gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_request.initial_expense_plan_select_label',
+                'Expense Plan'
+              )}
+              :
+            </span>
+            <span className="gba:text-gray-900">
+              {payment.expensePlan
+                ? `${payment.expensePlan.code || payment.expensePlan.title}`
+                : getTranslationFromI18nKeyAndLabel('lowcoder:expense_calculation_rule_details.query_params_no', 'No') +
+                  ' ' +
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_calculation_rule_details.query_params_expense_plan',
+                    'Expense Plan'
                   )}
-                  :
-                </span>
-                <span className="gba:text-gray-900">
-                  {payment.costCenter?.name ||
-                    payment.expensePlan?.costCenter?.name ||
-                    payment.expensePlan?.employee?.employeePosition?.costCenter?.name}
-                </span>
-              </div>
-            )}
+            </span>
+          </div>
 
-            {(payment.project?.name || payment.expensePlan?.project?.name) && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}:
-                </span>
-                <span className="gba:text-gray-900">
-                  {payment.project?.name || payment.expensePlan?.project?.name}
-                </span>
-              </div>
-            )}
-
+          {(payment.costCenter?.name ||
+            payment.expensePlan?.costCenter?.name ||
+            payment.expensePlan?.employee?.employeePosition?.costCenter?.name) && (
             <div className="gba:flex gba:justify-between">
               <span className="gba:font-medium gba:text-gray-600">
                 {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:manager_expense_request_list.expense_table.amount',
-                  'Amount'
+                  'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
+                  'Cost Center'
+                )}
+                :
+              </span>
+              <span className="gba:text-gray-900">
+                {payment.costCenter?.name ||
+                  payment.expensePlan?.costCenter?.name ||
+                  payment.expensePlan?.employee?.employeePosition?.costCenter?.name}
+              </span>
+            </div>
+          )}
+
+          {(payment.project?.name || payment.expensePlan?.project?.name) && (
+            <div className="gba:flex gba:justify-between">
+              <span className="gba:font-medium gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:add_allowance_info_request.select_project', 'Project')}:
+              </span>
+              <span className="gba:text-gray-900">{payment.project?.name || payment.expensePlan?.project?.name}</span>
+            </div>
+          )}
+
+          <div className="gba:flex gba:justify-between">
+            <span className="gba:font-medium gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:manager_expense_request_list.expense_table.amount',
+                'Amount'
+              )}
+              :
+            </span>
+            <span className="gba:font-bold gba:text-gray-900">
+              {formatCurrency(payment.amount || 0, payment.currency?.code || 'EUR')}
+            </span>
+          </div>
+
+          {payment.expensePlan?.totalAmount && (
+            <div className="gba:flex gba:justify-between">
+              <span className="gba:font-medium gba:text-gray-600">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_list.expense_plan_table.total_amount',
+                  'Plan Total Amount'
                 )}
                 :
               </span>
               <span className="gba:font-bold gba:text-gray-900">
-                {formatCurrency(payment.amount || 0, payment.currency?.code || 'EUR')}
-              </span>
-            </div>
-
-            {payment.expensePlan?.totalAmount && (
-              <div className="gba:flex gba:justify-between">
-                <span className="gba:font-medium gba:text-gray-600">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                    'Plan Total Amount'
-                  )}
-                  :
-                </span>
-                <span className="gba:font-bold gba:text-gray-900">
-                  {formatCurrency(
-                    payment.expensePlan.totalAmount || 0,
-                    payment.expensePlan.currency?.code || payment.currency?.code || 'EUR'
-                  )}
-                </span>
-              </div>
-            )}
-
-            <div className="gba:flex gba:justify-between">
-              <span className="gba:font-medium gba:text-gray-600">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                  'Payment Method'
+                {formatCurrency(
+                  payment.expensePlan.totalAmount || 0,
+                  payment.expensePlan.currency?.code || payment.currency?.code || 'EUR'
                 )}
-                :
-              </span>
-              <span className="gba:text-gray-900">
-                {payment.paymentMethod
-                  ? toTitleCase(String(payment.paymentMethod))
-                  : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
               </span>
             </div>
+          )}
+
+          <div className="gba:flex gba:justify-between">
+            <span className="gba:font-medium gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+                'Payment Method'
+              )}
+              :
+            </span>
+            <span className="gba:text-gray-900">
+              {payment.paymentMethod
+                ? toTitleCase(String(payment.paymentMethod))
+                : getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.not_specified', 'Not specified')}
+            </span>
+          </div>
         </div>
       </div>
 

@@ -45,12 +45,12 @@ export const formatAmount = (amount: number | null | undefined, decimalPlaces = 
  * Format amount with currency using Intl.NumberFormat
  * Automatically positions currency before/after amount based on locale
  * Uses currency codes (not symbols) for clarity
- * 
+ *
  * @param amount - The amount to format
  * @param currencyCode - The currency code (e.g., 'EUR', 'USD', 'RON')
  * @param decimalPlaces - Number of decimal places (default: 2)
  * @returns Locale-aware formatted currency
- * 
+ *
  * Examples:
  * - German (de-DE): "1.234,56 EUR" (currency after)
  * - US (en-US): "USD 1,234.56" (currency before)
@@ -64,7 +64,7 @@ export const formatCurrency = (
   amount ??= 0
 
   const userLocale = getCurrentActiveUserLocale()
-  
+
   return new Intl.NumberFormat(userLocale, {
     style: 'currency',
     currency: currencyCode,
@@ -83,4 +83,3 @@ export const formatCurrency = (
 export const formatCurrencyForChart = (value: number, currencyCode: string = 'EUR'): string => {
   return formatCurrency(value, currencyCode, 0)
 }
-

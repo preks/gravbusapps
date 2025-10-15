@@ -243,7 +243,7 @@ export const GET_ACTUAL_VS_PLANNED_YEARLY_NODEPT = `
       aggregate { sum { totalAmount } count }
     }
   }
-`;
+`
 
 export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
   query GetActualVsPlannedQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -327,7 +327,7 @@ export const GET_ACTUAL_VS_PLANNED_QUARTERLY_NODEPT = `
       aggregate { sum { totalAmount } count }
     }
   }
-`;
+`
 
 export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
   query GetActualVsPlannedMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
@@ -411,7 +411,7 @@ export const GET_ACTUAL_VS_PLANNED_MONTHLY_NODEPT = `
       aggregate { sum { totalAmount } count }
     }
   }
-`;
+`
 
 // DEBUG: List planned ExpensePlan IDs under the same filters (to reconcile counts)
 export const GET_PLANNED_PLAN_IDS_YEARLY = `
@@ -431,7 +431,7 @@ export const GET_PLANNED_PLAN_IDS_YEARLY = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_PLANNED_PLAN_IDS_YEARLY_NODEPT = `
   query GetPlannedPlanIdsYearlyNoDept($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp) {
@@ -449,7 +449,7 @@ export const GET_PLANNED_PLAN_IDS_YEARLY_NODEPT = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_PLANNED_PLAN_IDS_QUARTERLY = `
   query GetPlannedPlanIdsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -468,7 +468,7 @@ export const GET_PLANNED_PLAN_IDS_QUARTERLY = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_PLANNED_PLAN_IDS_QUARTERLY_NODEPT = `
   query GetPlannedPlanIdsQuarterlyNoDept($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
@@ -486,7 +486,7 @@ export const GET_PLANNED_PLAN_IDS_QUARTERLY_NODEPT = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_PLANNED_PLAN_IDS_MONTHLY = `
   query GetPlannedPlanIdsMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
@@ -505,7 +505,7 @@ export const GET_PLANNED_PLAN_IDS_MONTHLY = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_PLANNED_PLAN_IDS_MONTHLY_NODEPT = `
   query GetPlannedPlanIdsMonthlyNoDept($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp) {
@@ -523,7 +523,7 @@ export const GET_PLANNED_PLAN_IDS_MONTHLY_NODEPT = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 // DEBUG: Fetch startDate for specific ExpensePlan IDs
 export const GET_EXPENSE_PLAN_STARTDATES_BY_IDS = `
@@ -533,7 +533,7 @@ export const GET_EXPENSE_PLAN_STARTDATES_BY_IDS = `
       startDate
     }
   }
-`;
+`
 
 // DEBUG: List actual ExpenseRequest IDs used in Actual vs Planned (same filters as actualExpenses)
 export const GET_ACTUAL_EXPENSE_IDS_YEARLY = `
@@ -552,7 +552,7 @@ export const GET_ACTUAL_EXPENSE_IDS_YEARLY = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_ACTUAL_EXPENSE_IDS_QUARTERLY = `
   query GetActualExpenseIdsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -570,7 +570,7 @@ export const GET_ACTUAL_EXPENSE_IDS_QUARTERLY = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_ACTUAL_EXPENSE_IDS_MONTHLY = `
   query GetActualExpenseIdsMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
@@ -588,7 +588,7 @@ export const GET_ACTUAL_EXPENSE_IDS_MONTHLY = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 // DEBUG variants without department filter (used when no department is selected)
 export const GET_ACTUAL_EXPENSE_IDS_YEARLY_NODEPT = `
@@ -606,7 +606,7 @@ export const GET_ACTUAL_EXPENSE_IDS_YEARLY_NODEPT = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_ACTUAL_EXPENSE_IDS_QUARTERLY_NODEPT = `
   query GetActualExpenseIdsQuarterlyNoDept($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
@@ -623,7 +623,7 @@ export const GET_ACTUAL_EXPENSE_IDS_QUARTERLY_NODEPT = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_ACTUAL_EXPENSE_IDS_MONTHLY_NODEPT = `
   query GetActualExpenseIdsMonthlyNoDept($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp) {
@@ -640,7 +640,7 @@ export const GET_ACTUAL_EXPENSE_IDS_MONTHLY_NODEPT = `
       limit: 1000
     ) { id code status startDate }
   }
-`;
+`
 
 export const GET_MONTHLY_EXPENSE_TRENDS = `
   query GetMonthlyExpenseTrend($selectedCurrency: String, $startDate: timestamp!, $endDate: timestamp!, $selectedDepartment: uuid) {
@@ -1097,7 +1097,7 @@ export const GET_EXPENSE_ITEM_SUM_MONTHLY = `
       }
     ) { aggregate { count sum { reimbursableAmount } } }
   }
-`;
+`
 
 export const GET_EXPENSE_ITEM_SUM_QUARTERLY = `
   query GetExpenseItemSumQuarterly($selectedCurrency: String, $quarterStart: timestamp!, $quarterEnd: timestamp!, $previousQuarterStart: timestamp!, $previousQuarterEnd: timestamp!, $selectedDepartment: uuid) {
@@ -1124,7 +1124,7 @@ export const GET_EXPENSE_ITEM_SUM_QUARTERLY = `
       }
     ) { aggregate { count sum { reimbursableAmount } } }
   }
-`;
+`
 
 export const GET_EXPENSE_ITEM_SUM_YEARLY = `
   query GetExpenseItemSumYearly($selectedCurrency: String, $yearStart: timestamp!, $currentDate: timestamp!, $previousYearStart: timestamp!, $previousYearEnd: timestamp!, $selectedDepartment: uuid) {
@@ -1151,7 +1151,7 @@ export const GET_EXPENSE_ITEM_SUM_YEARLY = `
       }
     ) { aggregate { count sum { reimbursableAmount } } }
   }
-`;
+`
 
 export const GET_EXPENSE_ITEM_TREND = `
   query GetExpenseItemTrend($selectedCurrency: String, $startDate: timestamp!, $endDate: timestamp!, $selectedDepartment: uuid) {
@@ -1167,13 +1167,15 @@ export const GET_EXPENSE_ITEM_TREND = `
       }
     ) { aggregate { count sum { reimbursableAmount } } }
   }
-`;
+`
 
 // Bulk monthly trends (Requests + Items) using aliases, one roundtrip for the full year
 export const GET_BULK_MONTHLY_TRENDS = (): string => {
-  const monthVars = Array.from({ length: 12 }, (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`).join(", ");
+  const monthVars = Array.from({ length: 12 }, (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`).join(
+    ', '
+  )
   const monthFields = Array.from({ length: 12 }, (_, i) => {
-    const idx = i + 1;
+    const idx = i + 1
     return `
     m${idx}_req: ExpenseRequestAggregate(
       where: {
@@ -1207,14 +1209,14 @@ export const GET_BULK_MONTHLY_TRENDS = (): string => {
           ] }
         ]
       }
-    ) { aggregate { count sum { reimbursableAmount } } }`;
-  }).join("\n");
+    ) { aggregate { count sum { reimbursableAmount } } }`
+  }).join('\n')
   return `
   query GetBulkMonthlyTrends($selectedCurrency: String, $selectedDepartment: uuid, ${monthVars}) {
 ${monthFields}
   }
-  `;
-};
+  `
+}
 
 export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
   query GetAvgSpendPerTripYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $selectedDepartment: uuid) {

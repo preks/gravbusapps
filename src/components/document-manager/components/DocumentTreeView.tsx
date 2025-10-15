@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from 'react'
-import { Button, Checkbox, Badge } from '@newwork/nw-design-system'
+import { Button, Checkbox } from '@newwork/nw-design-system'
 import { CaretRight, Folder as FolderIcon, File as FileIcon, Download, Eye, Pencil, Trash } from '@phosphor-icons/react'
 import { DocumentViewProps, Document } from '../types/documentTypes'
 

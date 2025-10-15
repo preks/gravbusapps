@@ -1,53 +1,22 @@
 // ⚡ PERFORMANCE OPTIMIZED: Combined Plan vs Request Query
 // Consolidates 4 separate queries into 1 for better performance
 
-import dayjs from 'dayjs';
-
 /**
  * Generate combined query for Plan vs Request data
  * Includes: Period statistics, Category statistics, Overdue plans, and Most used currency
  */
-export const generateCombinedPlanVsRequestQuery = (
-  period: 'month' | 'quarter' | 'year',
-  currencyRef: string,
-  selectedDepartment?: string,
-  requestTypes?: string[]
-): string => {
-  const now = dayjs();
-  const includeDepartment = Boolean(selectedDepartment);
-  
-  // Calculate date ranges based on period (using expression to avoid useless assignments)
-  const { startDate, endDate, previousStartDate, previousEndDate } = (() => {
-    switch (period) {
-      case 'month':
-        return {
-          startDate: now.startOf('month').format('YYYY-MM-DDTHH:mm:ss'),
-          endDate: now.endOf('month').format('YYYY-MM-DDTHH:mm:ss'),
-          previousStartDate: now.subtract(1, 'month').startOf('month').format('YYYY-MM-DDTHH:mm:ss'),
-          previousEndDate: now.subtract(1, 'month').endOf('month').format('YYYY-MM-DDTHH:mm:ss')
-        };
-      case 'quarter': {
-        const currentQuarter = Math.floor(now.month() / 3);
-        return {
-          startDate: now.month(currentQuarter * 3).startOf('month').format('YYYY-MM-DDTHH:mm:ss'),
-          endDate: now.month(currentQuarter * 3 + 2).endOf('month').format('YYYY-MM-DDTHH:mm:ss'),
-          previousStartDate: now.subtract(3, 'month').month(currentQuarter * 3).startOf('month').format('YYYY-MM-DDTHH:mm:ss'),
-          previousEndDate: now.subtract(3, 'month').month(currentQuarter * 3 + 2).endOf('month').format('YYYY-MM-DDTHH:mm:ss')
-        };
-      }
-      case 'year':
-        return {
-          startDate: now.startOf('year').format('YYYY-MM-DDTHH:mm:ss'),
-          endDate: now.endOf('year').format('YYYY-MM-DDTHH:mm:ss'),
-          previousStartDate: now.subtract(1, 'year').startOf('year').format('YYYY-MM-DDTHH:mm:ss'),
-          previousEndDate: now.subtract(1, 'year').endOf('year').format('YYYY-MM-DDTHH:mm:ss')
-        };
-    }
-  })();
+export const generateCombinedPlanVsRequestQuery = (selectedDepartment?: string, requestTypes?: string[]): string => {
+  const includeDepartment = Boolean(selectedDepartment)
 
+  // Department condition for ExpensePlan and ExpenseItem (direct employee relationship)
   const departmentCondition = includeDepartment
     ? `{ employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },`
-    : '';
+    : ''
+
+  // Department condition for nested filters (e.g., inside expenseItem)
+  const nestedDepartmentCondition = includeDepartment
+    ? `employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } },`
+    : ''
 
   // Build query signature
   const querySignature = includeDepartment
@@ -65,7 +34,7 @@ export const generateCombinedPlanVsRequestQuery = (
       $endDate: timestamp!,
       $previousStartDate: timestamp!,
       $previousEndDate: timestamp!
-    )`;
+    )`
 
   // Build request type conditions for ExpenseItem filtering
   const buildRequestTypeConditions = (startVar: string, endVar: string): string => {
@@ -78,33 +47,33 @@ export const generateCombinedPlanVsRequestQuery = (
         { _and: [
           { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: ${startVar}, _lte: ${endVar} } } }
         ] }
-      `;
-    
+      `
+
     // If no requestTypes specified, return default
     if (!requestTypes || requestTypes.length === 0) {
-      return defaultConditions;
+      return defaultConditions
     }
-    
-    const conditions: string[] = [];
+
+    const conditions: string[] = []
     if (requestTypes.includes('ExpenseRequestType:v1:EXPENSES')) {
       conditions.push(`
         { _and: [
           { expenseDate: { _gte: ${startVar}, _lte: ${endVar} } },
           { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
         ] }
-      `);
+      `)
     }
     if (requestTypes.includes('ExpenseRequestType:v1:TRIP')) {
       conditions.push(`
         { _and: [
           { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: ${startVar}, _lte: ${endVar} } } }
         ] }
-      `);
+      `)
     }
-    
+
     // If no conditions matched, fall back to default to avoid empty _or array
-    return conditions.length > 0 ? conditions.join(',\n') : defaultConditions;
-  };
+    return conditions.length > 0 ? conditions.join(',\n') : defaultConditions
+  }
 
   return `
     ${querySignature} {
@@ -146,17 +115,20 @@ export const generateCombinedPlanVsRequestQuery = (
         }
       ) { aggregate { sum { reimbursableAmount } } }
 
-      # 3. Current Period Category Statistics
-      currentPeriodCategories: ExpenseItem(
+      # 3. Current Period Category Statistics (Query ExpensePosition for reliable expenseGroupRef)
+      currentPeriodCategories: ExpensePosition(
         where: {
           _and: [
-            { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-            { currencyRef: { _eq: $currency } },
-            ${departmentCondition}
             { isDeleted: { _eq: false } },
-            { _or: [
-              ${buildRequestTypeConditions('$startDate', '$endDate')}
-            ] }
+            { expenseItem: {
+              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              currencyRef: { _eq: $currency },
+              ${nestedDepartmentCondition}
+              isDeleted: { _eq: false },
+              _or: [
+                ${buildRequestTypeConditions('$startDate', '$endDate')}
+              ]
+            }}
           ]
         }
       ) {
@@ -164,17 +136,20 @@ export const generateCombinedPlanVsRequestQuery = (
         reimbursableAmount
       }
 
-      # 4. Previous Period Category Statistics
-      previousPeriodCategories: ExpenseItem(
+      # 4. Previous Period Category Statistics (Query ExpensePosition for reliable expenseGroupRef)
+      previousPeriodCategories: ExpensePosition(
         where: {
           _and: [
-            { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
-            { currencyRef: { _eq: $currency } },
-            ${departmentCondition}
             { isDeleted: { _eq: false } },
-            { _or: [
-              ${buildRequestTypeConditions('$previousStartDate', '$previousEndDate')}
-            ] }
+            { expenseItem: {
+              status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] },
+              currencyRef: { _eq: $currency },
+              ${nestedDepartmentCondition}
+              isDeleted: { _eq: false },
+              _or: [
+                ${buildRequestTypeConditions('$previousStartDate', '$previousEndDate')}
+              ]
+            }}
           ]
         }
       ) {
@@ -207,6 +182,5 @@ export const generateCombinedPlanVsRequestQuery = (
         currencyRef
       }
     }
-  `;
-};
-
+  `
+}

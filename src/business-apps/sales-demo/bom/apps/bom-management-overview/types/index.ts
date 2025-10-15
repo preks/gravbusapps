@@ -1,7 +1,7 @@
 // TypeScript interfaces for BOM Management Overview
 
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
-import { BillOfMaterials, BomKPIData, BomFilters, PaginationParams } from '../../../types'
+import { BillOfMaterials, BomFilters } from '../../../types'
 
 export interface BomManagementOverviewProps extends BusinessAppContextProps {}
 

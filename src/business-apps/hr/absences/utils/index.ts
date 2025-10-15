@@ -3,4 +3,4 @@
  * Exports all utility functions for use across absence apps
  */
 
-export * from './absenceStatusUtils';
+export * from './absenceStatusUtils'

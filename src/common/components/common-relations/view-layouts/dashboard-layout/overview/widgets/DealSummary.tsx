@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
 import { TrendingUp } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 

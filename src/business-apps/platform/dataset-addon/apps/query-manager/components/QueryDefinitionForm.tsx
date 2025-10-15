@@ -30,8 +30,7 @@ import {
   ParameterType,
   QueryParameter,
   AdditionalColumn,
-  Services,
-  getServiceLabel
+  Services
 } from '@/common/network/dataset'
 
 // Environment detection utility

@@ -1,20 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
+import { useCallback, useEffect, useState } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
-export interface SelectOption { id: string; label: string; value: string; }
+export interface SelectOption {
+  id: string
+  label: string
+  value: string
+}
 
 export interface WorkingConditionsRecord {
-  id?: string;
-  version?: number;
-  employmentTypeRef?: string;
-  contractTypeRef?: string;
-  remoteRef?: string;
-  regionRef?: string;
-  startDate?: string | null;
-  probationEndDate?: string | null;
-  endDate?: string | null;
+  id?: string
+  version?: number
+  employmentTypeRef?: string
+  contractTypeRef?: string
+  remoteRef?: string
+  regionRef?: string
+  startDate?: string | null
+  probationEndDate?: string | null
+  endDate?: string | null
 }
 
 export const GET_WORKING_CONDITIONS_LOOKUPS = `
@@ -73,7 +77,7 @@ export const GET_WORKING_CONDITIONS_LOOKUPS = `
       code
     }
   }
-`;
+`
 
 // Regions filtered by country
 export const GET_REGIONS_BY_COUNTRY = `
@@ -91,52 +95,69 @@ export const GET_REGIONS_BY_COUNTRY = `
       catalog { defaultLocale }
     }
   }
-`;
+`
 
 export const useWorkingConditionsLookups = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  const [employmentTypes, setEmploymentTypes] = useState<SelectOption[]>([]);
-  const [contractTypes, setContractTypes] = useState<SelectOption[]>([]);
-  const [remoteOptions, setRemoteOptions] = useState<SelectOption[]>([]);
-  const [regions, setRegions] = useState<SelectOption[]>([]);
-  const [current, setCurrent] = useState<WorkingConditionsRecord | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [jobTitle, setJobTitle] = useState<string>('');
-  const [firstName, setFirstName] = useState<string>('');
-  const [lastName, setLastName] = useState<string>('');
-  const [pictureThumbnail, setPictureThumbnail] = useState<string>('');
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const [employmentTypes, setEmploymentTypes] = useState<SelectOption[]>([])
+  const [contractTypes, setContractTypes] = useState<SelectOption[]>([])
+  const [remoteOptions, setRemoteOptions] = useState<SelectOption[]>([])
+  const [regions, setRegions] = useState<SelectOption[]>([])
+  const [current, setCurrent] = useState<WorkingConditionsRecord | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [jobTitle, setJobTitle] = useState<string>('')
+  const [firstName, setFirstName] = useState<string>('')
+  const [lastName, setLastName] = useState<string>('')
+  const [pictureThumbnail, setPictureThumbnail] = useState<string>('')
+  const [countryId, setCountryId] = useState<string>('')
 
   const toOptions = (arr?: any[]): SelectOption[] =>
-    (arr || []).map((e: any) => ({ id: e.id, value: e.value, label: e.translations?.[0]?.value || e.value }));
+    (arr || []).map((e: any) => ({ id: e.id, value: e.value, label: e.translations?.[0]?.value || e.value }))
 
   const load = useCallback(async () => {
-    const employeeId = context.userInfo?.employeeDetails?.employeeId;
-    if (!employeeId) return;
-    setLoading(true);
-    setError(null);
+    const employeeId = context.userInfo?.employeeDetails?.employeeId
+    if (!employeeId) return
+    setLoading(true)
+    setError(null)
     try {
-      const locale = getCurrentActiveUserLocale() || 'en-US';
+      const locale = getCurrentActiveUserLocale() || 'en-US'
       const res = await graphqlClient.request<any>(GET_WORKING_CONDITIONS_LOOKUPS, {
         id: employeeId,
-        activeUserLocale: locale,
-      });
-      setEmploymentTypes(toOptions(res?.employmentTypes));
-      setContractTypes(toOptions(res?.contractTypes));
-      setRemoteOptions(toOptions(res?.remote));
-      // Derive country id from primary address
-      const countryId = res?.employee?.[0]?.addresses?.[0]?.country?.id || '';
-      if (countryId) {
+        activeUserLocale: locale
+      })
+      setEmploymentTypes(toOptions(res?.employmentTypes))
+      setContractTypes(toOptions(res?.contractTypes))
+      setRemoteOptions(toOptions(res?.remote))
+      // Derive country id/value from primary address
+      const employeeCountry = res?.employee?.[0]?.addresses?.[0]?.country || null
+      const employeeCountryId = employeeCountry?.id || ''
+      const employeeCountryValue = employeeCountry?.value || ''
+      setCountryId(employeeCountryId)
+      if (employeeCountryId) {
         try {
-          const regRes = await graphqlClient.request<any>(GET_REGIONS_BY_COUNTRY, { countryId, activeUserLocale: locale });
-          setRegions(toOptions(regRes?.CatalogEntry));
+          const regRes = await graphqlClient.request<any>(GET_REGIONS_BY_COUNTRY, {
+            countryId: employeeCountryId,
+            activeUserLocale: locale
+          })
+          const regionOptions = toOptions(regRes?.CatalogEntry)
+          if (regionOptions.length > 0) {
+            setRegions(regionOptions)
+          } else {
+            // Country has no regions: use country as default region option
+            const label = employeeCountryValue?.split(':').pop() || employeeCountryValue || 'Country'
+            setRegions([{ id: employeeCountryId, value: employeeCountryValue, label }])
+          }
         } catch {
-          setRegions(toOptions(res?.allEmploymentRegions));
+          // On failure, still provide country as a single option
+          const label = employeeCountryValue?.split(':').pop() || employeeCountryValue || 'Country'
+          setRegions([{ id: employeeCountryId, value: employeeCountryValue, label }])
         }
       } else {
-        setRegions(toOptions(res?.allEmploymentRegions));
+        // No country found: fall back to all regions
+        setRegions(toOptions(res?.allEmploymentRegions))
       }
-      const wcRaw = res?.employee?.[0]?.workingCondition?.[0] || null;
+      const wcRaw = res?.employee?.[0]?.workingCondition?.[0] || null
       const wc: WorkingConditionsRecord | null = wcRaw
         ? {
             id: wcRaw.id,
@@ -147,31 +168,32 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
             regionRef: wcRaw.region?.id,
             startDate: wcRaw.hireDate || null,
             probationEndDate: wcRaw.probationEnd || null,
-            endDate: wcRaw.exitDate || null,
+            endDate: wcRaw.exitDate || null
           }
-        : null;
-      setCurrent(wc);
-      const jt = res?.Employee?.[0]?.employeePosition?.[0]?.jobPosition?.name || '';
-      setJobTitle(jt);
-      setFirstName(res?.Employee?.[0]?.firstName || '');
-      setLastName(res?.Employee?.[0]?.lastName || '');
-      setPictureThumbnail(res?.Employee?.[0]?.pictureThumbnail || '');
+        : null
+      setCurrent(wc)
+      const jt = res?.Employee?.[0]?.employeePosition?.[0]?.jobPosition?.name || ''
+      setJobTitle(jt)
+      setFirstName(res?.Employee?.[0]?.firstName || '')
+      setLastName(res?.Employee?.[0]?.lastName || '')
+      setPictureThumbnail(res?.Employee?.[0]?.pictureThumbnail || '')
     } catch (e: any) {
-      setError(e?.message || 'Failed to load working condition lookups');
+      setError(e?.message || 'Failed to load working condition lookups')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [context.userInfo?.employeeDetails?.employeeId, graphqlClient]);
+  }, [context.userInfo?.employeeDetails?.employeeId, graphqlClient])
 
   useEffect(() => {
-    if (context.accessToken) load();
-  }, [context.accessToken, load]);
+    if (context.accessToken) load()
+  }, [context.accessToken, load])
 
   return {
     employmentTypes,
     contractTypes,
     remoteOptions,
     regions,
+    countryId,
     current,
     jobTitle,
     firstName,
@@ -179,8 +201,6 @@ export const useWorkingConditionsLookups = (context: BusinessAppContextProps) =>
     pictureThumbnail,
     loading,
     error,
-    refetch: load,
-  };
-};
-
-
+    refetch: load
+  }
+}

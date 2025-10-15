@@ -37,11 +37,10 @@ import {
 import { formatCurrencyLocalized } from '@/business-apps/fin/expenses/apps/expenses-launcher/utils/currencyUtils'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-interface ExpensesLauncherProps extends BusinessAppContextProps {}
 
 const moduleColor = MODULE_COLORS.FIN
 
-const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
+const ExpensesLauncher: React.FC<BusinessAppContextProps> = context => {
   const { stats, isLoading, error, refetch } = useExpenseDashboardStats(context)
   const {
     loading: permissionsLoading,
@@ -104,7 +103,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         },
         {
           id: 'pending-finance-requests',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.pending_verification', 'Pending Verification'),
+          title: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.pending_verification',
+            'Pending Verification'
+          ),
           value: isLoading ? '...' : formatNumber(stats.pendingFinanceRequests),
           color: 'default'
         },
@@ -125,13 +127,19 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         },
         {
           id: 'pending-team-plans',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.pending_team_plans', 'Pending Team Plans'),
+          title: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.pending_team_plans',
+            'Pending Team Plans'
+          ),
           value: isLoading ? '...' : formatCurrency(stats.pendingTeamPlans),
           color: 'default'
         },
         {
           id: 'pending-team-requests',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.pending_team_requests', 'Pending Team Requests'),
+          title: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.pending_team_requests',
+            'Pending Team Requests'
+          ),
           value: isLoading ? '...' : formatCurrency(stats.pendingTeamRequests),
           color: 'success'
         }
@@ -170,16 +178,25 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
           translatedLabel = getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.create_plan', 'Create Plan')
           break
         case 'add-expense-item':
-          translatedLabel = getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.add_expense_item', 'Add Expense Item')
+          translatedLabel = getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.add_expense_item',
+            'Add Expense Item'
+          )
           break
         case 'request-advance':
-          translatedLabel = getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.request_advance', 'Request Advance')
+          translatedLabel = getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.request_advance',
+            'Request Advance'
+          )
           break
         case 'submit-request':
-          translatedLabel = getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.submit_request', 'Submit Request')
+          translatedLabel = getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.submit_request',
+            'Submit Request'
+          )
           break
       }
-      
+
       return {
         id: action.id,
         label: translatedLabel,
@@ -465,17 +482,41 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         areas.push({
           id: 'personal-expenses',
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.personal_expenses', 'Personal Expenses'),
-          description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.personal_expenses_desc', 'Manage your own expense submissions and track spending'),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.personal_expenses_desc',
+            'Manage your own expense submissions and track spending'
+          ),
           icon: User, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'personal',
           links: [
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_items', 'Expense Items'), action: 'personal-expense-items' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'), action: 'personal-expense-plans' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments', 'Advance Payments'), action: 'personal-advance-payments' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_requests', 'Expense Requests'), action: 'personal-expense-requests' }
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_items', 'Expense Items'),
+              action: 'personal-expense-items'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'),
+              action: 'personal-expense-plans'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.advance_payments',
+                'Advance Payments'
+              ),
+              action: 'personal-advance-payments'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_requests',
+                'Expense Requests'
+              ),
+              action: 'personal-expense-requests'
+            }
           ],
-          buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.go_to_personal_expenses', 'Go to Personal Expenses'),
+          buttonLabel: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.go_to_personal_expenses',
+            'Go to Personal Expenses'
+          ),
           buttonAction: 'navigate-personal-expenses'
         })
       }
@@ -483,37 +524,64 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'expense-management',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_management', 'Expense Management'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_management_desc', 'Comprehensive expense oversight and policy management'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.expense_management_desc',
+          'Comprehensive expense oversight and policy management'
+        ),
         icon: Gear, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'team',
         links: [
-          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_requests', 'Expense Requests'), action: 'finance-expense-requests' },
-          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments', 'Advance Payments'), action: 'finance-advance-payments' }
+          {
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_requests', 'Expense Requests'),
+            action: 'finance-expense-requests'
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments', 'Advance Payments'),
+            action: 'finance-advance-payments'
+          }
         ],
-        buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.go_to_expense_management', 'Go to Expense Management'),
+        buttonLabel: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.go_to_expense_management',
+          'Go to Expense Management'
+        ),
         buttonAction: 'navigate-finance-management'
       })
 
       areas.push({
         id: 'finance-settings',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_settings', 'Finance Settings'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_settings_desc', 'Manage expense calculation rules, mileage policies, and travel regulations'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.finance_settings_desc',
+          'Manage expense calculation rules, mileage policies, and travel regulations'
+        ),
         icon: Sliders, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'settings',
         links: [
           {
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_calculation_rule_assignment', 'Expense Calculation Rule Assignment'),
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.expense_calculation_rule_assignment',
+              'Expense Calculation Rule Assignment'
+            ),
             action: 'finance-expense-assignment-rule'
           },
-          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.mileage_rules', 'Mileage Rules'), action: 'finance-mileage-rules' },
           {
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.travel_region_rules', 'Travel Region Rules'),
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.mileage_rules', 'Mileage Rules'),
+            action: 'finance-mileage-rules'
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.travel_region_rules',
+              'Travel Region Rules'
+            ),
             action: 'finance-travel-region-rules'
           },
           {
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_calculation_rules', 'Expense Calculation Rules'),
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.expense_calculation_rules',
+              'Expense Calculation Rules'
+            ),
             action: 'finance-calculation-rules'
           }
         ],
@@ -524,7 +592,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'calendar-view',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.calendar', 'Calendar'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.calendar_desc', 'View expenses, plans, and events in a calendar timeline'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.calendar_desc',
+          'View expenses, plans, and events in a calendar timeline'
+        ),
         icon: Calendar, // Now directly using PhosphorIcon components
         category: 'reporting',
         kpiType: 'calendar',
@@ -534,23 +605,41 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
 
       areas.push({
         id: 'my-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.my_expense_analytics', 'My Expense Analytics'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.my_expense_analytics_desc', 'Personal spending insights, trends, and budget analysis'),
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.my_expense_analytics',
+          'My Expense Analytics'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.my_expense_analytics_desc',
+          'Personal spending insights, trends, and budget analysis'
+        ),
         icon: ChartBar, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.view_my_analytics', 'View My Analytics'),
+        buttonLabel: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.view_my_analytics',
+          'View My Analytics'
+        ),
         buttonAction: 'navigate-personal-analytics'
       })
 
       areas.push({
         id: 'advanced-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advanced_expense_analytics', 'Advanced Expense Analytics'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advanced_expense_analytics_desc', 'Enterprise spending insights, budget tracking, and performance metrics'),
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.advanced_expense_analytics',
+          'Advanced Expense Analytics'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.advanced_expense_analytics_desc',
+          'Enterprise spending insights, budget tracking, and performance metrics'
+        ),
         icon: ChartLine, // Now directly using PhosphorIcon components
         category: 'reporting',
         kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.view_advanced_analytics', 'View Advanced Analytics'),
+        buttonLabel: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.view_advanced_analytics',
+          'View Advanced Analytics'
+        ),
         buttonAction: 'navigate-advanced-analytics'
       })
     } else if (showManagerView) {
@@ -558,17 +647,41 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         areas.push({
           id: 'personal-expenses',
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.personal_expenses', 'Personal Expenses'),
-          description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.personal_expenses_desc', 'Manage your own expense submissions and track spending'),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.personal_expenses_desc',
+            'Manage your own expense submissions and track spending'
+          ),
           icon: User, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'personal',
           links: [
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_items', 'Expense Items'), action: 'personal-expense-items' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'), action: 'personal-expense-plans' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments', 'Advance Payments'), action: 'personal-advance-payments' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_requests', 'Expense Requests'), action: 'personal-expense-requests' }
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_items', 'Expense Items'),
+              action: 'personal-expense-items'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'),
+              action: 'personal-expense-plans'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.advance_payments',
+                'Advance Payments'
+              ),
+              action: 'personal-advance-payments'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_requests',
+                'Expense Requests'
+              ),
+              action: 'personal-expense-requests'
+            }
           ],
-          buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.go_to_personal_expenses', 'Go to Personal Expenses'),
+          buttonLabel: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.go_to_personal_expenses',
+            'Go to Personal Expenses'
+          ),
           buttonAction: 'navigate-personal-expenses'
         })
       }
@@ -577,17 +690,44 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         areas.push({
           id: 'team-expenses',
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.team_expenses', 'Team Expenses'),
-          description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.team_expenses_desc', 'Review and manage your team members expense submissions'),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.team_expenses_desc',
+            'Review and manage your team members expense submissions'
+          ),
           icon: Users, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'team',
           links: [
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'), action: 'team-expense-plans' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments', 'Advance Payments'), action: 'team-advance-payments' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_requests', 'Expense Requests'), action: 'team-expense-requests' },
-            { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_calendar', 'Expense Calendar'), action: 'team-expense-calendar' }
+            {
+              label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_plans', 'Expense Plans'),
+              action: 'team-expense-plans'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.advance_payments',
+                'Advance Payments'
+              ),
+              action: 'team-advance-payments'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_requests',
+                'Expense Requests'
+              ),
+              action: 'team-expense-requests'
+            },
+            {
+              label: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_calendar',
+                'Expense Calendar'
+              ),
+              action: 'team-expense-calendar'
+            }
           ],
-          buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.go_to_team_expenses', 'Go to Team Expenses'),
+          buttonLabel: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.go_to_team_expenses',
+            'Go to Team Expenses'
+          ),
           buttonAction: 'navigate-team-expenses'
         })
       }
@@ -595,22 +735,37 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'finance-settings',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_settings', 'Finance Settings'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_settings_desc', 'Manage expense calculation rules, mileage policies, and travel regulations'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.finance_settings_desc',
+          'Manage expense calculation rules, mileage policies, and travel regulations'
+        ),
         icon: Sliders, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'settings',
         links: [
           {
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_calculation_rule_assignment', 'Expense Calculation Rule Assignment'),
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.expense_calculation_rule_assignment',
+              'Expense Calculation Rule Assignment'
+            ),
             action: 'finance-expense-assignment-rule'
           },
-          { label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.mileage_rules', 'Mileage Rules'), action: 'finance-mileage-rules' },
           {
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.travel_region_rules', 'Travel Region Rules'),
+            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.mileage_rules', 'Mileage Rules'),
+            action: 'finance-mileage-rules'
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.travel_region_rules',
+              'Travel Region Rules'
+            ),
             action: 'finance-travel-region-rules'
           },
           {
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_calculation_rules', 'Expense Calculation Rules'),
+            label: getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.expense_calculation_rules',
+              'Expense Calculation Rules'
+            ),
             action: 'finance-calculation-rules'
           }
         ],
@@ -621,7 +776,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'calendar-view',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.calendar', 'Calendar'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.calendar_desc', 'View expenses, plans, and events in a calendar timeline'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.calendar_desc',
+          'View expenses, plans, and events in a calendar timeline'
+        ),
         icon: Calendar, // Now directly using PhosphorIcon components
         category: 'reporting',
         kpiType: 'calendar',
@@ -631,24 +789,42 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
 
       areas.push({
         id: 'my-expense-analytics',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.my_expense_analytics', 'My Expense Analytics'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.my_expense_analytics_desc', 'Personal spending insights, trends, and budget analysis'),
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.my_expense_analytics',
+          'My Expense Analytics'
+        ),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.my_expense_analytics_desc',
+          'Personal spending insights, trends, and budget analysis'
+        ),
         icon: ChartBar, // Now directly using PhosphorIcon components
         category: 'manager',
         kpiType: 'analytics',
-        buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.view_my_analytics', 'View My Analytics'),
+        buttonLabel: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.view_my_analytics',
+          'View My Analytics'
+        ),
         buttonAction: 'navigate-personal-analytics'
       })
 
       if (canViewTeamExpenses() || canManageBudgets()) {
         areas.push({
           id: 'team-expense-analytics',
-          title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.team_expense_analytics', 'Team Expense Analytics'),
-          description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.team_expense_analytics_desc', 'Team spending insights, budget tracking, and performance metrics'),
+          title: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.team_expense_analytics',
+            'Team Expense Analytics'
+          ),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.team_expense_analytics_desc',
+            'Team spending insights, budget tracking, and performance metrics'
+          ),
           icon: ChartPie, // Now directly using PhosphorIcon components
           category: 'manager',
           kpiType: 'analytics',
-          buttonLabel: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.view_team_analytics', 'View Team Analytics'),
+          buttonLabel: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.view_team_analytics',
+            'View Team Analytics'
+          ),
           buttonAction: 'navigate-team-analytics'
         })
       }
@@ -657,7 +833,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         areas.push({
           id: 'expense-items',
           title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_items', 'Expense Items'),
-          description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_items_desc', 'Manage individual expense entries, receipts, and categorization'),
+          description: getTranslationFromI18nKeyAndLabel(
+            'lowcoder:expenses_launcher.expense_items_desc',
+            'Manage individual expense entries, receipts, and categorization'
+          ),
           icon: Receipt, // Now directly using PhosphorIcon components
           category: 'core'
         })
@@ -666,7 +845,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'plans',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.plans', 'Plans'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.plans_desc', 'Budget planning, expense forecasting, and financial planning'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.plans_desc',
+          'Budget planning, expense forecasting, and financial planning'
+        ),
         icon: Article, // Now directly using PhosphorIcon components
         category: 'planning'
       })
@@ -674,7 +856,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'advance-payments',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments', 'Advance Payments'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.advance_payments_desc', 'Request and manage advance payments for upcoming expenses'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.advance_payments_desc',
+          'Request and manage advance payments for upcoming expenses'
+        ),
         icon: CurrencyDollar, // Now directly using PhosphorIcon components
         category: 'core'
       })
@@ -682,7 +867,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'requests',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.requests', 'Requests'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.requests_desc', 'Submit, track, and approve expense reimbursement requests'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.requests_desc',
+          'Submit, track, and approve expense reimbursement requests'
+        ),
         icon: FileText, // Now directly using PhosphorIcon components
         category: 'core'
       })
@@ -690,7 +878,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'calendar',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.calendar', 'Calendar'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.calendar_desc', 'View expenses, plans, and events in a calendar timeline'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.calendar_desc',
+          'View expenses, plans, and events in a calendar timeline'
+        ),
         icon: Calendar, // Now directly using PhosphorIcon components
         category: 'reporting'
       })
@@ -698,7 +889,10 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
       areas.push({
         id: 'analytics',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.analytics', 'Analytics'),
-        description: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.analytics_desc', 'Personal spending analysis, trends, and insights'),
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:expenses_launcher.analytics_desc',
+          'Personal spending analysis, trends, and insights'
+        ),
         icon: ChartLine, // Now directly using PhosphorIcon components
         category: 'reporting'
       })
@@ -713,12 +907,18 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
             case 'personal':
               return {
                 value: formatCurrency(stats.monthlyExpenses),
-                label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.monthly_expenses', 'Monthly Expenses')
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expenses_launcher.monthly_expenses',
+                  'Monthly Expenses'
+                )
               }
             case 'team':
               return {
                 value: formatNumber(stats.teamMonthlyExpenses),
-                label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.monthly_requests', 'Monthly Requests')
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expenses_launcher.monthly_requests',
+                  'Monthly Requests'
+                )
               }
             case 'analytics':
               return {
@@ -733,10 +933,16 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
             case 'calendar':
               return {
                 value: formatNumber(stats.upcomingEvents || 8),
-                label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.events_this_month', 'Events This Month')
+                label: getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expenses_launcher.events_this_month',
+                  'Events This Month'
+                )
               }
             default:
-              return { value: '0', label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.items', 'Items') }
+              return {
+                value: '0',
+                label: getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.items', 'Items')
+              }
           }
         }
 
@@ -802,16 +1008,28 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
     return [
       {
         id: 'expense-modules',
-        title: showFinanceView 
+        title: showFinanceView
           ? getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_dashboard', 'Finance Dashboard')
-          : showManagerView 
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.management_dashboard', 'Management Dashboard')
+          : showManagerView
+            ? getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.management_dashboard',
+                'Management Dashboard'
+              )
             : getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_management', 'Expense Management'),
         description: showFinanceView
-          ? getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_dashboard_desc', 'Comprehensive expense oversight and policy management')
+          ? getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expenses_launcher.finance_dashboard_desc',
+              'Comprehensive expense oversight and policy management'
+            )
           : showManagerView
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.management_dashboard_desc', 'Personal and team expense management tools')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.expense_management_section_desc', 'Essential expense functions for daily operations and financial management'),
+            ? getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.management_dashboard_desc',
+                'Personal and team expense management tools'
+              )
+            : getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.expense_management_section_desc',
+                'Essential expense functions for daily operations and financial management'
+              ),
         cards
       }
     ]
@@ -996,12 +1214,21 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
 
   const getDescriptionText = (): string => {
     if (showFinanceView) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.finance_overview_desc', 'Comprehensive expense oversight and analytics overview')
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expenses_launcher.finance_overview_desc',
+        'Comprehensive expense oversight and analytics overview'
+      )
     }
     if (showManagerView) {
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.manager_overview_desc', 'Manage personal and team expenses with comprehensive oversight')
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expenses_launcher.manager_overview_desc',
+        'Manage personal and team expenses with comprehensive oversight'
+      )
     }
-    return getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.employee_overview_desc', 'Comprehensive expense tracking, planning, and financial management')
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:expenses_launcher.employee_overview_desc',
+      'Comprehensive expense tracking, planning, and financial management'
+    )
   }
 
   // Show loading state while determining permissions
@@ -1011,7 +1238,12 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         <div className="bg-card/90 backdrop-blur-md p-8 rounded-xl shadow-lg">
           <div className="flex items-center gap-3">
             <Spinner size="lg" />
-            <span className="text-lg font-medium text-card-foreground">{getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.loading_dashboard', 'Loading your personalized dashboard...')}</span>
+            <span className="text-lg font-medium text-card-foreground">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.loading_dashboard',
+                'Loading your personalized dashboard...'
+              )}
+            </span>
           </div>
         </div>
       </div>
@@ -1027,9 +1259,23 @@ const ExpensesLauncher: React.FC<ExpensesLauncherProps> = context => {
         <div className="max-w-md mx-auto p-6">
           <Alert variant="destructive" className="bg-card/90 backdrop-blur-md">
             <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
-            <AlertTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.permission_check_failed', 'Permission Check Failed')}</AlertTitle>
+            <AlertTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.permission_check_failed',
+                'Permission Check Failed'
+              )}
+            </AlertTitle>
             <AlertDescription>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.permission_check_failed_desc', 'Unable to determine your permissions.')} {permissionsError?.message || getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.unknown_error', 'Unknown error')} {getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.showing_limited_view', 'Showing limited view.')}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.permission_check_failed_desc',
+                'Unable to determine your permissions.'
+              )}{' '}
+              {permissionsError?.message ||
+                getTranslationFromI18nKeyAndLabel('lowcoder:expenses_launcher.unknown_error', 'Unknown error')}{' '}
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:expenses_launcher.showing_limited_view',
+                'Showing limited view.'
+              )}
             </AlertDescription>
           </Alert>
         </div>

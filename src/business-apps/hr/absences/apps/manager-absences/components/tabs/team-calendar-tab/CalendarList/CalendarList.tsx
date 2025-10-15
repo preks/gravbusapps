@@ -3,11 +3,11 @@ import { CalendarTimeline, TimelineItem, TimelineEvent } from '@newwork/gravity-
 import { Alert, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { getAbsenceStatusLabel, getAbsenceStatusColor } from '../../../../../../utils/absenceStatusUtils';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { GET_ABSENCES_FOR_CALENDAR } from '../../../../queries/AbsenceQueries';
-import { getAbsenceTypeName, getAbsenceStatusDisplay } from '../../../../utils';
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel, getAbsenceStatusColor } from '../../../../../../utils/absenceStatusUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_ABSENCES_FOR_CALENDAR } from '../../../../queries/AbsenceQueries'
+import { getAbsenceTypeName, getAbsenceStatusDisplay } from '../../../../utils'
 
 interface AbsenceTimelineItem extends TimelineItem {
   name: string
@@ -179,21 +179,21 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
   const statusLegend = [
     {
       label: getAbsenceStatusLabel('APPROVED'),
-      color: getAbsenceStatusColor('APPROVED'),
+      color: getAbsenceStatusColor('APPROVED')
     },
     {
       label: getAbsenceStatusLabel('PENDING'),
-      color: getAbsenceStatusColor('PENDING'),
+      color: getAbsenceStatusColor('PENDING')
     },
     {
       label: getAbsenceStatusLabel('REJECTED'),
-      color: getAbsenceStatusColor('REJECTED'),
+      color: getAbsenceStatusColor('REJECTED')
     },
     {
       label: getAbsenceStatusLabel('CANCELLED'),
-      color: getAbsenceStatusColor('CANCELLED'),
-    },
-  ];
+      color: getAbsenceStatusColor('CANCELLED')
+    }
+  ]
 
   return <div>{renderDataBody()}</div>
 }

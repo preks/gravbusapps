@@ -113,7 +113,7 @@ export const useCombinedPlanVsRequestData = ({
 
         return {
           id,
-          name: extractCurrencyCode(id) || id,
+          name: id, // Keep full expense group ID for matching with catalog
           code: id,
           currentPeriodAmount: amounts.current,
           previousPeriodAmount: amounts.previous,
@@ -220,7 +220,7 @@ export const useCombinedPlanVsRequestData = ({
       setError(null)
 
       // Generate the combined query
-      const query = generateCombinedPlanVsRequestQuery(period, currencyRef, selectedDepartment, requestTypes)
+      const query = generateCombinedPlanVsRequestQuery(selectedDepartment, requestTypes)
 
       // Prepare variables
       const variables: Record<string, any> = {

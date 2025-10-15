@@ -29,6 +29,7 @@ import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 dayjs.extend(localizedFormat)
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
 import { ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests'
 import { getExpenseRequestStatusDisplay } from '../../../utils'
 import { pillTypeClassMap } from '../../../components/StatusLegend'
@@ -229,7 +230,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: request.id
+      expenseRequestId: request.id,
+      referrer: '/platform/fin/expenses/manager-expenses?tab=expense-requests'
     })
     navigateTo(url)
   }, [])
@@ -731,7 +733,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         dataControllerProps={{
           search: searchTerm,
           setSearch: handleSearchChange,
-          filter: primaryCurrency ? [...selectedFilters, `currency:${primaryCurrency}`] : selectedFilters,
+          filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
           setFilter: (newFilters: string[]): void => {
             // Separate currency and status filters
             const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
@@ -748,14 +750,17 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
               addFilter(f)
             }
 
-            // Handle currency filter changes - when clearing all, reset currency to most used
-            const hadCurrency = primaryCurrency && primaryCurrency.length > 0
+            // Handle currency filter changes
+            // Note: Currency filter should remain even when "Clear all filters" is clicked
             const hasCurrency = currencyFilters.length > 0
 
-            if (hadCurrency && !hasCurrency) {
-              // Currency filter was removed - reset to most used by clearing the selection
-              removeFilter(`currency:${primaryCurrency}`)
+            // Only process currency change if user explicitly selected a different one
+            if (hasCurrency && currencyFilters[0] !== `currency:${primaryCurrency}`) {
+              // User selected a different currency
+              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
+              addFilter(`currency:${newCurrencyCode}`)
             }
+            // Don't clear currency when clearing all filters - currency always stays selected
 
             setCurrentPage(1)
           },

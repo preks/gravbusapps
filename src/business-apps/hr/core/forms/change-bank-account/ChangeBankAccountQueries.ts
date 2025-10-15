@@ -49,7 +49,6 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployeeData($idEmployee: uuid!) 
 }}
 `
 
-
 export const CATALOG_DATA_QUERY = `query fetchCatalogData($activeUserLocale: String!) {
      countries: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "Country"}}}, orderBy: {value: ASC}) {
     id

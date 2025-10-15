@@ -7,8 +7,6 @@ import {
   CUSTOMER_PERFORMANCE_GOAL,
   CUSTOMER_TEAM_PERFORMANCE_SUMMARY,
   CUSTOMER_PERFORMANCE_SUMMARY,
-  CUSTOMER_TEAM_PERFORMANCE_AGGREGATE,
-  CUSTOMER_PERFORMANCE_TREND,
   CUSTOMER_ACTIVITY_WITH_PERFORMANCE
 } from './fragments/customerTeamPerformanceFragments'
 import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers'

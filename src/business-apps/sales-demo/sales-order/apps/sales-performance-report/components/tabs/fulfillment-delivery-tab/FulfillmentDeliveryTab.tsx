@@ -1,12 +1,6 @@
 import React from 'react'
 import { Card, Row, Col, Statistic, Alert, Typography, Spin, Progress, Table } from 'antd'
-import {
-  TruckOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  GlobalOutlined
-} from '@ant-design/icons'
+import { TruckOutlined, ClockCircleOutlined, CheckCircleOutlined, GlobalOutlined } from '@ant-design/icons'
 import {
   BarChart,
   Bar,
@@ -16,8 +10,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  LineChart,
-  Line,
   ScatterChart,
   Scatter
 } from 'recharts'

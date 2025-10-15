@@ -11,7 +11,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { AreaChart, Area, XAxis, CartesianGrid } from 'recharts'
 import { TrendUpIcon } from '@phosphor-icons/react'
 import areaChartData from '../../data/areaChartData.json'
 

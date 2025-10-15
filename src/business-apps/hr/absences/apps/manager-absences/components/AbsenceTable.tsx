@@ -12,15 +12,15 @@ import {
   CardContent,
   Spinner,
   Button,
-  Badge,
-} from '@newwork/nw-design-system';
-import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { EnhancedAbsence } from '../types';
-import { useAbsenceColors } from '../utils/absenceColors';
-import dayjs from 'dayjs';
-import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '../../../utils/absenceStatusUtils';
+  Badge
+} from '@newwork/nw-design-system'
+import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { EnhancedAbsence } from '../types'
+import { useAbsenceColors } from '../utils/absenceColors'
+import dayjs from 'dayjs'
+import { getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getAbsenceStatusLabel, getAbsenceStatusBadgeVariant } from '../../../utils/absenceStatusUtils'
 
 interface AbsenceTableProps extends BusinessAppContextProps {
   absences: EnhancedAbsence[]
@@ -47,9 +47,6 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
   absences,
   loading,
   error,
-  hasMore,
-  loadMore,
-  loadPage,
   retry,
   total,
   currentPage,
@@ -81,12 +78,12 @@ export const AbsenceTable: React.FC<AbsenceTableProps> = ({
 
   // Status mapping functions now use centralized utilities
   const getTranslatedStatus = (status: string) => {
-    return getAbsenceStatusLabel(status);
-  };
+    return getAbsenceStatusLabel(status)
+  }
 
   const getStatusBadgeVariant = (status: string) => {
-    return getAbsenceStatusBadgeVariant(status);
-  };
+    return getAbsenceStatusBadgeVariant(status)
+  }
 
   const handleRowClick = useCallback(
     (record: EnhancedAbsence) => {

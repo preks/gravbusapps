@@ -57,10 +57,10 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   // Format currency amount
   const formatCurrency = (amount: number, currencyIdentifier: string = 'USD') => {
     // Extract currency code from API format (e.g., "Currency:v1:EUR" -> "EUR")
-    const currencyCode = currencyIdentifier.includes(':') 
+    const currencyCode = currencyIdentifier.includes(':')
       ? currencyIdentifier.split(':').pop() || 'EUR'
       : currencyIdentifier
-    
+
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currencyCode,
@@ -317,8 +317,8 @@ const ExpenseDetailDrawer: React.FC<ExpenseDetailDrawerProps> = ({
   }
 
   return (
-    <Sheet 
-      open={visible} 
+    <Sheet
+      open={visible}
       onOpenChange={onClose}
       title={type === 'advance-payment' ? 'Advance Payment Details' : 'Expense Request Details'}
     >
