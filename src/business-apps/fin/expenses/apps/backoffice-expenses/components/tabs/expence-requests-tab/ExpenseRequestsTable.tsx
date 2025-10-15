@@ -26,7 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
   Separator,
-  Badge
+  Badge,
+  Card,
+  CardContent
 } from '@newwork/nw-design-system'
 import { toast } from 'sonner'
 import { PiArrowUp, PiArrowDown, PiDownload, PiFileXls } from 'react-icons/pi'
@@ -717,205 +719,213 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     if (emptyState) return emptyState
 
     return (
-      <>
-        {loading && (
-          <div className="gba:flex gba:justify-center gba:p-8">
-            <Spinner />
-          </div>
-        )}
-        <Table
-          data-testid="expense-requests-data-table"
-          className="gba:min-w-[1782px] gba:w-full gba:table-fixed gba:[&>thead>tr>th]:!text-left"
-        >
-          <TableHeader>
-            <TableRow className="gba:border-b gba:bg-muted">
-              <TableHead className="gba:w-[50px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3 gba:text-left">
-                {bookableRecordsCount > 0 && (
-                  <div className="gba:flex gba:items-center gba:justify-center">
-                    <Checkbox
-                      checked={allBookableSelected}
-                      onCheckedChange={handleSelectAllRecords}
-                      data-testid="select-all-records-checkbox"
-                      className="gba:cursor-pointer"
-                    />
-                  </div>
-                )}
-              </TableHead>
-              <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3 gba:text-left">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.employee_tabs.flows_button.actions',
-                  'Actions'
-                )}
-              </TableHead>
-              <TableHead
-                className="gba:w-[22%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('employee')}
-                data-testid="header-sort-employee"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-                  {renderSortIcon('employee')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[16%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('employeeCode')}
-                data-testid="header-sort-employeeCode"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_table.employee_code', 'Employee Code')}
-                  {renderSortIcon('employeeCode')}
-                </div>
-              </TableHead>
-              <TableHead className="gba:w-[16%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
-                  'SAP Number'
-                )}
-              </TableHead>
-              <TableHead
-                className="gba:w-[18%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('requestNumber')}
-                data-testid="header-sort-requestNumber"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-                    'Request Number'
-                  )}
-                  {renderSortIcon('requestNumber')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('title')}
-                data-testid="header-sort-title"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:manager_expense_request_list.expense_table.title',
-                    'Title'
-                  )}
-                  {renderSortIcon('title')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('startDate')}
-                data-testid="header-sort-startDate"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_plan_list.expense_plan_table.start_date',
-                    'Start Date'
-                  )}
-                  {renderSortIcon('startDate')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('endDate')}
-                data-testid="header-sort-endDate"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_plan_list.expense_plan_table.end_date',
-                    'End Date'
-                  )}
-                  {renderSortIcon('endDate')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('createdAt')}
-                data-testid="header-sort-createdAt"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:manager_expense_request_list.expense_table.creation_date',
-                    'Creation Date'
-                  )}
-                  {renderSortIcon('createdAt')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[22%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('status')}
-                data-testid="header-sort-status"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.status',
-                    'Status'
-                  )}
-                  {renderSortIcon('status')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[18%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('totalRemainingAmount')}
-                data-testid="header-sort-remainingAmount"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}
-                  {renderSortIcon('totalRemainingAmount')}
-                </div>
-              </TableHead>
-              <TableHead
-                className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
-                onClick={() => onSort('totalAmount')}
-                data-testid="header-sort-total"
-              >
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                    'Total Amount'
-                  )}
-                  {renderSortIcon('totalAmount')}
-                </div>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {!loading && (!expenses || expenses.length === 0) ? (
-              <TableRow>
-                <TableCell colSpan={12} className="gba:py-8 gba:text-center">
-                  <div className="gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:expense_request_list.no_expense_requests_found',
-                      'No expense requests found matching the current filters.'
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              expenses?.map((record: ExpenseData) => (
-                <ExpenseRequestTableRow
-                  key={record.id}
-                  record={record}
-                  accessToken={accessToken}
-                  onRowClick={handleRowClick}
-                  onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
-                  onDownloadAccountingNote={handleDownloadAccountingNote}
-                  onTriggerCSV={handleTriggerCSV}
-                  onPrintExpenseRequest={handlePrintExpenseRequest}
-                  onTransferPayment={handleTransferPayment}
-                  isSelected={selectedRowKeys.includes(record.id)}
-                  onSelectRecord={handleSelectRecord}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
+      <Card data-testid="expense-requests-container">
+        <CardContent className="gba:p-0">
+          {loading && !expenses?.length && (
+            <div className="gba:flex gba:justify-center gba:p-4">
+              <Spinner />
+            </div>
+          )}
 
-        {/* Pagination */}
-        <ExpenseRequestPagination
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalItems={totalItems}
-          onPageChange={handleEnhancedTableChange}
-        />
-      </>
+          <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
+            <Table
+              data-testid="expense-requests-data-table"
+              className="gba:min-w-[1782px] gba:w-full gba:table-fixed gba:[&>thead>tr>th]:!text-left"
+            >
+              <TableHeader>
+                <TableRow className="gba:border-b gba:bg-muted">
+                  <TableHead className="gba:w-[50px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3 gba:text-left">
+                    {bookableRecordsCount > 0 && (
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        <Checkbox
+                          checked={allBookableSelected}
+                          onCheckedChange={handleSelectAllRecords}
+                          data-testid="select-all-records-checkbox"
+                          className="gba:cursor-pointer"
+                        />
+                      </div>
+                    )}
+                  </TableHead>
+                  <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3 gba:text-left">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.employee_tabs.flows_button.actions',
+                      'Actions'
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[22%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('employee')}
+                    data-testid="header-sort-employee"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                      {renderSortIcon('employee')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[16%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('employeeCode')}
+                    data-testid="header-sort-employeeCode"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_table.employee_code',
+                        'Employee Code'
+                      )}
+                      {renderSortIcon('employeeCode')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="gba:w-[16%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
+                      'SAP Number'
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[18%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('requestNumber')}
+                    data-testid="header-sort-requestNumber"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+                        'Request Number'
+                      )}
+                      {renderSortIcon('requestNumber')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('title')}
+                    data-testid="header-sort-title"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:manager_expense_request_list.expense_table.title',
+                        'Title'
+                      )}
+                      {renderSortIcon('title')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('startDate')}
+                    data-testid="header-sort-startDate"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_plan_list.expense_plan_table.start_date',
+                        'Start Date'
+                      )}
+                      {renderSortIcon('startDate')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('endDate')}
+                    data-testid="header-sort-endDate"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_plan_list.expense_plan_table.end_date',
+                        'End Date'
+                      )}
+                      {renderSortIcon('endDate')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('createdAt')}
+                    data-testid="header-sort-createdAt"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:manager_expense_request_list.expense_table.creation_date',
+                        'Creation Date'
+                      )}
+                      {renderSortIcon('createdAt')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[22%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('status')}
+                    data-testid="header-sort-status"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_plan_table.status',
+                        'Status'
+                      )}
+                      {renderSortIcon('status')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[18%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('totalRemainingAmount')}
+                    data-testid="header-sort-remainingAmount"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}
+                      {renderSortIcon('totalRemainingAmount')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('totalAmount')}
+                    data-testid="header-sort-total"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_plan_table.total_amount',
+                        'Total Amount'
+                      )}
+                      {renderSortIcon('totalAmount')}
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!loading && (!expenses || expenses.length === 0) ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="gba:py-8 gba:text-center">
+                      <div className="gba:text-muted-foreground">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_request_list.no_expense_requests_found',
+                          'No expense requests found matching the current filters.'
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  expenses?.map((record: ExpenseData) => (
+                    <ExpenseRequestTableRow
+                      key={record.id}
+                      record={record}
+                      accessToken={accessToken}
+                      onRowClick={handleRowClick}
+                      onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
+                      onDownloadAccountingNote={handleDownloadAccountingNote}
+                      onTriggerCSV={handleTriggerCSV}
+                      onPrintExpenseRequest={handlePrintExpenseRequest}
+                      onTransferPayment={handleTransferPayment}
+                      isSelected={selectedRowKeys.includes(record.id)}
+                      onSelectRecord={handleSelectRecord}
+                    />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <ExpenseRequestPagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={handleEnhancedTableChange}
+          />
+        </CardContent>
+      </Card>
     )
   }, [
     loading,
