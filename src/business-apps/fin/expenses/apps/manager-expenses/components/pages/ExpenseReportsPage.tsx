@@ -37,17 +37,18 @@ const formatCellValue = (key: string, raw: any): string => {
 
 const escapeCsv = (value: string) => {
   const needsQuotes = /[",\r\n]/.test(value)
-  const out = value.replaceAll('"', '""')
+  const out = value.replace(/"/g, '""') // ES2020 compatibility: use replace with global flag
   return needsQuotes ? `"${out}"` : out
 }
 
 const htmlEscape = (value: string) =>
   value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
+    // ES2020 compatibility: use replace with global flag instead of replaceAll
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
 const buildFilename = (type: string, ext: string) => {
   const ts = new Date()
@@ -525,7 +526,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
           'lowcoder:team_expenses_page.dashboard_tab.expense_reports_subheader',
           'Generate and download comprehensive expense reports across different categories and time periods'
         )}
-        headerIcon={PiFileText}
+        headerIcon={PiFileText as any}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:h-full gba:flex gba:gap-6" data-testid="expense-reports-page">
