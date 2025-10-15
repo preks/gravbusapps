@@ -216,7 +216,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingCell, setEditingCell] = useState<{ ruleId: string; regionId: string; field?: string; periodId?: string } | null>(null);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
@@ -675,7 +674,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
           }
         : region
     ));
-    setHasUnsavedChanges(true);
   };
 
   const handleRegionBlur = (regionId: string) => {
@@ -710,7 +708,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
         const newCells = convertToEditableCells(updatedRules, currentRegions);
         const validatedCells = validateCurrencies(newCells);
         setEditableCells(validatedCells);
-        setHasUnsavedChanges(true);
 
         return updatedRules;
       });
@@ -843,35 +840,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
     }
   };
 
-  const handleCellChange = (ruleId: string, regionId: string, field: 'amount', value: number) => {
-    
-    setEditableCells(prev => {
-      const updatedCells = prev.map(cell => {
-        // Match by rule and region - simplified matching
-        if (cell.allowanceRegionRuleId === ruleId && 
-            cell.travelRegionId === regionId) {
-          
-          const updatedCell = { 
-            ...cell, 
-            [field]: value, 
-            isModified: true,
-            isNew: cell.isNew || true // Mark as new if it doesn't have an ID
-          };
-          
-          return updatedCell;
-        }
-        return cell;
-      });
-      
-      return updatedCells;
-    });
-    setHasUnsavedChanges(true);
-  };
-
-  const handleCellBlur = () => {
-    setEditingCell(null);
-  };
-
   // Save all changes
   const handleSaveAll = async () => {
     // Prevent multiple simultaneous save operations
@@ -972,7 +940,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
       }
       
       toast(successMessage, 'success');
-      setHasUnsavedChanges(false);
       
       console.log('🔄 Reloading data after successful save...');
       await loadData(); // Refresh data
@@ -1094,13 +1061,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
               <PiFloppyDisk className="gba:w-4 gba:h-4 gba:mr-2" />
               {isSaving ? 'Saving...' : 'Save All Changes'}
             </Button>
-            
-            {/* Debug info */}
-            <div className="gba:text-xs gba:text-gray-500 gba:flex gba:items-center">
-              Unsaved: {hasUnsavedChanges ? 'Yes' : 'No'} | 
-              Cells: {editableCells.length} | 
-              Modified: {editableCells.filter(c => c.isModified || c.isNew).length}
-            </div>
           </div>
         </div>
       </div>
@@ -1297,7 +1257,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                     ? { ...c, activeFrom: dateValue, isModified: true } 
                                                     : c
                                                 ));
-                                                setHasUnsavedChanges(true);
                                               }}
                                               className="gba:w-full gba:h-7 gba:text-xs"
                                             />
@@ -1316,7 +1275,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                     ? { ...c, activeTo: dateValue, isModified: true } 
                                                     : c
                                                 ));
-                                                setHasUnsavedChanges(true);
                                               }}
                                               className="gba:w-full gba:h-7 gba:text-xs"
                                             />
@@ -1336,7 +1294,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                     ? { ...c, amount: value, isModified: true } 
                                                     : c
                                                 ));
-                                                setHasUnsavedChanges(true);
                                               }}
                                               className="gba:w-full gba:h-7 gba:text-center gba:text-sm gba:font-semibold"
                                       placeholder="0.00"
@@ -1354,7 +1311,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                                     ? { ...c, currencyCode: value, isModified: true } 
                                                     : c
                                                 ));
-                                                setHasUnsavedChanges(true);
                                               }}
                                             >
                                               <SelectTrigger className="gba:w-full gba:h-7 gba:text-xs">
@@ -1444,7 +1400,6 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                                       periodId: newPeriodId,
                                       field: undefined 
                                     });
-                                    setHasUnsavedChanges(true);
                                   }}
                                   className="gba:w-10 gba:h-10 gba:text-gray-400 hover:gba:text-gray-600 hover:gba:bg-gray-100"
                                   title="Add new allowance detail"

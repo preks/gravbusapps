@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGetMileageRulesData, MileageRuleData, MileageRuleQueryVariables, useGetCalculationRuleUsage } from '../queries/MileageRuleQueries';
+import { useGetMileageRulesData, MileageRuleData, MileageRuleQueryVariables } from '../queries/MileageRuleQueries';
 import { getMileageRulePeriodLabel } from '../types/ExpenseEnums';
 import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
@@ -21,11 +21,14 @@ export interface EnhancedMileageRule {
   effectiveFrom: string;
   effectiveTo?: string;
   validityPeriod: string;
+  validFrom: string; // Formatted date for display
+  validTo: string; // Formatted date for display
   isActive: boolean;
   description?: string;
   createdAt: string;
   updatedAt: string;
   usageCount: number; // New field for calculation rule usage count
+  ruleOrder: number; // Order/sequence number
   version?: number; // Add version field for optimistic locking
   details: {
     id: string;
@@ -39,18 +42,29 @@ export interface EnhancedMileageRule {
   }[];
 }
 
+export interface MileageRulesFilters {
+  statusFilter?: { active: boolean; inactive: boolean };
+  validFromFilter?: string | null;
+  validToFilter?: string | null;
+  ruleCodeFilter?: string[];
+  nameFilter?: string[];
+  rulePeriodFilter?: string[];
+  search?: string;
+}
+
 export const useMileageRulesIntegration = (context: BusinessAppContextProps) => {
   const [mileageRules, setMileageRules] = useState<EnhancedMileageRule[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [allRuleCodes, setAllRuleCodes] = useState<string[]>([]);
+  const [allRuleNames, setAllRuleNames] = useState<string[]>([]);
 
-  const { fetchMileageRules } = useGetMileageRulesData(context);
-  const { fetchMileageRuleUsageCounts } = useGetCalculationRuleUsage(context);
+  const { fetchMileageRules, fetchAllMileageRuleOptions } = useGetMileageRulesData(context);
 
   // Transform GraphQL data to enhanced UI format
-  const transformMileageRuleData = useCallback((data: MileageRuleData[], usageCounts: Record<string, number> = {}): EnhancedMileageRule[] => {
-    return data.map(rule => {
+  const transformMileageRuleData = useCallback((data: MileageRuleData[]): EnhancedMileageRule[] => {
+    return data.map((rule, index) => {
       // Extract primary rate from first detail (if available)
       const primaryDetail = rule.mileageRuleDetail?.[0];
       const ratePerKm = primaryDetail?.amount || 0;
@@ -74,9 +88,6 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
       const validToFormatted = rule.activeTo ? formatDate(rule.activeTo) : 'No end date';
       const validityPeriod = `${validFromFormatted} - ${validToFormatted}`;
 
-      // Get usage count for this rule
-      const usageCount = usageCounts[rule.code] || 0;
-
       return {
         id: rule.id,
         name: rule.name,
@@ -88,11 +99,14 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
         effectiveFrom: rule.activeFrom || rule.createdAt,
         effectiveTo: rule.activeTo,
         validityPeriod,
+        validFrom: validFromFormatted || 'N/A',
+        validTo: validToFormatted,
         isActive,
         description: rule.name,
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
-        usageCount,
+        usageCount: 0, // Not currently tracked
+        ruleOrder: index + 1, // Use index as order since we don't have ruleOrder from API
         version: rule.version, // Add version field
         details: rule.mileageRuleDetail.map(detail => ({
           id: detail.id,
@@ -122,21 +136,7 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
       const result = await fetchMileageRules(variables);
       
       if (result?.MileageRule) {
-        // Extract codes for usage count lookup
-        const mileageRuleCodes = result.MileageRule.map(rule => rule.code);
-        
-        // Fetch usage counts in parallel if we have rules
-        let usageCounts: Record<string, number> = {};
-        if (mileageRuleCodes.length > 0) {
-          try {
-            usageCounts = await fetchMileageRuleUsageCounts(mileageRuleCodes);
-          } catch (usageError) {
-            console.warn('Failed to fetch usage counts:', usageError);
-            // Continue without usage counts rather than failing entirely
-          }
-        }
-        
-        const enhancedRules = transformMileageRuleData(result.MileageRule, usageCounts);
+        const enhancedRules = transformMileageRuleData(result.MileageRule);
         setMileageRules(enhancedRules);
         setTotalCount(result.MileageRuleAggregate?.aggregate?.count || 0);
       } else {
@@ -151,14 +151,37 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
     } finally {
       setIsLoading(false);
     }
-  }, [context.accessToken, fetchMileageRules, fetchMileageRuleUsageCounts, transformMileageRuleData]);
+  }, [context.accessToken, fetchMileageRules, transformMileageRuleData]);
 
-  // Initial load
+  // Load all filter options (codes and names)
+  const loadAllFilterOptions = useCallback(async () => {
+    if (!context.accessToken) return;
+    
+    try {
+      const result = await fetchAllMileageRuleOptions();
+      if (result?.MileageRule) {
+        // Extract unique codes
+        const codes = result.MileageRule.map(rule => rule.code).filter(Boolean);
+        const uniqueCodes = Array.from(new Set(codes)).sort();
+        setAllRuleCodes(uniqueCodes);
+        
+        // Extract unique names
+        const names = result.MileageRule.map(rule => rule.name).filter(Boolean);
+        const uniqueNames = Array.from(new Set(names)).sort();
+        setAllRuleNames(uniqueNames);
+      }
+    } catch (err) {
+      console.error('Failed to load filter options:', err);
+      // Don't fail the whole component if filter options fail
+    }
+  }, [context.accessToken, fetchAllMileageRuleOptions]);
+
+  // Initial load - only load filter options, let parent component trigger data load
   useEffect(() => {
     if (context.accessToken) {
-      loadMileageRules();
+      loadAllFilterOptions(); // Load filter options once on mount
     }
-  }, [context.accessToken, loadMileageRules]);
+  }, [context.accessToken, loadAllFilterOptions]);
 
   const searchMileageRules = useCallback(async (searchTerm: string, variables: MileageRuleQueryVariables = {}) => {
     await loadMileageRules({
@@ -167,8 +190,23 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
     });
   }, [loadMileageRules]);
 
-  const refetch = useCallback(() => {
-    loadMileageRules();
+  const refetch = useCallback((variables: MileageRuleQueryVariables = {}) => {
+    loadMileageRules(variables);
+  }, [loadMileageRules]);
+
+  const refetchWithFilters = useCallback((filters: MileageRulesFilters) => {
+    // Convert rule period filter to array of period values
+    const rulePeriodFilter = filters.rulePeriodFilter || [];
+    
+    loadMileageRules({
+      statusFilter: filters.statusFilter,
+      validFromFilter: filters.validFromFilter,
+      validToFilter: filters.validToFilter,
+      ruleCodeFilter: filters.ruleCodeFilter,
+      nameFilter: filters.nameFilter,
+      rulePeriodFilter,
+      search: filters.search // Pass search term (undefined if empty)
+    });
   }, [loadMileageRules]);
 
   return {
@@ -177,6 +215,9 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
     error,
     totalCount,
     searchMileageRules,
-    refetch
+    refetch,
+    refetchWithFilters,
+    allRuleCodes,  // All available codes for filter checkboxes
+    allRuleNames   // All available names for filter checkboxes
   };
 }; 

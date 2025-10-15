@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-sys
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
 import { PiFileText, PiUsers } from 'react-icons/pi';
-import CalculationRulesList from './CalculationRulesList';
+import ExpenseCalculationRules from '@/business-apps/fin/expenses/apps/expense-calculation-rules/ExpenseCalculationRules';
 import CalculationRuleAssignmentList from './CalculationRuleAssignmentList';
 import { useExpenseSettingsIntegration } from '../../hooks/useExpenseSettingsIntegration';
 
@@ -23,7 +23,7 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = (context) => {
 
   const [activeTab, setActiveTab] = useState<string>(getInitialTab());
 
-  // Data integration hook
+  // Data integration hook (for assignments tab)
   const {
     assignments,
     rules,
@@ -33,8 +33,7 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = (context) => {
     updateAssignment,
     deleteAssignment,
     validateAssignment,
-    searchAssignments,
-    searchRules
+    searchAssignments
   } = useExpenseSettingsIntegration(context);
 
   // Update URL when tab changes
@@ -111,14 +110,7 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = (context) => {
         </TabsList>
         
         <TabsContent value="rules" className="gba:mt-6">
-          <CalculationRulesList
-            {...context}
-            rules={rules}
-            isLoading={isLoading}
-            onRefresh={refetch}
-            onSearch={searchRules}
-            onNavigateToRule={handleNavigateToRule}
-          />
+          <ExpenseCalculationRules {...context} />
         </TabsContent>
         
         <TabsContent value="assignments" className="gba:mt-6">

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import weekday from 'dayjs/plugin/weekday';
 import localeData from 'dayjs/plugin/localeData';
@@ -10,7 +10,6 @@ import {
   Badge,
   Button,
   Alert,
-  AlertDescription,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -21,29 +20,45 @@ import {
   TableRow,
   TableHead,
   TableCell,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
+  Card,
+  CardContent,
+  Spinner,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { DebouncedInput } from '@/components/data-filter/DebouncedInput';
+import { env } from '@/common/env/EnvUtils';
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
+import { DataFilterGroup } from '@/components/data-filter/DataFilter';
+import { DataControllerProps } from '@/components/dataController/DataController';
 import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
+import { ICONS } from '@/business-apps/fin/expenses/utils/icons';
 import { useMileageRulesIntegration, EnhancedMileageRule } from '../../hooks/useMileageRulesIntegration';
 import { useExpenseSettingsIntegration } from '../../hooks/useExpenseSettingsIntegration';
 import { MileageRuleForm, MileageRuleFormData } from '../../forms/mileage-rule-form';
 import MileageRuleDetails from './MileageRuleDetails';
+import TimePeriodFilter from './filters/TimePeriodFilter';
+import { RuleCodeFilter } from './filters/RuleCodeFilter';
+import { NameFilter } from './filters/NameFilter';
+import RulePeriodFilter from './filters/RulePeriodFilter';
+import { MileageRulePeriod } from '../../types/ExpenseEnums';
 import { 
-  PiPlus, 
-  PiMagnifyingGlass, 
-  PiArrowClockwise,
-  PiCalendar,
+  PiPlus,
   PiEye,
-  PiUsers,
-  PiCar
+  PiPencil
 } from 'react-icons/pi';
-import { ContextMenu, createEditAction, createViewAction } from '../ContextMenu';
+import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
 
 // Custom toast implementation until design system provides one
 const toast = ({ title, description, variant }: { title: string; description: string; variant?: string }) => {
@@ -59,12 +74,29 @@ export interface MileageRulesListProps extends BusinessAppContextProps {
   prefixDataTestId?: string;
 }
 
+const PREFIX = 'mileage-rules';
+
 const MileageRulesList: React.FC<MileageRulesListProps> = ({
   prefixDataTestId = '',
   accessToken,
   ...context
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const isInitialMount = useRef(true);
+  
+  // Filter states
+  const [statusFilter, setStatusFilter] = useState({ active: false, inactive: false });
+  const [validFromFilter, setValidFromFilter] = useState<string | null>(null);
+  const [validToFilter, setValidToFilter] = useState<string | null>(null);
+  const [ruleCodeFilter, setRuleCodeFilter] = useState<string[]>([]);
+  const [nameFilter, setNameFilter] = useState<string[]>([]);
+  const [rulePeriodFilter, setRulePeriodFilter] = useState<Record<MileageRulePeriod, boolean>>({
+    [MileageRulePeriod.YEARLY]: false,
+    [MileageRulePeriod.TRIP]: false,
+    [MileageRulePeriod.TOTAL]: false
+  });
   
   // Modal state management
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
@@ -75,11 +107,13 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
   const [isDetailsDrawerVisible, setIsDetailsDrawerVisible] = useState(false);
   const [selectedRule, setSelectedRule] = useState<EnhancedMileageRule | null>(null);
 
-  // Modal handlers
-  const handleCreateRule = () => {
-    setIsCreateModalVisible(true);
-  };
+  // Flow icon URL
+  const flowIconUrl = useMemo(() => {
+    const base = env('NEXT_PUBLIC_BASE_URL') || '';
+    return `${base}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`;
+  }, []);
 
+  // Modal handlers
   const handleEditRule = (rule: EnhancedMileageRule) => {
     setEditingRule(rule);
     setIsEditModalVisible(true);
@@ -118,7 +152,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
         description: "Mileage rule created successfully"
       });
       setIsCreateModalVisible(false);
-      refetch();
+      refetch({});
     } catch (error) {
       console.error('Error creating rule:', error);
       toast({
@@ -139,7 +173,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       });
       setIsEditModalVisible(false);
       setEditingRule(null);
-      refetch();
+      refetch({});
     } catch (error) {
       console.error('Error updating rule:', error);
       toast({
@@ -161,9 +195,8 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
     mileageRules,
     isLoading,
     error,
-    totalCount,
-    searchMileageRules,
-    refetch
+    refetch,
+    refetchWithFilters
   } = useMileageRulesIntegration({ ...context, accessToken });
 
   // Use the API integration hook for CRUD operations
@@ -174,261 +207,448 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
 
   // Handle search with debounced effect
   useEffect(() => {
+    // Skip on initial mount
+    if (isInitialMount.current) return;
+    
     const timeoutId = setTimeout(() => {
-      if (searchTerm) {
-        searchMileageRules(searchTerm);
-      } else {
-        refetch();
-      }
+      // Convert rulePeriodFilter object to array of selected periods
+      const selectedPeriods = Object.entries(rulePeriodFilter)
+        .filter(([_, isSelected]) => isSelected)
+        .map(([period, _]) => period);
+
+      // Always call refetchWithFilters, passing search term (empty or not)
+      refetchWithFilters({
+        statusFilter,
+        validFromFilter,
+        validToFilter,
+        ruleCodeFilter,
+        nameFilter,
+        rulePeriodFilter: selectedPeriods,
+        search: search || undefined // Pass search term or undefined if empty
+      });
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, searchMileageRules, refetch]);
+  }, [search, statusFilter, validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter, refetchWithFilters]);
 
-  // Filter data based on search term (for immediate UI feedback)
-  const filteredData = useMemo(() => {
-    return mileageRules.filter(rule =>
-      rule.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      rule.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [mileageRules, searchTerm]);
-
-  // Column definitions for rates view
-  const ratesColumns = [
-    {
-      title: '',
-      key: 'actions',
-      width: '60px',
-      render: (_: any, record: EnhancedMileageRule) => (
-        <div className="gba:flex gba:justify-center">
-          <ContextMenu
-            actions={[
-              createViewAction(() => handleViewRuleDetails(record)),
-              createEditAction(() => handleEditRule(record))
-            ]}
-            triggerTestId={`${prefixDataTestId}-mileage-rule-actions-${record.id}`}
-          />
-        </div>
-      ),
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.mileageRule', 'Mileage Rule'),
-      key: 'mileageRule',
-      width: 250,
-      sorter: (a: EnhancedMileageRule, b: EnhancedMileageRule) => a.code.localeCompare(b.code),
-      render: (_, record: EnhancedMileageRule) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiCar className="gba:text-gray-400" />
-          <div>
-            <div className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600">
-              {record.code}
-            </div>
-            <div className="gba:text-gray-600 gba:text-xs">
-              {record.name}
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.period', 'Rule Period'),
-      dataIndex: 'rulePeriodLabel',
-      key: 'rulePeriod',
-      render: (periodLabel: string) => (
-        <Badge variant="default">
-          {periodLabel}
-        </Badge>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.validPeriod', 'Valid From - Valid To'),
-      dataIndex: 'validityPeriod',
-      key: 'validityPeriod',
-      render: (validityPeriod: string) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiCalendar className="gba:text-purple-500" />
-          <span className="gba:text-sm">{validityPeriod}</span>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.usageCount', 'Used in Rules'),
-      dataIndex: 'usageCount',
-      key: 'usageCount',
-      width: 120,
-      sorter: (a: EnhancedMileageRule, b: EnhancedMileageRule) => a.usageCount - b.usageCount,
-      render: (usageCount: number) => (
-        <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
-          <PiUsers className="gba:text-blue-500" size={14} />
-          <Badge variant={usageCount > 0 ? 'default' : 'secondary'}>
-            {usageCount}
-          </Badge>
-        </div>
-      )
-    },
-    {
-      title: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.columns.status', 'Status'),
-      dataIndex: 'isActive',
-      key: 'status',
-      sorter: (a: EnhancedMileageRule, b: EnhancedMileageRule) => Number(a.isActive) - Number(b.isActive),
-      render: (isActive: boolean) => (
-        <Badge variant={isActive ? 'default' : 'secondary'}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      )
+  // Trigger server-side filtering when filters change (not search - search has its own useEffect)
+  useEffect(() => {
+    // Skip on initial mount to avoid duplicate query
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      
+      // Trigger initial load with default filters
+      refetchWithFilters({
+        statusFilter,
+        validFromFilter,
+        validToFilter,
+        ruleCodeFilter,
+        nameFilter,
+        rulePeriodFilter: [],
+        search: undefined // No search on initial load
+      });
+      return;
     }
-  ];
 
-  const columns = ratesColumns;
+    // Convert rulePeriodFilter object to array of selected periods
+    const selectedPeriods = Object.entries(rulePeriodFilter)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([period, _]) => period);
 
-  const handleRefresh = () => {
-    refetch();
+    refetchWithFilters({
+      statusFilter,
+      validFromFilter,
+      validToFilter,
+      ruleCodeFilter,
+      nameFilter,
+      rulePeriodFilter: selectedPeriods,
+      search: search || undefined // Include current search term
+    });
+  }, [statusFilter, validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter]);
+
+  // No client-side filtering - data comes filtered from GraphQL
+  const filteredData = mileageRules;
+
+  // Pagination
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredData.slice(startIndex, startIndex + pageSize);
+  }, [filteredData, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(filteredData.length / pageSize);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, search, validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter]);
+
+  const resetFilters = () => {
+    setStatusFilter({ active: false, inactive: false });
+    setValidFromFilter(null);
+    setValidToFilter(null);
+    setRuleCodeFilter([]);
+    setNameFilter([]);
+    setRulePeriodFilter({
+      [MileageRulePeriod.YEARLY]: false,
+      [MileageRulePeriod.TRIP]: false,
+      [MileageRulePeriod.TOTAL]: false
+    });
   };
 
-  const handleAdd = () => {
-    handleCreateRule();
-  };
+  // Filter groups
+  const filterGroups: DataFilterGroup[] = useMemo(() => {
+    return [
+      {
+        id: 'time-period',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.timePeriod', 'Filter by Time Period'),
+        customComponent: (
+          <TimePeriodFilter
+            validFrom={validFromFilter}
+            validTo={validToFilter}
+            onValidFromChange={setValidFromFilter}
+            onValidToChange={setValidToFilter}
+            prefixDataTestId={`${PREFIX}-time-period-filter`}
+          />
+        )
+      },
+      {
+        id: 'rule-code',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.ruleCode', 'Filter by Rule Code'),
+        customComponent: (
+          <RuleCodeFilter
+            value={ruleCodeFilter}
+            onChange={setRuleCodeFilter}
+            prefixDataTestId={`${PREFIX}-rule-code-filter`}
+            {...context}
+            accessToken={accessToken}
+          />
+        )
+      },
+      {
+        id: 'name',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.name', 'Filter by Name'),
+        customComponent: (
+          <NameFilter
+            value={nameFilter}
+            onChange={setNameFilter}
+            prefixDataTestId={`${PREFIX}-name-filter`}
+            {...context}
+            accessToken={accessToken}
+          />
+        )
+      },
+      {
+        id: 'rule-period',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.rulePeriod', 'Filter by Rule Period'),
+        customComponent: (
+          <RulePeriodFilter
+            selectedPeriods={rulePeriodFilter}
+            onChange={setRulePeriodFilter}
+            prefixDataTestId={`${PREFIX}-rule-period-filter`}
+          />
+        )
+      }
+    ];
+  }, [validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter]);
 
-  if (error) {
-    return (
-      <Alert className="gba:mb-4">
-        <AlertDescription>
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div>
-              <strong>Error Loading Mileage Rules</strong>
-              <br />
-              {error}
-            </div>
-            <Button variant="outline" size="sm" onClick={handleRefresh}>
-              Retry
-            </Button>
-          </div>
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  // Data controller props
+  const dataControllerProps: DataControllerProps = {
+    listTitle: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.title', 'Mileage Rules'),
+    listAmount: filteredData.length,
+    search,
+    setSearch,
+    debounceDelay: 300,
+    filter: [],
+    setFilter: () => {},
+    filterLabelMap: {},
+    actions: (
+      <Button onClick={() => setIsCreateModalVisible(true)} data-testid={`${PREFIX}-create-button`}>
+        <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
+        {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.addRate', 'Add Rate')}
+      </Button>
+    )
+  } as any;
 
   return (
-    <div data-testid={`${prefixDataTestId}-mileage-rules-list`}>
-      {/* Header */}
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <h4 className="gba:text-lg gba:font-semibold gba:m-0 gba:text-gray-900">
-            {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.rates.title', 'Mileage Rates')}
-          </h4>
-          <Badge variant="default">{filteredData.length} items</Badge>
-        </div>
-        <div className="gba:flex gba:gap-2">
-          <Button 
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={isLoading}
-            data-testid={`${prefixDataTestId}-refresh-button`}
-          >
-            <PiArrowClockwise className="gba:mr-2 gba:h-4 gba:w-4" />
-            {getTranslationFromI18nKeyAndLabel('common.refresh', 'Refresh')}
-          </Button>
-          <Button 
-            onClick={handleCreateRule}
-            data-testid={`${prefixDataTestId}-add-button`}
-          >
-            <PiPlus className="gba:mr-2 gba:h-4 gba:w-4" />
-            {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.addRate', 'Add Rate')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="gba:mb-4">
-        <DebouncedInput
-          placeholder={getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.searchPlaceholder', 'Search rules...')}
-          value={searchTerm}
-          onChange={setSearchTerm}
-          className="gba:max-w-md"
-          data-testid={`${prefixDataTestId}-search-input`}
-        />
-      </div>
-
-      {/* Table */}
-      {isLoading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-          <div className="gba:text-gray-500">Loading mileage rules...</div>
-        </div>
-      ) : (
-        <div className="gba:w-full gba:overflow-x-auto">
-          <Table className="gba:min-w-[800px] gba:table-fixed gba:text-sm" data-testid={`${prefixDataTestId}-table`}>
-            <TableHeader>
-              <TableRow className="gba:h-10">
-                <TableHead className="gba:w-[250px] gba:py-2 gba:px-3 gba:text-xs">MILEAGE RULE</TableHead>
-                <TableHead className="gba:w-[120px] gba:py-2 gba:px-3 gba:text-xs">PERIOD</TableHead>
-                <TableHead className="gba:w-[180px] gba:py-2 gba:px-3 gba:text-xs">VALID PERIOD</TableHead>
-                <TableHead className="gba:w-[120px] gba:py-2 gba:px-3 gba:text-xs">USED IN RULES</TableHead>
-                <TableHead className="gba:w-[100px] gba:py-2 gba:px-3 gba:text-xs">STATUS</TableHead>
-                <TableHead className="gba:w-[60px] gba:py-2 gba:px-3 gba:text-xs">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredData.map((record) => (
-                <TableRow 
-                  key={record.id}
-                  className="gba:cursor-pointer hover:gba:bg-gray-50 gba:h-12"
-                  onClick={() => handleViewRuleDetails(record)}
-                  data-testid={`${prefixDataTestId}-mileage-rule-row-${record.id}`}
-                >
-                  <TableCell className="gba:py-2 gba:px-3 gba:w-[250px]">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiCar className="gba:text-gray-400" />
-                      <div>
-                        <div className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600 gba:truncate" title={record.code}>
-                          {record.code}
-                        </div>
-                        <div className="gba:text-gray-600 gba:text-xs gba:truncate" title={record.name}>
-                          {record.name}
-                        </div>
+    <div data-testid={`${PREFIX}-app`} className="gba:p-6">
+      <DataContainer
+        dataControllerProps={dataControllerProps}
+        dataFilterProps={{
+          filterGroups,
+          children: (
+            <div className="gba:w-[100%] gba:mt-auto gba:pb-3" data-testid={`${PREFIX}-reset-filters-container`}>
+              <button
+                type="button"
+                className="gba:flex gba:items-center gba:gap-2 gba:w-[100%] gba:px-3 gba:py-2 gba:border gba:rounded gba:text-sm"
+                onClick={resetFilters}
+                data-testid={`${PREFIX}-reset-filters-button`}
+              >
+                <img src={ICONS.DELETE_CIRCLE_ICON} alt="reset" className="gba:w-4 gba:h-4" />
+                {getTranslationFromI18nKeyAndLabel('common.resetFilters', 'Reset Filters')}
+              </button>
+            </div>
+          )
+        }}
+        dataBody={
+          <div className="gba:pr-6 gba:overflow-hidden" data-testid={`${PREFIX}-body`}>
+            <Card>
+              <CardContent className="gba:p-0">
+                {isLoading && (
+                  <div className="gba:flex gba:justify-center gba:p-4">
+                    <Spinner data-testid={`${PREFIX}-loading`} />
+                  </div>
+                )}
+                {error && (
+                  <div className="gba:p-4">
+                    <Alert variant="destructive" data-testid={`${PREFIX}-error`}>
+                      {error}
+                      <div className="gba:mt-2">
+                        <Button size="sm" onClick={() => refetch()} data-testid={`${PREFIX}-retry-button`}>
+                          Retry
+                        </Button>
+                      </div>
+                    </Alert>
+                  </div>
+                )}
+                {!isLoading && !error && filteredData.length === 0 && (
+                  <div className="gba:p-8 gba:text-center">
+                    <div className="gba:text-gray-500" data-testid={`${PREFIX}-empty`}>
+                      {getTranslationFromI18nKeyAndLabel('common.noDataFound', 'No data found')}
+                    </div>
+                  </div>
+                )}
+                {!isLoading && !error && filteredData.length > 0 && (
+                  <>
+                    <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-[100%]">
+                      <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[1100px] gba:w-[100%]">
+                        <TableHeader>
+                          <TableRow className="gba:border-b gba:bg-gray-50">
+                            <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap"></span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">CODE</span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">NAME</span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">RULE PERIOD</span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">VALID FROM</span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">VALID TO</span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">ORDER</span>
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {paginatedData.map((record, index) => (
+                          <TableRow 
+                            key={record.id}
+                            className="gba:border-b hover:gba:bg-gray-50 gba:cursor-pointer"
+                            onClick={() => handleViewRuleDetails(record)}
+                            data-testid={`${PREFIX}-mileage-rule-row-${record.id}`}
+                          >
+                            <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${index}`}>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="gba:w-8 gba:h-8 gba:rounded"
+                                    data-testid={`${PREFIX}-actions-button-${index}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent align="start" className="gba:p-0 gba:w-auto" onClick={(e) => e.stopPropagation()}>
+                                  <div className="gba:flex gba:flex-col">
+                                    <Button
+                                      variant="ghost"
+                                      className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]"
+                                      data-testid={`${PREFIX}-action-view-${index}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewRuleDetails(record);
+                                      }}
+                                    >
+                                      <PiEye className="gba:mr-2 gba:h-4 gba:w-4" />
+                                      {getTranslationFromI18nKeyAndLabel('common.view', 'View')}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]"
+                                      data-testid={`${PREFIX}-action-edit-${index}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditRule(record);
+                                      }}
+                                    >
+                                      <PiPencil className="gba:mr-2 gba:h-4 gba:w-4" />
+                                      {getTranslationFromI18nKeyAndLabel('common.edit', 'Edit')}
+                                    </Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${index}`}>
+                              <div className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600" title={record.code}>
+                                {record.code}
+                              </div>
+                            </TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-name-${index}`}>
+                              <span className="gba:text-sm" title={record.name}>
+                                {record.name}
+                              </span>
+                            </TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-period-${index}`}>
+                              <Badge variant="default">
+                                {record.rulePeriodLabel}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-from-${index}`}>
+                              <span className="gba:text-sm">{record.validFrom}</span>
+                            </TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-to-${index}`}>
+                              <span className="gba:text-sm">{record.validTo}</span>
+                            </TableCell>
+                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-order-${index}`}>
+                              <span className="gba:text-sm">{record.ruleOrder}</span>
+                            </TableCell>
+                          </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
+                )}
+                {/* Pagination */}
+                {filteredData.length > 0 && (
+                  <div
+                    className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4"
+                    data-testid={`${PREFIX}-pagination`}
+                  >
+                    <div className="gba:text-sm gba:text-gray-600" data-testid={`${PREFIX}-pagination-info`}>
+                      {(() => {
+                        const start = (currentPage - 1) * pageSize + 1;
+                        const end = Math.min(currentPage * pageSize, filteredData.length);
+                        return getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:absence_hub.pagination',
+                          `${start}-${end} of ${filteredData.length}`,
+                          {
+                            range0: start,
+                            range1: end,
+                            total: filteredData.length,
+                            interpolation: {
+                              escapeValue: false
+                            }
+                          }
+                        );
+                      })()}
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-4 gba:w-[100%]">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationLink
+                              aria-label="Go to previous page"
+                              size="default"
+                              className={`gba:gap-1 gba:pl-2.5 ${currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
+                              onClick={() => setCurrentPage(currentPage - 1)}
+                              data-testid={`${PREFIX}-pagination-prev`}
+                            >
+                              <CaretLeftIcon className="gba:h-4 gba:w-4" />
+                              <span>
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:acknowledge_sick_leave.previous',
+                                  'Previous'
+                                )}
+                              </span>
+                            </PaginationLink>
+                          </PaginationItem>
+                          {Array.from({ length: totalPages }, (_, i) => i + 1)
+                            .filter(
+                              page =>
+                                page === 1 ||
+                                page === totalPages ||
+                                Math.abs(page - currentPage) <= 1
+                            )
+                            .map((page, index, array) => (
+                              <React.Fragment key={page}>
+                                {index > 0 && array[index - 1] !== page - 1 && (
+                                  <PaginationItem>
+                                    <span className="gba:px-2">...</span>
+                                  </PaginationItem>
+                                )}
+                                <PaginationItem>
+                                  <PaginationLink
+                                    onClick={() => setCurrentPage(page)}
+                                    className={
+                                      page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'
+                                    }
+                                    data-testid={`${PREFIX}-pagination-page-${page}`}
+                                  >
+                                    {page}
+                                  </PaginationLink>
+                                </PaginationItem>
+                              </React.Fragment>
+                            ))}
+                          <PaginationItem>
+                            <PaginationLink
+                              aria-label="Go to next page"
+                              size="default"
+                              className={`gba:gap-1 gba:pr-2.5 ${currentPage >= totalPages ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
+                              onClick={() => setCurrentPage(currentPage + 1)}
+                              data-testid={`${PREFIX}-pagination-next`}
+                            >
+                              <span>
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
+                              </span>
+                              <CaretRightIcon className="gba:h-4 gba:w-4" />
+                            </PaginationLink>
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${PREFIX}-page-size-selector`}>
+                        <span className="gba:text-sm gba:text-gray-600">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_config_calculation_rule_list.expense_calculation_rule_filter.items_per_page',
+                            'Items per page'
+                          )}
+                        </span>
+                        <Select
+                          value={String(pageSize)}
+                          onValueChange={val => {
+                            setPageSize(Number(val));
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="gba:w-[80px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {[10, 20, 50].map(size => (
+                              <SelectItem key={size} value={String(size)} data-testid={`${PREFIX}-page-size-${size}`}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-                  </TableCell>
-                  <TableCell className="gba:py-2 gba:px-3 gba:w-[120px]">
-                    <Badge variant="default">
-                      {record.rulePeriodLabel}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="gba:py-2 gba:px-3 gba:w-[180px]">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <PiCalendar className="gba:text-purple-500" />
-                      <span className="gba:text-sm gba:truncate" title={record.validityPeriod}>{record.validityPeriod}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:py-2 gba:px-3 gba:w-[120px]">
-                    <div className="gba:flex gba:items-center gba:justify-center gba:gap-1">
-                      <PiUsers className="gba:text-blue-500" size={14} />
-                      <Badge variant={record.usageCount > 0 ? 'default' : 'secondary'}>
-                        {record.usageCount}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="gba:py-2 gba:px-3 gba:w-[100px]">
-                    <Badge variant={record.isActive ? 'default' : 'secondary'}>
-                      {record.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="gba:py-2 gba:px-3 gba:w-[60px]">
-                    <div className="gba:flex gba:justify-center">
-                      <ContextMenu
-                        actions={[
-                          createViewAction(() => handleViewRuleDetails(record)),
-                          createEditAction(() => handleEditRule(record))
-                        ]}
-                        triggerTestId={`${prefixDataTestId}-mileage-rule-actions-${record.id}`}
-                      />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        }
+      />
 
       {/* Details Drawer */}
       <DataDetailsDrawer

@@ -7,6 +7,13 @@ export interface MileageRuleQueryVariables {
   limit?: number;
   search?: string;
   orderBy?: any[];
+  // Filter parameters
+  statusFilter?: { active: boolean; inactive: boolean };
+  validFromFilter?: string | null;
+  validToFilter?: string | null;
+  ruleCodeFilter?: string[];
+  nameFilter?: string[];
+  rulePeriodFilter?: string[];
 }
 
 export interface MileageRuleDetail {
@@ -45,21 +52,99 @@ export interface MileageRuleResponse {
 }
 
 export const GET_MILEAGE_RULES = (variables: MileageRuleQueryVariables): string => {
-  const { offset = 0, limit = 20, search, orderBy = [] } = variables;
+  const { 
+    offset = 0, 
+    limit = 20, 
+    search, 
+    orderBy = [],
+    statusFilter,
+    validFromFilter,
+    validToFilter,
+    ruleCodeFilter,
+    nameFilter,
+    rulePeriodFilter
+  } = variables;
   
-  // Build where conditions
-  let whereClause = '{ isDeleted: { _eq: false }';
+  // Build where conditions with AND logic
+  const andConditions: string[] = ['isDeleted: { _eq: false }'];
   
-  // Add search conditions
+  // Add search conditions (OR logic across code, name, and rulePeriod)
   if (search && search.trim()) {
     const searchTerm = search.trim().replace(/"/g, '\\"');
-    whereClause += `, _or: [
-      { name: { _ilike: "%${searchTerm}%" } }
+    console.log('🔍 Adding search condition:', searchTerm);
+    andConditions.push(`_or: [
       { code: { _ilike: "%${searchTerm}%" } }
-    ]`;
+      { name: { _ilike: "%${searchTerm}%" } }
+      { rulePeriod: { _ilike: "%${searchTerm}%" } }
+    ]`);
+  } else {
+    console.log('⚪ No search term - empty WHERE condition for search');
   }
   
-  whereClause += ' }';
+  // Add status filter
+  if (statusFilter && (statusFilter.active || statusFilter.inactive)) {
+    const now = new Date().toISOString();
+    const statusConditions: string[] = [];
+    
+    if (statusFilter.active && statusFilter.inactive) {
+      // Both selected - no filter needed (all records)
+    } else if (statusFilter.active) {
+      // Only active
+      statusConditions.push(`_or: [
+        { activeFrom: { _is_null: true }, activeTo: { _is_null: true } }
+        { activeFrom: { _lte: "${now}" }, activeTo: { _is_null: true } }
+        { activeFrom: { _lte: "${now}" }, activeTo: { _gte: "${now}" } }
+        { activeFrom: { _is_null: true }, activeTo: { _gte: "${now}" } }
+      ]`);
+    } else if (statusFilter.inactive) {
+      // Only inactive
+      statusConditions.push(`_or: [
+        { activeFrom: { _gt: "${now}" } }
+        { activeTo: { _lt: "${now}" } }
+      ]`);
+    }
+    
+    if (statusConditions.length > 0) {
+      andConditions.push(statusConditions.join(', '));
+    }
+  }
+  
+  // Add valid from filter
+  if (validFromFilter) {
+    andConditions.push(`_or: [
+      { activeFrom: { _gte: "${validFromFilter}" } }
+      { activeFrom: { _is_null: true } }
+    ]`);
+  }
+  
+  // Add valid to filter
+  if (validToFilter) {
+    andConditions.push(`_or: [
+      { activeTo: { _lte: "${validToFilter}" } }
+      { activeTo: { _is_null: true } }
+    ]`);
+  }
+  
+  // Add rule code filter (OR logic for multiple codes)
+  if (ruleCodeFilter && ruleCodeFilter.length > 0) {
+    const codeConditions = ruleCodeFilter.map(code => `{ code: { _eq: "${code}" } }`).join(', ');
+    andConditions.push(`_or: [${codeConditions}]`);
+  }
+  
+  // Add name filter (OR logic for multiple names)
+  if (nameFilter && nameFilter.length > 0) {
+    const nameConditions = nameFilter.map(name => `{ name: { _eq: "${name.replace(/"/g, '\\"')}" } }`).join(', ');
+    andConditions.push(`_or: [${nameConditions}]`);
+  }
+  
+  // Add rule period filter (OR logic for multiple periods)
+  if (rulePeriodFilter && rulePeriodFilter.length > 0) {
+    const periodConditions = rulePeriodFilter.map(period => `{ rulePeriod: { _eq: "${period}" } }`).join(', ');
+    andConditions.push(`_or: [${periodConditions}]`);
+  }
+  
+  // Combine all conditions with AND
+  const whereClause = `{ _and: [{ ${andConditions.join(' }, { ')} }] }`;
 
   // Build order by conditions
   let orderByClause = '[{ name: ASC }]';
@@ -125,8 +210,144 @@ export const useGetMileageRulesData = (context: BusinessAppContextProps) => {
     }
   }, [graphqlClient]);
 
-  return { fetchMileageRules };
+  const fetchAllMileageRuleOptions = useCallback(async () => {
+    const query = GET_ALL_MILEAGE_RULE_OPTIONS();
+    try {
+      const result = await graphqlClient.request<MileageRuleOptionsResponse>(query);
+      return result;
+    } catch (error) {
+      console.error('Error fetching mileage rule options:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  const fetchPaginatedRuleCodes = useCallback(async (variables: {
+    limit: number;
+    offset: number;
+    search?: string;
+  }) => {
+    const query = GET_PAGINATED_RULE_CODES(variables);
+    try {
+      const result = await graphqlClient.request<PaginatedRuleCodesResponse>(query);
+      return result;
+    } catch (error) {
+      console.error('Error fetching paginated rule codes:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  const fetchPaginatedRuleNames = useCallback(async (variables: {
+    limit: number;
+    offset: number;
+    search?: string;
+  }) => {
+    const query = GET_PAGINATED_RULE_NAMES(variables);
+    try {
+      const result = await graphqlClient.request<PaginatedRuleNamesResponse>(query);
+      return result;
+    } catch (error) {
+      console.error('Error fetching paginated rule names:', error);
+      throw error;
+    }
+  }, [graphqlClient]);
+
+  return { 
+    fetchMileageRules, 
+    fetchAllMileageRuleOptions,
+    fetchPaginatedRuleCodes,
+    fetchPaginatedRuleNames
+  };
 }; 
+
+// Query to get all unique codes and names for filter options
+export const GET_ALL_MILEAGE_RULE_OPTIONS = (): string => {
+  return `
+    query GetAllMileageRuleOptions {
+      MileageRule(
+        where: { isDeleted: { _eq: false } }
+        orderBy: [{ code: ASC }]
+      ) {
+        code
+        name
+      }
+    }
+  `;
+};
+
+export interface MileageRuleOptionsResponse {
+  MileageRule: {
+    code: string;
+    name: string;
+  }[];
+}
+
+// Query to get paginated rule codes for filter
+export const GET_PAGINATED_RULE_CODES = (variables: {
+  limit: number;
+  offset: number;
+  search?: string;
+}): string => {
+  const whereConditions = ['isDeleted: { _eq: false }'];
+  
+  if (variables.search?.trim()) {
+    whereConditions.push(`code: { _ilike: "%${variables.search.trim()}%" }`);
+  }
+  
+  return `
+    query GetPaginatedRuleCodes {
+      MileageRule(
+        where: { 
+          ${whereConditions.join('\n          ')}
+        }
+        orderBy: [{ code: ASC }]
+        limit: ${variables.limit}
+        offset: ${variables.offset}
+      ) {
+        code
+      }
+    }
+  `;
+};
+
+// Query to get paginated rule names for filter
+export const GET_PAGINATED_RULE_NAMES = (variables: {
+  limit: number;
+  offset: number;
+  search?: string;
+}): string => {
+  const whereConditions = ['isDeleted: { _eq: false }'];
+  
+  if (variables.search?.trim()) {
+    whereConditions.push(`name: { _ilike: "%${variables.search.trim()}%" }`);
+  }
+  
+  return `
+    query GetPaginatedRuleNames {
+      MileageRule(
+        where: { 
+          ${whereConditions.join('\n          ')}
+        }
+        orderBy: [{ name: ASC }]
+        limit: ${variables.limit}
+        offset: ${variables.offset}
+      ) {
+        name
+      }
+    }
+  `;
+};
+
+export interface PaginatedRuleCodesResponse {
+  MileageRule: {
+    code: string;
+  }[];
+}
+
+export interface PaginatedRuleNamesResponse {
+  MileageRule: {
+    name: string;
+  }[];
+}
 
 // New interfaces for calculation rule usage
 export interface CalculationRuleUsage {
