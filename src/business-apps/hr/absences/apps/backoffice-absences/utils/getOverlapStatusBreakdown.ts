@@ -1,15 +1,9 @@
-/**
- * Server-side status breakdown aggregation util matching date/filters
- * Returns counts and total days per status to keep parity with dashboard pie.
- */
-
 export interface OverlapStatusInput {
   startIso: string
   endIso: string
   departmentId?: string | null
-  departmentName?: string | null // fallback only
-  status?: string | null // when provided, narrows to a single status
-  // Enhanced filters (optional)
+  departmentName?: string | null
+  status?: string | null
   departmentIds?: string[]
   includeNoDepartment?: boolean
   employeeIds?: string[]
@@ -40,7 +34,6 @@ export const getOverlapStatusBreakdown = async (
 
   const baseAnd: any[] = [
     { isDeleted: { _eq: false } },
-    // Overlap condition: absence starts on/before end, and ends on/after start
     { startDate: { _lte: endIso } },
     { endDate: { _gte: startIso } }
   ]
@@ -53,7 +46,6 @@ export const getOverlapStatusBreakdown = async (
     baseAnd.push({ employee: { employeePosition: { organizationalUnit: { name: { _eq: departmentName } } } } })
   }
 
-  // Enhanced department filters: multiple IDs and/or no-department
   if ((departmentIds && departmentIds.length > 0) || includeNoDepartment) {
     const deptOr: any[] = []
     if (departmentIds && departmentIds.length > 0) {
@@ -67,13 +59,10 @@ export const getOverlapStatusBreakdown = async (
     }
   }
 
-  // Employee scoping
   if (employeeIds && employeeIds.length > 0) {
     baseAnd.push({ employee: { id: { _in: employeeIds } } })
   }
 
-  // If a specific status filter is provided, we only count that status and return others as 0
-  // Use a type-safe contradiction clause to force zero results when we exclude a status
   const impossibleClause = { _and: [{ id: { _isNull: true } }, { id: { _isNull: false } }] }
   const whereApproved: any = {
     _and: [...baseAnd, ...(status && status !== 'APPROVED' ? [impossibleClause] : [{ status: { _eq: 'APPROVED' } }])]

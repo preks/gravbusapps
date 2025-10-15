@@ -37,14 +37,11 @@ interface AbsenceListTableProps {
   onPaginationChange: (page: number, newPageSize?: number) => void
 }
 
-// Helper functions
 const getColorForAbsence = (absence: EnhancedAbsence) => {
-  // First try to use the color from GraphQL
   if (absence.color) {
     return absence.color
   }
 
-  // Fallback to hardcoded colors based on group name
   const groupColors: Record<string, string> = {
     Vacation: '#10b981',
     'Sick Leave': '#ef4444',
@@ -66,7 +63,6 @@ const getEmployeeName = (absence: EnhancedAbsence) => {
   return '-'
 }
 
-// Status mapping functions now use centralized utilities
 const getTranslatedStatus = (status: string) => {
   return getAbsenceStatusLabel(status)
 }

@@ -1,35 +1,24 @@
-/**
- * Type definitions for Backoffice Absences Dashboard
- * Contains all TypeScript interfaces and types used throughout the app
- */
-
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
 
-// Time filter types
 export type TimeFilter = 'current-year' | 'quarter' | 'month' | 'everything'
 
-// Props interface for components that need time filter
 export interface DashboardDataProps extends BusinessAppContextProps {
   timeFilter?: TimeFilter
 }
 
-// Absence Details navigation types
 export interface AbsenceDetailsFilter {
   month?: string
   startDate?: string
   endDate?: string
-  status?: string // Filter by absence status (APPROVED, PENDING, etc.)
-  department?: string // Filter by department name
-  departmentId?: string // Filter by department ID (more reliable)
+  status?: string
+  department?: string
+  departmentId?: string
 }
 
-// Views and navigation types
 export type CurrentView = 'tabs' | 'absence-details'
 export type ActiveTab = 'dashboard' | 'absence-list' | 'calendar' | 'reports'
 
-// Dashboard data interfaces
 export interface DashboardData {
-  // Core metrics
   totalAbsences: number
   pendingAbsences: number
   approvedAbsences: number
@@ -38,13 +27,11 @@ export interface DashboardData {
   averageDuration: number
   approvalRate: number
 
-  // Vacation metrics
   averageVacationDays: number
   averageUsed: number
   averagePending: number
   totalVacationLiability: number
 
-  // Department statistics
   departmentStats: Array<{
     id?: string
     name: string
@@ -55,10 +42,9 @@ export interface DashboardData {
     totalRequests: number
   }>
 
-  // Monthly trends data
   monthlyData: Array<{
     month: string
-    total: number // Chart expects 'total', not 'totalRequests'
+    total: number
     uniqueEmployees: number
     avgRequestsPerEmployee: number
     avgDurationPerRequest: number
@@ -66,10 +52,8 @@ export interface DashboardData {
     typeBreakdown: Record<string, number>
   }>
 
-  // Raw data for components
   rawAbsences: Array<any>
 
-  // Chart data
   statusBreakdown: Array<{
     status: string
     totalDays: number
@@ -84,22 +68,19 @@ export interface DashboardData {
     color?: string
   }>
 
-  // Entitlements data
   entitlements: {
     averageVacationPerEmployee: number
     totalActiveEmployees: number
     averageAvailable: number
     averageUsed: number
-    totalVacationLiability: number // ✅ Add vacation liability field
-    totalVacationEntitlement: number // ✅ Add total vacation entitlement field
+    totalVacationLiability: number
+    totalVacationEntitlement: number
   }
 
-  // Loading states
   isLoading: boolean
   error: string | null
 }
 
-// Enhanced absence interface for list components
 export interface EnhancedAbsence {
   id: string
   status: string
@@ -121,7 +102,7 @@ export interface EnhancedAbsence {
       }
     }
   }
-  // Additional computed fields
+
   employeeName: string
   groupName: string
   originalGroupName: string
@@ -131,13 +112,11 @@ export interface EnhancedAbsence {
   createdAt?: string
 }
 
-// Date filter interface
 export interface DateFilters {
   startDate: string
   endDate: string
 }
 
-// Filter interfaces for DataContainer (centralized)
 export interface DataFilter {
   id: string
   label: string
@@ -154,7 +133,6 @@ export interface DataFilterGroup {
   hideSearch?: boolean
 }
 
-// Component props interfaces
 export interface TabComponentProps extends BusinessAppContextProps {
   dashboardData?: DashboardData
 }
