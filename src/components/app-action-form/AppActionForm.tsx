@@ -104,7 +104,6 @@ const FormNavigation: React.FC<FormNavigationProps> = ({
   onCancel,
   onBack,
   onNext,
-  onSubmit,
   cancelButtonText,
   backButtonText,
   nextButtonText,
@@ -192,7 +191,6 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   cancelButtonText,
   showCancelButton = true,
   submitButtonVariant = 'default',
-  businessAppContext: _businessAppContext,
   form: externalForm,
   resolver,
   'data-testid': dataTestId = 'process-dialog',
@@ -224,9 +222,11 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
         return
       }
 
+      // Set loading state immediately to disable button
+      isSubmittingRef.current = true
+      setLoading(true)
+
       try {
-        isSubmittingRef.current = true
-        setLoading(true)
         setMessage(null)
         const dataForValidation = values ?? formData
 
@@ -268,7 +268,9 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
             if (onProcessCompletion) {
               try {
                 onProcessCompletion(detail)
-              } catch (_) {}
+              } catch {
+                // Ignore errors from consumer callback
+              }
             }
             if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
               cleanup()
