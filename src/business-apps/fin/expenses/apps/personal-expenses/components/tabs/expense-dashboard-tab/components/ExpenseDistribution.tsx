@@ -25,7 +25,7 @@ export const ExpenseDistribution: React.FC<ExpenseDistributionProps> = ({ stats,
     const quarterlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly', 'Quarterly')
     const yearlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly', 'Yearly')
     const monthlyLabel = getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly', 'Monthly')
-    
+
     switch (chartView) {
       case quarterlyLabel:
         return stats?.expensesByTypeQuarter || {}
