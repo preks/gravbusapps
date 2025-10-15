@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
@@ -17,7 +17,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
     period: 'quarterly'
   })
   const { stats, isLoading, error } = useGetExpenseDashboard(props, filters)
-  const widgetCardsContainerRef = useRef<HTMLDivElement>(null)
+  const [hoveredWidgetKey, setHoveredWidgetKey] = useState<string | null>(null)
   const chartView = useMemo(() => {
     switch (filters.period) {
       case PERIOD_TYPE.YEARLY:
@@ -137,18 +137,14 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
     ]
   }, [stats])
 
-  // Apply pointer cursor only to the Unallocated Expenses card locally
-  useEffect(() => {
-    try {
-      const container = widgetCardsContainerRef.current
-      if (!container) return
-      const cards = container.querySelectorAll('div[class*="card"], div[class*="Card"]')
-      const targetIndex = dashboardWidgets.findIndex(w => w.key === 'unallocated-expenses')
-      if (targetIndex >= 0 && targetIndex < cards.length) {
-        cards[targetIndex].classList.add('gba:cursor-pointer')
-      }
-    } catch {}
-  }, [dashboardWidgets])
+  // Declaratively toggle pointer when hovering the Unallocated Expenses card
+  const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    const cardEl = target.closest('[data-widget-key]') as HTMLElement | null
+    const key = cardEl?.getAttribute('data-widget-key') || null
+    setHoveredWidgetKey(key)
+  }
+  const handleMouseLeave = () => setHoveredWidgetKey(null)
 
 
   return (
@@ -160,7 +156,12 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
         currentFilters={filters}
         data-testid="personal-expense-dashboard-filter-bar"
       />
-      <div data-testid="dashboard-statistics-section" ref={widgetCardsContainerRef}>
+      <div
+        data-testid="dashboard-statistics-section"
+        className={hoveredWidgetKey === 'unallocated-expenses' ? 'gba:cursor-pointer' : ''}
+        onMouseOver={handleMouseOver}
+        onMouseLeave={handleMouseLeave}
+      >
         <WidgetGroup
           widgets={dashboardWidgets}
           isLoading={isLoading}
