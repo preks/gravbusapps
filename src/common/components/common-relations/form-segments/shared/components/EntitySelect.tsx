@@ -1,6 +1,6 @@
 import React from 'react'
 import { Combobox, Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { Briefcase, Building2, Rocket } from 'lucide-react'
+import { Rocket } from 'lucide-react'
 
 export type EntityType = 'account' | 'contact' | 'opportunity' | 'lead' | 'investment'
 

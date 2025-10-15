@@ -14,11 +14,7 @@ import type {
   CustomerTeamPerformanceMetrics,
   CustomerActivityPerformance,
   CustomerTeamComparison,
-  CustomerPerformancePeriod,
-  CustomerPerformanceGoal,
   CustomerTeamPerformanceSummary,
-  CustomerTeamPerformanceQueryResponse,
-  CustomerActivityPerformanceQueryResponse,
   CustomerTeamPerformanceStatistics,
   CustomerTeamPerformanceLeaderboard
 } from '../types'
@@ -30,11 +26,8 @@ import {
   GET_CUSTOMER_TEAM_PERFORMANCE_COMPARISON,
   GET_CUSTOMER_ACTIVITY_PERFORMANCE_BY_EMPLOYEE,
   GET_CUSTOMER_TEAM_PERFORMANCE_SUMMARY,
-  GET_CUSTOMER_PERFORMANCE_PERIODS,
-  GET_CUSTOMER_PERFORMANCE_GOALS,
   GET_CUSTOMER_PERFORMANCE_LEADERBOARD,
   GET_CUSTOMER_TEAM_PERFORMANCE_WITH_TRENDS,
-  GET_CUSTOMER_ACTIVITIES_WITH_PERFORMANCE,
   GET_CUSTOMER_CONVERSION_FUNNEL_METRICS,
   type CustomerTeamPerformanceQueryVariables
 } from '../queries/customerTeamPerformanceQueries'
@@ -48,23 +41,10 @@ import {
 } from '../mappers/customerTeamPerformanceMappers'
 
 // Utilities
-import {
-  calculateCustomerAverageActivityScore,
-  calculateCustomerActivityScoreDistribution
-} from '../utils/customerActivityScoring'
 
-import {
-  calculateCustomerTotalRevenue,
-  calculateCustomerRevenueDistribution,
-  formatCustomerRevenue
-} from '../utils/customerRevenueCalculations'
+import { calculateCustomerRevenueDistribution, formatCustomerRevenue } from '../utils/customerRevenueCalculations'
 
-import {
-  calculateCustomerConversionFunnel,
-  calculateCustomerConversionBenchmarks
-} from '../utils/customerConversionMetrics'
-
-import { calculateCustomerMultiPeriodTrends, compareCustomerPerformanceToTeam } from '../utils/customerTrendAnalysis'
+import { calculateCustomerConversionFunnel } from '../utils/customerConversionMetrics'
 
 // Query response interfaces
 export interface CustomerTeamPerformanceMetricsQueryResponse {

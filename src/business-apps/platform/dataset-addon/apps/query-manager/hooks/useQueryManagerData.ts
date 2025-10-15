@@ -4,7 +4,6 @@ import {
   useQueryManagementClient,
   QueryDefinition,
   QueryDefinitionListParams,
-  QueryDefinitionPagedResponse,
   QueryStatus,
   QueryType,
   Services

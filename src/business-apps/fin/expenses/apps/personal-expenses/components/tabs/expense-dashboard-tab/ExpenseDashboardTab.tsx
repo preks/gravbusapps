@@ -11,9 +11,7 @@ import { formatCurrencyDisplay } from '../../../utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { PERIOD_TYPE } from '../../../constants/periodTypes'
 
-interface ExpenseDashboardTabProps extends BusinessAppContextProps {}
-
-const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
+const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
   const [filters, setFilters] = useState<{ currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }>({
     currency: undefined,
     period: 'monthly'

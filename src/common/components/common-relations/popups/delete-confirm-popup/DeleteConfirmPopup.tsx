@@ -8,7 +8,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Button,
   Spinner
 } from '@newwork/nw-design-system'
 import { AlertTriangleIcon } from 'lucide-react'

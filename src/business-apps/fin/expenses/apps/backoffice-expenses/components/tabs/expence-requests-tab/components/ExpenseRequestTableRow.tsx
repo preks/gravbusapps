@@ -37,7 +37,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
   return (
     <TableRow onClick={() => onRowClick(record)} className="gba:cursor-pointer gba:hover:bg-accent">
       <TableCell className="gba:py-4 gba:px-3">
-        {onSelectRecord && (
+        {onSelectRecord && record.status === 'BOOKED' && (
           <div className="gba:flex gba:items-center gba:justify-center">
             <Checkbox
               checked={isSelected}

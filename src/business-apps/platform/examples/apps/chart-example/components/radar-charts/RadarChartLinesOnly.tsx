@@ -13,7 +13,7 @@ import {
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { RadarChart, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
 import { CircleWavyIcon } from '@phosphor-icons/react'
 import radarChartData from '../../data/radarChartData.json'
 

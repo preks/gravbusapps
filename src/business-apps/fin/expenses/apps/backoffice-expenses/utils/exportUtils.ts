@@ -101,8 +101,9 @@ export const downloadCsv = (data: any[], columns: Array<{ key: string; title: st
 /**
  * Downloads data as Excel-compatible HTML file
  *
- * NOTE: This generates an HTML table file, not a native Excel format (.xlsx/.xls).
- * The HTML file will open in Excel but has limitations:
+ * NOTE: This generates a simple HTML table file with Excel-specific MIME type.
+ * Excel will open it directly without warnings when using .xls extension.
+ * Limitations:
  * - No formulas, pivot tables, or advanced Excel features
  * - Larger file size compared to binary Excel formats
  * - Basic styling only
@@ -110,16 +111,36 @@ export const downloadCsv = (data: any[], columns: Array<{ key: string; title: st
  * For true Excel files with advanced features, consider using a library like 'xlsx'.
  */
 export const downloadExcel = (data: any[], columns: Array<{ key: string; title: string }>, filename: string) => {
-  const headerCells = columns.map(c => `<th>${htmlEscape(c.title)}</th>`).join('')
-  const bodyRows = data
-    .map(row => {
-      const tds = columns.map(c => `<td>${htmlEscape(formatCellValue(row[c.key]))}</td>`).join('')
-      return `<tr>${tds}</tr>`
-    })
-    .join('')
+  // Use simple HTML table with BOM for Excel compatibility
+  const headerCells = columns.map(c => {
+    const escapedTitle = htmlEscape(c.title)
+    return `<th>${escapedTitle}</th>`
+  })
+  const header = `<tr>${headerCells.join('')}</tr>`
 
-  const headerHtml = `<thead><tr>${headerCells}</tr></thead>`
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8" /></head><body><table>${headerHtml}<tbody>${bodyRows}</tbody></table></body></html>`
+  const bodyRows = data.map(row => {
+    const cells = columns.map(c => {
+      const cellValue = formatCellValue(row[c.key])
+      const escapedValue = htmlEscape(cellValue)
+      return `<td>${escapedValue}</td>`
+    })
+    return `<tr>${cells.join('')}</tr>`
+  })
+  const rows = bodyRows.join('\n')
+
+  // Add UTF-8 BOM and meta tag for proper character encoding
+  const html = `\uFEFF<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+</head>
+<body>
+<table border="1">
+<thead>${header}</thead>
+<tbody>${rows}</tbody>
+</table>
+</body>
+</html>`
 
   const blob = new Blob([html], { type: 'application/vnd.ms-excel' })
 

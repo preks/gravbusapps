@@ -117,6 +117,15 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
     [currentDate, currentYear]
   )
 
+  // Get selected department name from ID
+  const selectedDepartmentName = useMemo(() => {
+    if (!currentFilters.department) {
+      return getTranslationFromI18nKeyAndLabel('filters.all', 'All')
+    }
+    const dept = filterData.organizationalUnits.find(ou => ou.id === currentFilters.department)
+    return dept?.name || currentFilters.department
+  }, [currentFilters.department, filterData.organizationalUnits])
+
   // Combine catalog data with financial values
   const categories = useMemo(() => {
     return expenseRequestType?.map(category => {
@@ -216,7 +225,7 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
         <span className="gba:font-medium">
           {getTranslationFromI18nKeyAndLabel('filters.department', 'Department')}:
         </span>{' '}
-        {currentFilters.department || getTranslationFromI18nKeyAndLabel('filters.all', 'All')}
+        {selectedDepartmentName}
         {' · '}
         <span className="gba:font-medium">
           {getTranslationFromI18nKeyAndLabel('common.lastUpdated', 'Last updated')}:

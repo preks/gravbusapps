@@ -12,14 +12,14 @@ import {
   AlertDescription,
   Button
 } from '@newwork/nw-design-system'
-import { salesAreas, categoryLabels, salesQuickActions } from './utils/salesAreas'
+import { salesAreas, salesQuickActions } from './utils/salesAreas'
 import { SalesArea, SalesQuickAction } from './types'
 import { useSalesStats } from './hooks/useSalesStats'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import * as RemixIcons from '@remixicon/react'
 import { MODULE_COLORS } from '@/common/constants/ui'
 // Import PhosphorIcons for LauncherLayout
-import { ShoppingCart, Package, ChartBar, TreeStructure, Users, Briefcase } from '@phosphor-icons/react'
+import { ShoppingCart } from '@phosphor-icons/react'
 
 interface SalesLauncherProps extends BusinessAppContextProps {}
 const moduleColor = MODULE_COLORS.ERP

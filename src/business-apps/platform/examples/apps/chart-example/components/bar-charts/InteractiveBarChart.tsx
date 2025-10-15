@@ -11,7 +11,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { BarChart, Bar, XAxis, CartesianGrid } from 'recharts'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import barChartData from '../../data/barChartData.json'
 

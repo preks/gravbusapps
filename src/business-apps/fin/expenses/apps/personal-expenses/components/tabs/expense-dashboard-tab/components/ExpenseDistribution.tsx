@@ -1,14 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, CardHeader, CardContent, CardTitle } from '@newwork/nw-design-system'
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
-} from '@newwork/nw-design-system'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell } from 'recharts'
-import { formatCurrency } from '../utils/formatters'
 import { DashboardStats } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 

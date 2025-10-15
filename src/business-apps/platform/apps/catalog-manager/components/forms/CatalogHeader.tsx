@@ -6,13 +6,11 @@ import {
   CardTitle,
   Input,
   Label,
-  Textarea,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
   Separator
 } from '@newwork/nw-design-system'
 import { Calendar, User, Settings, Globe, Info, Hash, Tag } from 'lucide-react'
