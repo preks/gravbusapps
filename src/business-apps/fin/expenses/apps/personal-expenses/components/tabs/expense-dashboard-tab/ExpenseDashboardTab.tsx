@@ -40,7 +40,9 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
       try {
         // Persist filter for items tab to pick up
         sessionStorage.setItem('expenseItemsFilter', 'created')
-      } catch {}
+      } catch (err) {
+        console.warn('Failed to persist expenseItemsFilter to sessionStorage', err)
+      }
       const url = buildPlatformUrl('/platform/fin/expenses/unallocated-expense-items', {
         status: 'CREATED'
       })
