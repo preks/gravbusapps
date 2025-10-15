@@ -14,8 +14,8 @@ export interface EmployeeAbsence {
   status?: string
   type: {
     value: string
+    objectValue?: any
   }
-  objectValue: {}
 }
 
 export function useGetEmployeeAbsences({ employeeId, accessToken }: UseGetEmployeeAbsencesProps) {

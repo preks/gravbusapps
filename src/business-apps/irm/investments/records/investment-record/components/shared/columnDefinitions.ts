@@ -1,0 +1,270 @@
+// Investment Report Column Definitions Factory
+import React from 'react'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import {
+  getInvestmentTypeFieldDefinition,
+  getLiquidFundTypeFieldDefinition,
+  formatFieldValue
+} from '../../utils/investmentHeaderConfig'
+import { getValueByPath } from '@/common/utils/objectUtils'
+import {
+  FormFieldsDefinition,
+  FormFieldDefinition
+} from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
+
+export interface ColumnDefinition {
+  key: string
+  title: string
+  width?: string
+  sortable?: boolean
+  render: (record: any) => React.ReactElement
+}
+
+/**
+ * Creates investment report columns using dynamic catalog-based field definitions
+ * REPORTS CONTEXT: We're dealing with InvestmentReport entities from report tables
+ */
+export const createInvestmentReportColumns = (
+  investmentTypeCode: string,
+  liquidFundTypeCode: string | undefined,
+  catalogData: any,
+  accessToken?: string,
+  mainInvestment?: any,
+  mainTypeSpecificData?: any
+): ColumnDefinition[] => {
+  const columns: ColumnDefinition[] = []
+
+  // Always add date as first column
+  columns.push({
+    key: 'date',
+    title: getTranslationFromI18nKeyAndLabel('crm.investments.reports.columns.date', 'Date'),
+    sortable: true,
+    render: (record: any) => {
+      const date = record.date
+      if (!date) return React.createElement('span', null, '-')
+      try {
+        const formatted = formatDate(date, 'date.short')
+        if (formatted && !formatted.includes('T')) {
+          return React.createElement('span', null, formatted)
+        }
+        const dateObj = new Date(date)
+        if (isNaN(dateObj.getTime())) return React.createElement('span', null, '-')
+        return React.createElement(
+          'span',
+          null,
+          dateObj.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
+        )
+      } catch {
+        return React.createElement('span', null, '-')
+      }
+    }
+  })
+
+  // Get form field definition using the correct logic based on investment group
+  let formFieldsDefinition: FormFieldsDefinition | null = null
+
+  // Determine investment group from either mainInvestment or investmentTypeCode
+  const investmentGroup = mainInvestment?.investmentGroup?.code
+
+  // Apply the correct rules:
+  // 1) For equity, check the group catalog's object value
+  // 2) For real estate, check the type
+  // 3) For liquid funds, check the investmentliquidfundtype
+
+  if (investmentGroup === 'EQUITY') {
+    // RULE 1: For equity, check the EQUITY group's object value
+    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
+  } else if (investmentGroup === 'LIQUID_FUND' && liquidFundTypeCode) {
+    // RULE 3: For liquid funds, check the investmentliquidfundtype
+    formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
+  } else if (investmentGroup === 'REAL_ESTATE') {
+    // RULE 2: For real estate, check the TYPE
+    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
+  } else {
+    // Fallback: Use investment type
+    if (liquidFundTypeCode) {
+      formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
+    }
+    if (!formFieldsDefinition) {
+      formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
+    }
+  }
+
+  if (formFieldsDefinition?.formFields) {
+    // Get all fields and sort by display order (same as header)
+    const allFields: FormFieldDefinition[] = []
+    formFieldsDefinition.formFields.forEach(group => {
+      allFields.push(...group.fields)
+    })
+
+    allFields.sort((a, b) => {
+      const orderA = parseFloat(a.displayOrder || '999')
+      const orderB = parseFloat(b.displayOrder || '999')
+      return orderA - orderB
+    })
+
+    // Transform each field to a table column
+    allFields.forEach(field => {
+      columns.push({
+        key: field.property.replace(/\./g, '_'),
+        title: field.label,
+        width: getReportColumnWidth(field.type),
+        sortable: isReportFieldSortable(field.type),
+        render: (record: any) => {
+          // REPORTS DATA STRUCTURE: record is InvestmentReport from report tables
+          // Fields are stored in type-specific nested arrays (realEstateInvestmentReport, etc.)
+
+          let value
+
+          if (field.property.startsWith('investment.')) {
+            // INVESTMENT FIELDS: First try the nested investment object path from GraphQL
+            value = getValueByPath(record, field.property)
+
+            // If not found, try without the investment prefix (for fields moved to report level)
+            if (value === undefined) {
+              const fieldName = field.property.replace('investment.', '')
+              value = getValueByPath(record, fieldName)
+            }
+
+            // If still not found, fallback to main investment data source (for individual reports context)
+            if (value === undefined && mainInvestment) {
+              const fieldName = field.property.replace('investment.', '')
+              value = getValueByPath(mainInvestment, fieldName)
+
+              if (value === undefined && mainTypeSpecificData) {
+                value = getValueByPath(mainTypeSpecificData, fieldName)
+              }
+            }
+          } else if (field.property.startsWith('equityInvestment.')) {
+            // EQUITY INVESTMENT FIELDS: Map to correct paths in equityInvestmentReport
+            const fieldName = field.property.replace('equityInvestment.', '')
+
+            // First try direct equityInvestmentReport fields (marketValue, ebitdaAmount, etc.)
+            value = getValueByPath(record.equityInvestmentReport, fieldName)
+
+            // If not found, try nested equityInvestment fields (foundationDate, etc.)
+            if (value === undefined) {
+              value = getValueByPath(record.equityInvestmentReport?.equityInvestment, fieldName)
+            }
+
+            // Fallback to mainTypeSpecificData for individual reports context
+            if (value === undefined && mainTypeSpecificData) {
+              value = getValueByPath(mainTypeSpecificData, fieldName)
+            }
+          } else if (field.property.startsWith('liquidFundInvestment.')) {
+            // LIQUID FUND INVESTMENT FIELDS: Map to correct paths in liquidFundInvestmentReport
+            const fieldName = field.property.replace('liquidFundInvestment.', '')
+
+            // First try direct liquidFundInvestmentReport fields
+            value = getValueByPath(record.liquidFundInvestmentReport, fieldName)
+
+            // If not found, try nested liquidFundInvestment fields
+            if (value === undefined) {
+              value = getValueByPath(record.liquidFundInvestmentReport?.liquidFundInvestment, fieldName)
+            }
+
+            // Fallback to mainTypeSpecificData for individual reports context
+            if (value === undefined && mainTypeSpecificData) {
+              value = getValueByPath(mainTypeSpecificData, fieldName)
+            }
+          } else {
+            // For other paths, try multiple locations
+            value =
+              getValueByPath(record, field.property) ||
+              getValueByPath(record.investment, field.property) ||
+              getValueByPath(record.realEstateInvestmentReport, field.property) ||
+              getValueByPath(record.liquidFundInvestmentReport, field.property) ||
+              getValueByPath(record.equityInvestmentReport, field.property)
+          }
+
+          const currencyCode =
+            record.currency?.code?.split(':').pop() || record.investment?.currency?.code?.split(':').pop() // InvestmentReport.currency (primary) // Investment.currency (fallback)
+
+          // Special handling: Interest rate fields should always be formatted as percentages
+          // even if catalog incorrectly defines them as AMOUNT
+          let effectiveFieldType = field.type
+          if (field.property.toLowerCase().includes('interestrate')) {
+            effectiveFieldType = 'PERCENTAGE'
+          }
+
+          const formattedValue = formatFieldValue(value, effectiveFieldType, currencyCode)
+
+          return React.createElement(
+            'span',
+            { className: getReportColumnClassName(effectiveFieldType) },
+            formattedValue
+          )
+        }
+      })
+    })
+  }
+
+  // Add actions column
+  if (accessToken) {
+    columns.push({
+      key: 'actions',
+      title: 'ACTIONS',
+      width: '60px',
+      render: (record: any) =>
+        React.createElement(
+          'div',
+          { className: 'gba:flex gba:justify-start gba:gap-2' },
+          React.createElement(AppActionButton, {
+            'data-testid': `investment-reports-update-button-${record.id}`,
+            size: 'icon' as const,
+            contextsArray: [FlowContextName.investmentEntity],
+            externalContextData: { entityId: record.id },
+            prefixDataTestId: 'investment-reports-update',
+            accessToken: accessToken,
+            emptyStateBehavior: 'enable' as const,
+            deferMainContextRequestsUntilClick: true,
+            onClick: (e: React.MouseEvent) => e.stopPropagation()
+          })
+        )
+    })
+  }
+
+  return columns
+}
+
+/**
+ * Helper functions for report column configuration
+ */
+const getReportColumnWidth = (fieldType: string): string => {
+  switch (fieldType) {
+    case 'DATE':
+    case 'DATETIME':
+      return '120px'
+    case 'AMOUNT':
+      return '140px'
+    case 'PERCENTAGE':
+    case 'NUMBER':
+      return '100px'
+    default:
+      return 'auto'
+  }
+}
+
+const getReportColumnClassName = (fieldType: string): string => {
+  switch (fieldType) {
+    case 'AMOUNT':
+    case 'PERCENTAGE':
+    case 'NUMBER':
+      return 'gba:text-right'
+    case 'DATE':
+    case 'DATETIME':
+      return 'gba:text-center'
+    default:
+      return 'gba:text-left'
+  }
+}
+
+const isReportFieldSortable = (fieldType: string): boolean => {
+  return ['DATE', 'DATETIME', 'AMOUNT', 'PERCENTAGE', 'NUMBER', 'TEXT'].includes(fieldType)
+}

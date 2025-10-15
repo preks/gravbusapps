@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { SalesOrder, KPIData, SalesOrderFilters, PaginationParams } from '../types'
-import dayjs from 'dayjs'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { getSalesOrders, getSalesOrderKPIs, getCustomers, getSalespersons } from '../queries/salesOrderQueries'
 import {

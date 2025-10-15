@@ -46,8 +46,9 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
           console.log('Navigate to personal analytics - to be implemented')
           break
         case 'navigate-team-analytics':
-          // Navigate to team analytics
-          console.log('Navigate to team analytics - to be implemented')
+          // Navigate to team analytics (manager expenses with analytics view)
+          const teamAnalyticsUrl = buildPlatformUrl('/platform/fin/expenses/manager-expenses', { view: 'analytics' })
+          navigateTo(teamAnalyticsUrl)
           break
         case 'navigate-advanced-analytics':
           // Navigate to advanced finance analytics

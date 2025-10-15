@@ -14,6 +14,10 @@ import {
 } from '@newwork/nw-design-system'
 import { PiCalendar, PiUser, PiArrowUp, PiArrowDown } from 'react-icons/pi'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '../../../../../../../../../common/utils/windowUtils'
+import {
+  getAbsenceStatusLabel,
+  getAbsenceStatusBadgeVariant
+} from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import { EnhancedAbsence } from '../../../../types'
 
 const DATA_TEST_ID_PREFIX = 'BackofficeAbsenceList'
@@ -33,14 +37,11 @@ interface AbsenceListTableProps {
   onPaginationChange: (page: number, newPageSize?: number) => void
 }
 
-// Helper functions
 const getColorForAbsence = (absence: EnhancedAbsence) => {
-  // First try to use the color from GraphQL
   if (absence.color) {
     return absence.color
   }
 
-  // Fallback to hardcoded colors based on group name
   const groupColors: Record<string, string> = {
     Vacation: '#10b981',
     'Sick Leave': '#ef4444',
@@ -63,33 +64,11 @@ const getEmployeeName = (absence: EnhancedAbsence) => {
 }
 
 const getTranslatedStatus = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PENDING':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')
-    case 'APPROVED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')
-    case 'REJECTED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')
-    case 'CANCELLED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.cancelled', 'Cancelled')
-    default:
-      return status || '-'
-  }
+  return getAbsenceStatusLabel(status)
 }
 
 const getStatusBadgeVariant = (status: string) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'success' as const
-    case 'PENDING':
-      return 'warning' as const
-    case 'REJECTED':
-      return 'destructive' as const
-    case 'CANCELLED':
-      return 'secondary' as const
-    default:
-      return 'outline' as const
-  }
+  return getAbsenceStatusBadgeVariant(status)
 }
 
 const renderSortIcon = (field: string, sortField: string, sortOrder: 'ASC' | 'DESC' | '') => {

@@ -2,18 +2,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type {
-  BaseInvestment,
-  Investment,
-  BaseEquityInvestment,
-  EquityInvestment,
-  BaseRealEstateInvestment,
-  RealEstateInvestment,
-  BaseLiquidFundInvestment,
-  LiquidFundInvestment,
-  BaseInvestmentDocument,
-  InvestmentDocument
-} from '../types'
+import type { BaseInvestment, Investment, BaseInvestmentDocument } from '../types'
 
 // Interface for investment by ID data
 export interface InvestmentByIdData {
@@ -29,13 +18,7 @@ import {
 } from '../queries'
 
 // Use the mapper functions
-import {
-  toInvestment,
-  toEquityInvestment,
-  toRealEstateInvestment,
-  toLiquidFundInvestment,
-  toInvestmentDocument
-} from '../mappers'
+import { toInvestment, toInvestmentDocument } from '../mappers'
 
 // Note: InvestmentQueryVariables is imported from queries
 

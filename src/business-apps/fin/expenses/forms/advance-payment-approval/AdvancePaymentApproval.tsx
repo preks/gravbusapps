@@ -13,6 +13,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AdvancePaymentApprovalProps, AdvancePaymentData } from './types'
 import { useGetAdvancePaymentForApproval } from './queries'
+import { formatCurrency } from '../approve-expense-plan/utils/formatters'
 
 const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessAppContextProps> = ({
   paymentId,
@@ -28,6 +29,7 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showWarning, setShowWarning] = useState(false)
   const [extractedPaymentId, setExtractedPaymentId] = useState<string | null>(null)
 
   const { fetchAdvancePaymentData } = useGetAdvancePaymentForApproval(accessToken)
@@ -105,6 +107,11 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
       return
     }
 
+    if (!message.trim()) {
+      setShowWarning(true)
+      return
+    }
+
     setIsSubmitting(true)
     try {
       const today = new Date().toISOString()
@@ -133,13 +140,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const formatCurrency = (amount: number, currencyCode: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currencyCode || 'EUR'
-    }).format(amount)
   }
 
   if (!extractedPaymentId || !accessToken) {
@@ -215,40 +215,30 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
 
   return (
     <div className="gba:border-0" data-testid="advance-payment-approval-container">
-      <div className="gba:shadow-none gba:bg-background gba:rounded-lg">
+      <div className="gba:shadow-none gba:rounded-lg">
         <div className="gba:p-0">
           {/* Header Section */}
-          <div className="gba:text-center gba:mb-6 gba:px-6 gba:pt-8" data-testid="advance-payment-approval-header">
+          <div className="gba:text-center gba:mb-2 gba:px-2 gba:pt-8" data-testid="advance-payment-approval-header">
             <h1
-              className="gba:text-2xl gba:font-semibold gba:m-0 gba:text-foreground gba:mb-2"
+              className="gba:text-2xl gba:font-semibold gba:m-0 gba:text-foreground gba:mb-1"
               data-testid="advance-payment-approval-title"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_advance_payment.title', 'Approve Advance Payment')}
             </h1>
           </div>
 
-          <Separator className="gba:h-px gba:bg-secondary gba:mb-8" />
-
-          {/* Amount Display */}
-          <div className="gba:flex gba:justify-between gba:items-center gba:px-6 gba:py-6 gba:border-b gba:border-border gba:mb-8">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_advance_payment.title', 'Advance Payment')}
-            </h3>
-            <div className="gba:text-2xl gba:font-bold gba:text-foreground">
-              {formatCurrency(amount, currency.code)}
-            </div>
-          </div>
+          <Separator className="gba:h-px gba:bg-secondary gba:mb-2" />
 
           {/* Expense Plan and Employee Info */}
-          <div className="gba:flex gba:flex-row gba:gap-8 gba:mb-8">
-            <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:p-6">
-              <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
+          <div className="gba:flex gba:flex-row gba:gap-6 gba:mb-1">
+            <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:pt-4 gba:p-6">
+              <h3 className="gba:text-base gba:font-semibold gba:mb-2 gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:create_expense_request.expense_request_container.current_expense_plan_label',
                   'Expense plan'
                 )}
               </h3>
-              <div className="gba:space-y-4 gba:text-sm">
+              <div className="gba:space-y-0.5 gba:text-sm">
                 <div className="gba:flex gba:justify-between gba:items-center">
                   <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:approve_advance_payment.id', 'Id')}:
@@ -293,7 +283,7 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
               </div>
             </div>
 
-            <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:p-6">
+            <div className="gba:flex-1 gba:bg-card gba:rounded-lg gba:pt-4 gba:p-6">
               <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
               </h3>
@@ -323,70 +313,100 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
           </div>
 
           {/* Notes Section */}
-          <div className="gba:mb-8 gba:bg-card gba:rounded-lg gba:p-6">
-            <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.notes_area_label', 'Notes')}
-            </h3>
-            <div className="gba:bg-gray-100 gba:p-4 gba:rounded-md gba:min-h-24 gba:text-sm gba:text-gray-700">
-              {description ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:approve_expense_request.notes_area_placeholder',
-                  'No notes'
+          <div className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" data-testid="approve-expense-plan-notes">
+            <div className="gba:text-sm gba:font-semibold gba:mb-1 gba:text-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.notes_area_label', 'Notes')}
+            </div>
+            <div className="gba:bg-muted gba:rounded-sm">
+              <Textarea
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:approve_expense_plan.notes_area_placeholder',
+                  'No Notes'
                 )}
+                value={description || ''}
+                disabled
+                className="gba:!bg-transparent gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none gba:w-full"
+                data-testid="approve-expense-plan-notes-textarea"
+              />
             </div>
           </div>
 
           {/* Payment Details Section */}
-          <div className="gba:mb-8 gba:bg-card gba:rounded-lg gba:p-6">
-            <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
+          <div>
+            <h3 className="gba:bg-gray-100 gba:p-3 gba:rounded-sm gba:mb-4 gba:w-full gba:text-foreground gba:text-sm gba:font-semibold gba:pl-6">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_request.advance_payment', 'Advance Payment')}
             </h3>
-            <div className="gba:space-y-4 gba:text-sm">
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                    'Payment Method'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words gba:flex-1">
-                  {paymentMethod}
-                </span>
-              </div>
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_overview.side_bar.request_cost_center',
-                    'Cost Center'
-                  )}
-                  :
-                </span>
-                <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words gba:flex-1">
-                  {costCenter.name}
-                </span>
+            <div className="gba:mb-8 gba:bg-card gba:rounded-lg gba:pt-1 gba:p-6">
+              <div className="gba:space-y-4 gba:text-sm">
+                <div className="gba:flex gba:justify-between gba:items-center">
+                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+                      'Payment Method'
+                    )}
+                    :
+                  </span>
+                  <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words gba:flex-1">
+                    {paymentMethod}
+                  </span>
+                </div>
+                <div className="gba:flex gba:justify-between gba:items-center">
+                  <span className="gba:font-medium gba:text-muted-foreground gba:min-w-0 gba:flex-shrink-0">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_request_overview.side_bar.request_cost_center',
+                      'Cost Center'
+                    )}
+                    :
+                  </span>
+                  <span className="gba:text-foreground gba:ml-4 gba:text-right gba:break-words gba:flex-1">
+                    {costCenter.name}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
+          <Separator className="gba:!h-4 gba:bg-muted gba:mb-2" />
+          {/* Amount Display */}
+          <div className="gba:flex gba:justify-between gba:items-center gba:px-6 gba:py-6 gba:border-b gba:border-border gba:mb-8">
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.advance_payment', 'Advance Payment')}
+            </h3>
+            <div className="gba:text-2xl gba:font-bold gba:text-foreground">
+              {formatCurrency(amount, currency.code)}
+            </div>
+          </div>
           {/* Message Section */}
-          <div className="gba:px-6 gba:mb-8">
-            <h3 className="gba:text-base gba:font-semibold gba:mb-4 gba:text-foreground">
+          <div className="gba:mb-4 gba:p-2 gba:rounded-sm gba:w-full" data-testid="approve-expense-plan-message">
+            <div className="gba:text-md gba:font-semibold gba:mb-1 gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:employee_list.search_employee_list.recent_employees_table.message',
                 'Message'
               )}
-            </h3>
-            <Textarea
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:approve_expense_plan.comment_area',
-                'Write Message...'
-              )}
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              className="gba:min-h-24 gba:resize-y gba:w-full"
-              data-testid="advance-payment-message-input"
-            />
+            </div>
+            <div className="gba:bg-muted gba:rounded-sm">
+              <Textarea
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:approve_expense_plan.comment_area',
+                  'Write Message...'
+                )}
+                value={message}
+                onChange={e => {
+                  setMessage(e.target.value)
+                  if (showWarning) setShowWarning(false)
+                }}
+                className="gba:!bg-transparent gba:border-none gba:resize-none gba:p-2 gba:text-xs gba:rounded-none gba:w-full"
+                data-testid="advance-payment-message-input"
+              />
+            </div>
+            {showWarning && (
+              <div className="gba:text-destructive gba:text-sm gba:mt-2" data-testid="advance-payment-message-warning">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:approve_expense_plan.warning_message',
+                  'Please add a message!'
+                )}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}

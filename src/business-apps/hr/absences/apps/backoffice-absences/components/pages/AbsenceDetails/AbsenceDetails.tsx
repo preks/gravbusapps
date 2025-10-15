@@ -3,22 +3,7 @@ import dayjs from 'dayjs'
 import { PiArrowLeft, PiCalendarBlank } from 'react-icons/pi'
 import { Button, Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-
-const getStatusTranslation = (status: string): string => {
-  const statusMap: Record<string, string> = {
-    APPROVED: 'lowcoder:absence_calendar.approved',
-    PENDING: 'lowcoder:absence_calendar.pending',
-    REJECTED: 'lowcoder:absence_calendar.rejected',
-    CANCELLED: 'lowcoder:absence_calendar.cancelled'
-  }
-
-  const translationKey = statusMap[status]
-  if (translationKey) {
-    return getTranslationFromI18nKeyAndLabel(translationKey, status)
-  }
-
-  return status
-}
+import { getAbsenceStatusLabel } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 const formatDateForLocale = (dateString: string): string => {
   const userLocale = getCurrentActiveUserLocale()
@@ -210,7 +195,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
           status: singleStatus
         })
         setServerStatusBreakdown(statusRes)
-      } catch (e) {
+      } catch {
         setServerTotalRequests(null)
         setServerTotalDays(null)
         setServerUniqueEmployees(null)
@@ -1115,7 +1100,7 @@ const AbsenceDetails: React.FC<AbsenceDetailsProps> = ({
                   <div className="gba:flex gba:flex-wrap gba:gap-2 gba:text-xs">
                     {Object.entries(dynamicAnalysis.statusBreakdown).map(([status, count]) => (
                       <div key={status} className="gba:text-gray-600 gba:bg-gray-50 gba:px-2 gba:py-1 gba:rounded">
-                        <span className="gba:font-medium">{getStatusTranslation(status)}:</span> {count as number}
+                        <span className="gba:font-medium">{getAbsenceStatusLabel(status)}:</span> {count as number}
                       </div>
                     ))}
                   </div>

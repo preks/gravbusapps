@@ -6,6 +6,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useExpenseRequests } from '../../../hooks/useExpenseRequests'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_EXPENSE_REQUESTS } from '../../../queries'
+import { ExpenseRequestQueryData, ExpenseData } from '../../../types'
 import {
   Table,
   TableHeader,
@@ -17,20 +20,29 @@ import {
   Spinner,
   Button,
   Checkbox,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Separator,
+  Badge,
   Card,
-  CardContent,
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle
+  CardContent
 } from '@newwork/nw-design-system'
+import { toast } from 'sonner'
+import { PiArrowUp, PiArrowDown, PiDownload, PiFileXls } from 'react-icons/pi'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ExpenseData } from '../../../types'
-import { getExpenseRequestStatusDisplay } from '../../../utils/utils'
+import { getTranslationFromI18nKeyAndLabel, formatNumberFunction } from '@/common/utils/windowUtils'
+import { formatDateLocalized } from '../../../utils/dateUtils'
+import { formatCurrency } from '../../../utils/currencyUtils'
+import { DatePicker } from 'antd'
+import dayjs from 'dayjs'
+import { useFilterData, type OrganizationalUnit, type Currency } from '../../../hooks/useFilterData'
+import { getExpenseRequestStatusDisplay, ExpenseStatus } from '../../../utils/utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import ExpenseRequestDetailsBackoffice from './ExpenseRequestDetailsBackoffice'
+import { downloadCsv, downloadExcel, buildFilename } from '../../../utils/exportUtils'
 
 import {
   ExpenseRequestPdfModal,
@@ -47,13 +59,24 @@ import {
   useExpenseRequestTransfer
 } from './hooks'
 
+interface FilterData {
+  organizationalUnits: OrganizationalUnit[]
+  currencies: Currency[]
+  mostUsedCurrency: string | null
+  loading: boolean
+  error: Error | null
+  refetch: () => Promise<void>
+}
+
 interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   search?: string
   onSearchChange?: (search: string) => void
+  isActive?: boolean // ⚡ PERFORMANCE: Only fetch data when tab is active
+  filterData?: FilterData // ⚡ PERFORMANCE: Accept shared filter data from parent
 }
 
 const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
-  const { search, onSearchChange, accessToken } = props
+  const { search, onSearchChange, accessToken, isActive = true, filterData: propsFilterData } = props
 
   const contextProps = useMemo(
     () => ({
@@ -63,7 +86,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   )
 
   const [initialParams] = useState(() => {
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     return {
       search: urlParams.get('search') || '',
       page: parseInt(urlParams.get('page') || '1', 10),
@@ -84,54 +107,41 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setSelectedRowKeys([])
   }, [])
 
-  const updateURLParams = useCallback(
-    (params: { search?: string; page?: number; pageSize?: number; status?: string; department?: string }) => {
-      const newSearchParams = new URLSearchParams(window.location.search)
-
-      if (params.search !== undefined) {
-        if (params.search) {
-          newSearchParams.set('search', params.search)
+  // Helper to set or delete URL parameter (reduces cognitive complexity)
+  const setOrDeleteParam = useCallback(
+    (searchParams: URLSearchParams, key: string, value: any, shouldKeep: boolean) => {
+      if (value !== undefined) {
+        if (shouldKeep) {
+          searchParams.set(key, String(value))
         } else {
-          newSearchParams.delete('search')
+          searchParams.delete(key)
         }
       }
-
-      if (params.page !== undefined) {
-        if (params.page > 1) {
-          newSearchParams.set('page', params.page.toString())
-        } else {
-          newSearchParams.delete('page')
-        }
-      }
-
-      if (params.pageSize !== undefined) {
-        if (params.pageSize !== 20) {
-          newSearchParams.set('pageSize', params.pageSize.toString())
-        } else {
-          newSearchParams.delete('pageSize')
-        }
-      }
-
-      if (params.status !== undefined) {
-        if (params.status) {
-          newSearchParams.set('status', params.status)
-        } else {
-          newSearchParams.delete('status')
-        }
-      }
-
-      if (params.department !== undefined) {
-        if (params.department) {
-          newSearchParams.set('department', params.department)
-        } else {
-          newSearchParams.delete('department')
-        }
-      }
-
-      const newURL = `${window.location.pathname}${newSearchParams.toString() ? `?${newSearchParams.toString()}` : ''}`
-      window.history.replaceState({}, '', newURL)
     },
     []
+  )
+
+  const updateURLParams = useCallback(
+    (params: { search?: string; page?: number; pageSize?: number; status?: string; department?: string }) => {
+      const newSearchParams = new URLSearchParams(globalThis.location.search)
+
+      setOrDeleteParam(newSearchParams, 'search', params.search, !!params.search)
+      setOrDeleteParam(newSearchParams, 'page', params.page, params.page !== undefined && params.page > 1)
+      setOrDeleteParam(
+        newSearchParams,
+        'pageSize',
+        params.pageSize,
+        params.pageSize !== undefined && params.pageSize !== 20
+      )
+      setOrDeleteParam(newSearchParams, 'status', params.status, !!params.status)
+      setOrDeleteParam(newSearchParams, 'department', params.department, !!params.department)
+
+      const queryString = newSearchParams.toString()
+      const separator = queryString ? '?' : ''
+      const newURL = `${globalThis.location.pathname}${separator}${queryString}`
+      globalThis.history.replaceState({}, '', newURL)
+    },
+    [setOrDeleteParam]
   )
 
   const {
@@ -143,15 +153,20 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     pageSize,
     fetchData,
     searchEmployees,
-    searchStatuses,
+    sorting,
+    updateSorting,
     handleEmployeeFilter,
     handleStatusFilter,
     handleAmountFilter,
+    handleDepartmentFilter,
+    handleCurrencyFilter,
+    handleStartDateRangeFilter,
+    handleEndDateRangeFilter,
     handleTableChange,
     handleSearch,
     amountMinFilter,
     amountMaxFilter
-  } = useExpenseRequests(contextProps)
+  } = useExpenseRequests(contextProps, isActive)
 
   const { isPdfModalVisible, pdfUrl, pdfLoading, pdfError, handlePrintExpenseRequest, handleClosePdfModal } =
     useExpenseRequestPdf(props)
@@ -160,7 +175,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const { handleTransferPayment, handleBulkTransferPayment } = useExpenseRequestTransfer(
     props,
-    fetchData,
+    () => fetchData(true), // Force refresh after transfer
     clearSelection
   )
 
@@ -194,26 +209,53 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     availableStatuses
   })
 
+  // Selected filter chips to display above the table (DataContainer)
+  const [departmentId, setDepartmentId] = useState<string>('')
+  const [currencyRef, setCurrencyRef] = useState<string>('')
+  const [startFrom, setStartFrom] = useState<string | undefined>()
+  const [startTo, setStartTo] = useState<string | undefined>()
+  const [endFrom, setEndFrom] = useState<string | undefined>()
+  const [endTo, setEndTo] = useState<string | undefined>()
+  const RangePicker = DatePicker.RangePicker
+
+  // ⚡ PERFORMANCE: Use filter data from parent if provided, otherwise fetch locally
+  const localFilterData = useFilterData({ accessToken: propsFilterData ? undefined : accessToken })
+  const filterData = propsFilterData || localFilterData
+  const { organizationalUnits, currencies } = filterData
+
+  const selectedDepartmentName = useMemo(() => {
+    const found = (organizationalUnits || []).find(ou => ou.id === departmentId)
+    return found?.name || ''
+  }, [organizationalUnits, departmentId])
+
+  const selectedFilters: string[] = useMemo(
+    () => [
+      ...(statusFilter.length > 0 ? ['status'] : []),
+      ...(employeeFilter ? ['employee'] : []),
+      ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
+      ...(departmentId ? ['department'] : []),
+      ...(currencyRef ? ['currency'] : []),
+      ...(startFrom || startTo ? ['startDate'] : []),
+      ...(endFrom || endTo ? ['endDate'] : [])
+    ],
+    [
+      statusFilter,
+      employeeFilter,
+      amountMinFilter,
+      amountMaxFilter,
+      departmentId,
+      currencyRef,
+      startFrom,
+      startTo,
+      endFrom,
+      endTo
+    ]
+  )
+
   useEffect(() => {
-    const loadAvailableStatuses = async () => {
-      try {
-        const statuses = await searchStatuses()
-
-        if (statuses.length === 0) {
-          const defaultStatuses = ['CREATED', 'PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'CLOSED', 'PAID', 'REJECTED']
-          setAvailableStatuses(defaultStatuses)
-        } else {
-          setAvailableStatuses(statuses)
-        }
-      } catch (error) {
-        console.error('Error loading available statuses:', error)
-        const defaultStatuses = ['CREATED', 'PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'CLOSED', 'PAID', 'REJECTED']
-        setAvailableStatuses(defaultStatuses)
-      }
-    }
-
-    loadAvailableStatuses()
-  }, [searchStatuses])
+    // Mirror personal expenses: use a fixed enum list for statuses
+    setAvailableStatuses(Object.values(ExpenseStatus))
+  }, [])
 
   useEffect(() => {
     if (contextProps.accessToken) {
@@ -242,32 +284,31 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const handleNavigateToExpenseRequest = useCallback((record: ExpenseData) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: record.id
+      expenseRequestId: record.id,
+      referrer: '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
     })
     navigateTo(url)
   }, [])
 
   const handleCloseDetails = useCallback(() => {
     setSelectedExpense(null)
-    setSelectedRowKeys([])
+    // Don't clear selectedRowKeys - checkbox selections should remain when closing details panel
   }, [])
 
   // Bulk selection handlers
   const handleSelectRecord = useCallback((record: ExpenseData, checked: boolean) => {
-    setSelectedRecords(prev => {
-      const exists = prev.some(r => r.id === record.id)
-      if (checked) {
-        return exists ? prev : [...prev, record]
-      }
-      return prev.filter(r => r.id !== record.id)
-    })
-    setSelectedRowKeys(prev => {
-      const exists = prev.includes(record.id)
-      if (checked) {
-        return exists ? prev : [...prev, record.id]
-      }
-      return prev.filter(key => key !== record.id)
-    })
+    // Only allow selecting BOOKED records for bulk transfer
+    if (record.status !== 'BOOKED') {
+      return
+    }
+
+    if (checked) {
+      setSelectedRecords(prev => [...prev, record])
+      setSelectedRowKeys(prev => [...prev, record.id])
+    } else {
+      setSelectedRecords(prev => prev.filter(r => r.id !== record.id))
+      setSelectedRowKeys(prev => prev.filter(key => key !== record.id))
+    }
   }, [])
 
   const handleSelectAllRecords = useCallback(
@@ -298,11 +339,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return selectedRecords.some(record => record.status === 'BOOKED')
   }, [selectedRecords])
 
-  // Count selected records that are bookable
-  const bookedSelectedCount = useMemo(() => {
-    return selectedRecords.filter(r => r.status === 'BOOKED').length
-  }, [selectedRecords])
-
   // Check if all visible records are bookable
   const allBookableSelected = useMemo(() => {
     const bookableRecords = expenses?.filter(expense => expense.status === 'BOOKED') || []
@@ -318,17 +354,73 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     return expenses?.filter(expense => expense.status === 'BOOKED').length || 0
   }, [expenses])
 
+  // Count of selected bookable records
+  const selectedBookableCount = useMemo(() => {
+    const count = selectedRecords.filter(r => r.status === 'BOOKED').length
+    console.log('[ExpenseRequestsTable] Selected records count:', {
+      totalSelected: selectedRecords.length,
+      bookableCount: count,
+      statuses: selectedRecords.map(r => ({ id: r.id, status: r.status }))
+    })
+    return count
+  }, [selectedRecords])
+
+  // Helper: Build unique status filters (reduces cognitive complexity)
+  const buildStatusFilters = useCallback(() => {
+    const byLabel = new Map<string, { id: string; label: string; selected: boolean }>()
+    for (const status of availableStatuses) {
+      const label = getExpenseRequestStatusDisplay(status).label.trim()
+      const key = label.toLowerCase()
+      if (!byLabel.has(key)) {
+        byLabel.set(key, { id: status, label, selected: statusFilter.includes(status) })
+      }
+    }
+    return Array.from(byLabel.values())
+  }, [availableStatuses, statusFilter])
+
+  // Helper: Handle start date range change (reduces cognitive complexity)
+  const handleStartDateChange = useCallback(
+    (dates: any) => {
+      if (!dates?.[0] || !dates?.[1]) {
+        setStartFrom(undefined)
+        setStartTo(undefined)
+        handleStartDateRangeFilter('', '')
+        return
+      }
+      const from = dates[0].startOf('day').format('YYYY-MM-DDT00:00:00')
+      const to = dates[1].endOf('day').format('YYYY-MM-DDT23:59:59')
+      setStartFrom(from)
+      setStartTo(to)
+      handleStartDateRangeFilter(from, to)
+    },
+    [handleStartDateRangeFilter]
+  )
+
+  // Helper: Handle end date range change (reduces cognitive complexity)
+  const handleEndDateChange = useCallback(
+    (dates: any) => {
+      if (!dates?.[0] || !dates?.[1]) {
+        setEndFrom(undefined)
+        setEndTo(undefined)
+        handleEndDateRangeFilter('', '')
+        return
+      }
+      const from = dates[0].startOf('day').format('YYYY-MM-DDT00:00:00')
+      const to = dates[1].endOf('day').format('YYYY-MM-DDT23:59:59')
+      setEndFrom(from)
+      setEndTo(to)
+      handleEndDateRangeFilter(from, to)
+    },
+    [handleEndDateRangeFilter]
+  )
+
   const filterGroups: DataFilterGroup[] = useMemo(() => {
     return [
       {
         id: 'status',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
         type: 'checkbox',
-        filters: availableStatuses.map(status => ({
-          id: status,
-          label: getExpenseRequestStatusDisplay(status).label,
-          selected: statusFilter.includes(status)
-        }))
+        filters: buildStatusFilters()
       },
       {
         id: 'employee',
@@ -363,11 +455,119 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             debouncedAmountFilter={debouncedAmountFilter}
           />
         )
+      },
+      {
+        id: 'department',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_list.employee_report_filter.department_title',
+          'Department'
+        ),
+        type: 'custom',
+        customComponent: (
+          <div className="gba:w-64">
+            <Select
+              onValueChange={val => {
+                setDepartmentId(val)
+                handleDepartmentFilter(val)
+              }}
+              value={departmentId}
+            >
+              <SelectTrigger data-testid="expense-requests-department-select">
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_list.employee_report_filter.department_placeholder',
+                    'Select department'
+                  )}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {(organizationalUnits || []).map(ou => (
+                  <SelectItem key={ou.id} value={ou.id} data-testid={`expense-requests-department-option-${ou.id}`}>
+                    {ou.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )
+      },
+      {
+        id: 'currency',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency', 'Currency'),
+        type: 'custom',
+        customComponent: (
+          <div className="gba:w-56">
+            <Select
+              onValueChange={val => {
+                setCurrencyRef(val || '')
+                handleCurrencyFilter(val || '')
+              }}
+              value={currencyRef || ''}
+            >
+              <SelectTrigger data-testid="expense-requests-currency-select" className="gba:border-border">
+                <SelectValue
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:expense_request_list.expense_request_filter.all_currencies',
+                    'All Currencies'
+                  )}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {(currencies || []).map(c => (
+                  <SelectItem
+                    key={c.currencyRef}
+                    value={c.currencyRef}
+                    data-testid={`expense-requests-currency-option-${c.code}`}
+                  >
+                    {c.code}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )
+      },
+      {
+        id: 'startDate',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start Date'),
+        type: 'custom',
+        customComponent: (
+          <div className="gba:w-72">
+            <RangePicker
+              value={startFrom && startTo ? [dayjs(startFrom), dayjs(startTo)] : null}
+              onChange={handleStartDateChange}
+              placeholder={[
+                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
+              ]}
+              className="gba:w-full"
+              data-testid="expense-requests-start-range"
+            />
+          </div>
+        )
+      },
+      {
+        id: 'endDate',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End Date'),
+        type: 'custom',
+        customComponent: (
+          <div className="gba:w-72">
+            <RangePicker
+              value={endFrom && endTo ? [dayjs(endFrom), dayjs(endTo)] : null}
+              onChange={handleEndDateChange}
+              placeholder={[
+                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.start_date', 'Start date'),
+                getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.end_date', 'End date')
+              ]}
+              className="gba:w-full"
+              data-testid="expense-requests-end-range"
+            />
+          </div>
+        )
       }
     ]
   }, [
-    availableStatuses,
-    statusFilter,
+    buildStatusFilters,
     employeeSearchText,
     showEmployeeDropdown,
     employeeSearchResults,
@@ -379,65 +579,894 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     setLocalAmountMin,
     localAmountMax,
     setLocalAmountMax,
-    debouncedAmountFilter
+    debouncedAmountFilter,
+    departmentId,
+    currencyRef,
+    startFrom,
+    startTo,
+    endFrom,
+    endTo,
+    handleDepartmentFilter,
+    handleCurrencyFilter,
+    handleStartDateChange,
+    handleEndDateChange,
+    organizationalUnits,
+    currencies
   ])
 
-  const getFilters = useCallback(
-    (_filtersToApply?: string[]) => {
-      const filters: Record<string, any> = {}
-      if (employeeFilter) filters.employee = employeeFilter
-      return filters
-    },
-    [employeeFilter]
-  )
+  // removed unused getFilters helper
 
-  const setFilters = useCallback(
-    (_filters: string[]) => {
-      setEmployeeFilter('')
-      setSelectedEmployees([])
-      setEmployeeSearchText('')
-      setStatusFilter([])
-      setLocalAmountMin('')
-      setLocalAmountMax('')
+  const setFilters = useCallback(() => {
+    setEmployeeFilter('')
+    setSelectedEmployees([])
+    setEmployeeSearchText('')
+    setStatusFilter([])
+    setLocalAmountMin('')
+    setLocalAmountMax('')
 
-      handleEmployeeFilter('')
-      handleStatusFilter('')
-      handleAmountFilter('', '')
-    },
-    [handleEmployeeFilter, handleStatusFilter, handleAmountFilter]
-  )
+    handleEmployeeFilter('')
+    handleStatusFilter('')
+    handleAmountFilter('', '')
+    // Also reset department, currency and date ranges
+    setDepartmentId('')
+    setCurrencyRef('')
+    setStartFrom(undefined)
+    setStartTo(undefined)
+    setEndFrom(undefined)
+    setEndTo(undefined)
+    handleDepartmentFilter('')
+    handleCurrencyFilter('')
+    handleStartDateRangeFilter('', '')
+    handleEndDateRangeFilter('', '')
+  }, [
+    handleEmployeeFilter,
+    handleStatusFilter,
+    handleAmountFilter,
+    handleDepartmentFilter,
+    handleCurrencyFilter,
+    handleStartDateRangeFilter,
+    handleEndDateRangeFilter
+  ])
 
   const handleEnhancedTableChange = useCallback(
     (pagination: any) => {
-      handleTableChange(pagination, {}, {})
+      handleTableChange(pagination, {}, undefined as any)
     },
     [handleTableChange]
   )
 
-  if (loading && expenses.length === 0) {
-    return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:py-8">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
+  // Helper to map column key to field name (eliminates nested ternary)
+  const getFieldFromColumnKey = useCallback((columnKey: string): string => {
+    if (columnKey === 'employee') {
+      return 'employee.fullName'
+    }
+    if (columnKey === 'employeeCode') {
+      return 'employee.code'
+    }
+    if (columnKey === 'requestNumber') {
+      return 'code'
+    }
+    return columnKey
+  }, [])
 
-  if (error) {
-    return (
-      <div className="gba:p-4">
-        <Alert variant="destructive" data-testid="expense-requests-error">
-          <div className="gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('expense.request.error.title', 'Error Loading Data')}
-          </div>
-          <div className="gba:text-sm">{error}</div>
+  const onSort = useCallback(
+    (columnKey: string) => {
+      const field = getFieldFromColumnKey(columnKey)
+      // Type assertion is safe: field is always a valid SortField from the mapping
+      updateSorting(
+        field as
+          | 'title'
+          | 'startDate'
+          | 'endDate'
+          | 'createdAt'
+          | 'status'
+          | 'totalAmount'
+          | 'totalRemainingAmount'
+          | 'employee.fullName'
+          | 'employee.code'
+          | 'code'
+      )
+      handleTableChange({ current: 1, pageSize } as any, {} as any, undefined as any)
+    },
+    [getFieldFromColumnKey, handleTableChange, pageSize, updateSorting]
+  )
+
+  const isActiveSort = useCallback(
+    (columnKey: string) => {
+      const field = getFieldFromColumnKey(columnKey)
+      return sorting.lastField === field
+    },
+    [getFieldFromColumnKey, sorting.lastField]
+  )
+
+  const isAsc = sorting.order === 'ASC'
+
+  // Helper to render sort icon (reduces nested ternary complexity)
+  const renderSortIcon = useCallback(
+    (field: string) => {
+      if (isActiveSort(field)) {
+        return isAsc ? <PiArrowUp size={12} className="gba:ml-1" /> : <PiArrowDown size={12} className="gba:ml-1" />
+      }
+      return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
+    },
+    [isActiveSort, isAsc]
+  )
+
+  // Helper to render loading/error/empty states (reduces cognitive complexity)
+  const renderEmptyState = useCallback(() => {
+    if (loading && !expenses?.length) {
+      return (
+        <div className="gba:flex gba:justify-center gba:p-8">
+          <Spinner />
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <Alert variant="destructive" className="gba:m-4">
+          {error}
         </Alert>
-      </div>
+      )
+    }
+
+    return null
+  }, [loading, expenses, error])
+
+  // Render data body pattern (matches Advance Payments)
+  const renderDataBody = useCallback(() => {
+    const emptyState = renderEmptyState()
+    if (emptyState) return emptyState
+
+    return (
+      <Card data-testid="expense-requests-container">
+        <CardContent className="gba:p-0">
+          {loading && !expenses?.length && (
+            <div className="gba:flex gba:justify-center gba:p-4">
+              <Spinner />
+            </div>
+          )}
+
+          <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
+            <Table
+              data-testid="expense-requests-data-table"
+              className="gba:min-w-[1782px] gba:w-full gba:table-fixed gba:[&>thead>tr>th]:!text-left"
+            >
+              <TableHeader>
+                <TableRow className="gba:border-b gba:bg-muted">
+                  <TableHead className="gba:w-[50px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3 gba:text-left">
+                    {bookableRecordsCount > 0 && (
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        <Checkbox
+                          checked={allBookableSelected}
+                          onCheckedChange={handleSelectAllRecords}
+                          data-testid="select-all-records-checkbox"
+                          className="gba:cursor-pointer"
+                        />
+                      </div>
+                    )}
+                  </TableHead>
+                  <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3 gba:text-left">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_profile.employee_tabs.flows_button.actions',
+                      'Actions'
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[22%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('employee')}
+                    data-testid="header-sort-employee"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
+                      {renderSortIcon('employee')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[16%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('employeeCode')}
+                    data-testid="header-sort-employeeCode"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_table.employee_code',
+                        'Employee Code'
+                      )}
+                      {renderSortIcon('employeeCode')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="gba:w-[16%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
+                      'SAP Number'
+                    )}
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[18%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('requestNumber')}
+                    data-testid="header-sort-requestNumber"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+                        'Request Number'
+                      )}
+                      {renderSortIcon('requestNumber')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('title')}
+                    data-testid="header-sort-title"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:manager_expense_request_list.expense_table.title',
+                        'Title'
+                      )}
+                      {renderSortIcon('title')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('startDate')}
+                    data-testid="header-sort-startDate"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_plan_list.expense_plan_table.start_date',
+                        'Start Date'
+                      )}
+                      {renderSortIcon('startDate')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('endDate')}
+                    data-testid="header-sort-endDate"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_plan_list.expense_plan_table.end_date',
+                        'End Date'
+                      )}
+                      {renderSortIcon('endDate')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('createdAt')}
+                    data-testid="header-sort-createdAt"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:manager_expense_request_list.expense_table.creation_date',
+                        'Creation Date'
+                      )}
+                      {renderSortIcon('createdAt')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[22%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('status')}
+                    data-testid="header-sort-status"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_plan_table.status',
+                        'Status'
+                      )}
+                      {renderSortIcon('status')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[18%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('totalRemainingAmount')}
+                    data-testid="header-sort-remainingAmount"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.remaining', 'Remaining Amount')}
+                      {renderSortIcon('totalRemainingAmount')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-left gba:cursor-pointer"
+                    onClick={() => onSort('totalAmount')}
+                    data-testid="header-sort-total"
+                  >
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_plan_table.total_amount',
+                        'Total Amount'
+                      )}
+                      {renderSortIcon('totalAmount')}
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {!loading && (!expenses || expenses.length === 0) ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="gba:py-8 gba:text-center">
+                      <div className="gba:text-muted-foreground">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:expense_request_list.no_expense_requests_found',
+                          'No expense requests found matching the current filters.'
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  expenses?.map((record: ExpenseData) => (
+                    <ExpenseRequestTableRow
+                      key={record.id}
+                      record={record}
+                      accessToken={accessToken}
+                      onRowClick={handleRowClick}
+                      onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
+                      onDownloadAccountingNote={handleDownloadAccountingNote}
+                      onTriggerCSV={handleTriggerCSV}
+                      onPrintExpenseRequest={handlePrintExpenseRequest}
+                      onTransferPayment={handleTransferPayment}
+                      isSelected={selectedRowKeys.includes(record.id)}
+                      onSelectRecord={handleSelectRecord}
+                    />
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination */}
+          <ExpenseRequestPagination
+            currentPage={currentPage}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={handleEnhancedTableChange}
+          />
+        </CardContent>
+      </Card>
     )
-  }
+  }, [
+    loading,
+    expenses,
+    error,
+    renderEmptyState,
+    bookableRecordsCount,
+    allBookableSelected,
+    isActiveSort,
+    isAsc,
+    onSort,
+    handleSelectAllRecords,
+    accessToken,
+    handleRowClick,
+    handleNavigateToExpenseRequest,
+    handleDownloadAccountingNote,
+    handleTriggerCSV,
+    handlePrintExpenseRequest,
+    handleTransferPayment,
+    selectedRowKeys,
+    handleSelectRecord,
+    currentPage,
+    pageSize,
+    totalItems,
+    handleEnhancedTableChange
+  ])
+
+  // Export functionality
+  const [isExporting, setIsExporting] = useState(false)
+
+  // Initialize GraphQL client
+  const graphqlClient = useGraphqlClient(accessToken)
+
+  // Helper function to transform expense request data (copied from useExpenseRequests hook)
+  const transformExpenseRequest = useCallback((item: any): ExpenseData => {
+    return {
+      id: item.id,
+      expenseId: String(item.id ?? '-'),
+      code: item.code || '-',
+      sapNumber: item.sapNumber || '-',
+      employee: item.employee?.displayName || item.employee?.fullName || '-',
+      employeeCode: item.employee?.code || '-',
+      title: item.title || '-',
+      department: item.employee?.employeePosition?.organizationalUnit?.name || '-',
+      startDate: formatDateLocalized(item.startDate),
+      endDate: formatDateLocalized(item.endDate),
+      requestDate: formatDateLocalized(item.requestDate),
+      reporter: item.employee?.displayName || item.employee?.fullName || '-',
+      type: item.requestType?.value || '-',
+      amount: String(item.totalAmount || 0),
+      advance: item.advancePaymentPaidAmount || 0,
+      payableAmount: String(item.payableAmount || 0),
+      paymentMethod: item.paymentMethod || '-',
+      employeeId: item.employee?.id || '-',
+      version: String(item.version || ''),
+      currencyRef: item.currencyRef || '',
+      typeRef: item.typeRef || '',
+      requestTypeRef: item.requestTypeRef || '',
+      totalRemainingAmount: item.totalRemainingAmount || 0,
+      userId: item.userId || '-',
+      expenseRuleId: item.expenseRuleId || '-',
+      totalAmount: item.totalAmount || 0,
+      currency: { code: item.currency?.code || item.currencyRef?.split(':').pop() || 'EUR' },
+      status: item.status || 'UNKNOWN',
+      creationDate: formatDateLocalized(item.createdAt),
+      employeeDocumentId: item.employeeDocumentId || '-',
+      documentData: item.documentData
+    }
+  }, [])
+
+  // Helper to build query conditions (reduces cognitive complexity)
+  // Helper to format start date range label (avoids nested ternary)
+  const getStartDateLabel = useCallback((): string => {
+    if (!startFrom && !startTo) {
+      return 'Start: All'
+    }
+    const fromLabel = startFrom ? formatDateLocalized(startFrom) : '-'
+    const toLabel = startTo ? formatDateLocalized(startTo) : '-'
+    return `Start: ${fromLabel} → ${toLabel}`
+  }, [startFrom, startTo])
+
+  // Helper to format end date range label (avoids nested ternary)
+  const getEndDateLabel = useCallback((): string => {
+    if (!endFrom && !endTo) {
+      return 'End: All'
+    }
+    const fromLabel = endFrom ? formatDateLocalized(endFrom) : '-'
+    const toLabel = endTo ? formatDateLocalized(endTo) : '-'
+    return `End: ${fromLabel} → ${toLabel}`
+  }, [endFrom, endTo])
+
+  // Helper to format currency label (avoids nested ternary with optional chaining)
+  const getCurrencyLabel = useCallback((): string => {
+    if (!currencyRef) {
+      return 'Currency: All'
+    }
+    const currency = currencies?.find(c => c.currencyRef === currencyRef)
+    const currencyCode = currency?.code || currencyRef.split(':').pop() || currencyRef
+    return `Currency: ${currencyCode}`
+  }, [currencyRef, currencies])
+
+  // Helper to get CSV export button title (reduces nested ternary complexity)
+  const getExportCsvTitle = useCallback((): string => {
+    if (isExporting) {
+      return 'Exporting all pages...'
+    }
+    if (totalItems === 0) {
+      return 'No expenses to export'
+    }
+    return `Export all ${totalItems} expense requests to CSV`
+  }, [isExporting, totalItems])
+
+  // Helper to get Excel export button title (avoids nested ternary)
+  const getExportExcelTitle = useCallback((): string => {
+    if (isExporting) {
+      return 'Exporting all pages...'
+    }
+    if (totalItems === 0) {
+      return 'No expenses to export'
+    }
+    return `Export all ${totalItems} expense requests to Excel`
+  }, [isExporting, totalItems])
+
+  // Memoize actions array to ensure it updates when selectedBookableCount changes
+  const dataControllerActions = useMemo(() => {
+    return hasBookableSelected
+      ? [
+          <Button
+            key={`bulk-transfer-${selectedBookableCount}`}
+            onClick={handleBulkTransfer}
+            data-testid="bulk-transfer-payment-button"
+            variant="outline"
+            size="sm"
+          >
+            {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} (
+            {selectedBookableCount}{' '}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
+          </Button>
+        ]
+      : []
+  }, [hasBookableSelected, selectedBookableCount])
+
+  // Helper to build search condition (reduces cognitive complexity of buildQueryConditions)
+  const buildSearchCondition = useCallback((searchValue: string): any => {
+    return {
+      _or: [
+        { employee: { firstName: { _ilike: searchValue } } },
+        { employee: { lastName: { _ilike: searchValue } } },
+        { employee: { displayName: { _ilike: searchValue } } },
+        { employee: { code: { _ilike: searchValue } } },
+        { title: { _ilike: searchValue } },
+        { code: { _ilike: searchValue } },
+        {
+          employee: {
+            employeePosition: {
+              costCenter: { name: { _ilike: searchValue } }
+            }
+          }
+        },
+        {
+          employee: {
+            employeePosition: {
+              organizationalUnit: { name: { _ilike: searchValue } }
+            }
+          }
+        },
+        { requestType: { value: { _ilike: searchValue } } },
+        {
+          requestType: { translations: { value: { _ilike: searchValue } } }
+        },
+        { currency: { code: { _ilike: searchValue } } }
+      ]
+    }
+  }, [])
+
+  // Helper to build date range condition (reduces cognitive complexity)
+  // Note: Returns 'any' type for GraphQL query conditions (null when no range specified)
+  const buildDateRangeCondition = useCallback((from: string | undefined, to: string | undefined): any => {
+    if (!from && !to) {
+      return null
+    }
+    const rangeCond: any = {}
+    if (from) rangeCond._gte = from
+    if (to) rangeCond._lte = to
+    return rangeCond
+  }, [])
+
+  // Helper to handle clearing all filters (avoids boolean parameter pattern)
+  const handleClearAllFilters = useCallback(() => {
+    setEmployeeFilter('')
+    setSelectedEmployees([])
+    setEmployeeSearchText('')
+    setStatusFilter([])
+    setLocalAmountMin('')
+    setLocalAmountMax('')
+    setDepartmentId('')
+    setCurrencyRef('')
+    setStartFrom(undefined)
+    setStartTo(undefined)
+    setEndFrom(undefined)
+    setEndTo(undefined)
+
+    handleEmployeeFilter('')
+    handleStatusFilter('')
+    handleAmountFilter('', '')
+    handleDepartmentFilter('')
+    handleCurrencyFilter('')
+    handleStartDateRangeFilter('', '')
+    handleEndDateRangeFilter('', '')
+  }, [
+    handleEmployeeFilter,
+    handleStatusFilter,
+    handleAmountFilter,
+    handleDepartmentFilter,
+    handleCurrencyFilter,
+    handleStartDateRangeFilter,
+    handleEndDateRangeFilter
+  ])
+
+  // Helper to handle employee filter removal (avoids boolean parameter pattern)
+  const handleRemoveEmployeeFilter = useCallback(() => {
+    setEmployeeFilter('')
+    setSelectedEmployees([])
+    setEmployeeSearchText('')
+    handleEmployeeFilter('')
+  }, [handleEmployeeFilter])
+
+  // Helper: Build amount filter condition (reduces cognitive complexity)
+  // Note: Returns 'any' type for GraphQL query conditions (null when no amount filter)
+  const buildAmountCondition = useCallback((): any => {
+    if (!amountMinFilter && !amountMaxFilter) {
+      return null
+    }
+    const amountConditions: any = {}
+    if (amountMinFilter) {
+      amountConditions._gte = Number.parseFloat(amountMinFilter)
+    }
+    if (amountMaxFilter) {
+      amountConditions._lte = Number.parseFloat(amountMaxFilter)
+    }
+    return Object.keys(amountConditions).length > 0 ? { totalAmount: amountConditions } : null
+  }, [amountMinFilter, amountMaxFilter])
+
+  // Helper: Build all filter conditions (reduces cognitive complexity)
+  const buildAllFilterConditions = useCallback((): any[] => {
+    const conditions: any[] = []
+
+    if (statusFilter?.length > 0) {
+      conditions.push({ status: { _in: statusFilter } })
+    }
+
+    if (employeeFilter) {
+      conditions.push({ employee: { id: { _eq: employeeFilter } } })
+    }
+
+    const amountCond = buildAmountCondition()
+    if (amountCond) {
+      conditions.push(amountCond)
+    }
+
+    if (departmentId) {
+      conditions.push({
+        employee: { employeePosition: { organizationalUnitId: { _eq: departmentId } } }
+      })
+    }
+
+    if (currencyRef) {
+      conditions.push({ currencyRef: { _eq: currencyRef } })
+    }
+
+    const startDateRange = buildDateRangeCondition(startFrom, startTo)
+    if (startDateRange) {
+      conditions.push({ startDate: startDateRange })
+    }
+
+    const endDateRange = buildDateRangeCondition(endFrom, endTo)
+    if (endDateRange) {
+      conditions.push({ endDate: endDateRange })
+    }
+
+    if (searchText?.trim()) {
+      conditions.push(buildSearchCondition(`%${searchText.trim()}%`))
+    }
+
+    return conditions
+  }, [
+    statusFilter,
+    employeeFilter,
+    buildAmountCondition,
+    departmentId,
+    currencyRef,
+    startFrom,
+    startTo,
+    endFrom,
+    endTo,
+    searchText,
+    buildDateRangeCondition,
+    buildSearchCondition
+  ])
+
+  const buildQueryConditions = useCallback(() => {
+    const conditions: any[] = [{ isDeleted: { _eq: false } }, ...buildAllFilterConditions()]
+    return conditions.length === 1 ? conditions[0] : { _and: conditions }
+  }, [buildAllFilterConditions])
+
+  // Fetch all expense requests for export (bypassing pagination)
+  const fetchAllExpenseRequestsForExport = useCallback(async (): Promise<ExpenseData[]> => {
+    const batchLimit = 1000
+    const allExpenses: ExpenseData[] = []
+    let offset = 0
+
+    try {
+      while (true) {
+        const baseWhere = buildQueryConditions()
+
+        const variables = {
+          where: baseWhere,
+          limit: batchLimit,
+          offset,
+          orderBy: [{ createdAt: 'DESC' }]
+        }
+
+        const response = await graphqlClient.request(GET_EXPENSE_REQUESTS, variables)
+        const responseData = response as ExpenseRequestQueryData
+
+        if (!responseData?.ExpenseRequest || responseData.ExpenseRequest.length === 0) {
+          break
+        }
+
+        const transformedData = responseData.ExpenseRequest.map(transformExpenseRequest)
+        allExpenses.push(...transformedData)
+
+        // If we got fewer results than the batch limit, we've reached the end
+        if (responseData.ExpenseRequest.length < batchLimit) {
+          break
+        }
+
+        offset += batchLimit
+      }
+
+      return allExpenses
+    } catch (error) {
+      console.error('[EXPORT] Error fetching all expense requests:', error)
+      throw error
+    }
+  }, [graphqlClient, totalItems, buildQueryConditions, transformExpenseRequest])
+
+  const getExportColumns = () => [
+    {
+      key: 'code',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_number', 'Request Number')
+    },
+    { key: 'employee', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee', 'Employee') },
+    {
+      key: 'employeeCode',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.employee_code', 'Employee Code')
+    },
+    { key: 'title', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.title', 'Title') },
+    {
+      key: 'department',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.department', 'Department')
+    },
+    {
+      key: 'startDate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.start_date', 'Start Date')
+    },
+    { key: 'endDate', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.end_date', 'End Date') },
+    {
+      key: 'requestDate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.request_date', 'Request Date')
+    },
+    {
+      key: 'totalAmount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.total_amount', 'Total Amount')
+    },
+    { key: 'currency', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.currency', 'Currency') },
+    { key: 'status', title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.status', 'Status') },
+    {
+      key: 'creationDate',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.creation_date', 'Creation Date')
+    }
+  ]
+
+  const formatExpenseForExport = (expense: ExpenseData) => ({
+    code: expense.code || '-',
+    employee: expense.employee || '-',
+    employeeCode: expense.employeeCode || '-',
+    title: expense.title || '-',
+    department: expense.department || '-',
+    startDate: expense.startDate,
+    endDate: expense.endDate,
+    requestDate: expense.requestDate,
+    totalAmount: expense.totalAmount ? formatNumberFunction(String(expense.totalAmount)) : '0',
+    currency: expense.currency?.code || '-',
+    status: getExpenseRequestStatusDisplay(expense.status as ExpenseStatus).label,
+    creationDate: expense.creationDate
+  })
+
+  const handleExportCsv = useCallback(
+    async (e?: React.MouseEvent) => {
+      e?.preventDefault()
+      e?.stopPropagation()
+
+      if (isExporting) {
+        return
+      }
+
+      if (totalItems === 0) {
+        toast.error('No Data Available', {
+          description: 'No expense data available to export'
+        })
+        return
+      }
+
+      setIsExporting(true)
+
+      try {
+        // Fetch ALL expense requests (all pages)
+        const allExpenses = await fetchAllExpenseRequestsForExport()
+
+        if (!allExpenses || allExpenses.length === 0) {
+          toast.error('No Data Available', {
+            description: 'No expense data available to export'
+          })
+          return
+        }
+
+        const formattedData = allExpenses.map(formatExpenseForExport)
+        const columns = getExportColumns()
+        const filename = buildFilename('expense-requests', 'csv')
+        downloadCsv(formattedData, columns, filename)
+
+        toast.success('Export Successful', {
+          description: `Exported ${formattedData.length} expense requests to CSV`
+        })
+      } catch (error) {
+        console.error('[EXPORT CSV] Error during export:', error)
+        toast.error('Export Failed', {
+          description: 'Failed to export CSV: ' + (error instanceof Error ? error.message : String(error))
+        })
+      } finally {
+        setIsExporting(false)
+      }
+    },
+    [isExporting, totalItems, fetchAllExpenseRequestsForExport, formatExpenseForExport, getExportColumns]
+  )
+
+  const handleExportExcel = useCallback(
+    async (e?: React.MouseEvent) => {
+      e?.preventDefault()
+      e?.stopPropagation()
+
+      if (isExporting) {
+        return
+      }
+
+      if (totalItems === 0) {
+        toast.error('No Data Available', {
+          description: 'No expense data available to export'
+        })
+        return
+      }
+
+      setIsExporting(true)
+
+      try {
+        // Fetch ALL expense requests (all pages)
+        const allExpenses = await fetchAllExpenseRequestsForExport()
+
+        if (!allExpenses || allExpenses.length === 0) {
+          toast.error('No Data Available', {
+            description: 'No expense data available to export'
+          })
+          return
+        }
+
+        const formattedData = allExpenses.map(formatExpenseForExport)
+        const columns = getExportColumns()
+        const filename = buildFilename('expense-requests', 'xls')
+        downloadExcel(formattedData, columns, filename)
+
+        toast.success('Export Successful', {
+          description: `Exported ${formattedData.length} expense requests to Excel`
+        })
+      } catch (error) {
+        console.error('[EXPORT EXCEL] Error during export:', error)
+        toast.error('Export Failed', {
+          description: 'Failed to export Excel: ' + (error instanceof Error ? error.message : String(error))
+        })
+      } finally {
+        setIsExporting(false)
+      }
+    },
+    [isExporting, totalItems, fetchAllExpenseRequestsForExport, formatExpenseForExport, getExportColumns]
+  )
+
+  // Keep DataContainer mounted at all times to avoid closing the filter sidebar during loading/errors
 
   return (
-    <>
+    <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="expense-requests-table-wrapper">
+      {/* Export buttons overlay - positioned absolutely over the DataContainer header */}
+      {/* Hide export buttons when records are selected to avoid overlap with bulk action buttons */}
+      {selectedRecords.length === 0 && (
+        <div
+          className="gba:absolute gba:top-[16px] gba:right-[16px] gba:z-[10] gba:flex gba:gap-2"
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            zIndex: 10,
+            pointerEvents: 'auto'
+          }}
+          data-testid="export-buttons-overlay"
+        >
+          <Button
+            onClick={handleExportCsv}
+            variant="outline"
+            size="sm"
+            disabled={isExporting || totalItems === 0}
+            data-testid="expense-requests-export-csv-button"
+            title={getExportCsvTitle()}
+          >
+            <PiDownload className="gba:mr-2" />
+            {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_csv', 'CSV')}
+          </Button>
+          <Button
+            onClick={handleExportExcel}
+            variant="outline"
+            size="sm"
+            disabled={isExporting || totalItems === 0}
+            data-testid="expense-requests-export-excel-button"
+            title={getExportExcelTitle()}
+          >
+            <PiFileXls className="gba:mr-2" />
+            {isExporting ? 'Exporting...' : getTranslationFromI18nKeyAndLabel('lowcoder:export_excel', 'Excel')}
+          </Button>
+        </div>
+      )}
+
       <DataContainer
+        contentBackground="white"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',
@@ -450,7 +1479,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             'lowcoder:expense_request_list.search_module',
             'Search in Expense Requests'
           ),
-          filter: Object.keys(getFilters()),
+          filter: selectedFilters,
           setFilter: setFilters,
           filterLabelMap: {
             status:
@@ -458,261 +1487,199 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                 ? `Status: ${statusFilter.map(s => getExpenseRequestStatusDisplay(s).label).join(', ')}`
                 : 'Status: All',
             employee: employeeFilter ? `Employee: ${selectedEmployees.map(e => e.name).join(', ')}` : 'Employee: All',
-            amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`
+            amount: `Amount: ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
+            department: departmentId ? `Department: ${selectedDepartmentName || departmentId}` : 'Department: All',
+            currency: getCurrencyLabel(),
+            startDate: getStartDateLabel(),
+            endDate: getEndDateLabel()
           },
-          // Always provide a truthy actions prop to keep hook order stable in DataController
-          // Include the dynamic count in key/testid so memoized DataControllerActions detects changes
-          actions: hasBookableSelected
-            ? [
-                <Button
-                  key={`bulk-transfer-${bookedSelectedCount}`}
-                  onClick={handleBulkTransfer}
-                  data-testid={`bulk-transfer-payment-button-${bookedSelectedCount}`}
-                  variant="outline"
-                  size="sm"
-                >
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:transfer_payment', 'Transfer Payment')} (
-                  {bookedSelectedCount}{' '}
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.selected', 'selected')})
-                </Button>
-              ]
-            : []
+          actions: dataControllerActions
         }}
         dataFilterProps={{
           filterGroups: filterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
-            if (filterId === '') {
-              if (selected) {
-                setEmployeeFilter('')
-                setSelectedEmployees([])
-                setEmployeeSearchText('')
-                setStatusFilter([])
-                setLocalAmountMin('')
-                setLocalAmountMax('')
+            // Clear all filters
+            if (filterId === '' && selected) {
+              handleClearAllFilters()
+              return
+            }
 
-                handleEmployeeFilter('')
-                handleStatusFilter('')
-                handleAmountFilter('', '')
-              }
-            } else {
-              if (filterId === 'employee') {
-                if (selected) {
-                } else {
-                  setEmployeeFilter('')
-                  setSelectedEmployees([])
-                  setEmployeeSearchText('')
-                  handleEmployeeFilter('')
-                }
-              } else if (availableStatuses.includes(filterId)) {
-                handleStatusFilterChange(filterId, selected)
-              }
+            // Remove employee filter
+            if (filterId === 'employee' && !selected) {
+              handleRemoveEmployeeFilter()
+              return
+            }
+
+            // Handle status filter changes
+            if (availableStatuses.includes(filterId)) {
+              handleStatusFilterChange(filterId, selected)
             }
           }
         }}
-        dataBody={
-          loading && !expenses?.length ? (
-            <div className="gba:flex gba:justify-center gba:p-8">
-              <Spinner />
-            </div>
-          ) : error ? (
-            <Alert variant="destructive" className="gba:m-4">
-              {error}
-            </Alert>
-          ) : !expenses || expenses.length === 0 ? (
-            <div className="gba:p-8 gba:text-center gba:text-gray-500">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:expense_request_list.no_expense_requests_found',
-                'No expense requests found matching the current filters.'
-              )}
-            </div>
-          ) : (
-            <div className="gba:pr-6 gba:overflow-hidden">
-              <Card data-testid="expense-requests-container">
-                <CardContent className="gba:p-0">
-                  {loading && (
-                    <div className="gba:flex gba:justify-center gba:p-4">
-                      <Spinner />
+        dataBody={renderDataBody()}
+        dataDetails={
+          selectedExpense
+            ? {
+                title:
+                  selectedExpense.title ||
+                  getTranslationFromI18nKeyAndLabel('expense.request.details.title', 'Expense Request Details'),
+                content: (
+                  <div className="gba:p-4 gba:relative gba:mb-6">
+                    {/* Header: Title, Code, Status Pill */}
+                    <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
+                      <div>
+                        <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{selectedExpense.title || 'N/A'}</h3>
+                        <p className="gba:text-sm gba:text-muted-foreground">{selectedExpense.code || 'N/A'}</p>
+                      </div>
+                      <Badge
+                        variant={getExpenseRequestStatusDisplay(selectedExpense.status).badgeVariant || 'outline'}
+                        data-testid="expense-request-status-badge"
+                      >
+                        {getExpenseRequestStatusDisplay(selectedExpense.status).label}
+                      </Badge>
                     </div>
-                  )}
 
-                  <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-full">
-                    <Table data-testid="expense-requests-data-table" className="gba:min-w-[1600px] gba:w-full">
-                      <TableHeader>
-                        <TableRow className="gba:border-b gba:bg-gray-50">
-                          <TableHead className="gba:w-[50px] gba:min-w-[50px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">
-                            {bookableRecordsCount > 0 && (
-                              <Checkbox
-                                checked={allBookableSelected}
-                                onCheckedChange={checked => handleSelectAllRecords(checked === true)}
-                                data-testid="select-all-records-checkbox"
-                              />
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-3">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:employee_profile.employee_tabs.flows_button.actions',
-                              'Actions'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:hr_absences.create_absence.employee',
-                              'Employee'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_request_table.employee_code',
-                              'Employee Code'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
-                              'SAP Number'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_request_list.expense_request_filter.request_number_input',
-                              'Request Number'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:manager_expense_request_list.expense_table.title',
-                              'Title'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_plan_list.expense_plan_table.start_date',
-                              'Start Date'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_plan_list.expense_plan_table.end_date',
-                              'End Date'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:manager_expense_request_list.expense_table.creation_date',
-                              'Creation Date'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[8%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_request_list.expense_plan_table.status',
-                              'Status'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:approve_expense_plan.remaining',
-                              'Remaining Amount'
-                            )}
-                          </TableHead>
-                          <TableHead className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:text-right">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:expense_request_list.expense_plan_table.total_amount',
-                              'Total Amount'
-                            )}
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {!loading && (!expenses || expenses.length === 0) ? (
-                          <TableRow>
-                            <TableCell colSpan={12} className="gba:py-8 gba:text-center">
-                              <div className="gba:text-gray-500">
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:expense_request_list.no_expense_requests_found',
-                                  'No expense requests found matching the current filters.'
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ) : (
-                          expenses?.map((record: ExpenseData) => (
-                            <ExpenseRequestTableRow
-                              key={record.id}
-                              record={record}
-                              accessToken={props.accessToken}
-                              onRowClick={handleRowClick}
-                              onNavigateToExpenseRequest={handleNavigateToExpenseRequest}
-                              onDownloadAccountingNote={handleDownloadAccountingNote}
-                              onTriggerCSV={handleTriggerCSV}
-                              onPrintExpenseRequest={handlePrintExpenseRequest}
-                              onTransferPayment={handleTransferPayment}
-                              isSelected={selectedRowKeys.includes(record.id)}
-                              onSelectRecord={handleSelectRecord}
-                            />
-                          ))
+                    {/* Details Section */}
+                    <dl className="gba:space-y-3">
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:hr_absences.create_absence.employee',
+                            'Employee'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.employee || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_request_table.employee_code',
+                            'Employee Code'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.employeeCode || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_config_calculation_rule_list.expense_table.sap_number',
+                            'SAP Number'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.sapNumber || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_request_list.expense_request_filter.request_number_input',
+                            'Request Number'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.code || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_request_list.expense_plan_table.title',
+                            'Title'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.title || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_plan_list.expense_plan_table.start_date',
+                            'Start Date'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.startDate || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_plan_list.expense_plan_table.end_date',
+                            'End Date'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.endDate || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:manager_expense_request_list.expense_table.creation_date',
+                            'Creation Date'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:text-foreground">{selectedExpense.creationDate || 'N/A'}</dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:approve_expense_plan.remaining',
+                            'Remaining Amount'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:font-bold gba:text-foreground">
+                          {(() => {
+                            const remainingAmount = Number(selectedExpense.totalRemainingAmount) || 0
+                            const currencyCode = selectedExpense.currency?.code || 'EUR'
+                            return remainingAmount > 0 ? formatCurrency(remainingAmount, currencyCode) : '-'
+                          })()}
+                        </dd>
+                      </div>
+                      <div className="gba:flex gba:justify-between">
+                        <dt className="gba:font-medium gba:text-muted-foreground">
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:expense_request_list.expense_plan_table.total_amount',
+                            'Total Amount'
+                          )}
+                          :
+                        </dt>
+                        <dd className="gba:text-sm gba:font-bold gba:text-foreground">
+                          {formatCurrency(selectedExpense.totalAmount || 0, selectedExpense.currency?.code || 'EUR')}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <Separator />
+
+                    <div className="gba:flex gba:justify-end gba:mt-4">
+                      <Button
+                        variant="default"
+                        onClick={() => {
+                          // Navigate to the expense request record page
+                          const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
+                            expenseRequestId: selectedExpense.id ? String(selectedExpense.id) : '',
+                            referrer: '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
+                          })
+                          navigateTo(url)
+                        }}
+                        data-testid="view-expense-request-details-button"
+                      >
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:team_expenses_page.plan_details.view_full_details',
+                          'View Full Details'
                         )}
-                      </TableBody>
-                    </Table>
+                      </Button>
+                    </div>
                   </div>
-
-                  {/* Pagination */}
-                  <ExpenseRequestPagination
-                    currentPage={currentPage}
-                    pageSize={pageSize}
-                    totalItems={totalItems}
-                    onPageChange={handleEnhancedTableChange}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          )
+                ),
+                onClose: handleCloseDetails
+              }
+            : undefined
         }
-        dataDetails={undefined}
-        floatingDetails={false}
+        floatingDetails={true}
       />
-
-      {/* Expense Request Details Sheet to match personal usage */}
-      <Sheet
-        open={!!selectedExpense}
-        onOpenChange={open => !open && handleCloseDetails()}
-        title={
-          selectedExpense?.title ||
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-            'Expense Request Details'
-          )
-        }
-        data-testid="expense-request-details-sheet"
-      >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
-          <SheetHeader>
-            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
-              {selectedExpense?.title ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:expense_request_list.modal_list_or_flow_button.expense_request_details',
-                  'Expense Request Details'
-                )}
-            </SheetTitle>
-          </SheetHeader>
-          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
-            {selectedExpense && (
-              <ExpenseRequestDetailsBackoffice
-                selectedItem={selectedExpense}
-                onClose={handleCloseDetails}
-                accessToken={accessToken}
-                userInfo={props.userInfo}
-                requestTypeLabel={
-                  selectedExpense.requestTypeRef
-                    ? String(selectedExpense.requestTypeRef).split(':').pop()
-                    : selectedExpense.type
-                      ? String(selectedExpense.type)
-                      : undefined
-                }
-              />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* PDF Modal */}
       <ExpenseRequestPdfModal
@@ -722,7 +1689,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         pdfError={pdfError}
         onClose={handleClosePdfModal}
       />
-    </>
+    </div>
   )
 }
 

@@ -17,7 +17,7 @@ import { DealHealthMatrix } from './widgets/DealHealthMatrix'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { OpportunitiesByStageBar } from './widgets/OpportunitiesByStageBar'
 import { OpportunitiesByPipelinePie } from './widgets/OpportunitiesByPipelinePie'
-import { formatCurrencyCompact } from '@/business-apps/crm/investments/apps/investment-management/utils/currencyUtils'
+import { formatCurrencyCompact } from '@/business-apps/irm/investments/apps/investment-management/utils/currencyUtils'
 
 export interface OpportunitiesTrendData {
   totalOpportunitiesLastMonth: number

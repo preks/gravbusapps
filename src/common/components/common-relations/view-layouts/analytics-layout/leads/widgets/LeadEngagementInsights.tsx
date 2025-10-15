@@ -18,7 +18,7 @@ export interface LeadEngagementInsightsProps {
 
 export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
   leadsByRating,
-  leadHealthIndicators, // eslint-disable-line @typescript-eslint/no-unused-vars -- TODO: Use custom health indicators if provided
+  leadHealthIndicators,
   conversionRate,
   avgTimeToConversion,
   leadsOverTime,

@@ -9,6 +9,21 @@ export interface SelectOption {
   value: string
 }
 
+export interface EmployeeRelationship {
+  id: string
+  version?: number
+  birthDate?: string | null
+  email?: string | null
+  employeeId?: string
+  firstName?: string | null
+  isEmergencyContact?: boolean | null
+  phoneNumber?: string | null
+  lastName?: string | null
+  relationshipDocumentId?: string | null
+  typeRef?: string | null
+  notes?: string | null
+}
+
 // GraphQL query to fetch relationship types from CatalogEntry (EmployeeRelationships)
 export const GET_RELATIONSHIP_TYPES = `
  query fetchEmployee($idEmployee: uuid!, $activeUserLocale: String!) {
@@ -84,6 +99,7 @@ export const GET_RELATIONSHIP_TYPES = `
 export const useRelationshipTypes = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [options, setOptions] = useState<SelectOption[]>([])
+  const [relationships, setRelationships] = useState<EmployeeRelationship[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -94,6 +110,7 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
       const employeeId = context.userInfo?.employeeDetails?.employeeId
       if (!employeeId) {
         setOptions([])
+        setRelationships([])
         setLoading(false)
         return
       }
@@ -102,6 +119,8 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
         idEmployee: employeeId,
         activeUserLocale
       })
+      const employeeRelationships = res?.EmployeeByPk?.relationship || []
+      setRelationships(employeeRelationships)
       const entries = res?.relationships || []
       setOptions(
         entries.map((e: any) => ({
@@ -121,5 +140,5 @@ export const useRelationshipTypes = (context: BusinessAppContextProps) => {
     if (context.accessToken) fetchOptions()
   }, [context.accessToken, fetchOptions])
 
-  return { options, loading, error, refetch: fetchOptions }
+  return { options, relationships, loading, error, refetch: fetchOptions }
 }

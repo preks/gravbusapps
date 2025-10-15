@@ -12,19 +12,7 @@ import {
   ChartTooltipContent,
   SectionKpiCards
 } from '@newwork/nw-design-system'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  BarChart,
-  Bar,
-  RadialBarChart,
-  RadialBar
-} from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, RadialBarChart, RadialBar } from 'recharts'
 import { TrendUpIcon, ChartPieSliceIcon, ChartBarIcon, CircleHalfIcon } from '@phosphor-icons/react'
 
 interface DashboardLayoutExampleProps {

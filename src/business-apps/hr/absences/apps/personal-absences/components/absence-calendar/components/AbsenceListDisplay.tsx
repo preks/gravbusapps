@@ -2,11 +2,13 @@ import React from 'react'
 import { List, Tag } from 'antd'
 import { formatDate } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 export interface AbsenceListDisplayItem {
   id: string
   type: string
   status: string
+  originalStatus?: string
   tagColor?: string
   description?: string
   startDate: string
@@ -65,8 +67,8 @@ export const AbsenceListDisplay: React.FC<AbsenceListDisplayProps> = ({
                 </div>
                 <span>Type: </span>
                 <Tag
-                  color={item.tagColor || (item.status === 'Approved' ? 'green' : 'orange')}
-                  className={`gba:absence-event-tag${item.status === 'PENDING' ? ' gba:absence-pending' : ''}`}
+                  color={item.tagColor || getAbsenceStatusConfig(item.originalStatus).color}
+                  className={`gba:absence-event-tag${getAbsenceStatusConfig(item.originalStatus).type === 'pending' ? ' gba:absence-pending' : ''}`}
                   data-testid={`absence-calendar-list-item-type-${item.id}`}
                 >
                   {item.type}

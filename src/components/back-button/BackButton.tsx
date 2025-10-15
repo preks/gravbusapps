@@ -18,20 +18,36 @@ export interface BackButtonProps {
    * Data test ID for testing
    */
   dataTestId?: string
+
+  /**
+   * Custom callback function to handle back navigation
+   */
+  onBack?: () => void
+
+  /**
+   * Specific URL to navigate back to (instead of using browser history)
+   */
+  backUrl?: string
 }
 
 /**
- * Simple Back Button component that uses browser history.back() for all cases.
- * This is the simplest solution that works universally.
+ * Simple Back Button component that uses browser history.
  */
 export const BackButton: React.FC<BackButtonProps> = ({
   customBackText,
   className = '',
-  dataTestId = 'back-button'
+  dataTestId = 'back-button',
+  onBack,
+  backUrl
 }) => {
   const handleBackClick = () => {
-    // Use window.history.back() - the simplest solution
-    window.history.back()
+    if (onBack) {
+      onBack()
+    } else if (backUrl) {
+      window.location.href = backUrl
+    } else {
+      window.history.back()
+    }
   }
 
   const backText =

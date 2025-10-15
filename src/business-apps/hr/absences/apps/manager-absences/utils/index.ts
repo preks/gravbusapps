@@ -2,6 +2,11 @@ import { format } from 'date-fns'
 import { EmployeeAbsence, EnhancedAbsence } from '../types'
 import { getEmployeeName } from './absenceUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import {
+  getAbsenceStatusConfig,
+  getAbsenceStatusBadgeVariant as getCentralizedStatusBadgeVariant,
+  getAbsenceStatusLabel
+} from '../../../utils/absenceStatusUtils'
 
 // Date utility functions
 export const formatDateRange = (startDate: Date | string, endDate: Date | string): string => {
@@ -95,27 +100,13 @@ export const getOriginalAbsenceGroupName = (
   return absenceGroups[type.parentEntryId] || type.groupName || 'Unknown Group'
 }
 
-// Status formatting and badge variants
-export const getAbsenceStatusBadgeVariant = (status: string): string => {
-  if (!status) return 'outline'
-
-  switch (status.toLowerCase()) {
-    case 'pending':
-      return 'warning'
-    case 'approved':
-      return 'success'
-    case 'rejected':
-      return 'destructive'
-    case 'cancelled':
-      return 'secondary'
-    default:
-      return 'outline'
-  }
+// Status formatting and badge variants - now using centralized utilities
+export const getAbsenceStatusBadgeVariant = (status: string | null | undefined): string => {
+  return getCentralizedStatusBadgeVariant(status ?? undefined) ?? 'default'
 }
 
-export const formatAbsenceStatus = (status: string): string => {
-  if (!status) return ''
-  return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+export const formatAbsenceStatus = (status: string | null | undefined): string => {
+  return getAbsenceStatusLabel(status ?? undefined)
 }
 
 // Duration formatting
@@ -173,7 +164,8 @@ export const enhanceAbsence = (
       : getAbsenceGroupName(absence.type, absenceGroups),
     dateRange: formatDateRange(absence.startDate, absence.endDate),
     duration: formatDuration(absence.calendarDays, absence.effectiveDays),
-    statusBadgeVariant: getAbsenceStatusBadgeVariant(absence.status)
+    statusBadgeVariant: getAbsenceStatusBadgeVariant(absence.status),
+    translatedStatus: getAbsenceStatusLabel(absence.status)
   }
 }
 
@@ -269,42 +261,13 @@ export const sortAbsencesByField = (
   })
 }
 
-// Status display configuration for absence statuses
-export interface AbsenceStatusDisplayConfig {
-  label: string
-  type: string
-}
+// Status display configuration for absence statuses - now using centralized utilities
+export type { AbsenceStatusConfig as AbsenceStatusDisplayConfig } from '../../../utils/absenceStatusUtils'
 
-// Maps absence statuses to user-friendly display configurations (similar to expense status)
-export const getAbsenceStatusDisplay = (status: string): AbsenceStatusDisplayConfig => {
-  switch (status?.toUpperCase()) {
-    case 'PENDING':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending'),
-        type: 'pending'
-      }
-    case 'APPROVED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        type: 'approved'
-      }
-    case 'REJECTED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        type: 'rejected'
-      }
-    case 'CANCELLED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:absences_overview_entry_screen.cancelled_status',
-          'Cancelled'
-        ),
-        type: 'cancelled'
-      }
-    default:
-      return {
-        label: status || 'Unknown',
-        type: 'cancelled'
-      }
+export const getAbsenceStatusDisplay = (status: string) => {
+  const config = getAbsenceStatusConfig(status)
+  return {
+    label: config.label,
+    type: config.type
   }
 }

@@ -2,6 +2,7 @@ import React from 'react'
 import { SectionKpiCards, KpiCardData, Spinner, Alert } from '@newwork/nw-design-system'
 import { getExpenseIconColor } from '../../utils/colorConstants'
 import { MonthlySpendComparison } from '../../types'
+import { formatCurrency } from '../../utils/currencyUtils'
 
 export interface MonthlySpendComparisonCardProps {
   loading: boolean
@@ -19,14 +20,6 @@ const MonthlySpendComparisonCard: React.FC<MonthlySpendComparisonCardProps> = ({
 }) => {
   const { currentMonthTotal, previousMonthTotal, percentChange, isIncrease, currentMonthCount, previousMonthCount } =
     monthlySpendComparison
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2
-    }).format(value)
-  }
 
   const getCurrentMonthName = () => new Date().toLocaleString('default', { month: 'long' })
 

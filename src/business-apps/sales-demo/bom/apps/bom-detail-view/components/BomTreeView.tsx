@@ -11,7 +11,6 @@ import {
   PiPlus,
   PiMinus
 } from 'react-icons/pi'
-import type { TreeProps } from 'antd'
 import { BomTreeNode } from '../../../types'
 
 const { Text, Title } = Typography

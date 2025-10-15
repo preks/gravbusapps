@@ -10,8 +10,10 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = props => {
   // Fallback to URL parameters if additionalData is not available
   const employeeId =
     additionalData?.employeeId ||
+    additionalData?.psi_taskPayload?.employeeId ||
+    additionalData?.psi_taskPayload?.initialParameters?.employeeId ||
+    userInfo?.employeeDetails?.employeeId ||
     (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null)
-
   if (!accessToken) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">

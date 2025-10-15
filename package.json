@@ -13,7 +13,9 @@
     "proxy:conductor": "node ./scripts/conductor-proxy.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "newwork-git-hooks",
+    "commit": "czg"
   },
   "dependencies": {
     "@ant-design/icons": "^5.0.0",
@@ -44,7 +46,11 @@
     "@azure/storage-blob": "^12.27.0",
     "@dotenvx/dotenvx": "^1.46.0",
     "@eslint/js": "^9.25.0",
-    "@newwork/eslint-config": "^0.1.2",
+    "@newwork/commitlint-config": "^0.1.0",
+    "@newwork/cz-config": "^0.1.0",
+    "@newwork/eslint-config": "^0.2.0",
+    "@newwork/git-hooks": "^0.1.1",
+    "@newwork/lint-staged-config": "^0.1.0",
     "@newwork/prettier-config": "^0.1.0",
     "@originjs/vite-plugin-federation": "^1.4.1",
     "@tailwindcss/postcss": "^4.1.8",
@@ -70,6 +76,7 @@
     "http-proxy-middleware": "^2.0.6",
     "http-server": "^14.1.1",
     "inquirer": "^8.2.5",
+    "lint-staged": "^16.2.3",
     "postcss": "^8.5.5",
     "tw-animate-css": "^1.3.6",
     "typescript-eslint": "^8.11.0",

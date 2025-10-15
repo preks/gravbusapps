@@ -249,7 +249,8 @@ const ExpensePlanDetails: React.FC<ExpensePlanDetailsProps> = ({
           onClick={() => {
             // Navigate to the expense plan record page
             const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-              expensePlanId: selectedItem.id
+              expensePlanId: selectedItem.id,
+              referrer: '/platform/fin/expenses/personal-expenses?tab=expense-plans'
             })
             navigateTo(url)
           }}

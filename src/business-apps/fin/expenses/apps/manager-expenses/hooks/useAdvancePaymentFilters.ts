@@ -42,7 +42,7 @@ export const useAdvancePaymentFilters = ({
   const [filtersInitialized, setFiltersInitialized] = useState(false)
 
   // Use the global currency store with enhanced properties
-  const { primaryCurrency, setPrimaryCurrency, setUserSelected, mostUsedCurrency } = useCurrencyStore()
+  const { setPrimaryCurrency, setUserSelected } = useCurrencyStore()
 
   // Fetch dynamic currency data if accessToken and managerId are provided
   const {
@@ -91,6 +91,9 @@ export const useAdvancePaymentFilters = ({
 
   const handleDataFilterChange = useCallback(
     (filterId: string, isSelected: boolean) => {
+      // Check if this is a currency filter by prefix
+      const isCurrencyFilter = String(filterId).startsWith('currency:') || String(filterId).includes('Currency:v1:')
+
       // Normalize to ISO code: handles "Currency:v1:EUR", "currency:EUR", "EUR"
       const lastSeg = String(filterId).split(':').pop() || filterId
       const currencyCode = lastSeg.replace(/^currency:/, '')
@@ -98,7 +101,8 @@ export const useAdvancePaymentFilters = ({
       // Safe access to dynamicCurrencies array
       const availableCurrencies = Array.isArray(dynamicCurrencies) ? dynamicCurrencies : []
 
-      if (availableCurrencies.includes(currencyCode)) {
+      // Handle currency filters - check by prefix OR if it's in available currencies
+      if (isCurrencyFilter || availableCurrencies.includes(currencyCode)) {
         // Handle currency filter selection
         if (isSelected) {
           setLocalPrimaryCurrency(currencyCode)
