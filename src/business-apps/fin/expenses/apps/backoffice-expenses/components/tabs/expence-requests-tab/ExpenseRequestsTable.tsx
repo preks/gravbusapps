@@ -282,7 +282,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const handleNavigateToExpenseRequest = useCallback((record: ExpenseData) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: record.id
+      expenseRequestId: record.id,
+      referrer: '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
     })
     navigateTo(url)
   }, [])
@@ -1648,7 +1649,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                         onClick={() => {
                           // Navigate to the expense request record page
                           const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-                            expenseRequestId: selectedExpense.id ? String(selectedExpense.id) : ''
+                            expenseRequestId: selectedExpense.id ? String(selectedExpense.id) : '',
+                            referrer: '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
                           })
                           navigateTo(url)
                         }}
