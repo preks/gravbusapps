@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetExpenseDashboard } from '../../../hooks/useGetExpenseDashboard'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
@@ -14,9 +14,10 @@ import { PERIOD_TYPE } from '../../../constants/periodTypes'
 const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
   const [filters, setFilters] = useState<{ currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }>({
     currency: undefined,
-    period: 'monthly'
+    period: 'quarterly'
   })
   const { stats, isLoading, error } = useGetExpenseDashboard(props, filters)
+  const widgetCardsContainerRef = useRef<HTMLDivElement>(null)
   const chartView = useMemo(() => {
     switch (filters.period) {
       case PERIOD_TYPE.YEARLY:
@@ -130,10 +131,25 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
         description: getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.unlinked_items',
           'Expense items not linked to a request'
-        )
+        ),
+        onClick: () => handleWidgetClick('unallocated-expenses')
       }
     ]
   }, [stats])
+
+  // Apply pointer cursor only to the Unallocated Expenses card locally
+  useEffect(() => {
+    try {
+      const container = widgetCardsContainerRef.current
+      if (!container) return
+      const cards = container.querySelectorAll('div[class*="card"], div[class*="Card"]')
+      const targetIndex = dashboardWidgets.findIndex(w => w.key === 'unallocated-expenses')
+      if (targetIndex >= 0 && targetIndex < cards.length) {
+        cards[targetIndex].classList.add('gba:cursor-pointer')
+      }
+    } catch {}
+  }, [dashboardWidgets])
+
 
   return (
     <div className="gba:space-y-6 gba:w-full" data-testid="expense-dashboard-content">
@@ -144,7 +160,7 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
         currentFilters={filters}
         data-testid="personal-expense-dashboard-filter-bar"
       />
-      <div data-testid="dashboard-statistics-section">
+      <div data-testid="dashboard-statistics-section" ref={widgetCardsContainerRef}>
         <WidgetGroup
           widgets={dashboardWidgets}
           isLoading={isLoading}
