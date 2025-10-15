@@ -149,7 +149,7 @@ const CampaignManagementContent: React.FC<CampaignManagementContentProps> = prop
 
   // Handle table changes (legacy - for backward compatibility)
   const handleTableChange = useCallback(
-    (pagination: any, _filters: any) => {
+    (pagination: any) => {
       const newPage = pagination.current || 1
       const newPageSize = pagination.pageSize || 20
       handlePaginationChange(newPage, newPageSize)

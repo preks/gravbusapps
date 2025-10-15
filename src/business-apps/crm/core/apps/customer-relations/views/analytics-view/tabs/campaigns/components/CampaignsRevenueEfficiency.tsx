@@ -134,7 +134,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
     return null
   }
 
-  const ComposedTooltip = ({ active, payload, label }: any) => {
+  const ComposedTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (

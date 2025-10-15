@@ -86,7 +86,7 @@ export const useAccountFilters = (context: BusinessAppContextProps): AccountFilt
     error: companyError
   } = useGetAccounts(context, companySearch)
 
-  const { contactInfoFilters, isLoading: contactInfoLoading, error: contactInfoError } = useGetAccountContactInfo()
+  const { contactInfoFilters } = useGetAccountContactInfo()
 
   const { revenueOptions, isLoading: revenueLoading, error: revenueError } = useGetAnnualRevenue(context, revenueSearch)
 

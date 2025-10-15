@@ -128,7 +128,7 @@ async function checkIfFirstTimePublish(azureDestinationPath) {
 
     const exists = await blockBlobClient.exists()
     return !exists // Return true if the file doesn't exist (first time publish)
-  } catch (error) {
+  } catch {
     console.log('🔍 Checking if first time publish: error occurred, assuming first time')
     return true // If error occurs, assume it's first time publish
   }
@@ -283,7 +283,6 @@ async function main() {
   }
 
   const product = screenPathParts[0]
-  const screenName = screenPathParts[screenPathParts.length - 1]
   console.log(`🚀 Publishing screen: ${screenPathArg}`)
 
   const projectRootDir = path.resolve(__dirname, '..')

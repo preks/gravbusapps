@@ -324,7 +324,7 @@ export const GET_SALES_REP_PERFORMANCE = `
   }
 `
 
-export const GET_TODAYS_ACTIVITIES = (startDate: string, endDate: string): string => {
+export const GET_TODAYS_ACTIVITIES = (): string => {
   return `
     query GetTodaysActivities($startDate: timestamptz!, $endDate: timestamptz!) {
       SalesActivity(
@@ -579,7 +579,7 @@ export const useDashboardQueries = (context: BusinessAppContextProps) => {
       const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
       const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString()
 
-      const query = GET_TODAYS_ACTIVITIES(startOfDay, endOfDay)
+      const query = GET_TODAYS_ACTIVITIES()
       const result = await graphqlClient.request<{ SalesActivity: any[] }>(query, {
         startDate: startOfDay,
         endDate: endOfDay

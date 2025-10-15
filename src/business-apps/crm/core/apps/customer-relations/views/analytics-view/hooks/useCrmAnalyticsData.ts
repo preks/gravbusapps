@@ -551,7 +551,7 @@ const createAccountLifecycleTimeSeriesData = (accounts: any[]) => {
     }))
 }
 
-const createLeadLifecycleTimeSeriesData = (leads: any[], timeFilter: string = 'quarter') => {
+const createLeadLifecycleTimeSeriesData = (leads: any[]) => {
   // Always generate daily data for the past year to support all time filters
   const endDate = new Date()
   const startDate = new Date()

@@ -65,7 +65,7 @@ export const useContactFilters = (context: BusinessAppContextProps): ContactFilt
 
   const { contactOwners, isLoading: isOwnersLoading, error: ownersError } = useGetContactOwners(context, ownerSearch)
 
-  const { contactInfoFilters, isLoading: isContactInfoLoading, error: contactInfoError } = useGetContactInfoFilters()
+  const { contactInfoFilters } = useGetContactInfoFilters()
 
   const {
     contactTypeOptions,

@@ -480,7 +480,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     try {
       JSON.parse(value)
       setUserInfoError('')
-    } catch (e: any) {
+    } catch {
       setUserInfoError('Invalid JSON format')
     }
   }
@@ -494,7 +494,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     try {
       JSON.parse(value)
       setAdditionalDataError('')
-    } catch (e: any) {
+    } catch {
       setAdditionalDataError('Invalid JSON format')
     }
   }
