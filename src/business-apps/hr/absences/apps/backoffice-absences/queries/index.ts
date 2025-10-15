@@ -1,8 +1,3 @@
-/**
- * GraphQL Queries for Backoffice Absences
- * Centralized exports for all GraphQL queries used in the backoffice absences app
- */
-
 export {
   GET_EMPLOYEE_ABSENCES,
   GET_TEAM_EMPLOYEES,

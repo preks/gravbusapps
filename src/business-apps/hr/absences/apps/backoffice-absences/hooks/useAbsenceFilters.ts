@@ -49,7 +49,6 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
 
   const [search, setSearch] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<string[]>(() => {
-    // Seed initial filters from navigation
     const seeds: string[] = []
     if (initialFilters?.status) {
       seeds.push(`status-${String(initialFilters.status).toUpperCase()}`)

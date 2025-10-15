@@ -1,8 +1,3 @@
-/**
- * Server-side monthly type breakdown using type.value names.
- * This avoids relying on client raw data and keeps counts consistent with overlap logic.
- */
-
 interface GraphQLRequester {
   request: (query: string, variables?: Record<string, any>) => Promise<any>
 }
@@ -13,8 +8,6 @@ export const getOverlapTypeBreakdown = async (
 ): Promise<Record<string, number>> => {
   const { startIso, endIso, typeNames } = params
 
-  // Build a base where via variables to prevent string interpolation issues
-  // We'll pass $whereBase and per-type variables ($t_0..$t_n)
   const variableDecls: string[] = ['$whereBase: EmployeeAbsenceBoolExp!']
   const selections: string[] = []
   const variables: Record<string, any> = {

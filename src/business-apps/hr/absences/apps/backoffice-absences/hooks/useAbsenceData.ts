@@ -61,24 +61,19 @@ export interface UseAbsenceDataReturn {
 export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenceDataProps): UseAbsenceDataReturn => {
   const graphQLClient = useGraphQLClient(accessToken)
 
-  // Data state
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
-  // Sorting state
   const [sortField, setSortField] = useState('')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('DESC')
 
-  // Track initial load to prevent unnecessary re-renders
   const initialLoadDone = useRef(false)
 
-  // Extract color from GraphQL objectValue
   const extractColorFromObjectValue = (objectValue: any): string => {
     if (!objectValue || typeof objectValue !== 'object') {
       return '#6b7280'
@@ -96,9 +91,6 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
     if (!accessToken) {
       return
     }
-
-    // Note: We can fetch data even without absenceGroups, we just won't have proper group names
-    // The absenceGroups are loaded asynchronously and will be available for data transformation
 
     try {
       if (!initialLoadDone.current) {
@@ -210,23 +202,19 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
     onDataChange
   ])
 
-  // Effect 1: Initial load
   useEffect(() => {
     if (!accessToken || initialLoadDone.current) return
     initialLoadDone.current = true
     fetchAbsences()
   }, [accessToken])
 
-  // Effect 1b: Refetch when absenceGroups are loaded to get proper group names
   useEffect(() => {
     if (!accessToken || Object.keys(filters.absenceGroups).length === 0) return
-    // Only refetch if we already have data (not initial load)
     if (initialLoadDone.current) {
       fetchAbsences()
     }
   }, [filters.absenceGroups, accessToken])
 
-  // Effect 2: Search and filter changes (reset to page 1)
   useEffect(() => {
     if (!initialLoadDone.current || !accessToken) return
     if (currentPage !== 1) {
@@ -245,7 +233,6 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
     accessToken
   ])
 
-  // Effect 3: Pagination, sorting, and after page reset
   useEffect(() => {
     if (initialLoadDone.current && accessToken) {
       fetchAbsences()
@@ -274,25 +261,21 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
   )
 
   return {
-    // Data state
     absences,
     total,
     loading,
     error,
 
-    // Pagination state
     currentPage,
     pageSize,
     setCurrentPage,
     setPageSize,
 
-    // Sorting state
     sortField,
     sortOrder,
     setSortField,
     setSortOrder,
 
-    // Actions
     fetchAbsences,
     handlePaginationChange,
     handleSort

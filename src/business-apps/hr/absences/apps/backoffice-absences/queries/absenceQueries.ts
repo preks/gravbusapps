@@ -1,7 +1,3 @@
-/**
- * GraphQL queries for Absence List and Calendar functionality
- */
-
 export interface GetEmployeeAbsencesVariables {
   where: any
   offset: number
@@ -56,9 +52,6 @@ export interface GetEmployeeAbsencesResponse {
   EmployeeAbsenceAggregate: EmployeeAbsenceAggregate
 }
 
-/**
- * Query to fetch employee absences with pagination, filtering, and sorting
- */
 export const GET_EMPLOYEE_ABSENCES = `
   query GetEmployeeAbsences($where: EmployeeAbsenceBoolExp!, $offset: Int!, $limit: Int!, $orderBy: [EmployeeAbsenceOrderBy!]) {
     EmployeeAbsence(where: $where, offset: $offset, limit: $limit, orderBy: $orderBy) {
@@ -104,9 +97,6 @@ export const GET_EMPLOYEE_ABSENCES = `
   }
 `
 
-/**
- * Query to fetch team employees for filter dropdown
- */
 export const GET_TEAM_EMPLOYEES = `
   query GetTeamEmployees {
     EmployeePosition {
@@ -120,9 +110,6 @@ export const GET_TEAM_EMPLOYEES = `
   }
 `
 
-/**
- * Query to fetch organizational units from employees for department filter
- */
 export const GET_ORGANIZATIONAL_UNITS_FROM_EMPLOYEES = `
   query GetOrganizationalUnitsFromEmployees {
     Employee(
@@ -140,10 +127,6 @@ export const GET_ORGANIZATIONAL_UNITS_FROM_EMPLOYEES = `
     }
   }
 `
-
-/**
- * Calendar-specific queries
- */
 
 export interface CalendarEmployeePositionResponse {
   EmployeePosition: Array<{
@@ -192,9 +175,6 @@ export interface CalendarAbsenceResponse {
   }>
 }
 
-/**
- * Query all absences for the current year (calendar view)
- */
 export const getGetAllAbsencesCurrentYearQuery = () => {
   const currentYear = new Date().getFullYear()
   const startOfYear = `${currentYear}-01-01T00:00:00.000Z`
@@ -256,9 +236,6 @@ export const getGetAllAbsencesCurrentYearQuery = () => {
 `
 }
 
-/**
- * Query all employees from EmployeePosition table for organizational units
- */
 export const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
   query GetAllEmployeesFromPositions {
     EmployeePosition(
@@ -288,9 +265,6 @@ export const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
   }
 `
 
-/**
- * Query all employees from EmployeePosition table (for calendar - all departments)
- */
 export const getGetAllEmployeesFromPositionsForCalendarQuery = (currentDate: string) => `
   query GetAllEmployeesFromPositions {
     EmployeePosition(
@@ -321,9 +295,6 @@ export const getGetAllEmployeesFromPositionsForCalendarQuery = (currentDate: str
   }
 `
 
-/**
- * Query employees from EmployeePosition table filtered by specific departments (for calendar)
- */
 export const getGetEmployeesByDepartmentsQuery = (currentDate: string, departmentNames: string[]) => {
   const departmentNamesString = departmentNames.map(dept => `"${dept}"`).join(', ')
 
@@ -359,9 +330,6 @@ export const getGetEmployeesByDepartmentsQuery = (currentDate: string, departmen
 `
 }
 
-/**
- * Query absences for specific employees within current year (for calendar)
- */
 export const getGetAbsencesForEmployeesQuery = (employeeIds: string[]) => {
   const currentYear = new Date().getFullYear()
   const startOfYear = `${currentYear}-01-01T00:00:00.000Z`
