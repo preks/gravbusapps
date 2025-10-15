@@ -148,7 +148,6 @@ const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
   }
   const handleMouseLeave = () => setHoveredWidgetKey(null)
 
-
   return (
     <div className="gba:space-y-6 gba:w-full" data-testid="expense-dashboard-content">
       <PersonalExpenseFilterBar
