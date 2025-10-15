@@ -32,13 +32,35 @@ export const htmlEscape = (value: string): string =>
     .replace(/'/g, '&#39;')
 
 /**
+ * Sanitizes a filename to prevent XSS and path traversal attacks
+ * Removes potentially dangerous characters and limits to safe alphanumeric characters
+ */
+const sanitizeFilename = (filename: string): string => {
+  // Remove any characters that are not alphanumeric, dash, underscore, or dot
+  // This prevents XSS, path traversal, and other injection attacks
+  return filename
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/\.{2,}/g, '_') // Prevent path traversal with multiple dots
+    .replace(/^\.+/, '') // Remove leading dots
+    .substring(0, 255) // Limit filename length (filesystem limit)
+}
+
+/**
  * Builds a timestamped filename for exports
  * Uses UTC time to ensure consistent filenames across timezones
+ * Sanitizes inputs to prevent XSS attacks
  */
 export const buildFilename = (type: string, ext: string): string => {
+  // Sanitize inputs to prevent XSS even though they are currently hardcoded
+  const safeType = sanitizeFilename(type)
+  const safeExt = sanitizeFilename(ext)
+
   const ts = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `backoffice-expense-${type}-${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}-${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}.${ext}`
+  const filename = `backoffice-expense-${safeType}-${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}-${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}.${safeExt}`
+
+  // Final sanitization of the complete filename
+  return sanitizeFilename(filename)
 }
 
 /**
@@ -71,12 +93,20 @@ export const formatCellValue = (value: any): string => {
 /**
  * Triggers a file download by creating a temporary link element
  * Handles blob URL creation, link click, and cleanup
+ * Sanitizes filename to prevent XSS attacks
  */
 const triggerDownload = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = filename
+
+  // Sanitize filename one more time before setting download attribute to prevent XSS
+  // This protects against any unsanitized input that might bypass previous checks
+  link.download = sanitizeFilename(filename)
+
+  // Set additional security attributes
+  link.setAttribute('rel', 'noopener noreferrer')
+
   document.body.appendChild(link)
   link.click()
   link.remove()
