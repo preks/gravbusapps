@@ -1,5 +1,5 @@
-import * as React from 'react';
-import { useState, useCallback } from 'react';
+import * as React from 'react'
+import { useState, useCallback } from 'react'
 import {
   Button,
   Calendar,
@@ -12,59 +12,59 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from '@newwork/nw-design-system';
-import { CalendarIcon, ClockIcon } from '@phosphor-icons/react';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+  SelectValue
+} from '@newwork/nw-design-system'
+import { CalendarIcon, ClockIcon } from '@phosphor-icons/react'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
 // Load dayjs plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
 export interface DateTimeFieldProps {
   /** Field name for form identification */
-  name: string;
+  name: string
   /** Field label */
-  label: string;
+  label: string
   /** Whether to show the label (default: true) */
-  showLabel?: boolean;
+  showLabel?: boolean
   /** Current value (Date object or ISO string) */
-  value?: Date | string | null;
+  value?: Date | string | null
   /** Change handler */
-  onChange: (value: Date | null) => void;
+  onChange: (value: Date | null) => void
   /** Blur handler for validation */
-  onBlur?: () => void;
+  onBlur?: () => void
   /** Whether field is required */
-  required?: boolean;
+  required?: boolean
   /** Placeholder text */
-  placeholder?: string;
+  placeholder?: string
   /** Field description */
-  description?: string;
+  description?: string
   /** Whether field has validation error */
-  hasError?: boolean;
+  hasError?: boolean
   /** Error message to display */
-  errorMessage?: string;
+  errorMessage?: string
   /** Whether field is disabled */
-  disabled?: boolean;
+  disabled?: boolean
   /** Field type - 'date' for date only, 'datetime' for date and time */
-  type?: 'date' | 'datetime';
+  type?: 'date' | 'datetime'
   /** Test ID for testing */
-  testId?: string;
+  testId?: string
   /** Minimum date allowed */
-  minDate?: Date;
+  minDate?: Date
   /** Maximum date allowed */
-  maxDate?: Date;
+  maxDate?: Date
   /** Custom date format for display */
-  dateFormat?: string;
+  dateFormat?: string
   /** Custom time format for display */
-  timeFormat?: string;
+  timeFormat?: string
 }
 
 /**
  * DateTimeField Component
- * 
+ *
  * A comprehensive date/datetime picker component for dynamic forms using nw-design-system.
  * Supports both date-only and datetime modes with proper validation and accessibility.
  */
@@ -85,140 +85,146 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
   testId = `datetime-field-${name}`,
   minDate,
   maxDate,
-  dateFormat = 'YYYY-MM-DD',
+  dateFormat = 'DD.MM.YYYY',
   timeFormat = 'HH:mm'
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [timeValue, setTimeValue] = useState('');
+  const [isOpen, setIsOpen] = useState(false)
+  const [timeValue, setTimeValue] = useState('')
 
   // Convert value to Date object
   const currentDate = React.useMemo(() => {
-    if (!value) return null;
-    if (value instanceof Date) return value;
+    if (!value) return null
+    if (value instanceof Date) return value
     if (typeof value === 'string') {
-      const parsed = dayjs(value);
-      return parsed.isValid() ? parsed.toDate() : null;
+      const parsed = dayjs(value)
+      return parsed.isValid() ? parsed.toDate() : null
     }
-    return null;
-  }, [value]);
+    return null
+  }, [value])
 
   // Initialize time value when date changes
   React.useEffect(() => {
     if (currentDate && type === 'datetime') {
-      const time = dayjs(currentDate).format(timeFormat);
-      setTimeValue(time);
+      const time = dayjs(currentDate).format(timeFormat)
+      setTimeValue(time)
     } else if (!currentDate) {
-      setTimeValue('');
+      setTimeValue('')
     }
-  }, [currentDate, type, timeFormat]);
+  }, [currentDate, type, timeFormat])
 
   // Handle date selection from calendar
-  const handleDateSelect = useCallback((selectedDate: Date | undefined) => {
-    if (!selectedDate) {
-      onChange(null);
-      setTimeValue('');
-      if (type === 'date') {
-        setIsOpen(false);
+  const handleDateSelect = useCallback(
+    (selectedDate: Date | undefined) => {
+      if (!selectedDate) {
+        onChange(null)
+        setTimeValue('')
+        if (type === 'date') {
+          setIsOpen(false)
+        }
+        return
       }
-      return;
-    }
 
-    let finalDate = selectedDate;
+      // Create a date in local timezone to avoid timezone offset issues
+      // Extract year, month, day from the selected date
+      const year = selectedDate.getFullYear()
+      const month = selectedDate.getMonth()
+      const day = selectedDate.getDate()
 
-    // For datetime mode, preserve or set time
-    if (type === 'datetime') {
-      if (timeValue) {
-        // Parse existing time and apply to selected date
-        const [hours, minutes] = timeValue.split(':').map(Number);
-        if (!isNaN(hours) && !isNaN(minutes)) {
-          finalDate = dayjs(selectedDate)
-            .hour(hours)
-            .minute(minutes)
-            .second(0)
-            .millisecond(0)
-            .toDate();
+      let finalDate: Date
+
+      // For datetime mode, preserve or set time
+      if (type === 'datetime') {
+        if (timeValue) {
+          // Parse existing time and apply to selected date
+          const [hours, minutes] = timeValue.split(':').map(Number)
+          if (!isNaN(hours) && !isNaN(minutes)) {
+            finalDate = new Date(year, month, day, hours, minutes, 0, 0)
+          } else {
+            // Fallback to current time if time is invalid
+            const now = new Date()
+            finalDate = new Date(year, month, day, now.getHours(), now.getMinutes(), 0, 0)
+            setTimeValue(dayjs(finalDate).format(timeFormat))
+          }
+        } else {
+          // Set default time to current time
+          const now = new Date()
+          finalDate = new Date(year, month, day, now.getHours(), now.getMinutes(), 0, 0)
+          setTimeValue(dayjs(finalDate).format(timeFormat))
         }
       } else {
-        // Set default time to current time or 09:00
-        const now = dayjs();
-        finalDate = dayjs(selectedDate)
-          .hour(now.hour())
-          .minute(now.minute())
-          .second(0)
-          .millisecond(0)
-          .toDate();
-        setTimeValue(dayjs(finalDate).format(timeFormat));
+        // For date-only mode, set time to noon to avoid timezone issues
+        // Using noon (12:00) instead of midnight prevents date shifting across timezones
+        finalDate = new Date(year, month, day, 12, 0, 0, 0)
+        setIsOpen(false)
       }
-    } else {
-      // For date-only mode, set time to start of day
-      finalDate = dayjs(selectedDate).startOf('day').toDate();
-      setIsOpen(false);
-    }
 
-    onChange(finalDate);
-  }, [onChange, type, timeValue, timeFormat]);
+      onChange(finalDate)
+    },
+    [onChange, type, timeValue, timeFormat]
+  )
 
   // Handle time change
-  const handleTimeChange = useCallback((newTime: string) => {
-    setTimeValue(newTime);
-    
-    if (currentDate && newTime) {
-      const [hours, minutes] = newTime.split(':').map(Number);
-      if (!isNaN(hours) && !isNaN(minutes)) {
-        const updatedDate = dayjs(currentDate)
-          .hour(hours)
-          .minute(minutes)
-          .second(0)
-          .millisecond(0)
-          .toDate();
-        onChange(updatedDate);
+  const handleTimeChange = useCallback(
+    (newTime: string) => {
+      setTimeValue(newTime)
+
+      if (currentDate && newTime) {
+        const [hours, minutes] = newTime.split(':').map(Number)
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          const updatedDate = dayjs(currentDate).hour(hours).minute(minutes).second(0).millisecond(0).toDate()
+          onChange(updatedDate)
+        }
       }
-    }
-  }, [currentDate, onChange]);
+    },
+    [currentDate, onChange]
+  )
 
   // Handle manual time input
-  const handleTimeInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTime = e.target.value;
-    handleTimeChange(newTime);
-  }, [handleTimeChange]);
+  const handleTimeInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newTime = e.target.value
+      handleTimeChange(newTime)
+    },
+    [handleTimeChange]
+  )
 
   // Generate time options for select (every 15 minutes)
   const timeOptions = React.useMemo(() => {
-    const options = [];
+    const options = []
     for (let hour = 0; hour < 24; hour++) {
       for (let minute = 0; minute < 60; minute += 15) {
-        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        const label = dayjs().hour(hour).minute(minute).format('HH:mm');
-        options.push({ value: time, label });
+        const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
+        const label = dayjs().hour(hour).minute(minute).format('HH:mm')
+        options.push({ value: time, label })
       }
     }
-    return options;
-  }, []);
+    return options
+  }, [])
 
   // Format display value
   const displayValue = React.useMemo(() => {
-    if (!currentDate) return '';
-    
+    if (!currentDate) return ''
+
     if (type === 'datetime') {
-      return dayjs(currentDate).format(`${dateFormat} ${timeFormat}`);
+      return dayjs(currentDate).format(`${dateFormat} ${timeFormat}`)
     } else {
-      return dayjs(currentDate).format(dateFormat);
+      return dayjs(currentDate).format(dateFormat)
     }
-  }, [currentDate, type, dateFormat, timeFormat]);
+  }, [currentDate, type, dateFormat, timeFormat])
 
   // Handle clear
   const handleClear = useCallback(() => {
-    onChange(null);
-    setTimeValue('');
-    setIsOpen(false);
-  }, [onChange]);
+    onChange(null)
+    setTimeValue('')
+    setIsOpen(false)
+  }, [onChange])
 
   return (
     <div className="gba:space-y-2" data-testid={`${testId}-container`}>
       {/* Label - only show if showLabel is true */}
       {showLabel && (
-        <Label 
-          htmlFor={name} 
+        <Label
+          htmlFor={name}
           className="gba:block gba:text-sm gba:font-medium gba:text-foreground"
           data-testid={`${testId}-label`}
         >
@@ -260,21 +266,21 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
                 mode="single"
                 selected={currentDate || undefined}
                 onSelect={handleDateSelect}
-                disabled={(date) => {
-                  if (disabled) return true;
-                  if (minDate && date < minDate) return true;
-                  if (maxDate && date > maxDate) return true;
-                  return false;
+                disabled={date => {
+                  if (disabled) return true
+                  if (minDate && date < minDate) return true
+                  if (maxDate && date > maxDate) return true
+                  return false
                 }}
                 initialFocus
                 data-testid={`${testId}-calendar`}
               />
-              
+
               {/* Time Selection for datetime mode */}
               {type === 'datetime' && (
                 <div className="gba:mt-3 gba:pt-3 gba:border-t gba:space-y-3">
                   <Label className="gba:text-sm gba:font-medium">Time</Label>
-                  
+
                   <div className="gba:flex gba:gap-2">
                     {/* Time Input */}
                     <Input
@@ -284,16 +290,16 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
                       className="gba:flex-1"
                       data-testid={`${testId}-time-input`}
                     />
-                    
+
                     {/* Quick Time Select */}
                     <Select value={timeValue} onValueChange={handleTimeChange}>
                       <SelectTrigger className="gba:w-20" data-testid={`${testId}-time-select`}>
                         <SelectValue placeholder="Time" />
                       </SelectTrigger>
                       <SelectContent className="gba:max-h-60">
-                        {timeOptions.map((option) => (
-                          <SelectItem 
-                            key={option.value} 
+                        {timeOptions.map(option => (
+                          <SelectItem
+                            key={option.value}
                             value={option.value}
                             data-testid={`${testId}-time-option-${option.value}`}
                           >
@@ -305,23 +311,14 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
                   </div>
                 </div>
               )}
-              
+
               {/* Action Buttons */}
               <div className="gba:mt-3 gba:pt-3 gba:border-t gba:flex gba:justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleClear}
-                  data-testid={`${testId}-clear`}
-                >
+                <Button variant="outline" size="sm" onClick={handleClear} data-testid={`${testId}-clear`}>
                   Clear
                 </Button>
                 {type === 'datetime' && (
-                  <Button
-                    size="sm"
-                    onClick={() => setIsOpen(false)}
-                    data-testid={`${testId}-done`}
-                  >
+                  <Button size="sm" onClick={() => setIsOpen(false)} data-testid={`${testId}-done`}>
                     Done
                   </Button>
                 )}
@@ -333,21 +330,19 @@ export const DateTimeField: React.FC<DateTimeFieldProps> = ({
 
       {/* Error Message */}
       {hasError && errorMessage && (
-        <div className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs" data-testid={`${testId}-error`}>
+        <div
+          className="gba:flex gba:items-center gba:gap-1 gba:text-destructive gba:text-xs"
+          data-testid={`${testId}-error`}
+        >
           <CalendarIcon className="gba:w-3 gba:h-3" />
           {errorMessage}
         </div>
       )}
 
       {/* Hidden input for form submission */}
-      <input
-        type="hidden"
-        name={name}
-        value={currentDate ? currentDate.toISOString() : ''}
-        onBlur={onBlur}
-      />
+      <input type="hidden" name={name} value={currentDate ? currentDate.toISOString() : ''} onBlur={onBlur} />
     </div>
-  );
-};
+  )
+}
 
-export default DateTimeField;
+export default DateTimeField
