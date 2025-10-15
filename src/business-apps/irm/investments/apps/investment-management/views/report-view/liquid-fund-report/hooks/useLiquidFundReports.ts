@@ -229,7 +229,17 @@ export const useLiquidFundReports = (
 
       // Extract unique currency IDs from reports and notify parent
       if (filters.onCurrenciesChange) {
-        const currencyIds = Array.from(new Set(latestReports.map(report => report.currencyRef).filter(Boolean)))
+        const currencyIds = Array.from(
+          new Set(
+            latestReports
+              .map(
+                report =>
+                  report.currencyRef || // InvestmentReport.currencyRef (primary)
+                  report.investment?.currencyRef // Investment.currencyRef (fallback)
+              )
+              .filter(Boolean)
+          )
+        )
         filters.onCurrenciesChange(currencyIds)
       }
 

@@ -6,7 +6,7 @@ import {
   FormFieldDefinition
 } from '@/business-apps/irm/investments/forms/investment-form/queries/InvestmentCatalogQueries'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
-import { formatNumberFunction, formatDate } from '@/common/utils/windowUtils'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 import { getValueByPath } from '@/common/utils/objectUtils'
 
 /**
@@ -19,7 +19,15 @@ const formatFieldValueForTable = (value: any, fieldType: string, currencyCode: s
   switch (fieldType) {
     case 'DATE':
     case 'DATETIME':
-      return formatDate(value) || '-'
+      try {
+        return new Date(value).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        })
+      } catch {
+        return '-'
+      }
 
     case 'AMOUNT':
       return typeof value === 'number' ? formatCurrency(value, currencyCode) : '-'

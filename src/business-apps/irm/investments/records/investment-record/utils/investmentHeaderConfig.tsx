@@ -53,7 +53,7 @@ const getValueByPath = (obj: any, path: string): any => {
           // Otherwise, set current to parsed and continue with remaining path
           current = parsed
           continue
-        } catch (error) {
+        } catch {
           return undefined
         }
       } else if (typeof current[key] === 'object' && current[key] !== null) {
@@ -85,7 +85,15 @@ export const formatFieldValue = (value: any, fieldType: string, currencyCode: st
   switch (fieldType) {
     case 'DATE':
     case 'DATETIME':
-      return formatDate(value)
+      try {
+        return new Date(value).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        })
+      } catch {
+        return '-'
+      }
 
     case 'AMOUNT':
       // Handle both number and string values (additionalProperties stores as strings)

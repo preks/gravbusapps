@@ -183,7 +183,8 @@ export const createInvestmentReportColumns = (
               getValueByPath(record.equityInvestmentReport, field.property)
           }
 
-          const currencyCode = record.investment?.currency?.code?.split(':').pop() || 'EUR'
+          const currencyCode =
+            record.currency?.code?.split(':').pop() || record.investment?.currency?.code?.split(':').pop() // InvestmentReport.currency (primary) // Investment.currency (fallback)
 
           // Special handling: Interest rate fields should always be formatted as percentages
           // even if catalog incorrectly defines them as AMOUNT

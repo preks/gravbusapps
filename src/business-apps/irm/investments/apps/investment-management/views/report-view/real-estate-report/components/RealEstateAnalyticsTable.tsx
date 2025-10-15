@@ -107,7 +107,17 @@ export const RealEstateAnalyticsTable: React.FC<RealEstateAnalyticsTableProps> =
 
       // Extract unique currency IDs from reports and notify parent
       if (onCurrenciesChange) {
-        const currencyIds = Array.from(new Set(latestReports.map(report => report.currencyRef).filter(Boolean)))
+        const currencyIds = Array.from(
+          new Set(
+            latestReports
+              .map(
+                report =>
+                  report.currencyRef || // InvestmentReport.currencyRef (primary)
+                  report.investment?.currencyRef // Investment.currencyRef (fallback)
+              )
+              .filter(Boolean)
+          )
+        )
         onCurrenciesChange(currencyIds)
       }
 
