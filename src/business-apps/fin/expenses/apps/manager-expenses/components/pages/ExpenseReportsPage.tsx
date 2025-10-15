@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import {
-  Input,
   Table,
   TableBody,
   TableCell,
@@ -22,6 +21,7 @@ import { useExpenseReportData, ReportType } from '../../hooks/useExpenseReportDa
 import { ensureShortDateFormat } from '../../utils/dateUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../personal-expenses/utils'
+import { sanitizeFilename } from '@/common/utils/textUtils'
 
 // Shared helpers for rendering/exporting values
 const dateKeys = new Set(['date', 'startDate', 'endDate', 'submissionDate', 'requestDate', 'createdAt', 'planDate'])
@@ -37,22 +37,28 @@ const formatCellValue = (key: string, raw: any): string => {
 
 const escapeCsv = (value: string) => {
   const needsQuotes = /[",\r\n]/.test(value)
-  const out = value.replaceAll('"', '""')
+  // SonarCloud: Using replace() for ES2020 compatibility (replaceAll requires ES2021)
+  const out = value.replace(/"/g, '""')
   return needsQuotes ? `"${out}"` : out
 }
 
+// SonarCloud: Using replace() for ES2020 compatibility (replaceAll requires ES2021)
 const htmlEscape = (value: string) =>
   value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 
 const buildFilename = (type: string, ext: string) => {
   const ts = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `expense-report-${type}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`
+  const filename = `expense-report-${type}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`
+
+  // Sanitize once at the end for defense-in-depth
+  // Note: type and ext are hardcoded, but sanitizing final filename provides security layer
+  return sanitizeFilename(filename)
 }
 
 interface ExpenseReportsPageProps extends BusinessAppContextProps {
@@ -413,7 +419,9 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
     const link = document.createElement('a')
     link.href = url
-    link.download = filename
+    link.download = filename // Already sanitized by buildFilename()
+    // Set additional security attributes
+    link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -451,7 +459,9 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
     const link = document.createElement('a')
     link.href = url
-    link.download = filename
+    link.download = filename // Already sanitized by buildFilename()
+    // Set additional security attributes
+    link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -517,7 +527,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
           'lowcoder:team_expenses_page.dashboard_tab.expense_reports_subheader',
           'Generate and download comprehensive expense reports across different categories and time periods'
         )}
-        headerIcon={PiFileText}
+        headerIcon={PiFileText as any}
         className="gba:min-h-screen"
       >
         <div className="gba:px-6 gba:h-full gba:flex gba:gap-6" data-testid="expense-reports-page">
