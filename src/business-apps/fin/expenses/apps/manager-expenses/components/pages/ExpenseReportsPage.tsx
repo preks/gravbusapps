@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import {
-  Input,
   Table,
   TableBody,
   TableCell,
@@ -22,6 +21,7 @@ import { useExpenseReportData, ReportType } from '../../hooks/useExpenseReportDa
 import { ensureShortDateFormat } from '../../utils/dateUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../personal-expenses/utils'
+import { sanitizeFilename } from '@/common/utils/textUtils'
 
 // Shared helpers for rendering/exporting values
 const dateKeys = new Set(['date', 'startDate', 'endDate', 'submissionDate', 'requestDate', 'createdAt', 'planDate'])
@@ -50,9 +50,16 @@ const htmlEscape = (value: string) =>
     .replaceAll("'", '&#39;')
 
 const buildFilename = (type: string, ext: string) => {
+  // Sanitize inputs to prevent XSS attacks using shared utility function
+  const safeType = sanitizeFilename(type)
+  const safeExt = sanitizeFilename(ext)
+
   const ts = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `expense-report-${type}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`
+  const filename = `expense-report-${safeType}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${safeExt}`
+
+  // Final sanitization of the complete filename
+  return sanitizeFilename(filename)
 }
 
 interface ExpenseReportsPageProps extends BusinessAppContextProps {
@@ -413,7 +420,10 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
     const link = document.createElement('a')
     link.href = url
-    link.download = filename
+    // Sanitize filename one more time before setting download attribute to prevent XSS
+    link.download = sanitizeFilename(filename)
+    // Set additional security attributes
+    link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -451,7 +461,10 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
     const link = document.createElement('a')
     link.href = url
-    link.download = filename
+    // Sanitize filename one more time before setting download attribute to prevent XSS
+    link.download = sanitizeFilename(filename)
+    // Set additional security attributes
+    link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
     link.click()
     link.remove()

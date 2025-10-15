@@ -2,6 +2,8 @@
  * Utility functions for exporting data to CSV and Excel formats
  */
 
+import { sanitizeFilename } from '@/common/utils/textUtils'
+
 /**
  * Escapes a value for use in CSV format
  * Handles quotes, commas, and newlines
@@ -32,23 +34,9 @@ export const htmlEscape = (value: string): string =>
     .replace(/'/g, '&#39;')
 
 /**
- * Sanitizes a filename to prevent XSS and path traversal attacks
- * Removes potentially dangerous characters and limits to safe alphanumeric characters
- */
-const sanitizeFilename = (filename: string): string => {
-  // Remove any characters that are not alphanumeric, dash, underscore, or dot
-  // This prevents XSS, path traversal, and other injection attacks
-  return filename
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/\.{2,}/g, '_') // Prevent path traversal with multiple dots
-    .replace(/^\.+/, '') // Remove leading dots
-    .substring(0, 255) // Limit filename length (filesystem limit)
-}
-
-/**
  * Builds a timestamped filename for exports
  * Uses UTC time to ensure consistent filenames across timezones
- * Sanitizes inputs to prevent XSS attacks
+ * Sanitizes inputs to prevent XSS attacks using shared utility function
  */
 export const buildFilename = (type: string, ext: string): string => {
   // Sanitize inputs to prevent XSS even though they are currently hardcoded
