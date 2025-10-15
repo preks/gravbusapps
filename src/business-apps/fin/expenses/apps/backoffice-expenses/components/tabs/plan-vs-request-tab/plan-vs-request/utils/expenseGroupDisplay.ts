@@ -69,7 +69,10 @@ export const getExpenseGroupPluralName = (expenseGroupCode: string): string => {
       return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.mileage', 'Mileage')
 
     case 'OTHER_TRANSPORT':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.other_transport_costs', 'Other Transport Costs')
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:expense_categories.other_transport_costs',
+        'Other Transport Costs'
+      )
 
     case 'OTHER':
       return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.others', 'Others')
@@ -78,4 +81,3 @@ export const getExpenseGroupPluralName = (expenseGroupCode: string): string => {
       return code
   }
 }
-

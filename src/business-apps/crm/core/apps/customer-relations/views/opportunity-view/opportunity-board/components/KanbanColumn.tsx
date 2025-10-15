@@ -25,7 +25,6 @@ interface KanbanColumnProps extends BusinessAppContextProps {
 export function KanbanColumn({
   stage,
   opportunities,
-  sourceApp,
   isDraggedOver = false,
   isDragging = false,
   dragOverOpportunity = null,
@@ -70,7 +69,7 @@ export function KanbanColumn({
       <div className="gba:flex-1 gba:overflow-y-auto gba:scroll-smooth gba:p-2 gba:h-[600px]">
         <SortableContext items={opportunities.map(op => op.id)} strategy={verticalListSortingStrategy}>
           <div className="gba:space-y-2">
-            {opportunities.map((opportunity, index) => (
+            {opportunities.map(opportunity => (
               <div key={opportunity.id}>
                 {/* Show insertion indicator when dragging over this opportunity from another column */}
                 {dragOverOpportunity === opportunity.id && insertPosition === 'before' && (

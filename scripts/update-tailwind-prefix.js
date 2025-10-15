@@ -5,11 +5,9 @@
 
 import fs from 'fs'
 import path from 'path'
-import { globSync } from 'glob'
 
 // Configuration
 const SRC_DIR = path.resolve(process.cwd(), 'src')
-const FILE_PATTERN = '**/*.{ts,tsx}'
 const PREFIX = 'gba:'
 const DRY_RUN = false // Set to false to apply changes to files
 
@@ -467,7 +465,7 @@ function updateClassNameInJSX(content) {
   )
 
   // Process style objects in React components
-  updatedContent = updatedContent.replace(/style=\{\{([^{}]+)\}\}/g, (match, styleContent) => {
+  updatedContent = updatedContent.replace(/style=\{\{([^{}]+)\}\}/g, match => {
     // Process class names in style objects if they appear to be Tailwind classes
     // This is for inline styles, not Tailwind, so typically we wouldn't modify this
     return match
@@ -529,18 +527,6 @@ function processFile(filePath) {
     return false
   } catch (error) {
     console.error(`Error processing file ${filePath}:`, error)
-    return false
-  }
-}
-
-// Function to check if a file has been modified by this script
-function hasBeenModified(filePath) {
-  try {
-    const content = fs.readFileSync(filePath, 'utf8')
-    // Check if the file already contains gba: prefixed classes
-    return content.includes('gba:')
-  } catch (error) {
-    console.error(`Error checking if file ${filePath} has been modified:`, error)
     return false
   }
 }

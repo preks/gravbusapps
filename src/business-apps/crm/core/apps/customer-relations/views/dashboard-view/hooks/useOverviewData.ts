@@ -133,7 +133,7 @@ export const useOverviewData = (
           stages.forEach((stage: any) => {
             allStages.set(stage.code, stage)
           })
-        } catch (err) {
+        } catch {
           // Failed to fetch stages for this pipeline
         }
       }
@@ -141,7 +141,6 @@ export const useOverviewData = (
       // Calculate aggregated funnel data from all opportunities using standardized stages
       const standardizedStageGroups = new Map<string, { count: number; value: number }>()
       let totalPipelineValue = 0
-      let totalRevenue = 0
 
       // Define the standardized stage mapping and order
       const stageMapping = {
@@ -180,7 +179,6 @@ export const useOverviewData = (
           stageCode = alternativeCode
         } else if (opp.status === 'Won') {
           stageCode = 'CLOSED_WON'
-          totalRevenue += amount
         } else if (opp.status === 'Lost') {
           stageCode = 'CLOSED_LOST'
         }
