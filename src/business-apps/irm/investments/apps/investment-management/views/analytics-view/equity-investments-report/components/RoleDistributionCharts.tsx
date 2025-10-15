@@ -18,7 +18,6 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell } from 'recharts'
-import { formatCurrency } from '@/common/data/investment'
 import { ChartPieSliceIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { EquityInvestmentSummary } from '../../shared/types'
 import { CHART_COLORS, renderCustomizedLabel, createChartConfig } from './shared/chartUtils'
@@ -30,6 +29,18 @@ interface RoleDistributionChartsProps {
 
 export const RoleDistributionCharts: React.FC<RoleDistributionChartsProps> = ({ roleData, rawInvestments }) => {
   const [roleCurrencyFilter, setRoleCurrencyFilter] = useState('EUR')
+
+  // Helper function for consistent currency formatting
+  const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      notation: 'compact',
+      compactDisplay: 'short',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1
+    }).format(amount)
+  }
 
   // Create chart configurations
   const roleCountConfig = useMemo(() => createChartConfig(roleData), [roleData])

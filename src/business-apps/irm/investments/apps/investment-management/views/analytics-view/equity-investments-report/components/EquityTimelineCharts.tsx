@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Card,
   CardHeader,
@@ -9,85 +9,181 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartLegend,
-  ChartLegendContent
+  ChartLegendContent,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
-import { ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
-import { formatCurrency } from '@/common/data/investment'
-import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
+import { ComposedChart, ScatterChart, Scatter, Bar, Line, XAxis, YAxis, LabelList, ZAxis } from 'recharts'
+import { ChartLineUpIcon, TrendUpIcon, ChartScatterIcon } from '@phosphor-icons/react'
+import type { EquityInvestmentSummary } from '../../shared/types'
+import dayjs from 'dayjs'
 
-const CHART_COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1']
+const CHART_COLORS = [
+  '#8884d8',
+  '#82ca9d',
+  '#ffc658',
+  '#ff7c7c',
+  '#8dd1e1',
+  '#a4de6c',
+  '#d0ed57',
+  '#83a6ed',
+  '#8e4585',
+  '#ffa500'
+]
 
 interface EquityTimelineChartsProps {
-  equityTimelineData: any[]
+  equityTimelineData: {
+    data: any[]
+    types: string[]
+  }
   topCompaniesByValuationData: any[]
+  rawInvestments: EquityInvestmentSummary[]
+  masterCurrency: string
+  availableCurrencies: string[]
 }
 
 export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
   equityTimelineData,
-  topCompaniesByValuationData
+  topCompaniesByValuationData,
+  rawInvestments,
+  masterCurrency,
+  availableCurrencies
 }) => {
+  // Independent currency state for each chart
+  const [timelineCurrency, setTimelineCurrency] = useState(masterCurrency)
+  const [topCompaniesCurrency, setTopCompaniesCurrency] = useState(masterCurrency)
+  const [portfolioMatrixCurrency, setPortfolioMatrixCurrency] = useState(masterCurrency)
+
+  // Reset all chart currencies when master currency changes
+  useEffect(() => {
+    setTimelineCurrency(masterCurrency)
+    setTopCompaniesCurrency(masterCurrency)
+    setPortfolioMatrixCurrency(masterCurrency)
+  }, [masterCurrency])
+
+  // Helper function for consistent currency formatting
+  const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      notation: 'compact',
+      compactDisplay: 'short',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1
+    }).format(amount)
+  }
+
+  // Portfolio Matrix Data: Size (investment amount), Duration (years invested), MOIC (multiple)
+  const portfolioMatrixData = useMemo(() => {
+    return rawInvestments
+      .filter(equity => equity.currencyCode === portfolioMatrixCurrency)
+      .filter(equity => {
+        const hasAcquisitionDate = equity.investment.acquisitionDate
+        const hasTotalInvestment =
+          equity.investment.totalInvestmentAmount && equity.investment.totalInvestmentAmount > 0
+        const hasMarketValue = equity.investment.investmentMarketValue
+        return hasAcquisitionDate && hasTotalInvestment && hasMarketValue
+      })
+      .map(equity => {
+        // Calculate duration in years
+        const acquisitionDate = dayjs(equity.investment.acquisitionDate)
+        const today = dayjs()
+        const durationYears = today.diff(acquisitionDate, 'year', true)
+
+        // Calculate MOIC
+        const moic = equity.investment.investmentMarketValue! / equity.investment.totalInvestmentAmount!
+
+        // Investment amount for bubble size
+        const investmentAmount = equity.investment.totalInvestmentAmount!
+
+        return {
+          company: equity.displayName || 'Unknown',
+          duration: Number(durationYears.toFixed(1)),
+          moic: Number(moic.toFixed(2)),
+          investmentAmount,
+          // Size for bubble - normalized (use sqrt for better visual scaling)
+          size: Math.sqrt(investmentAmount / 1000000) * 100 // Scale down for visualization
+        }
+      })
+  }, [rawInvestments, portfolioMatrixCurrency])
+  // Create dynamic chart config for all investment types plus trendline
+  const chartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    equityTimelineData.types.forEach(type => {
+      config[type] = { label: type }
+    })
+    config.trend = { label: 'Trend' }
+    return config
+  }, [equityTimelineData.types])
+
   return (
     <>
       {/* Equity Investment Performance Timeline - Full Width Row */}
       <Card>
         <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={ChartLineUpIcon} variant="default" size="md" decorative />
-            <div>
-              <CardTitle>Equity Performance Timeline</CardTitle>
-              <CardDescription>Timeline of equity investment activity and cumulative growth</CardDescription>
+          <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <IconAvatar icon={ChartLineUpIcon} variant="default" size="md" decorative />
+              <div>
+                <CardTitle>Equity Performance Timeline ({timelineCurrency})</CardTitle>
+                <CardDescription>Investment amounts by type over the last 5 years with trend analysis</CardDescription>
+              </div>
             </div>
+            <Select value={timelineCurrency} onValueChange={setTimelineCurrency}>
+              <SelectTrigger className="gba:w-24 gba:h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={useMemo(
-              () => ({
-                newinvestments: { label: 'New Investments' },
-                totalvaluation: { label: 'Total Valuation' },
-                cumulativeinvestments: { label: 'Cumulative Investments' }
-              }),
-              []
-            )}
-            className="gba:h-[400px] gba:w-full"
-          >
-            <ComposedChart data={equityTimelineData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+          <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
+            <ComposedChart data={equityTimelineData.data} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
+              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                tickFormatter={value => formatCurrency(value, timelineCurrency).replace(/[€$£¥]/g, '')}
+              />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
+                    // Separate investment types from trend line
+                    const investmentTypes = payload.filter(
+                      entry => entry.dataKey !== 'total' && (entry.value as number) > 0
+                    )
+                    const totalEntry = payload.find(entry => entry.dataKey === 'total')
+                    const total = (totalEntry?.value as number) || 0
+
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                        {payload.map((entry, index) => {
-                          let formattedValue = ''
-                          let properLabel = ''
-                          let dotColor = ''
-
-                          if (entry.dataKey === 'investmentCount') {
-                            formattedValue = `${entry.value}`
-                            properLabel = 'New Investments'
-                            dotColor = 'var(--color-newinvestments)'
-                          } else if (entry.dataKey === 'totalValuation') {
-                            formattedValue = formatCurrency(entry.value as number)
-                            properLabel = 'Total Valuation'
-                            dotColor = 'var(--color-totalvaluation)'
-                          } else if (entry.dataKey === 'cumulativeInvestments') {
-                            formattedValue = `${entry.value}`
-                            properLabel = 'Cumulative Investments'
-                            dotColor = 'var(--color-cumulativeinvestments)'
-                          }
-
-                          return (
-                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
-                              <span className="gba:font-medium">{properLabel}:</span>
-                              <span className="gba:font-semibold">{formattedValue}</span>
-                            </div>
-                          )
-                        })}
+                        <div className="gba:mb-2 gba:font-semibold gba:text-gray-800">{label}</div>
+                        {investmentTypes.map((entry, index) => (
+                          <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.fill }} />
+                            <span className="gba:font-medium gba:text-gray-600">{entry.name}:</span>
+                            <span className="gba:font-semibold gba:text-gray-800">
+                              {formatCurrency(entry.value as number, timelineCurrency)}
+                            </span>
+                          </div>
+                        ))}
+                        <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <span className="gba:font-semibold gba:text-gray-700">Total:</span>
+                            <span className="gba:font-bold gba:text-gray-900">
+                              {formatCurrency(total, timelineCurrency)}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     )
                   }
@@ -95,32 +191,146 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar
-                yAxisId="left"
-                dataKey="investmentCount"
-                name="newinvestments"
-                fill="var(--color-newinvestments)"
-                radius={[4, 4, 0, 0]}
-              />
+              {equityTimelineData.types.map((type, index) => {
+                const isLastType = index === equityTimelineData.types.length - 1
+                return (
+                  <Bar
+                    key={type}
+                    dataKey={type}
+                    name={type}
+                    stackId="investments"
+                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    radius={isLastType ? [4, 4, 0, 0] : undefined}
+                  >
+                    {isLastType && (
+                      <LabelList
+                        dataKey="yoyLabel"
+                        position="top"
+                        offset={15}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          fill: 'var(--nw-color-foreground)'
+                        }}
+                        formatter={(value: any) => value || ''}
+                      />
+                    )}
+                  </Bar>
+                )
+              })}
               <Line
-                yAxisId="right"
                 type="monotone"
-                dataKey="totalValuation"
-                name="totalvaluation"
-                stroke="var(--color-totalvaluation)"
+                dataKey="total"
+                name="trend"
+                stroke="var(--color-trend)"
                 strokeWidth={3}
-                dot={false}
-              />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="cumulativeInvestments"
-                name="cumulativeinvestments"
-                stroke="var(--color-cumulativeinvestments)"
-                strokeWidth={2}
-                dot={false}
+                dot={{ fill: 'var(--color-trend)', r: 4 }}
               />
             </ComposedChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      {/* Portfolio Matrix: Size | Holding Duration | Multiples - Bubble Chart */}
+      <Card>
+        <CardHeader>
+          <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <IconAvatar icon={ChartScatterIcon} variant="secondary" size="md" decorative />
+              <div>
+                <CardTitle>Portfolio - Size | Holding Duration | Multiples ({portfolioMatrixCurrency})</CardTitle>
+                <CardDescription>Investment size, years invested, and MOIC performance analysis</CardDescription>
+              </div>
+            </div>
+            <Select value={portfolioMatrixCurrency} onValueChange={setPortfolioMatrixCurrency}>
+              <SelectTrigger className="gba:w-24 gba:h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer
+            config={useMemo(
+              () => ({
+                portfoliomatrix: { label: 'Portfolio Matrix' }
+              }),
+              []
+            )}
+            className="gba:h-[450px] gba:w-full"
+          >
+            <ScatterChart data={portfolioMatrixData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <XAxis
+                type="number"
+                dataKey="duration"
+                name="Years Invested"
+                tick={{ fontSize: 12 }}
+                label={{ value: 'Years invested', position: 'insideBottom', offset: -10 }}
+                domain={[0, 'auto']}
+              />
+              <YAxis
+                type="number"
+                dataKey="moic"
+                name="MOIC"
+                tick={{ fontSize: 12 }}
+                label={{ value: 'MOIC', angle: -90, position: 'insideLeft' }}
+                domain={[0, 'auto']}
+              />
+              <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
+              <ChartTooltip
+                content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload
+
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.company}</div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div
+                            className="gba:w-3 gba:h-3 gba:rounded-full"
+                            style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                          />
+                          <span className="gba:font-medium">Investment Amount:</span>
+                          <span className="gba:font-semibold">
+                            {formatCurrency(data.investmentAmount, portfolioMatrixCurrency)}
+                          </span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                          <div
+                            className="gba:w-3 gba:h-3 gba:rounded-full"
+                            style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                          />
+                          <span className="gba:font-medium">Years Invested:</span>
+                          <span className="gba:font-semibold">{data.duration} years</span>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <div
+                            className="gba:w-3 gba:h-3 gba:rounded-full"
+                            style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                          />
+                          <span className="gba:font-medium">MOIC:</span>
+                          <span className="gba:font-semibold">{data.moic}x</span>
+                        </div>
+                      </div>
+                    )
+                  }
+                  return null
+                }}
+              />
+              <Scatter
+                name="portfoliomatrix"
+                data={portfolioMatrixData}
+                fill="var(--color-portfoliomatrix)"
+                opacity={0.6}
+              />
+            </ScatterChart>
           </ChartContainer>
         </CardContent>
       </Card>
@@ -128,12 +338,26 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
       {/* Top Companies by Valuation - Full Width Row */}
       <Card>
         <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={TrendUpIcon} variant="success" size="md" decorative />
-            <div>
-              <CardTitle>Top Companies by Valuation</CardTitle>
-              <CardDescription>Highest valued companies in the equity investment portfolio</CardDescription>
+          <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <IconAvatar icon={TrendUpIcon} variant="success" size="md" decorative />
+              <div>
+                <CardTitle>Top Companies by Valuation ({topCompaniesCurrency})</CardTitle>
+                <CardDescription>Highest valued companies in the equity investment portfolio</CardDescription>
+              </div>
             </div>
+            <Select value={topCompaniesCurrency} onValueChange={setTopCompaniesCurrency}>
+              <SelectTrigger className="gba:w-24 gba:h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurrencies.map(currency => (
+                  <SelectItem key={currency} value={currency}>
+                    {currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         <CardContent>
@@ -159,7 +383,10 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                   return value.length > 15 ? `${value.substring(0, 15)}...` : value
                 }}
               />
-              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCurrency(value).replace(/[€$£¥]/g, '')} />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replace(/[€$£¥]/g, '')}
+              />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -172,7 +399,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                           let dotColor = ''
 
                           if (entry.dataKey === 'valuation') {
-                            formattedValue = formatCurrency(entry.value as number)
+                            formattedValue = formatCurrency(entry.value as number, topCompaniesCurrency)
                             properLabel = 'Valuation'
                             dotColor = 'var(--color-valuation)'
                           }

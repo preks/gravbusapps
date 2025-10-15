@@ -123,29 +123,76 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       return acc
     }, [] as any[])
 
-    // NEW: Equity Investment Performance Timeline - showing valuations and EBITDA over time
-    const equityTimelineData = equityInvestments
-      .filter(equity => equity.investment.acquisitionDate)
-      .sort((a, b) => dayjs(a.investment.acquisitionDate).unix() - dayjs(b.investment.acquisitionDate).unix())
-      .reduce((acc, equity, index) => {
-        const date = dayjs(equity.investment.acquisitionDate).format('YYYY-MM')
-        const existing = acc.find(item => item.month === date)
-        if (existing) {
-          existing.investmentCount += 1
-          existing.totalValuation += equity.investment.investmentMarketValue || 0
-          existing.totalEbitda += equity.equityInvestment?.ebitdaAmount || 0
-          existing.cumulativeInvestments += 1
+    // NEW: Equity Investment Performance Timeline - showing total investment amounts by type over time (yearly)
+    const equityTimelineData = (() => {
+      // Calculate the last 5 years (current year + 4 previous years)
+      const currentYear = dayjs().year()
+      const startYear = currentYear - 4
+      const years = Array.from({ length: 5 }, (_, i) => (startYear + i).toString())
+
+      // First, collect all unique investment types
+      const investmentTypes = new Set<string>()
+      equityInvestments.forEach(equity => {
+        const type = equity.investment.investmentType?.value || 'Unknown'
+        investmentTypes.add(type)
+      })
+
+      // Initialize data structure with all years
+      const yearlyData = years.map(year => {
+        const entry: any = { year, total: 0 }
+        // Initialize all types to 0 for this year
+        investmentTypes.forEach(type => {
+          entry[type] = 0
+        })
+        return entry
+      })
+
+      // Group investments by year and type
+      equityInvestments
+        .filter(equity => equity.investment.acquisitionDate)
+        .forEach(equity => {
+          const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
+          const type = equity.investment.investmentType?.value || 'Unknown'
+          const amount = equity.investment.totalInvestmentAmount || 0
+
+          // Only include data from the last 5 years
+          if (parseInt(year) >= startYear && parseInt(year) <= currentYear) {
+            const yearEntry = yearlyData.find(item => item.year === year)
+            if (yearEntry) {
+              // Add amount to the specific type
+              yearEntry[type] = (yearEntry[type] || 0) + amount
+              // Update total for trendline
+              yearEntry.total = (yearEntry.total || 0) + amount
+            }
+          }
+        })
+
+      // Calculate YoY change for each year
+      yearlyData.forEach((entry, index) => {
+        if (index === 0) {
+          // First year has no previous year
+          entry.yoyChange = null
+          entry.yoyLabel = ''
         } else {
-          acc.push({
-            month: date,
-            investmentCount: 1,
-            totalValuation: equity.investment.investmentMarketValue || 0,
-            totalEbitda: equity.equityInvestment?.ebitdaAmount || 0,
-            cumulativeInvestments: index + 1
-          })
+          const previousTotal = yearlyData[index - 1].total
+          if (previousTotal === 0) {
+            // Avoid division by zero
+            entry.yoyChange = entry.total > 0 ? 100 : 0
+            entry.yoyLabel = entry.total > 0 ? '+100%' : '0%'
+          } else {
+            const change = ((entry.total - previousTotal) / previousTotal) * 100
+            entry.yoyChange = change
+            const sign = change > 0 ? '+' : ''
+            entry.yoyLabel = `${sign}${change.toFixed(1)}%`
+          }
         }
-        return acc
-      }, [] as any[])
+      })
+
+      return {
+        data: yearlyData,
+        types: Array.from(investmentTypes)
+      }
+    })()
 
     // NEW: Stake vs Investment Amount Correlation (Scatter Plot)
     const stakeVsInvestmentAmountData = equityInvestments
@@ -161,89 +208,6 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
         role: 'Lead Investor', // Default role since it's not in centralized structure
         color: '#1890ff' // Default color for lead investor
       }))
-
-    // NEW: EBITDA vs Company Valuation Analysis (Composed Chart) - using same ranges as valuation distribution
-    const ebitdaValuationAnalysisData = (() => {
-      // Get all valuation values for equity investments
-      const valuations = equityInvestments
-        .map(equity => equity.investment.investmentMarketValue || 0)
-        .filter(val => val > 0)
-
-      if (valuations.length === 0) {
-        return []
-      }
-
-      // Find min and max values (same logic as valuationDistributionData)
-      const minValuation = Math.min(...valuations)
-      const maxValuation = Math.max(...valuations)
-
-      // Create 5 equal-sized ranges (same as valuationDistributionData)
-      const rangeSize = (maxValuation - minValuation) / 5
-      const ranges: {
-        range: string
-        min: number
-        max: number
-        count: number
-        totalValuation: number
-        averageEbitda: number
-        totalEbitda: number
-      }[] = []
-
-      for (let i = 0; i < 5; i++) {
-        const rangeStart = minValuation + i * rangeSize
-        const rangeEnd = i === 4 ? maxValuation : minValuation + (i + 1) * rangeSize
-
-        // Format range labels (same formatting as valuationDistributionData)
-        const formatValue = (value: number) => {
-          if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`
-          if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-          if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
-          return value.toFixed(0)
-        }
-
-        const rangeLabel = `${formatValue(rangeStart)} - ${formatValue(rangeEnd)}`
-
-        ranges.push({
-          range: rangeLabel,
-          min: rangeStart,
-          max: rangeEnd,
-          count: 0,
-          totalValuation: 0,
-          averageEbitda: 0,
-          totalEbitda: 0
-        })
-      }
-
-      // Categorize investments into ranges and calculate EBITDA metrics
-      equityInvestments.forEach(equity => {
-        const valuation = equity.investment.investmentMarketValue || 0
-        const ebitda = equity.equityInvestment?.ebitdaAmount || 0
-        if (valuation > 0) {
-          // Handle edge case where all valuations are the same (rangeSize = 0)
-          let rangeIndex = 0
-          if (rangeSize > 0) {
-            rangeIndex = Math.min(
-              Math.floor((valuation - minValuation) / rangeSize),
-              4 // Ensure we don't exceed index 4
-            )
-          }
-
-          // Ensure rangeIndex is valid
-          if (rangeIndex >= 0 && rangeIndex < ranges.length) {
-            ranges[rangeIndex].count += 1
-            ranges[rangeIndex].totalValuation += valuation
-            ranges[rangeIndex].totalEbitda += ebitda
-          }
-        }
-      })
-
-      // Calculate average EBITDA for each range
-      ranges.forEach(range => {
-        range.averageEbitda = range.count > 0 ? range.totalEbitda / range.count : 0
-      })
-
-      return ranges
-    })()
 
     // NEW: Investment Role vs Investment Amount Analysis (Scatter Plot)
     const roleInvestmentAmountData = equityInvestments
@@ -295,81 +259,6 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       .sort((a, b) => (b.valuation || 0) - (a.valuation || 0))
       .slice(0, 10) // Top 10 companies
 
-    // NEW: Enhanced Performance Distribution with Dynamic Valuation ranges
-    const valuationDistributionData = (() => {
-      // Get all valuation values
-      const valuations = equityInvestments
-        .map(equity => equity.investment.investmentMarketValue || 0)
-        .filter(val => val > 0)
-
-      if (valuations.length === 0) {
-        return []
-      }
-
-      // Find min and max values
-      const minValuation = Math.min(...valuations)
-      const maxValuation = Math.max(...valuations)
-
-      // Create 5 equal-sized ranges
-      const rangeSize = (maxValuation - minValuation) / 5
-      const ranges: {
-        range: string
-        min: number
-        max: number
-        count: number
-        totalValuation: number
-        totalEbitda: number
-      }[] = []
-
-      for (let i = 0; i < 5; i++) {
-        const rangeStart = minValuation + i * rangeSize
-        const rangeEnd = i === 4 ? maxValuation : minValuation + (i + 1) * rangeSize
-
-        // Format range labels
-        const formatValue = (value: number) => {
-          if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`
-          if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-          if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
-          return value.toFixed(0)
-        }
-
-        const rangeLabel = `${formatValue(rangeStart)} - ${formatValue(rangeEnd)}`
-
-        ranges.push({
-          range: rangeLabel,
-          min: rangeStart,
-          max: rangeEnd,
-          count: 0,
-          totalValuation: 0,
-          totalEbitda: 0
-        })
-      }
-
-      // Categorize investments into ranges
-      equityInvestments.forEach(equity => {
-        const valuation = equity.investment.investmentMarketValue || 0
-        if (valuation > 0) {
-          // Handle edge case where all valuations are the same (rangeSize = 0)
-          let rangeIndex = 0
-          if (rangeSize > 0) {
-            rangeIndex = Math.min(
-              Math.floor((valuation - minValuation) / rangeSize),
-              4 // Ensure we don't exceed index 4
-            )
-          }
-
-          // Ensure rangeIndex is valid
-          if (rangeIndex >= 0 && rangeIndex < ranges.length) {
-            ranges[rangeIndex].count += 1
-            ranges[rangeIndex].totalValuation += valuation
-            ranges[rangeIndex].totalEbitda += equity.equityInvestment?.ebitdaAmount || 0
-          }
-        }
-      })
-
-      return ranges
-    })()
-
     return {
       roleData,
       valuationEbitdaData,
@@ -385,6 +274,7 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
       roleInvestmentAmountData,
       concentrationByRoleData,
       topCompaniesByValuationData
+      // Distribution analysis data (investmentSizeData and investmentDurationData computed dynamically in component)
     }
   }, [equityInvestments])
 }
