@@ -50,15 +50,12 @@ const htmlEscape = (value: string) =>
     .replaceAll("'", '&#39;')
 
 const buildFilename = (type: string, ext: string) => {
-  // Sanitize inputs to prevent XSS attacks using shared utility function
-  const safeType = sanitizeFilename(type)
-  const safeExt = sanitizeFilename(ext)
-
   const ts = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  const filename = `expense-report-${safeType}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${safeExt}`
+  const filename = `expense-report-${type}-${ts.getFullYear()}${pad(ts.getMonth() + 1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.${ext}`
 
-  // Final sanitization of the complete filename
+  // Sanitize once at the end for defense-in-depth
+  // Note: type and ext are hardcoded, but sanitizing final filename provides security layer
   return sanitizeFilename(filename)
 }
 
@@ -420,8 +417,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
     const link = document.createElement('a')
     link.href = url
-    // Sanitize filename one more time before setting download attribute to prevent XSS
-    link.download = sanitizeFilename(filename)
+    link.download = filename // Already sanitized by buildFilename()
     // Set additional security attributes
     link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
@@ -461,8 +457,7 @@ const ExpenseReportsPage: React.FC<ExpenseReportsPageProps> = ({ onNavigateBack,
 
     const link = document.createElement('a')
     link.href = url
-    // Sanitize filename one more time before setting download attribute to prevent XSS
-    link.download = sanitizeFilename(filename)
+    link.download = filename // Already sanitized by buildFilename()
     // Set additional security attributes
     link.setAttribute('rel', 'noopener noreferrer')
     document.body.appendChild(link)
