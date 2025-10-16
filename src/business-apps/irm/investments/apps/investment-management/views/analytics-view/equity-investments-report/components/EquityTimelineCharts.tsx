@@ -35,19 +35,12 @@ const CHART_COLORS = [
 ]
 
 interface EquityTimelineChartsProps {
-  equityTimelineData: {
-    data: any[]
-    types: string[]
-  }
-  topCompaniesByValuationData: any[]
   rawInvestments: EquityInvestmentSummary[]
   masterCurrency: string
   availableCurrencies: string[]
 }
 
 export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
-  equityTimelineData,
-  topCompaniesByValuationData,
   rawInvestments,
   masterCurrency,
   availableCurrencies
@@ -109,15 +102,96 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
         }
       })
   }, [rawInvestments, portfolioMatrixCurrency])
+
+  // Recalculate timeline data based on selected currency
+  const filteredEquityTimelineData = useMemo(() => {
+    // Filter investments by selected currency
+    const currencyFilteredInvestments = rawInvestments.filter(equity => equity.currencyCode === timelineCurrency)
+
+    // Calculate the last 5 years
+    const currentYear = dayjs().year()
+    const startYear = currentYear - 4
+    const years = Array.from({ length: 5 }, (_, i) => (startYear + i).toString())
+
+    // Collect all unique investment types
+    const investmentTypes = new Set<string>()
+    currencyFilteredInvestments.forEach(equity => {
+      const type = equity.investment.investmentType?.value || 'Unknown'
+      investmentTypes.add(type)
+    })
+
+    // Initialize data structure with all years
+    const yearlyData = years.map(year => {
+      const entry: any = { year, total: 0 }
+      investmentTypes.forEach(type => {
+        entry[type] = 0
+      })
+      return entry
+    })
+
+    // Group investments by year and type
+    currencyFilteredInvestments
+      .filter(equity => equity.investment.acquisitionDate)
+      .forEach(equity => {
+        const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
+        const type = equity.investment.investmentType?.value || 'Unknown'
+        const amount = equity.investment.totalInvestmentAmount || 0
+
+        if (parseInt(year) >= startYear && parseInt(year) <= currentYear) {
+          const yearEntry = yearlyData.find(item => item.year === year)
+          if (yearEntry) {
+            yearEntry[type] = (yearEntry[type] || 0) + amount
+            yearEntry.total = (yearEntry.total || 0) + amount
+          }
+        }
+      })
+
+    // Calculate YoY change for each year
+    yearlyData.forEach((entry, index) => {
+      if (index > 0) {
+        const currentTotal = entry.total || 0
+        const previousTotal = yearlyData[index - 1].total || 0
+        if (previousTotal > 0) {
+          const yoyChange = ((currentTotal - previousTotal) / previousTotal) * 100
+          entry.yoyLabel = `${yoyChange >= 0 ? '+' : ''}${yoyChange.toFixed(1)}%`
+        } else if (currentTotal > 0) {
+          entry.yoyLabel = '+100%'
+        } else {
+          entry.yoyLabel = '0%'
+        }
+      } else {
+        entry.yoyLabel = '0%'
+      }
+    })
+
+    return {
+      data: yearlyData,
+      types: Array.from(investmentTypes)
+    }
+  }, [rawInvestments, timelineCurrency])
+
+  // Recalculate top companies data based on selected currency
+  const filteredTopCompaniesData = useMemo(() => {
+    return rawInvestments
+      .filter(equity => equity.currencyCode === topCompaniesCurrency)
+      .filter(equity => equity.investment.investmentMarketValue && equity.investment.investmentMarketValue > 0)
+      .sort((a, b) => (b.investment.investmentMarketValue || 0) - (a.investment.investmentMarketValue || 0))
+      .slice(0, 10)
+      .map(equity => ({
+        company: equity.displayName || 'Unknown',
+        valuation: equity.investment.investmentMarketValue || 0
+      }))
+  }, [rawInvestments, topCompaniesCurrency])
+
   // Create dynamic chart config for all investment types plus trendline
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    equityTimelineData.types.forEach(type => {
+    filteredEquityTimelineData.types.forEach(type => {
       config[type] = { label: type }
     })
     config.trend = { label: 'Trend' }
     return config
-  }, [equityTimelineData.types])
+  }, [filteredEquityTimelineData.types])
 
   return (
     <>
@@ -148,7 +222,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
-            <ComposedChart data={equityTimelineData.data} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
+            <ComposedChart data={filteredEquityTimelineData.data} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="year" tick={{ fontSize: 12 }} />
               <YAxis
                 tick={{ fontSize: 12 }}
@@ -191,8 +265,8 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              {equityTimelineData.types.map((type, index) => {
-                const isLastType = index === equityTimelineData.types.length - 1
+              {filteredEquityTimelineData.types.map((type, index) => {
+                const isLastType = index === filteredEquityTimelineData.types.length - 1
                 return (
                   <Bar
                     key={type}
@@ -370,7 +444,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
             )}
             className="gba:h-[400px] gba:w-full"
           >
-            <ComposedChart data={topCompaniesByValuationData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+            <ComposedChart data={filteredTopCompaniesData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
               <XAxis
                 dataKey="company"
                 angle={-45}

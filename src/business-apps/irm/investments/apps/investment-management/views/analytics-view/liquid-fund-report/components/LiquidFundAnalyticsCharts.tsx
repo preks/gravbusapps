@@ -21,7 +21,7 @@ interface LiquidFundAnalyticsChartsProps {
   rawLiquidFunds: LiquidFundInvestmentSummary[]
 }
 
-export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps> = ({ chartData, rawLiquidFunds }) => {
+export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps> = ({ rawLiquidFunds }) => {
   // Interest Rate vs Investment Amount Correlation
   const interestRateCorrelationData = useMemo(() => {
     return rawLiquidFunds
@@ -152,8 +152,8 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
           <ChartContainer
             config={useMemo(() => {
               const config: Record<string, { label: string }> = {}
-              config.averageinterestrate = { label: 'Average Interest Rate' }
-              config.averageinvestmentamount = { label: 'Average Investment Amount' }
+              config.averageInterestRate = { label: 'Average Interest Rate' }
+              config.averageInvestmentAmount = { label: 'Average Investment Amount' }
               return config
             }, [])}
             className="gba:h-[400px] gba:w-full"
@@ -165,7 +165,6 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
-                    const data = payload[0].payload
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                         <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
@@ -177,11 +176,11 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                           if (entry.dataKey === 'averageInterestRate') {
                             formattedValue = `${(entry.value as number).toFixed(2)}%`
                             properLabel = 'Average Interest Rate'
-                            dotColor = 'var(--color-averageinterestrate)'
+                            dotColor = 'var(--color-averageInterestRate)'
                           } else if (entry.dataKey === 'averageInvestmentAmount') {
                             formattedValue = formatCurrency(entry.value as number)
                             properLabel = 'Average Investment Amount'
-                            dotColor = 'var(--color-averageinvestmentamount)'
+                            dotColor = 'var(--color-averageInvestmentAmount)'
                           }
 
                           return (
@@ -202,15 +201,13 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
               <Bar
                 yAxisId="left"
                 dataKey="averageInterestRate"
-                name="averageinterestrate"
-                fill="var(--color-averageinterestrate)"
+                fill="var(--color-averageInterestRate)"
                 radius={[4, 4, 0, 0]}
               />
               <Bar
                 yAxisId="right"
                 dataKey="averageInvestmentAmount"
-                name="averageinvestmentamount"
-                fill="var(--color-averageinvestmentamount)"
+                fill="var(--color-averageInvestmentAmount)"
                 radius={[4, 4, 0, 0]}
               />
             </BarChart>

@@ -41,7 +41,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
             <ChartContainer
               config={useMemo(
                 () => ({
-                  totalvalue: { label: 'Total Value' }
+                  totalValue: { label: 'Total Value' }
                 }),
                 []
               )}
@@ -75,7 +75,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <div
                               className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-totalvalue)' }}
+                              style={{ backgroundColor: 'var(--color-totalValue)' }}
                             />
                             <span className="gba:font-medium">Total Value:</span>
                           </div>
@@ -89,7 +89,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                   }}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
-                <Bar dataKey="totalValue" name="totalvalue" fill="var(--color-totalvalue)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="totalValue" fill="var(--color-totalValue)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -110,9 +110,9 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
           <ChartContainer
             config={useMemo(
               () => ({
-                investmentcount: { label: 'Investment Count' },
-                totalvalue: { label: 'Total Value' },
-                averagevalue: { label: 'Average Value' }
+                count: { label: 'Investment Count' },
+                totalValue: { label: 'Total Value' },
+                averageValue: { label: 'Average Value' }
               }),
               []
             )}
@@ -136,15 +136,15 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                           if (entry.dataKey === 'count') {
                             formattedValue = `${entry.value}`
                             properLabel = 'Investment Count'
-                            dotColor = 'var(--color-investmentcount)'
+                            dotColor = 'var(--color-count)'
                           } else if (entry.dataKey === 'totalValue') {
                             formattedValue = formatCurrency(entry.value as number)
                             properLabel = 'Total Value'
-                            dotColor = 'var(--color-totalvalue)'
+                            dotColor = 'var(--color-totalValue)'
                           } else if (entry.dataKey === 'averageValue') {
                             formattedValue = formatCurrency(entry.value as number)
                             properLabel = 'Average Value'
-                            dotColor = 'var(--color-averagevalue)'
+                            dotColor = 'var(--color-averageValue)'
                           }
 
                           return (
@@ -162,26 +162,13 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar
-                yAxisId="left"
-                dataKey="count"
-                name="investmentcount"
-                fill="var(--color-investmentcount)"
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar
-                yAxisId="right"
-                dataKey="totalValue"
-                name="totalvalue"
-                fill="var(--color-totalvalue)"
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+              <Bar yAxisId="right" dataKey="totalValue" fill="var(--color-totalValue)" radius={[4, 4, 0, 0]} />
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="averageValue"
-                name="averagevalue"
-                stroke="var(--color-averagevalue)"
+                stroke="var(--color-averageValue)"
                 strokeWidth={3}
                 dot={{ r: 6 }}
               />
