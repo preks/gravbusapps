@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getMonthlyAggregates } from '../../../utils/getMonthlyAggregates'
+import { useStatisticsData } from './StatisticsDataProvider'
 
 interface OrgWorkPatternsPanelProps {
   absences: any[]
@@ -43,30 +42,10 @@ const getDayLabel = (index: number): string => {
   return getTranslationFromI18nKeyAndLabel(dayKeys[index], dayNames[index])
 }
 
-export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ absences, accessToken }) => {
+export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ absences }) => {
   const currentYear = dayjs().year()
-  const graphQLClient = useGraphQLClient(accessToken as any)
-  const [monthlyServer, setMonthlyServer] = useState<number[] | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        if (!accessToken) return
-        const { byMonthCount } = await getMonthlyAggregates(graphQLClient, currentYear)
-        if (mounted) {
-          setMonthlyServer(byMonthCount)
-        }
-      } catch (e) {
-        if (mounted) {
-          setMonthlyServer(null)
-        }
-      }
-    })()
-    return () => {
-      mounted = false
-    }
-  }, [graphQLClient, accessToken, currentYear])
+  const { data } = useStatisticsData()
+  const monthlyServer = data?.monthlyCounts || null
 
   const { dayCounts, dayPercents, monthlyCounts, monthlyPercents, peakMonth, lowMonth } = useMemo(() => {
     const approved = (absences || []).filter((a: any) => String(a.status || '').toUpperCase() === 'APPROVED')
