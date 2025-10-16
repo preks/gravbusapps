@@ -34,7 +34,7 @@ export const StatisticsDataProvider: React.FC<StatisticsDataProviderProps> = ({
   const currentYear = dayjs().year()
 
   const fetchData = async () => {
-    if (!accessToken || vacationGroupIds.length === 0 || sickGroupIds.length === 0) {
+    if (!accessToken || !graphQLClient || vacationGroupIds.length === 0 || sickGroupIds.length === 0) {
       return
     }
 
@@ -60,7 +60,13 @@ export const StatisticsDataProvider: React.FC<StatisticsDataProviderProps> = ({
 
   useEffect(() => {
     fetchData()
-  }, [accessToken, currentYear, JSON.stringify(typeNames), JSON.stringify(vacationGroupIds), JSON.stringify(sickGroupIds)])
+  }, [
+    accessToken,
+    currentYear,
+    JSON.stringify(typeNames),
+    JSON.stringify(vacationGroupIds),
+    JSON.stringify(sickGroupIds)
+  ])
 
   return (
     <StatisticsDataContext.Provider value={{ data, isLoading, error, refetch: fetchData }}>
