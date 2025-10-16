@@ -54,7 +54,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
     targetLanguage: undefined,
     employeeId: undefined,
     employeeName: undefined,
-    feedbackPublic: true,
+    feedbackPublic: false,
     ...initialValues
   })
 

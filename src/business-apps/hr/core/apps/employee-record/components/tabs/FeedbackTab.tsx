@@ -4,8 +4,10 @@ import React, { useState, useEffect } from 'react'
 import dayjs from 'dayjs'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
+import RequestCard from './components/RequestCard'
 import { Empty, Spin, Input, Select, Rate } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY } from './queries/EmployeeFeedbackRequestQueries'
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -13,7 +15,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { CalendarOutlined, SearchOutlined, DownloadOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import Pill from '@/components/pill/Pill'
-import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+// import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import { PiPencilSimple } from 'react-icons/pi'
 
@@ -138,7 +140,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
       if (response) {
         const feedbackData = response.EmployeeFeedback || []
-        console.log(feedbackData, 'feedbackData')
         setLocalFeedback(feedbackData)
       }
     } catch (err) {
@@ -162,22 +163,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   const [requestsLoadingApproval, setRequestsLoadingApproval] = useState<boolean>(false)
   const [requestsErrorApproval, setRequestsErrorApproval] = useState<string | null>(null)
 
-  const EMPLOYEE_FEEDBACK_REQUESTS_QUERY = `
-    query MyQuery($idEmployee: uuid!) {
-      EmployeeFeedbackRequest(where: {employeeId: {_eq: $idEmployee}}, orderBy: {createdAt: DESC}) {
-        createdBy
-        createdAt
-        additionalProperties
-        message
-        recordState
-        updatedBy
-        updatedAt
-        requesterEmployeeId
-        employeeId
-        requesterEmployee { displayName }
-      }
-    }
-  `
+  // Query moved to queries/EmployeeFeedbackRequestQueries.ts
 
   const fetchRequestedFeedback = async () => {
     if (!employee?.id) return
@@ -405,121 +391,37 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
                 {(showAllReceivedRequests ? feedbackRequests : feedbackRequests.slice(0, 3)).map(
                   (request: FeedbackRequest, index: number) => (
-                    <Card
+                    <RequestCard
                       key={request.id}
-                      className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:h-full"
-                      bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                      data-testid={`received-request-card-${index}`}
-                    >
-                      <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full">
-                        {/* Request Header */}
-                        <div className="gba:flex gba:justify-between gba:items-start gba:w-full">
-                          <div className="gba:flex gba:flex-col gba:gap-1">
-                            {/* Title/Name swap */}
-                            <div className="gba:font-medium" data-testid={`request-message-${index}`}>
-                              {request.taskTitle || 'Enter Requested Employee Feedback'}
-                            </div>
-                            {request.feedbackText && (
-                              <div className="gba:text-sm gba:text-gray-600" data-testid={`request-subtitle-${index}`}>
-                                {request.feedbackText}
-                              </div>
-                            )}
-
-                            {/* Request date */}
-                            {request.requestedOn && (
-                              <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500 gba:text-sm">
-                                <span data-testid={`received-request-date-${index}`}>
-                                  {`Requested on ${dayjs(request.requestedOn).format('DD/MM/YYYY')}`}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Reviewers and Action */}
-                        <div className="gba:flex gba:justify-between gba:items-center gba:w-full gba:mt-auto">
-                          {/* Creator name preferred; fallback to reviewers */}
-                          <div className="gba:flex gba:flex-col gba:gap-1">
-                            {request.creatorName ? (
-                              <button
-                                className="gba:text-sm gba:text-gray-700 hover:gba:underline"
-                                data-testid={`received-creator-name-${index}`}
-                                onClick={() =>
-                                  navigateTo(
-                                    buildPlatformUrl('/platform/employee-record', {
-                                      appName: 'employee-profile',
-                                      employeeId: request.creatorEmployeeId || ''
-                                    })
-                                  )
-                                }
-                              >
-                                {request.creatorName}
-                              </button>
-                            ) : Array.isArray(request.employeeFeedbackRequestReviewer) &&
-                              request.employeeFeedbackRequestReviewer.length > 0 ? (
-                              <div className="gba:flex gba:gap-2">
-                                {request.employeeFeedbackRequestReviewer.map((rev: any, ridx: number) => {
-                                  const r = rev.reviewerEmployee
-                                  const first = r?.firstName || ''
-                                  const last = r?.lastName || ''
-                                  const pic = r?.employeePosition?.employee?.pictureThumbnail || null
-                                  return (
-                                    <div
-                                      key={rev.id || ridx}
-                                      className="gba:w-8 gba:h-8"
-                                      data-testid={`received-reviewer-avatar-${index}-${ridx}`}
-                                    >
-                                      <Avatar
-                                        src={toAvatarSrc(pic || undefined)}
-                                        initials={`${first?.[0] || ''}${last?.[0] || ''}`}
-                                        alt={`${first} ${last}`}
-                                        // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
-                                        contentType={pic ? 'image' : 'initials'}
-                                        // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
-                                        size="md"
-                                        // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
-                                        shape="circle"
-                                        // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
-                                        appearance="gradient"
-                                      />
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            ) : Array.isArray(request.reviewerNames) && request.reviewerNames.length > 0 ? (
-                              <div className="gba:flex gba:flex-wrap gba:gap-2">
-                                {request.reviewerNames.map((name: string, nIdx: number) => (
-                                  <span
-                                    key={`${index}-name-${nIdx}`}
-                                    className="gba:text-sm gba:text-gray-700"
-                                    data-testid={`received-reviewer-name-${index}-${nIdx}`}
-                                  >
-                                    {name}
-                                  </span>
-                                ))}
-                              </div>
-                            ) : null}
-                          </div>
-
-                          {/* Respond Action */}
-                          <div className="gba:self-end">
-                            <AppActionMenu
-                              data-testid={`respond-received-request-button-${index}`}
-                              contextsArray={[FlowContextName.employeeGiveFeedback]}
-                              externalContextData={{
-                                employeeId: employee?.id,
-                                requestId: request.id
-                              }}
-                              prefixDataTestId={`respond-received-request-${index}`}
-                              accessToken={accessToken}
-                              autoExecuteSingleAction={true}
-                            >
-                              <div className="gba:cursor-pointer">Respond</div>
-                            </AppActionMenu>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
+                      id={request.id}
+                      title={request.taskTitle || 'Enter Requested Employee Feedback'}
+                      subtitle={request.feedbackText || undefined}
+                      dateText={
+                        request.requestedOn
+                          ? `Requested on ${dayjs(request.requestedOn).format('DD/MM/YYYY')}`
+                          : undefined
+                      }
+                      reviewerAvatars={(request.employeeFeedbackRequestReviewer || []).map(rev => ({
+                        id: rev.id,
+                        firstName: rev.reviewerEmployee?.firstName,
+                        lastName: rev.reviewerEmployee?.lastName,
+                        pictureThumbnail: rev.reviewerEmployee?.employeePosition?.employee?.pictureThumbnail || null
+                      }))}
+                      reviewerNames={request.reviewerNames || undefined}
+                      rightAction={
+                        <AppActionMenu
+                          data-testid={`respond-received-request-button-${index}`}
+                          contextsArray={[FlowContextName.employeeGiveFeedback]}
+                          externalContextData={{ employeeId: employee?.id, requestId: request.id }}
+                          prefixDataTestId={`respond-received-request-${index}`}
+                          accessToken={accessToken}
+                          autoExecuteSingleAction={true}
+                        >
+                          <div className="gba:cursor-pointer">Respond</div>
+                        </AppActionMenu>
+                      }
+                      dataTestIdPrefix={`received-request`}
+                    />
                   )
                 )}
               </div>
@@ -552,114 +454,24 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             ) : (
               <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
                 {(showAllApprovalRequests ? requestedFeedback : requestedFeedback.slice(0, 3)).map((request, index) => (
-                  <Card
+                  <RequestCard
                     key={request.id}
-                    className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:h-full"
-                    bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                    data-testid={`approval-request-card-${index}`}
-                  >
-                    <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full">
-                      {/* Request Header */}
-                      <div className="gba:flex gba:justify-between gba:items-start gba:w-full">
-                        <div className="gba:flex gba:flex-col gba:gap-1">
-                          {/* Status Badge */}
-                          {/* Status pill removed as requested */}
-
-                          {/* Fixed title for requested feedback cards */}
-                          <div className="gba:font-medium" data-testid={`request-message-${index}`}>
-                            Requested Feedback
-                          </div>
-                          {request.feedbackText && (
-                            <div className="gba:text-sm gba:text-gray-600" data-testid={`request-subtitle-${index}`}>
-                              {request.feedbackText}
-                            </div>
-                          )}
-
-                          {/* Due Date */}
-                          <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500 gba:text-sm">
-                            <span data-testid={`approval-request-due-${index}`}>
-                              {request.dueDate
-                                ? `Due by ${dayjs(request.dueDate).format('DD/MM/YYYY')}`
-                                : request.requestedOn
-                                  ? `Requested on ${dayjs(request.requestedOn).format('DD/MM/YYYY')}`
-                                  : ''}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Reviewers and Action */}
-                      <div className="gba:flex gba:justify-between gba:items-center gba:w-full gba:mt-auto">
-                        {/* Creator name preferred; fallback to reviewers */}
-                        <div className="gba:flex gba:flex-col gba:gap-1">
-                          {request.creatorName ? (
-                            <button
-                              className="gba:text-sm gba:text-gray-700 hover:gba:underline"
-                              data-testid={`approval-creator-name-${index}`}
-                              onClick={() =>
-                                navigateTo(
-                                  buildPlatformUrl('/platform/employee-record', {
-                                    appName: 'employee-profile',
-                                    employeeId: request.creatorEmployeeId || ''
-                                  })
-                                )
-                              }
-                            >
-                              {request.creatorName}
-                            </button>
-                          ) : Array.isArray(request.employeeFeedbackRequestReviewer) &&
-                            request.employeeFeedbackRequestReviewer.length > 0 ? (
-                            <div className="gba:flex gba:gap-2">
-                              {request.employeeFeedbackRequestReviewer.map((rev, ridx) => {
-                                const r = rev.reviewerEmployee
-                                const first = r?.firstName || ''
-                                const last = r?.lastName || ''
-                                const pic = r?.employeePosition?.employee?.pictureThumbnail || null
-                                return (
-                                  <div
-                                    key={rev.id || ridx}
-                                    className="gba:w-8 gba:h-8"
-                                    data-testid={`reviewer-avatar-${index}-${ridx}`}
-                                  >
-                                    <Avatar
-                                      src={toAvatarSrc(pic || undefined)}
-                                      initials={`${first?.[0] || ''}${last?.[0] || ''}`}
-                                      alt={`${first} ${last}`}
-                                      // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
-                                      contentType={pic ? 'image' : 'initials'}
-                                      // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
-                                      size="md"
-                                      // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
-                                      shape="circle"
-                                      // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
-                                      appearance="gradient"
-                                    />
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          ) : null}
-                        </div>
-
-                        {/* Status pill (recordState) instead of Respond button */}
-                        <div className="gba:self-end">
-                          {(() => {
-                            const state = (request.recordState || '').toString().toLowerCase()
-                            const statusText = state ? state.charAt(0).toUpperCase() + state.slice(1) : 'Unknown'
-                            // Force pending look for all statuses
-                            const pillType = 'waiting'
-                            return (
-                              <Pill
-                                label={statusText}
-                                type={pillType}
-                                data-testid={`approval-request-status-${index}`}
-                              />
-                            )
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
+                    id={request.id}
+                    title="Requested Feedback"
+                    subtitle={request.feedbackText || undefined}
+                    dateText={
+                      request.requestedOn
+                        ? `Requested on ${dayjs(request.requestedOn).format('DD/MM/YYYY')}`
+                        : undefined
+                    }
+                    creatorName={request.creatorName || null}
+                    dataTestIdPrefix={`approval-request`}
+                    rightAction={(() => {
+                      const state = (request.recordState || '').toString().toLowerCase()
+                      const statusText = state ? state.charAt(0).toUpperCase() + state.slice(1) : 'Unknown'
+                      return <Pill label={statusText} type="waiting" data-testid={`approval-request-status-${index}`} />
+                    })()}
+                  />
                 ))}
               </div>
             )}
