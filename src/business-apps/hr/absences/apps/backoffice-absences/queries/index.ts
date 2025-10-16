@@ -1,7 +1,6 @@
 export {
   GET_EMPLOYEE_ABSENCES,
-  GET_TEAM_EMPLOYEES,
-  GET_ORGANIZATIONAL_UNITS_FROM_EMPLOYEES,
+  GET_TEAM_EMPLOYEES_AND_ORG_UNITS,
   type GetEmployeeAbsencesVariables,
   type GetEmployeeAbsencesResponse,
   type EmployeeAbsence,

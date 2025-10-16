@@ -1,10 +1,8 @@
-import React, { useMemo, useEffect, useState } from 'react'
+import React, { useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { BusinessAppContextProps } from '../../../../../../../../../common/BusinessAppContext'
 import { DashboardData } from '../../../../types'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getOverlapAggregates } from '../../../../utils/getOverlapAggregates'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface OptimizedAbsenceTrendsProps extends BusinessAppContextProps {
@@ -121,58 +119,24 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
 
 const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
   dashboardData,
-  onMonthClick,
-  accessToken
+  onMonthClick
 }) => {
   const { monthlyData, isLoading, error } = dashboardData
-  const graphQLClient = useGraphQLClient(accessToken)
 
-  const [monthAggMap, setMonthAggMap] = useState<Record<string, any>>({})
-  useEffect(() => {
-    let isMounted = true
-    const run = async () => {
-      try {
-        const tasks = monthlyData.map(async (md: any) => {
-          const label = md.month as string
-          const m = label.match(/^(\w{3})(?:\s(\d{4}))?$/)
-          if (!m) return null
-          const short = m[1]
-          const year = m[2] ? parseInt(m[2]) : new Date().getUTCFullYear()
-          const mapIdx: Record<string, number> = {
-            Jan: 0,
-            Feb: 1,
-            Mar: 2,
-            Apr: 3,
-            May: 4,
-            Jun: 5,
-            Jul: 6,
-            Aug: 7,
-            Sep: 8,
-            Oct: 9,
-            Nov: 10,
-            Dec: 11
-          }
-          const mi = mapIdx[short]
-          if (mi == null) return null
-          const startIso = new Date(Date.UTC(year, mi, 1, 0, 0, 0, 0)).toISOString()
-          const endIso = new Date(Date.UTC(year, mi + 1, 0, 23, 59, 59, 999)).toISOString()
-          const agg = await getOverlapAggregates(graphQLClient, { startIso, endIso })
-          return { label, agg }
-        })
-        const results = await Promise.all(tasks)
-        if (!isMounted) return
-        const map: Record<string, any> = {}
-        results.forEach(r => {
-          if (r && r.agg) map[r.label] = r.agg
-        })
-        setMonthAggMap(map)
-      } catch {}
-    }
-    run()
-    return () => {
-      isMounted = false
-    }
-  }, [graphQLClient, monthlyData])
+  // No need for additional GraphQL calls - monthlyData already contains the aggregated data
+  const monthAggMap = useMemo(() => {
+    const map: Record<string, any> = {}
+    monthlyData.forEach((monthData: any) => {
+      map[monthData.month] = {
+        totalRequests: monthData.total,
+        totalDays: monthData.totalDuration,
+        distinctEmployees: monthData.uniqueEmployees,
+        avgDaysPerRequest: monthData.avgDurationPerRequest,
+        avgRequestsPerEmployee: monthData.avgRequestsPerEmployee
+      }
+    })
+    return map
+  }, [monthlyData])
 
   const chartData = useMemo(() => {
     const allTypes = new Set<string>()

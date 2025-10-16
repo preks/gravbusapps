@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../common/utils/windowUtils'
-import { GET_TEAM_EMPLOYEES, GET_ORGANIZATIONAL_UNITS_FROM_EMPLOYEES } from '../queries/absenceQueries'
+import { GET_TEAM_EMPLOYEES_AND_ORG_UNITS } from '../queries/absenceQueries'
 import dayjs from 'dayjs'
 
 export interface UseAbsenceFiltersProps {
@@ -76,35 +76,25 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
   const [employeesLoading, setEmployeesLoading] = useState(false)
   const [orgUnitsLoading, setOrgUnitsLoading] = useState(false)
 
-  const fetchTeamEmployees = useCallback(async () => {
+  const fetchTeamEmployeesAndOrgUnits = useCallback(async () => {
     if (!accessToken) return
 
     setEmployeesLoading(true)
-    try {
-      const result = await graphQLClient.request(GET_TEAM_EMPLOYEES)
-      const employees = result.EmployeePosition.map((pos: any) => pos.employee).filter(Boolean)
-      setTeamEmployees(employees)
-    } catch (error) {
-      console.error('Error fetching team employees:', error)
-    } finally {
-      setEmployeesLoading(false)
-    }
-  }, [accessToken, graphQLClient])
-
-  const fetchOrganizationalUnits = useCallback(async () => {
-    if (!accessToken) return
-
     setOrgUnitsLoading(true)
     try {
-      const result = await graphQLClient.request(GET_ORGANIZATIONAL_UNITS_FROM_EMPLOYEES)
-      const allEmployees = result?.Employee || []
+      const result = await graphQLClient.request(GET_TEAM_EMPLOYEES_AND_ORG_UNITS)
+      const employeePositions = result.EmployeePosition || []
 
+      // Extract employees
+      const employees = employeePositions.map((pos: any) => pos.employee).filter(Boolean)
+      setTeamEmployees(employees)
+
+      // Extract and deduplicate organizational units
       const orgUnitsMap = new Map<string, any>()
-
-      allEmployees.forEach((employee: any) => {
-        if (employee.employeePosition?.organizationalUnit?.id && employee.employeePosition?.organizationalUnit?.name) {
-          const orgUnitId = employee.employeePosition.organizationalUnit.id
-          const orgUnitName = employee.employeePosition.organizationalUnit.name
+      employeePositions.forEach((position: any) => {
+        if (position.organizationalUnit?.id && position.organizationalUnit?.name) {
+          const orgUnitId = position.organizationalUnit.id
+          const orgUnitName = position.organizationalUnit.name
           orgUnitsMap.set(orgUnitId, {
             id: orgUnitId,
             name: orgUnitName
@@ -115,8 +105,9 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
       const units = Array.from(orgUnitsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
       setOrganizationalUnits(units)
     } catch (error) {
-      console.error('Error fetching organizational units:', error)
+      console.error('Error fetching team employees and organizational units:', error)
     } finally {
+      setEmployeesLoading(false)
       setOrgUnitsLoading(false)
     }
   }, [accessToken, graphQLClient])
@@ -146,10 +137,9 @@ export const useAbsenceFilters = ({ accessToken, initialFilters }: UseAbsenceFil
   }, [accessToken, catalogClient])
 
   useEffect(() => {
-    fetchTeamEmployees()
-    fetchOrganizationalUnits()
+    fetchTeamEmployeesAndOrgUnits()
     fetchAbsenceGroups()
-  }, [fetchTeamEmployees, fetchOrganizationalUnits, fetchAbsenceGroups])
+  }, [accessToken])
 
   const handleDateRangeChange = useCallback((newStartDate: string | null, newEndDate: string | null) => {
     setStartDate(newStartDate || undefined)
