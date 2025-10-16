@@ -10,7 +10,7 @@ import {
 } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { useOpportunityData } from './hooks/useOpportunityData'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { formatCurrency, extractCurrencyCode } from '@/business-apps/crm/common/utils/currencyUtils'
@@ -449,7 +449,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
           {
             label: getTranslationFromI18nKeyAndLabel('crm.opportunity.expectedCloseDate', 'Expected Close Date'),
             value: opportunity?.expectedCloseDate
-              ? new Date(opportunity.expectedCloseDate).toLocaleDateString()
+              ? formatDate(opportunity.expectedCloseDate, 'date.short')
               : getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
           },
           {
@@ -912,9 +912,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       emptyStateBehavior: 'enable'
                     },
                     taskEntityActionProps: {
-                      contextsArray: [FlowContextName.investmentTaskEntity],
-                      externalContextData: { opportunityId },
-                      prefixDataTestId: 'opportunity-approval-entity',
+                      ...approvalEntityActionProps,
                       emptyStateBehavior: 'enable'
                     }
                   }

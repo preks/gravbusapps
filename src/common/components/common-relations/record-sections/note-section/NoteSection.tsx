@@ -8,7 +8,7 @@ import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-type NoteItem = {
+export type NoteItem = {
   id: string
   noteTitle: string
   noteText: string
@@ -19,7 +19,7 @@ type NoteItem = {
   reminderAt?: string | null
 }
 
-interface NoteSectionProps extends BusinessAppContextProps {
+export interface NoteSectionProps extends BusinessAppContextProps {
   notes?: NoteItem[]
   noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>

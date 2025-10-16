@@ -16,8 +16,30 @@ import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-interface ActivitySectionProps extends BusinessAppContextProps {
-  activities?: any[]
+export type ActivityItem = {
+  id: string
+  title: string
+  description?: string
+  occurredAt?: string
+  createdAt?: string
+  ownerEmployee?: {
+    id?: string
+    displayName?: string
+    firstName?: string
+    lastName?: string
+    pictureThumbnail?: string
+  }
+  createdBy?: string
+  activityType?: {
+    id?: string
+    code?: string
+    value?: string
+    type?: string
+  }
+}
+
+export interface ActivitySectionProps extends BusinessAppContextProps {
+  activities?: ActivityItem[]
   activitiesLoading?: boolean
   activitiesError?: string | null
   onReloadActivities?: () => void
