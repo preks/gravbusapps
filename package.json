@@ -92,6 +92,5 @@
   "engines": {
     "node": ">=20.18.0",
     "npm": ">=10.2.3"
-  },
-  "packageManager": "npm@10.2.3"
+  }
 }
