@@ -87,7 +87,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false })
 
-  const { currencyStats, selectedCurrencyRef } = useExpenseCurrencies(contextProps, allSelectedFilters, setFilters)
+  const { currencyStats, selectedCurrencyRef, initialized } = useExpenseCurrencies(
+    contextProps,
+    allSelectedFilters,
+    setFilters
+  )
 
   const currencyLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -108,6 +112,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   // currency fetching now handled by useExpenseCurrencies
 
   useEffect(() => {
+    if (!initialized) return
     const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter
     if (selectedCurrencyRef) {
       apiFilters.currencyRef = selectedCurrencyRef
@@ -139,7 +144,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     sortField,
     sortOrder,
     selectedCurrencyRef,
-    props.activeWidgetKey
+    props.activeWidgetKey,
+    initialized
   ])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
