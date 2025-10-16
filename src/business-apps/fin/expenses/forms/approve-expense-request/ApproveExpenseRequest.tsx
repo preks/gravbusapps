@@ -170,11 +170,11 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
   }
 
   const currencyCode = expenseRequest.currency?.code || 'EUR'
-  const totalAmount = expenseRequest.totalAmount || 0
-  const reimbursableAmount = expenseRequest.reimbursableAmount || 0
-  const remainingAmount = expenseRequest.totalRemainingAmount || 0
-  const nonReimbursableAmount = expenseRequest.nonReimbursableAmount || 0
-  const advancePaymentAmount = expenseRequest.expensePlan?.advancePaymentTotalAmount || 0
+  const totalAmount = Number(expenseRequest.totalAmount ?? 0)
+  const reimbursableAmount = Number(expenseRequest.reimbursableAmount ?? 0)
+  const remainingAmount = Number(expenseRequest.totalRemainingAmount ?? 0)
+  const nonReimbursableAmount = Number(expenseRequest.nonReimbursableAmount ?? 0)
+  const advancePaymentAmount = Number(expenseRequest.expensePlan?.advancePaymentTotalAmount ?? 0)
   // Transform expense request items to match expense plan format for component compatibility
   const transformedExpenseItems =
     expenseRequest.expenseItem?.map(item => ({

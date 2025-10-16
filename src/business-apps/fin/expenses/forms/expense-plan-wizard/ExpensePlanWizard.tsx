@@ -4,13 +4,10 @@ import { Button } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
-import { showToast } from '../../utils/notificationUtils'
 import { EVENTS } from '../../utils/constants'
 import { ICONS } from '../../utils/icons'
-import dayjs from 'dayjs'
 
 import { SCREEN_NAMES_ENUM } from './constants/constants'
-
 import LoadScreen from '../expense-request-wizard/screens/LoadScreen'
 
 import ProgressIndicator from '../expense-request-wizard/components/ProgressIndicator'
@@ -76,7 +73,8 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
         currentTitle,
         expensePlanData,
         EVENTS.DISCARD,
-        false
+        false,
+        false // Default to false for cancel
       )
       dispatchProcessContinueEventIfEnabled(EVENTS.DISCARD, {
         event: EVENTS.DISCARD,
@@ -529,11 +527,11 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
           </div>
         ) : expenseRuleError ? (
           <div
-            style={{ backgroundColor: '#f8d8e4', padding: '16px 24px', borderRadius: '4px', marginBottom: '32px' }}
+            className="gba:bg-destructive-secondary gba:p-6 gba:rounded gba:mb-8"
             data-testid="expense-plan-wizard-error-container"
           >
             <h3
-              style={{ fontSize: '14px', fontWeight: 700, color: '#ff0000', marginBottom: '8px' }}
+              className="gba:text-sm gba:font-bold gba:text-destructive gba:mb-2"
               data-testid="expense-plan-wizard-error-title"
             >
               {getTranslationFromI18nKeyAndLabel(
@@ -542,7 +540,7 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
               )}
             </h3>
             <p
-              style={{ fontSize: '14px', color: '#595959', margin: 0 }}
+              className="gba:text-sm gba:text-muted-foreground gba:m-0"
               data-testid="expense-plan-wizard-error-message"
             >
               {expenseRuleError}
