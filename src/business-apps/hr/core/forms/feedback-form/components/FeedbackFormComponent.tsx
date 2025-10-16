@@ -12,7 +12,8 @@ import {
   AlertDescription,
   Avatar,
   AvatarFallback,
-  AvatarImage
+  AvatarImage,
+  Switch
 } from '@newwork/nw-design-system'
 import { DownOutlined } from '@ant-design/icons'
 import { useFeedbackForm } from '../context/FeedbackFormContext'
@@ -196,6 +197,19 @@ const FeedbackFormComponent: React.FC = () => {
                 className="gba:w-full"
               />
             ) : null}
+          </div>
+
+          {/* Public switch */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label htmlFor="feedback-public" className="gba:text-sm gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel('feedback.form.public.label', 'Public Feedback')}
+            </Label>
+            <Switch
+              id="feedback-public"
+              checked={!!formValues.feedbackPublic}
+              onCheckedChange={(v: boolean) => setFormValues({ feedbackPublic: v })}
+              data-testid={formatDataTestId(prefixDataTestId, 'PublicSwitch')}
+            />
           </div>
 
           {/* Feedback Text Section */}

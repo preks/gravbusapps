@@ -54,6 +54,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
     targetLanguage: undefined,
     employeeId: undefined,
     employeeName: undefined,
+    feedbackPublic: true,
     ...initialValues
   })
 
@@ -163,7 +164,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
           feedbackDate: new Date().toISOString(),
           employeeId: formValues.employeeId,
           senderEmployeeId: businessAppContext.userInfo?.employeeDetails?.employeeId, // Current user
-          public: true // Default to public,
+          feedbackPublic: !!formValues.feedbackPublic // Match API field name
         },
         receiverId: selectedEmployee?.userId, // The user ID of the employee receiving the feedback
         event: 'submit_feedback'
@@ -191,7 +192,7 @@ export const FeedbackFormProvider: React.FC<FeedbackFormProviderProps> = ({
         await onCancel()
       }
     } catch (err) {
-      // Silent error handling for cancellation
+      console.error('Error :', err)
     }
   }, [onCancel])
 
