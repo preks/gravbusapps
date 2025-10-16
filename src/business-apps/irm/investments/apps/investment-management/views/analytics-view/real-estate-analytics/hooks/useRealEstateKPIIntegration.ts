@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetRealEstateKPIs, RealEstateKPIData, RealEstateKPIComparison } from '../queries/RealEstateKPIQueries'
+import { useGetRealEstateKPIs, RealEstateKPIData } from '../queries/RealEstateKPIQueries'
+import { useKPIIntegration } from '../../shared/hooks'
 
+/**
+ * @interface RealEstateKPIIntegration
+ * @description Return type for real estate KPI integration hook
+ */
 export interface RealEstateKPIIntegration {
   current: RealEstateKPIData
   previous: RealEstateKPIData
@@ -10,58 +14,33 @@ export interface RealEstateKPIIntegration {
   refetch: () => Promise<void>
 }
 
-export const useRealEstateKPIIntegration = (context: BusinessAppContextProps): RealEstateKPIIntegration => {
-  const [current, setCurrent] = useState<RealEstateKPIData>({
-    totalInvestments: 0,
-    totalAmountInvested: 0,
-    totalMarketValue: 0,
-    averageOccupancyRate: 0
-  })
+/**
+ * @function useRealEstateKPIIntegration
+ * @description Custom hook for managing real estate KPI data with current and previous period comparison.
+ * Leverages the generic useKPIIntegration hook for standardized data fetching and state management.
+ *
+ * @param {BusinessAppContextProps} context - Business application context with access token
+ * @param {string} [currency] - Optional currency filter for KPI calculations
+ * @returns {RealEstateKPIIntegration} Real estate KPI data with loading and error states
+ *
+ * @example
+ * const { current, previous, isLoading, error, refetch } = useRealEstateKPIIntegration(context, 'USD')
+ */
+export const useRealEstateKPIIntegration = (
+  context: BusinessAppContextProps,
+  currency?: string
+): RealEstateKPIIntegration => {
+  const { fetchRealEstateKPIs } = useGetRealEstateKPIs(context, currency)
 
-  const [previous, setPrevious] = useState<RealEstateKPIData>({
-    totalInvestments: 0,
-    totalAmountInvested: 0,
-    totalMarketValue: 0,
-    averageOccupancyRate: 0
-  })
-
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const { fetchRealEstateKPIs } = useGetRealEstateKPIs(context)
-
-  const loadData = useCallback(async () => {
-    if (!context.accessToken) {
-      setError('Access token is required')
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const data: RealEstateKPIComparison = await fetchRealEstateKPIs()
-      setCurrent(data.current)
-      setPrevious(data.previous)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-      setError(errorMessage)
-      console.error('Error loading real estate KPI data:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [context.accessToken, fetchRealEstateKPIs])
-
-  useEffect(() => {
-    loadData()
-  }, [loadData])
-
-  return {
-    current,
-    previous,
-    isLoading,
-    error,
-    refetch: loadData
-  }
+  return useKPIIntegration<RealEstateKPIData>(
+    context,
+    fetchRealEstateKPIs,
+    {
+      totalInvestments: 0,
+      totalAmountInvested: 0,
+      totalMarketValue: 0,
+      averageOccupancyRate: 0
+    },
+    [currency]
+  )
 }

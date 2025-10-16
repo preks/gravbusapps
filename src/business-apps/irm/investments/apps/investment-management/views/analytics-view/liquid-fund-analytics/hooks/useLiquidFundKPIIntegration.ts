@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetLiquidFundKPIs, LiquidFundKPIData, LiquidFundKPIComparison } from '../queries/LiquidFundKPIQueries'
+import { useGetLiquidFundKPIs, LiquidFundKPIData } from '../queries/LiquidFundKPIQueries'
+import { useKPIIntegration } from '../../shared/hooks'
 
+/**
+ * @interface LiquidFundKPIIntegration
+ * @description Return type for liquid fund KPI integration hook
+ */
 export interface LiquidFundKPIIntegration {
   current: LiquidFundKPIData
   previous: LiquidFundKPIData
@@ -10,60 +14,34 @@ export interface LiquidFundKPIIntegration {
   refetch: () => Promise<void>
 }
 
-export const useLiquidFundKPIIntegration = (context: BusinessAppContextProps): LiquidFundKPIIntegration => {
-  const [current, setCurrent] = useState<LiquidFundKPIData>({
-    totalInvestments: 0,
-    totalAmountInvested: 0,
-    totalMarketValue: 0,
-    averageInvestmentValue: 0,
-    averageMarketValue: 0
-  })
+/**
+ * @function useLiquidFundKPIIntegration
+ * @description Custom hook for managing liquid fund KPI data with current and previous period comparison.
+ * Leverages the generic useKPIIntegration hook for standardized data fetching and state management.
+ *
+ * @param {BusinessAppContextProps} context - Business application context with access token
+ * @param {string} [currency] - Optional currency filter for KPI calculations
+ * @returns {LiquidFundKPIIntegration} Liquid fund KPI data with loading and error states
+ *
+ * @example
+ * const { current, previous, isLoading, error, refetch } = useLiquidFundKPIIntegration(context, 'USD')
+ */
+export const useLiquidFundKPIIntegration = (
+  context: BusinessAppContextProps,
+  currency?: string
+): LiquidFundKPIIntegration => {
+  const { fetchLiquidFundKPIs } = useGetLiquidFundKPIs(context, currency)
 
-  const [previous, setPrevious] = useState<LiquidFundKPIData>({
-    totalInvestments: 0,
-    totalAmountInvested: 0,
-    totalMarketValue: 0,
-    averageInvestmentValue: 0,
-    averageMarketValue: 0
-  })
-
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const { fetchLiquidFundKPIs } = useGetLiquidFundKPIs(context)
-
-  const loadData = useCallback(async () => {
-    if (!context.accessToken) {
-      setError('Access token is required')
-      setIsLoading(false)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const data: LiquidFundKPIComparison = await fetchLiquidFundKPIs()
-      setCurrent(data.current)
-      setPrevious(data.previous)
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-      setError(errorMessage)
-      console.error('Error loading liquid fund KPI data:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [context.accessToken, fetchLiquidFundKPIs])
-
-  useEffect(() => {
-    loadData()
-  }, [context.accessToken]) // Only depend on accessToken, not loadData
-
-  return {
-    current,
-    previous,
-    isLoading,
-    error,
-    refetch: loadData
-  }
+  return useKPIIntegration<LiquidFundKPIData>(
+    context,
+    fetchLiquidFundKPIs,
+    {
+      totalInvestments: 0,
+      totalAmountInvested: 0,
+      totalMarketValue: 0,
+      averageInvestmentValue: 0,
+      averageMarketValue: 0
+    },
+    [currency]
+  )
 }

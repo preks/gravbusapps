@@ -21,7 +21,7 @@ import { useLiquidFundKPIIntegration } from './hooks/useLiquidFundKPIIntegration
 import { LiquidFundKPICards } from './components/LiquidFundKPICards'
 import { LiquidFundDistributionCharts, LiquidFundTimelineCharts, LiquidFundAnalyticsCharts } from './components'
 import {
-  extractCurrencyCode,
+  safeCurrencyExtraction,
   getInvestmentStatusColor,
   getInvestmentPhaseColor,
   getRiskLevelColor,
@@ -41,22 +41,6 @@ export interface LiquidFundInvestmentKPIs {
   previousAverageInvestmentValue?: number
   previousAverageMarketValue?: number
   previousTotalFundValue?: number
-}
-
-// Utility functions moved to shared/utils.ts - using centralized versions
-
-// Helper function to safely extract currency code from CatalogEntry or string
-const safeCurrencyExtraction = (currency: any): string => {
-  if (!currency) return 'EUR'
-
-  if (typeof currency === 'object') {
-    // Handle CatalogEntry: try code first, then value
-    const currencyStr = currency.code || currency.value
-    return extractCurrencyCode(currencyStr || 'EUR')
-  }
-
-  // Handle string values
-  return extractCurrencyCode(currency)
 }
 
 interface LiquidFundInvestmentsReportProps extends BusinessAppContextProps {

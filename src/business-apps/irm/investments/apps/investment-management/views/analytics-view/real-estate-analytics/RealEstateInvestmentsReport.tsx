@@ -25,7 +25,7 @@ import {
   calculateChange,
   formatCurrency,
   formatPercentage,
-  extractCurrencyCode,
+  safeCurrencyExtraction,
   getInvestmentStatusColor,
   getRiskLevelColor
 } from '../shared/utils'
@@ -37,20 +37,6 @@ export interface RealEstateInvestmentKPIs {
   averageOccupancyRate: number
   totalUnits: number
   totalAnnualExpenses: number
-}
-
-// Helper function to safely extract currency code from CatalogEntry or string
-const safeCurrencyExtraction = (currency: any): string => {
-  if (!currency) return 'EUR'
-
-  if (typeof currency === 'object') {
-    // Handle CatalogEntry: try code first, then value
-    const currencyStr = currency.code || currency.value
-    return extractCurrencyCode(currencyStr || 'EUR')
-  }
-
-  // Handle string values
-  return extractCurrencyCode(currency)
 }
 
 interface RealEstateInvestmentsReportProps extends BusinessAppContextProps {

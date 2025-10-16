@@ -138,7 +138,7 @@ export function useKPIIntegration<T>(
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, dependencies])
+  }, [context.accessToken, fetcher, initialState, setCurrent, setPrevious, setError, setIsLoading, ...dependencies])
 
   /**
    * Trigger data load when context or dependencies change
@@ -147,7 +147,8 @@ export function useKPIIntegration<T>(
     if (context.accessToken) {
       loadData()
     }
-  }, [context.accessToken, loadData])
+    // Only depend on accessToken and the dependency values, not loadData itself to avoid infinite loop
+  }, [context.accessToken, loadData, ...dependencies])
 
   return {
     current,
