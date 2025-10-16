@@ -55,7 +55,6 @@ const ExpensePlanWizardContent: React.FC<BusinessAppContextProps> = ({ accessTok
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false)
   const [itemsCount, setItemsCount] = useState<number>(0)
   const [selectedItemCount, setSelectedItemCount] = useState<number>(0)
-
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP)
   // Update title and titleValue when expensePlanData changes
   useEffect(() => {
