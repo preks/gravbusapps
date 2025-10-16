@@ -97,8 +97,8 @@ export const GET_EMPLOYEE_ABSENCES = `
   }
 `
 
-export const GET_TEAM_EMPLOYEES = `
-  query GetTeamEmployees {
+export const GET_TEAM_EMPLOYEES_AND_ORG_UNITS = `
+  query GetTeamEmployeesAndOrgUnits {
     EmployeePosition {
       employee {
         id
@@ -106,23 +106,9 @@ export const GET_TEAM_EMPLOYEES = `
         lastName
         displayName
       }
-    }
-  }
-`
-
-export const GET_ORGANIZATIONAL_UNITS_FROM_EMPLOYEES = `
-  query GetOrganizationalUnitsFromEmployees {
-    Employee(
-      where: {
-        isDeleted: { _eq: false }
-      }
-      limit: 1000
-    ) {
-      employeePosition {
-        organizationalUnit {
-          id
-          name
-        }
+      organizationalUnit {
+        id
+        name
       }
     }
   }
