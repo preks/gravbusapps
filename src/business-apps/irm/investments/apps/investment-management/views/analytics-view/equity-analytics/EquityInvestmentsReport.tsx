@@ -70,7 +70,9 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
         currencies.add(inv.currencyCode)
       }
     })
-    return Array.from(currencies).sort()
+    const currencyArray = Array.from(currencies).sort()
+    // Ensure at least the default currency is available
+    return currencyArray.length > 0 ? currencyArray : ['EUR']
   }, [equityInvestments])
 
   // Use the new KPI integration hook for real GraphQL aggregate queries
@@ -175,12 +177,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     return (
       <div
         data-testid={formatDataTestId(prefixDataTestId, 'Loading')}
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          minHeight: '400px'
-        }}
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]"
       >
         <Spinner size="lg" />
       </div>

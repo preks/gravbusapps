@@ -22,18 +22,18 @@ import { useCurrencySync } from '../../shared/hooks'
 interface LiquidFundTimelineChartsProps {
   chartData: any
   rawLiquidFunds: LiquidFundInvestmentSummary[]
+  masterCurrency: string
+  availableCurrencies: string[]
 }
 
-export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> = ({ rawLiquidFunds }) => {
-  // Get available currencies
-  const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(rawLiquidFunds.map(fund => fund.currencyCode || 'EUR'))]
-    return currencies.filter(currency => currency).sort((a, b) => a.localeCompare(b))
-  }, [rawLiquidFunds])
-
-  // Currency sync hooks - use EUR as default (most common for liquid funds)
-  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useCurrencySync('EUR')
-  const [valueCurrencyFilter, setValueCurrencyFilter] = useCurrencySync('EUR')
+export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> = ({
+  rawLiquidFunds,
+  masterCurrency,
+  availableCurrencies
+}) => {
+  // Currency sync hooks - initialize with master currency from parent
+  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useCurrencySync(masterCurrency)
+  const [valueCurrencyFilter, setValueCurrencyFilter] = useCurrencySync(masterCurrency)
 
   // Investment Performance Timeline (matching Overview pattern)
   const investmentPerformanceData = useMemo(() => {

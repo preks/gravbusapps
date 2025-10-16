@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -9,7 +9,12 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system'
 import { TrendingUp, BarChart, PieChart } from 'lucide-react'
 import { WidgetGroup } from '@/components/widget-group'
@@ -46,19 +51,33 @@ interface RealEstateInvestmentsReportProps extends BusinessAppContextProps {
 const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'RealEstateInvestmentsReport'
   const [activeTab, setActiveTab] = useState('distribution')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
   const [realEstateInvestments, setRealEstateInvestments] = useState<RealEstateInvestmentSummary[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
 
-  // Use the new KPI integration hook for real GraphQL aggregate queries
+  // Extract unique currencies from real estate investments
+  const availableCurrencies = useMemo(() => {
+    const currencies = new Set<string>()
+    realEstateInvestments.forEach(inv => {
+      if (inv.currencyCode) {
+        currencies.add(inv.currencyCode)
+      }
+    })
+    const currencyArray = Array.from(currencies).sort()
+    // Ensure at least the default currency is available
+    return currencyArray.length > 0 ? currencyArray : ['EUR']
+  }, [realEstateInvestments])
+
+  // Use the new KPI integration hook for real GraphQL aggregate queries with currency filter
   const {
     current: kpis,
     previous: previousKpis,
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useRealEstateKPIIntegration(props)
+  } = useRealEstateKPIIntegration(props, selectedCurrency)
 
   const { fetchInvestments } = useGetInvestments(props)
 
@@ -175,6 +194,26 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
             {getTranslationFromI18nKeyAndLabel('realEstate.investments.items', 'properties')}
           </Badge>
         </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
+          </span>
+          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+            <SelectTrigger
+              className="gba:w-24 gba:h-8"
+              data-testid={formatDataTestId(prefixDataTestId, 'CurrencyFilter')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCurrencies.map(currency => (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -268,15 +307,28 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
           </TabsList>
 
           <TabsContent value="distribution" className="gba:mt-6">
-            <RealEstateDistributionCharts chartData={chartData} rawInvestments={realEstateInvestments} />
+            <RealEstateDistributionCharts
+              chartData={chartData}
+              rawInvestments={realEstateInvestments}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
+            />
           </TabsContent>
 
           <TabsContent value="timeline" className="gba:mt-6">
-            <RealEstateTimelineCharts chartData={chartData} />
+            <RealEstateTimelineCharts
+              rawInvestments={realEstateInvestments}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
+            />
           </TabsContent>
 
           <TabsContent value="analytics" className="gba:mt-6">
-            <RealEstateAnalyticsCharts chartData={chartData} />
+            <RealEstateAnalyticsCharts
+              rawInvestments={realEstateInvestments}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
+            />
           </TabsContent>
         </Tabs>
       </div>

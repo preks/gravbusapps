@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -9,7 +9,12 @@ import {
   TabsList,
   TabsTrigger,
   Button,
-  Badge
+  Badge,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system'
 import { PieChart, TrendingUp, BarChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -52,23 +57,38 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   ...context
 }) => {
   const [activeTab, setActiveTab] = useState('distribution')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
   // Use central investment data integration hook
   const { investments, isLoading, error, refetch } = useInvestmentDataIntegration(context)
 
-  // Use KPI integration hook (matches working pattern)
+  // Filter for liquid fund investments only (using type assertion for relationship)
+  const liquidFundInvestments = investments.filter(
+    inv => (inv as any).liquidFundInvestment && (inv as any).liquidFundInvestment.length > 0
+  )
+
+  // Extract unique currencies from liquid fund investments
+  const availableCurrencies = useMemo(() => {
+    const currencies = new Set<string>()
+    liquidFundInvestments.forEach(inv => {
+      const currencyCode = safeCurrencyExtraction(inv.currency)
+      if (currencyCode) {
+        currencies.add(currencyCode)
+      }
+    })
+    const currencyArray = Array.from(currencies).sort()
+    // Ensure at least the default currency is available
+    return currencyArray.length > 0 ? currencyArray : ['EUR']
+  }, [liquidFundInvestments])
+
+  // Use KPI integration hook with currency filter (matches working pattern)
   const {
     current,
     previous,
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useLiquidFundKPIIntegration(context)
-
-  // Filter for liquid fund investments only (using type assertion for relationship)
-  const liquidFundInvestments = investments.filter(
-    inv => (inv as any).liquidFundInvestment && (inv as any).liquidFundInvestment.length > 0
-  )
+  } = useLiquidFundKPIIntegration(context, selectedCurrency)
 
   // Transform KPI data to component format (matches working pattern)
   const kpis: LiquidFundInvestmentKPIs = {
@@ -158,6 +178,26 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
             {kpis?.totalInvestments || 0} {getTranslationFromI18nKeyAndLabel('liquidFund.investments.items', 'funds')}
           </Badge>
         </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
+          </span>
+          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+            <SelectTrigger
+              className="gba:w-24 gba:h-8"
+              data-testid={formatDataTestId(prefixDataTestId, 'CurrencyFilter')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCurrencies.map(currency => (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -188,15 +228,30 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
         </TabsList>
 
         <TabsContent value="distribution" className="gba:mt-6">
-          <LiquidFundDistributionCharts chartData={chartData} rawLiquidFunds={liquidFundSummaries} />
+          <LiquidFundDistributionCharts
+            chartData={chartData}
+            rawLiquidFunds={liquidFundSummaries}
+            masterCurrency={selectedCurrency}
+            availableCurrencies={availableCurrencies}
+          />
         </TabsContent>
 
         <TabsContent value="timeline" className="gba:mt-6">
-          <LiquidFundTimelineCharts chartData={chartData} rawLiquidFunds={liquidFundSummaries} />
+          <LiquidFundTimelineCharts
+            chartData={chartData}
+            rawLiquidFunds={liquidFundSummaries}
+            masterCurrency={selectedCurrency}
+            availableCurrencies={availableCurrencies}
+          />
         </TabsContent>
 
         <TabsContent value="analytics" className="gba:mt-6">
-          <LiquidFundAnalyticsCharts chartData={chartData} rawLiquidFunds={liquidFundSummaries} />
+          <LiquidFundAnalyticsCharts
+            chartData={chartData}
+            rawLiquidFunds={liquidFundSummaries}
+            masterCurrency={selectedCurrency}
+            availableCurrencies={availableCurrencies}
+          />
         </TabsContent>
       </Tabs>
     </div>

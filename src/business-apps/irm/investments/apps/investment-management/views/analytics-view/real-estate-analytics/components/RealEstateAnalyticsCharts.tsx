@@ -4,16 +4,74 @@ import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent, IconAvat
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
+import { CurrencyFilter } from '../../shared/components'
+import { useCurrencySync } from '../../shared/hooks'
 
 interface RealEstateAnalyticsChartsProps {
-  chartData: {
-    occupancyData: any[]
-    expensesValueData: any[]
-  }
+  rawInvestments: any[]
+  masterCurrency: string
+  availableCurrencies: string[]
 }
 
-export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps> = ({ chartData }) => {
-  const { occupancyData, expensesValueData } = chartData
+export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps> = ({
+  rawInvestments,
+  masterCurrency,
+  availableCurrencies
+}) => {
+  // Currency sync hooks - initialize with master currency from parent
+  const [occupancyCurrencyFilter, setOccupancyCurrencyFilter] = useCurrencySync(masterCurrency)
+  const [expensesCurrencyFilter, setExpensesCurrencyFilter] = useCurrencySync(masterCurrency)
+
+  // Filter occupancy data by selected currency
+  const filteredOccupancyData = useMemo(() => {
+    const filtered = rawInvestments.filter(inv => inv.currencyCode === occupancyCurrencyFilter)
+    // Group by occupancy rate ranges
+    const rangeMap = new Map()
+    const ranges = [
+      { label: '0-20%', min: 0, max: 20 },
+      { label: '21-40%', min: 21, max: 40 },
+      { label: '41-60%', min: 41, max: 60 },
+      { label: '61-80%', min: 61, max: 80 },
+      { label: '81-100%', min: 81, max: 100 }
+    ]
+
+    ranges.forEach(range => {
+      rangeMap.set(range.label, { range: range.label, count: 0, totalValue: 0 })
+    })
+
+    filtered.forEach(inv => {
+      const rate = inv.realEstateInvestment?.occupancyRate || 0
+      const value = inv.realEstateInvestment?.propertyValue || 0
+      const matchingRange = ranges.find(r => rate >= r.min && rate <= r.max)
+      if (matchingRange) {
+        const entry = rangeMap.get(matchingRange.label)
+        entry.count += 1
+        entry.totalValue += value
+      }
+    })
+
+    return Array.from(rangeMap.values())
+  }, [rawInvestments, occupancyCurrencyFilter])
+
+  // Filter expenses vs value data by selected currency
+  const filteredExpensesValueData = useMemo(() => {
+    return rawInvestments
+      .filter(
+        inv =>
+          inv.currencyCode === expensesCurrencyFilter &&
+          inv.realEstateInvestment?.propertyValue &&
+          inv.realEstateInvestment?.annualNetColdRent
+      )
+      .map(inv => ({
+        propertyValue: inv.realEstateInvestment!.propertyValue!,
+        annualExpenses: inv.realEstateInvestment!.annualNetColdRent!,
+        propertyName: inv.displayName,
+        expenseEfficiency:
+          inv.realEstateInvestment!.propertyValue! > 0
+            ? (inv.realEstateInvestment!.annualNetColdRent! / inv.realEstateInvestment!.propertyValue!) * 100
+            : 0
+      }))
+  }, [rawInvestments, expensesCurrencyFilter])
 
   // Occupancy Analysis Config
   const occupancyConfig = useMemo(
@@ -39,17 +97,28 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
       {/* Occupancy Rate Distribution */}
       <Card>
         <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={PercentIcon} variant="success" />
-            <div>
-              <CardTitle>Occupancy Rate Distribution</CardTitle>
-              <CardDescription>Properties grouped by occupancy rate ranges</CardDescription>
+          <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
+              <IconAvatar icon={PercentIcon} variant="success" size="md" decorative />
+              <div>
+                <CardTitle>Occupancy Rate Distribution</CardTitle>
+                <CardDescription>Properties grouped by occupancy rate ranges</CardDescription>
+              </div>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
+              <CurrencyFilter
+                currencies={availableCurrencies}
+                value={occupancyCurrencyFilter}
+                onChange={setOccupancyCurrencyFilter}
+                dataTestId="occupancy-currency-filter"
+                showLabel={false}
+              />
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <ChartContainer config={occupancyConfig}>
-            <ComposedChart data={occupancyData}>
+            <ComposedChart data={filteredOccupancyData}>
               <XAxis dataKey="range" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
@@ -99,18 +168,29 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
       {/* Expenses vs Property Value */}
       <Card>
         <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <IconAvatar icon={ChartBarIcon} variant="warning" />
-            <div>
-              <CardTitle>Property Value vs Annual Net Cold Rent</CardTitle>
-              <CardDescription>Property values correlation with annual net cold rent</CardDescription>
+          <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
+              <IconAvatar icon={ChartBarIcon} variant="warning" size="md" decorative />
+              <div>
+                <CardTitle>Property Value vs Annual Net Cold Rent</CardTitle>
+                <CardDescription>Property values correlation with annual net cold rent</CardDescription>
+              </div>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
+              <CurrencyFilter
+                currencies={availableCurrencies}
+                value={expensesCurrencyFilter}
+                onChange={setExpensesCurrencyFilter}
+                dataTestId="expenses-currency-filter"
+                showLabel={false}
+              />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          {expensesValueData && expensesValueData.length > 0 ? (
+          {filteredExpensesValueData && filteredExpensesValueData.length > 0 ? (
             <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
-              <ScatterChart data={expensesValueData}>
+              <ScatterChart data={filteredExpensesValueData}>
                 <XAxis dataKey="propertyValue" name="Property Value" type="number" />
                 <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
                 <ChartTooltip

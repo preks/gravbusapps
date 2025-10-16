@@ -61,7 +61,9 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
         currencies.add(inv.currencyCode)
       }
     })
-    return Array.from(currencies).sort()
+    const currencyArray = Array.from(currencies).sort()
+    // Ensure at least the default currency is available
+    return currencyArray.length > 0 ? currencyArray : ['EUR']
   }, [investments])
 
   if (isLoading) {

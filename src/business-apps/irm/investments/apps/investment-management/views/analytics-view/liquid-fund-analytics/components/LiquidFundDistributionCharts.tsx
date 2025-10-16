@@ -21,15 +21,18 @@ import { useCurrencySync } from '../../shared/hooks'
 interface LiquidFundDistributionChartsProps {
   chartData: any
   rawLiquidFunds: LiquidFundInvestmentSummary[]
+  masterCurrency: string
+  availableCurrencies: string[]
 }
 
-export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionChartsProps> = ({ rawLiquidFunds }) => {
-  // Fixed currency options - only EUR and USD
-  const availableCurrencies = ['EUR', 'USD']
-
-  // Currency sync hooks - use EUR as default (most common for liquid funds)
-  const [investmentTypeCurrencyFilter, setInvestmentTypeCurrencyFilter] = useCurrencySync('EUR')
-  const [liquidFundTypeCurrencyFilter, setLiquidFundTypeCurrencyFilter] = useCurrencySync('EUR')
+export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionChartsProps> = ({
+  rawLiquidFunds,
+  masterCurrency,
+  availableCurrencies
+}) => {
+  // Currency sync hooks - initialize with master currency from parent
+  const [investmentTypeCurrencyFilter, setInvestmentTypeCurrencyFilter] = useCurrencySync(masterCurrency)
+  const [liquidFundTypeCurrencyFilter, setLiquidFundTypeCurrencyFilter] = useCurrencySync(masterCurrency)
 
   // Type Distribution by Count
   const investmentTypeCountData = useMemo(() => {

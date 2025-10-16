@@ -138,17 +138,18 @@ export function useKPIIntegration<T>(
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, fetcher, initialState, setCurrent, setPrevious, setError, setIsLoading, ...dependencies])
+    // Note: loadData is intentionally excluded to prevent circular dependencies
+  }, [context.accessToken, fetcher, initialState, ...dependencies])
 
   /**
    * Trigger data load when context or dependencies change
+   * Note: loadData is intentionally excluded to prevent circular dependencies
    */
   useEffect(() => {
     if (context.accessToken) {
       loadData()
     }
-    // Only depend on accessToken and the dependency values, not loadData itself to avoid infinite loop
-  }, [context.accessToken, loadData, ...dependencies])
+  }, [context.accessToken, ...dependencies])
 
   return {
     current,

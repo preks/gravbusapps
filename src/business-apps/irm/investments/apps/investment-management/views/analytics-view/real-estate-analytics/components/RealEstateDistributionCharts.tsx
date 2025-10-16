@@ -25,23 +25,21 @@ interface RealEstateDistributionChartsProps {
     currencyData: any[]
   }
   rawInvestments: any[] // Raw investment data for filtering
+  masterCurrency: string
+  availableCurrencies: string[]
 }
 
 export const RealEstateDistributionCharts: React.FC<RealEstateDistributionChartsProps> = ({
   chartData,
-  rawInvestments
+  rawInvestments,
+  masterCurrency,
+  availableCurrencies
 }) => {
   const { typeData, statusData } = chartData
 
-  // Get available currencies from the data
-  const availableCurrencies = useMemo(() => {
-    const currencies = [...new Set(rawInvestments.map(inv => inv.currencyCode || 'EUR'))]
-    return currencies.sort()
-  }, [rawInvestments])
-
-  // Currency sync hooks - use EUR as default (most common for real estate)
-  const [typeCurrencyFilter, setTypeCurrencyFilter] = useCurrencySync('EUR')
-  const [statusCurrencyFilter, setStatusCurrencyFilter] = useCurrencySync('EUR')
+  // Currency sync hooks - initialize with master currency from parent
+  const [typeCurrencyFilter, setTypeCurrencyFilter] = useCurrencySync(masterCurrency)
+  const [statusCurrencyFilter, setStatusCurrencyFilter] = useCurrencySync(masterCurrency)
 
   // Filter data based on selected currency for Type Total Amount chart
   const filteredTypeData = useMemo(() => {

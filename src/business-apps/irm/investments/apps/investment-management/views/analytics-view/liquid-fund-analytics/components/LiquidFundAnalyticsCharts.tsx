@@ -15,48 +15,67 @@ import { ScatterChart, Scatter, XAxis, YAxis, BarChart, Bar } from 'recharts'
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { ChartScatterIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { LiquidFundInvestmentSummary } from '../../shared/types'
+import { CurrencyFilter } from '../../shared/components'
+import { useCurrencySync } from '../../shared/hooks'
 
 interface LiquidFundAnalyticsChartsProps {
   chartData: any
   rawLiquidFunds: LiquidFundInvestmentSummary[]
+  masterCurrency: string
+  availableCurrencies: string[]
 }
 
-export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps> = ({ rawLiquidFunds }) => {
+export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps> = ({
+  rawLiquidFunds,
+  masterCurrency,
+  availableCurrencies
+}) => {
+  // Currency sync hooks - initialize with master currency from parent
+  const [correlationCurrencyFilter, setCorrelationCurrencyFilter] = useCurrencySync(masterCurrency)
+  const [performanceCurrencyFilter, setPerformanceCurrencyFilter] = useCurrencySync(masterCurrency)
+
   // Interest Rate vs Investment Amount Correlation
   const interestRateCorrelationData = useMemo(() => {
     return rawLiquidFunds
-      .filter(fund => fund.liquidFundInvestment?.interestRate && fund.investment.totalInvestmentAmount)
+      .filter(
+        fund =>
+          fund.currencyCode === correlationCurrencyFilter &&
+          fund.liquidFundInvestment?.interestRate &&
+          fund.investment.totalInvestmentAmount
+      )
       .map(fund => ({
         interestRate: fund.liquidFundInvestment!.interestRate!,
         investmentAmount: fund.investment.totalInvestmentAmount || 0,
         fundName: fund.displayName,
         fundType: fund.fundTypeName
       }))
-  }, [rawLiquidFunds])
+  }, [rawLiquidFunds, correlationCurrencyFilter])
 
   // Performance by Fund Type
   const performanceByTypeData = useMemo(() => {
     const typeMap = new Map()
 
-    rawLiquidFunds.forEach(fund => {
-      const fundType = fund.fundTypeName || 'Unknown'
-      const interestRate = fund.liquidFundInvestment?.interestRate || 0
-      const investmentAmount = fund.investment.totalInvestmentAmount || 0
+    rawLiquidFunds
+      .filter(fund => fund.currencyCode === performanceCurrencyFilter)
+      .forEach(fund => {
+        const fundType = fund.fundTypeName || 'Unknown'
+        const interestRate = fund.liquidFundInvestment?.interestRate || 0
+        const investmentAmount = fund.investment.totalInvestmentAmount || 0
 
-      if (typeMap.has(fundType)) {
-        const existing = typeMap.get(fundType)
-        existing.totalInterestRate += interestRate
-        existing.totalInvestmentAmount += investmentAmount
-        existing.count += 1
-      } else {
-        typeMap.set(fundType, {
-          fundType,
-          totalInterestRate: interestRate,
-          totalInvestmentAmount: investmentAmount,
-          count: 1
-        })
-      }
-    })
+        if (typeMap.has(fundType)) {
+          const existing = typeMap.get(fundType)
+          existing.totalInterestRate += interestRate
+          existing.totalInvestmentAmount += investmentAmount
+          existing.count += 1
+        } else {
+          typeMap.set(fundType, {
+            fundType,
+            totalInterestRate: interestRate,
+            totalInvestmentAmount: investmentAmount,
+            count: 1
+          })
+        }
+      })
 
     return Array.from(typeMap.values()).map(item => ({
       ...item,
@@ -64,20 +83,31 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
       averageInvestmentAmount: item.count > 0 ? item.totalInvestmentAmount / item.count : 0,
       name: item.fundType.toLowerCase().replace(/\s+/g, '')
     }))
-  }, [rawLiquidFunds])
+  }, [rawLiquidFunds, performanceCurrencyFilter])
 
   return (
     <div className="gba:space-y-6">
       {/* Interest Rate vs Investment Amount Correlation */}
       <Card>
         <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={ChartScatterIcon} variant="default" size="md" decorative />
-            <div>
-              <CardTitle>Interest Rate vs Amount Correlation for Fixed-Term Deposits</CardTitle>
-              <CardDescription>
-                Correlation between interest rates and investment amounts for fixed-term deposits
-              </CardDescription>
+          <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
+              <IconAvatar icon={ChartScatterIcon} variant="default" size="md" decorative />
+              <div>
+                <CardTitle>Interest Rate vs Amount Correlation for Fixed-Term Deposits</CardTitle>
+                <CardDescription>
+                  Correlation between interest rates and investment amounts for fixed-term deposits
+                </CardDescription>
+              </div>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
+              <CurrencyFilter
+                currencies={availableCurrencies}
+                value={correlationCurrencyFilter}
+                onChange={setCorrelationCurrencyFilter}
+                dataTestId="correlation-currency-filter"
+                showLabel={false}
+              />
             </div>
           </div>
         </CardHeader>
@@ -140,11 +170,22 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
       {/* Performance by Fund Type */}
       <Card>
         <CardHeader>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <IconAvatar icon={ChartBarIcon} variant="secondary" size="md" decorative />
-            <div>
-              <CardTitle>Performance Analysis by Fund Type</CardTitle>
-              <CardDescription>Average interest rates and investment amounts by fund type</CardDescription>
+          <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
+            <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
+              <IconAvatar icon={ChartBarIcon} variant="secondary" size="md" decorative />
+              <div>
+                <CardTitle>Performance Analysis by Fund Type</CardTitle>
+                <CardDescription>Average interest rates and investment amounts by fund type</CardDescription>
+              </div>
+            </div>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
+              <CurrencyFilter
+                currencies={availableCurrencies}
+                value={performanceCurrencyFilter}
+                onChange={setPerformanceCurrencyFilter}
+                dataTestId="performance-currency-filter"
+                showLabel={false}
+              />
             </div>
           </div>
         </CardHeader>

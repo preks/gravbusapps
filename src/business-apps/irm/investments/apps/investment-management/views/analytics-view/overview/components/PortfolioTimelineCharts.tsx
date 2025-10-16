@@ -15,9 +15,9 @@ import { AreaChart, Area, ComposedChart, Bar, Line, XAxis, YAxis } from 'rechart
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
-import { ChartEmptyState, CurrencyFilter } from '../../shared/components'
+import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
-import { filterInvestmentsByCurrency, shouldShowEmptyState } from '../../shared/utils'
+import { filterInvestmentsByCurrency } from '../../shared/utils'
 
 interface PortfolioTimelineChartsProps {
   rawInvestments: any[] // Raw investment data for filtering
@@ -131,15 +131,8 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
     []
   )
 
-  // Check if data is empty or all values are zero using shared utility
-  const performanceDataIsEmpty = shouldShowEmptyState(filteredPerformanceData, item => item.totalInvestmentAmount)
-  const valueDataIsEmpty = shouldShowEmptyState(
-    filteredValueData,
-    item => (item.totalInvestmentAmount || 0) + (item.totalMarketValue || 0)
-  )
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
+    <div className="gba:flex gba:flex-col gba:gap-6 gba:w-full">
       <Card>
         <CardHeader>
           <div className="gba:flex gba:justify-between gba:items-start gba:min-h-[3rem]">
@@ -163,78 +156,74 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
           </div>
         </CardHeader>
         <CardContent>
-          {performanceDataIsEmpty ? (
-            <ChartEmptyState message="No investment amounts recorded for this currency" />
-          ) : (
-            <ChartContainer config={performanceChartConfig} className="gba:h-[350px] gba:w-full">
-              <ComposedChart data={filteredPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                          {payload
-                            .filter(entry => {
-                              // Only show items that have actual visual chart elements
-                              return entry.dataKey === 'investmentCount' || entry.dataKey === 'totalInvestmentAmount'
-                            })
-                            .map((entry, index) => {
-                              let formattedValue = ''
-                              let properLabel = ''
-                              let dotColor = ''
+          <ChartContainer config={performanceChartConfig} className="gba:h-[350px] gba:w-full">
+            <ComposedChart data={filteredPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <ChartTooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+                        {payload
+                          .filter(entry => {
+                            // Only show items that have actual visual chart elements
+                            return entry.dataKey === 'investmentCount' || entry.dataKey === 'totalInvestmentAmount'
+                          })
+                          .map((entry, index) => {
+                            let formattedValue = ''
+                            let properLabel = ''
+                            let dotColor = ''
 
-                              if (entry.dataKey === 'investmentCount') {
-                                formattedValue = `${entry.value}`
-                                properLabel = 'New Investments'
-                                dotColor = 'var(--color-investmentcount)'
-                              } else if (entry.dataKey === 'totalInvestmentAmount') {
-                                formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrencyFilter)
-                                properLabel = 'Total Invested Amount'
-                                dotColor = 'var(--color-totalinvestmentamount)'
-                              }
+                            if (entry.dataKey === 'investmentCount') {
+                              formattedValue = `${entry.value}`
+                              properLabel = 'New Investments'
+                              dotColor = 'var(--color-investmentcount)'
+                            } else if (entry.dataKey === 'totalInvestmentAmount') {
+                              formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrencyFilter)
+                              properLabel = 'Total Invested Amount'
+                              dotColor = 'var(--color-totalinvestmentamount)'
+                            }
 
-                              return (
-                                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar
-                  yAxisId="left"
-                  dataKey="investmentCount"
-                  name="investmentcount"
-                  fill="var(--color-investmentcount)"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="totalInvestmentAmount"
-                  name="totalinvestmentamount"
-                  stroke="var(--color-totalinvestmentamount)"
-                  strokeWidth={3}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                            return (
+                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: dotColor }}
+                                />
+                                <span className="gba:font-medium">{properLabel}:</span>
+                                <span className="gba:font-semibold">{formattedValue}</span>
+                              </div>
+                            )
+                          })}
+                      </div>
+                    )
+                  }
+                  return null
+                }}
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                yAxisId="left"
+                dataKey="investmentCount"
+                name="investmentcount"
+                fill="var(--color-investmentcount)"
+                radius={[4, 4, 0, 0]}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="totalInvestmentAmount"
+                name="totalinvestmentamount"
+                stroke="var(--color-totalinvestmentamount)"
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 4 }}
+              />
+            </ComposedChart>
+          </ChartContainer>
         </CardContent>
       </Card>
 
@@ -261,75 +250,68 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
           </div>
         </CardHeader>
         <CardContent>
-          {valueDataIsEmpty ? (
-            <ChartEmptyState message="No investment amounts recorded for this currency" />
-          ) : (
-            <ChartContainer config={valueChartConfig} className="gba:h-[300px] gba:w-full">
-              <AreaChart data={filteredValueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
-                />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                          {payload.map((entry, index) => {
-                            let properLabel = ''
-                            let dotColor = ''
+          <ChartContainer config={valueChartConfig} className="gba:h-[300px] gba:w-full">
+            <AreaChart data={filteredValueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
+              />
+              <ChartTooltip
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    return (
+                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+                        {payload.map((entry, index) => {
+                          let properLabel = ''
+                          let dotColor = ''
 
-                            if (entry.dataKey === 'totalInvestmentAmount') {
-                              properLabel = 'Total Invested Amount'
-                              dotColor = 'var(--color-totalinvestmentamount)'
-                            } else if (entry.dataKey === 'totalMarketValue') {
-                              properLabel = 'Total Market Value'
-                              dotColor = 'var(--color-totalmarketvalue)'
-                            }
+                          if (entry.dataKey === 'totalInvestmentAmount') {
+                            properLabel = 'Total Invested Amount'
+                            dotColor = 'var(--color-totalinvestmentamount)'
+                          } else if (entry.dataKey === 'totalMarketValue') {
+                            properLabel = 'Total Market Value'
+                            dotColor = 'var(--color-totalmarketvalue)'
+                          }
 
-                            return (
-                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: dotColor }}
-                                />
-                                <span className="gba:font-medium">{properLabel}:</span>
-                                <span className="gba:font-semibold">
-                                  {formatCurrencyCompact(entry.value as number, valueCurrencyFilter)}
-                                </span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Area
-                  type="monotone"
-                  dataKey="totalInvestmentAmount"
-                  name="totalinvestmentamount"
-                  stackId="1"
-                  stroke="var(--color-totalinvestmentamount)"
-                  fill="var(--color-totalinvestmentamount)"
-                  fillOpacity={0.8}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="totalMarketValue"
-                  name="totalmarketvalue"
-                  stackId="2"
-                  stroke="var(--color-totalmarketvalue)"
-                  fill="var(--color-totalmarketvalue)"
-                  fillOpacity={0.6}
-                />
-              </AreaChart>
-            </ChartContainer>
-          )}
+                          return (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+                              <span className="gba:font-medium">{properLabel}:</span>
+                              <span className="gba:font-semibold">
+                                {formatCurrencyCompact(entry.value as number, valueCurrencyFilter)}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  }
+                  return null
+                }}
+              />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Area
+                type="monotone"
+                dataKey="totalInvestmentAmount"
+                name="totalinvestmentamount"
+                stackId="1"
+                stroke="var(--color-totalinvestmentamount)"
+                fill="var(--color-totalinvestmentamount)"
+                fillOpacity={0.8}
+              />
+              <Area
+                type="monotone"
+                dataKey="totalMarketValue"
+                name="totalmarketvalue"
+                stackId="2"
+                stroke="var(--color-totalmarketvalue)"
+                fill="var(--color-totalmarketvalue)"
+                fillOpacity={0.6}
+              />
+            </AreaChart>
+          </ChartContainer>
         </CardContent>
       </Card>
     </div>

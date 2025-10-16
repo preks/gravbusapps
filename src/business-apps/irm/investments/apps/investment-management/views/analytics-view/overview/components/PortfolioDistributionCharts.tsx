@@ -14,7 +14,7 @@ import {
 import { PieChart, Pie, Cell } from 'recharts'
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { ChartPieSliceIcon, ChartDonutIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
-import { ChartEmptyState, CurrencyFilter } from '../../shared/components'
+import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 
 interface PortfolioDistributionChartsProps {
@@ -92,11 +92,6 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
     })
     return config
   }, [filteredStatusData])
-
-  // Check if data is empty or all values are zero
-  const groupDataIsEmpty =
-    filteredInvestmentGroupData.length === 0 || !filteredInvestmentGroupData.some(item => item.totalAmount > 0)
-  const statusDataIsEmpty = filteredStatusData.length === 0 || !filteredStatusData.some(item => item.totalAmount > 0)
 
   return (
     <div className="gba:space-y-6">
@@ -199,59 +194,55 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {groupDataIsEmpty ? (
-              <ChartEmptyState message="No investment amounts recorded for this currency" />
-            ) : (
-              <ChartContainer config={groupChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={filteredInvestmentGroupData.map((item: any) => {
-                      const key = item.group.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: item.group,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="totalAmount"
-                    nameKey="name"
-                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  >
-                    {filteredInvestmentGroupData.map((entry: any, index: number) => {
-                      const key = entry.group.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const groupKey = data.payload.group.toLowerCase().replace(/\s+/g, '')
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${groupKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.name}</span>
-                            </div>
-                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                              {formatCurrencyCompact(data.value as number, groupCurrencyFilter)}
-                            </div>
+            <ChartContainer config={groupChartConfig} className="gba:h-[300px] gba:w-full">
+              <PieChart>
+                <Pie
+                  data={filteredInvestmentGroupData.map((item: any) => {
+                    const key = item.group.toLowerCase().replace(/\s+/g, '')
+                    return {
+                      ...item,
+                      name: item.group,
+                      fill: `var(--color-${key})`
+                    }
+                  })}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="totalAmount"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                >
+                  {filteredInvestmentGroupData.map((entry: any, index: number) => {
+                    const key = entry.group.toLowerCase().replace(/\s+/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                  })}
+                </Pie>
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0]
+                      const groupKey = data.payload.group.toLowerCase().replace(/\s+/g, '')
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: `var(--color-${groupKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.name}</span>
                           </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrencyCompact(data.value as number, groupCurrencyFilter)}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+              </PieChart>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
@@ -355,59 +346,55 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {statusDataIsEmpty ? (
-              <ChartEmptyState message="No investment amounts recorded for this currency" />
-            ) : (
-              <ChartContainer config={statusChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={filteredStatusData.map((item: any) => {
-                      const key = item.status.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: item.status,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="totalAmount"
-                    nameKey="name"
-                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                  >
-                    {filteredStatusData.map((entry: any, index: number) => {
-                      const key = entry.status.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '')
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${statusKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.name}</span>
-                            </div>
-                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                              {formatCurrencyCompact(data.value as number, statusCurrencyFilter)}
-                            </div>
+            <ChartContainer config={statusChartConfig} className="gba:h-[300px] gba:w-full">
+              <PieChart>
+                <Pie
+                  data={filteredStatusData.map((item: any) => {
+                    const key = item.status.toLowerCase().replace(/\s+/g, '')
+                    return {
+                      ...item,
+                      name: item.status,
+                      fill: `var(--color-${key})`
+                    }
+                  })}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  dataKey="totalAmount"
+                  nameKey="name"
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                >
+                  {filteredStatusData.map((entry: any, index: number) => {
+                    const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                  })}
+                </Pie>
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0]
+                      const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '')
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: `var(--color-${statusKey})` }}
+                            />
+                            <span className="gba:font-medium">{data.payload.name}</span>
                           </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                            {formatCurrencyCompact(data.value as number, statusCurrencyFilter)}
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+              </PieChart>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
