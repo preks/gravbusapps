@@ -13,13 +13,11 @@ import {
   getAbsenceStatusType
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import {
-  getGetAllAbsencesCurrentYearQuery,
   getGetAllEmployeesFromPositionsQuery,
-  getGetAllEmployeesFromPositionsForCalendarQuery,
-  getGetEmployeesByDepartmentsQuery,
-  getGetAbsencesForEmployeesQuery,
+  getGetAllEmployeesWithAbsencesQuery,
+  getGetEmployeesWithAbsencesByDepartmentsQuery,
   type CalendarEmployeePositionResponse,
-  type CalendarAbsenceResponse
+  type CalendarEmployeesWithAbsencesResponse
 } from '../../../queries/absenceQueries'
 const { Option } = Select
 
@@ -72,7 +70,6 @@ interface Employee {
 }
 
 type EmployeePositionResponse = CalendarEmployeePositionResponse
-type AbsenceResponse = CalendarAbsenceResponse
 
 const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const graphQLClient = useGraphQLClient(accessToken)
@@ -83,7 +80,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
   const [selectedOrgUnits, setSelectedOrgUnits] = useState<string[]>(
     userInfo?.employeeDetails?.organizationalUnit?.name
       ? [userInfo.employeeDetails.organizationalUnit.name]
-      : ['--- All Departments']
+      : ['All Departments']
   )
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
@@ -103,40 +100,58 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
       setError(null)
 
       try {
-        let employeesQuery: string
-        if (departments.includes('--- All Departments')) {
-          const currentDate = new Date().toISOString()
-          employeesQuery = getGetAllEmployeesFromPositionsForCalendarQuery(currentDate)
-        } else {
-          const currentDate = new Date().toISOString()
-          employeesQuery = getGetEmployeesByDepartmentsQuery(currentDate, departments)
-        }
+        const currentDate = new Date().toISOString()
+        let employees: Employee[] = []
+        let absences: EmployeeAbsence[] = []
 
-        const employeeResult = await graphQLClient.request<EmployeePositionResponse>(employeesQuery)
-        const employeePositions = employeeResult?.EmployeePosition || []
-        const employees: Employee[] = employeePositions.map((position: any) => ({
-          id: position.employee.id,
-          firstName: position.employee.firstName,
-          lastName: position.employee.lastName,
-          pictureThumbnail: position.employee.pictureThumbnail || '',
-          employeePosition: {
-            organizationalUnit: {
-              name: position.organizationalUnit.name
-            }
-          }
-        }))
+        if (departments.includes('All Departments')) {
+          const combinedQuery = getGetAllEmployeesWithAbsencesQuery(currentDate)
+          const combinedResult = await graphQLClient.request<CalendarEmployeesWithAbsencesResponse>(combinedQuery)
+          const employeePositions = combinedResult?.employees || []
+          const allAbsences = combinedResult?.absences || []
+
+          employees = employeePositions
+            .filter((position: any) => position?.employee?.id)
+            .map((position: any) => ({
+              id: position.employee.id,
+              firstName: position.employee.firstName,
+              lastName: position.employee.lastName,
+              pictureThumbnail: position.employee.pictureThumbnail || '',
+              employeePosition: {
+                organizationalUnit: {
+                  name: position.organizationalUnit?.name || 'Unknown Department'
+                }
+              }
+            }))
+
+          absences = allAbsences.filter((absence: any) => absence?.employee?.id)
+        } else {
+          const combinedQuery = getGetEmployeesWithAbsencesByDepartmentsQuery(currentDate, departments)
+          const combinedResult = await graphQLClient.request<CalendarEmployeesWithAbsencesResponse>(combinedQuery)
+          const employeePositions = combinedResult?.employees || []
+          const allAbsences = combinedResult?.absences || []
+
+          employees = employeePositions
+            .filter((position: any) => position?.employee?.id)
+            .map((position: any) => ({
+              id: position.employee.id,
+              firstName: position.employee.firstName,
+              lastName: position.employee.lastName,
+              pictureThumbnail: position.employee.pictureThumbnail || '',
+              employeePosition: {
+                organizationalUnit: {
+                  name: position.organizationalUnit?.name || 'Unknown Department'
+                }
+              }
+            }))
+
+          const employeeIds = employees.map(emp => emp.id)
+          absences = allAbsences.filter(
+            (absence: any) => absence?.employee?.id && employeeIds.includes(absence.employee.id)
+          )
+        }
 
         setAllEmployees(employees)
-
-        let absenceQuery: string
-        if (employees.length > 0) {
-          const employeeIds = employees.map(emp => emp.id)
-          absenceQuery = getGetAbsencesForEmployeesQuery(employeeIds)
-        } else {
-          absenceQuery = getGetAllAbsencesCurrentYearQuery()
-        }
-        const absenceResult = await graphQLClient.request<AbsenceResponse>(absenceQuery)
-        const absences = absenceResult?.EmployeeAbsence || []
         setEmployeeAbsences(absences)
       } catch (err) {
         console.error('Error in enhanced fetch:', err)
@@ -170,7 +185,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
           if (position.organizationalUnit?.name) {
             const orgUnitName = position.organizationalUnit.name
             orgUnitsMap.set(orgUnitName, {
-              id: orgUnitName, // Use name as id since we only have name
+              id: orgUnitName,
               name: orgUnitName
             })
           }
@@ -215,6 +230,10 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
     const eventIdSet = new Set()
 
     employeeAbsences.forEach(absence => {
+      if (!absence?.employee?.id || !absence?.type?.value || !absence?.startDate || !absence?.endDate) {
+        return
+      }
+
       const eventId = `${absence.employee.id}-${absence.startDate}-${absence.endDate}-${absence.type.value}`
 
       if (!eventIdSet.has(eventId)) {
@@ -295,7 +314,7 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
           mode="multiple"
           onChange={(values: string[]) => {
             if (!values || values.length === 0) {
-              setSelectedOrgUnits(['--- All Departments'])
+              setSelectedOrgUnits(['All Departments'])
               return
             }
 
@@ -304,43 +323,39 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
             )
 
             if (validValues.length === 0) {
-              setSelectedOrgUnits(['--- All Departments'])
+              setSelectedOrgUnits(['All Departments'])
               return
             }
 
             const currentState = selectedOrgUnits
             const newSelection = validValues
 
-            const currentHasAllDepartments = currentState.includes('--- All Departments')
-            const newHasAllDepartments = newSelection.includes('--- All Departments')
-            const specificDepartmentsInNew = newSelection.filter(val => val !== '--- All Departments')
+            const currentHasAllDepartments = currentState.includes('All Departments')
+            const newHasAllDepartments = newSelection.includes('All Departments')
+            const specificDepartmentsInNew = newSelection.filter(val => val !== 'All Departments')
 
             if (currentHasAllDepartments && newHasAllDepartments && specificDepartmentsInNew.length > 0) {
               setSelectedOrgUnits(specificDepartmentsInNew)
             } else if (newHasAllDepartments && !currentHasAllDepartments) {
-              setSelectedOrgUnits(['--- All Departments'])
+              setSelectedOrgUnits(['All Departments'])
             } else if (newHasAllDepartments && specificDepartmentsInNew.length === 0) {
-              setSelectedOrgUnits(['--- All Departments'])
+              setSelectedOrgUnits(['All Departments'])
             } else {
               setSelectedOrgUnits(validValues)
             }
           }}
           onClear={() => {
-            setSelectedOrgUnits(['--- All Departments'])
+            setSelectedOrgUnits(['All Departments'])
           }}
-          placeholder={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absence_management_hub_backoffice.calendar.filter_by_department',
-            'Filter by Department'
-          )}
           disabled={isLoading}
           allowClear
           style={{ width: '100%' }}
           data-testid="calendar-department-filter"
         >
-          <Option key="all" value="--- All Departments">
+          <Option key="all" value="All Departments">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.calendar.all_departments',
-              '--- All Departments'
+              'All Departments'
             )}
           </Option>
           {organizationalUnits
@@ -397,11 +412,6 @@ const CalendarTab: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo 
           </div>
         )}
       />
-
-      <div className="gba:absolute gba:bottom-4 gba:right-4 gba:bg-black gba:bg-opacity-75 gba:text-white gba:p-2 gba:rounded gba:text-xs gba:z-10">
-        Employees: {timelineItems.length} | Events: {timelineEvents.length} | Depts:{' '}
-        {selectedOrgUnits.join(', ') || 'All'}
-      </div>
     </div>
   )
 }
