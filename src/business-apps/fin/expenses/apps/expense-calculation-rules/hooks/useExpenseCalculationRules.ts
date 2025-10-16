@@ -69,6 +69,7 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
 
   const [calculationTypes, setCalculationTypes] = useState<CalculationTypeOption[]>([])
   const [refreshTick, setRefreshTick] = useState<number>(0)
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('')
 
   const orderBy = useMemo(() => {
     if (!sortField || !sortOrder) return undefined
@@ -82,12 +83,25 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
     return [{ [sortField]: dir } as any]
   }, [sortField, sortOrder])
 
+  // Debounce search input (500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [search])
+
   const buildWhere = useCallback(() => {
     const where: any = { code: { _isNull: false }, isDeleted: { _eq: false } }
 
-    if (search && search.trim()) {
-      const pattern = `%${search.trim()}%`
-      where._or = [{ code: { _ilike: pattern } }, { name: { _ilike: pattern } }]
+    if (debouncedSearch && debouncedSearch.trim()) {
+      const pattern = `%${debouncedSearch.trim()}%`
+      where._or = [
+        { code: { _ilike: pattern } },
+        { name: { _ilike: pattern } },
+        { currency: { value: { _ilike: pattern } } },
+        { calculationType: { value: { _ilike: pattern } } }
+      ]
     }
     if (typeof standard === 'boolean') {
       where.standard = { _eq: standard }
@@ -105,7 +119,7 @@ export const useExpenseCalculationRules = (context: BusinessAppContextProps): Us
       where.currency = { code: { _in: selectedCurrencyCodes } } as any
     }
     return where
-  }, [search, standard, validityFrom, validityTo, selectedCalculationCodes, selectedCurrencyCodes])
+  }, [debouncedSearch, standard, validityFrom, validityTo, selectedCalculationCodes, selectedCurrencyCodes])
 
   // Load calculation types ONCE
   const typesLoadedRef = useRef(false)

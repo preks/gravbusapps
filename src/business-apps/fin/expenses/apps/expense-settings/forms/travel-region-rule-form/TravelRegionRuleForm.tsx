@@ -1,31 +1,31 @@
-import React, { useState, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system';
-import { PiWarning } from 'react-icons/pi';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+import React, { useState, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
+import { PiWarning } from 'react-icons/pi'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
 // Register dayjs plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
-import { useGetAllowanceRegionRuleById } from '../../queries/ExpenseRuleQueries';
-import { useCatalogData } from './hooks/useCatalogData';
-import { useTravelRegionScroll } from './hooks/useTravelRegionScroll';
-import { useGroupedDetails } from './hooks/useGroupedDetails';
-import { BasicInformationSection } from './components/BasicInformationSection';
-import { AllowanceRegionDetailsSection } from './components/AllowanceRegionDetailsSection';
-import { FormActions } from './components/FormActions';
-import { TravelRegionRuleFormData, AllowanceRegionDetailFormData } from './types';
+import { useGetAllowanceRegionRuleById } from '../../queries/ExpenseRuleQueries'
+import { useCatalogData } from './hooks/useCatalogData'
+import { useTravelRegionScroll } from './hooks/useTravelRegionScroll'
+import { useGroupedDetails } from './hooks/useGroupedDetails'
+import { BasicInformationSection } from './components/BasicInformationSection'
+import { AllowanceRegionDetailsSection } from './components/AllowanceRegionDetailsSection'
+import { FormActions } from './components/FormActions'
+import { TravelRegionRuleFormData, AllowanceRegionDetailFormData } from './types'
 
 interface TravelRegionRuleFormProps extends BusinessAppContextProps {
-  initialData?: TravelRegionRuleFormData;
-  isEditing?: boolean;
-  onSave: (data: TravelRegionRuleFormData) => Promise<void>;
-  onCancel: () => void;
-  loading?: boolean;
-  travelRegionSetId?: string;
+  initialData?: TravelRegionRuleFormData
+  isEditing?: boolean
+  onSave: (data: TravelRegionRuleFormData) => Promise<void>
+  onCancel: () => void
+  loading?: boolean
+  travelRegionSetId?: string
 }
 
 const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
@@ -37,25 +37,25 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   accessToken,
   ...context
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showValidation, setShowValidation] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [showValidation, setShowValidation] = useState(false)
   const [formData, setFormData] = useState<TravelRegionRuleFormData>({
     code: '',
     name: '',
     activeFrom: dayjs().format('YYYY-MM-DD'),
     activeTo: '',
     details: []
-  });
-  
-  const [dataSource, setDataSource] = useState<'fresh' | 'stale' | 'new'>('new');
-  
+  })
+
+  const [dataSource, setDataSource] = useState<'fresh' | 'stale' | 'new'>('new')
+
   // Hooks
-  const { fetchAllowanceRegionRuleById } = useGetAllowanceRegionRuleById({ 
-    accessToken, 
-    ...context 
-  } as BusinessAppContextProps);
-  
+  const { fetchAllowanceRegionRuleById } = useGetAllowanceRegionRuleById({
+    accessToken,
+    ...context
+  } as BusinessAppContextProps)
+
   const {
     countries,
     currencies,
@@ -64,34 +64,38 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
     error: catalogError,
     isLoadingMoreRegions,
     hasMoreRef,
+    loadTravelRegions,
     loadMoreTravelRegions,
-  } = useCatalogData({ accessToken, travelRegionSetId });
+    resetPagination
+  } = useCatalogData({ accessToken, travelRegionSetId })
 
   const { handleTravelRegionScroll } = useTravelRegionScroll({
     hasMoreRef,
     isLoadingRef: { current: isLoadingMoreRegions },
-    loadMoreTravelRegions,
-  });
+    loadMoreTravelRegions
+  })
 
-  const { groupedDetails } = useGroupedDetails({ formData, countries, currencies });
+  const { groupedDetails } = useGroupedDetails({ formData, countries, currencies })
 
   // Load initial data
   useEffect(() => {
     const loadData = async () => {
       if (isEditing && initialData?.id) {
         // ✅ NEW: For editing, fetch fresh data from the server
-        console.log('🔄 TravelRegionRuleForm: Fetching FRESH data for ID:', initialData.id);
+        console.log('🔄 TravelRegionRuleForm: Fetching FRESH data for ID:', initialData.id)
         try {
-          const freshData = await fetchAllowanceRegionRuleById(initialData.id);
+          const freshData = await fetchAllowanceRegionRuleById(initialData.id)
           if (freshData) {
-            console.log('✅ TravelRegionRuleForm: Using FRESH data from API:', freshData);
-            setDataSource('fresh');
+            console.log('✅ TravelRegionRuleForm: Using FRESH data from API:', freshData)
+            setDataSource('fresh')
             const transformedData = {
               id: freshData.id,
               version: freshData.version,
               code: freshData.code || '',
               name: freshData.name || '',
-              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+              activeFrom: freshData.activeFrom
+                ? dayjs(freshData.activeFrom).format('YYYY-MM-DD')
+                : dayjs().format('YYYY-MM-DD'),
               activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
               details: (freshData.allowanceRegionRuleDetail || []).map((detail: any) => ({
                 id: detail.id,
@@ -100,62 +104,69 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                 currencyRef: detail.currency?.id || '',
                 amounts: [detail.amount || 0],
                 home: false, // Default value
-                activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
+                activeFrom: detail.activeFrom
+                  ? dayjs(detail.activeFrom).format('YYYY-MM-DD')
+                  : dayjs().format('YYYY-MM-DD'),
                 activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : '',
                 businessKey: detail.businessKey,
                 additionalProperties: detail.additionalProperties
               }))
-            };
-            setFormData(transformedData);
-            return;
+            }
+            setFormData(transformedData)
+            return
           }
         } catch (error) {
-          console.error('❌ TravelRegionRuleForm: Failed to load fresh travel region rule data:', error);
-          console.log('⚠️ TravelRegionRuleForm: Falling back to STALE list data');
-          setDataSource('stale');
+          console.error('❌ TravelRegionRuleForm: Failed to load fresh travel region rule data:', error)
+          console.log('⚠️ TravelRegionRuleForm: Falling back to STALE list data')
+          setDataSource('stale')
           // Continue with fallback to initial data
         }
       }
-      
+
       // ✅ Fallback: Use initial data (for creating or if fresh fetch failed)
       if (initialData) {
-        console.log('📝 TravelRegionRuleForm: Using initial data (could be stale list data or new item data):', initialData);
-      // Transform the initial data to ensure amounts are in the correct format
-      const transformedDetails = initialData.details?.map(detail => {
-        const anyDetail = detail as any; // Type assertion for backward compatibility
-        return {
-          ...detail,
-          // Ensure amounts is always an array
-          amounts: Array.isArray(detail.amounts) 
-            ? detail.amounts 
-            : detail.amounts 
-              ? [detail.amounts] 
-              : [0],
-          // Map field names from API to form
-          home: detail.home !== undefined ? detail.home : anyDetail.homeFlag || false,
-          activeFrom: detail.activeFrom || anyDetail.validFrom || dayjs().format('YYYY-MM-DD'),
-          activeTo: detail.activeTo || anyDetail.validTo,
-          // Set travelRegion ID for select (use travelRegionRef for ID, fallback to travelRegion if it's an ID)
-          travelRegion: detail.travelRegionRef || (detail.travelRegion && detail.travelRegion.startsWith('TravelRegion:') ? detail.travelRegion : '') || ''
-        };
-      }) || [];
+        console.log(
+          '📝 TravelRegionRuleForm: Using initial data (could be stale list data or new item data):',
+          initialData
+        )
+        // Transform the initial data to ensure amounts are in the correct format
+        const transformedDetails =
+          initialData.details?.map(detail => {
+            const anyDetail = detail as any // Type assertion for backward compatibility
+            return {
+              ...detail,
+              // Ensure amounts is always an array
+              amounts: Array.isArray(detail.amounts) ? detail.amounts : detail.amounts ? [detail.amounts] : [0],
+              // Map field names from API to form
+              home: detail.home !== undefined ? detail.home : anyDetail.homeFlag || false,
+              activeFrom: detail.activeFrom || anyDetail.validFrom || dayjs().format('YYYY-MM-DD'),
+              activeTo: detail.activeTo || anyDetail.validTo,
+              // Set travelRegion ID for select (use travelRegionRef for ID, fallback to travelRegion if it's an ID)
+              travelRegion:
+                detail.travelRegionRef ||
+                (detail.travelRegion && detail.travelRegion.startsWith('TravelRegion:') ? detail.travelRegion : '') ||
+                ''
+            }
+          }) || []
 
-      setFormData({
-        ...initialData,
-        activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
-        activeTo: initialData.activeTo ? dayjs(initialData.activeTo).format('YYYY-MM-DD') : '',
-        details: transformedDetails
-      });
+        setFormData({
+          ...initialData,
+          activeFrom: initialData.activeFrom
+            ? dayjs(initialData.activeFrom).format('YYYY-MM-DD')
+            : dayjs().format('YYYY-MM-DD'),
+          activeTo: initialData.activeTo ? dayjs(initialData.activeTo).format('YYYY-MM-DD') : '',
+          details: transformedDetails
+        })
       }
-    };
+    }
 
-    loadData();
-  }, [initialData?.id, isEditing, fetchAllowanceRegionRuleById]);
+    loadData()
+  }, [initialData?.id, isEditing, fetchAllowanceRegionRuleById])
 
   // Handlers
   const handleUpdateBasicInfo = (updates: Partial<TravelRegionRuleFormData>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
-  };
+    setFormData(prev => ({ ...prev, ...updates }))
+  }
 
   const addColumnGroup = () => {
     const newDetail: AllowanceRegionDetailFormData = {
@@ -166,143 +177,155 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       activeFrom: dayjs().format('YYYY-MM-DD'),
       activeTo: '',
       amounts: [0]
-    };
-    
+    }
+
     setFormData(prev => ({
       ...prev,
       details: [...prev.details, newDetail]
-    }));
-  };
+    }))
+  }
 
   // Add amount column to a group
   const addAmountColumn = (groupKey: string) => {
     setFormData(prev => ({
       ...prev,
       details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
           return {
             ...detail,
             amounts: [...(detail.amounts || []), 0]
-          };
+          }
         }
-        return detail;
+        return detail
       })
-    }));
-  };
+    }))
+  }
 
   // Update group details
   const updateGroupDetail = (groupKey: string, field: string, value: any) => {
+    // If country is being updated, load travel regions for that country
+    if (field === 'countryRef' && value) {
+      // Extract country code from format "Country:v1:BE" -> "BE"
+      const parts = value.split(':')
+      const countryCode = parts[parts.length - 1]
+      console.log('🌍 Country selected, loading regions for:', countryCode)
+
+      // Reset pagination and load travel regions for selected country
+      resetPagination()
+      loadTravelRegions(countryCode)
+    }
+
     setFormData(prev => ({
       ...prev,
       details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
-          return { ...detail, [field]: value };
+          return { ...detail, [field]: value }
         }
-        return detail;
+        return detail
       })
-    }));
-  };
+    }))
+  }
 
   // Update amount in group
   const updateAmount = (groupKey: string, amountIndex: number, value: string) => {
     setFormData(prev => ({
       ...prev,
       details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
-          const newAmounts = [...(detail.amounts || [])];
+          const newAmounts = [...(detail.amounts || [])]
           // Store as number but handle empty string case
-          newAmounts[amountIndex] = value === '' ? 0 : parseFloat(value) || 0;
-          return { ...detail, amounts: newAmounts };
+          newAmounts[amountIndex] = value === '' ? 0 : parseFloat(value) || 0
+          return { ...detail, amounts: newAmounts }
         }
-        return detail;
+        return detail
       })
-    }));
-  };
+    }))
+  }
 
   // Remove group
   const removeGroup = (groupKey: string) => {
     setFormData(prev => ({
       ...prev,
       details: prev.details.filter(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
-        return detailGroupKey !== groupKey;
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
+        return detailGroupKey !== groupKey
       })
-    }));
-  };
+    }))
+  }
 
   // Remove amount from a group
   const removeAmount = (groupKey: string, amountIndex: number) => {
     setFormData(prev => ({
       ...prev,
       details: prev.details.map(detail => {
-        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`;
+        const detailGroupKey = `${detail.countryRef}-${detail.travelRegion}-${detail.currencyRef}-${detail.home}-${detail.activeFrom}-${detail.activeTo || 'ongoing'}`
         if (detailGroupKey === groupKey) {
-          const newAmounts = [...(detail.amounts || [])];
-          newAmounts.splice(amountIndex, 1);
-          return { ...detail, amounts: newAmounts };
+          const newAmounts = [...(detail.amounts || [])]
+          newAmounts.splice(amountIndex, 1)
+          return { ...detail, amounts: newAmounts }
         }
-        return detail;
+        return detail
       })
-    }));
-  };
+    }))
+  }
 
   // Validation
   const validateForm = (): string[] => {
-    const errors: string[] = [];
-    
+    const errors: string[] = []
+
     if (!formData.code.trim()) {
-      errors.push('Rule code is required');
+      errors.push('Rule code is required')
     }
-    
+
     if (!formData.name.trim()) {
-      errors.push('Rule name is required');
+      errors.push('Rule name is required')
     }
-    
+
     if (formData.details.length === 0) {
-      errors.push('At least one allowance detail is required');
+      errors.push('At least one allowance detail is required')
     }
-    
+
     formData.details.forEach((detail, index) => {
       if (!detail.countryRef) {
-        errors.push(`Detail ${index + 1}: Country is required`);
+        errors.push(`Detail ${index + 1}: Country is required`)
       }
       if (!detail.travelRegion) {
-        errors.push(`Detail ${index + 1}: Travel region is required`);
+        errors.push(`Detail ${index + 1}: Travel region is required`)
       }
       if (!detail.currencyRef) {
-        errors.push(`Detail ${index + 1}: Currency is required`);
+        errors.push(`Detail ${index + 1}: Currency is required`)
       }
       if (!detail.activeFrom) {
-        errors.push(`Detail ${index + 1}: Valid from date is required`);
+        errors.push(`Detail ${index + 1}: Valid from date is required`)
       }
       if (!detail.amounts || detail.amounts.length === 0 || detail.amounts.every(a => a <= 0)) {
-        errors.push(`Detail ${index + 1}: At least one amount greater than 0 is required`);
+        errors.push(`Detail ${index + 1}: At least one amount greater than 0 is required`)
       }
-    });
-    
-    return errors;
-  };
+    })
+
+    return errors
+  }
 
   // Handle save
   const handleSave = async () => {
-    const errors = validateForm();
-    
+    const errors = validateForm()
+
     if (errors.length > 0) {
-      setShowValidation(true);
-      setError(errors.join(', '));
-      return;
+      setShowValidation(true)
+      setError(errors.join(', '))
+      return
     }
-    
-    setIsSubmitting(true);
-    setError(null);
-    
+
+    setIsSubmitting(true)
+    setError(null)
+
     try {
       // Transform grouped data back to individual details for API
-      const expandedDetails: AllowanceRegionDetailFormData[] = [];
-      
+      const expandedDetails: AllowanceRegionDetailFormData[] = []
+
       groupedDetails().forEach(group => {
         // Create one detail record per group with all amounts
         if (group.amounts.length > 0 && group.amounts.some(amount => amount > 0)) {
@@ -316,48 +339,50 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
             activeFrom: group.validFrom,
             activeTo: group.validTo,
             amounts: group.amounts.filter(amount => amount > 0) // Only include non-zero amounts
-          });
+          })
         }
-      });
-      
+      })
+
       const submitData: TravelRegionRuleFormData = {
         ...formData,
         details: expandedDetails
-      };
-      
-      await onSave(submitData);
+      }
+
+      await onSave(submitData)
       // Note: Removed message.success as it's not available in nw-design-system
       // You might want to use a toast notification or handle success in parent component
     } catch (err) {
-      console.error('Error saving allowance region rule:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save allowance region rule');
+      console.error('Error saving allowance region rule:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save allowance region rule')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   if (catalogsLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:py-8">
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
-  const groups = groupedDetails();
+  const groups = groupedDetails()
 
   return (
     <div className="gba:space-y-6">
       {isEditing && (
         <div className="gba:flex gba:items-center gba:justify-end">
-          <span className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded ${
-            dataSource === 'fresh' ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-300' : 
-            dataSource === 'stale' ? 'gba:bg-yellow-100 gba:text-yellow-800 gba:border gba:border-yellow-300' : 
-            'gba:bg-gray-100 gba:text-gray-800 gba:border gba:border-gray-300'
-          }`}>
-            {dataSource === 'fresh' ? '✅ Fresh Data' : 
-             dataSource === 'stale' ? '⚠️ Stale Data' : 
-             '📝 New Item'}
+          <span
+            className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded ${
+              dataSource === 'fresh'
+                ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-300'
+                : dataSource === 'stale'
+                  ? 'gba:bg-yellow-100 gba:text-yellow-800 gba:border gba:border-yellow-300'
+                  : 'gba:bg-gray-100 gba:text-gray-800 gba:border gba:border-gray-300'
+            }`}
+          >
+            {dataSource === 'fresh' ? '✅ Fresh Data' : dataSource === 'stale' ? '⚠️ Stale Data' : '📝 New Item'}
           </span>
         </div>
       )}
@@ -376,10 +401,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         </Alert>
       )}
 
-      <BasicInformationSection 
-        formData={formData}
-        onUpdate={handleUpdateBasicInfo}
-      />
+      <BasicInformationSection formData={formData} onUpdate={handleUpdateBasicInfo} />
 
       <AllowanceRegionDetailsSection
         groups={groups}
@@ -397,14 +419,9 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
         onScroll={handleTravelRegionScroll}
       />
 
-      <FormActions
-        isEditing={isEditing}
-        isSubmitting={isSubmitting}
-        onSave={handleSave}
-        onCancel={onCancel}
-      />
+      <FormActions isEditing={isEditing} isSubmitting={isSubmitting} onSave={handleSave} onCancel={onCancel} />
     </div>
-  );
-};
+  )
+}
 
-export default TravelRegionRuleForm; 
+export default TravelRegionRuleForm

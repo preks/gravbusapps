@@ -1,36 +1,31 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils';
-import { useCallback } from 'react';
-import { 
-  ExpenseRuleAssignment, 
-  ExpenseRuleAssignmentResponse, 
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveStructureId, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useCallback } from 'react'
+import {
+  ExpenseRuleAssignmentResponse,
   ExpenseRuleAssignmentQueryVariables,
-  ExpenseRule,
   ExpenseRuleQueryVariables,
-  ExpenseRuleResponse,
-  Employee,
-  EmployeeQueryVariables,
-  EmployeeResponse
-} from '../types/ExpenseRuleTypes';
+  ExpenseRuleResponse
+} from '../types/ExpenseRuleTypes'
 
 export interface ExpenseRuleAssignmentQueryParams {
-  limit?: number;
-  offset?: number;
-  search?: string;
-  orderBy?: any[];
-  filters?: any;
+  limit?: number
+  offset?: number
+  search?: string
+  orderBy?: any[]
+  filters?: any
 }
 
 export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQueryVariables): string => {
-  const { search, offset = 0, limit = 20, activeOnly = true } = variables;
-  
-  let whereCondition = '';
-  const conditions: string[] = [];
-  
+  const { search, offset = 0, limit = 20, activeOnly = true, orderBy } = variables
+
+  let whereCondition = ''
+  const conditions: string[] = []
+
   // Always filter out deleted records
-  conditions.push('isDeleted: {_eq: false}');
-  
+  conditions.push('isDeleted: {_eq: false}')
+
   if (activeOnly) {
     conditions.push(`_and: [
       {
@@ -45,9 +40,9 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
           {activeTo: {_gte: "now()"}}
         ]
       }
-    ]`);
+    ]`)
   }
-  
+
   if (search) {
     conditions.push(`_or: [
       {expenseRule: {_and: [{code: {_ilike: "%${search}%"}}, {isDeleted: {_eq: false}}]}},
@@ -57,11 +52,32 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
       {company: {name: {_ilike: "%${search}%"}}},
       {organizationalUnit: {name: {_ilike: "%${search}%"}}},
       {siteLocation: {name: {_ilike: "%${search}%"}}}
-    ]`);
+    ]`)
   }
-  
+
   if (conditions.length > 0) {
-    whereCondition = `where: {${conditions.join(', ')}}`;
+    whereCondition = `where: {${conditions.join(', ')}}`
+  }
+
+  // Build orderBy string
+  let orderByString = ''
+  if (orderBy && orderBy.length > 0) {
+    const orderByItems = orderBy
+      .map((item: any) => {
+        const key = Object.keys(item)[0]
+        const value = item[key]
+        if (typeof value === 'object') {
+          // Nested orderBy (e.g., expenseRule: { code: ASC })
+          const nestedKey = Object.keys(value)[0]
+          const nestedValue = value[nestedKey]
+          return `${key}: {${nestedKey}: ${nestedValue}}`
+        }
+        return `${key}: ${value}`
+      })
+      .join(', ')
+    orderByString = `orderBy: {${orderByItems}}`
+  } else {
+    orderByString = 'orderBy: {assignmentOrder: ASC_NULLS_LAST}'
   }
 
   return `
@@ -70,7 +86,7 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
         ${whereCondition}
         offset: ${offset}
         limit: ${limit}
-        orderBy: {createdAt: DESC_NULLS_LAST}
+        ${orderByString}
       ) {
         id
         assignmentOrder
@@ -149,18 +165,18 @@ export const GET_EXPENSE_RULE_ASSIGNMENTS = (variables: ExpenseRuleAssignmentQue
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string => {
-  const { search, offset = 0, limit = 20, activeOnly = true } = variables;
-  
-  let whereCondition = '';
-  const conditions: string[] = [];
-  
+  const { search, offset = 0, limit = 20, activeOnly = true } = variables
+
+  let whereCondition = ''
+  const conditions: string[] = []
+
   // Always filter out deleted records
-  conditions.push('isDeleted: {_eq: false}');
-  
+  conditions.push('isDeleted: {_eq: false}')
+
   if (activeOnly) {
     conditions.push(`_and: [
       {
@@ -175,18 +191,21 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
           {activeTo: {_gte: "now()"}}
         ]
       }
-    ]`);
+    ]`)
   }
-  
+
   if (search) {
+    const searchTerm = search.trim().replace(/"/g, '\\"')
     conditions.push(`_or: [
-      {code: {_ilike: "%${search}%"}},
-      {name: {_ilike: "%${search}%"}}
-    ]`);
+      {code: {_ilike: "%${searchTerm}%"}},
+      {name: {_ilike: "%${searchTerm}%"}},
+      {currency: {value: {_ilike: "%${searchTerm}%"}}},
+      {calculationType: {value: {_ilike: "%${searchTerm}%"}}}
+    ]`)
   }
-  
+
   if (conditions.length > 0) {
-    whereCondition = `where: {${conditions.join(', ')}}`;
+    whereCondition = `where: {${conditions.join(', ')}}`
   }
 
   return `
@@ -273,8 +292,8 @@ export const GET_EXPENSE_RULES = (variables: ExpenseRuleQueryVariables): string 
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_MILEAGE_RULES = (): string => {
   return `
@@ -315,8 +334,8 @@ export const GET_MILEAGE_RULES = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_ALLOWANCE_REGION_RULES = (): string => {
   return `
@@ -355,8 +374,8 @@ export const GET_ALLOWANCE_REGION_RULES = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_EMPLOYEES_FOR_ASSIGNMENT = (): string => {
   return `
@@ -422,42 +441,48 @@ export const GET_EMPLOYEES_FOR_ASSIGNMENT = (): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetExpenseRuleAssignments = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchExpenseRuleAssignments = useCallback(async (variables: ExpenseRuleAssignmentQueryVariables = {}) => {
-    const query = GET_EXPENSE_RULE_ASSIGNMENTS(variables);
-    try {
-      const result = await graphqlClient.request<ExpenseRuleAssignmentResponse>(query);
-      return result;
-    } catch (error) {
-      console.error('Error fetching expense rule assignments:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchExpenseRuleAssignments };
-};
+  const fetchExpenseRuleAssignments = useCallback(
+    async (variables: ExpenseRuleAssignmentQueryVariables = {}) => {
+      const query = GET_EXPENSE_RULE_ASSIGNMENTS(variables)
+      try {
+        const result = await graphqlClient.request<ExpenseRuleAssignmentResponse>(query)
+        return result
+      } catch (error) {
+        console.error('Error fetching expense rule assignments:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchExpenseRuleAssignments }
+}
 
 export const useGetExpenseRules = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchExpenseRules = useCallback(async (variables: ExpenseRuleQueryVariables = {}) => {
-    const query = GET_EXPENSE_RULES(variables);
-    try {
-      const result = await graphqlClient.request<ExpenseRuleResponse>(query);
-      return result;
-    } catch (error) {
-      console.error('Error fetching expense rules:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchExpenseRules };
-};
+  const fetchExpenseRules = useCallback(
+    async (variables: ExpenseRuleQueryVariables = {}) => {
+      const query = GET_EXPENSE_RULES(variables)
+      try {
+        const result = await graphqlClient.request<ExpenseRuleResponse>(query)
+        return result
+      } catch (error) {
+        console.error('Error fetching expense rules:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchExpenseRules }
+}
 
 // ✅ NEW: Individual item fetch queries for fresh data loading
 export const GET_MILEAGE_RULE_BY_ID = (mileageRuleId: string): string => {
@@ -495,8 +520,8 @@ export const GET_MILEAGE_RULE_BY_ID = (mileageRuleId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_GENERAL_EXPENSE_BY_ID = (generalExpenseId: string): string => {
   return `
@@ -520,8 +545,8 @@ export const GET_GENERAL_EXPENSE_BY_ID = (generalExpenseId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_DEDUCTION_BY_ID = (deductionId: string): string => {
   return `
@@ -544,60 +569,69 @@ export const GET_DEDUCTION_BY_ID = (deductionId: string): string => {
         additionalProperties
       }
     }
-  `;
-};
+  `
+}
 
 // ✅ Hooks for fetching individual items
 export const useGetMileageRuleById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchMileageRuleById = useCallback(async (id: string) => {
-    const query = GET_MILEAGE_RULE_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRuleMileage: any[] }>(query);
-      return result.ExpenseRuleMileage?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching mileage rule by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchMileageRuleById };
-};
+  const fetchMileageRuleById = useCallback(
+    async (id: string) => {
+      const query = GET_MILEAGE_RULE_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRuleMileage: any[] }>(query)
+        return result.ExpenseRuleMileage?.[0] || null
+      } catch (error) {
+        console.error('Error fetching mileage rule by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchMileageRuleById }
+}
 
 export const useGetGeneralExpenseById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchGeneralExpenseById = useCallback(async (id: string) => {
-    const query = GET_GENERAL_EXPENSE_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRuleGeneralExpense: any[] }>(query);
-      return result.ExpenseRuleGeneralExpense?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching general expense by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchGeneralExpenseById };
-};
+  const fetchGeneralExpenseById = useCallback(
+    async (id: string) => {
+      const query = GET_GENERAL_EXPENSE_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRuleGeneralExpense: any[] }>(query)
+        return result.ExpenseRuleGeneralExpense?.[0] || null
+      } catch (error) {
+        console.error('Error fetching general expense by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchGeneralExpenseById }
+}
 
 export const useGetDeductionById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchDeductionById = useCallback(async (id: string) => {
-    const query = GET_DEDUCTION_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRuleDeduction: any[] }>(query);
-      return result.ExpenseRuleDeduction?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching deduction by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchDeductionById };
-};
+  const fetchDeductionById = useCallback(
+    async (id: string) => {
+      const query = GET_DEDUCTION_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRuleDeduction: any[] }>(query)
+        return result.ExpenseRuleDeduction?.[0] || null
+      } catch (error) {
+        console.error('Error fetching deduction by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchDeductionById }
+}
 
 // ✅ NEW: Main entity queries for lists and forms
 export const GET_MILEAGE_RULE_STANDALONE_BY_ID = (mileageRuleId: string): string => {
@@ -628,8 +662,8 @@ export const GET_MILEAGE_RULE_STANDALONE_BY_ID = (mileageRuleId: string): string
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_ALLOWANCE_REGION_RULE_BY_ID = (allowanceRegionRuleId: string): string => {
   return `
@@ -665,43 +699,49 @@ export const GET_ALLOWANCE_REGION_RULE_BY_ID = (allowanceRegionRuleId: string): 
         }
       }
     }
-  `;
-};
+  `
+}
 
 // ✅ NEW: Hooks for main entities
 export const useGetMileageRuleStandaloneById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchMileageRuleById = useCallback(async (id: string) => {
-    const query = GET_MILEAGE_RULE_STANDALONE_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ MileageRule: any[] }>(query);
-      return result.MileageRule?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching mileage rule by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchMileageRuleById };
-};
+  const fetchMileageRuleById = useCallback(
+    async (id: string) => {
+      const query = GET_MILEAGE_RULE_STANDALONE_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ MileageRule: any[] }>(query)
+        return result.MileageRule?.[0] || null
+      } catch (error) {
+        console.error('Error fetching mileage rule by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchMileageRuleById }
+}
 
 export const useGetAllowanceRegionRuleById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchAllowanceRegionRuleById = useCallback(async (id: string) => {
-    const query = GET_ALLOWANCE_REGION_RULE_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ AllowanceRegionRule: any[] }>(query);
-      return result.AllowanceRegionRule?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching allowance region rule by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchAllowanceRegionRuleById };
-};
+  const fetchAllowanceRegionRuleById = useCallback(
+    async (id: string) => {
+      const query = GET_ALLOWANCE_REGION_RULE_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ AllowanceRegionRule: any[] }>(query)
+        return result.AllowanceRegionRule?.[0] || null
+      } catch (error) {
+        console.error('Error fetching allowance region rule by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchAllowanceRegionRuleById }
+}
 
 export const GET_EXPENSE_RULE_ASSIGNMENT_BY_ID = (assignmentId: string): string => {
   return `
@@ -758,25 +798,28 @@ export const GET_EXPENSE_RULE_ASSIGNMENT_BY_ID = (assignmentId: string): string 
         expenseRuleId
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetExpenseRuleAssignmentById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchExpenseRuleAssignmentById = useCallback(async (id: string) => {
-    const query = GET_EXPENSE_RULE_ASSIGNMENT_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRuleAssignment: any[] }>(query);
-      return result.ExpenseRuleAssignment?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching expense rule assignment by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchExpenseRuleAssignmentById };
-};
+  const fetchExpenseRuleAssignmentById = useCallback(
+    async (id: string) => {
+      const query = GET_EXPENSE_RULE_ASSIGNMENT_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRuleAssignment: any[] }>(query)
+        return result.ExpenseRuleAssignment?.[0] || null
+      } catch (error) {
+        console.error('Error fetching expense rule assignment by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchExpenseRuleAssignmentById }
+}
 
 // ✅ NEW: Additional queries for remaining forms
 export const GET_EXPENSE_RULE_ALLOWANCE_CODE_BY_ID = (allowanceCodeId: string): string => {
@@ -814,8 +857,8 @@ export const GET_EXPENSE_RULE_ALLOWANCE_CODE_BY_ID = (allowanceCodeId: string): 
         expenseGroupRef
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_EXPENSE_RULE_DEDUCTION_BY_ID = (deductionId: string): string => {
   return `
@@ -844,8 +887,8 @@ export const GET_EXPENSE_RULE_DEDUCTION_BY_ID = (deductionId: string): string =>
         expenseRuleId
       }
     }
-  `;
-};
+  `
+}
 
 export const GET_EXPENSE_RULE_OTHER_INFO_BY_ID = (otherInfoId: string): string => {
   return `
@@ -880,60 +923,69 @@ export const GET_EXPENSE_RULE_OTHER_INFO_BY_ID = (otherInfoId: string): string =
         expenseRuleMileageId
       }
     }
-  `;
-};
+  `
+}
 
 // ✅ NEW: Hooks for the remaining entities
 export const useGetExpenseRuleAllowanceCodeById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchExpenseRuleAllowanceCodeById = useCallback(async (id: string) => {
-    const query = GET_EXPENSE_RULE_ALLOWANCE_CODE_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRuleAllowanceCode: any[] }>(query);
-      return result.ExpenseRuleAllowanceCode?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching expense rule allowance code by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchExpenseRuleAllowanceCodeById };
-};
+  const fetchExpenseRuleAllowanceCodeById = useCallback(
+    async (id: string) => {
+      const query = GET_EXPENSE_RULE_ALLOWANCE_CODE_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRuleAllowanceCode: any[] }>(query)
+        return result.ExpenseRuleAllowanceCode?.[0] || null
+      } catch (error) {
+        console.error('Error fetching expense rule allowance code by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchExpenseRuleAllowanceCodeById }
+}
 
 export const useGetExpenseRuleDeductionById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchExpenseRuleDeductionById = useCallback(async (id: string) => {
-    const query = GET_EXPENSE_RULE_DEDUCTION_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRuleDeduction: any[] }>(query);
-      return result.ExpenseRuleDeduction?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching expense rule deduction by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchExpenseRuleDeductionById };
-};
+  const fetchExpenseRuleDeductionById = useCallback(
+    async (id: string) => {
+      const query = GET_EXPENSE_RULE_DEDUCTION_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRuleDeduction: any[] }>(query)
+        return result.ExpenseRuleDeduction?.[0] || null
+      } catch (error) {
+        console.error('Error fetching expense rule deduction by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchExpenseRuleDeductionById }
+}
 
 export const useGetExpenseRuleOtherInfoById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchExpenseRuleOtherInfoById = useCallback(async (id: string) => {
-    const query = GET_EXPENSE_RULE_OTHER_INFO_BY_ID(id);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRuleOtherInfo: any[] }>(query);
-      return result.ExpenseRuleOtherInfo?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching expense rule other info by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchExpenseRuleOtherInfoById };
-};
+  const fetchExpenseRuleOtherInfoById = useCallback(
+    async (id: string) => {
+      const query = GET_EXPENSE_RULE_OTHER_INFO_BY_ID(id)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRuleOtherInfo: any[] }>(query)
+        return result.ExpenseRuleOtherInfo?.[0] || null
+      } catch (error) {
+        console.error('Error fetching expense rule other info by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchExpenseRuleOtherInfoById }
+}
 
 export const GET_EXPENSE_RULE_BY_ID = (ruleId: string): string => {
   return `
@@ -1038,118 +1090,119 @@ export const GET_EXPENSE_RULE_BY_ID = (ruleId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetExpenseRuleById = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchExpenseRuleById = useCallback(async (ruleId: string) => {
-    const query = GET_EXPENSE_RULE_BY_ID(ruleId);
-    try {
-      const result = await graphqlClient.request<{ ExpenseRule: any[] }>(query);
-      return result.ExpenseRule?.[0] || null;
-    } catch (error) {
-      console.error('Error fetching expense rule by ID:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchExpenseRuleById };
-};
+  const fetchExpenseRuleById = useCallback(
+    async (ruleId: string) => {
+      const query = GET_EXPENSE_RULE_BY_ID(ruleId)
+      try {
+        const result = await graphqlClient.request<{ ExpenseRule: any[] }>(query)
+        return result.ExpenseRule?.[0] || null
+      } catch (error) {
+        console.error('Error fetching expense rule by ID:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchExpenseRuleById }
+}
 
 export const useGetEmployeesForAssignment = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchEmployees = useCallback(async (params: {
-    search?: string;
-    companyId?: string;
-    organizationalUnitId?: string;
-    siteLocationId?: string;
-    limit?: number;
-    offset?: number;
-  } = {}) => {
-    const {
-      search,
-      companyId,
-      organizationalUnitId,
-      siteLocationId,
-      limit = 20,
-      offset = 0
-    } = params;
-    
-    const whereConditions: any = {
-      _and: [
-        // Active employees: no exit date OR exit date in future
-        {
-          _or: [
-            { exitDate: { _isNull: true } },
-            { exitDate: { _gt: "now()" } }
-          ]
-        },
-        // Structure filtering
-        { structureId: { _eq: getCurrentActiveStructureId() } }
-      ]
-    };
-    
-    const andConditions = [];
-    
-    if (search && search.trim().length >= 2) {
-      andConditions.push({
-        _or: [
-          { firstName: { _ilike: `%${search}%` } },
-          { lastName: { _ilike: `%${search}%` } }
-        ]
-      });
-    }
-    // If no search or search is less than 2 characters, load all active employees
-    
-    if (companyId) {
-      andConditions.push({
-        company: { id: { _eq: companyId } }
-      });
-    }
-    
-    if (organizationalUnitId) {
-      andConditions.push({
-        organizationalUnitId: { _eq: organizationalUnitId }
-      });
-    }
-    
-    if (siteLocationId) {
-      andConditions.push({
-        siteLocationId: { _eq: siteLocationId }
-      });
-    }
-    
-    if (andConditions.length > 0) {
-      whereConditions._and.push(...andConditions);
-    }
-    
-    const query = GET_EMPLOYEES_FOR_ASSIGNMENT();
-    
-    try {
-      const result = await graphqlClient.request<{ EmployeePosition: any[] }>(query, {
-        where: whereConditions,
-        activeUserLocale: getCurrentActiveUserLocale(),
-        limit,
-        offset
-      });
-      console.log('useGetEmployeesForAssignment query variables:', {
-        where: whereConditions,
-        activeUserLocale: getCurrentActiveUserLocale(),
-        limit,
-        offset
-      });
-      console.log('useGetEmployeesForAssignment result:', result);
-      console.log('useGetEmployeesForAssignment EmployeePosition count:', result?.EmployeePosition?.length);
-      console.log('useGetEmployeesForAssignment first few IDs:', result?.EmployeePosition?.slice(0, 3)?.map((emp: any) => ({ id: emp.employeeId, name: `${emp.firstName} ${emp.lastName}` })));
-      return result;
-    } catch (error) {
-      console.error('Error fetching employees for assignment:', error);
-      throw error;
-    }
-  }, [graphqlClient, context.accessToken]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchEmployees };
-}; 
+  const fetchEmployees = useCallback(
+    async (
+      params: {
+        search?: string
+        companyId?: string
+        organizationalUnitId?: string
+        siteLocationId?: string
+        limit?: number
+        offset?: number
+      } = {}
+    ) => {
+      const { search, companyId, organizationalUnitId, siteLocationId, limit = 20, offset = 0 } = params
+
+      const whereConditions: any = {
+        _and: [
+          // Active employees: no exit date OR exit date in future
+          {
+            _or: [{ exitDate: { _isNull: true } }, { exitDate: { _gt: 'now()' } }]
+          },
+          // Structure filtering
+          { structureId: { _eq: getCurrentActiveStructureId() } }
+        ]
+      }
+
+      const andConditions = []
+
+      if (search && search.trim().length >= 2) {
+        andConditions.push({
+          _or: [{ firstName: { _ilike: `%${search}%` } }, { lastName: { _ilike: `%${search}%` } }]
+        })
+      }
+      // If no search or search is less than 2 characters, load all active employees
+
+      if (companyId) {
+        andConditions.push({
+          company: { id: { _eq: companyId } }
+        })
+      }
+
+      if (organizationalUnitId) {
+        andConditions.push({
+          organizationalUnitId: { _eq: organizationalUnitId }
+        })
+      }
+
+      if (siteLocationId) {
+        andConditions.push({
+          siteLocationId: { _eq: siteLocationId }
+        })
+      }
+
+      if (andConditions.length > 0) {
+        whereConditions._and.push(...andConditions)
+      }
+
+      const query = GET_EMPLOYEES_FOR_ASSIGNMENT()
+
+      try {
+        const result = await graphqlClient.request<{ EmployeePosition: any[] }>(query, {
+          where: whereConditions,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          limit,
+          offset
+        })
+        console.log('useGetEmployeesForAssignment query variables:', {
+          where: whereConditions,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          limit,
+          offset
+        })
+        console.log('useGetEmployeesForAssignment result:', result)
+        console.log('useGetEmployeesForAssignment EmployeePosition count:', result?.EmployeePosition?.length)
+        console.log(
+          'useGetEmployeesForAssignment first few IDs:',
+          result?.EmployeePosition?.slice(0, 3)?.map((emp: any) => ({
+            id: emp.employeeId,
+            name: `${emp.firstName} ${emp.lastName}`
+          }))
+        )
+        return result
+      } catch (error) {
+        console.error('Error fetching employees for assignment:', error)
+        throw error
+      }
+    },
+    [graphqlClient, context.accessToken]
+  )
+
+  return { fetchEmployees }
+}

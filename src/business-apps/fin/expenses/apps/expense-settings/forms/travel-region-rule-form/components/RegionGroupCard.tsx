@@ -1,4 +1,4 @@
-import React from 'react';
+import React from 'react'
 import {
   Button,
   Input,
@@ -10,24 +10,24 @@ import {
   Label,
   Spinner,
   Checkbox
-} from '@newwork/nw-design-system';
-import { PiPlus, PiTrash } from 'react-icons/pi';
-import { SmartColumnGroup, CatalogOption } from '../types';
+} from '@newwork/nw-design-system'
+import { PiPlus, PiTrash } from 'react-icons/pi'
+import { SmartColumnGroup, CatalogOption } from '../types'
 
 interface RegionGroupCardProps {
-  group: SmartColumnGroup;
-  groupIndex: number;
-  countries: CatalogOption[];
-  travelRegions: CatalogOption[];
-  currencies: CatalogOption[];
-  isLoadingMoreRegions: boolean;
-  hasMore: boolean;
-  onUpdateField: (field: string, value: any) => void;
-  onUpdateAmount: (amountIndex: number, value: string) => void;
-  onAddAmount: () => void;
-  onRemoveAmount: (amountIndex: number) => void;
-  onRemoveGroup: () => void;
-  onScroll: (e: React.UIEvent<HTMLDivElement>) => void;
+  group: SmartColumnGroup
+  groupIndex: number
+  countries: CatalogOption[]
+  travelRegions: CatalogOption[]
+  currencies: CatalogOption[]
+  isLoadingMoreRegions: boolean
+  hasMore: boolean
+  onUpdateField: (field: string, value: any) => void
+  onUpdateAmount: (amountIndex: number, value: string) => void
+  onAddAmount: () => void
+  onRemoveAmount: (amountIndex: number) => void
+  onRemoveGroup: () => void
+  onScroll: (e: React.UIEvent<HTMLDivElement>) => void
 }
 
 export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
@@ -43,7 +43,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
   onAddAmount,
   onRemoveAmount,
   onRemoveGroup,
-  onScroll,
+  onScroll
 }) => {
   return (
     <div className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3 gba:space-y-3 gba:bg-white">
@@ -68,11 +68,11 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <Label className="gba:text-xs gba:font-medium">
             Country <span className="gba:text-red-500 gba:ml-1">*</span>
           </Label>
-          <Select value={group.countryRef} onValueChange={(value) => onUpdateField('countryRef', value)}>
+          <Select value={group.countryRef} onValueChange={value => onUpdateField('countryRef', value)}>
             <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
               <SelectValue placeholder="Select country" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="gba:max-h-48">
               {countries.map(country => (
                 <SelectItem key={country.id} value={country.id}>
                   {country.value}
@@ -87,34 +87,31 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <Label className="gba:text-xs gba:font-medium">
             Travel Region <span className="gba:text-red-500 gba:ml-1">*</span>
           </Label>
-          <Select value={group.travelRegion} onValueChange={(value) => onUpdateField('travelRegion', value)}>
+          <Select value={group.travelRegion} onValueChange={value => onUpdateField('travelRegion', value)}>
             <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
               <SelectValue placeholder="Select region" />
             </SelectTrigger>
-            <SelectContent>
-              {/* Scrollable wrapper with React onScroll */}
-              <div onScroll={onScroll} className="gba:max-h-48 gba:overflow-y-auto">
-                {travelRegions.map(region => (
-                  <SelectItem key={region.id} value={region.id}>
-                    {region.value}
-                  </SelectItem>
-                ))}
-                
-                {/* Loading indicator */}
-                {isLoadingMoreRegions && (
-                  <div className="gba:p-2 gba:text-center gba:border-t gba:border-gray-100">
-                    <Spinner size="sm" className="gba:mr-2" />
-                    <span className="gba:text-gray-500 gba:text-xs">Loading...</span>
-                  </div>
-                )}
-                
-                {/* Has more indicator */}
-                {hasMore && !isLoadingMoreRegions && (
-                  <div className="gba:p-2 gba:text-center gba:text-gray-500 gba:text-xs gba:border-t gba:border-gray-100">
-                    Scroll down to load more...
-                  </div>
-                )}
-              </div>
+            <SelectContent onScroll={onScroll} className="gba:max-h-48">
+              {travelRegions.map(region => (
+                <SelectItem key={region.id} value={region.id}>
+                  {region.value}
+                </SelectItem>
+              ))}
+
+              {/* Loading indicator */}
+              {isLoadingMoreRegions && (
+                <div className="gba:p-2 gba:text-center gba:border-t gba:border-gray-100">
+                  <Spinner size="sm" className="gba:mr-2" />
+                  <span className="gba:text-gray-500 gba:text-xs">Loading...</span>
+                </div>
+              )}
+
+              {/* Has more indicator */}
+              {hasMore && !isLoadingMoreRegions && (
+                <div className="gba:p-2 gba:text-center gba:text-gray-500 gba:text-xs gba:border-t gba:border-gray-100">
+                  Scroll down to load more...
+                </div>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -124,7 +121,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <Label className="gba:text-xs gba:font-medium">
             Currency <span className="gba:text-red-500 gba:ml-1">*</span>
           </Label>
-          <Select value={group.currencyRef} onValueChange={(value) => onUpdateField('currencyRef', value)}>
+          <Select value={group.currencyRef} onValueChange={value => onUpdateField('currencyRef', value)}>
             <SelectTrigger className="gba:w-full gba:h-8 gba:text-sm">
               <SelectValue placeholder="Select currency" />
             </SelectTrigger>
@@ -143,7 +140,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
           <Checkbox
             id={`home-${group.key}`}
             checked={group.homeFlag}
-            onCheckedChange={(checked) => onUpdateField('home', checked)}
+            onCheckedChange={checked => onUpdateField('home', checked)}
             className="gba:h-4 gba:w-4"
           />
           <Label htmlFor={`home-${group.key}`} className="gba:text-xs gba:font-medium gba:cursor-pointer">
@@ -160,7 +157,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             <Input
               type="date"
               value={group.validFrom}
-              onChange={(e) => onUpdateField('activeFrom', e.target.value)}
+              onChange={e => onUpdateField('activeFrom', e.target.value)}
               data-testid={`travel-region-rule-group-valid-from-${groupIndex}`}
               className="gba:h-8 gba:text-sm"
               min="1900-01-01"
@@ -172,7 +169,7 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
             <Input
               type="date"
               value={group.validTo || ''}
-              onChange={(e) => onUpdateField('activeTo', e.target.value || undefined)}
+              onChange={e => onUpdateField('activeTo', e.target.value || undefined)}
               data-testid={`travel-region-rule-group-valid-to-${groupIndex}`}
               placeholder="Leave empty for unlimited"
               className="gba:h-8 gba:text-sm"
@@ -198,19 +195,17 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
               Add Amount
             </Button>
           </div>
-          
+
           {group.amounts.length > 0 ? (
             <div className="gba:space-y-1.5">
               {group.amounts.map((amount, amountIndex) => (
                 <div key={`${group.key}-amount-${amountIndex}`} className="gba:flex gba:items-center gba:gap-2">
-                  <Label className="gba:text-xs gba:text-gray-600 gba:w-16">
-                    Amount {amountIndex + 1}
-                  </Label>
+                  <Label className="gba:text-xs gba:text-gray-600 gba:w-16">Amount {amountIndex + 1}</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={amount || ''}
-                    onChange={(e) => onUpdateAmount(amountIndex, e.target.value)}
+                    onChange={e => onUpdateAmount(amountIndex, e.target.value)}
                     placeholder="0.00"
                     className="gba:w-48 gba:h-8 gba:text-sm"
                     data-testid={`travel-region-rule-amount-${group.key}-${amountIndex}`}
@@ -237,7 +232,5 @@ export const RegionGroupCard: React.FC<RegionGroupCardProps> = ({
         </div>
       </div>
     </div>
-  );
-};
-
-
+  )
+}

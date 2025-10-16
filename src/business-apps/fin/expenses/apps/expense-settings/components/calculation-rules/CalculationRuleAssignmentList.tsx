@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
   Button,
-  Badge,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -18,62 +17,42 @@ import {
   Spinner,
   Popover,
   PopoverTrigger,
-  PopoverContent,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from '@newwork/nw-design-system';
-import { 
-  PiPlus, 
-  PiPencil,
-  PiTrash
-} from 'react-icons/pi';
+  PopoverContent
+} from '@newwork/nw-design-system'
+import { PiPlus, PiPencil, PiTrash } from 'react-icons/pi'
+import { Lightning } from '@phosphor-icons/react'
+import { ListBulletsIcon, SortAscendingIcon, SortDescendingIcon, CheckIcon, XIcon } from '@phosphor-icons/react'
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { DataFilterGroup } from '@/components/data-filter/DataFilter'
+import { DataControllerProps } from '@/components/dataController/DataController'
+import { AssignmentForm } from '../../forms/assignment-form'
+import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import {
-  ListBulletsIcon,
-  SortAscendingIcon,
-  SortDescendingIcon,
-  CaretLeftIcon,
-  CaretRightIcon
-} from '@phosphor-icons/react';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { DataControllerProps } from '@/components/dataController/DataController';
-import { AssignmentForm } from '../../forms/assignment-form';
-import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
-import { 
-  EnhancedExpenseRuleAssignment, 
+  EnhancedExpenseRuleAssignment,
   ExpenseRule,
   SaveExpenseRuleAssignmentInput
-} from '../../types/ExpenseRuleTypes';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ICONS } from '@/business-apps/fin/expenses/utils/icons';
-import { env } from '@/common/env/EnvUtils';
-import dayjs from 'dayjs';
+} from '../../types/ExpenseRuleTypes'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
+import dayjs from 'dayjs'
 
 // Import filter components
-import RuleFilter from './filters/RuleFilter';
-import TargetTypeFilter from './filters/TargetTypeFilter';
-import CascadingFilter from './filters/CascadingFilter';
-import EffectivePeriodFilter from './filters/EffectivePeriodFilter';
+import TargetTypeFilter from './filters/TargetTypeFilter'
+import CascadingFilter from './filters/CascadingFilter'
+import TimePeriodFilter from '../mileage-rules/filters/TimePeriodFilter'
 
 export interface CalculationRuleAssignmentListProps extends BusinessAppContextProps {
-  assignments: EnhancedExpenseRuleAssignment[];
-  rules: ExpenseRule[];
-  isLoading: boolean;
-  onCreate: (data: SaveExpenseRuleAssignmentInput) => Promise<any>;
-  onUpdate: (id: string, data: SaveExpenseRuleAssignmentInput) => Promise<any>;
-  onDelete: (id: string) => Promise<any>;
-  onSearch: (params: { search?: string }) => Promise<void>;
-  onRefresh: () => void;
+  assignments: EnhancedExpenseRuleAssignment[]
+  rules: ExpenseRule[]
+  isLoading: boolean
+  onCreate: (data: SaveExpenseRuleAssignmentInput) => Promise<any>
+  onUpdate: (id: string, data: SaveExpenseRuleAssignmentInput) => Promise<any>
+  onDelete: (id: string) => Promise<any>
+  onSearch: (params: { search?: string; orderBy?: any[] }) => Promise<void>
+  onRefresh: () => void
 }
 
-const PREFIX = 'calculation-rule-assignments';
+const PREFIX = 'calculation-rule-assignments'
 
 const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps> = ({
   accessToken,
@@ -86,257 +65,235 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
   onRefresh
 }) => {
   // State management
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [sortField, setSortField] = useState<string>('');
-  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('');
-  
+  const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(20)
+  const [sortField, setSortField] = useState<string>('assignmentOrder')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('ASC')
+
   // Filter states
-  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
-  const [targetTypeFilter, setTargetTypeFilter] = useState({ employee: false, company: false, orgUnit: false, general: false });
-  const [cascadingFilter, setCascadingFilter] = useState({ true: false, false: false });
-  const [effectivePeriodFrom, setEffectivePeriodFrom] = useState<string | null>(null);
-  const [effectivePeriodTo, setEffectivePeriodTo] = useState<string | null>(null);
-  
+  const [targetTypeFilter, setTargetTypeFilter] = useState({
+    employee: false,
+    company: false,
+    orgUnit: false,
+    general: false
+  })
+  const [cascadingFilter, setCascadingFilter] = useState({ true: false, false: false })
+  const [effectivePeriodFrom, setEffectivePeriodFrom] = useState<string | null>(null)
+  const [effectivePeriodTo, setEffectivePeriodTo] = useState<string | null>(null)
+
   // Modal states
-  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [editingAssignment, setEditingAssignment] = useState<EnhancedExpenseRuleAssignment | null>(null);
-  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
-  const [assignmentToDelete, setAssignmentToDelete] = useState<EnhancedExpenseRuleAssignment | null>(null);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false)
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false)
+  const [editingAssignment, setEditingAssignment] = useState<EnhancedExpenseRuleAssignment | null>(null)
+  const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false)
+  const [assignmentToDelete, setAssignmentToDelete] = useState<EnhancedExpenseRuleAssignment | null>(null)
 
-  // Filter and sort assignments
-  const filteredAndSortedAssignments = useMemo(() => {
-    let filtered = [...assignments];
+  // Build orderBy for GraphQL query
+  const orderBy = useMemo(() => {
+    if (!sortField || !sortOrder) return [{ assignmentOrder: 'ASC_NULLS_LAST' }]
+    const dir = sortOrder === 'ASC' ? 'ASC_NULLS_LAST' : 'DESC_NULLS_LAST'
 
-    // Apply rule filter
-    if (selectedRuleIds.length > 0) {
-      filtered = filtered.filter(a => selectedRuleIds.includes(a.expenseRuleId));
+    // Map column keys to database fields
+    switch (sortField) {
+      case 'ruleCode':
+        return [{ expenseRule: { code: dir } }]
+      case 'companyName':
+        return [{ company: { name: dir } }]
+      case 'ruleName':
+        return [{ expenseRule: { name: dir } }]
+      case 'location':
+        return [{ siteLocation: { name: dir } }]
+      case 'employmentType':
+        return [{ employmentType: { value: dir } }]
+      case 'contractType':
+        return [{ contractType: { value: dir } }]
+      case 'employee':
+        return [{ employee: { firstName: dir } }]
+      case 'validFrom':
+        return [{ activeFrom: dir }]
+      case 'validTo':
+        return [{ activeTo: dir }]
+      case 'standard':
+        return [{ expenseRule: { standard: dir } }]
+      case 'orgUnit':
+        return [{ organizationalUnit: { name: dir } }]
+      case 'cascading':
+        return [{ cascading: dir }]
+      case 'order':
+        return [{ assignmentOrder: dir }]
+      default:
+        return [{ [sortField]: dir }]
     }
+  }, [sortField, sortOrder])
+
+  // Filter assignments (client-side filtering for filters only)
+  const filteredAssignments = useMemo(() => {
+    let filtered = [...assignments]
 
     // Apply target type filter
-    const hasTargetFilter = Object.values(targetTypeFilter).some(v => v);
+    const hasTargetFilter = Object.values(targetTypeFilter).some(v => v)
     if (hasTargetFilter) {
       filtered = filtered.filter(a => {
-        if (targetTypeFilter.employee && a.employeeId) return true;
-        if (targetTypeFilter.company && a.companyId && !a.employeeId && !a.organizationalUnitId) return true;
-        if (targetTypeFilter.orgUnit && a.organizationalUnitId) return true;
-        if (targetTypeFilter.general && !a.employeeId && !a.companyId && !a.organizationalUnitId) return true;
-        return false;
-      });
+        if (targetTypeFilter.employee && a.employeeId) return true
+        if (targetTypeFilter.company && a.companyId && !a.employeeId && !a.organizationalUnitId) return true
+        if (targetTypeFilter.orgUnit && a.organizationalUnitId) return true
+        if (targetTypeFilter.general && !a.employeeId && !a.companyId && !a.organizationalUnitId) return true
+        return false
+      })
     }
 
     // Apply cascading filter
     if (cascadingFilter.true && !cascadingFilter.false) {
-      filtered = filtered.filter(a => a.cascading === true);
+      filtered = filtered.filter(a => a.cascading === true)
     } else if (!cascadingFilter.true && cascadingFilter.false) {
-      filtered = filtered.filter(a => a.cascading === false);
+      filtered = filtered.filter(a => a.cascading === false)
     }
 
     // Apply effective period filter
     if (effectivePeriodFrom || effectivePeriodTo) {
       filtered = filtered.filter(a => {
-        const fromDate = effectivePeriodFrom ? new Date(effectivePeriodFrom) : null;
-        const toDate = effectivePeriodTo ? new Date(effectivePeriodTo) : null;
-        const activeFrom = new Date(a.activeFrom);
-        const activeTo = new Date(a.activeTo);
+        const fromDate = effectivePeriodFrom ? new Date(effectivePeriodFrom) : null
+        const toDate = effectivePeriodTo ? new Date(effectivePeriodTo) : null
+        const activeFrom = new Date(a.activeFrom)
+        const activeTo = new Date(a.activeTo)
 
         if (fromDate && toDate) {
-          return activeFrom >= fromDate && activeTo <= toDate;
+          return activeFrom >= fromDate && activeTo <= toDate
         } else if (fromDate) {
-          return activeFrom >= fromDate;
+          return activeFrom >= fromDate
         } else if (toDate) {
-          return activeTo <= toDate;
+          return activeTo <= toDate
         }
-        return true;
-      });
+        return true
+      })
     }
 
-    // Apply sorting
-    if (sortField && sortOrder) {
-      filtered.sort((a, b) => {
-        let aVal: any, bVal: any;
-
-        switch (sortField) {
-          case 'assignmentOrder':
-            aVal = a.assignmentOrder;
-            bVal = b.assignmentOrder;
-            break;
-          case 'rule':
-            aVal = a.ruleCode || '';
-            bVal = b.ruleCode || '';
-            break;
-          case 'standard':
-            aVal = a.expenseRule?.standard ? 1 : 0;
-            bVal = b.expenseRule?.standard ? 1 : 0;
-            break;
-          case 'targets':
-            // Sort by target type priority: employee > company > orgUnit > general
-            const getTargetPriority = (assignment: EnhancedExpenseRuleAssignment) => {
-              if (assignment.employeeName) return `1-${assignment.employeeName}`;
-              if (assignment.companyName && !assignment.orgUnitName) return `2-${assignment.companyName}`;
-              if (assignment.orgUnitName) return `3-${assignment.orgUnitName}`;
-              return '4-general';
-            };
-            aVal = getTargetPriority(a);
-            bVal = getTargetPriority(b);
-            break;
-          case 'activeFrom':
-            aVal = a.activeFrom;
-            bVal = b.activeFrom;
-            break;
-          case 'activeTo':
-            aVal = a.activeTo;
-            bVal = b.activeTo;
-            break;
-          case 'cascading':
-            aVal = a.cascading ? 1 : 0;
-            bVal = b.cascading ? 1 : 0;
-            break;
-          default:
-            return 0;
-        }
-
-        if (typeof aVal === 'string') {
-          return sortOrder === 'ASC' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-        } else {
-          return sortOrder === 'ASC' ? (aVal > bVal ? 1 : -1) : (bVal > aVal ? 1 : -1);
-        }
-      });
-    }
-
-    return filtered;
-  }, [assignments, selectedRuleIds, targetTypeFilter, cascadingFilter, effectivePeriodFrom, effectivePeriodTo, sortField, sortOrder]);
+    return filtered
+  }, [assignments, targetTypeFilter, cascadingFilter, effectivePeriodFrom, effectivePeriodTo])
 
   // Pagination
   const paginatedAssignments = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredAndSortedAssignments.slice(startIndex, startIndex + pageSize);
-  }, [filteredAndSortedAssignments, currentPage, pageSize]);
+    const startIndex = (currentPage - 1) * pageSize
+    return filteredAssignments.slice(startIndex, startIndex + pageSize)
+  }, [filteredAssignments, currentPage, pageSize])
 
-  const totalPages = Math.ceil(filteredAndSortedAssignments.length / pageSize);
-
-  // Handle search with debounce
+  // Handle search and sorting with debounce (500ms)
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (search) {
-        onSearch({ search });
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [search, onSearch]);
-
-  // Flow icon URL
-  const flowIconUrl = useMemo(() => {
-    const base = env('NEXT_PUBLIC_BASE_URL') || '';
-    return `${base}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`;
-  }, []);
+      // Trigger search with sort parameters
+      onSearch({ search: search.trim() || undefined, orderBy })
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [search, orderBy, onSearch])
 
   // Handlers
-  const handleSort = useCallback((field: string) => {
-    let next: 'ASC' | 'DESC' | '' = 'ASC';
-    if (sortField === field) {
-      if (sortOrder === 'ASC') next = 'DESC';
-      else if (sortOrder === 'DESC') next = '';
-      else next = 'ASC';
-    }
-    setSortField(field);
-    setSortOrder(next);
-  }, [sortField, sortOrder]);
+  const handleSort = useCallback(
+    (field: string) => {
+      let next: 'ASC' | 'DESC' | '' = 'ASC'
+      if (sortField === field) {
+        if (sortOrder === 'ASC') next = 'DESC'
+        else if (sortOrder === 'DESC') next = ''
+        else next = 'ASC'
+      }
+      setSortField(field)
+      setSortOrder(next)
+    },
+    [sortField, sortOrder]
+  )
 
   const handleCreateSubmit = async (formData: SaveExpenseRuleAssignmentInput) => {
     try {
-      await onCreate(formData);
-      setIsCreateModalVisible(false);
-      onRefresh();
+      await onCreate(formData)
+      setIsCreateModalVisible(false)
+      onRefresh()
     } catch (error) {
-      console.error('Error creating assignment:', error);
+      console.error('Error creating assignment:', error)
     }
-  };
+  }
 
   const handleEditSubmit = async (formData: SaveExpenseRuleAssignmentInput) => {
     try {
       if (editingAssignment?.id) {
-        await onUpdate(editingAssignment.id, formData);
-        setIsEditModalVisible(false);
-        setEditingAssignment(null);
-        onRefresh();
+        await onUpdate(editingAssignment.id, formData)
+        setIsEditModalVisible(false)
+        setEditingAssignment(null)
+        onRefresh()
       }
     } catch (error) {
-      console.error('Error updating assignment:', error);
+      console.error('Error updating assignment:', error)
     }
-  };
+  }
 
   const handleDeleteConfirm = async () => {
-    if (!assignmentToDelete) return;
-    
+    if (!assignmentToDelete) return
+
     try {
-      await expenseSettingsClient.setAccessToken(accessToken);
-      await expenseSettingsClient.deleteExpenseRuleAssignment(
-        assignmentToDelete.id, 
-        assignmentToDelete.version
-      );
-      
-      setIsDeleteConfirmVisible(false);
-      setAssignmentToDelete(null);
-      onRefresh();
+      await expenseSettingsClient.setAccessToken(accessToken)
+      await expenseSettingsClient.deleteExpenseRuleAssignment(assignmentToDelete.id, assignmentToDelete.version)
+
+      setIsDeleteConfirmVisible(false)
+      setAssignmentToDelete(null)
+      onRefresh()
     } catch (error) {
-      console.error('Error deleting assignment:', error);
+      console.error('Error deleting assignment:', error)
     }
-  };
+  }
+
+  const handleEditAssignment = (assignment: EnhancedExpenseRuleAssignment) => {
+    setEditingAssignment(assignment)
+    setIsEditModalVisible(true)
+  }
+
+  const handleDeleteAssignment = (assignment: EnhancedExpenseRuleAssignment) => {
+    setAssignmentToDelete(assignment)
+    setIsDeleteConfirmVisible(true)
+  }
 
   const resetFilters = () => {
-    setSelectedRuleIds([]);
-    setTargetTypeFilter({ employee: false, company: false, orgUnit: false, general: false });
-    setCascadingFilter({ true: false, false: false });
-    setEffectivePeriodFrom(null);
-    setEffectivePeriodTo(null);
-  };
-
-  // Render assignment targets
-  const renderAssignmentTargets = (record: EnhancedExpenseRuleAssignment) => {
-    if (record.employeeName) {
-      return <Badge variant="secondary">Employee: {record.employeeName}</Badge>;
-    }
-    if (record.companyName && !record.orgUnitName) {
-      return <Badge variant="default">Company: {record.companyName}</Badge>;
-    }
-    if (record.orgUnitName) {
-      return <Badge variant="outline">Org Unit: {record.orgUnitName}</Badge>;
-    }
-    return <Badge variant="secondary">General</Badge>;
-  };
+    setTargetTypeFilter({ employee: false, company: false, orgUnit: false, general: false })
+    setCascadingFilter({ true: false, false: false })
+    setEffectivePeriodFrom(null)
+    setEffectivePeriodTo(null)
+  }
 
   // Columns definition
   const columns = useMemo(
     () => [
-      { key: 'actions', title: '', width: '60px' },
-      { key: 'assignmentOrder', title: '#' },
-      { key: 'rule', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.rule', 'Rule') },
+      { key: 'ruleCode', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.ruleCode', 'Rule Code') },
+      {
+        key: 'companyName',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.companyName', 'Company Name')
+      },
+      { key: 'ruleName', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.ruleName', 'Rule Name') },
+      { key: 'location', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.location', 'Location') },
+      {
+        key: 'employmentType',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.employmentType', 'Employment Type')
+      },
+      {
+        key: 'contractType',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.contractType', 'Contract Type')
+      },
+      { key: 'employee', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.employee', 'Employee') },
+      { key: 'validFrom', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.validFrom', 'Valid From') },
+      { key: 'validTo', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.validTo', 'Valid To') },
       { key: 'standard', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.standard', 'Standard') },
-      { key: 'targets', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.targets', 'Assignment Targets') },
-      { key: 'effectivePeriod', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.effectivePeriod', 'Effective Period') },
-      { key: 'cascading', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.cascading', 'Cascading') }
+      { key: 'orgUnit', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.orgUnit', 'Org Unit') },
+      { key: 'cascading', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.cascading', 'Cascading') },
+      { key: 'order', title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.order', 'Order') },
+      {
+        key: 'actions',
+        title: getTranslationFromI18nKeyAndLabel('expenseSettings.table.actions', 'Actions'),
+        width: '60px'
+      }
     ],
     []
-  );
+  )
 
   // Filter groups
   const filterGroups: DataFilterGroup[] = useMemo(() => {
     return [
-      {
-        id: 'rule',
-        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.rule', 'Filter by Rule'),
-        customComponent: (
-          <RuleFilter
-            rules={rules}
-            selectedRuleIds={selectedRuleIds}
-            onChange={setSelectedRuleIds}
-            data-testid={`${PREFIX}-rule-filter`}
-          />
-        )
-      },
       {
         id: 'targetType',
         title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.targetType', 'Filter by Target Type'),
@@ -361,26 +318,28 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
       },
       {
         id: 'effectivePeriod',
-        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.effectivePeriod', 'Filter by Effective Period'),
+        title: getTranslationFromI18nKeyAndLabel(
+          'expenseSettings.filters.effectivePeriod',
+          'Filter by Effective Period'
+        ),
         customComponent: (
-          <EffectivePeriodFilter
-            from={effectivePeriodFrom}
-            to={effectivePeriodTo}
-            onChange={(from, to) => {
-              setEffectivePeriodFrom(from);
-              setEffectivePeriodTo(to);
-            }}
-            data-testid={`${PREFIX}-effective-period-filter`}
+          <TimePeriodFilter
+            validFrom={effectivePeriodFrom}
+            validTo={effectivePeriodTo}
+            onValidFromChange={setEffectivePeriodFrom}
+            onValidToChange={setEffectivePeriodTo}
+            prefixDataTestId={`${PREFIX}-effective-period-filter`}
           />
-        )
+        ),
+        hideSearch: true
       }
-    ];
-  }, [rules, selectedRuleIds, targetTypeFilter, cascadingFilter, effectivePeriodFrom, effectivePeriodTo]);
+    ]
+  }, [targetTypeFilter, cascadingFilter, effectivePeriodFrom, effectivePeriodTo])
 
   // Data controller props
   const dataControllerProps: DataControllerProps = {
     listTitle: getTranslationFromI18nKeyAndLabel('expenseSettings.assignments.title', 'Rule Assignments'),
-    listAmount: filteredAndSortedAssignments.length,
+    listAmount: filteredAssignments.length,
     search,
     setSearch,
     debounceDelay: 500,
@@ -393,7 +352,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
         {getTranslationFromI18nKeyAndLabel('expenseSettings.actions.createAssignment', 'Create Assignment')}
       </Button>
     )
-  } as any;
+  } as any
 
   return (
     <div data-testid={`${PREFIX}-app`} className="gba:p-6">
@@ -424,17 +383,17 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                     <Spinner data-testid={`${PREFIX}-loading`} />
                   </div>
                 )}
-                {!isLoading && filteredAndSortedAssignments.length === 0 && (
+                {!isLoading && filteredAssignments.length === 0 && (
                   <div className="gba:p-8 gba:text-center">
                     <div className="gba:text-gray-500" data-testid={`${PREFIX}-empty`}>
                       {getTranslationFromI18nKeyAndLabel('common.noDataFound', 'No data found')}
                     </div>
                   </div>
                 )}
-                {!isLoading && filteredAndSortedAssignments.length > 0 && (
+                {!isLoading && filteredAssignments.length > 0 && (
                   <>
                     <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-[100%]">
-                      <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[1100px] gba:w-[100%]">
+                      <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[2000px] gba:w-[100%]">
                         <TableHeader>
                           <TableRow className="gba:border-b gba:bg-gray-50">
                             {columns.map(col => (
@@ -445,7 +404,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                               >
                                 <div className="gba:flex gba:items-center gba:gap-2">
                                   <span className="gba:whitespace-nowrap">{col.title}</span>
-                                  {col.key !== 'actions' && col.key !== 'effectivePeriod' && (
+                                  {col.key !== 'actions' && (
                                     <button
                                       type="button"
                                       className={`gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 ${sortField === col.key ? 'gba:text-black' : 'gba:text-gray-400'} gba:cursor-pointer hover:gba:text-black`}
@@ -478,216 +437,193 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                               data-testid={`${PREFIX}-row-${index}`}
                               className="gba:border-b hover:gba:bg-gray-50"
                             >
-                              <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${index}`}>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                data-testid={`${PREFIX}-cell-rule-code-${index}`}
+                              >
+                                <span className="gba:font-mono gba:text-sm">{assignment.ruleCode || ''}</span>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-company-${index}`}>
+                                <span className="gba:text-sm">{assignment.company?.name || ''}</span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                data-testid={`${PREFIX}-cell-rule-name-${index}`}
+                              >
+                                <span className="gba:text-sm">{assignment.ruleName || ''}</span>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-location-${index}`}>
+                                <span className="gba:text-sm">{assignment.siteLocation?.name || ''}</span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                data-testid={`${PREFIX}-cell-employment-type-${index}`}
+                              >
+                                <span className="gba:text-sm">{assignment.employmentType?.value || ''}</span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                data-testid={`${PREFIX}-cell-contract-type-${index}`}
+                              >
+                                <span className="gba:text-sm">{assignment.contractType?.value || ''}</span>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-employee-${index}`}>
+                                <span className="gba:text-sm">
+                                  {assignment.employee
+                                    ? `${assignment.employee.firstName} ${assignment.employee.lastName}`
+                                    : ''}
+                                </span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                data-testid={`${PREFIX}-cell-valid-from-${index}`}
+                              >
+                                <span className="gba:text-sm">{dayjs(assignment.activeFrom).format('DD/MM/YYYY')}</span>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-to-${index}`}>
+                                <span className="gba:text-sm">
+                                  {assignment.activeTo ? dayjs(assignment.activeTo).format('DD/MM/YYYY') : 'Ongoing'}
+                                </span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6 gba:text-center"
+                                data-testid={`${PREFIX}-cell-standard-${index}`}
+                              >
+                                {assignment.expenseRule?.standard ? (
+                                  <CheckIcon
+                                    size={18}
+                                    className="gba:text-green-600"
+                                    data-testid={`${PREFIX}-standard-check-${index}`}
+                                  />
+                                ) : (
+                                  <XIcon
+                                    size={18}
+                                    className="gba:text-black-500"
+                                    data-testid={`${PREFIX}-standard-x-${index}`}
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-org-unit-${index}`}>
+                                <span className="gba:text-sm">{assignment.organizationalUnit?.name || ''}</span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6 gba:text-center"
+                                data-testid={`${PREFIX}-cell-cascading-${index}`}
+                              >
+                                {assignment.cascading ? (
+                                  <CheckIcon
+                                    size={18}
+                                    className="gba:text-green-600"
+                                    data-testid={`${PREFIX}-cascading-check-${index}`}
+                                  />
+                                ) : (
+                                  <XIcon
+                                    size={18}
+                                    className="gba:text-black-500"
+                                    data-testid={`${PREFIX}-cascading-x-${index}`}
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-order-${index}`}>
+                                <span className="gba:text-sm">{assignment.assignmentOrder}</span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                onClick={e => e.stopPropagation()}
+                                data-testid={`${PREFIX}-cell-actions-${index}`}
+                              >
                                 <Popover>
                                   <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="gba:w-8 gba:h-8 gba:rounded"
-                                      data-testid={`${PREFIX}-actions-button-${index}`}
+                                    <button
+                                      type="button"
+                                      className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap gba:rounded-sm gba:text-sm gba:font-medium gba:transition-all gba:disabled:pointer-events-none gba:disabled:opacity-50 gba:shrink-0 gba:outline-none gba:focus-visible:ring-[3px] gba:border gba:bg-background gba:size-9 gba:text-info-on-card gba:border-info/50 hover:gba:bg-info-secondary/10 hover:gba:text-info-on-card hover:gba:border-info gba:focus-visible:ring-info/40 gba:focus-visible:border-info"
+                                      data-testid={`${PREFIX}-actions-trigger-${index}`}
                                     >
-                                      <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
-                                    </Button>
+                                      <Lightning className="gba:size-4 gba:shrink-0" weight="regular" />
+                                    </button>
                                   </PopoverTrigger>
-                                  <PopoverContent align="start" className="gba:p-0 gba:w-auto">
-                                    <div className="gba:flex gba:flex-col">
+                                  <PopoverContent
+                                    className="gba:w-auto gba:p-0"
+                                    align="end"
+                                    data-testid={`${PREFIX}-actions-popover-${index}`}
+                                  >
+                                    <div className="gba:flex gba:flex-col gba:gap-1 gba:p-1">
                                       <Button
                                         variant="ghost"
-                                        className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]"
-                                        data-testid={`${PREFIX}-action-edit-${index}`}
-                                        onClick={() => {
-                                          setEditingAssignment(assignment);
-                                          setIsEditModalVisible(true);
+                                        size="sm"
+                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleEditAssignment(assignment)
                                         }}
+                                        data-testid={`${PREFIX}-edit-assignment-${index}`}
                                       >
-                                        <PiPencil className="gba:mr-2 gba:h-4 gba:w-4" />
-                                        {getTranslationFromI18nKeyAndLabel('common.edit', 'Edit')}
+                                        <PiPencil className="gba:w-4 gba:h-4" />
+                                        <span>
+                                          {getTranslationFromI18nKeyAndLabel(
+                                            'lowcoder:expense_calculation_rule.edit',
+                                            'Edit'
+                                          )}
+                                        </span>
                                       </Button>
                                       <Button
                                         variant="ghost"
-                                        className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px] gba:text-red-600 hover:gba:text-red-700"
-                                        data-testid={`${PREFIX}-action-delete-${index}`}
-                                        onClick={() => {
-                                          setAssignmentToDelete(assignment);
-                                          setIsDeleteConfirmVisible(true);
+                                        size="sm"
+                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2 gba:text-destructive"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleDeleteAssignment(assignment)
                                         }}
+                                        data-testid={`${PREFIX}-delete-assignment-${index}`}
                                       >
-                                        <PiTrash className="gba:mr-2 gba:h-4 gba:w-4" />
-                                        {getTranslationFromI18nKeyAndLabel('common.delete', 'Delete')}
+                                        <PiTrash className="gba:w-4 gba:h-4" />
+                                        <span>
+                                          {getTranslationFromI18nKeyAndLabel(
+                                            'lowcoder:expense_calculation_rule.delete',
+                                            'Delete'
+                                          )}
+                                        </span>
                                       </Button>
                                     </div>
                                   </PopoverContent>
                                 </Popover>
-                              </TableCell>
-                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-order-${index}`}>
-                                {assignment.assignmentOrder}.
-                              </TableCell>
-                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-rule-${index}`}>
-                                <div>
-                                  <div className="gba:font-medium">{assignment.ruleCode}</div>
-                                  {assignment.ruleName && (
-                                    <div className="gba:text-xs gba:text-gray-500">{assignment.ruleName}</div>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-standard-${index}`}>
-                                <Badge variant={assignment.expenseRule?.standard ? 'default' : 'secondary'}>
-                                  {assignment.expenseRule?.standard ? 'Yes' : 'No'}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-targets-${index}`}>
-                                {renderAssignmentTargets(assignment)}
-                              </TableCell>
-                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-period-${index}`}>
-                                {(() => {
-                                  const now = new Date();
-                                  const activeFrom = new Date(assignment.activeFrom);
-                                  const activeTo = new Date(assignment.activeTo);
-                                  const isActive = activeFrom <= now && activeTo >= now;
-                                  const timeFrame = `${dayjs(assignment.activeFrom).format('DD/MM/YYYY')} - ${assignment.activeTo ? dayjs(assignment.activeTo).format('DD/MM/YYYY') : 'Ongoing'}`;
-                                  
-                                  return (
-                                    <div 
-                                      className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs gba:font-medium gba:text-center ${
-                                        isActive 
-                                          ? 'gba:bg-green-100 gba:text-green-800 gba:border gba:border-green-200' 
-                                          : 'gba:bg-gray-100 gba:text-gray-600 gba:border gba:border-gray-200'
-                                      }`}
-                                      title={`${timeFrame} (${isActive ? 'Active' : 'Inactive'})`}
-                                    >
-                                      {timeFrame}
-                                    </div>
-                                  );
-                                })()}
-                              </TableCell>
-                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-cascading-${index}`}>
-                                <Badge variant={assignment.cascading ? 'default' : 'secondary'}>
-                                  {assignment.cascading ? 'Yes' : 'No'}
-                                </Badge>
                               </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </div>
-                  </>
-                )}
-                {/* Pagination */}
-                {filteredAndSortedAssignments.length > 0 && (
-                  <div
-                    className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4"
-                    data-testid={`${PREFIX}-pagination`}
-                  >
-                    <div className="gba:text-sm gba:text-gray-600" data-testid={`${PREFIX}-pagination-info`}>
-                      {(() => {
-                        const start = (currentPage - 1) * pageSize + 1;
-                        const end = Math.min(currentPage * pageSize, filteredAndSortedAssignments.length);
-                        return getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_hub.pagination',
-                          `${start}-${end} of ${filteredAndSortedAssignments.length}`,
-                          {
-                            range0: start,
-                            range1: end,
-                            total: filteredAndSortedAssignments.length,
-                            interpolation: {
-                              escapeValue: false
-                            }
-                          }
-                        );
-                      })()}
-                    </div>
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:w-[100%]">
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationLink
-                              aria-label="Go to previous page"
-                              size="default"
-                              className={`gba:gap-1 gba:pl-2.5 ${currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
-                              onClick={() => setCurrentPage(currentPage - 1)}
-                              data-testid={`${PREFIX}-pagination-prev`}
-                            >
-                              <CaretLeftIcon className="gba:h-4 gba:w-4" />
-                              <span>
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:acknowledge_sick_leave.previous',
-                                  'Previous'
-                                )}
-                              </span>
-                            </PaginationLink>
-                          </PaginationItem>
-                          {Array.from({ length: totalPages }, (_, i) => i + 1)
-                            .filter(
-                              page =>
-                                page === 1 ||
-                                page === totalPages ||
-                                Math.abs(page - currentPage) <= 1
-                            )
-                            .map((page, index, array) => (
-                              <React.Fragment key={page}>
-                                {index > 0 && array[index - 1] !== page - 1 && (
-                                  <PaginationItem>
-                                    <span className="gba:px-2">...</span>
-                                  </PaginationItem>
-                                )}
-                                <PaginationItem>
-                                  <PaginationLink
-                                    onClick={() => setCurrentPage(page)}
-                                    className={
-                                      page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'
-                                    }
-                                    data-testid={`${PREFIX}-pagination-page-${page}`}
-                                  >
-                                    {page}
-                                  </PaginationLink>
-                                </PaginationItem>
-                              </React.Fragment>
-                            ))}
-                          <PaginationItem>
-                            <PaginationLink
-                              aria-label="Go to next page"
-                              size="default"
-                              className={`gba:gap-1 gba:pr-2.5 ${currentPage >= totalPages ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
-                              onClick={() => setCurrentPage(currentPage + 1)}
-                              data-testid={`${PREFIX}-pagination-next`}
-                            >
-                              <span>
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
-                              </span>
-                              <CaretRightIcon className="gba:h-4 gba:w-4" />
-                            </PaginationLink>
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${PREFIX}-page-size-selector`}>
-                        <span className="gba:text-sm gba:text-gray-600">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_config_calculation_rule_list.expense_calculation_rule_filter.items_per_page',
-                            'Items per page'
-                          )}
-                        </span>
-                        <Select
-                          value={String(pageSize)}
-                          onValueChange={val => {
-                            setPageSize(Number(val));
-                            setCurrentPage(1);
-                          }}
-                        >
-                          <SelectTrigger className="gba:w-[80px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[10, 20, 50].map(size => (
-                              <SelectItem key={size} value={String(size)} data-testid={`${PREFIX}-page-size-${size}`}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    {/* Pagination */}
+                    {filteredAssignments.length > 0 && (
+                      <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:px-6">
+                        <div className="gba:text-sm gba:text-gray-700">
+                          Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                          {Math.min(currentPage * pageSize, filteredAssignments.length)} of {filteredAssignments.length}{' '}
+                          assignments
+                        </div>
+                        <div className="gba:flex gba:gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(currentPage - 1)}
+                            data-testid={`${PREFIX}-prev-page`}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage * pageSize >= filteredAssignments.length}
+                            onClick={() => setCurrentPage(currentPage + 1)}
+                            data-testid={`${PREFIX}-next-page`}
+                          >
+                            Next
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -697,9 +633,17 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
 
       {/* Create Assignment Dialog */}
       <Dialog open={isCreateModalVisible} onOpenChange={setIsCreateModalVisible}>
-        <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto" data-testid={`${PREFIX}-create-dialog`}>
+        <DialogContent
+          className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto"
+          data-testid={`${PREFIX}-create-dialog`}
+        >
           <DialogHeader>
-            <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createAssignment.title', 'Create Rule Assignment')}</DialogTitle>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'expenseSettings.modals.createAssignment.title',
+                'Create Rule Assignment'
+              )}
+            </DialogTitle>
           </DialogHeader>
           <AssignmentForm
             accessToken={accessToken}
@@ -713,9 +657,14 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
 
       {/* Edit Assignment Dialog */}
       <Dialog open={isEditModalVisible} onOpenChange={setIsEditModalVisible}>
-        <DialogContent className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto" data-testid={`${PREFIX}-edit-dialog`}>
+        <DialogContent
+          className="gba:max-w-4xl gba:max-h-[90vh] gba:overflow-y-auto"
+          data-testid={`${PREFIX}-edit-dialog`}
+        >
           <DialogHeader>
-            <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editAssignment.title', 'Edit Rule Assignment')}</DialogTitle>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editAssignment.title', 'Edit Rule Assignment')}
+            </DialogTitle>
           </DialogHeader>
           {editingAssignment && (
             <AssignmentForm
@@ -724,8 +673,8 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
               initialData={editingAssignment}
               onSave={handleEditSubmit}
               onCancel={() => {
-                setIsEditModalVisible(false);
-                setEditingAssignment(null);
+                setIsEditModalVisible(false)
+                setEditingAssignment(null)
               }}
               isEditing={true}
             />
@@ -737,36 +686,37 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
       <Dialog open={isDeleteConfirmVisible} onOpenChange={setIsDeleteConfirmVisible}>
         <DialogContent className="gba:max-w-md" data-testid={`${PREFIX}-delete-dialog`}>
           <DialogHeader>
-            <DialogTitle>{getTranslationFromI18nKeyAndLabel('expenseSettings.modals.deleteAssignment.title', 'Delete Rule Assignment')}</DialogTitle>
+            <DialogTitle>
+              {getTranslationFromI18nKeyAndLabel(
+                'expenseSettings.modals.deleteAssignment.title',
+                'Delete Rule Assignment'
+              )}
+            </DialogTitle>
           </DialogHeader>
           <div className="gba:space-y-4">
             <p className="gba:text-sm gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('expenseSettings.modals.deleteAssignment.message', 
-                'Are you sure you want to delete this rule assignment? This action cannot be undone.')}
+              {getTranslationFromI18nKeyAndLabel(
+                'expenseSettings.modals.deleteAssignment.message',
+                'Are you sure you want to delete this rule assignment? This action cannot be undone.'
+              )}
             </p>
-            
+
             {assignmentToDelete && (
               <div className="gba:bg-gray-50 gba:p-3 gba:rounded-md">
-                <p className="gba:text-sm gba:font-medium">
-                  Rule: {assignmentToDelete.ruleCode}
-                </p>
+                <p className="gba:text-sm gba:font-medium">Rule: {assignmentToDelete.ruleCode}</p>
                 {assignmentToDelete.ruleName && (
-                  <p className="gba:text-sm gba:text-gray-600">
-                    {assignmentToDelete.ruleName}
-                  </p>
+                  <p className="gba:text-sm gba:text-gray-600">{assignmentToDelete.ruleName}</p>
                 )}
-                <p className="gba:text-sm gba:text-gray-600">
-                  Order: {assignmentToDelete.assignmentOrder}
-                </p>
+                <p className="gba:text-sm gba:text-gray-600">Order: {assignmentToDelete.assignmentOrder}</p>
               </div>
             )}
-            
+
             <div className="gba:flex gba:justify-end gba:space-x-2">
               <Button
                 variant="outline"
                 onClick={() => {
-                  setIsDeleteConfirmVisible(false);
-                  setAssignmentToDelete(null);
+                  setIsDeleteConfirmVisible(false)
+                  setAssignmentToDelete(null)
                 }}
                 data-testid={`${PREFIX}-delete-cancel-button`}
               >
@@ -784,7 +734,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
+  )
+}
 
-export default CalculationRuleAssignmentList;
+export default CalculationRuleAssignmentList

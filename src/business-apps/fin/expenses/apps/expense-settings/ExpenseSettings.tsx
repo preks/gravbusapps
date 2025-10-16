@@ -1,29 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { PageLayout } from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { 
-  PiSquaresFour, 
-  PiCalculator, 
-  PiCar, 
-  PiGlobe 
-} from 'react-icons/pi';
-import { Gear } from '@phosphor-icons/react';
+import React, { useState, useEffect } from 'react'
+import { PageLayout } from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { PiSquaresFour, PiCalculator, PiCar, PiGlobe } from 'react-icons/pi'
 
 // Tab components
-import ExpenseSettingsDashboard from './components/dashboard/ExpenseSettingsDashboard';
-import CalculationRulesView from './components/calculation-rules/CalculationRulesView';
-import CalculationRuleRecord from './components/calculation-rule-record/CalculationRuleRecord';
-import MileageRulesView from './components/mileage-rules/MileageRulesView';
-import TravelRegionRulesView from './components/travel-region-rules/TravelRegionRulesView';
+import ExpenseSettingsDashboard from './components/dashboard/ExpenseSettingsDashboard'
+import CalculationRulesView from './components/calculation-rules/CalculationRulesView'
+import CalculationRuleRecord from './components/calculation-rule-record/CalculationRuleRecord'
+import MileageRulesView from './components/mileage-rules/MileageRulesView'
+import TravelRegionRulesView from './components/travel-region-rules/TravelRegionRulesView'
 
 export interface ExpenseSettingsProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  className?: string;
+  prefixDataTestId?: string
+  className?: string
 }
 
-const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
-  const { prefixDataTestId = '', className = '' } = context;
+const ExpenseSettings: React.FC<ExpenseSettingsProps> = context => {
+  const { prefixDataTestId = '', className = '' } = context
 
   // Define main view options for headerSubViews
   const viewOptions = [
@@ -47,84 +41,84 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
       icon: <PiGlobe />,
       label: getTranslationFromI18nKeyAndLabel('expense-settings:travel_region_rules', 'Travel Region Rules')
     }
-  ];
+  ]
 
   // Get initial view from URL or default to first view
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const viewFromUrl = urlParams.get('view');
+    const urlParams = new URLSearchParams(window.location.search)
+    const viewFromUrl = urlParams.get('view')
 
     // Validate that the view exists in our options
     if (viewFromUrl && viewOptions.some(option => option.key === viewFromUrl)) {
-      return viewFromUrl;
+      return viewFromUrl
     }
 
     // Default to first view
-    return viewOptions[0].key;
-  };
+    return viewOptions[0].key
+  }
 
-  const [activeView, setActiveView] = useState<string>(getInitialView());
-  
+  const [activeView, setActiveView] = useState<string>(getInitialView())
+
   // Get calculation rule record parameters from URL
   const getCalculationRuleRecordParams = () => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search)
     return {
       ruleId: urlParams.get('ruleId'),
       page: urlParams.get('page')
-    };
-  };
+    }
+  }
 
-  const [ruleRecordParams, setRuleRecordParams] = useState(getCalculationRuleRecordParams());
+  const [ruleRecordParams, setRuleRecordParams] = useState(getCalculationRuleRecordParams())
 
   // Update URL when view changes
   const updateUrl = (view: string, clearRuleRecord = false) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set('view', view);
-    
+    const urlParams = new URLSearchParams(window.location.search)
+    urlParams.set('view', view)
+
     // Clear rule record and tab parameters if requested
     if (clearRuleRecord) {
-      urlParams.delete('ruleId');
-      urlParams.delete('page');
-      urlParams.delete('tab');
-      urlParams.delete('subTab');
+      urlParams.delete('ruleId')
+      urlParams.delete('page')
+      urlParams.delete('tab')
+      urlParams.delete('subTab')
     }
 
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
-  };
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }
 
   const handleViewChange = (view: string) => {
-    setActiveView(view);
-    setRuleRecordParams({ ruleId: null, page: null });
-    updateUrl(view, true);
-  };
+    setActiveView(view)
+    setRuleRecordParams({ ruleId: null, page: null })
+    updateUrl(view, true)
+  }
 
   // Handle navigation back from calculation rule record
   const handleNavigateBackFromRuleRecord = () => {
-    setRuleRecordParams({ ruleId: null, page: null });
-    updateUrl(activeView, true);
-  };
+    setRuleRecordParams({ ruleId: null, page: null })
+    updateUrl(activeView, true)
+  }
 
   // Ensure URL always has view parameter on initial load
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('view')) {
-      updateUrl(activeView);
+      updateUrl(activeView)
     }
-  }, [activeView]);
+  }, [activeView])
 
   // Listen for browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const newView = getInitialView();
-      const newRuleRecordParams = getCalculationRuleRecordParams();
-      setActiveView(newView);
-      setRuleRecordParams(newRuleRecordParams);
-    };
+      const newView = getInitialView()
+      const newRuleRecordParams = getCalculationRuleRecordParams()
+      setActiveView(newView)
+      setRuleRecordParams(newRuleRecordParams)
+    }
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   // Render content based on active view and rule record parameters
   const renderViewContent = () => {
@@ -135,40 +129,22 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
           <div data-testid={`${prefixDataTestId}-dashboard-view`}>
             <ExpenseSettingsDashboard {...context} />
           </div>
-        );
+        )
       case 'calculation-rules':
-        return (
-          <CalculationRulesView 
-            {...context}
-            prefixDataTestId={prefixDataTestId}
-          />
-        );
+        return <CalculationRulesView {...context} prefixDataTestId={prefixDataTestId} />
       case 'mileage-rules':
-        return (
-          <MileageRulesView 
-            {...context}
-            prefixDataTestId={prefixDataTestId}
-          />
-        );
+        return <MileageRulesView {...context} prefixDataTestId={prefixDataTestId} />
       case 'travel-region-rules':
-        return (
-          <TravelRegionRulesView 
-            {...context}
-            prefixDataTestId={prefixDataTestId}
-          />
-        );
+        return <TravelRegionRulesView {...context} prefixDataTestId={prefixDataTestId} />
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   // If we have a ruleId, show the calculation rule record in full screen mode
   if (ruleRecordParams.ruleId) {
     return (
-      <div 
-        data-testid={`${prefixDataTestId}-expense-settings`}
-        className={`gba:h-screen gba:w-full ${className}`}
-      >
+      <div data-testid={`${prefixDataTestId}-expense-settings`} className={`gba:h-screen gba:w-full ${className}`}>
         <CalculationRuleRecord
           {...context}
           ruleId={ruleRecordParams.ruleId}
@@ -176,28 +152,28 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
           onNavigateBack={handleNavigateBackFromRuleRecord}
         />
       </div>
-    );
+    )
   }
 
   // Otherwise, render the normal PageLayout with views
   return (
-    <div 
-      data-testid={`${prefixDataTestId}-expense-settings`}
-      className={className}
-    >
+    <div data-testid={`${prefixDataTestId}-expense-settings`} className={className}>
       <PageLayout
         headerPhosphorIcon={{
-          icon: Gear,
-          variant: "strategy",
-          size: "lg",
-          label: "Expense Settings"
+          icon: undefined,
+          variant: 'strategy',
+          size: 'lg',
+          label: 'Expense Settings'
         }}
         headerTitle={getTranslationFromI18nKeyAndLabel('expense-settings:page_title', 'Expense Settings')}
-        headerDescription={getTranslationFromI18nKeyAndLabel('expense-settings:page_description', 'Configure expense rules, assignments, and calculation settings')}
+        headerDescription={getTranslationFromI18nKeyAndLabel(
+          'expense-settings:page_description',
+          'Configure expense rules, assignments, and calculation settings'
+        )}
         headerSubViews={{
           value: activeView,
           onValueChange: handleViewChange,
-          items: viewOptions.map((option) => ({
+          items: viewOptions.map(option => ({
             value: option.key,
             label: option.label,
             icon: option.icon
@@ -205,12 +181,10 @@ const ExpenseSettings: React.FC<ExpenseSettingsProps> = (context) => {
         }}
         className="gba:min-h-screen"
       >
-        <div className="gba:h-full gba:overflow-auto">
-          {renderViewContent()}
-        </div>
+        <div className="gba:h-full gba:overflow-auto">{renderViewContent()}</div>
       </PageLayout>
     </div>
-  );
-};
+  )
+}
 
-export default ExpenseSettings; 
+export default ExpenseSettings

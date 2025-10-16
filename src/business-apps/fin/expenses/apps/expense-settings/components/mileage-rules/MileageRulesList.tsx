@@ -1,12 +1,12 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+import React, { useState, useMemo, useEffect, useRef } from 'react'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
 // Register dayjs plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
-import { 
+dayjs.extend(weekday)
+dayjs.extend(localeData)
+import {
   Badge,
   Button,
   Alert,
@@ -25,275 +25,221 @@ import {
   Spinner,
   Popover,
   PopoverTrigger,
-  PopoverContent,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { env } from '@/common/env/EnvUtils';
-import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
-import { DataFilterGroup } from '@/components/data-filter/DataFilter';
-import { DataControllerProps } from '@/components/dataController/DataController';
-import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer';
-import { ICONS } from '@/business-apps/fin/expenses/utils/icons';
-import { useMileageRulesIntegration, EnhancedMileageRule } from '../../hooks/useMileageRulesIntegration';
-import { useExpenseSettingsIntegration } from '../../hooks/useExpenseSettingsIntegration';
-import { MileageRuleForm, MileageRuleFormData } from '../../forms/mileage-rule-form';
-import MileageRuleDetails from './MileageRuleDetails';
-import TimePeriodFilter from './filters/TimePeriodFilter';
-import { RuleCodeFilter } from './filters/RuleCodeFilter';
-import { NameFilter } from './filters/NameFilter';
-import RulePeriodFilter from './filters/RulePeriodFilter';
-import { MileageRulePeriod } from '../../types/ExpenseEnums';
-import { 
-  PiPlus,
-  PiEye,
-  PiPencil
-} from 'react-icons/pi';
-import { CaretLeftIcon, CaretRightIcon } from '@phosphor-icons/react';
+  PopoverContent
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
+import { DataFilterGroup } from '@/components/data-filter/DataFilter'
+import { DataControllerProps } from '@/components/dataController/DataController'
+import { DataDetailsDrawer } from '@/components/data-details/DataDetailsDrawer'
+import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
+import { useMileageRulesIntegration, EnhancedMileageRule } from '../../hooks/useMileageRulesIntegration'
+import { useMileageRuleOperations } from '../../hooks/useMileageRuleOperations'
+import { MileageRuleForm, MileageRuleFormData } from '../../forms/mileage-rule-form'
+import MileageRuleDetails from './MileageRuleDetails'
+import TimePeriodFilter from './filters/TimePeriodFilter'
+import RulePeriodFilter from './filters/RulePeriodFilter'
+import { MileageRulePeriod } from '../../types/ExpenseEnums'
+import { PiPlus, PiPencil, PiTrash } from 'react-icons/pi'
+import { Lightning } from '@phosphor-icons/react'
 
 // Custom toast implementation until design system provides one
 const toast = ({ title, description, variant }: { title: string; description: string; variant?: string }) => {
-  const style = variant === 'destructive' ? 'color: red' : 'color: green';
-  console.log(`%c${title}: ${description}`, style);
+  const style = variant === 'destructive' ? 'color: red' : 'color: green'
+  console.log(`%c${title}: ${description}`, style)
   // TODO: Replace with proper toast implementation when available in design system
-};
-
-// Re-export the enhanced interface for external use
-export type { EnhancedMileageRule as MileageRule };
-
-export interface MileageRulesListProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
 }
 
-const PREFIX = 'mileage-rules';
+// Re-export the enhanced interface for external use
+export type { EnhancedMileageRule as MileageRule }
 
-const MileageRulesList: React.FC<MileageRulesListProps> = ({
-  prefixDataTestId = '',
-  accessToken,
-  ...context
-}) => {
-  const [search, setSearch] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const isInitialMount = useRef(true);
-  
+export interface MileageRulesListProps extends BusinessAppContextProps {
+  prefixDataTestId?: string
+}
+
+const PREFIX = 'mileage-rules'
+
+const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = '', accessToken, ...context }) => {
+  const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(20)
+  const isInitialMount = useRef(true)
+
   // Filter states
-  const [statusFilter, setStatusFilter] = useState({ active: false, inactive: false });
-  const [validFromFilter, setValidFromFilter] = useState<string | null>(null);
-  const [validToFilter, setValidToFilter] = useState<string | null>(null);
-  const [ruleCodeFilter, setRuleCodeFilter] = useState<string[]>([]);
-  const [nameFilter, setNameFilter] = useState<string[]>([]);
+  const [statusFilter, setStatusFilter] = useState({ active: false, inactive: false })
+  const [validFromFilter, setValidFromFilter] = useState<string | null>(null)
+  const [validToFilter, setValidToFilter] = useState<string | null>(null)
   const [rulePeriodFilter, setRulePeriodFilter] = useState<Record<MileageRulePeriod, boolean>>({
     [MileageRulePeriod.YEARLY]: false,
     [MileageRulePeriod.TRIP]: false,
     [MileageRulePeriod.TOTAL]: false
-  });
-  
+  })
+
   // Modal state management
-  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
-  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
-  const [editingRule, setEditingRule] = useState<EnhancedMileageRule | null>(null);
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false)
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false)
+  const [editingRule, setEditingRule] = useState<EnhancedMileageRule | null>(null)
 
   // Drawer state management
-  const [isDetailsDrawerVisible, setIsDetailsDrawerVisible] = useState(false);
-  const [selectedRule, setSelectedRule] = useState<EnhancedMileageRule | null>(null);
-
-  // Flow icon URL
-  const flowIconUrl = useMemo(() => {
-    const base = env('NEXT_PUBLIC_BASE_URL') || '';
-    return `${base}/_next/static/media/lowcoder-icons/newwork/flow_min_20x20.svg`;
-  }, []);
-
-  // Modal handlers
-  const handleEditRule = (rule: EnhancedMileageRule) => {
-    setEditingRule(rule);
-    setIsEditModalVisible(true);
-  };
+  const [isDetailsDrawerVisible, setIsDetailsDrawerVisible] = useState(false)
+  const [selectedRule, setSelectedRule] = useState<EnhancedMileageRule | null>(null)
 
   // Drawer handlers
   const handleViewRuleDetails = (rule: EnhancedMileageRule) => {
-    setSelectedRule(rule);
-    setIsDetailsDrawerVisible(true);
-  };
+    setSelectedRule(rule)
+    setIsDetailsDrawerVisible(true)
+  }
 
   const handleCloseDetailsDrawer = () => {
-    setIsDetailsDrawerVisible(false);
-    setSelectedRule(null);
-  };
+    setIsDetailsDrawerVisible(false)
+    setSelectedRule(null)
+  }
 
   const handleNavigateToCalculationRule = (ruleId: string, page?: string) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    urlParams.set('ruleId', ruleId);
+    const urlParams = new URLSearchParams(window.location.search)
+    urlParams.set('ruleId', ruleId)
     if (page) {
-      urlParams.set('page', page);
+      urlParams.set('page', page)
     }
-    
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.pushState({}, '', newUrl);
-    
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.pushState({}, '', newUrl)
+
     // Trigger a popstate event to notify the parent component of the URL change
-    window.dispatchEvent(new PopStateEvent('popstate'));
-  };
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  }
 
   const handleCreateSubmit = async (formData: MileageRuleFormData) => {
     try {
-      await createMileageRule(formData);
+      await createMileageRule(formData)
       toast({
-        title: "Success",
-        description: "Mileage rule created successfully"
-      });
-      setIsCreateModalVisible(false);
-      refetch({});
+        title: 'Success',
+        description: 'Mileage rule created successfully'
+      })
+      setIsCreateModalVisible(false)
+      refetch({})
     } catch (error) {
-      console.error('Error creating rule:', error);
+      console.error('Error creating rule:', error)
       toast({
-        title: "Error",
-        description: "Failed to create mileage rule",
-        variant: "destructive"
-      });
+        title: 'Error',
+        description: 'Failed to create mileage rule',
+        variant: 'destructive'
+      })
     }
-  };
+  }
 
   const handleEditSubmit = async (formData: MileageRuleFormData) => {
     try {
-      if (!editingRule) return;
-      await updateMileageRule(editingRule.id, formData);
+      if (!editingRule) return
+      await updateMileageRule(editingRule.id, formData)
       toast({
-        title: "Success",
-        description: "Mileage rule updated successfully"
-      });
-      setIsEditModalVisible(false);
-      setEditingRule(null);
-      refetch({});
+        title: 'Success',
+        description: 'Mileage rule updated successfully'
+      })
+      setIsEditModalVisible(false)
+      setEditingRule(null)
+      refetch({})
     } catch (error) {
-      console.error('Error updating rule:', error);
+      console.error('Error updating rule:', error)
       toast({
-        title: "Error",
-        description: "Failed to update mileage rule",
-        variant: "destructive"
-      });
+        title: 'Error',
+        description: 'Failed to update mileage rule',
+        variant: 'destructive'
+      })
     }
-  };
+  }
 
   const handleModalCancel = () => {
-    setIsCreateModalVisible(false);
-    setIsEditModalVisible(false);
-    setEditingRule(null);
-  };
+    setIsCreateModalVisible(false)
+    setIsEditModalVisible(false)
+    setEditingRule(null)
+  }
+
+  const handleEditRule = (rule: EnhancedMileageRule) => {
+    setEditingRule(rule)
+    setIsEditModalVisible(true)
+  }
+
+  const handleDeleteRule = (rule: EnhancedMileageRule) => {
+    // TODO: Implement delete confirmation dialog
+    console.log('Delete rule:', rule)
+    toast({
+      title: 'Info',
+      description: 'Delete functionality not yet implemented',
+      variant: 'destructive'
+    })
+  }
 
   // Use the GraphQL integration hook
-  const {
-    mileageRules,
-    isLoading,
-    error,
-    refetch,
-    refetchWithFilters
-  } = useMileageRulesIntegration({ ...context, accessToken });
+  const { mileageRules, isLoading, error, refetch, refetchWithFilters } = useMileageRulesIntegration({
+    ...context,
+    accessToken
+  })
 
   // Use the API integration hook for CRUD operations
-  const { 
-    createMileageRule, 
-    updateMileageRule 
-  } = useExpenseSettingsIntegration({ ...context, accessToken });
+  const { createMileageRule, updateMileageRule } = useMileageRuleOperations({ ...context, accessToken })
 
-  // Handle search with debounced effect
-  useEffect(() => {
-    // Skip on initial mount
-    if (isInitialMount.current) return;
-    
-    const timeoutId = setTimeout(() => {
-      // Convert rulePeriodFilter object to array of selected periods
-      const selectedPeriods = Object.entries(rulePeriodFilter)
-        .filter(([_, isSelected]) => isSelected)
-        .map(([period, _]) => period);
-
-      // Always call refetchWithFilters, passing search term (empty or not)
-      refetchWithFilters({
-        statusFilter,
-        validFromFilter,
-        validToFilter,
-        ruleCodeFilter,
-        nameFilter,
-        rulePeriodFilter: selectedPeriods,
-        search: search || undefined // Pass search term or undefined if empty
-      });
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [search, statusFilter, validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter, refetchWithFilters]);
-
-  // Trigger server-side filtering when filters change (not search - search has its own useEffect)
+  // Single unified useEffect for all filtering (search + filters)
   useEffect(() => {
     // Skip on initial mount to avoid duplicate query
     if (isInitialMount.current) {
-      isInitialMount.current = false;
-      
+      isInitialMount.current = false
+
       // Trigger initial load with default filters
       refetchWithFilters({
         statusFilter,
         validFromFilter,
         validToFilter,
-        ruleCodeFilter,
-        nameFilter,
         rulePeriodFilter: [],
         search: undefined // No search on initial load
-      });
-      return;
+      })
+      return
     }
 
-    // Convert rulePeriodFilter object to array of selected periods
-    const selectedPeriods = Object.entries(rulePeriodFilter)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([period, _]) => period);
+    // Debounce for search input, immediate for filters
+    const timeoutId = setTimeout(() => {
+      // Convert rulePeriodFilter object to array of selected periods
+      const selectedPeriods = Object.entries(rulePeriodFilter)
+        .filter(([, isSelected]) => isSelected)
+        .map(([period]) => period)
 
-    refetchWithFilters({
-      statusFilter,
-      validFromFilter,
-      validToFilter,
-      ruleCodeFilter,
-      nameFilter,
-      rulePeriodFilter: selectedPeriods,
-      search: search || undefined // Include current search term
-    });
-  }, [statusFilter, validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter]);
+      refetchWithFilters({
+        statusFilter,
+        validFromFilter,
+        validToFilter,
+        rulePeriodFilter: selectedPeriods,
+        search: search || undefined
+      })
+    }, 300) // 300ms debounce for all changes
+
+    return () => clearTimeout(timeoutId)
+  }, [search, statusFilter, validFromFilter, validToFilter, rulePeriodFilter, refetchWithFilters])
 
   // No client-side filtering - data comes filtered from GraphQL
-  const filteredData = mileageRules;
+  const filteredData = mileageRules
 
   // Pagination
   const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredData.slice(startIndex, startIndex + pageSize);
-  }, [filteredData, currentPage, pageSize]);
-
-  const totalPages = Math.ceil(filteredData.length / pageSize);
+    const startIndex = (currentPage - 1) * pageSize
+    return filteredData.slice(startIndex, startIndex + pageSize)
+  }, [filteredData, currentPage, pageSize])
 
   // Reset to page 1 when filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [statusFilter, search, validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter]);
+    setCurrentPage(1)
+  }, [statusFilter, search, validFromFilter, validToFilter, rulePeriodFilter])
 
   const resetFilters = () => {
-    setStatusFilter({ active: false, inactive: false });
-    setValidFromFilter(null);
-    setValidToFilter(null);
-    setRuleCodeFilter([]);
-    setNameFilter([]);
+    setStatusFilter({ active: false, inactive: false })
+    setValidFromFilter(null)
+    setValidToFilter(null)
     setRulePeriodFilter({
       [MileageRulePeriod.YEARLY]: false,
       [MileageRulePeriod.TRIP]: false,
       [MileageRulePeriod.TOTAL]: false
-    });
-  };
+    })
+  }
 
   // Filter groups
   const filterGroups: DataFilterGroup[] = useMemo(() => {
@@ -309,33 +255,8 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
             onValidToChange={setValidToFilter}
             prefixDataTestId={`${PREFIX}-time-period-filter`}
           />
-        )
-      },
-      {
-        id: 'rule-code',
-        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.ruleCode', 'Filter by Rule Code'),
-        customComponent: (
-          <RuleCodeFilter
-            value={ruleCodeFilter}
-            onChange={setRuleCodeFilter}
-            prefixDataTestId={`${PREFIX}-rule-code-filter`}
-            {...context}
-            accessToken={accessToken}
-          />
-        )
-      },
-      {
-        id: 'name',
-        title: getTranslationFromI18nKeyAndLabel('expenseSettings.filters.name', 'Filter by Name'),
-        customComponent: (
-          <NameFilter
-            value={nameFilter}
-            onChange={setNameFilter}
-            prefixDataTestId={`${PREFIX}-name-filter`}
-            {...context}
-            accessToken={accessToken}
-          />
-        )
+        ),
+        hideSearch: true
       },
       {
         id: 'rule-period',
@@ -346,10 +267,11 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
             onChange={setRulePeriodFilter}
             prefixDataTestId={`${PREFIX}-rule-period-filter`}
           />
-        )
+        ),
+        hideSearch: true
       }
-    ];
-  }, [validFromFilter, validToFilter, ruleCodeFilter, nameFilter, rulePeriodFilter]);
+    ]
+  }, [validFromFilter, validToFilter, rulePeriodFilter])
 
   // Data controller props
   const dataControllerProps: DataControllerProps = {
@@ -367,7 +289,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
         {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.addRate', 'Add Rate')}
       </Button>
     )
-  } as any;
+  } as any
 
   return (
     <div data-testid={`${PREFIX}-app`} className="gba:p-6">
@@ -423,226 +345,187 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
                       <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[1100px] gba:w-[100%]">
                         <TableHeader>
                           <TableRow className="gba:border-b gba:bg-gray-50">
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.table.code', 'Code')}
+                              </span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.table.name', 'Name')}
+                              </span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'expenseSettings.mileageRules.table.rulePeriod',
+                                  'Rule Period'
+                                )}
+                              </span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'expenseSettings.mileageRules.table.validFrom',
+                                  'Valid From'
+                                )}
+                              </span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'expenseSettings.mileageRules.table.validTo',
+                                  'Valid To'
+                                )}
+                              </span>
+                            </TableHead>
+                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.table.order', 'Order')}
+                              </span>
+                            </TableHead>
                             <TableHead className="gba:w-[60px] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap"></span>
-                            </TableHead>
-                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap">CODE</span>
-                            </TableHead>
-                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap">NAME</span>
-                            </TableHead>
-                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap">RULE PERIOD</span>
-                            </TableHead>
-                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap">VALID FROM</span>
-                            </TableHead>
-                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap">VALID TO</span>
-                            </TableHead>
-                            <TableHead className="gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6">
-                              <span className="gba:whitespace-nowrap">ORDER</span>
+                              <span className="gba:whitespace-nowrap">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'expenseSettings.mileageRules.table.actions',
+                                  'Actions'
+                                )}
+                              </span>
                             </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {paginatedData.map((record, index) => (
-                          <TableRow 
-                            key={record.id}
-                            className="gba:border-b hover:gba:bg-gray-50 gba:cursor-pointer"
-                            onClick={() => handleViewRuleDetails(record)}
-                            data-testid={`${PREFIX}-mileage-rule-row-${record.id}`}
-                          >
-                            <TableCell className="gba:py-3 gba:px-3" data-testid={`${PREFIX}-cell-actions-${index}`}>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="gba:w-8 gba:h-8 gba:rounded"
-                                    data-testid={`${PREFIX}-actions-button-${index}`}
-                                    onClick={(e) => e.stopPropagation()}
+                            <TableRow
+                              key={record.id}
+                              className="gba:border-b hover:gba:bg-gray-50 gba:cursor-pointer"
+                              onClick={() => handleViewRuleDetails(record)}
+                              data-testid={`${PREFIX}-mileage-rule-row-${record.id}`}
+                            >
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${index}`}>
+                                <div
+                                  className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600"
+                                  title={record.code}
+                                >
+                                  {record.code}
+                                </div>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-name-${index}`}>
+                                <span className="gba:text-sm" title={record.name}>
+                                  {record.name}
+                                </span>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-period-${index}`}>
+                                <Badge variant="default">{record.rulePeriodLabel}</Badge>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                data-testid={`${PREFIX}-cell-valid-from-${index}`}
+                              >
+                                <span className="gba:text-sm">{record.validFrom}</span>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-to-${index}`}>
+                                <span className="gba:text-sm">{record.validTo}</span>
+                              </TableCell>
+                              <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-order-${index}`}>
+                                <span className="gba:text-sm">{record.ruleOrder}</span>
+                              </TableCell>
+                              <TableCell
+                                className="gba:py-3 gba:px-6"
+                                onClick={e => e.stopPropagation()}
+                                data-testid={`${PREFIX}-cell-actions-${index}`}
+                              >
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="gba:inline-flex gba:items-center gba:justify-center gba:gap-2 gba:whitespace-nowrap gba:rounded-sm gba:text-sm gba:font-medium gba:transition-all gba:disabled:pointer-events-none gba:disabled:opacity-50 gba:shrink-0 gba:outline-none gba:focus-visible:ring-[3px] gba:border gba:bg-background gba:size-9 gba:text-info-on-card gba:border-info/50 hover:gba:bg-info-secondary/10 hover:gba:text-info-on-card hover:gba:border-info gba:focus-visible:ring-info/40 gba:focus-visible:border-info"
+                                      data-testid={`${PREFIX}-actions-trigger-${index}`}
+                                    >
+                                      <Lightning className="gba:size-4 gba:shrink-0" weight="regular" />
+                                    </button>
+                                  </PopoverTrigger>
+                                  <PopoverContent
+                                    className="gba:w-auto gba:p-0"
+                                    align="end"
+                                    data-testid={`${PREFIX}-actions-popover-${index}`}
                                   >
-                                    <img src={flowIconUrl} alt="Actions" className="gba:w-5 gba:h-5" />
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent align="start" className="gba:p-0 gba:w-auto" onClick={(e) => e.stopPropagation()}>
-                                  <div className="gba:flex gba:flex-col">
-                                    <Button
-                                      variant="ghost"
-                                      className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]"
-                                      data-testid={`${PREFIX}-action-view-${index}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleViewRuleDetails(record);
-                                      }}
-                                    >
-                                      <PiEye className="gba:mr-2 gba:h-4 gba:w-4" />
-                                      {getTranslationFromI18nKeyAndLabel('common.view', 'View')}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      className="gba:px-4 gba:py-2 gba:text-left gba:justify-start gba:text-[14px]"
-                                      data-testid={`${PREFIX}-action-edit-${index}`}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleEditRule(record);
-                                      }}
-                                    >
-                                      <PiPencil className="gba:mr-2 gba:h-4 gba:w-4" />
-                                      {getTranslationFromI18nKeyAndLabel('common.edit', 'Edit')}
-                                    </Button>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-code-${index}`}>
-                              <div className="gba:font-mono gba:font-medium gba:text-sm gba:text-blue-600" title={record.code}>
-                                {record.code}
-                              </div>
-                            </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-name-${index}`}>
-                              <span className="gba:text-sm" title={record.name}>
-                                {record.name}
-                              </span>
-                            </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-period-${index}`}>
-                              <Badge variant="default">
-                                {record.rulePeriodLabel}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-from-${index}`}>
-                              <span className="gba:text-sm">{record.validFrom}</span>
-                            </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-valid-to-${index}`}>
-                              <span className="gba:text-sm">{record.validTo}</span>
-                            </TableCell>
-                            <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-order-${index}`}>
-                              <span className="gba:text-sm">{record.ruleOrder}</span>
-                            </TableCell>
-                          </TableRow>
+                                    <div className="gba:flex gba:flex-col gba:gap-1 gba:p-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleEditRule(record)
+                                        }}
+                                        data-testid={`${PREFIX}-edit-rule-${index}`}
+                                      >
+                                        <PiPencil className="gba:w-4 gba:h-4" />
+                                        <span>
+                                          {getTranslationFromI18nKeyAndLabel(
+                                            'lowcoder:expense_calculation_rule.edit',
+                                            'Edit'
+                                          )}
+                                        </span>
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="gba:justify-start gba:gap-2 gba:h-8 gba:px-2 gba:text-destructive"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          handleDeleteRule(record)
+                                        }}
+                                        data-testid={`${PREFIX}-delete-rule-${index}`}
+                                      >
+                                        <PiTrash className="gba:w-4 gba:h-4" />
+                                        <span>
+                                          {getTranslationFromI18nKeyAndLabel(
+                                            'lowcoder:expense_calculation_rule.delete',
+                                            'Delete'
+                                          )}
+                                        </span>
+                                      </Button>
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
+                              </TableCell>
+                            </TableRow>
                           ))}
                         </TableBody>
                       </Table>
                     </div>
-                  </>
-                )}
-                {/* Pagination */}
-                {filteredData.length > 0 && (
-                  <div
-                    className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4"
-                    data-testid={`${PREFIX}-pagination`}
-                  >
-                    <div className="gba:text-sm gba:text-gray-600" data-testid={`${PREFIX}-pagination-info`}>
-                      {(() => {
-                        const start = (currentPage - 1) * pageSize + 1;
-                        const end = Math.min(currentPage * pageSize, filteredData.length);
-                        return getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:absence_hub.pagination',
-                          `${start}-${end} of ${filteredData.length}`,
-                          {
-                            range0: start,
-                            range1: end,
-                            total: filteredData.length,
-                            interpolation: {
-                              escapeValue: false
-                            }
-                          }
-                        );
-                      })()}
-                    </div>
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:w-[100%]">
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationLink
-                              aria-label="Go to previous page"
-                              size="default"
-                              className={`gba:gap-1 gba:pl-2.5 ${currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
-                              onClick={() => setCurrentPage(currentPage - 1)}
-                              data-testid={`${PREFIX}-pagination-prev`}
-                            >
-                              <CaretLeftIcon className="gba:h-4 gba:w-4" />
-                              <span>
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:acknowledge_sick_leave.previous',
-                                  'Previous'
-                                )}
-                              </span>
-                            </PaginationLink>
-                          </PaginationItem>
-                          {Array.from({ length: totalPages }, (_, i) => i + 1)
-                            .filter(
-                              page =>
-                                page === 1 ||
-                                page === totalPages ||
-                                Math.abs(page - currentPage) <= 1
-                            )
-                            .map((page, index, array) => (
-                              <React.Fragment key={page}>
-                                {index > 0 && array[index - 1] !== page - 1 && (
-                                  <PaginationItem>
-                                    <span className="gba:px-2">...</span>
-                                  </PaginationItem>
-                                )}
-                                <PaginationItem>
-                                  <PaginationLink
-                                    onClick={() => setCurrentPage(page)}
-                                    className={
-                                      page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'
-                                    }
-                                    data-testid={`${PREFIX}-pagination-page-${page}`}
-                                  >
-                                    {page}
-                                  </PaginationLink>
-                                </PaginationItem>
-                              </React.Fragment>
-                            ))}
-                          <PaginationItem>
-                            <PaginationLink
-                              aria-label="Go to next page"
-                              size="default"
-                              className={`gba:gap-1 gba:pr-2.5 ${currentPage >= totalPages ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}`}
-                              onClick={() => setCurrentPage(currentPage + 1)}
-                              data-testid={`${PREFIX}-pagination-next`}
-                            >
-                              <span>
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
-                              </span>
-                              <CaretRightIcon className="gba:h-4 gba:w-4" />
-                            </PaginationLink>
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                      <div className="gba:flex gba:items-center gba:gap-2" data-testid={`${PREFIX}-page-size-selector`}>
-                        <span className="gba:text-sm gba:text-gray-600">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:expense_config_calculation_rule_list.expense_calculation_rule_filter.items_per_page',
-                            'Items per page'
-                          )}
-                        </span>
-                        <Select
-                          value={String(pageSize)}
-                          onValueChange={val => {
-                            setPageSize(Number(val));
-                            setCurrentPage(1);
-                          }}
-                        >
-                          <SelectTrigger className="gba:w-[80px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {[10, 20, 50].map(size => (
-                              <SelectItem key={size} value={String(size)} data-testid={`${PREFIX}-page-size-${size}`}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    {/* Pagination */}
+                    {filteredData.length > 0 && (
+                      <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:px-6">
+                        <div className="gba:text-sm gba:text-gray-700">
+                          Showing {(currentPage - 1) * pageSize + 1} to{' '}
+                          {Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length} rules
+                        </div>
+                        <div className="gba:flex gba:gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage(currentPage - 1)}
+                            data-testid={`${PREFIX}-prev-page`}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage * pageSize >= filteredData.length}
+                            onClick={() => setCurrentPage(currentPage + 1)}
+                            data-testid={`${PREFIX}-next-page`}
+                          >
+                            Next
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -670,40 +553,33 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
       </DataDetailsDrawer>
 
       {/* Create Mileage Rule Dialog */}
-      <Dialog
-        open={isCreateModalVisible}
-        onOpenChange={(open) => !open && handleModalCancel()}
-      >
-        <DialogContent 
-          className="gba:max-h-[90vh] gba:overflow-y-auto" 
-          style={{ 
-            width: 'min(95vw, 1200px)', 
+      <Dialog open={isCreateModalVisible} onOpenChange={open => !open && handleModalCancel()}>
+        <DialogContent
+          className="gba:max-h-[90vh] gba:overflow-y-auto"
+          style={{
+            width: 'min(95vw, 1200px)',
             maxWidth: '1200px',
             minWidth: '600px'
           }}
         >
           <DialogHeader>
             <DialogTitle>
-              {getTranslationFromI18nKeyAndLabel('expenseSettings.modals.createMileageRule.title', 'Create Mileage Rule')}
+              {getTranslationFromI18nKeyAndLabel(
+                'expenseSettings.modals.createMileageRule.title',
+                'Create Mileage Rule'
+              )}
             </DialogTitle>
           </DialogHeader>
-          <MileageRuleForm
-            accessToken={accessToken}
-            onSubmit={handleCreateSubmit}
-            onCancel={handleModalCancel}
-          />
+          <MileageRuleForm accessToken={accessToken} onSubmit={handleCreateSubmit} onCancel={handleModalCancel} />
         </DialogContent>
       </Dialog>
 
       {/* Edit Mileage Rule Dialog */}
-      <Dialog
-        open={isEditModalVisible}
-        onOpenChange={(open) => !open && handleModalCancel()}
-      >
-        <DialogContent 
-          className="gba:max-h-[90vh] gba:overflow-y-auto" 
-          style={{ 
-            width: 'min(95vw, 1200px)', 
+      <Dialog open={isEditModalVisible} onOpenChange={open => !open && handleModalCancel()}>
+        <DialogContent
+          className="gba:max-h-[90vh] gba:overflow-y-auto"
+          style={{
+            width: 'min(95vw, 1200px)',
             maxWidth: '1200px',
             minWidth: '600px'
           }}
@@ -713,52 +589,53 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({
               {getTranslationFromI18nKeyAndLabel('expenseSettings.modals.editMileageRule.title', 'Edit Mileage Rule')}
             </DialogTitle>
           </DialogHeader>
-          {editingRule && (() => {
-            const initialData = {
-              id: editingRule.id,
-              version: editingRule.version,
-              code: editingRule.code,
-              ruleName: editingRule.name,
-              description: editingRule.description || '',
-              rulePeriod: editingRule.rulePeriod || '',
-              activeFrom: editingRule.effectiveFrom ? dayjs(editingRule.effectiveFrom).format('YYYY-MM-DD') : '',
-              activeTo: editingRule.effectiveTo ? dayjs(editingRule.effectiveTo).format('YYYY-MM-DD') : '',
-              details: editingRule.details.map(detail => ({
-                id: detail.id,
-                version: detail.version,
-                rateAmount: detail.amount,
-                limitFrom: detail.limitFrom,
-                limitTo: detail.limitTo,
-                detailOrder: detail.detailOrder,
-                activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : '',
-                activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : ''
-              }))
-            };
-            
-            // DEBUG: Log what we're passing to the form
-            console.log('🐛 EditingRule initial data:', {
-              ruleId: initialData.id,
-              ruleVersion: initialData.version,
-              ruleCode: initialData.code,
-              detailsWithVersions: initialData.details.map(d => ({ 
-                id: d.id, 
-                version: d.version 
-              }))
-            });
-            
-            return (
-              <MileageRuleForm
-                accessToken={accessToken}
-                initialData={initialData}
-                onSubmit={handleEditSubmit}
-                onCancel={handleModalCancel}
-              />
-            );
-          })()}
+          {editingRule &&
+            (() => {
+              const initialData = {
+                id: editingRule.id,
+                version: editingRule.version,
+                code: editingRule.code,
+                ruleName: editingRule.name,
+                description: editingRule.description || '',
+                rulePeriod: editingRule.rulePeriod || '',
+                activeFrom: editingRule.effectiveFrom ? dayjs(editingRule.effectiveFrom).format('YYYY-MM-DD') : '',
+                activeTo: editingRule.effectiveTo ? dayjs(editingRule.effectiveTo).format('YYYY-MM-DD') : '',
+                details: editingRule.details.map(detail => ({
+                  id: detail.id,
+                  version: detail.version,
+                  rateAmount: detail.amount,
+                  limitFrom: detail.limitFrom,
+                  limitTo: detail.limitTo,
+                  detailOrder: detail.detailOrder,
+                  activeFrom: detail.activeFrom ? dayjs(detail.activeFrom).format('YYYY-MM-DD') : '',
+                  activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : ''
+                }))
+              }
+
+              // DEBUG: Log what we're passing to the form
+              console.log('🐛 EditingRule initial data:', {
+                ruleId: initialData.id,
+                ruleVersion: initialData.version,
+                ruleCode: initialData.code,
+                detailsWithVersions: initialData.details.map(d => ({
+                  id: d.id,
+                  version: d.version
+                }))
+              })
+
+              return (
+                <MileageRuleForm
+                  accessToken={accessToken}
+                  initialData={initialData}
+                  onSubmit={handleEditSubmit}
+                  onCancel={handleModalCancel}
+                />
+              )
+            })()}
         </DialogContent>
       </Dialog>
     </div>
-  );
-};
+  )
+}
 
-export default MileageRulesList; 
+export default MileageRulesList
