@@ -3,7 +3,7 @@ export const CHANGE_LOG_QUERIES = {
    * GraphQL query to fetch employee data with audit fields
    */
   GET_EMPLOYEE_CHANGE_LOG: `
-    query GetEmployeeChangeLog($employeeId: uuid!, $limit: Int, $offset: Int) {
+    query GetEmployeeChangeLog($employeeId: uuid!, $limit: Int) {
       Employee(where: {id: {_eq: $employeeId}}) {
         id
         code

@@ -1,6 +1,7 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ChangeLogEntry, ChangeLogFilters } from '../components/tabs/ChangeLogTab'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { env } from '@/common/env/EnvUtils'
 import ChangeLogDataTransformer from './changeLogDataTransformer'
 import ChangeLogVisibilityRules from './changeLogVisibilityRules'
 import { CHANGE_LOG_QUERIES } from './changeLogQueries'
@@ -59,8 +60,8 @@ export class ChangeLogService {
     limit: number = 50,
     offset: number = 0
   ): Promise<ChangeLogApiResponse> {
-    // For now, return empty data since FLOW audit system is not available
-    // This will trigger the fallback to version comparison
+    // FLOW audit system is not available in the current schema
+    // Return empty data to trigger the fallback to version comparison
     return {
       entries: [],
       totalCount: 0,
@@ -85,11 +86,10 @@ export class ChangeLogService {
       if (this.graphqlClient) {
         data = await this.graphqlClient.request(query, {
           employeeId: this.config.employeeId,
-          limit,
-          offset
+          limit
         })
       } else {
-        const response = await fetch(`${this.config.baseUrl}/graphql`, {
+        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || '', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.config.accessToken}`,
@@ -99,8 +99,7 @@ export class ChangeLogService {
             query,
             variables: {
               employeeId: this.config.employeeId,
-              limit,
-              offset
+              limit
             }
           })
         })
@@ -180,7 +179,7 @@ export const createChangeLogService = (
   graphqlClient?: any
 ): ChangeLogService => {
   // Get base URL from environment or use provided one
-  const baseUrl = config.baseUrl || process.env.REACT_APP_API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'https://newwork-dev.newwork.com/flow-engine'
+  const baseUrl = config.baseUrl || 'https://newwork-dev.newwork.com'
   
   return new ChangeLogService({
     ...config,
