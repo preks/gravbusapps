@@ -99,7 +99,7 @@ export const uploadDocuments = async (
     })
 
     return formattedFiles
-  } catch (error) {
+  } catch {
     showToast(t('lowcoder:create_expense_type_item.document_upload_error_files', 'Error uploading files'), 'error')
     return []
   }
@@ -133,7 +133,7 @@ export const handleExpenseGroupChange = async (
     if (!hasExpenseTypesForGroup) {
       await fetchExpenseTypes(value, positions, employeeRuleId, graphqlClient, setExpenseTypes, t)
     }
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
       'error'
@@ -189,7 +189,7 @@ export const handleExpenseTypeChange = async (
 
       await fetchCustomFields(expenseTypeIds, graphqlClient, setCustomFields, t)
     }
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_custom_groups', 'Error processing custom groups'),
       'error'
@@ -321,7 +321,7 @@ export const handleSubmit = async (
             }
           }
         }
-      } catch (flowError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
       }
     }
@@ -358,6 +358,9 @@ export const handleSubmit = async (
         expenseRule: employeeRuleId as string
       }
     })
+    const computedExpenseRequestId =
+      normalizedExpenseRequestId ?? coerceRequestId(values?.expenseRequestId) ?? additionalData?.expenseRequestId ?? ''
+
     const submitData = {
       expenseItem: {
         ...(itemValues?.id && { id: itemValues.id }),
@@ -370,13 +373,9 @@ export const handleSubmit = async (
         costCenter: positions[0]?.costCenter || '',
         reimbursable: positions[0]?.isReimbursable || false,
         expenseClassRef: DEFAULT_EXPENSE_CLASS_ID,
-        status: itemValues?.id ? REQUEST_STATUS.ASSIGNED : DEFAULT_EXPENSE_STATUS,
+        status: computedExpenseRequestId ? REQUEST_STATUS.ASSIGNED : DEFAULT_EXPENSE_STATUS,
         multiplePositions: multiPosition,
-        expenseRequest:
-          normalizedExpenseRequestId ??
-          coerceRequestId(values?.expenseRequestId) ??
-          additionalData?.expenseRequestId ??
-          '',
+        expenseRequest: computedExpenseRequestId,
         employee: generalDataResponse?.data?.Employee?.[0]?.id || employeeId || '',
         expenseRule: employeeRuleId as string
       },
@@ -408,7 +407,7 @@ export const handleSubmit = async (
           FLOW_PROCESS_NAME
         )
         operationSuccessful = true
-      } catch (completeError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
       }
     }
@@ -421,7 +420,7 @@ export const handleSubmit = async (
           dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
         }
         // operationSuccessful = true;
-      } catch (processError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in expense approval process'), 'error')
       }
     }
@@ -437,7 +436,7 @@ export const handleSubmit = async (
       setFileList([])
       setCurrentStep(FORM_STEPS.START)
     }
-  } catch (error) {
+  } catch {
     showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
   } finally {
     setLoading(false)
