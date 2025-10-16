@@ -8,7 +8,6 @@ import { EVENTS } from '../../utils/constants'
 import { ICONS } from '../../utils/icons'
 
 import { SCREEN_NAMES_ENUM } from './constants/constants'
-
 import LoadScreen from '../expense-request-wizard/screens/LoadScreen'
 
 import ProgressIndicator from '../expense-request-wizard/components/ProgressIndicator'
