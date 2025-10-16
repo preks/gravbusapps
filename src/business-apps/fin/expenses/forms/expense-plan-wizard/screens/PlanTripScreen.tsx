@@ -316,69 +316,61 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     setLocationsAreSynced(sanitizedLocation.location === startLocation.location)
   }
 
+  const hasTripData = () => {
+    return (
+      expensePlanData?.ExpensePlanByPk?.expenseRequestTrip &&
+      Array.isArray(expensePlanData.ExpensePlanByPk.expenseRequestTrip) &&
+      expensePlanData.ExpensePlanByPk.expenseRequestTrip.length !== 0
+    )
+  }
+
+  const fetchAndSetEmployeeRule = async (formattedDate: string) => {
+    const employeeId = userInfo?.employeeDetails?.employeeId
+    if (!employeeId) {
+      showToast(
+        getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.missing_employee_id', 'Missing employee ID'),
+        'error'
+      )
+      return null
+    }
+
+    const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
+    if (employeeRuleData?.expenseRuleId) {
+      setEmployeeRuleId(employeeRuleData.expenseRuleId)
+      const activeUserLocale = getCurrentActiveUserLocale()
+      const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
+        expenseRuleId: employeeRuleData.expenseRuleId,
+        activeUserLocale
+      })
+      setExpenseRulesData(rulesResponse)
+      return rulesResponse
+    }
+    return null
+  }
+
   const loadInitialTripData = async () => {
     try {
-      if (
-        expensePlanData?.ExpensePlanByPk?.expenseRequestTrip &&
-        Array.isArray(expensePlanData.ExpensePlanByPk.expenseRequestTrip) &&
-        expensePlanData.ExpensePlanByPk.expenseRequestTrip.length !== 0
-      ) {
-        let myData: any = []
-        if (
-          expensePlanData?.ExpensePlanByPk?.expenseRequestTrip &&
-          Array.isArray(expensePlanData.ExpensePlanByPk.expenseRequestTrip) &&
-          expensePlanData.ExpensePlanByPk.expenseRequestTrip.length !== 0
-        ) {
-          myData = expensePlanData.ExpensePlanByPk.expenseRequestTrip
-        }
-        const startObject = myData.find((item: any) => item.pointType === 'START_POINT')
-
-        if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
-          const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
-
-          const employeeId = userInfo?.employeeDetails?.employeeId
-          if (!employeeId) {
-            showToast(
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:modify_expense_request.missing_employee_id',
-                'Missing employee ID'
-              ),
-              'error'
-            )
-            return
-          }
-
-          const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
-          if (employeeRuleData && employeeRuleData.expenseRuleId) {
-            setEmployeeRuleId(employeeRuleData.expenseRuleId)
-            const activeUserLocale = getCurrentActiveUserLocale()
-            const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
-              expenseRuleId: employeeRuleData.expenseRuleId,
-              activeUserLocale
-            })
-
-            setExpenseRulesData(rulesResponse)
-            setByExternalCustomComponent(
-              expensePlanData,
-              rulesResponse,
-              setStartLocation,
-              setDestinations,
-              setEndLocation
-            )
-          } else {
-            setByExternalCustomComponent(expensePlanData, null, setStartLocation, setDestinations, setEndLocation)
-          }
-        } else {
-          setByExternalCustomComponent(
-            expensePlanData,
-            expenseRulesData,
-            setStartLocation,
-            setDestinations,
-            setEndLocation
-          )
-        }
-      } else {
+      if (!hasTripData()) {
         setLocalitiesDefault(expensePlanData, setStartLocation, setEndLocation, setLocationsAreSynced)
+        return
+      }
+
+      const myData = expensePlanData.ExpensePlanByPk.expenseRequestTrip
+      const startObject = myData.find((item: any) => item.pointType === 'START_POINT')
+      const hasValidStartDate = startObject?.tripDateTime && dayjs(startObject.tripDateTime).isValid()
+
+      if (hasValidStartDate) {
+        const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
+        const rulesResponse = await fetchAndSetEmployeeRule(formattedDate)
+        setByExternalCustomComponent(expensePlanData, rulesResponse, setStartLocation, setDestinations, setEndLocation)
+      } else {
+        setByExternalCustomComponent(
+          expensePlanData,
+          expenseRulesData,
+          setStartLocation,
+          setDestinations,
+          setEndLocation
+        )
       }
     } catch {
       showToast(
