@@ -38,11 +38,11 @@ export const PlanVsRequestChart: React.FC<PlanVsRequestChartProps> = ({ chartDat
   const chartConfig = useMemo(
     () => ({
       a_planned: {
-        label: getTranslationFromI18nKeyAndLabel('expense.planned', 'Planned'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:cards.planned_chart_legend', 'Planned'),
         color: getChartColor('chart1') // Design system chart-1 token (blue)
       },
       b_actual: {
-        label: getTranslationFromI18nKeyAndLabel('expense.actual', 'Actual'),
+        label: getTranslationFromI18nKeyAndLabel('lowcoder:cards.actual_chart_legend', 'Actual'),
         color: getChartColor('chart3') // Design system chart-3 token (orange)
       }
     }),
@@ -54,7 +54,7 @@ export const PlanVsRequestChart: React.FC<PlanVsRequestChartProps> = ({ chartDat
       <CardHeader>
         <CardTitle className="gba:flex gba:items-center gba:gap-2">
           <IconAvatar icon={ChartBarIcon} variant="default" size="md" decorative />
-          {getTranslationFromI18nKeyAndLabel('expense.monthlyTrend', 'Monthly Trend')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly_trend', 'Monthly Trend')}
         </CardTitle>
       </CardHeader>
       <CardContent>

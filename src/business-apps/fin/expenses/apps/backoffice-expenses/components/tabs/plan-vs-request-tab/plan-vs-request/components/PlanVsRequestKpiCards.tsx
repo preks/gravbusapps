@@ -82,21 +82,21 @@ export const usePlanVsRequestKpiCards = ({
       },
       {
         id: 'overdue-plans',
-        title: getTranslationFromI18nKeyAndLabel('expense.overduePlans', 'Overdue Plans'),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.overdue_plans', 'Overdue Plans'),
         value: loadingOverduePlans ? '-' : overduePlansCount,
-        footer: getTranslationFromI18nKeyAndLabel('expense.plansPastEndDate', 'Plans past end date')
+        footer: getTranslationFromI18nKeyAndLabel('lowcoder:cards.plans_past_end_date', 'Plans past end date')
       },
       {
         id: 'over-budget',
-        title: getTranslationFromI18nKeyAndLabel('expense.overBudget', 'Over Budget'),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.over_budget', 'Over Budget'),
         value: loadingCategoryStats ? '-' : overBudgetCount,
-        footer: getTranslationFromI18nKeyAndLabel('expense.itemsExceedingPlan', 'Items exceeding plan')
+        footer: getTranslationFromI18nKeyAndLabel('lowcoder:cards.items_exceeding_plan', 'Items exceeding plan')
       },
       {
         id: 'potential-savings',
-        title: getTranslationFromI18nKeyAndLabel('expense.potentialSavings', 'Potential Savings'),
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:cards.potential_savings', 'Potential Savings'),
         value: '-',
-        footer: getTranslationFromI18nKeyAndLabel('expense.identifiedOpportunities', 'Identified opportunities')
+        footer: getTranslationFromI18nKeyAndLabel('lowcoder:cards.identified_opportunities', 'Identified opportunities')
       }
     ],
     [
