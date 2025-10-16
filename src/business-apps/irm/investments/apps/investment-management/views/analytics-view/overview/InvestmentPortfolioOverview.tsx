@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   Alert,
   AlertTitle,
@@ -8,7 +8,12 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@newwork/nw-design-system'
 import { PieChartOutlined, BarChartOutlined, RiseOutlined } from '@ant-design/icons'
 import { BarChart } from 'lucide-react'
@@ -18,7 +23,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useInvestmentPortfolioIntegration, usePortfolioChartData } from './hooks'
-import { formatCurrency } from './utils'
 import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts'
 import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts'
 import { PortfolioDistributionCharts } from './components/PortfolioDistributionCharts'
@@ -41,9 +45,24 @@ const calculateChange = (current: number, previous: number): { value: string; po
 const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'InvestmentPortfolioOverview'
   const [activeTab, setActiveTab] = useState('distribution')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props)
+  const { investments, kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(
+    props,
+    selectedCurrency
+  )
   const chartData = usePortfolioChartData(investments)
+
+  // Extract unique currencies from investments
+  const availableCurrencies = useMemo(() => {
+    const currencies = new Set<string>()
+    investments.forEach(inv => {
+      if (inv.currencyCode) {
+        currencies.add(inv.currencyCode)
+      }
+    })
+    return Array.from(currencies).sort()
+  }, [investments])
 
   if (isLoading) {
     return (
@@ -86,6 +105,26 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             {getTranslationFromI18nKeyAndLabel('investment.portfolio.items', 'investments')}
           </Badge>
         </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
+          </span>
+          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+            <SelectTrigger
+              className="gba:w-24 gba:h-8"
+              data-testid={formatDataTestId(prefixDataTestId, 'CurrencyFilter')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCurrencies.map(currency => (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -95,7 +134,14 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             {
               key: 'total-portfolio-value',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalPortfolioValue', 'Total Portfolio Value'),
-              value: formatCurrency(kpis.totalPortfolioValue),
+              value: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: selectedCurrency,
+                notation: 'compact',
+                compactDisplay: 'short',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 1
+              }).format(kpis.totalPortfolioValue),
               prefix: <PieChartOutlined />,
               color: 'var(--nw-color-primary-500)',
               valueIsString: true,
@@ -124,7 +170,14 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             {
               key: 'total-amount-invested',
               title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
-              value: formatCurrency(kpis.totalAmountInvested),
+              value: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: selectedCurrency,
+                notation: 'compact',
+                compactDisplay: 'short',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 1
+              }).format(kpis.totalAmountInvested),
               prefix: <BarChartOutlined />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
@@ -195,6 +248,8 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               statusData={chartData.statusData}
               currencyData={chartData.currencyData}
               rawInvestments={investments}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
             />
           </TabsContent>
 
@@ -204,9 +259,9 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             data-testid={formatDataTestId(prefixDataTestId, 'TimelineContent')}
           >
             <PortfolioTimelineCharts
-              performanceTimelineData={chartData.performanceTimelineData}
-              valueOverTimeData={chartData.valueOverTimeData}
               rawInvestments={investments}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
             />
           </TabsContent>
 
@@ -217,8 +272,9 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
           >
             <div className="gba:grid gba:grid-cols-1 gba:lg:gba:grid-cols-2 gba:gap-6">
               <PortfolioAnalyticsCharts
-                concentrationByGroupData={chartData.concentrationByGroupData}
-                valueByAccountData={chartData.valueByAccountData}
+                rawInvestments={investments}
+                masterCurrency={selectedCurrency}
+                availableCurrencies={availableCurrencies}
               />
             </div>
           </TabsContent>

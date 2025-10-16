@@ -13,11 +13,14 @@ export interface PortfolioKPIComparison {
   previous: PortfolioKPIData
 }
 
-export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string): string => {
+export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyCode?: string): string => {
+  // Build currency filter if provided
+  const currencyFilter = currencyCode ? `currency: { code: { _eq: "${currencyCode}" } }` : ''
+
   return `
     query GetPortfolioKPIsWithComparison {
       # Current data (all investments)
-      currentAggregate: InvestmentAggregate {
+      currentAggregate: InvestmentAggregate${currencyFilter ? `(where: { ${currencyFilter} })` : ''} {
         aggregate {
           count
           sum {
@@ -30,7 +33,10 @@ export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string): stri
       # Current active investments count
       currentActiveAggregate: InvestmentAggregate(
         where: {
-          investmentStatus: { value: { _eq: "Active" } }
+          _and: [
+            { investmentStatus: { value: { _eq: "Active" } } }
+            ${currencyFilter ? `{ ${currencyFilter} }` : ''}
+          ]
         }
       ) {
         aggregate {
@@ -41,7 +47,10 @@ export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string): stri
       # Previous period data (investments existing 7 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
-          createdAt: { _lt: "${comparisonDate}" }
+          _and: [
+            { createdAt: { _lt: "${comparisonDate}" } }
+            ${currencyFilter ? `{ ${currencyFilter} }` : ''}
+          ]
         }
       ) {
         aggregate {
@@ -59,6 +68,7 @@ export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string): stri
           _and: [
             { createdAt: { _lt: "${comparisonDate}" } }
             { investmentStatus: { value: { _eq: "Active" } } }
+            ${currencyFilter ? `{ ${currencyFilter} }` : ''}
           ]
         }
       ) {
@@ -104,13 +114,13 @@ export interface PortfolioKPIResponse {
 export const useGetPortfolioKPIs = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchPortfolioKPIs = async (): Promise<PortfolioKPIComparison> => {
+  const fetchPortfolioKPIs = async (currencyCode?: string): Promise<PortfolioKPIComparison> => {
     // Calculate date 7 days ago for comparison
     const sevenDaysAgo = new Date()
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const comparisonDate = sevenDaysAgo.toISOString()
 
-    const query = GET_PORTFOLIO_KPIS_WITH_COMPARISON(comparisonDate)
+    const query = GET_PORTFOLIO_KPIS_WITH_COMPARISON(comparisonDate, currencyCode)
     try {
       const result = await graphqlClient.request<PortfolioKPIResponse>(query)
 

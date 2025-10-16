@@ -41,7 +41,7 @@ export interface EnhancedInvestmentSummary {
   opportunityName?: string
 }
 
-export const useInvestmentPortfolioIntegration = (context: BusinessAppContextProps) => {
+export const useInvestmentPortfolioIntegration = (context: BusinessAppContextProps, selectedCurrency?: string) => {
   const [investments, setInvestments] = useState<EnhancedInvestmentSummary[]>([])
   const [kpis, setKPIs] = useState<InvestmentPortfolioKPIs>({
     totalPortfolioValue: 0,
@@ -156,14 +156,6 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     })
   }, [])
 
-  const calculateKPIs = useCallback((enhancedInvestments: EnhancedInvestmentSummary[]): InvestmentPortfolioKPIs => {
-    const totalPortfolioValue = enhancedInvestments.reduce((sum, inv) => sum + (inv.marketValue || 0), 0)
-    const totalInvestments = enhancedInvestments.length
-    const activeInvestments = enhancedInvestments.filter(inv => inv.isActive).length
-    const totalAmountInvested = enhancedInvestments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
-    return { totalPortfolioValue, totalInvestments, totalAmountInvested, activeInvestments }
-  }, [])
-
   const loadData = useCallback(
     async (variables: InvestmentQueryVariables = {}) => {
       if (!context.accessToken) {
@@ -187,7 +179,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
               direction: (o.direction || 'DESC') as 'ASC' | 'DESC'
             }))
           }),
-          fetchPortfolioKPIs()
+          fetchPortfolioKPIs(selectedCurrency)
         ])
 
         // Process investment data for list display
@@ -205,14 +197,14 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
         setIsLoading(false)
       }
     },
-    [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData]
+    [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData, selectedCurrency]
   )
 
   useEffect(() => {
     if (context.accessToken) {
       loadData()
     }
-  }, [context.accessToken]) // Only depend on accessToken, not loadData
+  }, [context.accessToken, selectedCurrency])
 
   return {
     investments,
