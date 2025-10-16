@@ -228,7 +228,7 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
             </h1>
           </div>
 
-          <Separator className="gba:h-px gba:bg-secondary gba:mb-2" />
+          <Separator className="gba:h-px gba:!bg-muted gba:mb-2" />
 
           {/* Expense Plan and Employee Info */}
           <div className="gba:flex gba:flex-row gba:gap-6 gba:mb-1">
@@ -367,7 +367,7 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
             </div>
           </div>
 
-          <Separator className="gba:!h-4 gba:bg-muted gba:mb-2" />
+          <Separator className="gba:!h-3 gba:!bg-muted gba:mb-2" />
           {/* Amount Display */}
           <div className="gba:flex gba:justify-between gba:items-center gba:px-6 gba:py-6 gba:border-b gba:border-border gba:mb-8">
             <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
