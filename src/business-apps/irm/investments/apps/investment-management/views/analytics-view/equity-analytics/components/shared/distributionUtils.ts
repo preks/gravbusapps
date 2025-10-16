@@ -1,4 +1,5 @@
 import dayjs from 'dayjs'
+import { formatAmount } from '@/common/utils/numberFormatter'
 import type { EquityInvestmentSummary } from '../../../shared/types'
 
 export interface DistributionData {
@@ -38,26 +39,6 @@ export const computeDistributionByField = (
 
       return acc
     }, [])
-}
-
-/**
- * Helper function to format currency amounts for display
- */
-export const formatAmount = (amount: number | null | undefined): string => {
-  // Handle null/undefined values
-  if (amount === null || amount === undefined || isNaN(amount)) {
-    return '0'
-  }
-
-  if (amount >= 1000000000) {
-    return `${(amount / 1000000000).toFixed(1)}B`
-  } else if (amount >= 1000000) {
-    return `${(amount / 1000000).toFixed(0)}M`
-  } else if (amount >= 1000) {
-    return `${(amount / 1000).toFixed(0)}K`
-  } else {
-    return amount.toFixed(0)
-  }
 }
 
 /**
@@ -109,11 +90,11 @@ export const calculateInvestmentSizeRanges = (
 
     let label: string
     if (i === 0) {
-      label = `<${formatAmount(amounts[endIdx])}`
+      label = `<${formatAmount(amounts[endIdx], 0)}`
     } else if (i === 4) {
-      label = `>${formatAmount(amounts[startIdx])}`
+      label = `>${formatAmount(amounts[startIdx], 0)}`
     } else {
-      label = `${formatAmount(amounts[startIdx])}-${formatAmount(amounts[endIdx])}`
+      label = `${formatAmount(amounts[startIdx], 0)}-${formatAmount(amounts[endIdx], 0)}`
     }
 
     ranges.push({ min, max, label })

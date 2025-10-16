@@ -3,7 +3,7 @@ import React from 'react'
 // Use common formatters directly
 export {
   formatCompactCurrency as formatCurrency,
-  formatCompactNumber as formatNumber,
+  formatAmount as formatNumber,
   formatPercentage
 } from '@/common/utils/numberFormatter'
 

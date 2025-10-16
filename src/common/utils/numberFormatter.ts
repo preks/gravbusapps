@@ -10,23 +10,38 @@
 
 import { getCurrentActiveUserLocale, formatNumberFunction as formatNumberWithMask } from '@/common/utils/windowUtils'
 
-export const formatCompactNumber = (value: number | null | undefined, maximumFractionDigits: number = 1): string => {
-  if (value === null || value === undefined || !isFinite(value as number)) return '0'
+/**
+ * Formats numbers with compact notation (K, M, B, T)
+ * @param value - The number to format
+ * @param decimals - Number of decimal places (default: 1)
+ * @returns Formatted string like "1.5M", "2.3B", "500K"
+ *
+ * @example
+ * formatAmount(1500000)        → "1.5M"  (default 1 decimal)
+ * formatAmount(1500000, 0)     → "2M"    (no decimals)
+ * formatAmount(1500000, 2)     → "1.50M" (2 decimals)
+ * formatAmount(-1000000)       → "-1.0M" (handles negatives)
+ * formatAmount(1500000000000)  → "1.5T"  (supports trillions)
+ */
+export const formatAmount = (value: number | null | undefined, decimals: number = 1): string => {
+  if (value === null || value === undefined || !isFinite(value as number)) {
+    return '0'
+  }
 
   const abs = Math.abs(value as number)
   const sign = (value as number) < 0 ? '-' : ''
 
   if (abs >= 1_000_000_000_000) {
-    return `${sign}${(abs / 1_000_000_000_000).toFixed(maximumFractionDigits)}T`
+    return `${sign}${(abs / 1_000_000_000_000).toFixed(decimals)}T`
   }
   if (abs >= 1_000_000_000) {
-    return `${sign}${(abs / 1_000_000_000).toFixed(maximumFractionDigits)}B`
+    return `${sign}${(abs / 1_000_000_000).toFixed(decimals)}B`
   }
   if (abs >= 1_000_000) {
-    return `${sign}${(abs / 1_000_000).toFixed(maximumFractionDigits)}M`
+    return `${sign}${(abs / 1_000_000).toFixed(decimals)}M`
   }
   if (abs >= 1_000) {
-    return `${sign}${(abs / 1_000).toFixed(maximumFractionDigits)}K`
+    return `${sign}${(abs / 1_000).toFixed(decimals)}K`
   }
 
   // For small numbers, show without abbreviation
