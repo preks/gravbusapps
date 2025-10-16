@@ -17,6 +17,8 @@ import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { PLAN_TYPES } from '../../expense-plan/constants/constants'
 import { PLAN_SUMMARY_SCREEN_ITEM_LIST_LIMIT } from '../../expense-request-wizard/constants/constants'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getExpenseRequestTypeConfig } from '../queries/ExpensePlanWizardQueries'
 
 /**
  * PlanSummaryScreen component props
@@ -36,13 +38,44 @@ interface PlanSummaryScreenProps extends BusinessAppContextProps {
  * @returns PlanSummaryScreen component
  */
 const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
-  const { additionalData } = props
+  const { additionalData, accessToken } = props
   const { expensePlanData, employeeRuleId, currentTitle } = useExpensePlanWizardContext()
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
+  const graphqlClient = useGraphqlClient(accessToken)
   const planData = expensePlanData?.ExpensePlanByPk
   const planItemData = expensePlanData?.ExpensePlanItem
   const expenseItems = noAllowanceItemsFunction(planItemData)
   const isTrip = expensePlanData?.ExpensePlanByPk?.requestTypeRef?.toLowerCase().includes(PLAN_TYPES.TRIP)
+
+  // State to store createAbsenceFromPlan from catalog
+  const [createBusinessTrip, setCreateBusinessTrip] = useState(false)
+
+  // Fetch catalog configuration when component mounts or requestTypeRef changes
+  useEffect(() => {
+    const fetchCatalogConfig = async () => {
+      const requestTypeRef = expensePlanData?.ExpensePlanByPk?.requestTypeRef
+      if (!requestTypeRef || !accessToken) return
+
+      try {
+        const response = await graphqlClient.request(getExpenseRequestTypeConfig, {
+          requestTypeRef
+        })
+
+        const catalogEntry = response.CatalogEntry?.[0]
+        if (catalogEntry?.objectValue?.createAbsenceFromPlan !== undefined) {
+          setCreateBusinessTrip(catalogEntry.objectValue.createAbsenceFromPlan)
+        } else {
+          setCreateBusinessTrip(false) // Default to false if not configured
+        }
+      } catch (error) {
+        console.warn('[PlanSummaryScreen] Failed to fetch catalog config:', error)
+        setCreateBusinessTrip(false) // Default to false on error
+      }
+    }
+
+    fetchCatalogConfig()
+  }, [expensePlanData?.ExpensePlanByPk?.requestTypeRef, accessToken, graphqlClient])
+
   const handleSave = useCallback(() => {
     let skipStep = false
     if (additionalData?.psi_taskPayload.stepKey && additionalData?.psi_taskPayload.stepKey.includes(EVENTS.SKIP)) {
@@ -55,11 +88,12 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
         currentTitle,
         expensePlanData,
         EVENTS.SAVE,
-        skipStep
+        skipStep,
+        createBusinessTrip
       )
       dispatchProcessContinueEventIfEnabled(EVENTS.SAVE, logObject)
     }
-  }, [expensePlanData, employeeRuleId, currentTitle])
+  }, [expensePlanData, employeeRuleId, currentTitle, createBusinessTrip])
 
   const handleSubmit = useCallback(() => {
     let skipStep = false
@@ -73,11 +107,12 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
         currentTitle,
         expensePlanData,
         EVENTS.SUBMIT,
-        skipStep
+        skipStep,
+        createBusinessTrip
       )
       dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, logObject)
     }
-  }, [expensePlanData, employeeRuleId, currentTitle])
+  }, [expensePlanData, employeeRuleId, currentTitle, createBusinessTrip])
 
   useEffect(() => {
     document.addEventListener('expense-plan-save-summary', handleSave)
@@ -221,7 +256,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
         <div style={{ flexGrow: 1 }}>
           <div className="gba:mt-6" data-testid="expense-plan-allowances-section">
             <span
-              className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
+              className="gba:inline-block gba:font-bold gba:w-full gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
               data-testid="expense-plan-allowances-section-title"
             >
               {getTranslationFromI18nKeyAndLabel(
@@ -272,7 +307,7 @@ const PlanSummaryScreen: React.FC<PlanSummaryScreenProps> = props => {
 
           <div className="gba:mt-6" data-testid="expense-plan-expense-items-section">
             <span
-              className="gba:inline-block gba:font-bold gba:w-[100%] gba:bg-[#F7F7F7] gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
+              className="gba:inline-block gba:font-bold gba:w-full gba:bg-muted gba:px-4 gba:py-5 gba:text-sm gba:mb-3"
               data-testid="expense-plan-expense-items-section-title"
             >
               {getTranslationFromI18nKeyAndLabel(
