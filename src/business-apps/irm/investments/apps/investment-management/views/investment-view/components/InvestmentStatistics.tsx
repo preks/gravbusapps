@@ -7,7 +7,7 @@ import { formatCurrencyCompact } from '../../../utils/currencyUtils'
 
 type InvestmentStatisticsProps = BusinessAppContextProps
 
-// Removed formatCurrency - now using formatCurrencyCompact utility
+// Removed formatCurrencyCompact - now using formatCurrencyCompact utility
 
 const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`

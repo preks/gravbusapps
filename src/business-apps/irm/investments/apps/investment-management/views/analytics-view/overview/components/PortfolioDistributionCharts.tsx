@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import {
   Card,
   CardHeader,
@@ -6,37 +6,16 @@ import {
   CardContent,
   CardDescription,
   IconAvatar,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   ChartContainer,
   ChartTooltip,
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { PieChart, Pie, Cell } from 'recharts'
-import { formatCurrency } from '@/common/data/investment'
+import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { ChartPieSliceIcon, ChartDonutIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
-
-// Empty state component for charts
-const ChartEmptyState: React.FC<{ message?: string }> = ({
-  message = 'No data available for the selected currency'
-}) => (
-  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-[300px] gba:text-gray-500">
-    <svg className="gba:w-16 gba:h-16 gba:mb-4 gba:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-      />
-    </svg>
-    <p className="gba:text-sm gba:font-medium">{message}</p>
-    <p className="gba:text-xs gba:mt-1">Try selecting a different currency</p>
-  </div>
-)
+import { ChartEmptyState, CurrencyFilter } from '../../shared/components'
+import { useCurrencySync } from '../../shared/hooks'
 
 interface PortfolioDistributionChartsProps {
   investmentGroupData: any[]
@@ -55,14 +34,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   masterCurrency,
   availableCurrencies
 }) => {
-  const [groupCurrencyFilter, setGroupCurrencyFilter] = useState<string>(masterCurrency)
-  const [statusCurrencyFilter, setStatusCurrencyFilter] = useState<string>(masterCurrency)
-
-  // Reset chart currencies when master currency changes
-  useEffect(() => {
-    setGroupCurrencyFilter(masterCurrency)
-    setStatusCurrencyFilter(masterCurrency)
-  }, [masterCurrency])
+  // Currency sync hooks - automatically sync with master currency
+  const [groupCurrencyFilter, setGroupCurrencyFilter] = useCurrencySync(masterCurrency)
+  const [statusCurrencyFilter, setStatusCurrencyFilter] = useCurrencySync(masterCurrency)
 
   // Filter data based on selected currency for Investment Group Total Amount chart
   const filteredInvestmentGroupData = useMemo(() => {
@@ -214,18 +188,13 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
                 <span className="gba:text-xs gba:text-gray-500">Currency:</span>
-                <Select value={groupCurrencyFilter} onValueChange={setGroupCurrencyFilter}>
-                  <SelectTrigger className="gba:w-20 gba:h-8 gba:text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCurrencies.map(currency => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CurrencyFilter
+                  value={groupCurrencyFilter}
+                  onChange={setGroupCurrencyFilter}
+                  currencies={availableCurrencies}
+                  showLabel={false}
+                  dataTestId="group-currency-filter"
+                />
               </div>
             </div>
           </CardHeader>
@@ -271,7 +240,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                               <span className="gba:font-medium">{data.payload.name}</span>
                             </div>
                             <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                              {formatCurrency(data.value as number, groupCurrencyFilter)}
+                              {formatCurrencyCompact(data.value as number, groupCurrencyFilter)}
                             </div>
                           </div>
                         )
@@ -375,18 +344,13 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
                 <span className="gba:text-xs gba:text-gray-500">Currency:</span>
-                <Select value={statusCurrencyFilter} onValueChange={setStatusCurrencyFilter}>
-                  <SelectTrigger className="gba:w-20 gba:h-8 gba:text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCurrencies.map(currency => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CurrencyFilter
+                  value={statusCurrencyFilter}
+                  onChange={setStatusCurrencyFilter}
+                  currencies={availableCurrencies}
+                  showLabel={false}
+                  dataTestId="status-currency-filter"
+                />
               </div>
             </div>
           </CardHeader>
@@ -432,7 +396,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                               <span className="gba:font-medium">{data.payload.name}</span>
                             </div>
                             <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                              {formatCurrency(data.value as number, statusCurrencyFilter)}
+                              {formatCurrencyCompact(data.value as number, statusCurrencyFilter)}
                             </div>
                           </div>
                         )
@@ -586,7 +550,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                             <span className="gba:font-medium">{data.payload.name}</span>
                           </div>
                           <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {formatCurrency(data.value as number, data.payload.currency)}
+                            {formatCurrencyCompact(data.value as number, data.payload.currency)}
                           </div>
                         </div>
                       )

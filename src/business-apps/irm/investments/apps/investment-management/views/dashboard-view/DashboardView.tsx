@@ -25,16 +25,6 @@ interface DashboardViewProps extends BusinessAppContextProps {
   onNavigateToInvestments?: (subTab?: string) => void
 }
 
-// Helper function to format currency
-const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-  return new Intl.NumberFormat('de-DE', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
-}
-
 // Helper function to format group names for display
 const formatGroupName = (groupName: string): string => {
   if (groupName === 'RealEstate') {
@@ -148,7 +138,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           if (inv.currency) {
             let currencyCode: string | null = null
             if (typeof inv.currency === 'string') {
-              const parts = inv.currency.split(':')
+              const parts = (inv.currency as string).split(':')
               currencyCode = parts[parts.length - 1] || null
             } else if (typeof inv.currency === 'object' && inv.currency !== null) {
               const currencyObj = inv.currency as any
@@ -411,7 +401,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 calculateTrendData={calculateTrendData}
                 masterCurrency={masterCurrency}
                 availableCurrencies={availableCurrencies}
-                formatCurrency={formatCurrency}
               />
             ))
           )}

@@ -7,9 +7,9 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Import the investment report components
-import EquityInvestmentsReport from './equity-investments-report/EquityInvestmentsReport'
-import LiquidFundInvestmentsReport from './liquid-fund-report/LiquidFundInvestmentsReport'
-import RealEstateInvestmentsReport from './real-estate-report/RealEstateInvestmentsReport'
+import EquityInvestmentsReport from './equity-analytics/EquityInvestmentsReport'
+import LiquidFundInvestmentsReport from './liquid-fund-analytics/LiquidFundInvestmentsReport'
+import RealEstateInvestmentsReport from './real-estate-analytics/RealEstateInvestmentsReport'
 import { InvestmentPortfolioOverview } from './overview'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {

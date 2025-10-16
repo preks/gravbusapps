@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import {
   Card,
   CardHeader,
@@ -9,35 +9,19 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartLegend,
-  ChartLegendContent,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+  ChartLegendContent
 } from '@newwork/nw-design-system'
 import { ComposedChart, Bar, Line, BarChart, XAxis, YAxis } from 'recharts'
-import { formatCurrency } from '@/common/data/investment'
+import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { ChartBarIcon, TrendUpIcon } from '@phosphor-icons/react'
-
-// Empty state component for charts
-const ChartEmptyState: React.FC<{ message?: string; height?: string }> = ({
-  message = 'No data available for the selected currency',
-  height = 'gba:h-[400px]'
-}) => (
-  <div className={`gba:flex gba:flex-col gba:items-center gba:justify-center ${height} gba:text-gray-500`}>
-    <svg className="gba:w-16 gba:h-16 gba:mb-4 gba:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.5}
-        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-      />
-    </svg>
-    <p className="gba:text-sm gba:font-medium">{message}</p>
-    <p className="gba:text-xs gba:mt-1">Try selecting a different currency</p>
-  </div>
-)
+import { ChartEmptyState, CurrencyFilter } from '../../shared/components'
+import { useCurrencySync } from '../../shared/hooks'
+import {
+  filterInvestmentsByCurrency,
+  shouldShowEmptyState,
+  getTopItems,
+  groupInvestmentsByField
+} from '../../shared/utils'
 
 interface PortfolioAnalyticsChartsProps {
   rawInvestments: any[]
@@ -50,58 +34,53 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
   masterCurrency,
   availableCurrencies
 }) => {
-  // Independent currency state for each chart
-  const [accountValueCurrency, setAccountValueCurrency] = useState(masterCurrency)
-  const [concentrationCurrency, setConcentrationCurrency] = useState(masterCurrency)
+  // Currency sync hooks - automatically sync with master currency
+  const [accountValueCurrency, setAccountValueCurrency] = useCurrencySync(masterCurrency)
+  const [concentrationCurrency, setConcentrationCurrency] = useCurrencySync(masterCurrency)
 
-  // Reset chart currencies when master currency changes
-  useEffect(() => {
-    setAccountValueCurrency(masterCurrency)
-    setConcentrationCurrency(masterCurrency)
-  }, [masterCurrency])
-
-  // Filter and regenerate Top Accounts by Value data
+  // Filter and regenerate Top Accounts by Value data using shared utilities
   const filteredAccountData = useMemo(() => {
-    return rawInvestments
-      .filter(inv => (inv.currencyCode || 'EUR') === accountValueCurrency)
-      .reduce((acc, investment) => {
-        const accountName = investment.accountName || 'Unknown Account'
-        const existing = acc.find((item: any) => item.account === accountName)
-        const totalValue = investment.marketValue || investment.totalInvestmentAmount || 0
+    // Filter by currency
+    const filtered = filterInvestmentsByCurrency(rawInvestments, accountValueCurrency, inv => inv.currencyCode || 'EUR')
 
-        if (existing) {
-          existing.totalValue += totalValue
-        } else {
-          acc.push({ account: accountName, totalValue })
-        }
-        return acc
-      }, [] as any[])
-      .sort((a: any, b: any) => b.totalValue - a.totalValue)
-      .slice(0, 10) // Top 10 accounts
+    // Group by account and aggregate values
+    const grouped = groupInvestmentsByField(filtered, inv => inv.accountName || 'Unknown Account', {
+      valueGetter: inv => inv.marketValue || inv.totalInvestmentAmount || 0,
+      aggregation: 'sum'
+    })
+
+    // Convert to array format and get top 10
+    const accountArray = Array.from(grouped.entries()).map(([account, data]) => ({
+      account,
+      totalValue: data.value
+    }))
+
+    return getTopItems(accountArray, item => item.totalValue, 10)
   }, [rawInvestments, accountValueCurrency])
 
-  // Filter and regenerate Portfolio Concentration by Group data
+  // Filter and regenerate Portfolio Concentration by Group data using shared utilities
   const filteredConcentrationData = useMemo(() => {
-    return rawInvestments
-      .filter(inv => (inv.currencyCode || 'EUR') === concentrationCurrency)
-      .reduce((acc, investment) => {
-        const group = investment.investmentGroup || 'Unknown'
-        const existing = acc.find((item: any) => item.group === group)
-        const totalValue = investment.marketValue || investment.totalInvestmentAmount || 0
+    // Filter by currency
+    const filtered = filterInvestmentsByCurrency(
+      rawInvestments,
+      concentrationCurrency,
+      inv => inv.currencyCode || 'EUR'
+    )
 
-        if (existing) {
-          existing.count += 1
-          existing.totalValue += totalValue
-          existing.values.push(totalValue)
-        } else {
-          acc.push({ group, count: 1, totalValue, values: [totalValue] })
-        }
-        return acc
-      }, [] as any[])
-      .map((item: any) => ({
-        ...item,
-        averageValue: item.totalValue / item.count
-      }))
+    // Group by investment group
+    const grouped = groupInvestmentsByField(filtered, inv => inv.investmentGroup || 'Unknown', {
+      valueGetter: inv => inv.marketValue || inv.totalInvestmentAmount || 0,
+      aggregation: 'sum'
+    })
+
+    // Convert to array format with additional calculations
+    return Array.from(grouped.entries()).map(([group, data]) => ({
+      group,
+      count: data.items.length,
+      totalValue: data.value,
+      averageValue: data.items.length > 0 ? data.value / data.items.length : 0,
+      values: data.items.map(inv => inv.marketValue || inv.totalInvestmentAmount || 0)
+    }))
   }, [rawInvestments, concentrationCurrency])
 
   // Pre-compute chart configs (must be outside conditional rendering)
@@ -121,10 +100,9 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
     []
   )
 
-  // Check if data is empty or all values are zero
-  const accountDataIsEmpty = filteredAccountData.length === 0 || !filteredAccountData.some(item => item.totalValue > 0)
-  const concentrationDataIsEmpty =
-    filteredConcentrationData.length === 0 || !filteredConcentrationData.some(item => item.totalValue > 0)
+  // Check if data is empty or all values are zero using shared utility
+  const accountDataIsEmpty = shouldShowEmptyState(filteredAccountData, item => item.totalValue)
+  const concentrationDataIsEmpty = shouldShowEmptyState(filteredConcentrationData, item => item.totalValue)
 
   return (
     <>
@@ -141,18 +119,13 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
               </div>
               <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
                 <span className="gba:text-xs gba:text-gray-500">Currency:</span>
-                <Select value={accountValueCurrency} onValueChange={setAccountValueCurrency}>
-                  <SelectTrigger className="gba:w-20 gba:h-8 gba:text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCurrencies.map(currency => (
-                      <SelectItem key={currency} value={currency}>
-                        {currency}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CurrencyFilter
+                  value={accountValueCurrency}
+                  onChange={setAccountValueCurrency}
+                  currencies={availableCurrencies}
+                  showLabel={false}
+                  dataTestId="account-value-currency-filter"
+                />
               </div>
             </div>
           </CardHeader>
@@ -182,7 +155,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                   />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrency(value, accountValueCurrency).replace(/[€$£¥]/g, '')}
+                    tickFormatter={value => formatCurrencyCompact(value, accountValueCurrency).replace(/[€$£¥]/g, '')}
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
@@ -201,7 +174,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                               <span className="gba:font-medium">Total Value:</span>
                             </div>
                             <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                              {formatCurrency(data.value as number, accountValueCurrency)}
+                              {formatCurrencyCompact(data.value as number, accountValueCurrency)}
                             </div>
                           </div>
                         )
@@ -230,18 +203,13 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
             </div>
             <div className="gba:flex gba:items-center gba:gap-2 gba:ml-4">
               <span className="gba:text-xs gba:text-gray-500">Currency:</span>
-              <Select value={concentrationCurrency} onValueChange={setConcentrationCurrency}>
-                <SelectTrigger className="gba:w-20 gba:h-8 gba:text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableCurrencies.map(currency => (
-                    <SelectItem key={currency} value={currency}>
-                      {currency}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CurrencyFilter
+                value={concentrationCurrency}
+                onChange={setConcentrationCurrency}
+                currencies={availableCurrencies}
+                showLabel={false}
+                dataTestId="concentration-currency-filter"
+              />
             </div>
           </div>
         </CardHeader>
@@ -270,11 +238,11 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                               properLabel = 'Investment Count'
                               dotColor = 'var(--color-count)'
                             } else if (entry.dataKey === 'totalValue') {
-                              formattedValue = formatCurrency(entry.value as number, concentrationCurrency)
+                              formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
                               properLabel = 'Total Value'
                               dotColor = 'var(--color-totalValue)'
                             } else if (entry.dataKey === 'averageValue') {
-                              formattedValue = formatCurrency(entry.value as number, concentrationCurrency)
+                              formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
                               properLabel = 'Average Value'
                               dotColor = 'var(--color-averageValue)'
                             }

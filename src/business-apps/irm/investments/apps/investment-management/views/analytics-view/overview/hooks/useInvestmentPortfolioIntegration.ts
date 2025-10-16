@@ -4,6 +4,8 @@ import { InvestmentPortfolioKPIs, InvestmentQueryVariables } from '../types'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { useGetPortfolioKPIs } from '../queries/PortfolioKPIQueries'
 import type { Investment as CentralInvestment } from '@/common/data/investment/types'
+import { safeCurrencyExtraction, calculateInvestmentDuration } from '../../shared/utils'
+import { getInvestmentStatusColor, getRiskLevelColor } from '../../shared/utils'
 
 export interface EnhancedInvestmentSummary {
   id: string
@@ -61,49 +63,26 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
   const { fetchInvestments } = useGetInvestments(context)
   const { fetchPortfolioKPIs } = useGetPortfolioKPIs(context)
 
-  const extractCurrencyCode = (inv: CentralInvestment): string => inv.currency?.code || 'EUR'
+  /**
+   * Extract currency code from investment, using shared utility for safe extraction
+   */
+  const extractCurrencyCode = (inv: CentralInvestment): string => {
+    return safeCurrencyExtraction(inv.currency) || 'EUR'
+  }
 
+  /**
+   * Calculate ROI (Return on Investment) percentage
+   */
   const calculateROI = (marketValue: number, initialInvestment: number): number => {
     if (!initialInvestment || initialInvestment === 0) return 0
     return ((marketValue - initialInvestment) / initialInvestment) * 100
   }
 
+  /**
+   * Calculate investment age in days using shared utility
+   */
   const calculateInvestmentAge = (acquisitionDate: string): number => {
-    if (!acquisitionDate) return 0
-    const today = new Date()
-    const acquired = new Date(acquisitionDate)
-    const diffTime = Math.abs(today.getTime() - acquired.getTime())
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  }
-
-  const getStatusColor = (status: string): string => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return 'green'
-      case 'pending':
-        return 'orange'
-      case 'exited':
-        return 'red'
-      case 'liquidated':
-        return 'blue'
-      default:
-        return 'gray'
-    }
-  }
-
-  const getRiskLevelColor = (riskLevel: string): string => {
-    switch (riskLevel?.toLowerCase()) {
-      case 'low':
-        return 'green'
-      case 'medium':
-        return 'orange'
-      case 'high':
-        return 'red'
-      case 'very high':
-        return 'volcano'
-      default:
-        return 'gray'
-    }
+    return calculateInvestmentDuration(acquisitionDate)
   }
 
   const transformInvestmentData = useCallback((central: CentralInvestment[]): EnhancedInvestmentSummary[] => {
@@ -143,7 +122,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
         leverageRatio,
         notesSummary: (inv as any).notesSummary,
         displayName: inv.displayName || inv.name || inv.code || `Investment ${inv.id}`,
-        statusColor: getStatusColor(statusLabel),
+        statusColor: getInvestmentStatusColor(statusLabel),
         riskLevelColor: getRiskLevelColor(riskLabel),
         currencyCode: extractCurrencyCode(inv),
         roi: calculateROI(marketValue, initial),
