@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
 import { createChangeLogService } from '../services/changeLogService'
 import { format } from 'date-fns'
-import { CalendarIcon, Download, Filter, Search, User, Bot, Settings } from 'lucide-react'
+import { Download, Filter, Search, User, Bot, Settings } from 'lucide-react'
+import { Button } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '../../../../../../common/utils/windowUtils'
 
 // Types for Change Log
 export interface ChangeLogEntry {
@@ -42,6 +44,7 @@ export interface ChangeLogTabProps extends BusinessAppContextProps {
   employeeId: string
   employeeName: string
   userRole: string
+  accessToken: string
 }
 
 const FIELD_CATEGORIES = [
@@ -56,8 +59,17 @@ const FIELD_CATEGORIES = [
   { value: 'emergency', label: 'Emergency Contacts', icon: User }
 ]
 
+// Cache for service instances to avoid creating new instances on every call
+const serviceInstanceCache = new Map<string, any>()
+
 // Get available field categories based on user role
 const getAvailableFieldCategories = (userRole: string) => {
+  const cacheKey = `categories-${userRole}`
+  
+  if (serviceInstanceCache.has(cacheKey)) {
+    return serviceInstanceCache.get(cacheKey)
+  }
+  
   const changeLogService = createChangeLogService({
     accessToken: '',
     employeeId: '',
@@ -65,7 +77,10 @@ const getAvailableFieldCategories = (userRole: string) => {
   })
   
   const availableCategories = changeLogService.getAvailableFieldCategories()
-  return FIELD_CATEGORIES.filter(cat => availableCategories.includes(cat.value))
+  const result = FIELD_CATEGORIES.filter(cat => availableCategories.includes(cat.value))
+  
+  serviceInstanceCache.set(cacheKey, result)
+  return result
 }
 
 const CHANGE_ACTORS = [
@@ -91,7 +106,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
     searchTerm: ''
   })
   const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped')
-  const [selectedDate, setSelectedDate] = useState<Date>()
 
   // Fetch change log data
   const fetchChangeLogData = useCallback(async () => {
@@ -328,7 +342,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
               <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search changes..."
+                placeholder={getTranslationFromI18nKeyAndLabel('changelog.filters.search_placeholder', 'Search changes...')}
                 value={filters.searchTerm}
                 onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -345,7 +359,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">All categories</option>
-              {getAvailableFieldCategories(userRole).map(category => (
+              {getAvailableFieldCategories(userRole).map((category: any) => (
                 <option key={category.value} value={category.value}>
                   {category.label}
                 </option>
