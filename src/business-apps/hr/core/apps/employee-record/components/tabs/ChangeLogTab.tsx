@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { createChangeLogService } from '../services/changeLogService'
 import { format } from 'date-fns'
 import { Download, Filter, Search, User, Bot, Settings } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Types for Change Log
 export interface ChangeLogEntry {

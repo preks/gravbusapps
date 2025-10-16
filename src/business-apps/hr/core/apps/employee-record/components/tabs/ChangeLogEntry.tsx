@@ -1,6 +1,6 @@
 import React from 'react'
 import { format } from 'date-fns'
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ChangeLogEntry as ChangeLogEntryType } from './ChangeLogTab'
 
 interface ChangeLogEntryProps {

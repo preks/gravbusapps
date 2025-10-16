@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphqlClient } from '../../../../../../common/network/graphql/useGraphQLClient'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ChangeLogEntry, ChangeLogFilters } from '../components/tabs/ChangeLogTab'
 import useChangeLogVisibility from './useChangeLogVisibility'

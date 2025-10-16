@@ -1,5 +1,5 @@
 import React from 'react'
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ChangeLogFilters as ChangeLogFiltersType } from './ChangeLogTab'
 
 interface ChangeLogFiltersProps {
