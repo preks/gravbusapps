@@ -235,14 +235,15 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     }
   ]
 
+  const handleNavigateToEmployee = useCallback((employeeId: string) => {
+    const profileUrl = buildPlatformUrl('/platform/employee-record', {
+      employeeId,
+      tab: 'summary'
+    })
+    navigateTo(profileUrl)
+  }, [])
+
   const renderEmployeeTable = (employees: EmployeeInsight[], dateField: string, dateLabel: string) => {
-    const handleNavigateToEmployee = (employeeId: string) => {
-      const profileUrl = buildPlatformUrl('/platform/employee-record', {
-        employeeId,
-        tab: 'summary'
-      })
-      navigateTo(profileUrl)
-    }
 
     const columns = [
       {

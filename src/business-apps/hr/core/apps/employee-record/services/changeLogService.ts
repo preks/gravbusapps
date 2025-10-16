@@ -127,12 +127,8 @@ export class ChangeLogService {
       }
     } catch (error) {
       console.error('Error fetching employee change log data:', error)
-      // Return empty data - no mock fallback
-      return {
-        entries: [],
-        totalCount: 0,
-        hasMore: false
-      }
+      // Propagate the error instead of silently returning empty data
+      throw new Error(`Failed to fetch change log data: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

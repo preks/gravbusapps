@@ -310,55 +310,65 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="gba:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="gba:flex gba:items-center gba:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Change Log</h2>
-          <p className="text-gray-600">Track all changes to {employeeName}'s profile</p>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900">
+            {getTranslationFromI18nKeyAndLabel('changelog.title', 'Change Log')}
+          </h2>
+          <p className="gba:text-gray-600">
+            {getTranslationFromI18nKeyAndLabel('changelog.subtitle', 'Track all changes to {employeeName}\'s profile', { employeeName })}
+          </p>
         </div>
         {(userRole === 'admin' || userRole === 'hr_manager') && (
           <button 
             onClick={handleExport} 
-            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center"
+            className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:hover:bg-gray-50 gba:flex gba:items-center"
           >
-            <Download className="h-4 w-4 mr-2" />
-            Export
+            <Download className="gba:h-4 gba:w-4 gba:mr-2" />
+            {getTranslationFromI18nKeyAndLabel('changelog.actions.export', 'Export')}
           </button>
         )}
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <div className="flex items-center mb-4">
-          <Filter className="h-5 w-5 mr-2" />
-          <h3 className="text-lg font-medium">Filters</h3>
+      <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4">
+        <div className="gba:flex gba:items-center gba:mb-4">
+          <Filter className="gba:h-5 gba:w-5 gba:mr-2" />
+          <h3 className="gba:text-lg gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('changelog.filters.title', 'Filters')}
+          </h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4">
           {/* Search */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Search</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+          <div className="gba:space-y-2">
+            <label className="gba:text-sm gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('changelog.filters.search', 'Search')}
+            </label>
+            <div className="gba:relative">
+              <Search className="gba:absolute gba:left-3 gba:top-3 gba:h-4 gba:w-4 gba:text-gray-400" />
               <input
                 type="text"
                 placeholder={getTranslationFromI18nKeyAndLabel('changelog.filters.search_placeholder', 'Search changes...')}
                 value={filters.searchTerm}
                 onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="gba:w-full gba:pl-10 gba:pr-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
               />
             </div>
           </div>
 
           {/* Field Category */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Field Category</label>
+          <div className="gba:space-y-2">
+            <label className="gba:text-sm gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('changelog.filters.field_category', 'Field Category')}
+            </label>
             <select
               value={filters.fieldCategory[0] || ''}
               onChange={(e) => handleFilterChange('fieldCategory', e.target.value ? [e.target.value] : [])}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
             >
-              <option value="">All categories</option>
+              <option value="">{getTranslationFromI18nKeyAndLabel('changelog.filters.all_categories', 'All categories')}</option>
               {getAvailableFieldCategories(userRole).map((category: any) => (
                 <option key={category.value} value={category.value}>
                   {category.label}
@@ -368,14 +378,16 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
           </div>
 
           {/* Change Actor */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Change Actor</label>
+          <div className="gba:space-y-2">
+            <label className="gba:text-sm gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('changelog.filters.change_actor', 'Change Actor')}
+            </label>
             <select
               value={filters.changeActor[0] || ''}
               onChange={(e) => handleFilterChange('changeActor', e.target.value ? [e.target.value] : [])}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
             >
-              <option value="">All actors</option>
+              <option value="">{getTranslationFromI18nKeyAndLabel('changelog.filters.all_actors', 'All actors')}</option>
               {CHANGE_ACTORS.map(actor => (
                 <option key={actor.value} value={actor.value}>
                   {actor.label}
@@ -385,9 +397,11 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
           </div>
 
           {/* Date Range */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Date Range</label>
-            <div className="flex space-x-2">
+          <div className="gba:space-y-2">
+            <label className="gba:text-sm gba:font-medium">
+              {getTranslationFromI18nKeyAndLabel('changelog.filters.date_range', 'Date Range')}
+            </label>
+            <div className="gba:flex gba:space-x-2">
               <input
                 type="date"
                 value={filters.dateRange.from ? filters.dateRange.from.toISOString().split('T')[0] : ''}
@@ -395,7 +409,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
                   ...filters.dateRange, 
                   from: e.target.value ? new Date(e.target.value) : null 
                 })}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="gba:flex-1 gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
               />
               <input
                 type="date"
@@ -404,21 +418,21 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
                   ...filters.dateRange, 
                   to: e.target.value ? new Date(e.target.value) : null 
                 })}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="gba:flex-1 gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
               />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between mt-4">
+        <div className="gba:flex gba:items-center gba:justify-between gba:mt-4">
           <button 
             onClick={clearFilters}
-            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:hover:bg-gray-50"
           >
-            Clear Filters
+            {getTranslationFromI18nKeyAndLabel('changelog.actions.clear_filters', 'Clear Filters')}
           </button>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-500">
+          <div className="gba:flex gba:items-center gba:space-x-2">
+            <span className="gba:text-sm gba:text-gray-500">
               {filteredEntries.length} of {changeLogEntries.length} changes
             </span>
           </div>
@@ -426,36 +440,38 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
       </div>
 
       {/* View Mode Toggle */}
-      <div className="flex items-center justify-between">
-        <div className="flex border border-gray-300 rounded-md">
+      <div className="gba:flex gba:items-center gba:justify-between">
+        <div className="gba:flex gba:border gba:border-gray-300 gba:rounded-md">
           <button
             onClick={() => setViewMode('flat')}
-            className={`px-4 py-2 text-sm font-medium ${
+            className={`gba:px-4 gba:py-2 gba:text-sm gba:font-medium ${
               viewMode === 'flat' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                ? 'gba:bg-blue-500 gba:text-white' 
+                : 'gba:bg-white gba:text-gray-700 gba:hover:bg-gray-50'
             }`}
           >
-            Flat View
+            {getTranslationFromI18nKeyAndLabel('changelog.views.flat', 'Flat View')}
           </button>
           <button
             onClick={() => setViewMode('grouped')}
-            className={`px-4 py-2 text-sm font-medium ${
+            className={`gba:px-4 gba:py-2 gba:text-sm gba:font-medium ${
               viewMode === 'grouped' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-white text-gray-700 hover:bg-gray-50'
+                ? 'gba:bg-blue-500 gba:text-white' 
+                : 'gba:bg-white gba:text-gray-700 gba:hover:bg-gray-50'
             }`}
           >
-            Grouped View
+            {getTranslationFromI18nKeyAndLabel('changelog.views.grouped', 'Grouped View')}
           </button>
         </div>
       </div>
 
       {/* Change Log Entries */}
-      <div className="space-y-4">
+      <div className="gba:space-y-4">
         {filteredEntries.length === 0 ? (
-          <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-500">No changes found matching your filters.</p>
+          <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-8 gba:text-center">
+            <p className="gba:text-gray-500">
+              {getTranslationFromI18nKeyAndLabel('changelog.no_results', 'No changes found matching your filters.')}
+            </p>
           </div>
         ) : (
           filteredEntries.map(renderChangeEntry)
