@@ -15,16 +15,18 @@ export interface EquityKPIComparison {
 }
 
 const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
-  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
+  // Currency codes are stored as "Currency:v1:EUR" so we match the suffix pattern
+  // The _ilike pattern will naturally exclude null currency values
+  const currencyCondition = currencyFilter ? `{ currency: { code: { _ilike: "%${currencyFilter}%" } } }` : ''
 
   return `
     query GetEquityKPIsWithComparison {
-      # Current data (equity investments only)
+      # Current data (equity investments only - filter by investment group, not specialization)
       currentAggregate: InvestmentAggregate(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { equityInvestment: {} }
+            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
             ${currencyCondition}
           ]
         }
@@ -42,7 +44,7 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { equityInvestment: {} }
+            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
             ${currencyCondition}
           ]
         }
@@ -59,7 +61,7 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
           _and: [
             { isDeleted: { _eq: false } }
             { createdAt: { _lt: "${comparisonDate}" } }
-            { equityInvestment: {} }
+            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
             ${currencyCondition}
           ]
         }
@@ -78,7 +80,7 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
           _and: [
             { isDeleted: { _eq: false } }
             { createdAt: { _lt: "${comparisonDate}" } }
-            { equityInvestment: {} }
+            { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
             ${currencyCondition}
           ]
         }

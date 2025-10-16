@@ -10,7 +10,10 @@ export interface InvestmentKPIIntegration {
   refetch: () => Promise<void>
 }
 
-export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): InvestmentKPIIntegration => {
+export const useInvestmentKPIIntegration = (
+  context: BusinessAppContextProps,
+  currency?: string
+): InvestmentKPIIntegration => {
   const [current, setCurrent] = useState<InvestmentKPIData>({
     totalInvestments: 0,
     totalInvested: 0,
@@ -28,7 +31,7 @@ export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): I
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const { fetchInvestmentKPIs } = useGetInvestmentKPIs(context)
+  const { fetchInvestmentKPIs } = useGetInvestmentKPIs(context, currency)
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
@@ -55,7 +58,7 @@ export const useInvestmentKPIIntegration = (context: BusinessAppContextProps): I
 
   useEffect(() => {
     loadData()
-  }, [context.accessToken]) // Only depend on accessToken, not loadData
+  }, [loadData, currency]) // Depend on currency to refetch when it changes
 
   return {
     current,

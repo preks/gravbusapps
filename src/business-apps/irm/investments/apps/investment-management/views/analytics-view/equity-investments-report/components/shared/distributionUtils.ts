@@ -43,7 +43,12 @@ export const computeDistributionByField = (
 /**
  * Helper function to format currency amounts for display
  */
-export const formatAmount = (amount: number): string => {
+export const formatAmount = (amount: number | null | undefined): string => {
+  // Handle null/undefined values
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return '0'
+  }
+
   if (amount >= 1000000000) {
     return `${(amount / 1000000000).toFixed(1)}B`
   } else if (amount >= 1000000) {
