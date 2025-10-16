@@ -266,12 +266,8 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
       }
       lastAbsenceCheckKeyRef.current = dedupeKey
 
-      // Clear the specific overlap only after deduplication check passes
-      if (isEndLocation) {
-        setEndLocationOverlap(null)
-      } else {
-        setStartLocationOverlap(null)
-      }
+      // Overlaps are cleared in the useEffect before this function is called
+      // No need to clear here as it causes issues with deduplication
 
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables)
@@ -456,23 +452,30 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
   useEffect(() => {
     if (accessToken && userInfo?.employeeId && expensePlanData) {
-      if (startLocation.departureDate || startLocation.departureTime) {
-        checkAbsencesAndPlans(
-          startLocation.departureDate,
-          startLocation.departureTime,
-          endLocation.departureDate,
-          endLocation.departureTime,
-          false
-        )
-      }
+      //  Clear overlaps whenever dates change (before deduplication check)
+      // This ensures stale warnings don't persist when user changes dates
+      setStartLocationOverlap(null)
+      setEndLocationOverlap(null)
 
-      if (endLocation.departureDate || endLocation.departureTime) {
+      // Always check using the full trip range (start to end)
+      // This ensures we catch overlaps across the entire trip duration
+      if (
+        (startLocation.departureDate || startLocation.departureTime) &&
+        (endLocation.departureDate || endLocation.departureTime)
+      ) {
         checkAbsencesAndPlans(
           startLocation.departureDate,
           startLocation.departureTime,
           endLocation.departureDate,
           endLocation.departureTime,
-          true
+          false // Check for start location
+        )
+        checkAbsencesAndPlans(
+          startLocation.departureDate,
+          startLocation.departureTime,
+          endLocation.departureDate,
+          endLocation.departureTime,
+          true // Check for end location
         )
       }
     }
