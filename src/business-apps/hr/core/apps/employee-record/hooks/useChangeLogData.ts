@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useGraphqlClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ChangeLogEntry, ChangeLogFilters } from '../components/tabs/ChangeLogTab'
+import useChangeLogVisibility from './useChangeLogVisibility'
+import useChangeLogDataTransformer from './useChangeLogDataTransformer'
 
 // GraphQL query to fetch change log data from FLOW audit system
 export const GET_CHANGE_LOG_DATA = /*sql*/ `
@@ -217,89 +219,11 @@ export const useChangeLogData = ({
   
   const graphqlClient = useGraphqlClient()
   const LIMIT = 50
+  
+  // Use the smaller hooks
+  const { applyVisibilityRules } = useChangeLogVisibility(userRole)
+  const { transformAuditData, generateChangeLogFromVersions } = useChangeLogDataTransformer()
 
-  // Transform FLOW audit data to ChangeLogEntry format
-  const transformAuditData = useCallback((auditData: any[]): ChangeLogEntry[] => {
-    return auditData.flatMap(audit => {
-      if (!audit.fieldChanges || audit.fieldChanges.length === 0) {
-        return []
-      }
-
-      return audit.fieldChanges.map((fieldChange: any) => ({
-        id: `${audit.id}-${fieldChange.fieldName}`,
-        fieldName: fieldChange.fieldName,
-        fieldCategory: fieldChange.fieldCategory,
-        previousValue: fieldChange.previousValue,
-        newValue: fieldChange.newValue,
-        timestamp: audit.timestamp,
-        changedBy: {
-          userId: audit.userId,
-          userName: audit.userName || 'Unknown User',
-          userRole: audit.department || 'User'
-        },
-        changeOrigin: {
-          flowId: audit.flowId,
-          flowName: audit.flowName,
-          templateId: audit.templateId,
-          isSystemGenerated: audit.details?.isSystemGenerated || false,
-          isAIGenerated: audit.details?.isAIGenerated || false
-        },
-        isVisible: fieldChange.isVisible,
-        isMasked: fieldChange.isMasked
-      }))
-    })
-  }, [])
-
-  // Apply field-level visibility based on user role
-  const applyVisibilityRules = useCallback((entries: ChangeLogEntry[]): ChangeLogEntry[] => {
-    return entries.map(entry => {
-      let isVisible = entry.isVisible
-      let isMasked = entry.isMasked
-
-      // Apply role-based visibility rules
-      switch (entry.fieldCategory) {
-        case 'financial':
-          // Financial data only visible to HR managers and admins
-          isVisible = userRole === 'admin' || userRole === 'hr_manager'
-          isMasked = !isVisible
-          break
-          
-        case 'org':
-          // Organizational data visible to HR and managers
-          isVisible = ['admin', 'hr_manager', 'manager'].includes(userRole)
-          isMasked = !isVisible
-          break
-          
-        case 'working':
-          // Working conditions visible to HR and managers
-          isVisible = ['admin', 'hr_manager', 'manager'].includes(userRole)
-          isMasked = !isVisible
-          break
-          
-        case 'personal':
-        case 'address':
-        case 'skills':
-        case 'performance':
-        case 'absence':
-        case 'emergency':
-          // These are generally visible to the employee
-          isVisible = true
-          isMasked = false
-          break
-          
-        default:
-          // Default to visible for unknown categories
-          isVisible = true
-          isMasked = false
-      }
-
-      return {
-        ...entry,
-        isVisible,
-        isMasked
-      }
-    })
-  }, [userRole])
 
   // Fetch change log data
   const fetchChangeLogData = useCallback(async (resetOffset = false) => {
@@ -339,7 +263,7 @@ export const useChangeLogData = ({
 
         if (versionsResponse?.Employee?.[0]) {
           const employee = versionsResponse.Employee[0]
-          const generatedEntries = generateChangeLogFromVersions(employee, userRole)
+          const generatedEntries = generateChangeLogFromVersions(employee, userRole, applyVisibilityRules)
           
           if (resetOffset) {
             setChangeLogEntries(generatedEntries)
@@ -357,63 +281,8 @@ export const useChangeLogData = ({
     } finally {
       setLoading(false)
     }
-  }, [employeeId, offset, graphqlClient, transformAuditData, applyVisibilityRules, userRole])
+  }, [employeeId, offset, graphqlClient, transformAuditData, applyVisibilityRules, generateChangeLogFromVersions])
 
-  // Generate change log from version comparison
-  const generateChangeLogFromVersions = useCallback((employee: any, userRole: string): ChangeLogEntry[] => {
-    const entries: ChangeLogEntry[] = []
-
-    // Compare personal data versions
-    if (employee.personalDataVersions?.length > 1) {
-      for (let i = 0; i < employee.personalDataVersions.length - 1; i++) {
-        const current = employee.personalDataVersions[i]
-        const previous = employee.personalDataVersions[i + 1]
-
-        // Compare each field
-        const fieldsToCompare = [
-          'firstName', 'lastName', 'displayName', 'preferredName', 
-          'birthDate', 'salutation', 'maritalStatus', 'gender'
-        ]
-
-        fieldsToCompare.forEach(field => {
-          if (current[field] !== previous[field]) {
-            entries.push({
-              id: `personal-${field}-${current.version}`,
-              fieldName: formatFieldName(field),
-              fieldCategory: 'personal',
-              previousValue: previous[field],
-              newValue: current[field],
-              timestamp: current.updatedAt,
-              changedBy: {
-                userId: current.updatedBy || 'system',
-                userName: current.updatedBy || 'System',
-                userRole: 'System'
-              },
-              changeOrigin: {
-                flowId: `version-${current.version}`,
-                flowName: 'Employee Data Update',
-                isSystemGenerated: true,
-                isAIGenerated: false
-              },
-              isVisible: true,
-              isMasked: false
-            })
-          }
-        })
-      }
-    }
-
-    // Apply visibility rules
-    return applyVisibilityRules(entries)
-  }, [applyVisibilityRules])
-
-  // Format field names for display
-  const formatFieldName = (fieldName: string): string => {
-    return fieldName
-      .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
-      .trim()
-  }
 
   // Load more data
   const fetchMore = useCallback(() => {
