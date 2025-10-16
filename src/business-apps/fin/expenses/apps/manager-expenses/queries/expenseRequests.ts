@@ -181,7 +181,7 @@ export const GET_TEAM_MEMBERS_BY_MANAGER = `
         employeePosition: {
           supervisorEmployeeId: {_eq: $managerId}
         },
-        isActive: {_eq: true}
+        isDeleted: {_eq: false}
       },
       orderBy: {fullName: ASC}
     ) {
