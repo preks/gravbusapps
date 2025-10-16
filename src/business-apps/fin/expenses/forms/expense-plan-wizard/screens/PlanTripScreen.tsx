@@ -251,7 +251,17 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         startTimeValue: finalStartDate,
         endTimeValue: finalEndDate
       })
+
+      console.log('[checkAbsencesAndPlans] Checking overlap:', {
+        isEndLocation,
+        startDate: finalStartDate,
+        endDate: finalEndDate,
+        dedupeKey,
+        lastKey: lastAbsenceCheckKeyRef.current
+      })
+
       if (lastAbsenceCheckKeyRef.current === dedupeKey) {
+        console.log('[checkAbsencesAndPlans] Skipping - same dates as last check')
         return
       }
       lastAbsenceCheckKeyRef.current = dedupeKey
@@ -265,7 +275,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables)
+        console.log('[checkAbsencesAndPlans] API Response:', response)
         const overlapWarning = getOverlapWarningMessage(response, expenseId)
+        console.log('[checkAbsencesAndPlans] Overlap warning:', overlapWarning)
         if (isEndLocation) {
           setEndLocationOverlap(overlapWarning)
         } else {
