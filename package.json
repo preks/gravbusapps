@@ -49,10 +49,10 @@
     "@eslint/js": "^9.25.0",
     "@newwork/commitlint-config": "^0.1.0",
     "@newwork/cz-config": "^0.1.0",
-    "@newwork/eslint-config": "^0.2.0",
+    "@newwork/eslint-config": "^0.3.0",
     "@newwork/git-hooks": "^0.1.1",
     "@newwork/lint-staged-config": "^0.1.0",
-    "@newwork/prettier-config": "^0.1.0",
+    "@newwork/prettier-config": "^0.2.0",
     "@originjs/vite-plugin-federation": "^1.4.1",
     "@tailwindcss/postcss": "^4.1.8",
     "@tailwindcss/vite": "^4.1.6",
@@ -91,7 +91,7 @@
   },
   "engines": {
     "node": ">=20.18.0",
-    "npm": "10.8.2"
+    "npm": ">=10.2.3"
   },
-  "packageManager": "npm@10.8.2"
+  "packageManager": "npm@10.2.3"
 }

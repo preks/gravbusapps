@@ -47,13 +47,14 @@ export interface EquityInvestmentKPIs {
 }
 
 // Helper function to safely extract currency code from CatalogEntry or string
-const safeCurrencyExtraction = (currency: any): string => {
-  if (!currency) return 'EUR'
+const safeCurrencyExtraction = (currency: any): string | null => {
+  if (!currency) return null
 
   if (typeof currency === 'object') {
     // Handle CatalogEntry: try code first, then value
     const currencyStr = currency.code || currency.value
-    return extractCurrencyCode(currencyStr || 'EUR')
+    if (!currencyStr) return null
+    return extractCurrencyCode(currencyStr)
   }
 
   // Handle string values
@@ -245,10 +246,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     roleData,
     statusData,
     stakeTypeData,
-    investmentTypeData,
-    // Timeline tab data
-    equityTimelineData,
-    topCompaniesByValuationData
+    investmentTypeData
   } = chartData
 
   return (
@@ -403,8 +401,6 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
           <TabsContent value="timeline" className="gba:mt-6">
             <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:w-full">
               <EquityTimelineCharts
-                equityTimelineData={equityTimelineData}
-                topCompaniesByValuationData={topCompaniesByValuationData}
                 rawInvestments={equityInvestments}
                 masterCurrency={selectedCurrency}
                 availableCurrencies={availableCurrencies}
