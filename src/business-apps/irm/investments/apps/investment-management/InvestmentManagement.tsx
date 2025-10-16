@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout, Button } from '@newwork/nw-design-system'
 import { TrendingDown, DollarSign, BarChart3, LayoutDashboard } from 'lucide-react'
-import { ChartLineUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { MODULE_COLORS } from '@/common/constants/ui'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import DivestmentView from './views/divestment-view/DivestmentView'
 import { InvestmentView } from './views/investment-view'
@@ -12,6 +12,8 @@ import { AnalyticsView } from './views/analytics-view'
 import { ReportView } from './views/report-view'
 
 export type InvestmentManagementProps = BusinessAppContextProps
+
+const moduleColor = MODULE_COLORS.IRM
 
 export const InvestmentManagement: React.FC<InvestmentManagementProps> = context => {
   const viewOptions = [
@@ -155,6 +157,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
             <DashboardView
               accessToken={context.accessToken}
               userInfo={context.userInfo}
+              moduleColor={moduleColor}
               onNavigateToInvestments={handleNavigateToInvestments}
             />
           </div>
@@ -162,7 +165,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
       case 'analytics':
         return (
           <div data-testid="analytics-view" className="gba:h-full gba:overflow-auto">
-            <AnalyticsView {...context} />
+            <AnalyticsView moduleColor={moduleColor} {...context} />
           </div>
         )
       case 'reports':
@@ -203,7 +206,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
   return (
     <div data-testid="investment-management-app">
       <PageLayout
-        headerIcon={ChartLineUpIcon}
+        headerIcon={BarChart3}
         headerTitle={getTranslationFromI18nKeyAndLabel('investment_management', 'Investment Management')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'investment_management_description',
@@ -227,6 +230,7 @@ export const InvestmentManagement: React.FC<InvestmentManagementProps> = context
             icon: option.icon
           }))
         }}
+        variant={moduleColor}
         className="gba:min-h-screen"
       >
         {renderViewContent()}

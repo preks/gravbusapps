@@ -28,7 +28,7 @@ export const formatCurrency = (amount: number, currencyCode: string = 'EUR'): st
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount)
-  } catch (error) {
+  } catch {
     return `${currencyCode} ${amount.toLocaleString()}`
   }
 }

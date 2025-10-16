@@ -47,17 +47,17 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     additionalData.expensePlanId ||
     new URLSearchParams(window.location.search).get('expensePlanId') ||
     'd64d1b89-148e-462d-9add-534722eefe95'
-  
+
   // Determine the back URL based on referrer or query parameter
   const getBackUrl = (): string => {
     const urlParams = new URLSearchParams(window.location.search)
     const referrerParam = urlParams.get('referrer')
-    
+
     // If a referrer is explicitly provided in the URL
     if (referrerParam) {
       return referrerParam
     }
-    
+
     // Check document referrer
     if (document.referrer) {
       const referrerUrl = new URL(document.referrer)
@@ -72,7 +72,7 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
         return '/platform/fin/expenses/backoffice-expenses?tab=expense-plans'
       }
     }
-    
+
     // Default fallback to expenses launcher
     return '/platform/fin/expenses/expenses-launcher'
   }

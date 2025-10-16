@@ -10,25 +10,25 @@ export interface EquityKPIIntegration {
   refetch: () => Promise<void>
 }
 
-export const useEquityKPIIntegration = (context: BusinessAppContextProps): EquityKPIIntegration => {
+export const useEquityKPIIntegration = (context: BusinessAppContextProps, currency?: string): EquityKPIIntegration => {
   const [current, setCurrent] = useState<EquityKPIData>({
     totalInvestments: 0,
     totalAmountInvested: 0,
-    totalMarketValue: 0,
-    averageCompanyValuation: 0
+    portfolioMoic: 0,
+    averageDuration: 0
   })
 
   const [previous, setPrevious] = useState<EquityKPIData>({
     totalInvestments: 0,
     totalAmountInvested: 0,
-    totalMarketValue: 0,
-    averageCompanyValuation: 0
+    portfolioMoic: 0,
+    averageDuration: 0
   })
 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const { fetchEquityKPIs } = useGetEquityKPIs(context)
+  const { fetchEquityKPIs } = useGetEquityKPIs(context, currency)
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
@@ -55,7 +55,7 @@ export const useEquityKPIIntegration = (context: BusinessAppContextProps): Equit
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+  }, [loadData, currency])
 
   return {
     current,

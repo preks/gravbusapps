@@ -58,11 +58,7 @@ const DATA_TEST_ID_PREFIX = 'ContactTable'
 const ContactTable: React.FC<ContactTableProps> = ({
   contacts,
   loading,
-  error: _error,
-  hasMore: _hasMore,
-  loadMore: _loadMore,
-  loadPage: _loadPage,
-  retry: _retry,
+
   total,
   currentPage,
   pageSize,
@@ -72,7 +68,7 @@ const ContactTable: React.FC<ContactTableProps> = ({
   onPaginationChange,
   onSortingChange,
   selectedContactId,
-  onEdit: _onEdit,
+
   accessToken,
   sourceApp,
   visibleColumns

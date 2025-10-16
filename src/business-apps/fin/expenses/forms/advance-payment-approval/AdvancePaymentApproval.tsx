@@ -142,7 +142,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
     }
   }
 
-
   if (!extractedPaymentId || !accessToken) {
     return (
       <div data-testid="advance-payment-approval-container">

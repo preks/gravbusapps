@@ -9,6 +9,7 @@ import { useFilterData } from '../../../../hooks/useFilterData'
 import dayjs from 'dayjs'
 import { ExpenseFilterBar, FilterOptions } from '../../../filter-bar'
 import { usePlanVsRequestKpiCards, PlanVsRequestChart, PlanVsRequestCategoryTable } from './components'
+import { getExpenseGroupPluralName } from './utils/expenseGroupDisplay'
 
 export interface ExpensePlanVsRequestProps extends BusinessAppContextProps {
   isActive?: boolean
@@ -134,9 +135,12 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
       const currentPeriodAmount = categoryStat?.currentPeriodAmount || 0
       const variance = Number((categoryStat?.variance || 0).toFixed(2))
 
+      // Use translated plural name for display
+      const translatedName = getExpenseGroupPluralName(category.code || category.value)
+
       return {
         id: category.id,
-        name: category.value,
+        name: translatedName || category.value,
         code: category.code || category.id,
         currentPeriodAmount,
         previousPeriodAmount,

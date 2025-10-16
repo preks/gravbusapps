@@ -61,7 +61,7 @@ async function main() {
       execSync(`npm run publish:screen -- "${publishPath}" --no-interaction`, {
         stdio: 'inherit'
       })
-    } catch (e) {
+    } catch {
       console.log(`Publish failed for: ${publishPath}`)
       failed.push(publishPath)
       continue

@@ -266,7 +266,7 @@ export const useKpiTrendData = (accessToken: string) => {
                 result.previousMonthWonOpportunities.aggregate.count
               : 0
         })
-      } catch (err) {
+      } catch {
         // console.error('Error fetching KPI trend data:', err);
       } finally {
         setIsLoading(false)

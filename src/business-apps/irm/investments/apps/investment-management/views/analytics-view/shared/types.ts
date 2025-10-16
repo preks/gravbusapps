@@ -12,7 +12,7 @@ export interface BaseInvestmentSummary {
   id: string
   investment: Investment
   displayName: string
-  currencyCode: string
+  currencyCode: string | null
   statusColor: string
   isActive: boolean
 }
