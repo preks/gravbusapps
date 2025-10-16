@@ -29,7 +29,8 @@ export const createSummaryScreenLogObject = (
   currentTitle: string,
   expensePlanData: any,
   event: string,
-  skipStep: boolean
+  skipStep: boolean,
+  createBusinessTrip: boolean = false
 ) => {
   const expenseItemsArray: ExpenseItem[] = (expensePlanData?.ExpensePlanItem || []).map((item: any) => ({
     id: item.id,
@@ -85,7 +86,7 @@ export const createSummaryScreenLogObject = (
           costCenter: initialAdvancePayment.costCenterId
         }
       : null,
-    createBusinessTrip: false,
+    createBusinessTrip: createBusinessTrip,
     employeeAbsence: {
       typeRef: 'AbsenceType:v1:A101',
       employeeId: initialPlan.employeeId,
