@@ -1,4 +1,5 @@
 // import { getCombinedStatisticsQuery, CombinedStatisticsResponse } from '../queries/absenceQueries'
+import { getYearRange } from './getYearlyDaysAggregates'
 
 interface GraphQLRequester {
   request: (query: string, variables?: Record<string, any>) => Promise<any>
@@ -34,23 +35,18 @@ export const getCombinedStatistics = async (
   const { year, typeNames, vacationGroupIds, sickGroupIds } = params
   const startOfYear = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0)).toISOString()
   const endOfYear = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)).toISOString()
-  
+
   // Get year range for yearly aggregates
-  const { getYearRange } = await import('./getYearlyDaysAggregates')
   const yearRange = await getYearRange(client)
   if (!yearRange) {
     throw new Error('Could not get year range')
   }
-  
+
   // Create a single combined query that gets all the data in one request
   const variableDecls: string[] = ['$whereBase: EmployeeAbsenceBoolExp!', '$whereApproved: EmployeeAbsenceBoolExp!']
   const variables: Record<string, any> = {
     whereBase: {
-      _and: [
-        { isDeleted: { _eq: false } },
-        { startDate: { _lte: endOfYear } },
-        { endDate: { _gte: startOfYear } }
-      ]
+      _and: [{ isDeleted: { _eq: false } }, { startDate: { _lte: endOfYear } }, { endDate: { _gte: startOfYear } }]
     },
     whereApproved: {
       _and: [
@@ -142,8 +138,11 @@ export const getCombinedStatistics = async (
   }
 
   const query = `query CombinedStatistics(${variableDecls.join(', ')}) { ${selections.join('\n')} }`
-  
+
   // Make a single network request
+  if (!client || typeof client.request !== 'function') {
+    throw new Error('Invalid GraphQL client: client.request is not a function')
+  }
   const res: any = await client.request(query, variables)
 
   // Extract distinct types

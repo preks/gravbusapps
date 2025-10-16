@@ -1,18 +1,24 @@
 import { useEffect } from 'react'
 import { graphQLClient } from './GraphQLClient'
 
-export const useGraphqlClient = (accessToken: string) => {
-  graphQLClient.setAccessToken(accessToken)
+export const useGraphqlClient = (accessToken?: string) => {
+  if (accessToken) {
+    graphQLClient.setAccessToken(accessToken)
+  }
 
   useEffect(
     function addRefreshedTokenToAuthorizationHeader() {
+      if (!accessToken) return
+
       window.addEventListener('com.newwork.token.shouldRefreshAuthorizationHeader', listener as EventListener)
       return () => {
         window.removeEventListener('com.newwork.token.shouldRefreshAuthorizationHeader', listener as EventListener)
       }
 
       function listener() {
-        graphQLClient.setAccessToken(accessToken)
+        if (accessToken) {
+          graphQLClient.setAccessToken(accessToken)
+        }
       }
     },
     [accessToken]
