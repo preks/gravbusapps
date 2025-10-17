@@ -700,5 +700,8 @@ export const getSystemPromptForContext = (userQuery: string): string => {
 The user wants to build: "${userQuery}"
 
 Follow the WORKFLOW ENFORCEMENT section above. Call all required tools first, then generate complete working code.
+
+## IMPORTANT: File Writing
+Use the write_file tool (NOT propose_change) to create files. All business-apps files are auto-approved and will be written immediately to the database for publishing.
 `
 }

@@ -130,9 +130,10 @@ async function publishScreen(request: PublishRequest) {
       sessionId: request.sessionId,
       screenPath: request.screenPath,
       resourceUrl: request.resourceUrl,
-      // Azure credentials - these will be configured in FORGE env vars
-      azureStorageAccount: process.env.AZURE_STORAGE_ACCOUNT || '',
-      azureSasToken: process.env.AZURE_STORAGE_SAS_TOKEN || ''
+      // Azure credentials - FORGE API has these in its environment variables
+      azureStorageAccount: '', // FORGE will use its own env vars
+      azureSasToken: '', // FORGE will use its own env vars
+      azureContainerName: 'screens' // Standard container name
     })
   })
 
