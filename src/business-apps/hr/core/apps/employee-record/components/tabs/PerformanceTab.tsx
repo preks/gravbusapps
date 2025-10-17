@@ -82,23 +82,23 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   const statusMap: Record<string, { label: string; color: string }> = {
     ON_TRACK: {
       label: 'On Track',
-      color: 'gba:bg-green-100 gba:text-green-800'
+      color: 'gba:bg-success-secondary gba:text-success'
     },
     BEHIND_TARGET: {
       label: 'Behind Target',
-      color: 'gba:bg-red-100 gba:text-red-800'
+      color: 'gba:bg-destructive-secondary gba:text-destructive'
     },
     AT_RISK: {
       label: 'At Risk',
-      color: 'gba:bg-yellow-100 gba:text-yellow-800'
+      color: 'gba:bg-warning-secondary gba:text-warning'
     },
     ACHIEVED: {
       label: 'Achieved',
-      color: 'gba:bg-blue-100 gba:text-blue-800'
+      color: 'gba:bg-info-secondary gba:text-info'
     },
     NOT_ACHIEVED: {
       label: 'Not Achieved',
-      color: 'gba:bg-gray-100 gba:text-gray-800'
+      color: 'gba:bg-muted gba:text-muted-foreground'
     }
   }
 
