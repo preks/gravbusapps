@@ -48,12 +48,17 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   const isLoading = statsLoading || hookLoading
   const error = statsError || hookError
 
-  // Ensure statistics are fetched when component mounts
+  // Ensure statistics are fetched when component mounts or currency changes
   React.useEffect(() => {
     if (stableContextProps.accessToken && stableContextProps.userInfo?.employeeDetails?.employeeId) {
       fetchStatistics()
     }
-  }, [stableContextProps.accessToken, stableContextProps.userInfo?.employeeDetails?.employeeId, fetchStatistics])
+  }, [
+    stableContextProps.accessToken,
+    stableContextProps.userInfo?.employeeDetails?.employeeId,
+    (contextProps as any).selectedCurrencyRef,
+    fetchStatistics
+  ])
 
   // Calculate current month name
   const currentMonthName = dayjs().format('MMMM')
