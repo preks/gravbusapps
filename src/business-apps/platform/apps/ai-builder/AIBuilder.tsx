@@ -575,7 +575,69 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
       setShowPublishDialog(false)
       setTimeout(() => setPublishSuccess(null), 10000)
     } catch (error) {
-      alert(`Publish failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error('Publish failed:', error)
+
+      // Extract friendly error message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+      // Check for common errors and provide friendly, actionable messages
+      let friendlyMessage = errorMessage
+
+      if (errorMessage.includes('is not exported by')) {
+        // Extract the bad import
+        const match = errorMessage.match(/"([^"]+)" is not exported by/)
+        if (match) {
+          const badImport = match[1]
+          friendlyMessage = `❌ Import Error
+
+The AI tried to import "${badImport}" but it doesn't exist.
+
+✅ What to do:
+Tell the AI: "The import ${badImport} doesn't exist. Please fix the imports and rebuild."
+
+The AI will automatically correct it.`
+        }
+      } else if (errorMessage.includes('is not exported by') && errorMessage.includes('index.ts')) {
+        // Missing default export in index.ts
+        const match = errorMessage.match(/"([^"]+)" is not exported by "([^"]+index\.ts)"/)
+        if (match) {
+          friendlyMessage = `❌ Missing Default Export
+
+The index.ts file is missing a default export.
+
+✅ What to do:
+Tell the AI: "The index.ts file needs to export the component as default. Please fix it."
+
+Expected format:
+export { default } from './ComponentName'
+export { default as ComponentName } from './ComponentName'`
+        }
+      } else if (errorMessage.includes('Cannot find module')) {
+        const match = errorMessage.match(/Cannot find module '([^']+)'/)
+        const moduleName = match ? match[1] : 'unknown module'
+        friendlyMessage = `❌ Module Not Found
+
+Cannot find: ${moduleName}
+
+✅ What to do:
+Tell the AI: "Cannot find module ${moduleName}. Please use correct imports."
+
+Common fixes:
+- Use @newwork/nw-design-system for UI components
+- Use @phosphor-icons/react for icons
+- Use @/common/... for internal imports`
+      } else if (errorMessage.includes('Build failed')) {
+        friendlyMessage = `❌ Build Failed
+
+The screen has compilation errors.
+
+✅ What to do:
+1. Copy the error details from the console
+2. Tell the AI: "The build failed with these errors: [paste errors]"
+3. The AI will fix them automatically`
+      }
+
+      alert(friendlyMessage)
     } finally {
       setIsPublishing(false)
     }

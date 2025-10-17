@@ -181,11 +181,31 @@ Based on user request, choose ONE:
 \`\`\`
 src/business-apps/{module}/apps/{screen-name}/
   ├── ScreenName.tsx          (main component)
-  ├── index.ts                (exports)
+  ├── index.ts                (exports - CRITICAL!)
   ├── queries/
   │   └── ScreenQueries.ts    (GraphQL queries)
   └── hooks/
       └── useScreenData.ts    (data fetching)
+\`\`\`
+
+#### **index.ts Format (CRITICAL - BUILD FAILS IF WRONG!):**
+**ALWAYS use this EXACT pattern:**
+\`\`\`typescript
+export { default } from './MyTeamPerformance'
+export { default as MyTeamPerformance } from './MyTeamPerformance'
+\`\`\`
+
+**❌ WRONG patterns (will cause build failure):**
+\`\`\`typescript
+// ❌ Missing default export
+export { MyTeamPerformance } from './MyTeamPerformance'
+
+// ❌ Import/export style (wrong!)
+import MyTeamPerformance from './MyTeamPerformance'
+export default MyTeamPerformance
+
+// ❌ Named export only (wrong!)
+export * from './MyTeamPerformance'
 \`\`\`
 
 **Module Selection:**
@@ -230,12 +250,22 @@ import {
 // Legacy list pattern (use only if DataDisplay too complex):
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer';
 
-// Icons
-import { ChartLine } from '@phosphor-icons/react';
+// Icons (ONLY use these verified icons from @phosphor-icons/react)
+import { 
+  Users, Target, TrendUp, ChatCircleDots, Eye, 
+  ChartLine, Calendar, CheckCircle, XCircle,
+  Plus, Minus, ArrowRight, ArrowLeft, CaretDown,
+  List, Grid, Funnel, MagnifyingGlass, Download, Upload
+} from '@phosphor-icons/react';
 
 // GraphQL
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 \`\`\`
+
+**CRITICAL - Icons:**
+- ✅ **ONLY use these icons**: Users, Target, TrendUp, ChatCircleDots, Eye, ChartLine, Calendar, CheckCircle, XCircle, Plus, Minus, ArrowRight, ArrowLeft, CaretDown, List, Grid, Funnel, MagnifyingGlass, Download, Upload
+- ❌ **NEVER use**: MessageCircle, Bell, Notification, Settings (these don't exist!)
+- If you need an icon not in the list above, use a similar one (e.g., use ChatCircleDots instead of MessageCircle)
 
 #### **Styling Rules (BUILD FAILS WITHOUT):**
 - ✅ **ALL** Tailwind classes MUST have \`gba:\` prefix
@@ -301,9 +331,9 @@ export const GET_SALES_ACTIVITIES = \`
         id
         name
       }
+      }
     }
-  }
-\`;
+  \`;
 
 export const useGetSalesActivities = (context: BusinessAppContextProps) => {
   const client = useGraphQLClient(context.accessToken);
@@ -343,17 +373,17 @@ const ScreenName: React.FC<BusinessAppContextProps> = (context) => {
   
   useEffect(() => { loadData(); }, [search, filters, sorting, pagination]);
   
-  const loadData = async () => {
+    const loadData = async () => {
     setLoading(true);
     try {
       const result = await fetchData({ search, filters, pagination });
       setData(result);
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
   
   const columns = [
     { id: 'title', accessorKey: 'title', header: 'Title' },
