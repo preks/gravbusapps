@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import dayjs from 'dayjs'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
 import RequestCard from './components/RequestCard'
@@ -11,7 +10,7 @@ import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY } from './queries/EmployeeFeedbackRequ
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { CalendarOutlined, SearchOutlined, DownloadOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import Pill from '@/components/pill/Pill'
@@ -235,7 +234,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
     return localFeedback.map(feedback => {
       const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim()
-      const date = feedback.feedbackDate ? dayjs(feedback.feedbackDate).format('MMMM D, YYYY') : 'Unknown date'
+      const date = feedback.feedbackDate
+        ? (formatDate(feedback.feedbackDate, 'date.short') ??
+          getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.requested_on_date', 'Unknown date'))
+        : 'Unknown date'
       const content = feedback.feedback || 'No feedback content'
 
       // Access pictureThumbnail through the correct path based on the GraphQL query structure
@@ -295,23 +297,23 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   return (
     <div className="gba:space-y-8 gba:pb-6" data-testid="feedback-tab">
-      {/* Header Section */}
-      <div className="gba:bg-muted gba:p-6 gba:rounded-lg gba:shadow-sm" data-testid="feedback-header">
-        <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-start gba:gap-4">
+      {/* Header Section - align with standard page headers */}
+      <div className="gba:pb-4" data-testid="feedback-header">
+        <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-center gba:gap-4">
           <div className="gba:max-w-2xl">
-            <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground" data-testid="feedback-title">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.feedback_tab_title', 'Feedback')}
+            <h2 className="gba:font-bold gba:text-2xl" data-testid="feedback-title">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.feedback_tab_title', 'Feedback')}
             </h2>
-            <p className="gba:text-muted-foreground gba:mt-2" data-testid="feedback-description">
+            <p className="gba:text-gray-500 gba:text-lg" data-testid="feedback-description">
               {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_performance.feedback_tab_description',
+                'lowcoder:feedback_tab.feedback_tab_description',
                 'Give and receive feedback from colleagues and managers to improve performance.'
               )}
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="gba:flex gba:gap-2 gba:self-start">
+          {/* Header Actions - right aligned, inline with title */}
+          <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
             {/* Request Feedback Button - Only shown when viewing own profile */}
             {isSelfView && (
               <div>
@@ -328,7 +330,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 >
                   <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                     <PiPencilSimple />
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.request_feedback', 'Request Feedback')}
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.request_feedback', 'Request Feedback')}
                   </div>
                 </AppActionMenu>
               </div>
@@ -348,7 +350,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               >
                 <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                   <PiPencilSimple />
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_performance.give_feedback', 'Give Feedback')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.give_feedback', 'Give Feedback')}
                 </div>
               </AppActionMenu>
             </div>
@@ -359,21 +361,32 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       {/* Feedback Requests Section */}
       <div className="gba:space-y-6 " data-testid="feedback-requests-section">
         <div className="gba:flex gba:items-center">
-          <h3 className="gba:text-xl gba:font-semibold">Feedback Requests</h3>
+          <h3 className="gba:text-xl gba:font-semibold">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_requests', 'Feedback Requests')}
+          </h3>
         </div>
 
         {/* Two-column layout: received (left) and approvals (right) */}
         <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:px-4 gba:py-2">
           <div>
             <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-              <h4 className="gba:text-base gba:font-medium">Feedback requests you received</h4>
+              <h4 className="gba:text-base gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:feedback_tab.col_received',
+                  'Feedback requests you received'
+                )}
+              </h4>
               {feedbackRequests.length > 3 && (
                 <button
                   type="button"
                   className="gba:text-blue-600 hover:gba:text-blue-800"
                   onClick={() => setShowAllReceivedRequests(v => !v)}
                   data-testid="received-requests-toggle"
-                  aria-label={showAllReceivedRequests ? 'Collapse' : 'Expand'}
+                  aria-label={
+                    showAllReceivedRequests
+                      ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
+                      : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
+                  }
                 >
                   {showAllReceivedRequests ? <UpOutlined /> : <DownOutlined />}
                 </button>
@@ -386,7 +399,12 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             ) : error ? (
               <div className="gba:text-red-500">{error}</div>
             ) : feedbackRequests.length === 0 ? (
-              <Empty description="No feedback requests" />
+              <Empty
+                description={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:feedback_tab.no_feedback_requests',
+                  'No feedback requests'
+                )}
+              />
             ) : (
               <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
                 {(showAllReceivedRequests ? feedbackRequests : feedbackRequests.slice(0, 3)).map(
@@ -398,7 +416,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       subtitle={request.feedbackText || undefined}
                       dateText={
                         request.requestedOn
-                          ? `Requested on ${dayjs(request.requestedOn).format('DD/MM/YYYY')}`
+                          ? getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:feedback_tab.requested_on_date',
+                              `Requested on ${formatDate(request.requestedOn, 'date.short') ?? ''}`
+                            ).replace('{{date}}', formatDate(request.requestedOn, 'date.short') ?? '')
                           : undefined
                       }
                       reviewerAvatars={(request.employeeFeedbackRequestReviewer || []).map(rev => ({
@@ -417,7 +438,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                           accessToken={accessToken}
                           autoExecuteSingleAction={true}
                         >
-                          <div className="gba:cursor-pointer">Respond</div>
+                          <div className="gba:cursor-pointer">
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                          </div>
                         </AppActionMenu>
                       }
                       dataTestIdPrefix={`received-request`}
@@ -430,14 +453,20 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
           <div>
             <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-              <h4 className="gba:text-base gba:font-medium">Feedback you requested</h4>
+              <h4 className="gba:text-base gba:font-medium">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
+              </h4>
               {requestedFeedback.length > 3 && (
                 <button
                   type="button"
                   className="gba:text-blue-600 hover:gba:text-blue-800"
                   onClick={() => setShowAllApprovalRequests(v => !v)}
                   data-testid="approval-requests-toggle"
-                  aria-label={showAllApprovalRequests ? 'Collapse' : 'Expand'}
+                  aria-label={
+                    showAllApprovalRequests
+                      ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
+                      : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
+                  }
                 >
                   {showAllApprovalRequests ? <UpOutlined /> : <DownOutlined />}
                 </button>
@@ -450,25 +479,38 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             ) : requestsErrorApproval ? (
               <div className="gba:text-red-500">{requestsErrorApproval}</div>
             ) : requestedFeedback.length === 0 ? (
-              <Empty description="No approval requests" />
+              <Empty
+                description={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:feedback_tab.no_approval_requests',
+                  'No approval requests'
+                )}
+              />
             ) : (
               <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
                 {(showAllApprovalRequests ? requestedFeedback : requestedFeedback.slice(0, 3)).map((request, index) => (
                   <RequestCard
                     key={request.id}
                     id={request.id}
-                    title="Requested Feedback"
+                    title={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:feedback_tab.requested_feedback_card_title',
+                      'Requested Feedback'
+                    )}
                     subtitle={request.feedbackText || undefined}
                     dateText={
                       request.requestedOn
-                        ? `Requested on ${dayjs(request.requestedOn).format('DD/MM/YYYY')}`
+                        ? getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:feedback_tab.requested_on_date',
+                            `Requested on ${formatDate(request.requestedOn, 'date.short') ?? ''}`
+                          ).replace('{{date}}', formatDate(request.requestedOn, 'date.short') ?? '')
                         : undefined
                     }
                     creatorName={request.creatorName || null}
                     dataTestIdPrefix={`approval-request`}
                     rightAction={(() => {
                       const state = (request.recordState || '').toString().toLowerCase()
-                      const statusText = state ? state.charAt(0).toUpperCase() + state.slice(1) : 'Unknown'
+                      const statusText = state
+                        ? state.charAt(0).toUpperCase() + state.slice(1)
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.status_unknown', 'Unknown')
                       return <Pill label={statusText} type="waiting" data-testid={`approval-request-status-${index}`} />
                     })()}
                   />
@@ -482,7 +524,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       {/* Feedback History Section */}
       <div className="gba:space-y-6" data-testid="feedback-history-section">
         <div className="gba:flex gba:justify-between gba:items-center">
-          <h3 className="gba:text-xl gba:font-semibold">Feedback History</h3>
+          <h3 className="gba:text-xl gba:font-semibold">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_history', 'Feedback History')}
+          </h3>
 
           <div className="gba:flex gba:items-center gba:gap-4">
             {/* Export Button */}
@@ -491,13 +535,16 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               data-testid="export-feedback-button"
               onClick={() => console.log('Export feedback')}
             >
-              <DownloadOutlined /> Export
+              <DownloadOutlined /> {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.export', 'Export')}
             </button>
 
             {/* Search Input */}
             <Input
-              placeholder="Search feedback"
-              prefix={<SearchOutlined className="gba:text-muted-foreground" />}
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:feedback_tab.search_placeholder',
+                'Search feedback'
+              )}
+              prefix={<SearchOutlined className="gba:text-gray-400" />}
               className="gba:w-64 gba:rounded-md"
               data-testid="feedback-search-input"
               value={searchTerm}
@@ -512,9 +559,18 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               value={filterType}
               onChange={value => setFilterType(value)}
               options={[
-                { value: 'all', label: 'All Feedback' },
-                { value: 'private', label: 'Private' },
-                { value: 'public', label: 'Public' }
+                {
+                  value: 'all',
+                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_all', 'All Feedback')
+                },
+                {
+                  value: 'private',
+                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_private', 'Private')
+                },
+                {
+                  value: 'public',
+                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_public', 'Public')
+                }
               ]}
               suffixIcon={<DownloadOutlined className="gba:text-muted-foreground gba:rotate-180" />}
               popupClassName="gba:rounded-md gba:shadow-lg"
@@ -579,7 +635,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                           className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-destructive-secondary gba:text-destructive"
                           data-testid={`feedback-privacy-${index}`}
                         >
-                          Private
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
                         </span>
                       )}
                     </div>
@@ -613,7 +669,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           <>
             <Empty
               description={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_performance.no_feedback',
+                'lowcoder:feedback_tab.no_feedback',
                 'No feedback available'
               )}
               data-testid="feedback-empty"
