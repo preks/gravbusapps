@@ -50,7 +50,7 @@ export const KPISectionModern: React.FC<KPISectionModernProps> = props => {
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="kpi-error-no-employee">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="kpi-error-no-employee">
         Error: Employee ID not found. Please check your user profile.
       </div>
     )
@@ -66,7 +66,7 @@ export const KPISectionModern: React.FC<KPISectionModernProps> = props => {
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="kpi-error">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="kpi-error">
         Error: {error}
       </div>
     )

@@ -233,7 +233,7 @@ const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
       return typeData.color
     }
 
-    return '#8884d8'
+    return 'var(--nw-chart-1)'
   }
 
   if (isLoading) {

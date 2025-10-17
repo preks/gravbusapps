@@ -121,22 +121,22 @@ export const UsagePatternsSection: React.FC<UsagePatternsSectionProps> = ({ data
                 aria-label={`weekday-bar-${days[i]}`}
                 data-testid={`weekday-bar-${days[i]}`}
               >
-                <div className="gba:w-full gba:bg-gray-100 gba:rounded-lg gba:relative gba:overflow-hidden gba:mb-2 gba:flex gba:items-end gba:flex-1">
+                <div className="gba:w-full gba:bg-muted gba:rounded-lg gba:relative gba:overflow-hidden gba:mb-2 gba:flex gba:items-end gba:flex-1">
                   <div
-                    className="gba:bg-green-600 gba:rounded-md gba:transition-all gba:duration-300 gba:w-full"
+                    className="gba:bg-success gba:rounded-md gba:transition-all gba:duration-300 gba:w-full"
                     style={{
                       height: `${val > 0 ? val * 8 + 6 : 4}px`
                     }}
                   />
                 </div>
                 <div
-                  className="gba:text-sm gba:text-gray-500 gba:mt-1"
+                  className="gba:text-sm gba:text-muted-foreground gba:mt-1"
                   data-testid="usage-patterns-section-subsection-week-bar-chart-day"
                 >
                   {days[i]}
                 </div>
                 <div
-                  className="gba:text-base gba:font-semibold gba:text-gray-800 gba:mt-1"
+                  className="gba:text-base gba:font-semibold gba:text-foreground gba:mt-1"
                   data-testid="usage-patterns-section-subsection-week-bar-chart-value"
                 >
                   {val}
@@ -144,7 +144,7 @@ export const UsagePatternsSection: React.FC<UsagePatternsSectionProps> = ({ data
               </div>
             ))}
           </div>
-          <div className="gba:text-xs gba:text-gray-500 gba:mt-4 gba:text-center">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mt-4 gba:text-center">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.most_common', 'Most common')}:{' '}
             <span className="gba:font-semibold">{mostCommonText}</span> ({mostCommonPct}%{' '}
             {getTranslationFromI18nKeyAndLabel(

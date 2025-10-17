@@ -27,7 +27,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = props => {
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="statistics-tab-error">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="statistics-tab-error">
         Error: {error}
       </div>
     )

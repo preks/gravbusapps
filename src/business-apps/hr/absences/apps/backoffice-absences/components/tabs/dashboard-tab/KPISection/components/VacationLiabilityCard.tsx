@@ -11,7 +11,7 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
   return (
     <Card className="gba:hover:shadow-md gba:transition-shadow gba:p-4" data-testid="vacation-liability-card">
       <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <div className="gba:text-orange-600 gba:text-lg">📊</div>
+        <div className="gba:text-warning gba:text-lg">📊</div>
         <div>
           <h5 className="gba:text-sm gba:font-medium gba:m-0">
             {getTranslationFromI18nKeyAndLabel(
@@ -31,20 +31,20 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
       <div className="gba:space-y-4">
         {/* Top metrics grid */}
         <div className="gba:grid gba:grid-cols-2 gba:gap-3">
-          <div className="gba:text-center gba:p-3 gba:bg-red-50 gba:rounded">
-            <div className="gba:text-xl gba:font-bold gba:text-red-600">
+          <div className="gba:text-center gba:p-3 gba:bg-destructive-secondary/40 gba:rounded">
+            <div className="gba:text-xl gba:font-bold gba:text-destructive">
               {entitlements.totalVacationLiability.toFixed(0)}
             </div>
-            <div className="gba:text-xs gba:text-gray-600">
+            <div className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.remaining_days_total',
                 'Remaining Days Total'
               )}
             </div>
           </div>
-          <div className="gba:text-center gba:p-3 gba:bg-amber-50 gba:rounded">
-            <div className="gba:text-xl gba:font-bold gba:text-amber-600">TBD</div>
-            <div className="gba:text-xs gba:text-gray-600">
+          <div className="gba:text-center gba:p-3 gba:bg-warning-secondary/40 gba:rounded">
+            <div className="gba:text-xl gba:font-bold gba:text-warning">TBD</div>
+            <div className="gba:text-xs gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.financial_impact',
                 'Financial Impact'
@@ -56,52 +56,52 @@ export const VacationLiabilityCard: React.FC<VacationLiabilityCardProps> = ({ en
         {/* Detailed breakdown */}
         <div className="gba:space-y-2">
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:text-gray-600">
+            <span className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.avg_remaining_per_employee',
                 'Avg Remaining per Employee'
               )}
             </span>
-            <span className="gba:font-medium gba:text-red-600">
+            <span className="gba:font-medium gba:text-destructive">
               {(entitlements.totalVacationLiability / entitlements.totalActiveEmployees).toFixed(1)}{' '}
               {getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.days', 'days')}
             </span>
           </div>
 
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:text-gray-600">
+            <span className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.total_active_employees',
                 'Total Active Employees'
               )}
             </span>
-            <span className="gba:font-medium gba:text-blue-600">{entitlements.totalActiveEmployees}</span>
+            <span className="gba:font-medium gba:text-info">{entitlements.totalActiveEmployees}</span>
           </div>
 
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:text-gray-600">
+            <span className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.estimated_cost_per_day',
                 'Estimated Cost per Day'
               )}
             </span>
-            <span className="gba:font-medium gba:text-amber-600">TBD</span>
+            <span className="gba:font-medium gba:text-warning">TBD</span>
           </div>
 
           <div className="gba:flex gba:justify-between gba:items-center">
-            <span className="gba:text-sm gba:text-gray-600">
+            <span className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.total_liability_estimate',
                 'Total Liability Estimate'
               )}
             </span>
-            <span className="gba:font-medium gba:text-amber-600">TBD</span>
+            <span className="gba:font-medium gba:text-warning">TBD</span>
           </div>
         </div>
 
         {/* Calculation note */}
-        <div className="gba:bg-amber-50 gba:border gba:border-amber-200 gba:rounded gba:p-3">
-          <div className="gba:text-xs gba:text-amber-800">
+        <div className="gba:bg-warning-secondary/40 gba:border gba:rounded gba:p-3">
+          <div className="gba:text-xs gba:text-warning-foreground">
             💰{' '}
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_backoffice.financial_calculations_coming_soon',

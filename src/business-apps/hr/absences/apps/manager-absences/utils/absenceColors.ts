@@ -286,7 +286,7 @@ export class AbsenceColorsManager {
    */
   private getDefaultColorForType(typeCodeOrId: string): string {
     // Use status-based colors only
-    return '#6b7280' // Default gray for all types
+    return 'var(--nw-muted-foreground)' // Default gray for all types
   }
 
   /**
