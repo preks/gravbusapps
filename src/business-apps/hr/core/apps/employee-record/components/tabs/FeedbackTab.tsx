@@ -230,7 +230,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   // Format feedback for display
   const formatFeedback = (): FormattedFeedback[] => {
     if (!localFeedback?.length) return []
-    console.log(localFeedback, 'localFeedback')
 
     return localFeedback.map(feedback => {
       const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim()
@@ -414,6 +413,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       id={request.id}
                       title={request.taskTitle || 'Enter Requested Employee Feedback'}
                       subtitle={request.feedbackText || undefined}
+                      creatorName={request.creatorName || null}
                       dateText={
                         request.requestedOn
                           ? getTranslationFromI18nKeyAndLabel(
