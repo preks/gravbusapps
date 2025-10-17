@@ -96,12 +96,14 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
       )}
 
       {/* Header */}
-      <div className="gba:border-b gba:border-gray-200 gba:pb-4">
+      <div className="gba:border-b gba:border-border gba:pb-4">
         <div className="gba:flex gba:items-center gba:gap-3">
           <PiBriefcase className="gba:text-primary gba:text-xl" />
           <div>
-            <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">{jobPosition.name}</h2>
-            <p className="gba:text-sm gba:text-gray-500">{t('job_position.details_subtitle', 'Position Details')}</p>
+            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{jobPosition.name}</h2>
+            <p className="gba:text-sm gba:text-muted-foreground">
+              {t('job_position.details_subtitle', 'Position Details')}
+            </p>
           </div>
         </div>
       </div>
@@ -111,7 +113,9 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
         <div className="gba:flex gba:items-center gba:gap-3">
           <div
             className={`gba:px-3 gba:py-1 gba:rounded-full gba:text-sm gba:font-medium ${
-              isVacant ? 'gba:bg-orange-100 gba:text-orange-800' : 'gba:bg-green-100 gba:text-green-800'
+              isVacant
+                ? 'gba:bg-warning-secondary/50 gba:text-warning-secondary-foreground'
+                : 'gba:bg-success-secondary gba:text-success-secondary-foreground'
             }`}
           >
             {isVacant ? t('job_position.vacant', 'Vacant') : t('job_position.filled', 'Filled')}
@@ -121,54 +125,56 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
       {/* Job Information */}
       <div className="gba:space-y-4">
-        <h3 className="gba:text-md gba:font-medium gba:text-gray-900">
+        <h3 className="gba:text-md gba:font-medium gba:text-foreground">
           {t('job_position.job_information', 'Job Information')}
         </h3>
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-gray-400 gba:mt-1" />
+            <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('job_position.job_profile', 'Job Profile')}
               </p>
-              <p className="gba:text-sm gba:text-gray-900">
+              <p className="gba:text-sm gba:text-foreground">
                 {jobPosition.jobProfile?.name || t('job_position.not_specified', 'Not specified')}
               </p>
             </div>
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-gray-400 gba:mt-1" />
+            <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('job_position.job_function', 'Job Function')}
               </p>
-              <p className="gba:text-sm gba:text-gray-900">
+              <p className="gba:text-sm gba:text-foreground">
                 {jobPosition.jobFunction?.name || t('job_position.not_specified', 'Not specified')}
               </p>
             </div>
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-gray-400 gba:mt-1" />
+            <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('job_position.job_level', 'Job Level')}
               </p>
-              <p className="gba:text-sm gba:text-gray-900">
+              <p className="gba:text-sm gba:text-foreground">
                 {jobPosition.jobLevel?.name || t('job_position.not_specified', 'Not specified')}
               </p>
             </div>
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiTag className="gba:text-gray-400 gba:mt-1" />
+            <PiTag className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('job_position.job_family', 'Job Family')}
               </p>
-              <p className="gba:text-sm gba:text-gray-900">{getJobFamilyDisplay(jobPosition.jobFunction?.jobFamily)}</p>
+              <p className="gba:text-sm gba:text-foreground">
+                {getJobFamilyDisplay(jobPosition.jobFunction?.jobFamily)}
+              </p>
             </div>
           </div>
         </div>
@@ -176,28 +182,28 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
       {/* Employment Information */}
       <div className="gba:space-y-4">
-        <h3 className="gba:text-md gba:font-medium gba:text-gray-900">
+        <h3 className="gba:text-md gba:font-medium gba:text-foreground">
           {t('job_position.employment_information', 'Employment Information')}
         </h3>
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiCalendar className="gba:text-gray-400 gba:mt-1" />
+            <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('job_position.employment_type', 'Employment Type')}
               </p>
-              <p className="gba:text-sm gba:text-gray-900">{getEmploymentTypeDisplay(jobPosition.employmentType)}</p>
+              <p className="gba:text-sm gba:text-foreground">{getEmploymentTypeDisplay(jobPosition.employmentType)}</p>
             </div>
           </div>
 
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiCalendar className="gba:text-gray-400 gba:mt-1" />
+            <PiCalendar className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('job_position.contract_type', 'Contract Type')}
               </p>
-              <p className="gba:text-sm gba:text-gray-900">{getContractTypeDisplay(jobPosition.contractType)}</p>
+              <p className="gba:text-sm gba:text-foreground">{getContractTypeDisplay(jobPosition.contractType)}</p>
             </div>
           </div>
         </div>
@@ -205,18 +211,18 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
       {/* Organizational Information */}
       <div className="gba:space-y-4">
-        <h3 className="gba:text-md gba:font-medium gba:text-gray-900">
+        <h3 className="gba:text-md gba:font-medium gba:text-foreground">
           {t('job_position.organizational_information', 'Organizational Information')}
         </h3>
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiBuilding className="gba:text-gray-400 gba:mt-1" />
+            <PiBuilding className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
                 {t('job_position.department', 'Department')}
               </p>
-              <p className="gba:text-sm gba:text-gray-900">{getDepartmentName()}</p>
+              <p className="gba:text-sm gba:text-foreground">{getDepartmentName()}</p>
             </div>
           </div>
         </div>
@@ -224,16 +230,18 @@ export const JobPositionDetails: React.FC<JobPositionDetailsProps> = ({ jobPosit
 
       {/* Current Employee */}
       <div className="gba:space-y-4">
-        <h3 className="gba:text-md gba:font-medium gba:text-gray-900">
+        <h3 className="gba:text-md gba:font-medium gba:text-foreground">
           {t('job_position.current_employee', 'Current Employee')}
         </h3>
 
         <div className="gba:space-y-3">
           <div className="gba:flex gba:items-start gba:gap-3">
-            <PiUser className="gba:text-gray-400 gba:mt-1" />
+            <PiUser className="gba:text-muted-foreground gba:mt-1" />
             <div>
-              <p className="gba:text-sm gba:font-medium gba:text-gray-700">{t('job_position.employee', 'Employee')}</p>
-              <p className="gba:text-sm gba:text-gray-900">{getEmployeeDisplay()}</p>
+              <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                {t('job_position.employee', 'Employee')}
+              </p>
+              <p className="gba:text-sm gba:text-foreground">{getEmployeeDisplay()}</p>
             </div>
           </div>
         </div>

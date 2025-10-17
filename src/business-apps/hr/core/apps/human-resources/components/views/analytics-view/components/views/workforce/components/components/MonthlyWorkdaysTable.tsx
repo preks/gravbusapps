@@ -31,7 +31,7 @@ const MonthlyWorkdaysTable: React.FC<MonthlyWorkdaysTableProps> = ({ data, entit
 
   if (!data || data.length === 0) {
     return (
-      <div data-testid={`${dataTestId}-empty`} className="gba:text-center gba:py-8 gba:text-gray-500">
+      <div data-testid={`${dataTestId}-empty`} className="gba:text-center gba:py-8 gba:text-muted-foreground">
         <p>No workdays data available for selected {entityType}</p>
         <p className="gba:text-sm gba:mt-1">Try selecting a different entity type or check if data exists</p>
       </div>
@@ -68,29 +68,29 @@ const MonthlyWorkdaysTable: React.FC<MonthlyWorkdaysTableProps> = ({ data, entit
         </TableHeader>
         <TableBody>
           {data.map((entity, index) => (
-            <TableRow key={entity.entityId} data-testid={`${dataTestId}-row-${index}`} className="hover:gba:bg-gray-50">
+            <TableRow key={entity.entityId} data-testid={`${dataTestId}-row-${index}`} className="hover:gba:bg-muted">
               <TableCell className="gba:font-medium">
                 <div>
-                  <div className="gba:font-medium gba:text-gray-900">{entity.entityName}</div>
+                  <div className="gba:font-medium gba:text-foreground">{entity.entityName}</div>
                   {entity.totalEmployees > 0 && (
-                    <div className="gba:text-sm gba:text-gray-500">{entity.totalEmployees} employees</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{entity.totalEmployees} employees</div>
                   )}
                 </div>
               </TableCell>
               <TableCell className="gba:text-center">
-                <span className="gba:text-gray-700">{formatWorkdays(entity.lastMonth)}</span>
+                <span className="gba:text-foreground">{formatWorkdays(entity.lastMonth)}</span>
               </TableCell>
               <TableCell className="gba:text-center">
-                <span className="gba:font-semibold gba:text-blue-700">{formatWorkdays(entity.thisMonth)}</span>
+                <span className="gba:font-semibold gba:text-info">{formatWorkdays(entity.thisMonth)}</span>
               </TableCell>
               <TableCell className="gba:text-center">
-                <span className="gba:text-gray-700">{formatWorkdays(entity.nextMonth)}</span>
+                <span className="gba:text-foreground">{formatWorkdays(entity.nextMonth)}</span>
               </TableCell>
               <TableCell className="gba:text-center">
-                <span className="gba:font-medium gba:text-green-700">{formatWorkdays(entity.averageWorkdays)}</span>
+                <span className="gba:font-medium gba:text-success">{formatWorkdays(entity.averageWorkdays)}</span>
               </TableCell>
               <TableCell className="gba:text-center">
-                <span className="gba:text-gray-600">{entity.totalEmployees}</span>
+                <span className="gba:text-muted-foreground">{entity.totalEmployees}</span>
               </TableCell>
             </TableRow>
           ))}
@@ -98,12 +98,12 @@ const MonthlyWorkdaysTable: React.FC<MonthlyWorkdaysTableProps> = ({ data, entit
       </Table>
 
       {/* Summary Row */}
-      <div className="gba:mt-4 gba:p-3 gba:bg-gray-50 gba:rounded gba:border gba:text-sm">
+      <div className="gba:mt-4 gba:p-3 gba:bg-background gba:rounded gba:border gba:text-sm">
         <div className="gba:flex gba:justify-between gba:items-center">
-          <span className="gba:font-medium gba:text-gray-700">
+          <span className="gba:font-medium gba:text-foreground">
             Total: {data.length} {getEntityTypeLabel(entityType).toLowerCase()}(s)
           </span>
-          <span className="gba:text-gray-600">
+          <span className="gba:text-muted-foreground">
             {data.reduce((sum, entity) => sum + entity.totalEmployees, 0)} total employees
           </span>
         </div>

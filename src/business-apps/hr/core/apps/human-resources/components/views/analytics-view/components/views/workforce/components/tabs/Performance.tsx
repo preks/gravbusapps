@@ -16,8 +16,6 @@ import MonthlyWorkdaysTable from '../components/MonthlyWorkdaysTable'
 import WorkdaysTrendChart from '../components/WorkdaysTrendChart'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
-interface PerformanceProps extends BusinessAppContextProps {}
-
 export type OrgEntityType = 'location' | 'company' | 'costCenter' | 'organizationalUnit'
 
 interface PerformanceStatisticsData {
@@ -38,7 +36,7 @@ interface EntityOption {
   name: string
 }
 
-const Performance: React.FC<PerformanceProps> = context => {
+const Performance: React.FC<BusinessAppContextProps> = context => {
   const [selectedEntityType, setSelectedEntityType] = useState<OrgEntityType>('location')
   const [selectedEntityId, setSelectedEntityId] = useState<string>('all')
   const [workdaysData, setWorkdaysData] = useState<WorkdaysData[]>([])
@@ -154,13 +152,15 @@ const Performance: React.FC<PerformanceProps> = context => {
   if (error) {
     return (
       <div data-testid={`${dataTestId}-error`} className="gba:p-6">
-        <Alert className="gba:border-red-200 gba:bg-red-50">
+        <Alert className="gba:border-destructive-secondary gba:bg-destructive-secondary">
           <div className="gba:space-y-2">
-            <h4 className="gba:text-red-800 gba:font-medium">Error Loading Performance Data</h4>
-            <p className="gba:text-red-700">{error}</p>
+            <h4 className="gba:text-destructive-secondary-foreground gba:font-medium">
+              Error Loading Performance Data
+            </h4>
+            <p className="gba:text-destructive-secondary-foreground">{error}</p>
             <button
               onClick={loadData}
-              className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-white gba:rounded gba:text-sm hover:gba:bg-red-700"
+              className="gba:px-3 gba:py-1 gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:text-sm hover:gba:bg-destructive-secondary"
             >
               Retry
             </button>
@@ -195,7 +195,7 @@ const Performance: React.FC<PerformanceProps> = context => {
       <div data-testid={`${dataTestId}-loading`} className="gba:flex gba:items-center gba:justify-center gba:p-12">
         <div className="gba:text-center">
           <Spinner className="gba:w-8 gba:h-8 gba:mx-auto gba:mb-4" />
-          <p className="gba:text-gray-600">Loading performance data...</p>
+          <p className="gba:text-muted-foreground">Loading performance data...</p>
         </div>
       </div>
     )
@@ -207,7 +207,7 @@ const Performance: React.FC<PerformanceProps> = context => {
       <Card className="gba:p-4">
         <div className="gba:flex gba:gap-4 gba:items-center">
           <div className="gba:flex-1">
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Entity Type</label>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">Entity Type</label>
             <Select value={selectedEntityType} onValueChange={handleEntityTypeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select entity type" />
@@ -222,7 +222,9 @@ const Performance: React.FC<PerformanceProps> = context => {
           </div>
 
           <div className="gba:flex-1">
-            <label className="gba:block gba:text-sm gba:font-medium gba:text-gray-700 gba:mb-2">Specific Entity</label>
+            <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">
+              Specific Entity
+            </label>
             <Select value={selectedEntityId} onValueChange={handleEntityIdChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select specific entity" />
