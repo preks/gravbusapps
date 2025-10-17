@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeTerminationData {
@@ -73,11 +74,23 @@ export function useEmployeeTerminationData({ employeeId, accessToken }: UseEmplo
         setEmployee(employeeData)
       } else {
         setEmployee(null)
-        setError('Employee not found')
+        setError(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_termination.no_data_found_text',
+            'No employee data found'
+          )
+        )
       }
     } catch (err) {
       console.error('Error fetching employee data for termination:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load employee data')
+      setError(
+        err instanceof Error
+          ? err.message
+          : getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_termination.fail_employee_data_load_text',
+              'Failed to load employee data'
+            )
+      )
       setEmployee(null)
     } finally {
       setLoading(false)
