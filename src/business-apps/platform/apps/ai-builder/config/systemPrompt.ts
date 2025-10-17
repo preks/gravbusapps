@@ -28,12 +28,33 @@ Before writing ANY code, you MUST call these tools in this order:
 
 **For Data Screens (Lead List, Account List, etc.):**
 1. \`graphql_introspect_entity(entity_name: "Lead")\` → Get real schema
-2. \`generate_graphql_query(entity_name: "Lead")\` → Get complete query
-3. \`get_flow_contexts()\` → Get AppActionButton context
-4. \`search_design_system_component(component_name: "Table")\` → Get component info
-5. \`search_codebase("lead list example")\` → Find existing examples
+2. \`generate_graphql_query(entity_name: "Lead")\` → Get query template
+3. \`execute_query(query: "simplified version", variables: {})\` → **TEST the query structure!** 🚨
+4. \`get_flow_contexts()\` → Get AppActionButton context
+5. \`search_design_system_component(component_name: "Table")\` → Get component info
+6. \`search_codebase("lead list example")\` → Find existing examples
 
 **Why?** Without these tools, you'll guess wrong and the screen will fail!
+
+**🚨 CRITICAL: QUERY TESTING WORKFLOW**
+After \`generate_graphql_query\`, you'll get a TypeScript template. Before writing it:
+
+1. **Extract the core query** from the template (remove function wrapper)
+2. **Simplify it** with hardcoded values: \`Lead(limit: 5) { id name ... }\`
+3. **Test it**: \`execute_query({ query: "query GetLeads { Lead(limit: 5) { ... } }" })\`
+4. **Check result**:
+   - ✅ Success with data → Write the full template to file
+   - ❌ Errors → Fix field names, test again until it works
+5. **Common errors**: Wrong field names, missing nested fields, incorrect types
+
+**Example:**
+\`\`\`
+// Generated template has: Lead { firstName, lastName, companyName, leadStatus { value } }
+// Test with: execute_query({ query: "{ Lead(limit: 2) { id firstName lastName companyName leadStatus { value } } }" })
+// If it works → write template. If not → fix fields and retry.
+\`\`\`
+
+**NEVER write a query file without testing the field structure first!**
 
 ---
 
