@@ -210,11 +210,24 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
       // Auto-detect screen path from created files
       // Support both /apps/ and /screens/ structures
       if (data.summary && data.summary.files) {
-        const indexFiles = data.summary.files.filter((f: any) => 
-          (f.path.includes('/apps/') || f.path.includes('/screens/') || f.path.includes('/forms/')) 
-          && f.path.endsWith('/index.ts')
-          && f.path.startsWith('src/business-apps/')
-        );
+        console.log('🔍 All files from API:', data.summary.files.map((f: any) => f.path));
+        
+        const indexFiles = data.summary.files.filter((f: any) => {
+          // Must include /apps/, /screens/, or /forms/
+          const hasAppStructure = f.path.includes('/apps/') || f.path.includes('/screens/') || f.path.includes('/forms/');
+          // Must end with /index.ts
+          const isIndexFile = f.path.endsWith('/index.ts');
+          // Must start with src/business-apps/
+          const isBusinessApp = f.path.startsWith('src/business-apps/');
+          // Must NOT be inside a subdirectory (types/, hooks/, components/, etc.)
+          // The pattern should be: src/business-apps/.../apps/screen-name/index.ts
+          // NOT: src/business-apps/.../apps/screen-name/types/index.ts
+          const isRootIndex = !f.path.match(/\/(types|hooks|components|utils|queries|api|config|styles|assets)\/index\.ts$/);
+          
+          return hasAppStructure && isIndexFile && isBusinessApp && isRootIndex;
+        });
+        
+        console.log('🎯 Filtered index.ts files:', indexFiles.map((f: any) => f.path));
         
         if (indexFiles.length > 0) {
           // Extract path like "platform/examples/apps/hello-world" from 
