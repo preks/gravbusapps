@@ -566,11 +566,12 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
       ])
     } finally {
       setLoading(false)
-      // Check for changes immediately to show Publish button
+      // Check for changes after AI completes (allow time for database writes)
+      // Database writes can take 1-2 seconds, especially with multiple files
       setTimeout(() => {
-        console.log('Checking for changes after AI response...')
+        console.log('🔍 Checking for changes after AI response (2s delay)...')
         checkForChanges()
-      }, 500)
+      }, 2000) // Increased from 500ms to 2000ms
     }
   }
 

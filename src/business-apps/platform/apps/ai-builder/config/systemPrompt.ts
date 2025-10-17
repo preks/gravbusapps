@@ -117,6 +117,84 @@ import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
 \`\`\`
 
+**For Layouts (DATA SCREENS - MANDATORY!):**
+\`\`\`typescript
+import { DataContainer } from '@/components/layout/dataContainer';
+\`\`\`
+
+---
+
+## RULE 3.5: LAYOUT COMPONENTS (MANDATORY FOR DATA SCREENS!)
+
+**🚨 CRITICAL: ALL data screens (lists, tables) MUST use DataContainer!**
+
+**DataContainer Structure:**
+\`\`\`typescript
+import React, { useState, useEffect } from 'react';
+import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { DataContainer } from '@/components/layout/dataContainer';
+import { Button, Table } from '@newwork/nw-design-system';
+
+interface MyScreenProps extends BusinessAppContextProps {}
+
+const MyScreen: React.FC<MyScreenProps> = (props) => {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  return (
+    <DataContainer
+      data-testid="my-screen-container"
+      title="Screen Title"
+      description="Screen description"
+      actions={
+        <Button variant="default" onClick={handleCreate}>
+          Create New
+        </Button>
+      }
+      filters={
+        <Input
+          placeholder="Search..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      }
+    >
+      {loading ? (
+        <div>Loading...</div>
+      ) : (
+        <Table data={data} columns={columns} />
+      )}
+    </DataContainer>
+  );
+};
+\`\`\`
+
+**When to use which layout:**
+- **DataContainer**: Lists, tables, data grids (90% of screens) → **USE THIS BY DEFAULT**
+- **ProfileLayout**: User profiles, detail pages with sidebar
+- **PageLayout**: Settings pages, configuration screens
+- **Simple div**: Only for very simple single-card screens
+
+**✅ CORRECT (DataContainer for data screens):**
+\`\`\`typescript
+<DataContainer title="Leads" actions={<Button>Create</Button>}>
+  <Table data={leads} />
+</DataContainer>
+\`\`\`
+
+**❌ WRONG (Missing DataContainer):**
+\`\`\`typescript
+<div className="gba:p-6">
+  <h1>Leads</h1>
+  <Button>Create</Button>
+  <Table data={leads} />
+</div>
+\`\`\`
+
+**Before building ANY data screen, search for examples:**
+\`search_codebase("DataContainer usage in lead list")\`
+
 ---
 
 ## RULE 4: STYLING (STRICT ENFORCEMENT)
@@ -187,11 +265,8 @@ When user asks: "Build a lead list screen"
 \`\`\`typescript
 import React, { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { DataContainer } from '@/components/layout/dataContainer';
 import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardContent,
   Button,
   Input,
   Table,
@@ -203,7 +278,7 @@ import {
   Alert,
   AlertDescription
 } from '@newwork/nw-design-system';
-import { Loader2, AlertCircle, Plus, Search } from 'lucide-react';
+import { Loader2, AlertCircle, Plus } from 'lucide-react';
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { AppActionButton } from '@/components/app-action-button/AppActionButton';
 import { FlowContextName } from '@/common/types/FlowRegistryTypes';
@@ -240,11 +315,11 @@ export const LeadList: React.FC<LeadListProps> = (props) => {
     
     try {
       // Use the query from generate_graphql_query tool
-      const whereCondition: any = {};
-      
+  const whereCondition: any = {};
+  
       if (search.trim()) {
         const searchPattern = { _ilike: \`%\${search.trim()}%\` };
-        whereCondition._or = [
+    whereCondition._or = [
           { firstName: searchPattern },
           { lastName: searchPattern },
           { email: searchPattern },
@@ -258,7 +333,7 @@ export const LeadList: React.FC<LeadListProps> = (props) => {
       const query = \`
         query GetLeads {
           Lead(
-            where: \${JSON.stringify(whereCondition)}
+        where: \${JSON.stringify(whereCondition)}
             limit: \${pageSize}
             offset: \${(currentPage - 1) * pageSize}
             order_by: { createdAt: DESC }
@@ -270,23 +345,23 @@ export const LeadList: React.FC<LeadListProps> = (props) => {
             company
             leadStatus { value code }
             ownerEmployee { firstName lastName }
-            createdAt
-          }
+        createdAt
+      }
           LeadAggregate(where: \${JSON.stringify(whereCondition)}) {
             aggregate { count }
-          }
-        }
-      \`;
-
-      const result = await graphqlClient.request(query);
+      }
+    }
+  \`;
+  
+    const result = await graphqlClient.request(query);
       setLeads(result.Lead || []);
       setTotalCount(result.LeadAggregate?.aggregate?.count || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load leads');
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
 
   useEffect(() => {
     if (props.accessToken) {
@@ -319,96 +394,75 @@ export const LeadList: React.FC<LeadListProps> = (props) => {
   }
 
   return (
-    <div className="gba:p-6 gba:space-y-6" data-testid="lead-list-container">
-      {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between">
-        <div>
-          <h1 className="gba:text-2xl gba:font-bold">Leads</h1>
-          <p className="gba:text-sm gba:text-muted-foreground">{totalCount} total leads</p>
-        </div>
+    <DataContainer
+      data-testid="lead-list-container"
+      title="Leads"
+      description={\`\${totalCount} total leads\`}
+      actions={
         <Button data-testid="lead-create-button" className="gba:gap-2">
           <Plus className="gba:w-4 gba:h-4" />
           Create Lead
         </Button>
-      </div>
-
-      {/* Search */}
-      <Card>
-        <CardContent className="gba:pt-6">
-          <div className="gba:flex gba:gap-2">
-            <Input
-              placeholder="Search leads..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              data-testid="lead-search-input"
-              className="gba:flex-1"
-            />
-            <Button variant="outline" data-testid="lead-search-button" className="gba:gap-2">
-              <Search className="gba:w-4 gba:h-4" />
-              Search
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Lead List</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {leads.length === 0 ? (
-            <div className="gba:text-center gba:py-12 gba:text-muted-foreground" data-testid="lead-list-empty">
-              No leads found
-            </div>
-          ) : (
-            <Table data-testid="leads-table">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead className="gba:w-[60px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leads.map((lead) => (
-                  <TableRow key={lead.id} data-testid={\`lead-row-\${lead.id}\`}>
-                    <TableCell>{lead.firstName} {lead.lastName}</TableCell>
-                    <TableCell>{lead.email}</TableCell>
-                    <TableCell>{lead.company}</TableCell>
-                    <TableCell>{lead.leadStatus?.value}</TableCell>
-                    <TableCell>
-                      {lead.ownerEmployee?.firstName} {lead.ownerEmployee?.lastName}
-                    </TableCell>
-                    <TableCell>
-                      <div className="gba:flex gba:justify-start">
-                        <AppActionButton
-                          data-testid={\`lead-update-button-\${lead.id}\`}
-                          size="icon"
-                          contextsArray={[FlowContextName.customerLeadEntity]}
-                          externalContextData={{ leadId: lead.id }}
-                          prefixDataTestId="lead-update"
-                          accessToken={props.accessToken}
-                          emptyStateBehavior="enable"
-                          deferMainContextRequestsUntilClick
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pagination (if needed) */}
+      }
+      filters={
+        <Input
+          placeholder="Search leads..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          data-testid="lead-search-input"
+        />
+      }
+    >
+      {leads.length === 0 ? (
+        <div className="gba:text-center gba:py-12 gba:text-muted-foreground" data-testid="lead-list-empty">
+          No leads found
+        </div>
+      ) : (
+        <Table data-testid="leads-table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Owner</TableHead>
+              <TableHead className="gba:w-[60px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {leads.map((lead) => (
+              <TableRow key={lead.id} data-testid={\`lead-row-\${lead.id}\`}>
+                <TableCell>{lead.firstName} {lead.lastName}</TableCell>
+                <TableCell>{lead.email}</TableCell>
+                <TableCell>{lead.company}</TableCell>
+                <TableCell>{lead.leadStatus?.value}</TableCell>
+                <TableCell>
+                  {lead.ownerEmployee?.firstName} {lead.ownerEmployee?.lastName}
+                </TableCell>
+                <TableCell>
+                  <div className="gba:flex gba:justify-start">
+                    <AppActionButton
+                      data-testid={\`lead-update-button-\${lead.id}\`}
+                      size="icon"
+                      contextsArray={[FlowContextName.customerLeadEntity]}
+                      externalContextData={{ leadId: lead.id }}
+                      prefixDataTestId="lead-update"
+                      accessToken={props.accessToken}
+                      emptyStateBehavior="enable"
+                      deferMainContextRequestsUntilClick
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      
+      {/* Pagination */}
       {totalCount > pageSize && (
-        <div className="gba:flex gba:justify-center gba:gap-2">
+        <div className="gba:flex gba:justify-center gba:gap-2 gba:mt-4">
           <Button
             variant="outline"
             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -430,7 +484,7 @@ export const LeadList: React.FC<LeadListProps> = (props) => {
           </Button>
         </div>
       )}
-    </div>
+    </DataContainer>
   );
 };
 
@@ -489,10 +543,10 @@ if (loading && data.length === 0) {
 if (error) {
   return (
     <div className="gba:p-6">
-      <Alert variant="destructive">
-        <AlertCircle className="gba:w-4 gba:h-4" />
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
+    <Alert variant="destructive">
+      <AlertCircle className="gba:w-4 gba:h-4" />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
       <Button onClick={retryFunction} className="gba:mt-4">Try Again</Button>
     </div>
   );
@@ -537,7 +591,7 @@ if (error) {
             deferMainContextRequestsUntilClick
             onClick={(e) => e.stopPropagation()}
           />
-        </div>
+      </div>
       </TableCell>
     </TableRow>
   ))}
