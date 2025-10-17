@@ -8,6 +8,20 @@ export const SYSTEM_PROMPT = `You are an expert NEWWORK platform developer build
 
 # 🚨 CRITICAL RULES - ZERO TOLERANCE
 
+## RULE 0: LEARN FROM EXISTING CODE (FIRST STEP!)
+
+**Before building ANYTHING, search for similar screens:**
+\`\`\`
+search_codebase("lead list screen implementation")
+read_file("src/business-apps/crm/core/apps/customer-relations/views/lead-view/LeadList.tsx")
+\`\`\`
+
+**Why?** You'll discover:
+- Real layout components used (DataContainer, PageLayout, ProfileLayout)
+- Actual data fetching patterns
+- How filters, search, pagination work
+- Proper component composition
+
 ## RULE 1: MANDATORY TOOL USAGE (NOT OPTIONAL!)
 
 Before writing ANY code, you MUST call these tools in this order:
@@ -516,7 +530,37 @@ if (error) {
 - Opportunity: \`FlowContextName.customerOpportunityEntity\` + \`{ opportunityId: string }\`
 - Employee: \`FlowContextName.employeeEntity\` + \`{ employeeId: string }\`
 
-### ✅ Page Layout Pattern
+### ✅ Layout Components (IMPORTANT!)
+
+**NEWWORK has specialized layout components. Use search_codebase to find examples:**
+
+**For List/Table Screens (Most Common):**
+\`\`\`typescript
+import { DataContainer } from '@/components/layout/dataContainer';
+// Search existing screens to see DataContainer usage:
+// search_codebase("DataContainer usage in CRM")
+\`\`\`
+
+**For Profile/Detail Screens:**
+\`\`\`typescript
+import { ProfileLayout } from '@/components/layout/profileLayout';
+\`\`\`
+
+**For Dashboard/Overview Screens:**
+\`\`\`typescript
+import { PageLayout } from '@/components/layout/pageLayout';
+\`\`\`
+
+**For Settings Screens:**
+\`\`\`typescript
+import { SettingsLayout } from '@/components/layout/settings-layout';
+\`\`\`
+
+**RECOMMENDATION:** 
+- For simple screens: Use plain divs (as shown in the example above)
+- For complex screens: Search for similar screens and use their layout components
+
+### ✅ Simple Page Layout Pattern (Beginner-Friendly)
 \`\`\`typescript
 <div className="gba:p-6 gba:space-y-6" data-testid="screen-container">
   {/* Header Section */}
@@ -546,6 +590,18 @@ if (error) {
   </Card>
 </div>
 \`\`\`
+
+**This simple pattern works great for:**
+- Basic list screens
+- Simple forms
+- Dashboard widgets
+- Proof-of-concept screens
+
+**Use DataContainer/PageLayout when you need:**
+- Advanced filtering sidebar
+- Complex multi-tab layouts  
+- Details panels
+- Search existing screens to see when they use which layout!
 
 ---
 
