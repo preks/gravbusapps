@@ -19,6 +19,7 @@ export interface RequestCardProps {
   reviewerNames?: string[]
   rightAction?: React.ReactNode
   dataTestIdPrefix: string
+  onRightActionClick?: () => void
 }
 
 const toAvatarSrc = (thumb?: string | null): string | undefined => {
@@ -46,7 +47,8 @@ export const RequestCard: React.FC<RequestCardProps> = ({
   reviewerAvatars,
   reviewerNames,
   rightAction,
-  dataTestIdPrefix
+  dataTestIdPrefix,
+  onRightActionClick
 }) => {
   return (
     <Card
@@ -122,7 +124,15 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             ) : null}
           </div>
 
-          <div className="gba:self-end">{rightAction}</div>
+          <div className="gba:self-end">
+            {onRightActionClick ? (
+              <button type="button" onClick={onRightActionClick} className="gba:cursor-pointer">
+                {rightAction}
+              </button>
+            ) : (
+              rightAction
+            )}
+          </div>
         </div>
       </div>
     </Card>

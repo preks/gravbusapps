@@ -68,6 +68,8 @@ interface FeedbackRequest {
   feedbackText?: string | null
   creatorName?: string | null
   creatorEmployeeId?: string | null
+  endpoint?: string | null
+  processInstanceId?: string | null
   employeeFeedbackRequestReviewer?: Array<{
     id: string
     reviewerEmployeeId?: string
@@ -196,7 +198,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   useEffect(() => {
     // Initialize with props if available, otherwise fetch from API
     if (employeeFeedback?.length) {
-      console.log(employeeFeedback, 'employeeFeedback')
       setLocalFeedback(employeeFeedback as ExtendedEmployeeFeedback[])
     } else {
       fetchFeedbackData()
@@ -215,7 +216,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       taskName: t.name || null,
       taskTitle: t.referenceName || null,
       feedbackText: t?.inputs?.feedback?.feedback || null,
-      creatorName: t?.creatorName || null
+      creatorName: t?.creatorName || null,
+      endpoint: t?.endpoint || null,
+      processInstanceId: t?.processInstanceId || null
     }))
     setFeedbackRequests(mapped)
   }, [feedbackTasks])
@@ -226,6 +229,54 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   // Expand/collapse state for approval requests
   const [showAllApprovalRequests, setShowAllApprovalRequests] = useState<boolean>(false)
+
+  // Respond action handler extracted for readability
+  const handleRespondClick = React.useCallback(
+    (request: FeedbackRequest) => {
+      const endpoint = request.endpoint || ''
+
+      // Extract by splitting the endpoint path: /processes/<domain>/<processName>/<processInstanceId>/...
+      let domain = 'employee'
+      let processName = 'giveFeedback'
+      let processInstanceId: string | undefined = request.processInstanceId || undefined
+
+      const extractFromParts = (parts: string[]) => {
+        const idx = parts.indexOf('processes')
+        if (idx >= 0 && parts.length > idx + 3) {
+          domain = parts[idx + 1]
+          processName = parts[idx + 2]
+          processInstanceId = parts[idx + 3]
+        }
+      }
+
+      try {
+        // Prefer URL parsing if absolute URL
+        const url = new URL(endpoint)
+        extractFromParts(url.pathname.split('/').filter(Boolean))
+      } catch {
+        // Fallback for relative endpoints
+        extractFromParts(endpoint.split('/').filter(Boolean))
+      }
+
+      const payload = {
+        domain,
+        processName,
+        startProcessBody: {
+          requestId: request.id,
+          employeeId: employee?.id
+        },
+        processInstanceId,
+        builderType: 'NATIVE_SCREEN'
+      }
+
+      window.dispatchEvent(
+        new CustomEvent('com.newwork.process.start', {
+          detail: payload
+        })
+      )
+    },
+    [employee?.id]
+  )
 
   // Format feedback for display
   const formatFeedback = (): FormattedFeedback[] => {
@@ -407,7 +458,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             ) : (
               <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
                 {(showAllReceivedRequests ? feedbackRequests : feedbackRequests.slice(0, 3)).map(
-                  (request: FeedbackRequest, index: number) => (
+                  (request: FeedbackRequest) => (
                     <RequestCard
                       key={request.id}
                       id={request.id}
@@ -430,19 +481,11 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       }))}
                       reviewerNames={request.reviewerNames || undefined}
                       rightAction={
-                        <AppActionMenu
-                          data-testid={`respond-received-request-button-${index}`}
-                          contextsArray={[FlowContextName.employeeGiveFeedback]}
-                          externalContextData={{ employeeId: employee?.id, requestId: request.id }}
-                          prefixDataTestId={`respond-received-request-${index}`}
-                          accessToken={accessToken}
-                          autoExecuteSingleAction={true}
-                        >
-                          <div className="gba:cursor-pointer">
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
-                          </div>
-                        </AppActionMenu>
+                        <div className="gba:cursor-pointer">
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                        </div>
                       }
+                      onRightActionClick={() => handleRespondClick(request)}
                       dataTestIdPrefix={`received-request`}
                     />
                   )
@@ -487,7 +530,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               />
             ) : (
               <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                {(showAllApprovalRequests ? requestedFeedback : requestedFeedback.slice(0, 3)).map((request, index) => (
+                {(showAllApprovalRequests ? requestedFeedback : requestedFeedback.slice(0, 3)).map(request => (
                   <RequestCard
                     key={request.id}
                     id={request.id}
@@ -511,7 +554,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                       const statusText = state
                         ? state.charAt(0).toUpperCase() + state.slice(1)
                         : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.status_unknown', 'Unknown')
-                      return <Pill label={statusText} type="waiting" data-testid={`approval-request-status-${index}`} />
+                      return <Pill label={statusText} type="waiting" />
                     })()}
                   />
                 ))}
