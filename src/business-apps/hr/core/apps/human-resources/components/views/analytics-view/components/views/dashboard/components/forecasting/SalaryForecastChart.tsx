@@ -1,6 +1,6 @@
 import React from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { Card } from 'antd'
+import { Card } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { MonthlySalaryForecast } from '../../../../../hooks/useMonthlySalaryForecast'
 
@@ -19,11 +19,14 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload
     return (
-      <div className="gba:bg-white gba:shadow-lg gba:rounded gba:p-4" data-testid="salary-forecast-tooltip">
-        <div className="gba:font-semibold gba:text-base gba:mb-1">
+      <div
+        className="gba:bg-card gba:shadow-lg gba:rounded gba:p-4 gba:border-border"
+        data-testid="salary-forecast-tooltip"
+      >
+        <div className="gba:font-semibold gba:text-base gba:mb-1 gba:text-foreground">
           {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
         </div>
-        <div className="gba:text-black gba:text-sm">
+        <div className="gba:text-foreground gba:text-sm">
           <div>
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('salary_forecast_total_salary', 'Total Salary')}:
@@ -36,7 +39,7 @@ const CustomTooltip = ({ active, payload }: any) => {
             </span>{' '}
             {d.headcount}
           </div>
-          <div className="gba:text-green-600">
+          <div className="gba:text-success">
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('salary_forecast_new_hires', 'New Hires')}:
             </span>{' '}
@@ -52,16 +55,23 @@ const CustomTooltip = ({ active, payload }: any) => {
 const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
   return (
     <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6 gba:border gba:border-gray-200"
+      className="gba:shadow gba:rounded gba:p-4 gba:mb-6 gba:border-border"
       data-testid="salary-forecast-chart-container"
-      title={getTranslationFromI18nKeyAndLabel('salary_forecast_title', 'Company Salary Forecast')}
     >
-      <div className="gba:text-gray-500 gba:text-sm gba:mb-4" data-testid="salary-forecast-description">
-        {getTranslationFromI18nKeyAndLabel(
-          'salary_forecast_description',
-          'Total monthly salary expenses and growth trends'
-        )}
+      {/* Header */}
+      <div className="gba:mb-4">
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
+          {getTranslationFromI18nKeyAndLabel('salary_forecast_title', 'Company Salary Forecast')}
+        </h3>
+        <div className="gba:text-muted-foreground gba:text-sm gba:mt-1" data-testid="salary-forecast-description">
+          {getTranslationFromI18nKeyAndLabel(
+            'salary_forecast_description',
+            'Total monthly salary expenses and growth trends'
+          )}
+        </div>
       </div>
+
+      {/* Chart */}
       <ResponsiveContainer width="100%" height={350}>
         <LineChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -77,7 +87,7 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
           <Line
             type="monotone"
             dataKey="totalSalary"
-            stroke="#3b82f6"
+            stroke="var(--nw-chart-3)"
             strokeWidth={3}
             dot={{ r: 5 }}
             activeDot={{ r: 8 }}

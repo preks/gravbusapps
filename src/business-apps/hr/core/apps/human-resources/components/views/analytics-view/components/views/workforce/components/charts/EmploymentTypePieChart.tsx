@@ -27,26 +27,16 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
     }))
   }, [data])
 
-  // Standard colors for consistent presentation
+  // Get chart colors that automatically update with theme changes
   const COLORS = [
-    '#1890FF',
-    '#2FC25B',
-    '#FACC14',
-    '#223273',
-    '#8543E0',
-    '#13C2C2',
-    '#3436C7',
-    '#F04864',
-    '#D0021B',
-    '#5B8FF9',
-    '#5AD8A6',
-    '#5D7092',
-    '#F6BD16',
-    '#E8684A',
-    '#6DC8EC',
-    '#9270CA',
-    '#FF9D4D',
-    '#269A99'
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
   ]
 
   // Calculate the total number of employees
@@ -79,13 +69,13 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
           outerRadius={innerRadius - 2}
           fill={fill}
         />
-        <text x={cx} y={cy - 20} textAnchor="middle" fill="#374151" fontSize={20} fontWeight="600">
+        <text x={cx} y={cy - 20} textAnchor="middle" fill="var(--nw-color-foreground)" fontSize={20} fontWeight="600">
           {payload.name}
         </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="#6B7280" fontSize={16}>
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--nw-color-muted-foreground)" fontSize={16}>
           {value.toLocaleString()} employees
         </text>
-        <text x={cx} y={cy + 35} textAnchor="middle" fill="#1890FF" fontSize={16} fontWeight="600">
+        <text x={cx} y={cy + 35} textAnchor="middle" fill="var(--nw-color-primary)" fontSize={16} fontWeight="600">
           {payload.percentage}%
         </text>
       </g>
@@ -105,10 +95,10 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
     return (
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-loading`}>
         <div className="gba:mb-4">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:m-0">
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
           </h3>
-          <p className="gba:text-gray-600 gba:text-sm gba:mt-1">
+          <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
             Distribution of employees by employment types such as internal, external, full-time, part-time, etc.
           </p>
         </div>
@@ -123,10 +113,10 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
     return (
       <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-error`}>
         <div className="gba:mb-4">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:m-0">
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
           </h3>
-          <p className="gba:text-gray-600 gba:text-sm gba:mt-1">
+          <p className="gba:text-muted-foreground gba:text-sm gba:mt-1">
             Distribution of employees by employment types such as internal, external, full-time, part-time, etc.
           </p>
         </div>
@@ -141,20 +131,20 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
     <Card className="gba:w-full gba:p-6 gba:shadow-sm" data-testid={`${prefixDataTestId}-chart`}>
       <div className="gba:mb-4">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-          <h3 className="gba:text-lg gba:font-semibold gba:text-gray-800 gba:m-0">
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:m-0">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_employment_type', 'Employment Type')}
           </h3>
           <Badge variant="outline" className="gba:text-xs">
             {data.length} types
           </Badge>
         </div>
-        <p className="gba:text-gray-600 gba:text-sm">
+        <p className="gba:text-muted-foreground gba:text-sm">
           Distribution of employees by employment types such as internal, external, full-time, part-time, etc.
         </p>
       </div>
 
       {data.length === 0 ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-96 gba:text-gray-500">
+        <div className="gba:flex gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel('hr_analytics_no_data', 'No data available')}
         </div>
       ) : (
@@ -179,7 +169,12 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                   animationDuration={1200}
                 >
                   {chartData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="#ffffff" strokeWidth={2} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                      stroke="var(--nw-color-card)"
+                      strokeWidth={2}
+                    />
                   ))}
                   {/* Custom center label */}
                   <text
@@ -187,7 +182,9 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                     y="47%"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    style={{ fontSize: '20px', fill: '#374151', fontWeight: 600 }}
+                    fontSize="20"
+                    fontWeight="600"
+                    fill="var(--nw-color-foreground)"
                   >
                     {getTranslationFromI18nKeyAndLabel('hr_analytics_total_employees', 'Total Employees')}
                   </text>
@@ -196,7 +193,9 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
                     y="57%"
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    style={{ fontSize: '28px', fontWeight: 'bold', fill: '#111827' }}
+                    fontSize="28"
+                    fontWeight="bold"
+                    fill="var(--nw-color-foreground)"
                   >
                     {totalEmployees.toLocaleString()}
                   </text>
@@ -206,21 +205,18 @@ const EmploymentTypePieChart: React.FC<EmploymentTypePieChartProps> = ({ data, l
           </div>
 
           {/* Custom Legend */}
-          <div
-            className="gba:mt-6 gba:pt-4 gba:border-t gba:border-gray-200"
-            data-testid={`${prefixDataTestId}-legend`}
-          >
+          <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border" data-testid={`${prefixDataTestId}-legend`}>
             <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-3">
               {chartData.map((item, index) => (
                 <div
                   key={`legend-${index}`}
-                  className="gba:flex gba:items-center gba:px-3 gba:py-2 gba:bg-gray-50 gba:rounded gba:border gba:border-gray-100"
+                  className="gba:flex gba:items-center gba:px-3 gba:py-2 gba:bg-background gba:rounded gba:border gba:border-border"
                 >
                   <div
                     className="gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
                     style={{ backgroundColor: COLORS[index % COLORS.length] }}
                   />
-                  <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+                  <span className="gba:text-sm gba:font-medium gba:text-foreground">
                     {item.name}:{' '}
                     <span className="gba:font-semibold">
                       {item.value.toLocaleString()} ({item.percentage}%)

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
-import { Card, Typography, Spin, Empty, Result } from 'antd'
+import { Card } from '@newwork/nw-design-system'
+import { Typography, Spin, Empty, Result } from 'antd'
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { YearlyEmployeeData } from '../../../../../hooks/useEmployeesPerYear'
@@ -16,6 +17,18 @@ interface EmployeesPerYearChartProps {
  * Chart component displaying total employees per year as a bar chart with trend line
  */
 const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loading, error }) => {
+  // Get chart colors that automatically update with theme changes
+  const chartColors = [
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
+  ]
+
   // Ensure data is properly formatted and not empty
   const chartData = useMemo(() => {
     return (
@@ -57,11 +70,11 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
   return (
     <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="employees-per-year-chart">
       {/* Header */}
-      <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
+      <div className="gba:mb-4 gba:ml-4">
+        <Title level={4} className="gba:m-0 gba:text-foreground">
           {getTranslationFromI18nKeyAndLabel('hr_analytics_employees_per_year', 'Total Employees Per Year')}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
           {getTranslationFromI18nKeyAndLabel(
             'hr_analytics_employees_per_year_description',
             'Company workforce growth trends with smoothed trend line showing organizational expansion over time'
@@ -99,42 +112,44 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
         <div className="gba:h-64" data-testid="employees-chart-container">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartDataWithTrend} margin={{ top: 15, right: 30, left: 20, bottom: 25 }} barSize={24}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-border)" />
               <XAxis
                 dataKey="year"
-                axisLine={{ stroke: '#e0e0e0' }}
+                axisLine={{ stroke: 'var(--nw-border)' }}
                 tickLine={false}
-                tick={{ fill: '#666666', fontSize: 12 }}
+                tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
                 dy={10}
                 label={{
                   value: getTranslationFromI18nKeyAndLabel('hr_analytics_chart_year', 'Year'),
                   position: 'insideBottom',
                   offset: -15,
-                  fill: '#666666',
+                  fill: 'var(--nw-muted-foreground)',
                   fontSize: 12
                 }}
               />
               <YAxis
-                axisLine={{ stroke: '#e0e0e0' }}
+                axisLine={{ stroke: 'var(--nw-border)' }}
                 tickLine={false}
-                tick={{ fill: '#666666', fontSize: 12 }}
+                tick={{ fill: 'var(--nw-muted-foreground)', fontSize: 12 }}
                 width={60}
                 label={{
                   value: getTranslationFromI18nKeyAndLabel('hr_analytics_chart_employees', 'Employees'),
                   angle: -90,
                   position: 'insideLeft',
                   dy: 50,
-                  fill: '#666666',
+                  fill: 'var(--nw-muted-foreground)',
                   fontSize: 12
                 }}
               />
               <Tooltip
-                cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+                cursor={{ fill: 'var(--nw-muted)' }}
                 contentStyle={{
                   borderRadius: 4,
-                  border: '1px solid #e0e0e0',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-                  padding: '8px 12px'
+                  border: '1px solid var(--nw-border)',
+                  boxShadow: 'var(--nw-shadow-md)',
+                  padding: '8px 12px',
+                  backgroundColor: 'var(--nw-card)',
+                  color: 'var(--nw-card-foreground)'
                 }}
                 formatter={(value, name) => {
                   const label = name === 'trend' ? 'Trend' : 'Employees'
@@ -146,7 +161,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
                 wrapperStyle={{
                   paddingTop: 20,
                   fontSize: 12,
-                  color: '#666666'
+                  color: 'var(--nw-muted-foreground)'
                 }}
                 verticalAlign="bottom"
                 height={36}
@@ -154,7 +169,7 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
               <Bar
                 dataKey="employees"
                 name={getTranslationFromI18nKeyAndLabel('hr_analytics_chart_employees', 'Employees')}
-                fill="#52c41a"
+                fill={chartColors[0]}
                 radius={[4, 4, 0, 0]}
                 animationDuration={1500}
                 animationEasing="ease"
@@ -163,10 +178,10 @@ const EmployeesPerYearChart: React.FC<EmployeesPerYearChartProps> = ({ data, loa
                 type="monotone"
                 dataKey="trend"
                 name="Trend"
-                stroke="#333333"
+                stroke="var(--nw-foreground)"
                 strokeWidth={2}
-                dot={{ fill: '#333333', r: 4 }}
-                activeDot={{ fill: '#333333', r: 6, stroke: '#fff', strokeWidth: 2 }}
+                dot={{ fill: 'var(--nw-foreground)', r: 4 }}
+                activeDot={{ fill: 'var(--nw-foreground)', r: 6, stroke: 'var(--nw-card)', strokeWidth: 2 }}
                 animationDuration={2000}
                 animationEasing="ease"
               />
