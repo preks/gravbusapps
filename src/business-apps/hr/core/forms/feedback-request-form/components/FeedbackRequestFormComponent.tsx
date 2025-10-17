@@ -74,7 +74,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
         <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2">
             <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('feedback.request.title', 'Request Feedback')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.title', 'Request Feedback')}
             </h2>
           </div>
         </div>
@@ -93,21 +93,30 @@ const FeedbackRequestFormComponent: React.FC = () => {
             {!hasPreSelectedEmployee && !isPreSelectedEmployeeCurrentUser ? (
               <>
                 <Label className="gba:block gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('feedback.request.requestFrom', 'Request feedback from...')}{' '}
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_request_form.requestFrom',
+                    'Request feedback from...'
+                  )}{' '}
                   <span className="gba:text-red-500">*</span>
                 </Label>
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:text-sm gba:text-muted-foreground">
                     {formValues.employeeNames && formValues.employeeNames.length > 0
                       ? `${formValues.employeeNames.slice(0, 2).join(', ')}${formValues.employeeNames.length > 2 ? ` +${formValues.employeeNames.length - 2}` : ''}`
-                      : getTranslationFromI18nKeyAndLabel('feedback.request.selectPlaceholder', 'Select employees')}
+                      : getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:feedback_request_form.selectPlaceholder',
+                          'Select employees'
+                        )}
                   </div>
                   <Button
                     variant="outline"
                     onClick={openMultiModal}
                     data-testid={formatDataTestId(prefixDataTestId, 'OpenMultiSelect')}
                   >
-                    {getTranslationFromI18nKeyAndLabel('feedback.request.selectMultiple', 'Select employees')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:feedback_request_form.selectMultiple',
+                      'Select employees'
+                    )}
                   </Button>
                 </div>
               </>
@@ -131,7 +140,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
             data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
             className="gba:px-6 gba:py-2 gba:rounded-lg"
           >
-            {getTranslationFromI18nKeyAndLabel('feedback.request.cancel', 'Cancel')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.cancel', 'Cancel')}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -144,10 +153,10 @@ const FeedbackRequestFormComponent: React.FC = () => {
             {isLoading ? (
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Spinner size="sm" />
-                {getTranslationFromI18nKeyAndLabel('feedback.request.sending', 'Sending...')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.sending', 'Sending...')}
               </div>
             ) : (
-              getTranslationFromI18nKeyAndLabel('feedback.request.send', 'Send Request')
+              getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.send', 'Send Request')
             )}
           </Button>
         </div>

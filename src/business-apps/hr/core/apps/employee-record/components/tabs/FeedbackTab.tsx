@@ -11,6 +11,7 @@ import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { CalendarOutlined, SearchOutlined, DownloadOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import Pill from '@/components/pill/Pill'
@@ -258,22 +259,16 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         extractFromParts(endpoint.split('/').filter(Boolean))
       }
 
-      const payload = {
+      startProcess({
         domain,
         processName,
-        startProcessBody: {
+        payload: {
           requestId: request.id,
           employeeId: employee?.id
         },
         processInstanceId,
         builderType: 'NATIVE_SCREEN'
-      }
-
-      window.dispatchEvent(
-        new CustomEvent('com.newwork.process.start', {
-          detail: payload
-        })
-      )
+      })
     },
     [employee?.id]
   )

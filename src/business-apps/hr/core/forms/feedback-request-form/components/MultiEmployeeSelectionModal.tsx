@@ -99,7 +99,7 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
       <DialogContent className="gba:w-full gba:max-w-2xl">
         <DialogHeader>
           <DialogTitle>
-            {getTranslationFromI18nKeyAndLabel('feedback.request.selectEmployees', 'Select Employees')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.selectEmployees', 'Select Employees')}
           </DialogTitle>
         </DialogHeader>
 
@@ -113,7 +113,7 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
           <Input
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder={getTranslationFromI18nKeyAndLabel('feedback.request.searchEmployees', 'Search')}
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.searchEmployees', 'Search')}
             data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
           />
 
@@ -184,7 +184,7 @@ const MultiEmployeeSelectionModal: React.FC<MultiEmployeeSelectionModalProps> = 
               {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
             </Button>
             <Button onClick={handleConfirm} data-testid={formatDataTestId(prefixDataTestId, 'ConfirmButton')}>
-              {getTranslationFromI18nKeyAndLabel('common.apply', 'Apply')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_request_form.apply', 'Apply')}
             </Button>
           </div>
         </div>
