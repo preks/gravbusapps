@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/nw-design-system'
 import { Input } from '@newwork/nw-design-system'
+import { Textarea } from '@newwork/nw-design-system'
 import {
   Send,
   Loader2,
@@ -845,25 +846,58 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
       </div>
 
       {/* Input */}
-      <div className="gba:border-t gba:bg-card gba:p-4">
-        <form onSubmit={handleSubmit} className="gba:flex gba:gap-3">
-          <Input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="Describe the screen you want to build..."
-            disabled={loading}
-            className="gba:flex-1"
-          />
-          <Button type="submit" disabled={loading} className="gba:gap-2">
-            {loading ? <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" /> : <Send className="gba:w-4 gba:h-4" />}
-            {loading ? 'Building...' : 'Send'}
-          </Button>
-        </form>
-        {loading && (
-          <div className="gba:mt-2 gba:text-center gba:text-xs gba:text-muted-foreground">
-            AI is exploring your codebase...
+      <div className="gba:border-t gba:bg-card gba:p-6">
+        <form onSubmit={handleSubmit} className="gba:space-y-3">
+          <div className="gba:relative">
+            <Textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSubmit(e as any)
+                }
+              }}
+              placeholder="Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)"
+              disabled={loading}
+              rows={3}
+              className="gba:resize-none gba:text-base gba:leading-relaxed gba:pr-24"
+              data-testid="ai-builder-input"
+            />
+            <div className="gba:absolute gba:bottom-3 gba:right-3">
+              <Button
+                type="submit"
+                disabled={loading || !input.trim()}
+                size="lg"
+                className="gba:gap-2 gba:shadow-lg"
+                data-testid="ai-builder-send-button"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="gba:w-5 gba:h-5 gba:animate-spin" />
+                    Building...
+                  </>
+                ) : (
+                  <>
+                    <Send className="gba:w-5 gba:h-5" />
+                    Send
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
-        )}
+          {loading && (
+            <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2">
+              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+              <span>AI is analyzing your request and exploring the codebase...</span>
+            </div>
+          )}
+          {!loading && input.trim() && (
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+              💡 Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"
+            </p>
+          )}
+        </form>
       </div>
 
       {/* Publish Dialog */}
