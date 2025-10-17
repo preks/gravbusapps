@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, GET_EXPENSE_ITEM_BY_ID } from '../queries/expenseItems'
-import { env } from '@/common/env/EnvUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Define types for the hook
 export interface ExpenseItem {
@@ -84,6 +84,7 @@ export const useGetExpenseItems = (
   context?: BusinessAppContextProps,
   options?: { autoFetch?: boolean }
 ): ExpenseItemsResult => {
+  const graphqlClient = useGraphQLClient(context?.accessToken || '')
   const [items, setItems] = useState<ExpenseItem[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
@@ -254,34 +255,12 @@ export const useGetExpenseItems = (
           console.log('No Receipt filter is active!')
         }
 
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE,
-            variables
-          })
-        })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
-        }
-
-        const result = await response.json()
-
-        if (result.errors && result.errors.length > 0) {
-          throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        }
-
-        // Get total count from aggregate query
-        const count = result.data?.ExpenseItemAggregate?.aggregate?.count ?? 0
+        const result = await graphqlClient.request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables)
+        const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
         setTotalCount(count)
 
         // Map the items using helper function
-        let mappedItems = mapResponseToItems(result.data)
+        let mappedItems = mapResponseToItems(result)
 
         // Apply client-side filtering for expenseClass
         if (filter?.expenseClass && filter.expenseClass.value) {
@@ -317,7 +296,7 @@ export const useGetExpenseItems = (
         setIsLoading(false)
       }
     },
-    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, buildQueryVariables, mapResponseToItems]
+    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, buildQueryVariables, mapResponseToItems, graphqlClient]
   )
 
   // Initial fetch on component mount (configurable)
@@ -337,6 +316,7 @@ export const useGetExpenseItems = (
  */
 
 export const useGetExpenseItem = (context?: BusinessAppContextProps, initialId?: string): ExpenseItemResult => {
+  const graphqlClient = useGraphQLClient(context?.accessToken || '')
   const [item, setItem] = useState<ExpenseItem | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(!!initialId)
   const [error, setError] = useState<Error | null>(null)
@@ -363,32 +343,8 @@ export const useGetExpenseItem = (context?: BusinessAppContextProps, initialId?:
     setError(null)
 
     try {
-      const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          query: GET_EXPENSE_ITEM_BY_ID,
-          variables: {
-            id: itemId
-          }
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (result.errors && result.errors.length > 0) {
-        throw new Error(result.errors.map((e: any) => e.message).join(', '))
-      }
-
-      // Get the item
-      const fetchedItem = result.data?.ExpenseItem[0] ?? null
+      const result = await graphqlClient.request<any>(GET_EXPENSE_ITEM_BY_ID, { id: itemId })
+      const fetchedItem = result?.ExpenseItem?.[0] ?? null
       setItem(fetchedItem)
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)))
