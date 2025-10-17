@@ -113,13 +113,14 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
 
   const handleCreateSubmit = async (formData: MileageRuleFormData) => {
     try {
-      await createMileageRule(formData)
+      const result = await createMileageRule(formData)
       toast({
         title: 'Success',
         description: 'Mileage rule created successfully'
       })
       setIsCreateModalVisible(false)
       refetch({})
+      return result // ✅ Return the response so the form can capture the new rule ID
     } catch (error) {
       console.error('Error creating rule:', error)
       toast({
@@ -127,13 +128,14 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
         description: 'Failed to create mileage rule',
         variant: 'destructive'
       })
+      throw error // Re-throw so the form knows it failed
     }
   }
 
   const handleEditSubmit = async (formData: MileageRuleFormData) => {
     try {
       if (!editingRule) return
-      await updateMileageRule(editingRule.id, formData)
+      const result = await updateMileageRule(editingRule.id, formData)
       toast({
         title: 'Success',
         description: 'Mileage rule updated successfully'
@@ -141,6 +143,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
       setIsEditModalVisible(false)
       setEditingRule(null)
       refetch({})
+      return result // ✅ Return the response
     } catch (error) {
       console.error('Error updating rule:', error)
       toast({

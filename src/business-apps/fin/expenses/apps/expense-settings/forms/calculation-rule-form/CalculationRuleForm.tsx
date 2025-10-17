@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient';
-import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries';
-import { 
+import React, { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
+import {
   Card,
   CardContent,
   CardHeader,
@@ -23,50 +23,50 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger
-} from '@newwork/nw-design-system';
-import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+} from '@newwork/nw-design-system'
+import { PiFloppyDisk, PiX, PiWarning } from 'react-icons/pi'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
 // Register dayjs plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
 // Using nw-design-system components - no destructuring needed
 
 export interface CalculationRuleFormData {
-  id?: string;
-  code: string;
-  name?: string;
-  description?: string;
-  standard?: boolean;
-  activeFrom: string;
-  activeTo?: string;
-  deductionLimit: boolean;
-  useLastCountry?: boolean;
-  useSingleCurrency?: boolean;
-  taxesCode?: string;
-  nonpayableCode?: string;
-  advancePaymentCode?: string;
-  calculationTypeRef?: string;
-  countryRef?: string;
-  currencyRef?: string;
-  version?: number;
+  id?: string
+  code: string
+  name?: string
+  description?: string
+  standard?: boolean
+  activeFrom: string
+  activeTo?: string
+  deductionLimit: boolean
+  useLastCountry?: boolean
+  useSingleCurrency?: boolean
+  taxesCode?: string
+  nonpayableCode?: string
+  advancePaymentCode?: string
+  calculationTypeRef?: string
+  countryRef?: string
+  currencyRef?: string
+  version?: number
 }
 
 interface CalculationRuleFormProps extends BusinessAppContextProps {
-  initialData?: CalculationRuleFormData;
-  isEditing?: boolean;
-  onSave: (data: CalculationRuleFormData) => Promise<void>;
-  onCancel: () => void;
-  loading?: boolean;
+  initialData?: CalculationRuleFormData
+  isEditing?: boolean
+  onSave: (data: CalculationRuleFormData) => Promise<void>
+  onCancel: () => void
+  loading?: boolean
 }
 
 interface CatalogOption {
-  id: string;
-  value: string;
-  code?: string;
+  id: string
+  value: string
+  code?: string
 }
 
 const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
@@ -74,7 +74,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   isEditing = false,
   onSave,
   onCancel,
-  loading = false,
+  loading = false, // eslint-disable-line @typescript-eslint/no-unused-vars
   accessToken,
   ...context
 }) => {
@@ -93,32 +93,32 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
     advancePaymentCode: '',
     calculationTypeRef: '',
     countryRef: '',
-    currencyRef: '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  // ✅ NEW: Hook for fetching fresh calculation rule data
-  const { fetchExpenseRuleById } = useGetExpenseRuleById({ accessToken, ...context } as BusinessAppContextProps);
-  
-  // Catalog data
-  const [calculationTypes, setCalculationTypes] = useState<CatalogOption[]>([]);
-  const [countries, setCountries] = useState<CatalogOption[]>([]);
-  const [currencies, setCurrencies] = useState<CatalogOption[]>([]);
-  const [catalogsLoading, setCatalogsLoading] = useState(true);
+    currencyRef: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const catalogClient = useCatalogManagerClient(accessToken);
+  // ✅ NEW: Hook for fetching fresh calculation rule data
+  const { fetchExpenseRuleById } = useGetExpenseRuleById({ accessToken, ...context } as BusinessAppContextProps)
+
+  // Catalog data
+  const [calculationTypes, setCalculationTypes] = useState<CatalogOption[]>([])
+  const [countries, setCountries] = useState<CatalogOption[]>([])
+  const [currencies, setCurrencies] = useState<CatalogOption[]>([])
+  const [catalogsLoading, setCatalogsLoading] = useState(true)
+
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   // Set access token on the expense settings client
   useEffect(() => {
     if (accessToken) {
-      expenseSettingsClient.setAccessToken(accessToken);
+      expenseSettingsClient.setAccessToken(accessToken)
     }
-  }, [accessToken]);
+  }, [accessToken])
 
   // Load catalog data
   const loadCatalogData = useCallback(async () => {
-    setCatalogsLoading(true);
+    setCatalogsLoading(true)
     try {
       const [calculationTypesRes, countriesRes, currenciesRes] = await Promise.all([
         catalogClient.getCatalogEntriesList(
@@ -133,49 +133,59 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
           { catalogIdentifier: 'Currency', version: 'v1' },
           { limit: 100, offset: 0, returnTotalRecords: true }
         )
-      ]);
+      ])
 
-      setCalculationTypes(calculationTypesRes.data.map((item: any) => ({
+      const calculationTypesData = calculationTypesRes.data.map((item: any) => ({
         id: item.id,
         value: item.value,
         code: item.code
-      })));
+      }))
 
-      setCountries(countriesRes.data.map((item: any) => ({
+      const countriesData = countriesRes.data.map((item: any) => ({
         id: item.id,
         value: item.value,
         code: item.code
-      })));
+      }))
 
-      setCurrencies(currenciesRes.data.map((item: any) => ({
+      const currenciesData = currenciesRes.data.map((item: any) => ({
         id: item.id,
         value: item.value,
         code: item.code
-      })));
+      }))
+
+      console.log('🔍 Catalog data loaded:', {
+        calculationTypes: calculationTypesData.length,
+        countries: countriesData.length,
+        currencies: currenciesData.length
+      })
+
+      setCalculationTypes(calculationTypesData)
+      setCountries(countriesData)
+      setCurrencies(currenciesData)
     } catch (err) {
-      console.error('Error loading catalog data:', err);
-      setError('Failed to load catalog data');
+      console.error('Error loading catalog data:', err)
+      setError('Failed to load catalog data')
     } finally {
-      setCatalogsLoading(false);
+      setCatalogsLoading(false)
     }
-  }, [catalogClient]);
+  }, [catalogClient])
 
   useEffect(() => {
     if (accessToken) {
-      loadCatalogData();
+      loadCatalogData()
     }
-  }, [accessToken, loadCatalogData]);
+  }, [accessToken, loadCatalogData])
 
   // ✅ FIXED: Load fresh data when editing, use initial data when creating
   useEffect(() => {
     const loadData = async () => {
       if (isEditing && initialData?.id) {
         // ✅ NEW: For editing, fetch fresh data from the server
-        console.log('🔄 CalculationRuleForm: Fetching FRESH data for ID:', initialData.id);
+        console.log('🔄 CalculationRuleForm: Fetching FRESH data for ID:', initialData.id)
         try {
-          const freshData = await fetchExpenseRuleById(initialData.id);
+          const freshData = await fetchExpenseRuleById(initialData.id)
           if (freshData) {
-            console.log('✅ CalculationRuleForm: Using FRESH data from API:', freshData);
+            console.log('✅ CalculationRuleForm: Using FRESH data from API:', freshData)
             setFormData({
               code: freshData.code || '',
               name: freshData.name || '',
@@ -193,12 +203,12 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               countryRef: freshData.country?.id || '',
               currencyRef: freshData.currency?.id || '',
               id: freshData.id,
-              version: freshData.version,
-            });
+              version: freshData.version
+            })
           }
         } catch (error) {
-          console.error('❌ CalculationRuleForm: Failed to load fresh calculation rule data:', error);
-          console.log('⚠️ CalculationRuleForm: Falling back to STALE list data');
+          console.error('❌ CalculationRuleForm: Failed to load fresh calculation rule data:', error)
+          console.log('⚠️ CalculationRuleForm: Falling back to STALE list data')
           // Fallback to initial data if fresh fetch fails
           if (initialData) {
             setFormData({
@@ -215,13 +225,13 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               advancePaymentCode: initialData.advancePaymentCode || '',
               calculationTypeRef: initialData.calculationTypeRef || '',
               countryRef: initialData.countryRef || '',
-              currencyRef: initialData.currencyRef || '',
-            });
+              currencyRef: initialData.currencyRef || ''
+            })
           }
         }
       } else if (initialData) {
         // ✅ For creating new items, use the provided initial data
-        console.log('📝 CalculationRuleForm: Using initial data for NEW item:', initialData);
+        console.log('📝 CalculationRuleForm: Using initial data for NEW item:', initialData)
         setFormData({
           ...initialData,
           code: initialData.code || '',
@@ -236,24 +246,24 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
           advancePaymentCode: initialData.advancePaymentCode || '',
           calculationTypeRef: initialData.calculationTypeRef || '',
           countryRef: initialData.countryRef || '',
-          currencyRef: initialData.currencyRef || '',
-        });
+          currencyRef: initialData.currencyRef || ''
+        })
       } else {
         // Set default values for new rule
         setFormData(prev => ({
           ...prev,
           deductionLimit: false,
-          activeFrom: dayjs().toISOString(),
-        }));
+          activeFrom: dayjs().toISOString()
+        }))
       }
-    };
+    }
 
-    loadData();
-  }, [initialData?.id, isEditing, fetchExpenseRuleById]);
+    loadData()
+  }, [initialData?.id, isEditing, fetchExpenseRuleById])
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
-    setError(null);
+    setIsSubmitting(true)
+    setError(null)
 
     try {
       // Prepare data for the expense settings service
@@ -262,7 +272,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         version: initialData?.version,
         versionType: typeof initialData?.version,
         hasVersion: initialData?.version !== undefined
-      });
+      })
 
       const expenseRuleData = {
         code: formData.code,
@@ -281,12 +291,12 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         currencyRef: formData.currencyRef,
         ...(initialData?.id && { id: initialData.id }),
         ...(initialData?.version !== undefined && { version: initialData.version })
-      };
+      }
 
-      console.log('CalculationRuleForm.handleSubmit - Expense rule data:', expenseRuleData);
+      console.log('CalculationRuleForm.handleSubmit - Expense rule data:', expenseRuleData)
 
       // Save using the existing expense settings client
-      const result = await expenseSettingsClient.saveCalculationRule(expenseRuleData);
+      const result = await expenseSettingsClient.saveCalculationRule(expenseRuleData)
 
       // Prepare form data for the onSave callback (for compatibility)
       const saveData: CalculationRuleFormData = {
@@ -295,16 +305,16 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         activeTo: formData.activeTo ? dayjs(formData.activeTo).toISOString() : '',
         id: result.expenseRule?.id || initialData?.id,
         version: result.expenseRule?.version || (initialData?.version ? initialData.version + 1 : 1)
-      };
+      }
 
-      await onSave(saveData);
+      await onSave(saveData)
     } catch (err) {
-      console.error('Error saving calculation rule:', err);
-      setError(err instanceof Error ? err.message : 'Failed to save calculation rule');
+      console.error('Error saving calculation rule:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save calculation rule')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleCancel = () => {
     setFormData({
@@ -322,47 +332,40 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
       advancePaymentCode: '',
       calculationTypeRef: '',
       countryRef: '',
-      currencyRef: '',
-    });
-    onCancel();
-  };
+      currencyRef: ''
+    })
+    onCancel()
+  }
 
   if (catalogsLoading) {
     return (
-      <div 
+      <div
         data-testid="calculation-rule-form-loading"
         className="gba:flex gba:justify-center gba:items-center gba:min-h-96"
       >
         <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid="calculation-rule-form-container">
-      <Card
-        data-testid="calculation-rule-form-card"
-      >
+      <Card data-testid="calculation-rule-form-card">
         <CardHeader>
-          <CardTitle>
-            {isEditing ? 'Edit Calculation Rule' : 'Create New Calculation Rule'}
-          </CardTitle>
+          <CardTitle>{isEditing ? 'Edit Calculation Rule' : 'Create New Calculation Rule'}</CardTitle>
         </CardHeader>
         <CardContent>
           {error && (
-            <Alert
-              data-testid="calculation-rule-form-error"
-              className="gba:mb-4"
-            >
+            <Alert data-testid="calculation-rule-form-error" className="gba:mb-4">
               <PiWarning className="gba:h-4 gba:w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSubmit();
+            onSubmit={e => {
+              e.preventDefault()
+              handleSubmit()
             }}
             data-testid="calculation-rule-form"
             className="gba:space-y-6"
@@ -375,7 +378,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Input
                   id="code"
                   value={formData.code}
-                  onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, code: e.target.value }))}
                   placeholder="Enter rule code (e.g., CR_001)"
                   data-testid="calculation-rule-form-code-input"
                   required
@@ -389,7 +392,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Input
                   id="name"
                   value={formData.name || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Enter rule name"
                   data-testid="calculation-rule-form-name-input"
                 />
@@ -403,7 +406,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               <textarea
                 id="description"
                 value={formData.description || ''}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 rows={3}
                 placeholder="Enter rule description"
                 data-testid="calculation-rule-form-description-input"
@@ -414,63 +417,84 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
             <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-4">
               <div>
                 <label htmlFor="calculationType" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
-                  Calculation Type *
+                  Calculation Type * ({calculationTypes.length} options)
                 </label>
-                <Select 
+                <Select
                   value={formData.calculationTypeRef}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, calculationTypeRef: value }))}
+                  onValueChange={value => {
+                    console.log('🔍 Calculation Type selected:', value)
+                    setFormData(prev => ({ ...prev, calculationTypeRef: value }))
+                  }}
                 >
                   <SelectTrigger data-testid="calculation-rule-form-calculation-type-select">
                     <SelectValue placeholder="Select calculation type" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {calculationTypes.map(type => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.value}
-                      </SelectItem>
-                    ))}
+                  <SelectContent position="popper" sideOffset={5} className="gba:z-[9999]">
+                    {calculationTypes.length === 0 ? (
+                      <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">No options available</div>
+                    ) : (
+                      calculationTypes.map(type => (
+                        <SelectItem key={type.id} value={type.id}>
+                          {type.value}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
                 <label htmlFor="country" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
-                  Country
+                  Country ({countries.length} options)
                 </label>
-                <Select 
+                <Select
                   value={formData.countryRef}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, countryRef: value }))}
+                  onValueChange={value => {
+                    console.log('🔍 Country selected:', value)
+                    setFormData(prev => ({ ...prev, countryRef: value }))
+                  }}
                 >
                   <SelectTrigger data-testid="calculation-rule-form-country-select">
                     <SelectValue placeholder="Select country" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {countries.map(country => (
-                      <SelectItem key={country.id} value={country.id}>
-                        {country.value} {country.code && `(${country.code})`}
-                      </SelectItem>
-                    ))}
+                  <SelectContent position="popper" sideOffset={5} className="gba:z-[9999] gba:max-h-[300px]">
+                    {countries.length === 0 ? (
+                      <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">No options available</div>
+                    ) : (
+                      countries.map(country => (
+                        <SelectItem key={country.id} value={country.id}>
+                          {country.value} {country.code && `(${country.code})`}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
               <div>
                 <label htmlFor="currency" className="gba:block gba:text-sm gba:font-medium gba:mb-2">
-                  Currency
+                  Currency ({currencies.length} options)
                 </label>
-                <Select 
+                <Select
                   value={formData.currencyRef}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, currencyRef: value }))}
+                  onValueChange={value => {
+                    console.log('🔍 Currency selected:', value)
+                    setFormData(prev => ({ ...prev, currencyRef: value }))
+                  }}
                 >
                   <SelectTrigger data-testid="calculation-rule-form-currency-select">
                     <SelectValue placeholder="Select currency" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {currencies.map(currency => (
-                      <SelectItem key={currency.id} value={currency.id}>
-                        {currency.value} {currency.code && `(${currency.code})`}
-                      </SelectItem>
-                    ))}
+                  <SelectContent position="popper" sideOffset={5} className="gba:z-[9999]">
+                    {currencies.length === 0 ? (
+                      <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">No options available</div>
+                    ) : (
+                      currencies.map(currency => (
+                        <SelectItem key={currency.id} value={currency.id}>
+                          {currency.value} {currency.code && `(${currency.code})`}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -478,12 +502,14 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
 
             <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-4">
               <div>
-                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
-                  Active From *
-                </label>
+                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">Active From *</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="gba:w-full gba:justify-start gba:text-left gba:font-normal" data-testid="calculation-rule-form-active-from-trigger">
+                    <Button
+                      variant="outline"
+                      className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
+                      data-testid="calculation-rule-form-active-from-trigger"
+                    >
                       {formData.activeFrom ? dayjs(formData.activeFrom).format('YYYY-MM-DD') : 'Select start date'}
                     </Button>
                   </PopoverTrigger>
@@ -491,19 +517,23 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                     <Calendar
                       mode="single"
                       selected={formData.activeFrom ? new Date(formData.activeFrom) : undefined}
-                      onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, activeFrom: date ? dayjs(date).toISOString() : '' }))}
+                      onSelect={(date: Date | undefined) =>
+                        setFormData(prev => ({ ...prev, activeFrom: date ? dayjs(date).toISOString() : '' }))
+                      }
                     />
                   </PopoverContent>
                 </Popover>
               </div>
 
               <div>
-                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">
-                  Active To
-                </label>
+                <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">Active To</label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="gba:w-full gba:justify-start gba:text-left gba:font-normal" data-testid="calculation-rule-form-active-to-trigger">
+                    <Button
+                      variant="outline"
+                      className="gba:w-full gba:justify-start gba:text-left gba:font-normal"
+                      data-testid="calculation-rule-form-active-to-trigger"
+                    >
                       {formData.activeTo ? dayjs(formData.activeTo).format('YYYY-MM-DD') : 'Select end date (optional)'}
                     </Button>
                   </PopoverTrigger>
@@ -511,10 +541,12 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                     <Calendar
                       mode="single"
                       selected={formData.activeTo ? new Date(formData.activeTo) : undefined}
-                      onSelect={(date: Date | undefined) => setFormData(prev => ({ ...prev, activeTo: date ? dayjs(date).toISOString() : '' }))}
-                      disabled={(date) => {
-                        if (!formData.activeFrom) return false;
-                        return date < new Date(formData.activeFrom);
+                      onSelect={(date: Date | undefined) =>
+                        setFormData(prev => ({ ...prev, activeTo: date ? dayjs(date).toISOString() : '' }))
+                      }
+                      disabled={date => {
+                        if (!formData.activeFrom) return false
+                        return date < new Date(formData.activeFrom)
                       }}
                     />
                   </PopoverContent>
@@ -530,7 +562,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Input
                   id="advancePaymentCode"
                   value={formData.advancePaymentCode || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, advancePaymentCode: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, advancePaymentCode: e.target.value }))}
                   placeholder="Enter advance payment code"
                   data-testid="calculation-rule-form-advance-payment-input"
                 />
@@ -540,7 +572,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Switch
                   id="deductionLimit"
                   checked={formData.deductionLimit}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, deductionLimit: checked }))}
+                  onCheckedChange={checked => setFormData(prev => ({ ...prev, deductionLimit: checked }))}
                   data-testid="calculation-rule-form-deduction-limit-switch"
                 />
                 <label htmlFor="deductionLimit" className="gba:text-sm gba:font-medium">
@@ -554,7 +586,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Switch
                   id="standard"
                   checked={formData.standard}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, standard: checked }))}
+                  onCheckedChange={checked => setFormData(prev => ({ ...prev, standard: checked }))}
                   data-testid="calculation-rule-form-standard-switch"
                 />
                 <label htmlFor="standard" className="gba:text-sm gba:font-medium">
@@ -566,7 +598,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Switch
                   id="useLastCountry"
                   checked={formData.useLastCountry}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, useLastCountry: checked }))}
+                  onCheckedChange={checked => setFormData(prev => ({ ...prev, useLastCountry: checked }))}
                   data-testid="calculation-rule-form-use-last-country-switch"
                 />
                 <label htmlFor="useLastCountry" className="gba:text-sm gba:font-medium">
@@ -578,7 +610,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Switch
                   id="useSingleCurrency"
                   checked={formData.useSingleCurrency}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, useSingleCurrency: checked }))}
+                  onCheckedChange={checked => setFormData(prev => ({ ...prev, useSingleCurrency: checked }))}
                   data-testid="calculation-rule-form-use-single-currency-switch"
                 />
                 <label htmlFor="useSingleCurrency" className="gba:text-sm gba:font-medium">
@@ -595,7 +627,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Input
                   id="taxesCode"
                   value={formData.taxesCode || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, taxesCode: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, taxesCode: e.target.value }))}
                   placeholder="Enter taxes code"
                   data-testid="calculation-rule-form-taxes-code-input"
                 />
@@ -608,7 +640,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 <Input
                   id="nonpayableCode"
                   value={formData.nonpayableCode || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, nonpayableCode: e.target.value }))}
+                  onChange={e => setFormData(prev => ({ ...prev, nonpayableCode: e.target.value }))}
                   placeholder="Enter non-payable code"
                   data-testid="calculation-rule-form-nonpayable-code-input"
                 />
@@ -622,11 +654,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                 data-testid="calculation-rule-form-save-button"
                 className="gba:flex gba:items-center gba:gap-2"
               >
-                {isSubmitting ? (
-                  <Spinner size="sm" />
-                ) : (
-                  <PiFloppyDisk className="gba:h-4 gba:w-4" />
-                )}
+                {isSubmitting ? <Spinner size="sm" /> : <PiFloppyDisk className="gba:h-4 gba:w-4" />}
                 {isEditing ? 'Update Rule' : 'Create Rule'}
               </Button>
               <Button
@@ -644,7 +672,7 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default CalculationRuleForm; 
+export default CalculationRuleForm

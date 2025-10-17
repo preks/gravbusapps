@@ -134,6 +134,7 @@ export interface CatalogEntry {
   id: string
   value: string
   type?: string
+  objectValue?: unknown
   translations?: Translation[]
   catalog?: {
     defaultLocale: string
@@ -378,9 +379,9 @@ export interface ExpenseRuleDeduction {
 export interface ExpenseRuleMileage {
   id: string
   code: string
-  mileageOrder: number
-  unitPrice: number
-  taxValue: number
+  mileageOrder?: number
+  unitPrice?: number
+  taxValue?: number
   activeFrom: string
   activeTo?: string
   version?: number
@@ -426,19 +427,10 @@ export interface ExpenseGroupWithTranslations {
   }[]
 }
 
-export interface ExpenseRuleMileage {
-  id: string
-  code: string
+export interface EnhancedExpenseRuleMileage extends ExpenseRuleMileage {
   name: string
   reimbursable: boolean
   taxCodeRef?: string
-  taxValue?: number
-  unitPrice?: number
-  mileageOrder?: number
-  activeFrom: string
-  activeTo?: string
-  version?: number
-  isDeleted: boolean
   wageCode?: string
   additionalProperties?: Record<string, any>
   businessKey?: string

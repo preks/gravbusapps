@@ -1,94 +1,83 @@
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCallback } from 'react';
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCallback } from 'react'
 
 export interface TravelRegionRuleQueryVariables {
-  offset?: number;
-  limit?: number;
-  search?: string;
-  orderBy?: any[];
+  offset?: number
+  limit?: number
+  search?: string
+  orderBy?: any[]
 }
 
 export interface AllowanceRegionRuleDetail {
-  id: string;
-  amount: number;
+  id: string
+  amount: number
   country?: {
-    id: string;
-    value: string;
-    code: string;
-  };
+    id: string
+    value: string
+    code: string
+  }
   currency?: {
-    id: string;
-    value: string;
-    code: string;
-  };
+    id: string
+    value: string
+    code: string
+  }
   travelRegion?: {
-    id: string;
-    value: string;
-    code: string;
-  };
-  countryRef?: string;
-  currencyRef?: string;
-  travelRegionRef?: string;
-  activeFrom?: string;
-  activeTo?: string;
-  home?: boolean;
-  version?: number;
-  isDeleted: boolean;
+    id: string
+    value: string
+    code: string
+  }
+  countryRef?: string
+  currencyRef?: string
+  travelRegionRef?: string
+  activeFrom?: string
+  activeTo?: string
+  home?: boolean
+  version?: number
+  isDeleted: boolean
 }
 
 export interface TravelRegionRuleData {
-  id: string;
-  code: string;
-  name: string;
-  activeFrom?: string;
-  activeTo?: string;
-  version?: number;
-  isDeleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-  allowanceRegionRuleDetail: AllowanceRegionRuleDetail[];
+  id: string
+  code: string
+  name: string
+  activeFrom?: string
+  activeTo?: string
+  version?: number
+  isDeleted: boolean
+  createdAt: string
+  updatedAt: string
+  allowanceRegionRuleDetail: AllowanceRegionRuleDetail[]
 }
 
 export interface TravelRegionRuleResponse {
-  AllowanceRegionRule: TravelRegionRuleData[];
+  AllowanceRegionRule: TravelRegionRuleData[]
   AllowanceRegionRuleAggregate: {
     aggregate: {
-      count: number;
-    };
-  };
+      count: number
+    }
+  }
 }
 
-export const GET_TRAVEL_REGION_RULES = (variables: TravelRegionRuleQueryVariables): string => {
-  const { offset = 0, limit = 20, search, orderBy = [] } = variables;
-  
-  // Build where conditions
-  let whereClause = '{ isDeleted: { _eq: false }';
-  
-  // Add search conditions
-  if (search && search.trim()) {
-    const searchTerm = search.trim().replace(/"/g, '\\"');
-    whereClause += `, _or: [
-      { name: { _ilike: "%${searchTerm}%" } }
-      { code: { _ilike: "%${searchTerm}%" } }
-    ]`;
-  }
-  
-  whereClause += ' }';
-
-  // Build order by conditions
-  let orderByClause = '[{ name: ASC }]';
-  if (orderBy.length > 0) {
-    orderByClause = JSON.stringify(orderBy).replace(/"/g, '');
-  }
-
+export const GET_TRAVEL_REGION_RULES = (): string => {
   return `
-    query GetTravelRegionRules {
+    query GetTravelRegionRules(
+      $offset: Int!
+      $limit: Int!
+      $search: String
+      $orderBy: [AllowanceRegionRule_order_by!]
+    ) {
       AllowanceRegionRule(
-        where: ${whereClause}
-        orderBy: ${orderByClause}
-        limit: ${limit}
-        offset: ${offset}
+        where: { 
+          isDeleted: { _eq: false }
+          _or: [
+            { name: { _ilike: $search } }
+            { code: { _ilike: $search } }
+          ]
+        }
+        orderBy: $orderBy
+        limit: $limit
+        offset: $offset
       ) {
         id
         code
@@ -130,29 +119,51 @@ export const GET_TRAVEL_REGION_RULES = (variables: TravelRegionRuleQueryVariable
         }
       }
       AllowanceRegionRuleAggregate(
-        where: ${whereClause}
+        where: { 
+          isDeleted: { _eq: false }
+          _or: [
+            { name: { _ilike: $search } }
+            { code: { _ilike: $search } }
+          ]
+        }
       ) {
         aggregate {
           count
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetTravelRegionRulesData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
-  const fetchTravelRegionRules = useCallback(async (variables: TravelRegionRuleQueryVariables = {}) => {
-    const query = GET_TRAVEL_REGION_RULES(variables);
-    try {
-      const result = await graphqlClient.request<TravelRegionRuleResponse>(query);
-      return result;
-    } catch (error) {
-      console.error('Error fetching travel region rules:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  return { fetchTravelRegionRules };
-}; 
+  const fetchTravelRegionRules = useCallback(
+    async (variables: TravelRegionRuleQueryVariables = {}) => {
+      const query = GET_TRAVEL_REGION_RULES()
+      const { offset = 0, limit = 20, search, orderBy = [] } = variables
+
+      // Prepare search pattern with wildcards (only if search is provided)
+      const searchPattern = search?.trim() ? `%${search.trim()}%` : null
+
+      // Prepare orderBy with default if empty
+      const orderByClause = orderBy.length > 0 ? orderBy : [{ name: 'ASC' }]
+
+      try {
+        const result = await graphqlClient.request<TravelRegionRuleResponse>(query, {
+          offset,
+          limit,
+          search: searchPattern,
+          orderBy: orderByClause
+        })
+        return result
+      } catch (error) {
+        console.error('Error fetching travel region rules:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchTravelRegionRules }
+}

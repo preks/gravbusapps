@@ -281,29 +281,35 @@ export const useCreateCalculationRuleForm = ({ accessToken, navigationPayload }:
     codeDuplicate
   ])
 
-  // Code uniqueness check
+  // Code uniqueness check (debounced to avoid excessive API calls)
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      const code = (formState.ruleCode || '').trim()
-      if (!code) {
-        setCodeDuplicate(false)
-        return
-      }
-      try {
-        const res = await graphqlClient.request<any>(getExpenseRuleAggregateByCode, {
-          codeValue: code,
-          ruleId: isUpdate ? navigationPayload?.id : null
-        })
-        if (cancelled) return
-        const count = res?.ExpenseRuleAggregate?.aggregate?.count || 0
-        setCodeDuplicate(count > 0)
-      } catch {
-        if (!cancelled) setCodeDuplicate(false)
-      }
-    })()
+
+    // Debounce: wait 500ms after user stops typing
+    const timeoutId = setTimeout(() => {
+      ;(async () => {
+        const code = (formState.ruleCode || '').trim()
+        if (!code) {
+          setCodeDuplicate(false)
+          return
+        }
+        try {
+          const res = await graphqlClient.request<any>(getExpenseRuleAggregateByCode, {
+            codeValue: code,
+            ruleId: isUpdate ? navigationPayload?.id : null
+          })
+          if (cancelled) return
+          const count = res?.ExpenseRuleAggregate?.aggregate?.count || 0
+          setCodeDuplicate(count > 0)
+        } catch {
+          if (!cancelled) setCodeDuplicate(false)
+        }
+      })()
+    }, 500)
+
     return () => {
       cancelled = true
+      clearTimeout(timeoutId)
     }
   }, [formState.ruleCode, graphqlClient, isUpdate, navigationPayload?.id])
 
