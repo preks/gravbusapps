@@ -67,16 +67,8 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
 
       if (selectedCatalog) {
         this.serviceDeskCatalogEntries = selectedCatalog.catalogEntries || []
-        console.log(
-          `[ConductorAdapter] ✅ Selected catalog "${selectedCatalog.identifier}" with ${this.serviceDeskCatalogEntries.length} entries:`,
-          this.serviceDeskCatalogEntries.map((e: any) => ({
-            code: e.code,
-            value: e.value,
-            additionalValue3: e.additionalValue3
-          }))
-        )
       } else {
-        console.warn(`[ConductorAdapter] ⚠️ No Service Desk Catalog found in cache`)
+        console.warn(`[ConductorAdapter] No Service Desk Catalog found in cache`)
         // Create fallback desk entries
         this.createFallbackDeskEntries()
       }
@@ -1771,8 +1763,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async getDeskTickets(desk: StepReceiver, _userId?: string): Promise<StepInstance[]> {
     try {
-      console.log(`[ConductorAdapter] Getting REAL tickets for desk: ${desk} using custom-flow-engine API`)
-
       // Use the actual custom-flow-engine API that we know works
       const response = await fetch(`${this.flowEngineBaseUrl}/tasks/user/${this.currentUserId}`, {
         method: 'GET',
@@ -1789,71 +1779,18 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
       const result = await response.json()
       const tasks = result.tasks || []
 
-      console.log(
-        `[ConductorAdapter] Retrieved ${tasks.length} REAL tasks from custom-flow-engine:`,
-        tasks.map((t: any) => t.id)
-      )
-
-      // VALIDATION: Filter out orphaned tasks (tasks without valid parent workflows)
-      // DISABLED FOR ALL DESKS - showing all tasks regardless of workflow state
-      console.warn(
-        `[ConductorAdapter] 🚧 ORPHAN VALIDATION DISABLED FOR ALL DESKS (including ${desk}) - showing all tasks for debugging`
-      )
-      const validTasks = tasks // Skip validation for ALL desks
-
-      /* 
-      // ORIGINAL ORPHAN VALIDATION (currently disabled):
-      const validTasks = [];
-      for (const task of tasks) {
-        try {
-          // Check if parent workflow still exists
-          const flowId = task.flowId;
-          if (flowId) {
-            // Try to get the parent workflow - if it doesn't exist, skip the task
-            const workflowResponse = await fetch(`${this.flowEngineBaseUrl}/flows/${flowId}`, {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.accessToken}`,
-              },
-            });
-            
-            if (workflowResponse.ok) {
-              validTasks.push(task);
-              console.log(`[ConductorAdapter] ✅ Task ${task.id} has valid parent workflow ${flowId}`);
-            } else {
-              console.warn(`[ConductorAdapter] ❌ Skipping orphaned task ${task.id} - parent workflow ${flowId} not found (${workflowResponse.status})`);
-            }
-          } else {
-            console.warn(`[ConductorAdapter] ❌ Skipping task ${task.id} - no workflow ID`);
-          }
-        } catch (error) {
-          console.warn(`[ConductorAdapter] ❌ Skipping task ${task.id} due to validation error:`, error);
-        }
-      }
-      */
-
-      console.log(
-        `[ConductorAdapter] Showing ${validTasks.length} tasks for desk ${desk} (orphan validation disabled for ALL DESKS)`
-      )
+      // Skip orphan validation - show all tasks
+      const validTasks = tasks
 
       // DESK FILTERING: Filter tasks by desk before converting
       const deskSpecificTasks = []
       for (const task of validTasks) {
         const actualTaskDesk = await this.determineTaskDesk(task, [])
-        console.log(`[ConductorAdapter] Task ${task.id}: determined desk = ${actualTaskDesk}, requested desk = ${desk}`)
 
         if (actualTaskDesk === desk) {
           deskSpecificTasks.push(task)
-          console.log(`[ConductorAdapter] ✅ Task ${task.id} matches desk ${desk}`)
-        } else {
-          console.log(`[ConductorAdapter] ❌ Task ${task.id} belongs to ${actualTaskDesk}, not ${desk} - skipping`)
         }
       }
-
-      console.log(
-        `[ConductorAdapter] Desk filtering: ${validTasks.length} → ${deskSpecificTasks.length} tasks for desk ${desk}`
-      )
 
       // Convert only desk-specific tasks to StepInstance format
       const stepInstances = []
@@ -1862,7 +1799,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         stepInstances.push(this.convertCustomFlowEngineTaskToStepInstance(task, taskDesk))
       }
 
-      console.log(`[ConductorAdapter] Final result: ${stepInstances.length} StepInstances for desk: ${desk}`)
       return stepInstances
     } catch (error) {
       console.error(`[ConductorAdapter] Error getting real desk tickets:`, error)
@@ -1883,10 +1819,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
     let assignedToUserId: string | undefined
     let claimedByUserId: string | undefined
 
-    console.log(
-      `[ConductorAdapter] 🎯 Converting task ${taskId}: assignmentStatus='${assignmentStatus}', assignedTo='${assignedToUser}', urgency_level='${task.urgency_level}', formData='${JSON.stringify(task.formData)}'`
-    )
-
     if (assignedToUser) {
       if (assignmentStatus === 'ASSIGNED') {
         assignedToUserId = assignedToUser
@@ -1900,10 +1832,6 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
         claimedByUserId = undefined
       }
     }
-
-    console.log(
-      `[ConductorAdapter] ➡️ Result: assignedToUserId='${assignedToUserId}', claimedByUserId='${claimedByUserId}'`
-    )
 
     return {
       id: taskId,
@@ -2013,132 +1941,58 @@ export class ConductorWorkflowEngineAdapter implements WorkflowEngine {
    * Map assignment targets to service desk using Service Desk Catalog data
    */
   private async mapAssignmentTargetsToDesk(targets: any): Promise<StepReceiver> {
-    console.log(`[ConductorAdapter] 🔍 Mapping assignment targets:`, targets)
-
     // Ensure catalog is loaded before processing
     if (this.serviceDeskCatalogEntries.length === 0) {
-      console.log(`[ConductorAdapter] 🔄 Catalog not loaded, loading now...`)
       await this.loadServiceDeskCatalog()
     }
 
-    console.log(`[ConductorAdapter] 📋 Catalog entries count: ${this.serviceDeskCatalogEntries.length}`)
-    console.log(
-      `[ConductorAdapter] 📋 Available catalog entries:`,
-      this.serviceDeskCatalogEntries.map(e => ({ code: e.code, additionalValue3: e.additionalValue3 }))
-    )
-
-    if (this.serviceDeskCatalogEntries.length === 0) {
-      console.error(
-        `[ConductorAdapter] 🚨 CRITICAL: Service Desk Catalog failed to load! This will cause all tasks to go to Under desk.`
-      )
-    }
-
-    // Check if catalog is loaded
-    if (this.serviceDeskCatalogEntries.length === 0) {
-      console.warn(`[ConductorAdapter] ⚠️ Service Desk Catalog not loaded yet! Using legacy mapping only.`)
-
-      // If catalog not loaded, use "Under desk" for any org unit that we can't categorize
-      if (targets.organizationalUnits?.length > 0) {
-        const orgUnit = targets.organizationalUnits[0]
-        console.log(`[ConductorAdapter] 🔄 Catalog not loaded, checking legacy patterns for: ${orgUnit}`)
-
-        // Only check for obvious text patterns, not hardcoded dept-00x
-        const orgUnitLower = orgUnit.toLowerCase()
-        if (orgUnitLower.includes('hr')) return 'HR'
-        if (orgUnitLower.includes('it')) return 'IT'
-        if (orgUnitLower.includes('finance')) return 'Finance'
-        if (orgUnitLower.includes('facilities')) return 'Facilities'
-
-        // For anything else (including dept-00x), use "Under desk"
-        console.log(`[ConductorAdapter] 🏠 No pattern match for ${orgUnit}, sending to Under desk`)
-        return 'Under desk' as StepReceiver
-      }
-    }
-
-    // Check organizational units first with Service Desk Catalog mapping
+    // Check organizational units with Service Desk Catalog mapping (via additionalValue3)
     if (targets.organizationalUnits?.length > 0) {
       const orgUnit = targets.organizationalUnits[0]
-      console.log(`[ConductorAdapter] 🎯 Processing organizational unit: "${orgUnit}"`)
-
-      // First: Try to find direct match with catalog entry codes
-      const directMatch = this.serviceDeskCatalogEntries.find(
-        entry => entry.code.toLowerCase() === orgUnit.toLowerCase()
-      )
-      if (directMatch) {
-        console.log(`[ConductorAdapter] ✅ Direct catalog match: ${orgUnit} → ${directMatch.code}`)
-        return directMatch.code as StepReceiver
-      }
-      console.log(`[ConductorAdapter] ❌ No direct match for: ${orgUnit}`)
-
-      // Second: Try to match with additionalValue3 (dept-00x fallback)
-      console.log(`[ConductorAdapter] 🔍 Searching for additionalValue3 match with: "${orgUnit}"`)
-      const deptMatch = this.serviceDeskCatalogEntries.find(entry => {
-        console.log(
-          `[ConductorAdapter] 🔍 Checking entry: ${entry.code} with additionalValue3: "${entry.additionalValue3}" against "${orgUnit}"`
-        )
-        return entry.additionalValue3 === orgUnit
-      })
+      const deptMatch = this.serviceDeskCatalogEntries.find(entry => entry.additionalValue3 === orgUnit)
       if (deptMatch) {
-        console.log(
-          `[ConductorAdapter] ✅ Dept mapping match: ${orgUnit} → ${deptMatch.code} (via additionalValue3: ${deptMatch.additionalValue3})`
-        )
         return deptMatch.code as StepReceiver
       }
-      console.log(`[ConductorAdapter] ❌ No additionalValue3 match for: ${orgUnit}`)
-
-      // Third: Legacy hardcoded mapping for backward compatibility
-      const orgUnitLower = orgUnit.toLowerCase()
-      console.log(`[ConductorAdapter] 🔍 Trying legacy mapping for: ${orgUnitLower}`)
-      if (orgUnitLower.includes('hr') || orgUnit === 'ou_hr_001') {
-        console.log(`[ConductorAdapter] ✅ Legacy HR match for: ${orgUnit}`)
-        return 'HR'
-      }
-      if (orgUnitLower.includes('it') || orgUnit === 'ou_it_001') {
-        console.log(`[ConductorAdapter] ✅ Legacy IT match for: ${orgUnit}`)
-        return 'IT'
-      }
-      if (orgUnitLower.includes('finance')) {
-        console.log(`[ConductorAdapter] ✅ Legacy Finance match for: ${orgUnit}`)
-        return 'Finance'
-      }
-      if (orgUnitLower.includes('facilities')) {
-        console.log(`[ConductorAdapter] ✅ Legacy Facilities match for: ${orgUnit}`)
-        return 'Facilities'
-      }
-
-      // If no catalog or legacy match, send to "Under desk"
-      console.log(`[ConductorAdapter] 🏠 No catalog or legacy match for ${orgUnit}, sending to Under desk`)
-      return 'Under desk' as StepReceiver
     }
 
     // Check capabilities with Service Desk Catalog mapping
     if (targets.capabilities?.length > 0) {
-      const capabilities = targets.capabilities.join(',').toLowerCase()
-
-      // Try to match capabilities with catalog entries
+      // Try to match capability UUIDs with catalog entries using the "objectValue" field
       for (const entry of this.serviceDeskCatalogEntries) {
-        const entryCode = entry.code.toLowerCase()
-        if (capabilities.includes(entryCode)) {
-          console.log(`[ConductorAdapter] ✅ Capability match: ${capabilities} → ${entry.code}`)
-          return entry.code as StepReceiver
+        if (!entry.objectValue) {
+          continue
+        }
+
+        try {
+          // Get capabilities array from objectValue (these are capability UUIDs)
+          const catalogCapabilities = entry.objectValue.capabilities || []
+
+          if (!Array.isArray(catalogCapabilities) || catalogCapabilities.length === 0) {
+            continue
+          }
+
+          // Check if any task capability UUID matches catalog capability UUIDs
+          const hasMatch = targets.capabilities.some((taskCapabilityUuid: string) =>
+            catalogCapabilities.some(
+              (catalogCapabilityUuid: string) =>
+                catalogCapabilityUuid.toLowerCase() === taskCapabilityUuid.toLowerCase()
+            )
+          )
+
+          if (hasMatch) {
+            return entry.code as StepReceiver
+          }
+        } catch {
+          continue
         }
       }
 
-      // Legacy capability mapping
-      if (capabilities.includes('hr')) return 'HR'
-      if (capabilities.includes('it')) return 'IT'
-      if (capabilities.includes('finance')) return 'Finance'
-      if (capabilities.includes('facilities')) return 'Facilities'
+      // No capability UUID match found, go to "Under desk"
+      return 'Under desk' as StepReceiver
     }
 
-    // Default fallback - return first available catalog entry or "Under desk"
-    if (this.serviceDeskCatalogEntries.length > 0) {
-      const defaultEntry = this.serviceDeskCatalogEntries[0]
-      console.log(`[ConductorAdapter] 🔄 Using default catalog entry: ${defaultEntry.code}`)
-      return defaultEntry.code as StepReceiver
-    }
-
-    return 'Under desk' as StepReceiver // Ultimate fallback for uncategorized tasks
+    // Default fallback - send to "Under desk" for manual categorization
+    return 'Under desk' as StepReceiver
   }
 
   /**
