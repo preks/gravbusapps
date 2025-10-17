@@ -42,7 +42,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
               )}
             </div>
           </div>
-          <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-gray-500" />
+          <RiBarChartLine className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
         </div>
       </CardHeader>
       <CardContent>
@@ -65,32 +65,18 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
                     const allTypes = uniqueGroups
 
                     return (
-                      <div
-                        style={{
-                          background: 'white',
-                          borderRadius: 8,
-                          boxShadow: '0 2px 8px #0001',
-                          padding: 12,
-                          fontSize: 13
-                        }}
-                      >
-                        <div style={{ fontWeight: 600, marginBottom: 6 }}>{label}</div>
+                      <div className="gba:bg-card gba:rounded-lg gba:shadow-lg gba:p-3 gba:text-sm">
+                        <div className="gba:font-semibold gba:mb-2">{label}</div>
                         {allTypes.map(type => {
                           const entry = payload?.find(p => p.dataKey === type)
                           const value = entry?.value ?? 0
                           const color = groupColors[type] || undefined
 
                           return (
-                            <div key={type} style={{ display: 'flex', alignItems: 'center', marginBottom: 2 }}>
+                            <div key={type} className="gba:flex gba:items-center gba:mb-1">
                               <span
-                                style={{
-                                  width: 12,
-                                  height: 12,
-                                  background: color,
-                                  display: 'inline-block',
-                                  borderRadius: 3,
-                                  marginRight: 6
-                                }}
+                                className="gba:w-3 gba:h-3 gba:inline-block gba:rounded-sm gba:mr-2"
+                                style={{ background: color }}
                               />
                               <span>
                                 {type}: {value} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.days', 'days')}
@@ -118,7 +104,7 @@ export const AbsenceTrendsChart: React.FC<AbsenceTrendsChartProps> = ({
                 className="gba:w-3 gba:h-3 gba:rounded-sm"
                 style={{ backgroundColor: groupColors[group] || undefined }}
               />
-              <span className="gba:text-xs gba:text-gray-600">{group}</span>
+              <span className="gba:text-xs gba:text-muted-foreground">{group}</span>
             </div>
           ))}
         </div>

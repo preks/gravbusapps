@@ -57,7 +57,7 @@ export const processCompleteServerSideAggregations = (
   const enhancedAbsences = rawAbsences.map((absence: any) => {
     const groupName = getAbsenceGroupName(absence.type, absenceGroups)
 
-    let color = '#8884d8'
+    let color = 'var(--nw-chart-1)'
     const groupObjectValue = absence.type?.parentEntry?.objectValue
     if (groupObjectValue?.color) {
       const rawColor = groupObjectValue.color
@@ -81,7 +81,7 @@ export const processCompleteServerSideAggregations = (
     rawAbsences.reduce((acc: any, absence: any) => {
       const groupName = getAbsenceGroupName(absence.type, absenceGroups)
       if (!acc[groupName]) {
-        acc[groupName] = { count: 0, totalDays: 0, color: '#8884d8' }
+        acc[groupName] = { count: 0, totalDays: 0, color: 'var(--nw-chart-1)' }
       }
       acc[groupName].count++
       acc[groupName].totalDays += Number(absence.effectiveDays) || 0

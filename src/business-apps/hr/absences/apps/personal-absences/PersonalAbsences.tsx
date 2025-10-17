@@ -97,7 +97,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               <Paperclip
                 className="gba:w-4 gba:h-4"
                 style={{
-                  color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : '#1976d2'
+                  color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-chart-4)'
                 }}
               />
             ),
@@ -105,15 +105,15 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             statusColor: (() => {
               switch ((absence.status || '').toLowerCase()) {
                 case 'pending':
-                  return 'rgba(255, 158, 2, 0.55)'
+                  return 'var(--nw-warning)'
                 case 'approved':
-                  return 'rgba(13, 188, 123, 0.55)'
+                  return 'var(--nw-success)'
                 case 'rejected':
-                  return 'rgba(222, 29, 73, 0.55)'
+                  return 'var(--nw-destructive)'
                 case 'cancelled':
-                  return 'rgba(141, 145, 153, 0.55)'
+                  return 'var(--nw-muted-foreground)'
                 default:
-                  return 'rgba(141, 145, 153, 0.55)'
+                  return 'var(--nw-muted-foreground)'
               }
             })(),
             requestDate: absence.createdAt
@@ -126,7 +126,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             .map((a: any, idx: number) => ({
               id: a.id || idx,
               type: a.type ? getCatalogValue(a.type) || '' : '',
-              icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: '#1976d2' }} />,
+              icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
               dates: `${dayjs(a.startDate).format('MM/DD/YYYY')} - ${dayjs(a.endDate).format('MM/DD/YYYY')}`,
               description: a.description,
               timeUntil: (() => {
@@ -152,7 +152,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               <Paperclip
                 className="gba:w-4 gba:h-4"
                 style={{
-                  color: ent.type?.objectValue?.color ? `#${ent.type.objectValue.color}` : '#1976d2'
+                  color: ent.type?.objectValue?.color ? `#${ent.type.objectValue.color}` : 'var(--nw-chart-4)'
                 }}
               />
             ),
@@ -166,7 +166,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             used: ent.approved,
             total: ent.total,
             progress: ent.total ? Math.round((ent.approved / ent.total) * 100) : 0,
-            icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: '#1976d2' }} />,
+            icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
             color: ent.type?.objectValue?.color,
             textColor: ent.type?.objectValue?.color,
             daysLeft: ent.available,

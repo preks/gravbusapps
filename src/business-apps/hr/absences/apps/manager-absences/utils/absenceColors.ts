@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { CatalogEntry } from '@/common/types/CatalogTypes'
@@ -21,10 +21,10 @@ export interface AbsenceColorsData {
 
 // Fallback colors if catalog doesn't provide colors
 const FALLBACK_COLORS = [
-  '#10b981',
-  '#f59e0b',
-  '#ef4444',
-  '#6b7280' // Status-based colors only
+  'var(--nw-chart-3)',
+  'var(--nw-chart-6)',
+  'var(--nw-chart-5)',
+  'var(--nw-chart-1)' // Status-based colors only
 ]
 
 /**
@@ -122,7 +122,6 @@ export class AbsenceColorsManager {
         } else {
           console.warn(`No color found for group: ${group.value}, skipping fallback`)
         }
-        colorIndex++
       }
 
       // No special type processing - only use group colors
@@ -313,7 +312,7 @@ export class AbsenceColorsManager {
     }
 
     console.warn(`No catalog color found for absence: ${absenceName}, using default`)
-    return '#6b7280' // Single fallback color instead of cycling through array
+    return 'var(--nw-chart-1)' // Single fallback color instead of cycling through array
   }
 
   /**

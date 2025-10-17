@@ -111,7 +111,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData }> = ({ dashboa
             <CardContent className="gba:pt-0">
               <div className="gba:flex gba:flex-col gba:gap-2.5">
                 {Object.keys(data.typeCounts).length === 0 ? (
-                  <div className="gba:text-sm gba:text-red-600">No data</div>
+                  <div className="gba:text-sm gba:text-destructive">No data</div>
                 ) : (
                   (() => {
                     const maxVal = Math.max(...Object.values(data.typeCounts))
@@ -120,20 +120,30 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData }> = ({ dashboa
                       const translatedType = getTranslatedLeaveTypeName(type)
                       return (
                         <div key={type} className="gba:flex gba:items-center">
-                          <div className="gba:w-28 gba:text-sm gba:text-gray-700">{translatedType}</div>
+                          <div className="gba:w-28 gba:text-sm gba:text-foreground">{translatedType}</div>
                           <div className="gba:flex-1 gba:px-3">
-                            <div className="gba:bg-gray-100 gba:rounded">
-                              <div style={{ width: `${pct}%`, height: 10, background: '#3b82f6', borderRadius: 6 }} />
+                            <div className="gba:bg-muted gba:rounded">
+                              <div
+                                style={{
+                                  width: `${pct}%`,
+                                  height: 10,
+                                  background: 'var(--nw-chart-4)',
+                                  borderRadius: 6
+                                }}
+                              />
                             </div>
                           </div>
-                          <div className="gba:w-20 gba:text-right gba:text-sm gba:text-gray-900">{cnt}</div>
+                          <div className="gba:w-20 gba:text-right gba:text-sm gba:text-foreground">{cnt}</div>
                         </div>
                       )
                     })
                   })()
                 )}
               </div>
-              <div className="gba:mt-2 gba:text-xs gba:text-gray-500" data-testid="leave-type-distribution-status-note">
+              <div
+                className="gba:mt-2 gba:text-xs gba:text-muted-foreground"
+                data-testid="leave-type-distribution-status-note"
+              >
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_hub.statuses_considered_approved',
                   'Statuses considered: Approved'
