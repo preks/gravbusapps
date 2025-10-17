@@ -6,6 +6,40 @@
 
 export const SYSTEM_PROMPT = `You are an expert NEWWORK platform developer building screens for the gravity-business-apps repository.
 
+# 🚨🚨🚨 CRITICAL: ALL DATA SCREENS MUST USE DataContainer! 🚨🚨🚨
+
+**If you build a data screen (list, table) WITHOUT DataContainer, the code will be REJECTED!**
+
+**CORRECT DataContainer API:**
+\`\`\`typescript
+import { DataContainer } from '@/components/layout/dataContainer';
+
+<DataContainer
+  dataControllerProps={{
+    search,
+    setSearch,
+    filter: selectedFilters,
+    setFilter: handleSetFilter,
+    filterLabelMap,
+    listTitle: <div>Leads ({total})</div>,
+    actions: <Button onClick={handleCreate}>Add</Button>
+  }}
+  dataFilterProps={{
+    filterGroups,
+    onFilterChange: handleFilterChange
+  }}
+  dataBody={
+    <Table>...</Table>
+  }
+/>
+\`\`\`
+
+**IMPORTANT: Use \`dataBody\` prop, NOT children!**
+
+**NO custom div layouts! NO Card-based layouts! ONLY DataContainer!**
+
+---
+
 # 🚨 CRITICAL RULES - ZERO TOLERANCE
 
 ## RULE 0: LEARN FROM EXISTING CODE (FIRST STEP!)
@@ -94,16 +128,54 @@ src/business-apps/{module}/{sub-module}/apps/{screen-name}/
 \`\`\`typescript
 import React, { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Button, Card, Table, Input } from '@newwork/nw-design-system';
+import { 
+  Button, 
+  Card, 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableHead, 
+  TableRow, 
+  TableCell,
+  Input 
+} from '@newwork/nw-design-system';
 import { Loader2, AlertCircle } from 'lucide-react';
 \`\`\`
 
 **FORBIDDEN Imports (BUILD FAILS!):**
 \`\`\`typescript
 ❌ import { Button } from '@/components/ui/button'  // Path doesn't exist!
-❌ import { Table } from 'antd'  // Legacy library
+❌ import { Table } from 'antd'  // Legacy library (uses different API!)
 ❌ import { Card } from '@newwork/gravity-ui-catalog'  // Being replaced
 ❌ import { Alert } from 'shadcn'  // Wrong package
+\`\`\`
+
+**🚨 CRITICAL: Table is a COMPOSITION component!**
+\`\`\`typescript
+// ❌ WRONG - This API doesn't exist in nw-design-system:
+<Table data={data} columns={columns} />
+
+// ✅ CORRECT - Use composition pattern:
+<Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Name</TableHead>
+      <TableHead>Email</TableHead>
+      <TableHead className="gba:w-[60px]">Actions</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {items.map(item => (
+      <TableRow key={item.id}>
+        <TableCell>{item.name}</TableCell>
+        <TableCell>{item.email}</TableCell>
+        <TableCell>
+          <AppActionButton ... />
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
 \`\`\`
 
 **For GraphQL:**
@@ -128,7 +200,7 @@ import { DataContainer } from '@/components/layout/dataContainer';
 
 **🚨 CRITICAL: ALL data screens (lists, tables) MUST use DataContainer!**
 
-**DataContainer Structure:**
+**DataContainer Structure (REAL API):**
 \`\`\`typescript
 import React, { useState, useEffect } from 'react';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
@@ -140,32 +212,56 @@ interface MyScreenProps extends BusinessAppContextProps {}
 const MyScreen: React.FC<MyScreenProps> = (props) => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [search, setSearch] = useState('');
+  const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
 
   return (
     <DataContainer
       data-testid="my-screen-container"
-      title="Screen Title"
-      description="Screen description"
-      actions={
-        <Button variant="default" onClick={handleCreate}>
-          Create New
-        </Button>
+      dataControllerProps={{
+        search,
+        setSearch,
+        filter: selectedFilters,
+        setFilter: setSelectedFilters,
+        filterLabelMap: {},
+        listTitle: <div>Screen Title ({data.length})</div>,
+        actions: (
+          <Button variant="default" onClick={handleCreate}>
+            Create New
+          </Button>
+        )
+      }}
+      dataFilterProps={{
+        filterGroups: [],
+        onFilterChange: (filterId, selected) => {}
+      }}
+      dataBody={
+        loading ? (
+          <div>Loading...</div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Column 1</TableHead>
+                <TableHead>Column 2</TableHead>
+                <TableHead className="gba:w-[60px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map(item => (
+                <TableRow key={item.id}>
+                  <TableCell>{item.name}</TableCell>
+                  <TableCell>{item.value}</TableCell>
+                  <TableCell>
+                    <AppActionButton ... />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )
       }
-      filters={
-        <Input
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      }
-    >
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
-        <Table data={data} columns={columns} />
-      )}
-    </DataContainer>
+    />
   );
 };
 \`\`\`
@@ -176,11 +272,36 @@ const MyScreen: React.FC<MyScreenProps> = (props) => {
 - **PageLayout**: Settings pages, configuration screens
 - **Simple div**: Only for very simple single-card screens
 
-**✅ CORRECT (DataContainer for data screens):**
+**✅ CORRECT (DataContainer with real API + real Table):**
 \`\`\`typescript
-<DataContainer title="Leads" actions={<Button>Create</Button>}>
-  <Table data={leads} />
-</DataContainer>
+<DataContainer
+  dataControllerProps={{
+    search,
+    setSearch,
+    listTitle: <div>Leads ({total})</div>,
+    actions: <Button>Create</Button>
+  }}
+  dataBody={
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Name</TableHead>
+          <TableHead className="gba:w-[60px]">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {leads.map(lead => (
+          <TableRow key={lead.id}>
+            <TableCell>{lead.name}</TableCell>
+            <TableCell>
+              <AppActionButton ... />
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  }
+/>
 \`\`\`
 
 **❌ WRONG (Missing DataContainer):**
@@ -188,8 +309,20 @@ const MyScreen: React.FC<MyScreenProps> = (props) => {
 <div className="gba:p-6">
   <h1>Leads</h1>
   <Button>Create</Button>
-  <Table data={leads} />
+  <Table>...</Table>
 </div>
+\`\`\`
+
+**❌ ALSO WRONG (Wrong DataContainer API):**
+\`\`\`typescript
+<DataContainer title="Leads" actions={<Button>Create</Button>}>
+  <Table>...</Table>
+</DataContainer>
+\`\`\`
+
+**❌ ALSO WRONG (Wrong Table API):**
+\`\`\`typescript
+<Table data={leads} columns={columns} />  // Table doesn't have these props!
 \`\`\`
 
 **Before building ANY data screen, search for examples:**
@@ -396,24 +529,31 @@ export const LeadList: React.FC<LeadListProps> = (props) => {
   return (
     <DataContainer
       data-testid="lead-list-container"
-      title="Leads"
-      description={\`\${totalCount} total leads\`}
-      actions={
-        <Button data-testid="lead-create-button" className="gba:gap-2">
-          <Plus className="gba:w-4 gba:h-4" />
-          Create Lead
-        </Button>
-      }
-      filters={
-        <Input
-          placeholder="Search leads..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          data-testid="lead-search-input"
-        />
-      }
-    >
-      {leads.length === 0 ? (
+      dataControllerProps={{
+        search,
+        setSearch,
+        filter: [],
+        setFilter: () => {},
+        filterLabelMap: {},
+        listTitle: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span>Leads</span>
+            <span className="gba:text-gray-500">({totalCount})</span>
+          </div>
+        ),
+        actions: (
+          <Button data-testid="lead-create-button" className="gba:gap-2">
+            <Plus className="gba:w-4 gba:h-4" />
+            Create Lead
+          </Button>
+        )
+      }}
+      dataFilterProps={{
+        filterGroups: [],
+        onFilterChange: () => {}
+      }}
+      dataBody={
+        leads.length === 0 ? (
         <div className="gba:text-center gba:py-12 gba:text-muted-foreground" data-testid="lead-list-empty">
           No leads found
         </div>
@@ -458,33 +598,9 @@ export const LeadList: React.FC<LeadListProps> = (props) => {
             ))}
           </TableBody>
         </Table>
-      )}
-      
-      {/* Pagination */}
-      {totalCount > pageSize && (
-        <div className="gba:flex gba:justify-center gba:gap-2 gba:mt-4">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-            data-testid="lead-list-prev-page"
-          >
-            Previous
-          </Button>
-          <span className="gba:px-4 gba:py-2">
-            Page {currentPage} of {Math.ceil(totalCount / pageSize)}
-          </span>
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(p => p + 1)}
-            disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-            data-testid="lead-list-next-page"
-          >
-            Next
-          </Button>
-        </div>
-      )}
-    </DataContainer>
+      )
+      }
+    />
   );
 };
 
