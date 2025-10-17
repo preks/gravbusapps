@@ -1,6 +1,6 @@
 /**
  * System Prompt Configuration for AI Builder
- * 
+ *
  * This prompt is sent to FORGE AI to ensure it generates
  * screens that follow gravity-business-apps patterns and
  * integrate with newwork-graphql-mcp.
@@ -30,7 +30,6 @@ src/business-apps/{module}/{sub-module}/apps/{screen-name}/
 - ❌ src/business-apps/src/screens/...  (WRONG - "src" appears twice)
 - ❌ src/screens/...  (WRONG - missing business-apps)
 - ❌ Any path that doesn't match the exact structure above
-
 ### Component Library
 - ONLY use components from @newwork/nw-design-system
 - NEVER use other UI libraries (antd, gravity-ui-catalog, etc.)
@@ -58,83 +57,109 @@ export const MyScreen: React.FC<MyScreenProps> = (props) => {
 };
 \`\`\`
 
-### GraphQL Data Integration
-When the screen needs data from the backend:
+### GraphQL Data Integration - USE TOOLS FIRST!
 
-1. Create a queries file:
+**IMPORTANT**: Before writing ANY GraphQL code, ALWAYS use these tools to get live schema data:
+
+**Step 1: Get Entity Schema**
+Use the graphql_introspect_entity tool with entity_name parameter (e.g., "Lead", "Account", "Contact")
+Returns: All fields, types, searchable fields for that entity
+
+**Step 2: Generate Query (Recommended)**
+Use the generate_graphql_query tool with entity_name and include_aggregate parameters
+Returns: Complete query template + where conditions + usage example
+
+**Step 3: Get FlowContext for Actions**
+Use the get_flow_contexts tool (no parameters needed)
+Returns: All available FlowContextName mappings for AppActionButton
+
+### Example Workflow:
+
+1. User asks: "Build a lead list screen"
+
+2. You call graphql_introspect_entity tool with entity_name="Lead"
+   - Returns: All 92 real fields from live schema
+   - Returns: searchableFields like firstName, lastName, email, company
+   - Returns: nestedSearchableFields like ownerEmployee.firstName
+
+3. You call generate_graphql_query tool with entity_name="Lead"
+   - Returns: Complete query template already formatted
+   - Returns: Where condition template with all searchable fields
+   - Returns: Ready-to-use code example
+
+4. You call get_flow_contexts tool
+   - Returns: FlowContextName.customerLeadEntity with required leadId parameter
+
+5. You generate complete working screen with real data!
+
+### Generated Query File Pattern:
 \`\`\`typescript
-// queries/EntityQueries.ts
+// queries/LeadQueries.ts
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 
-export interface EntityQueryVariables {
-  id?: string;
+export interface LeadQueryVariables {
+  search?: string;
   limit?: number;
   offset?: number;
-  search?: string;
 }
 
-export const GET_ENTITIES_QUERY = (variables: EntityQueryVariables): string => {
+// Use the query template from generate_graphql_query tool!
+export const GET_LEADS_QUERY = (variables: LeadQueryVariables): string => {
   const whereCondition: any = {};
   
-  if (variables.search) {
+  if (variables.search?.trim()) {
+    const searchPattern = { _ilike: \`%\${variables.search.trim()}%\` };
     whereCondition._or = [
-      { name: { _ilike: \`%\${variables.search}%\` } },
-      { description: { _ilike: \`%\${variables.search}%\` } },
+      // Use searchableFields from introspection result
+      { firstName: searchPattern },
+      { lastName: searchPattern },
+      { email: searchPattern },
+      { company: searchPattern },
+      // Use nestedSearchableFields from introspection result
+      { ownerEmployee: { firstName: searchPattern } },
+      { ownerEmployee: { lastName: searchPattern } },
+      { leadStatus: { value: searchPattern } },
     ];
   }
 
   return \`
-    query GetEntities {
-      entities(
+    query GetLeads {
+      Lead(
         where: \${JSON.stringify(whereCondition)}
         limit: \${variables.limit || 20}
         offset: \${variables.offset || 0}
+        order_by: { createdAt: DESC }
       ) {
         id
-        name
-        description
+        firstName
+        lastName
+        email
+        company
+        leadStatus { id value code }
+        ownerEmployee { id firstName lastName pictureThumbnail }
         createdAt
+      }
+      LeadAggregate(where: \${JSON.stringify(whereCondition)}) {
+        aggregate { count }
       }
     }
   \`;
 };
 
-export const useGetEntities = (context: BusinessAppContextProps) => {
+export const useGetLeads = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken);
   
-  const fetchEntities = async (variables: EntityQueryVariables = {}) => {
-    const query = GET_ENTITIES_QUERY(variables);
+  const fetchLeads = async (variables: LeadQueryVariables = {}) => {
+    const query = GET_LEADS_QUERY(variables);
     const result = await graphqlClient.request(query);
-    return result.entities;
+    return {
+      leads: result.Lead,
+      totalCount: result.LeadAggregate?.aggregate?.count || 0
+    };
   };
 
-  return { fetchEntities };
-};
-\`\`\`
-
-2. Use in component:
-\`\`\`typescript
-const MyScreen: React.FC<MyScreenProps> = (props) => {
-  const [entities, setEntities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const { fetchEntities } = useGetEntities(props);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchEntities({ limit: 20 });
-        setEntities(data);
-      } catch (error) {
-        console.error('Failed to load:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-  
-  // Render...
+  return { fetchLeads };
 };
 \`\`\`
 
@@ -538,7 +563,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes';
   cell: ({ row }) => (
     <div className="gba:flex gba:gap-2">
       <AppActionButton
-        data-testid={`entity-update-button-\${row.original.id}`}
+        data-testid={\`entity-update-button-\${row.original.id}\`}
         size="icon"
         contextsArray={[FlowContextName.customerLeadEntity]}
         externalContextData={{ leadId: row.original.id }}
@@ -571,7 +596,7 @@ When generating a screen, create complete, runnable code with:
 6. Test IDs on all elements
 
 Your generated code should work immediately without modifications.
-`;
+`
 
 export const getSystemPromptForContext = (userQuery: string): string => {
   return `${SYSTEM_PROMPT}
@@ -582,6 +607,5 @@ The user wants to build: "${userQuery}"
 Analyze the request and generate appropriate files following all rules above.
 If data integration is needed, use the newwork-graphql-mcp pattern.
 Ensure all code is production-ready and follows gravity-business-apps conventions.
-`;
-};
-
+`
+}
