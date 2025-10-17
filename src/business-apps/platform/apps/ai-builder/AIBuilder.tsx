@@ -19,6 +19,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Label } from '@newwork/nw-design-system'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
+import { SYSTEM_PROMPT } from './config/systemPrompt'
 
 // API Configuration - EXACT same as FORGE demo
 const API_URL = 'https://forge-api-production-db58.up.railway.app'
@@ -73,7 +74,8 @@ async function queryCode(
       conversationHistory,
       buildEnabled,
       sessionId,
-      llmProvider
+      llmProvider,
+      customSystemPrompt: SYSTEM_PROMPT // 🚨 CRITICAL: Use gravity-business-apps system prompt!
     })
   })
 
