@@ -66,6 +66,13 @@ export const mapInvestmentOpportunityDataToFormValues = (
     accountId: opportunity.accountId || '',
     account: opportunity.account?.id || opportunity.accountId || '',
 
+    // Contact Information
+    contactIds:
+      opportunity.investmentOpportunityContact?.map(rel => ({
+        id: rel.contact.id,
+        name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim()
+      })) || [],
+
     // Owner Information
     owner: opportunity.ownerEmployee?.id || '',
 

@@ -6,7 +6,7 @@ import { useEmployeeById } from '@/business-apps/irm/core/forms/lead-form/hooks/
 import { useSearchableCatalog } from '@/business-apps/irm/core/forms/lead-form/hooks/useSearchableCatalog'
 import { useInvestmentContactData, mapInvestmentContactToFormValues } from '../hooks/useContactData'
 import { useEmployeeByIdGraphQL } from '../hooks/useEmployeeByIdGraphQL'
-import { useAccountSelection } from '../hooks/useAccountSelection'
+import { useGetInvestmentAccounts } from '@/common/data/investment'
 
 // ✅ UPDATED: Catalog constants for InvestmentContact
 export const ACADEMIC_TITLE_CATALOG = 'AcademicTitle'
@@ -163,18 +163,13 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   // 🎯 Lead owner employee hook - for lead conversion scenarios
   const isLeadConversion = businessAppContext.additionalData?.isLeadConversion === true
   const leadOwnerId = businessAppContext.additionalData?.leadOwnerId
-  const {
-    employeeData: leadOwnerEmployee,
-    isLoading: leadOwnerLoading,
-    error: leadOwnerError
-  } = useEmployeeByIdGraphQL(businessAppContext.accessToken, isLeadConversion && leadOwnerId ? leadOwnerId : undefined)
+  const { employeeData: leadOwnerEmployee } = useEmployeeByIdGraphQL(
+    businessAppContext.accessToken,
+    isLeadConversion && leadOwnerId ? leadOwnerId : undefined
+  )
 
   // ✅ UPDATED: Load contact data when contactId is available
-  const {
-    contactData,
-    loading: contactDataLoading,
-    error: contactDataError
-  } = useInvestmentContactData(businessAppContext)
+  const { contactData } = useInvestmentContactData(businessAppContext)
 
   // Employee positions hook
   const {
@@ -202,14 +197,19 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
 
   // Account selection hook
   const {
-    accounts: accountOptions,
+    options: accountOptions,
     loading: accountsLoading,
     error: accountsError,
     hasMore: accountsHasMore,
     search: searchAccounts,
     loadMore: loadMoreAccounts,
-    clearSearch: clearAccountSearch
-  } = useAccountSelection(businessAppContext)
+    reset: clearAccountSearch
+  } = useGetInvestmentAccounts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
 
   // ✅ CRITICAL: Initialize catalogs on mount (MATCHES CRM PATTERN)
   useEffect(() => {
