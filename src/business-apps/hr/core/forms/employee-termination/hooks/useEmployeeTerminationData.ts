@@ -8,8 +8,11 @@ export interface EmployeeTerminationData {
   lastName: string
   pictureThumbnail?: string
   employeePosition?: {
+    exitDate?: string | null
+    activeTo?: string | null
     jobPosition?: {
       name: string
+      activeTo?: string | null
     }
     organizationalUnit?: {
       name: string
@@ -37,11 +40,13 @@ export function useEmployeeTerminationData({ employeeId, accessToken }: UseEmplo
       query GetEmployeeForTermination($employeeId: uuid!) {
         EmployeePosition(where: { employeeId: { _eq: $employeeId } }) {
           id
+          exitDate
           organizationalUnit {
             name
           }
           jobPosition {
             name
+            activeTo
           }
           employee {
             id
@@ -63,8 +68,11 @@ export function useEmployeeTerminationData({ employeeId, accessToken }: UseEmplo
           lastName: employeePosition.employee.lastName,
           pictureThumbnail: employeePosition.employee.pictureThumbnail,
           employeePosition: {
+            exitDate: employeePosition.exitDate,
+            activeTo: employeePosition.jobPosition?.activeTo ?? (employeePosition as any)?.activeTo ?? null,
             jobPosition: {
-              name: employeePosition.jobPosition?.name
+              name: employeePosition.jobPosition?.name,
+              activeTo: employeePosition.jobPosition?.activeTo
             },
             organizationalUnit: {
               name: employeePosition.organizationalUnit?.name

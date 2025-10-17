@@ -66,6 +66,18 @@ export const EmployeeTerminationProvider: React.FC<{
     setFormValuesState(prev => ({ ...prev, ...values }))
   }, [])
 
+  // Initialize form from employee data: exitDate -> terminationDate, activeTo -> terminateJobPosition
+  useEffect(() => {
+    if (!employee) return
+    const exitDate = employee.employeePosition?.exitDate
+    const activeTo = employee.employeePosition?.activeTo ?? employee.employeePosition?.jobPosition?.activeTo
+    setFormValuesState(prev => ({
+      ...prev,
+      terminationDate: exitDate ? dayjs(exitDate) : prev.terminationDate,
+      terminateJobPosition: activeTo != null ? true : prev.terminateJobPosition
+    }))
+  }, [employee])
+
   // Combine errors
   const combinedError = employeeError
   const combinedLoading = employeeLoading

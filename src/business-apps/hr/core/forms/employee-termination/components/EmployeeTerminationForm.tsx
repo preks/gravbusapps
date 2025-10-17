@@ -12,7 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import { useEmployeeTerminationContext } from '../context/EmployeeTerminationContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import FormHeader from '../../components/FormHeader'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -50,9 +50,11 @@ export const EmployeeTerminationForm: React.FC = () => {
         submitButtonTestId="employee-termination-submit-button"
         cancelButtonTestId="employee-termination-cancel-button"
         onSubmit={async () => {
+          const dateStr = formValues.terminationDate?.isValid() ? formValues.terminationDate.format('YYYY-MM-DD') : ''
+          const terminationDateIso = dateStr ? (formatDateToISO(new Date(dateStr)) as string) : ''
           return {
             employeeId: formValues.employeeId,
-            terminationDate: formValues.terminationDate?.isValid() ? formValues.terminationDate : undefined,
+            terminationDate: terminationDateIso,
             terminateJobPosition: formValues.terminateJobPosition,
             event: 'pse_submit'
           }
@@ -64,18 +66,34 @@ export const EmployeeTerminationForm: React.FC = () => {
               {loading ? (
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <Spinner size="sm" />
-                  <div>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.load_employee_text', 'Loading employee info...')}</div>
+                  <div>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_termination.load_employee_text',
+                      'Loading employee info...'
+                    )}
+                  </div>
                 </div>
               ) : error ? (
                 <Alert variant="destructive">
-                  <AlertTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.error_load_title', 'Error Loading Employee')}</AlertTitle>
+                  <AlertTitle>
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:employee_termination.error_load_title',
+                      'Error Loading Employee'
+                    )}
+                  </AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               ) : employee ? (
                 <>
                   <Avatar size="xl" className="gba:size-16">
                     {employee.pictureThumbnail ? (
-                      <AvatarImage src={`data:image/gif;base64,${employee.pictureThumbnail}`} alt={getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.employee_avatar_alt_text', 'Employee photo')} />
+                      <AvatarImage
+                        src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                        alt={getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:employee_termination.employee_avatar_alt_text',
+                          'Employee photo'
+                        )}
+                      />
                     ) : (
                       <AvatarFallback>
                         {`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
@@ -89,7 +107,12 @@ export const EmployeeTerminationForm: React.FC = () => {
                   </div>
                 </>
               ) : (
-                <div>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.no_data_found_text', 'No employee data found')}</div>
+                <div>
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:employee_termination.no_data_found_text',
+                    'No employee data found'
+                  )}
+                </div>
               )}
             </div>
 
