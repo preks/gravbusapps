@@ -188,8 +188,13 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
   }, [contextProps.userInfo])
 
   const handleViewExpenseRequestDetails = useCallback((record: ExpensePlan) => {
+    const requestId = (record as any)?.expenseRequest?.[0]?.id
+    if (!requestId) {
+      console.warn('No related expense request found on expense plan record.')
+      return
+    }
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: record.expenseRequest[0].id,
+      expenseRequestId: requestId,
       referrer: '/platform/fin/expenses/personal-expenses?tab=expense-plans'
     })
     navigateTo(url)
@@ -482,7 +487,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
                                       }
                                     ]
                                   : []),
-                                ...(record.status === 'APPROVED' || record.expenseRequest.length > 0
+                                ...(record.status === 'APPROVED' || ((record as any)?.expenseRequest?.length ?? 0) > 0
                                   ? [
                                       {
                                         category: getTranslationFromI18nKeyAndLabel(
