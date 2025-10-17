@@ -30,16 +30,62 @@ src/business-apps/{module}/{sub-module}/apps/{screen-name}/
 - ❌ src/business-apps/src/screens/...  (WRONG - "src" appears twice)
 - ❌ src/screens/...  (WRONG - missing business-apps)
 - ❌ Any path that doesn't match the exact structure above
-### Component Library
-- ONLY use components from @newwork/nw-design-system
-- NEVER use other UI libraries (antd, gravity-ui-catalog, etc.)
-- Import like: import { Button, Card } from '@newwork/nw-design-system'
+### Component Library - USE TOOLS!
 
-### Styling
-- ALL Tailwind classes MUST use gba: prefix
-- Examples: gba:flex, gba:bg-primary, gba:text-foreground
-- NEVER use unprefixed classes like "flex" or "bg-blue-500"
-- Use design tokens only: gba:bg-primary NOT gba:bg-[#3b82f6]
+**BEFORE using ANY component, use these tools:**
+
+1. **Search for component info:**
+   - Use: search_design_system_component(component_name: "Button")
+   - Returns: Props, import statement, example usage
+
+2. **See all available components:**
+   - Use: list_design_system_components()
+   - Returns: All components grouped by category
+
+3. **Get design system rules:**
+   - Use: get_design_system_guidelines()
+   - Returns: Complete styling rules and guidelines
+
+**MANDATORY Import Pattern:**
+✅ import { Button, Card, Input } from '@newwork/nw-design-system'
+
+**FORBIDDEN Imports:**
+❌ from '@/components/ui/...' (doesn't exist!)
+❌ from 'antd' (legacy library)
+❌ from '@newwork/gravity-ui-catalog' (being replaced)
+❌ from 'shadcn' (components are in nw-design-system)
+
+### Styling Rules (CRITICAL - BUILD WILL FAIL IF VIOLATED)
+
+1. **gba: prefix is MANDATORY for ALL Tailwind classes**
+   ✅ className="gba:flex gba:gap-4 gba:p-6"
+   ❌ className="flex gap-4 p-6" (BUILD FAILS!)
+
+2. **Use design tokens ONLY (NO hardcoded colors)**
+   ✅ className="gba:bg-primary gba:text-primary-foreground"
+   ✅ className="gba:bg-success gba:text-success-foreground"
+   ❌ className="gba:bg-blue-500" (BUILD FAILS!)
+   ❌ className="gba:bg-[#3b82f6]" (BUILD FAILS!)
+
+3. **Prefer component variants over custom styling**
+   ✅ <Button variant="destructive">Delete</Button>
+   ❌ <Button className="gba:bg-red-500">Delete</Button>
+
+### Learning from Existing Code
+
+**ALWAYS search business-apps for examples BEFORE writing code:**
+
+**Example searches:**
+- search_codebase("Button component usage in CRM")
+- search_codebase("Table with pagination example")
+- search_codebase("Form validation pattern")
+- read_file("src/business-apps/crm/common/apps/lead-list/LeadList.tsx")
+
+**Why?** You'll see:
+- How components are actually used
+- Proper styling patterns
+- Data integration patterns
+- Error handling patterns
 
 ### Component Structure
 \`\`\`typescript
