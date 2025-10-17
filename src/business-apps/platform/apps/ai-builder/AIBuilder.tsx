@@ -387,14 +387,47 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
       // DEBUG: Log what we're sending
       console.log('=== AI BUILDER REQUEST ===')
       console.log('Query:', userInput)
-      console.log('Messages (before setState):', messages.length)
+      console.log('Total messages:', messages.length)
       console.log('Session ID:', sessionId)
+
+      // 🚨 SMART COST OPTIMIZATION (Same as FORGE):
+      // Keep: First message (context) + Last 6 messages (recent) + Important middle messages
+      let optimizedHistory = messages
+      if (messages.length > 6) {
+        const firstMessage = messages[0]
+        const recentMessages = messages.slice(-6)
+        const middleMessages = messages.slice(1, -6)
+
+        // Filter middle for important messages (code blocks, file mentions)
+        const importantMiddle = middleMessages.filter(msg => {
+          const content = msg.content.toLowerCase()
+          return (
+            msg.content.includes('```') || // Code blocks
+            /\w+\.(tsx?|jsx?|css|md)/.test(msg.content) || // File mentions
+            content.includes('error') ||
+            content.includes('bug') ||
+            content.includes('create') ||
+            content.includes('fix')
+          )
+        })
+
+        optimizedHistory = [firstMessage, ...importantMiddle, ...recentMessages]
+      }
+
+      console.log(
+        'Optimized:',
+        optimizedHistory.length,
+        'messages (saved',
+        messages.length - optimizedHistory.length,
+        'messages)'
+      )
       console.log('========================')
 
       // Compatibility shim: if no history yet, add a dummy assistant thinking header
       // This mirrors the state after FORGE streams the first thinking chunk,
       // ensuring Claude disables strict thinking validation for the first turn
-      const history = messages.length === 0 ? [{ role: 'assistant' as const, content: 'Preparing...' }] : messages
+      const history =
+        messages.length === 0 ? [{ role: 'assistant' as const, content: 'Preparing...' }] : optimizedHistory
 
       // EXACT same as FORGE line 348 - pass messages state (before setState completes)
       const stream = await queryCode(REPO_ID, userInput, history, true, buildEnabled, sessionId, llmProvider)
