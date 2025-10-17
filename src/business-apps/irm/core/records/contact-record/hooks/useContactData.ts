@@ -27,6 +27,10 @@ export interface Contact {
     id: string
     value: string
   }
+  professionalTitle?: {
+    id: string
+    value: string
+  }
   language?: {
     id: string
     value: string

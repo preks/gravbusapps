@@ -60,13 +60,13 @@ const WorkPatternsSection: React.FC<WorkPatternsSectionProps> = ({ absences }) =
     .filter(d => d > 0)
   const shortestBreak = breakDurations.length > 0 ? Math.min(...breakDurations) : 0
   let recommendation = "You're maintaining a healthy work pattern."
-  let recommendationIcon = <CheckCircle className="gba:w-6 gba:h-6" style={{ color: '#52c41a' }} />
+  let recommendationIcon = <CheckCircle className="gba:w-6 gba:h-6 gba:text-success" />
   if (currentStreak >= avgStreak && avgStreak > 0) {
     recommendation = `Consider taking a break soon. Your current streak of ${currentStreak} days is approaching your average of ${avgStreak} days.`
-    recommendationIcon = <AlertTriangle className="gba:w-6 gba:h-6" style={{ color: '#faad14' }} />
+    recommendationIcon = <AlertTriangle className="gba:w-6 gba:h-6 gba:text-warning" />
   } else if (currentStreak >= longestStreak && longestStreak > 0) {
     recommendation = `You have reached your longest work streak of ${longestStreak} days! Consider a break.`
-    recommendationIcon = <AlertTriangle className="gba:w-6 gba:h-6" style={{ color: '#faad14' }} />
+    recommendationIcon = <AlertTriangle className="gba:w-6 gba:h-6 gba:text-warning" />
   }
 
   return (

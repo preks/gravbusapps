@@ -43,20 +43,23 @@ export const getOverlapWarningMessage = (
     return { message, isError: true }
   }
 
-  // Priority 2: Check for overlapping expense requests (high priority, error)
+  // Priority 2: Check for overlapping expense requests
   if (data.ExpenseRequest && data.ExpenseRequest.length > 0) {
     const expenseRequest = data.ExpenseRequest[0]
-    const approvedStatuses = [
+    const expenseRequestTimeStampStart = dayjs(expenseRequest.startDate).format(getDateFormat('date-long'))
+    const expenseRequestTimeStampEnd = dayjs(expenseRequest.endDate).format(getDateFormat('date-long'))
+
+    // Block submission for approved and pending requests
+    const blockStatuses = [
+      'PENDING',
       EXPENSE_STATUS.APPROVED,
       EXPENSE_STATUS.VERIFIED,
       EXPENSE_STATUS.BOOKED,
       EXPENSE_STATUS.TRANSFERRED,
       EXPENSE_STATUS.PAID
     ]
-    if (approvedStatuses.includes(expenseRequest.status)) {
-      const expenseRequestTimeStampStart = dayjs(expenseRequest.startDate).format(getDateFormat('date-long'))
-      const expenseRequestTimeStampEnd = dayjs(expenseRequest.endDate).format(getDateFormat('date-long'))
 
+    if (blockStatuses.includes(expenseRequest.status)) {
       const message = getTranslationFromI18nKeyAndLabel(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.periods_overlapping_error_message_expense_request',
         `The selected date overlaps with an existing event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please adjust the date.`,
@@ -72,32 +75,70 @@ export const getOverlapWarningMessage = (
 
       return { message, isError: true }
     }
+
+    // Warning for created requests
+    if (expenseRequest.status === EXPENSE_STATUS.CREATED) {
+      const message = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_request',
+        `The selected date overlaps with a draft event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please review before submitting if adjustments are needed.`,
+        {
+          expenseRequestTitle: expenseRequest.title,
+          fromDate: expenseRequestTimeStampStart,
+          toDate: expenseRequestTimeStampEnd,
+          interpolation: {
+            escapeValue: false
+          }
+        }
+      )
+
+      return { message, isError: false }
+    }
   }
 
-  // Priority 3: Check for overlapping expense plans (medium priority, warning)
-  if (
-    data.ExpensePlan &&
-    data.ExpensePlan.length > 0 &&
-    data.ExpensePlan[0].id !== currentPlanId &&
-    (data.ExpensePlan[0].status === EXPENSE_STATUS.CREATED || data.ExpensePlan[0].status === EXPENSE_STATUS.REJECTED)
-  ) {
+  // Priority 3: Check for overlapping expense plans
+  if (data.ExpensePlan && data.ExpensePlan.length > 0 && data.ExpensePlan[0].id !== currentPlanId) {
     const expensePlan = data.ExpensePlan[0]
     const expensePlanTimeStampStart = dayjs(expensePlan.startDate).format(getDateFormat('date-long'))
     const expensePlanTimeStampEnd = dayjs(expensePlan.endDate).format(getDateFormat('date-long'))
-    const message = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_plan',
-      `The selected date overlaps with a planned event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please review before submitting if adjustments are needed.`,
-      {
-        planTitle: expensePlan.title,
-        planTimeStampStart: expensePlanTimeStampStart,
-        planTimeStampEnd: expensePlanTimeStampEnd,
-        interpolation: {
-          escapeValue: false
-        }
-      }
-    )
 
-    return { message, isError: false }
+    // Allow only DISCARDED, CREATED, and REJECTED - block all others
+    const allowedStatuses = ['DISCARDED', EXPENSE_STATUS.CREATED, EXPENSE_STATUS.REJECTED]
+
+    if (!allowedStatuses.includes(expensePlan.status)) {
+      // Block for all other statuses (PENDING, APPROVED, VERIFIED, BOOKED, TRANSFERRED, PAID, etc.)
+      const message = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:add_items_to_plan.add_trip_info_to_plan.periods_overlapping_error_message_expense_plan',
+        `The selected date overlaps with an existing event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please adjust the date.`,
+        {
+          planTitle: expensePlan.title,
+          fromDate: expensePlanTimeStampStart,
+          toDate: expensePlanTimeStampEnd,
+          interpolation: {
+            escapeValue: false
+          }
+        }
+      )
+
+      return { message, isError: true }
+    }
+
+    // Warning for CREATED and REJECTED plans
+    if (expensePlan.status === EXPENSE_STATUS.CREATED || expensePlan.status === EXPENSE_STATUS.REJECTED) {
+      const message = getTranslationFromI18nKeyAndLabel(
+        'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_plan',
+        `The selected date overlaps with a planned event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please review before submitting if adjustments are needed.`,
+        {
+          planTitle: expensePlan.title,
+          planTimeStampStart: expensePlanTimeStampStart,
+          planTimeStampEnd: expensePlanTimeStampEnd,
+          interpolation: {
+            escapeValue: false
+          }
+        }
+      )
+
+      return { message, isError: false }
+    }
   }
 
   // No overlaps found

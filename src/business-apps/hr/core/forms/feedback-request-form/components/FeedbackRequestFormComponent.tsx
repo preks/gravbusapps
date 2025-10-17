@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { Button, Alert, Spinner } from '@newwork/nw-design-system'
 import { UserOutlined } from '@ant-design/icons'
 import { useFeedbackRequestForm } from '../context/FeedbackRequestFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import EmployeeSearchableSelect from '../../../../../crm/common/forms/lead-form/components/EmployeeSearchableSelect'
+import EmployeeSearchableSelect from '../../../../../crm/core/forms/lead-form/components/EmployeeSearchableSelect'
 
 const prefixDataTestId = 'FeedbackRequestFormComponent'
 
@@ -46,10 +46,6 @@ const FeedbackRequestFormComponent: React.FC = () => {
     }
   }
 
-  const handleMessageChange = (value: string) => {
-    setFormValues({ requestMessage: value })
-  }
-
   const handleSubmit = async () => {
     clearError()
     await onSubmit()
@@ -68,7 +64,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
         {/* Modal Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('feedback.request.title', 'Request Feedback')}
             </h2>
           </div>
@@ -116,7 +112,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
                 className="gba:w-full"
               />
             ) : (
-              <div className="gba:p-3 gba:bg-gray-50 gba:rounded-lg gba:border">
+              <div className="gba:p-3 gba:bg-muted gba:rounded-lg gba:border-border">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <UserOutlined />
                   <span className="gba:font-medium">{formValues.employeeName}</span>
@@ -127,7 +123,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
         </div>
 
         {/* Action Buttons - Fixed at bottom */}
-        <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-2 gba:justify-end">
+        <div className="gba:p-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
           <Button
             variant="secondary"
             onClick={handleCancel}
@@ -141,7 +137,7 @@ const FeedbackRequestFormComponent: React.FC = () => {
             onClick={handleSubmit}
             disabled={isLoading || !formValues.employeeId}
             data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
-            className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:px-6 gba:py-2 gba:rounded-lg"
+            className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground gba:px-6 gba:py-2 gba:rounded-lg"
           >
             {isLoading ? (
               <div className="gba:flex gba:items-center gba:gap-2">

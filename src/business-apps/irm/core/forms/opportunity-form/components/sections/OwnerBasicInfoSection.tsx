@@ -6,18 +6,24 @@ import { useOpportunityFormContext } from '../../context/OpportunityFormContext'
 import { useOpportunityFormFieldClearing } from '../../hooks/useOpportunityFormFieldClearing'
 import OwnerSelector from '../OwnerSelector'
 import AccountSelectionSection from './AccountSelectionSection'
+import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
 const OwnerBasicInfoSection: React.FC = () => {
   const {
     formValues,
+    setFormValues,
     employeePositions,
     employeePositionsLoading,
     employeePositionsError,
     employeePositionsHasMore,
     searchEmployeePositions,
-    loadMoreEmployeePositions
+    loadMoreEmployeePositions,
+    contacts,
+    contactsLoading,
+    contactsError,
+    searchContacts
   } = useOpportunityFormContext()
 
   const { handleInputChange } = useOpportunityFormFieldClearing()
@@ -63,6 +69,18 @@ const OwnerBasicInfoSection: React.FC = () => {
 
       {/* Account Selection */}
       <AccountSelectionSection />
+
+      {/* Related Contacts Selection */}
+      <ContactSelect
+        value={formValues.contactIds}
+        onChange={contactIds => setFormValues({ contactIds })}
+        dataTestId={formatDataTestId(prefixDataTestId, 'contact-selector')}
+        error={null}
+        contacts={contacts}
+        contactsLoading={contactsLoading}
+        contactsError={contactsError}
+        searchContacts={searchContacts}
+      />
     </div>
   )
 }

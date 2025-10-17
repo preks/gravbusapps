@@ -67,6 +67,7 @@ export interface InvestmentOpportunityFormValues {
   // Relationship Information
   account: string
   accountId: string
+  contactIds: Array<string | { id: string; name: string }> // Multiple contacts can be associated
 
   // Additional Information
   notesSummary: string // Will use additionalProperties or express fields

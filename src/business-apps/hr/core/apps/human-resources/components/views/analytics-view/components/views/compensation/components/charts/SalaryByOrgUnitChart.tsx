@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
-import { Card, Typography, Spin, Empty } from 'antd'
+import { Card } from '@newwork/nw-design-system'
+import { Typography, Spin, Empty } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { OrganizationalUnitSalary } from '../../../../../hooks/useSalaryByOrgUnit'
@@ -43,16 +44,16 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
   }
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="gba:bg-white gba:p-3 gba:rounded gba:shadow-lg gba:border">
-          <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
-          <p className="gba:text-sm">
+        <div className="gba:bg-card gba:p-3 gba:rounded gba:shadow-lg gba:border-border">
+          <p className="gba:font-semibold gba:mb-2 gba:text-foreground">{data.fullName}</p>
+          <p className="gba:text-sm gba:text-muted-foreground">
             <span className="gba:font-medium">Average Salary:</span> {formatCurrency(data.averageSalary)}
           </p>
-          <p className="gba:text-sm">
+          <p className="gba:text-sm gba:text-muted-foreground">
             <span className="gba:font-medium">Employees:</span> {data.employeeCount}
           </p>
         </div>
@@ -64,14 +65,14 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
   return (
     <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="salary-by-org-unit-chart">
       {/* Header */}
-      <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
+      <div className="gba:mb-4 gba:ml-4">
+        <Title level={4} className="gba:m-0 gba:text-foreground">
           {getTranslationFromI18nKeyAndLabel(
             'hr_analytics_salary_by_org_unit',
             'Average Salary by Organizational Unit'
           )}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
           {getTranslationFromI18nKeyAndLabel(
             'hr_analytics_salary_by_org_unit_description',
             'Average compensation levels across different organizational units showing pay distribution and departmental compensation patterns'
@@ -100,7 +101,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
               <XAxis type="number" tickFormatter={formatCurrency} tick={{ fontSize: 12 }} />
               <YAxis dataKey="orgUnit" type="category" width={90} tick={{ fontSize: 12 }} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="averageSalary" fill="#722ed1" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="averageSalary" fill="var(--nw-chart-3)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -108,7 +109,7 @@ const SalaryByOrgUnitChart: React.FC<SalaryByOrgUnitChartProps> = ({ data, loadi
 
       {/* Chart footnote */}
       {!loading && !error && chartData && chartData.length > 0 && data.length > 10 && (
-        <div className="gba:mt-4 gba:text-center gba:text-sm gba:text-gray-500">
+        <div className="gba:mt-4 gba:text-center gba:text-sm gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel(
             'hr_analytics_top_org_units_note',
             `Showing top 10 org units out of ${data.length} total`
