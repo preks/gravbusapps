@@ -20,12 +20,12 @@ export interface DepartmentSalaryStack {
 }
 
 const DEPARTMENT_COLORS = [
-  '#10b981', // Engineering
-  '#ef4444', // Sales
-  '#3b82f6', // Marketing
-  '#fbbf24', // Operations
-  '#f59e42', // HR
-  '#6366f1' // Other
+  'var(--nw-chart-1)', // Engineering
+  'var(--nw-chart-2)', // Sales
+  'var(--nw-chart-3)', // Marketing
+  'var(--nw-chart-4)', // Operations
+  'var(--nw-chart-5)', // HR
+  'var(--nw-chart-6)' // Other
 ]
 
 export const useDepartmentMonthlySalaryStack = (props: BusinessAppContextProps, year: number) => {

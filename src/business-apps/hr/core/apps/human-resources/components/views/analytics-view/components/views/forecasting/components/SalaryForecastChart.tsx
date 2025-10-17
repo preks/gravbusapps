@@ -21,11 +21,14 @@ const CustomTooltip = ({ active, payload }: any) => {
   if (active && payload && payload.length) {
     const d = payload[0].payload
     return (
-      <div className="gba:bg-white gba:shadow-lg gba:rounded gba:p-4" data-testid="salary-forecast-tooltip">
+      <div
+        className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4"
+        data-testid="salary-forecast-tooltip"
+      >
         <div className="gba:font-semibold gba:text-base gba:mb-1">
           {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
         </div>
-        <div className="gba:text-black gba:text-sm">
+        <div className="gba:text-foreground gba:text-sm">
           <div>
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('salary_forecast_total_salary', 'Total Salary')}:
@@ -38,7 +41,7 @@ const CustomTooltip = ({ active, payload }: any) => {
             </span>{' '}
             {d.headcount}
           </div>
-          <div className="gba:text-green-600">
+          <div className="gba:text-success">
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('salary_forecast_new_hires', 'New Hires')}:
             </span>{' '}
@@ -56,10 +59,10 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
     <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="salary-forecast-chart-container">
       {/* Header */}
       <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
+        <Title level={4} className="gba:m-0 gba:text-foreground">
           {getTranslationFromI18nKeyAndLabel('salary_forecast_title', 'Company Salary Forecast')}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
           {getTranslationFromI18nKeyAndLabel(
             'salary_forecast_description',
             'Monthly salary projection trends showing expected payroll costs and workforce growth patterns'
@@ -84,7 +87,7 @@ const SalaryForecastChart: React.FC<SalaryForecastChartProps> = ({ data }) => {
             <Line
               type="monotone"
               dataKey="totalSalary"
-              stroke="#3b82f6"
+              stroke="var(--nw-chart-3)"
               strokeWidth={3}
               dot={{ r: 5 }}
               activeDot={{ r: 8 }}
