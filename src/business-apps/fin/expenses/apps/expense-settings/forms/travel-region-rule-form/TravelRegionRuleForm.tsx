@@ -101,9 +101,11 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                 id: detail.id,
                 version: detail.version,
                 countryRef: detail.country?.id || '',
+                travelRegion: detail.travelRegion?.id || detail.travelRegionRef || '', // ID for form select
+                travelRegionRef: detail.travelRegion?.id || detail.travelRegionRef || '', // Keep ref for consistency
                 currencyRef: detail.currency?.id || '',
                 amounts: [detail.amount || 0],
-                home: false, // Default value
+                home: detail.home || false,
                 activeFrom: detail.activeFrom
                   ? dayjs(detail.activeFrom).format('YYYY-MM-DD')
                   : dayjs().format('YYYY-MM-DD'),
@@ -329,11 +331,15 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
       groupedDetails().forEach(group => {
         // Create one detail record per group with all amounts
         if (group.amounts.length > 0 && group.amounts.some(amount => amount > 0)) {
+          // Find the travel region label from the ID
+          const regionOption = travelRegions.find(r => r.id === group.travelRegion)
+          const regionLabel = regionOption?.value || group.travelRegion // Fallback to ID if label not found
+
           expandedDetails.push({
             id: group.detailIds[0] || undefined, // Use the first detail ID if available
             countryRef: group.countryRef,
-            travelRegion: group.travelRegion, // This should be the display value
-            travelRegionRef: group.travelRegion, // This should be the ID for API
+            travelRegion: regionLabel, // Display label from catalog
+            travelRegionRef: group.travelRegion, // ID reference for API
             currencyRef: group.currencyRef,
             home: group.homeFlag,
             activeFrom: group.validFrom,

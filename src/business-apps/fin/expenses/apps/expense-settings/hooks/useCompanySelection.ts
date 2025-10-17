@@ -1,28 +1,28 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
+import { useState, useCallback, useEffect } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 export interface CompanyOption {
-  id: string;
-  value: string;
-  label: string;
-  name: string;
-  code?: string;
-  description?: string;
+  id: string
+  value: string
+  label: string
+  name: string
+  code?: string
+  description?: string
 }
 
 export interface UseCompanySelectionParams {
-  pageSize?: number;
+  pageSize?: number
 }
 
 export interface UseCompanySelectionState {
-  companies: CompanyOption[];
-  isLoading: boolean;
-  error: string | null;
-  hasMore: boolean;
-  offset: number;
-  currentSearch: string;
+  companies: CompanyOption[]
+  isLoading: boolean
+  error: string | null
+  hasMore: boolean
+  offset: number
+  currentSearch: string
 }
 
 const GET_COMPANIES_QUERY = `
@@ -39,14 +39,14 @@ const GET_COMPANIES_QUERY = `
       description
     }
   }
-`;
+`
 
 export const useCompanySelection = (
   context: BusinessAppContextProps,
   { pageSize = 20 }: UseCompanySelectionParams = {}
 ) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  
+  const graphqlClient = useGraphQLClient(context.accessToken)
+
   const [state, setState] = useState<UseCompanySelectionState>({
     companies: [],
     isLoading: false,
@@ -54,87 +54,100 @@ export const useCompanySelection = (
     hasMore: true,
     offset: 0,
     currentSearch: ''
-  });
+  })
 
-  const fetchCompanies = useCallback(async (
-    search: string = '',
-    offset: number = 0,
-    append: boolean = false
-  ) => {
-    if (!context.accessToken) {
-      return;
-    }
-
-    setState(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null,
-      ...(append ? {} : { companies: [] })
-    }));
-
-    try {
-      const whereCondition: any = {
-        isDeleted: { _eq: false },
-        structureId: { _eq: getCurrentActiveStructureId() }
-      };
-
-      // Add search conditions
-      if (search.trim()) {
-        whereCondition._or = [
-          { name: { _ilike: `%${search.trim()}%` } },
-          { code: { _ilike: `%${search.trim()}%` } },
-          { description: { _ilike: `%${search.trim()}%` } }
-        ];
+  const fetchCompanies = useCallback(
+    async (search: string = '', offset: number = 0, append: boolean = false) => {
+      if (!context.accessToken) {
+        return
       }
 
-      const variables = {
-        where: whereCondition,
-        limit: pageSize,
-        offset
-      };
-
-      const response = await graphqlClient.request(GET_COMPANIES_QUERY, variables);
-
-      const mappedCompanies: CompanyOption[] = response.Company.map((company: any) => ({
-        id: company.id,
-        value: company.id,
-        label: company.name || 'Unnamed Company',
-        name: company.name || 'Unnamed Company',
-        code: company.code,
-        description: company.description
-      }));
-
-      const hasMoreRecords = mappedCompanies.length === pageSize;
-
       setState(prev => ({
         ...prev,
-        companies: append ? [...prev.companies, ...mappedCompanies] : mappedCompanies,
-        isLoading: false,
-        hasMore: hasMoreRecords,
-        currentSearch: search,
-        offset: append ? prev.offset + mappedCompanies.length : mappedCompanies.length
-      }));
+        isLoading: true,
+        error: null,
+        ...(append ? {} : { companies: [] })
+      }))
 
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch companies',
-        companies: append ? prev.companies : []
-      }));
-    }
-  }, [context.accessToken, graphqlClient, pageSize]);
+      try {
+        const structureId = getCurrentActiveStructureId()
+        if (!structureId) {
+          console.error('No active structure ID available')
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: 'No active structure available',
+            companies: append ? prev.companies : []
+          }))
+          return
+        }
+
+        const whereCondition: any = {
+          isDeleted: { _eq: false },
+          structureId: { _eq: structureId }
+        }
+
+        // Add search conditions
+        if (search.trim()) {
+          whereCondition._or = [
+            { name: { _ilike: `%${search.trim()}%` } },
+            { code: { _ilike: `%${search.trim()}%` } },
+            { description: { _ilike: `%${search.trim()}%` } }
+          ]
+        }
+
+        const variables = {
+          where: whereCondition,
+          limit: pageSize,
+          offset
+        }
+
+        const response = await graphqlClient.request(GET_COMPANIES_QUERY, variables)
+
+        const mappedCompanies: CompanyOption[] = response.Company.map((company: any) => ({
+          id: company.id,
+          value: company.id,
+          label: company.name || 'Unnamed Company',
+          name: company.name || 'Unnamed Company',
+          code: company.code,
+          description: company.description
+        }))
+
+        const hasMoreRecords = mappedCompanies.length === pageSize
+
+        setState(prev => ({
+          ...prev,
+          companies: append ? [...prev.companies, ...mappedCompanies] : mappedCompanies,
+          isLoading: false,
+          hasMore: hasMoreRecords,
+          currentSearch: search,
+          offset: append ? prev.offset + mappedCompanies.length : mappedCompanies.length
+        }))
+      } catch (error) {
+        console.error('Error fetching companies:', error)
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch companies',
+          companies: append ? prev.companies : []
+        }))
+      }
+    },
+    [context.accessToken, graphqlClient, pageSize]
+  )
 
   const loadMore = useCallback(() => {
     if (state.hasMore && !state.isLoading) {
-      fetchCompanies(state.currentSearch, state.offset, true);
+      fetchCompanies(state.currentSearch, state.offset, true)
     }
-  }, [fetchCompanies, state.hasMore, state.isLoading, state.currentSearch, state.offset]);
+  }, [fetchCompanies, state.hasMore, state.isLoading, state.currentSearch, state.offset])
 
-  const search = useCallback((searchTerm: string) => {
-    fetchCompanies(searchTerm, 0, false);
-  }, [fetchCompanies]);
+  const search = useCallback(
+    (searchTerm: string) => {
+      fetchCompanies(searchTerm, 0, false)
+    },
+    [fetchCompanies]
+  )
 
   const reset = useCallback(() => {
     setState({
@@ -144,15 +157,15 @@ export const useCompanySelection = (
       hasMore: true,
       offset: 0,
       currentSearch: ''
-    });
-  }, []);
+    })
+  }, [])
 
   // Initial load
   useEffect(() => {
     if (context.accessToken) {
-      fetchCompanies();
+      fetchCompanies()
     }
-  }, [context.accessToken, fetchCompanies]);
+  }, [context.accessToken, fetchCompanies])
 
   return {
     companies: state.companies,
@@ -162,5 +175,5 @@ export const useCompanySelection = (
     loadMore,
     search,
     reset
-  };
-};
+  }
+}

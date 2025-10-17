@@ -1,57 +1,56 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle, 
-  Button, 
-  Alert, 
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Button,
+  Alert,
   AlertDescription,
   Badge
-} from '@newwork/nw-design-system';
-import { PiPlus, PiMapPin, PiTable } from 'react-icons/pi';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import TravelRegionSetModal, { TravelRegionSetFormData } from './TravelRegionSetModal';
+} from '@newwork/nw-design-system'
+import { PiPlus, PiMapPin, PiTable } from 'react-icons/pi'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import TravelRegionSetModal from './TravelRegionSetModal'
 
 // Custom toast function
 const toast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`[${type.toUpperCase()}] ${message}`);
-};
+  console.log(`[${type.toUpperCase()}] ${message}`)
+}
 
 interface TravelRegionSet {
-  id: string;
-  code: string;
-  value: string;
-  description?: string;
-  childCount?: number;
+  id: string
+  code: string
+  value: string
+  description?: string
+  childCount?: number
 }
 
 interface TravelRegionSetCardViewProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
-  onSelectSet: (setId: string, setName: string) => void;
-  onViewUnassigned: () => void;
+  prefixDataTestId?: string
+  onSelectSet: (setId: string, setName: string) => void
+  onViewUnassigned: () => void
 }
 
 const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
   accessToken,
   prefixDataTestId = '',
   onSelectSet,
-  onViewUnassigned,
-  ...context
+  onViewUnassigned
 }) => {
-  const [travelRegionSets, setTravelRegionSets] = useState<TravelRegionSet[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isCreateFormVisible, setIsCreateFormVisible] = useState(false);
+  const [travelRegionSets, setTravelRegionSets] = useState<TravelRegionSet[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isCreateFormVisible, setIsCreateFormVisible] = useState(false)
 
-  const graphqlClient = useGraphQLClient(accessToken);
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const loadTravelRegionSets = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
+    setIsLoading(true)
+    setError(null)
+
     try {
       // Use GraphQL to fetch TravelRegionSet entries with childEntriesAggregate for count
       const query = `
@@ -85,10 +84,10 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
             }
           }
         }
-      `;
-      
-      const result = await graphqlClient.request<{ CatalogEntry: any[] }>(query);
-      
+      `
+
+      const result = await graphqlClient.request<{ CatalogEntry: any[] }>(query)
+
       const sets: TravelRegionSet[] = result.CatalogEntry.map((item: any) => ({
         id: item.id,
         code: item.code,
@@ -96,29 +95,29 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         description: item.description,
         // Get childCount from GraphQL aggregate
         childCount: item.childEntriesAggregate?.aggregate?.count || 0
-      }));
-      
-      setTravelRegionSets(sets);
+      }))
+
+      setTravelRegionSets(sets)
     } catch (err) {
-      console.error('Error loading travel region sets:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load travel region sets');
+      console.error('Error loading travel region sets:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load travel region sets')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [graphqlClient]);
+  }, [graphqlClient])
 
   useEffect(() => {
     if (accessToken) {
-      loadTravelRegionSets();
+      loadTravelRegionSets()
     }
-  }, [accessToken, loadTravelRegionSets]);
+  }, [accessToken, loadTravelRegionSets])
 
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:min-h-96">
         <div className="gba:text-gray-500">Loading travel region sets...</div>
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -136,32 +135,29 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
           </div>
         </AlertDescription>
       </Alert>
-    );
+    )
   }
 
   const handleSetSelect = (set: TravelRegionSet) => {
-    onSelectSet(set.id, set.value);
-  };
+    onSelectSet(set.id, set.value)
+  }
 
   const handleCreateTravelRegionSet = () => {
-    setIsCreateFormVisible(true);
-  };
+    setIsCreateFormVisible(true)
+  }
 
   const handleCreateFormClose = () => {
-    setIsCreateFormVisible(false);
-  };
+    setIsCreateFormVisible(false)
+  }
 
-  const handleCreateFormSave = (data: TravelRegionSetFormData) => {
+  const handleCreateFormSave = () => {
     // Refresh the list to show the newly created set
-    loadTravelRegionSets();
-    toast('Travel Region Set created successfully', 'success');
-  };
+    loadTravelRegionSets()
+    toast('Travel Region Set created successfully', 'success')
+  }
 
   return (
-    <div 
-      data-testid={`${prefixDataTestId}-travel-region-sets-view`}
-      className="gba:p-6"
-    >
+    <div data-testid={`${prefixDataTestId}-travel-region-sets-view`} className="gba:p-6">
       <div className="gba:mb-6">
         <div className="gba:flex gba:justify-between gba:items-center">
           <div>
@@ -169,7 +165,10 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
               {getTranslationFromI18nKeyAndLabel('expense-settings:travel_region_sets', 'Travel Region Sets')}
             </h3>
             <p className="gba:text-gray-600">
-              {getTranslationFromI18nKeyAndLabel('expense-settings:travel_region_sets_description', 'Manage travel regions and their allowance rules')}
+              {getTranslationFromI18nKeyAndLabel(
+                'expense-settings:travel_region_sets_description',
+                'Manage travel regions and their allowance rules'
+              )}
             </p>
           </div>
           <div className="gba:flex gba:gap-3">
@@ -194,7 +193,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       </div>
 
       <div className="gba:grid gba:grid-cols-1 sm:gba:grid-cols-2 md:gba:grid-cols-3 lg:gba:grid-cols-4 gba:gap-4">
-        {travelRegionSets.map((set) => (
+        {travelRegionSets.map(set => (
           <Card
             key={set.id}
             className="gba:cursor-pointer gba:h-full hover:gba:shadow-lg gba:transition-shadow"
@@ -212,11 +211,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
             </CardHeader>
             <CardContent>
               <div className="gba:space-y-3">
-                {set.description && (
-                  <p className="gba:text-sm gba:text-gray-600">
-                    {set.description}
-                  </p>
-                )}
+                {set.description && <p className="gba:text-sm gba:text-gray-600">{set.description}</p>}
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <Badge variant="secondary" className="gba:text-xs">
                     {set.childCount || 0} travel regions
@@ -224,10 +219,11 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSetSelect(set);
+                    onClick={e => {
+                      e.stopPropagation()
+                      handleSetSelect(set)
                     }}
+                    data-testid={`${prefixDataTestId}-view-matrix-button-${set.id}`}
                   >
                     <PiMapPin className="gba:w-4 gba:h-4 gba:mr-1" />
                     View Matrix
@@ -242,9 +238,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       {travelRegionSets.length === 0 && (
         <div className="gba:text-center gba:py-12">
           <PiMapPin className="gba:text-4xl gba:text-gray-400 gba:mb-4" />
-          <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">
-            No Travel Region Sets Found
-          </h4>
+          <h4 className="gba:text-lg gba:font-medium gba:text-gray-600 gba:mb-2">No Travel Region Sets Found</h4>
           <p className="gba:text-gray-500 gba:mb-4">
             Create your first travel region set to start organizing your travel allowance rules.
           </p>
@@ -264,7 +258,7 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
         prefixDataTestId={`${prefixDataTestId}-create-travel-region-set`}
       />
     </div>
-  );
-};
+  )
+}
 
-export default TravelRegionSetCardView;
+export default TravelRegionSetCardView

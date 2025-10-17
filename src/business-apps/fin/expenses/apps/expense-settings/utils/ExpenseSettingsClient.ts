@@ -1,38 +1,36 @@
-import { RestClient } from '@/common/network/rest/RestClient';
-import { env } from '@/common/env/EnvUtils';
-import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils';
-import { 
-  SaveExpenseRuleAssignmentInput
-} from '../types/ExpenseRuleTypes';
-import { MileageRuleFormData, MileageRuleDetailFormData } from '../forms/mileage-rule-form';
+import { RestClient } from '@/common/network/rest/RestClient'
+import { env } from '@/common/env/EnvUtils'
+import { setAccessTokenToAuthorizationHeader } from '@/common/network/HeaderUtils'
+import { SaveExpenseRuleAssignmentInput } from '../types/ExpenseRuleTypes'
+import { MileageRuleFormData, MileageRuleDetailFormData } from '../forms/mileage-rule-form'
 
-const BASE_PATH = 'employee-expense';
+const BASE_PATH = 'employee-expense'
 
 export class ExpenseSettingsClient extends RestClient {
   constructor() {
-    let url: string = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')!;
+    let url: string = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')!
     if (!url.endsWith('/')) {
-      url += '/';
+      url += '/'
     }
-    super(url, {});
+    super(url, {})
   }
 
   setAccessToken(accessToken: string) {
     if (!this.headers) {
-      this.headers = {};
+      this.headers = {}
     }
-    this.headers["Authorization"] = setAccessTokenToAuthorizationHeader(accessToken);
+    this.headers['Authorization'] = setAccessTokenToAuthorizationHeader(accessToken)
   }
 
   // Expense Rule Assignment Operations
   async saveExpenseRuleAssignment(data: SaveExpenseRuleAssignmentInput): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.expenseRuleAssignment.id;
+    const hasId = data.expenseRuleAssignment.id
     const payload = {
       ...data,
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAssignment`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAssignment`, payload)
   }
 
   async deleteExpenseRuleAssignment(id: string, version?: number): Promise<any> {
@@ -42,67 +40,46 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAssignment`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAssignment`, payload)
   }
 
   async getExpenseRuleAssignmentSchema(): Promise<any> {
-    return this.get(`/${BASE_PATH}/saveExpenseRuleAssignment/schema`);
+    return this.get(`/${BASE_PATH}/saveExpenseRuleAssignment/schema`)
   }
 
   // Mileage Rule Operations
-    async saveMileageRule(data: MileageRuleFormData): Promise<any> {
-    // DEBUG: Log incoming data
-    console.log('🐛 ExpenseSettingsClient received data:', {
-      id: data.id,
-      version: data.version,
-      code: data.code,
-      ruleName: data.ruleName, // Note: this gets mapped to 'name' in API payload
-      detailsWithVersions: data.details?.map((d: MileageRuleDetailFormData) => ({ id: d.id, version: d.version }))
-    });
-
+  async saveMileageRule(data: MileageRuleFormData): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       mileageRule: {
         ...(hasId && { id: data.id }),
         ...(data.version !== undefined && { version: data.version }),
         code: data.code,
-        name: data.ruleName,  // API expects 'name', not 'ruleName'
+        name: data.ruleName, // API expects 'name', not 'ruleName'
         description: data.description,
         rulePeriod: data.rulePeriod,
         activeFrom: data.activeFrom,
         activeTo: data.activeTo,
         businessKey: data.code || '', // Optional field, use code as fallback
         additionalProperties: {}, // Optional empty object
-        details: data.details?.map((detail: MileageRuleDetailFormData) => ({
-          ...(detail.id && { id: detail.id }),
-          limitFrom: detail.limitFrom,
-          limitTo: detail.limitTo,
-          rateAmount: detail.rateAmount,
-          detailOrder: detail.detailOrder,
-          activeFrom: detail.activeFrom,
-          activeTo: detail.activeTo,
-          ...(detail.version !== undefined && { version: detail.version })
-        })) || []
+        details:
+          data.details?.map((detail: MileageRuleDetailFormData) => ({
+            ...(detail.id && { id: detail.id }),
+            limitFrom: detail.limitFrom,
+            limitTo: detail.limitTo,
+            rateAmount: detail.rateAmount,
+            detailOrder: detail.detailOrder,
+            activeFrom: detail.activeFrom,
+            activeTo: detail.activeTo,
+            ...(detail.version !== undefined && { version: detail.version })
+          })) || []
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    
-    // DEBUG: Log final payload
-    console.log('🐛 ExpenseSettingsClient final payload:', {
-      changeMode: payload.changeMode,
-      mileageRuleId: payload.mileageRule.id,
-      mileageRuleVersion: payload.mileageRule.version,
-      mileageRuleName: payload.mileageRule.name, // Mapped from 'ruleName' to 'name'
-      mileageRuleCode: payload.mileageRule.code,
-      detailsWithVersions: payload.mileageRule.details.map((d: any) => ({ id: d.id, version: d.version }))
-    });
-    
-    console.log('🐛 Full payload structure:', JSON.stringify(payload, null, 2));
-    
-    console.log('🐛 saveMileageRule - POST to:', `processes/${BASE_PATH}/saveMileageRule`);
-    return this.post(`/${BASE_PATH}/saveMileageRule`, payload);
+    }
+
+    return this.post(`/${BASE_PATH}/saveMileageRule`, payload)
   }
 
   async deleteMileageRule(id: string, version?: number): Promise<any> {
@@ -112,23 +89,14 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveMileageRule`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveMileageRule`, payload)
   }
 
   // Mileage Rule Detail Operations
   async saveMileageRuleDetail(data: MileageRuleDetailFormData): Promise<any> {
-    // DEBUG: Log incoming detail data
-    console.log('🐛 ExpenseSettingsClient saveMileageRuleDetail received:', {
-      id: data.id,
-      version: data.version,
-      rateAmount: data.rateAmount,
-      limitFrom: data.limitFrom,
-      limitTo: data.limitTo
-    });
-
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       mileageRuleDetail: {
         ...(hasId && { id: data.id }),
@@ -144,26 +112,9 @@ export class ExpenseSettingsClient extends RestClient {
         additionalProperties: data.additionalProperties || {} // Expected field from Swagger
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    
-    // DEBUG: Log final detail payload
-    console.log('🐛 ExpenseSettingsClient detail final payload:', {
-      changeMode: payload.changeMode,
-      detailId: payload.mileageRuleDetail.id,
-      detailVersion: payload.mileageRuleDetail.version,
-      amount: payload.mileageRuleDetail.amount,
-      limitFrom: payload.mileageRuleDetail.limitFrom,
-      limitTo: payload.mileageRuleDetail.limitTo,
-      mileageRuleId: payload.mileageRuleDetail.mileageRule,
-      hasAdditionalProperties: !!payload.mileageRuleDetail.additionalProperties
-    });
-    
-    console.log('🐛 Complete payload being sent:', JSON.stringify(payload, null, 2));
-    
-    console.log('🐛 ExpenseSettingsClient attempting POST to:', `/${BASE_PATH}/saveMileageRuleDetail`);
-    console.log('🐛 Final endpoint path:', `processes/${BASE_PATH}/saveMileageRuleDetail`);
-    
-    return this.post(`/${BASE_PATH}/saveMileageRuleDetail`, payload);
+    }
+
+    return this.post(`/${BASE_PATH}/saveMileageRuleDetail`, payload)
   }
 
   async deleteMileageRuleDetail(id: string, version?: number): Promise<any> {
@@ -173,26 +124,20 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveMileageRuleDetail`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveMileageRuleDetail`, payload)
   }
 
   // Allowance Region Rule Operations (Travel Rules)
   async saveAllowanceRegionRule(data: any): Promise<any> {
-    console.log('🔍 ExpenseSettingsClient.saveAllowanceRegionRule called with:', data);
-    console.log('🔍 Base URL:', this.baseUrl);
-    console.log('🔍 Headers:', this.headers);
-    console.log('🔍 Authorization header:', this.headers['Authorization']);
-    
     // Check if this is a direct API payload (for assignment) or form data
     if (data.allowanceRegionRule && data.changeMode) {
       // Direct API payload - pass through as is
-      console.log('🔍 Using direct API payload, posting to:', `/${BASE_PATH}/saveAllowanceRegionRule`);
-      return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, data);
+      return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, data)
     }
-    
+
     // Form data - transform to API payload
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       allowanceRegionRule: {
         ...(hasId && { id: data.id }),
@@ -213,22 +158,9 @@ export class ExpenseSettingsClient extends RestClient {
         ...(data.version !== undefined && { version: data.version })
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    
-    console.log('💾 Final saveAllowanceRegionRule payload:', JSON.stringify(payload, null, 2));
-    if (payload.allowanceRegionRule.allowanceRegionRuleDetail) {
-      console.log(`📊 Sending ${payload.allowanceRegionRule.allowanceRegionRuleDetail.length} details`);
-      console.log(`  ↳ Each detail has allowanceRegionRuleId?`, 
-        payload.allowanceRegionRule.allowanceRegionRuleDetail.map((d: any) => ({
-          hasId: !!d.id,
-          hasAllowanceRegionRuleId: !!d.allowanceRegionRuleId,
-          allowanceRegionRuleId: d.allowanceRegionRuleId,
-          amount: d.amount
-        }))
-      );
     }
-    
-    return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, payload);
+
+    return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, payload)
   }
 
   async deleteAllowanceRegionRule(id: string, version?: number): Promise<any> {
@@ -238,23 +170,23 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveAllowanceRegionRule`, payload)
   }
 
   // Allowance Region Rule Detail Operations
   async saveAllowanceRegionRuleDetail(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
-    
+    const hasId = data.id
+
     // Extract country code from travelRegionRef (e.g., "TravelRegion:v1:RO" -> "RO")
-    let countryRef = data.countryRef;
+    let countryRef = data.countryRef
     if (!countryRef && data.travelRegionRef) {
-      const parts = data.travelRegionRef.split(':');
-      const countryCode = parts[parts.length - 1]; // Get last part (e.g., "RO")
-      countryRef = `Country:v1:${countryCode}`;
+      const parts = data.travelRegionRef.split(':')
+      const countryCode = parts[parts.length - 1] // Get last part (e.g., "RO")
+      countryRef = `Country:v1:${countryCode}`
     }
-    
+
     const payload = {
       allowanceRegionRuleDetail: {
         ...(hasId && { id: data.id }),
@@ -268,16 +200,9 @@ export class ExpenseSettingsClient extends RestClient {
         ...(data.version !== undefined && { version: data.version })
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    
-    console.log('💾 ExpenseSettingsClient - Payload for saveAllowanceRegionRuleDetail:', JSON.stringify(payload, null, 2));
-    console.log('🔍 allowanceRegionRuleId mapping:', {
-      input_allowanceRegionRuleRef: data.allowanceRegionRuleRef,
-      output_allowanceRegionRuleId: payload.allowanceRegionRuleDetail.allowanceRegionRuleId,
-      isNull: payload.allowanceRegionRuleDetail.allowanceRegionRuleId === null || payload.allowanceRegionRuleDetail.allowanceRegionRuleId === undefined
-    });
-    
-    return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload);
+    }
+
+    return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload)
   }
 
   async deleteAllowanceRegionRuleDetail(id: string, version?: number): Promise<any> {
@@ -287,14 +212,14 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveAllowanceRegionRuleDetail`, payload)
   }
 
   // Expense Rule Operations
   async saveExpenseRuleOtherInfo(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleOtherInfo: {
         ...(hasId && { id: data.id }),
@@ -311,8 +236,8 @@ export class ExpenseSettingsClient extends RestClient {
         expenseRuleGeneralExpense: data.expenseRuleGeneralExpenseId
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherInfo`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherInfo`, payload)
   }
 
   async deleteExpenseRuleOtherInfo(id: string, version?: number): Promise<any> {
@@ -322,13 +247,13 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherInfo`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherInfo`, payload)
   }
 
   async saveExpenseRuleOtherCalc(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleOtherCalc: {
         ...(hasId && { id: data.id }),
@@ -346,8 +271,8 @@ export class ExpenseSettingsClient extends RestClient {
         costCenter: data.costCenterId
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherCalc`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherCalc`, payload)
   }
 
   async deleteExpenseRuleOtherCalc(id: string, version?: number): Promise<any> {
@@ -357,20 +282,12 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherCalc`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleOtherCalc`, payload)
   }
 
   // Calculation Rule Operations (uses saveExpenseRule endpoint)
   async saveCalculationRule(data: any): Promise<any> {
-    // Always use INSERT changeMode, pass id and version for updates
-    console.log('ExpenseSettingsClient.saveCalculationRule - Input data:', {
-      id: data.id,
-      version: data.version,
-      versionType: typeof data.version,
-      hasVersion: data.version !== undefined
-    });
-
     const payload = {
       expenseRule: {
         ...(data.id && { id: data.id }),
@@ -391,10 +308,9 @@ export class ExpenseSettingsClient extends RestClient {
         ...(data.version !== undefined && { version: data.version })
       },
       changeMode: 'INSERT'
-    };
+    }
 
-    console.log('ExpenseSettingsClient.saveCalculationRule - Final payload:', payload);
-    return this.post(`/${BASE_PATH}/saveExpenseRule`, payload);
+    return this.post(`/${BASE_PATH}/saveExpenseRule`, payload)
   }
 
   async deleteCalculationRule(id: string, version?: number): Promise<any> {
@@ -404,13 +320,13 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRule`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRule`, payload)
   }
 
   async saveExpenseRuleMileage(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleMileage: {
         ...(hasId && { id: data.id }),
@@ -433,8 +349,8 @@ export class ExpenseSettingsClient extends RestClient {
         mileageRule: data.mileageRuleId
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleMileage`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleMileage`, payload)
   }
 
   async deleteExpenseRuleMileage(id: string, version?: number): Promise<any> {
@@ -444,14 +360,14 @@ export class ExpenseSettingsClient extends RestClient {
         version
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleMileage`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleMileage`, payload)
   }
 
   // Expense Rule Allowance Code Operations
   async saveExpenseRuleAllowanceCode(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleAllowanceCode: {
         ...(hasId && { id: data.id }),
@@ -477,8 +393,8 @@ export class ExpenseSettingsClient extends RestClient {
         secondAllowanceRegionRule: data.secondAllowanceRegionRuleId
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceCode`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceCode`, payload)
   }
 
   async deleteExpenseRuleAllowanceCode(id: string, version?: number): Promise<any> {
@@ -488,14 +404,14 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceCode`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceCode`, payload)
   }
 
   // Expense Rule Deduction Operations
   async saveExpenseRuleDeduction(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleDeduction: {
         ...(hasId && { id: data.id }),
@@ -514,8 +430,8 @@ export class ExpenseSettingsClient extends RestClient {
         ...(data.version !== undefined && { version: data.version })
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleDeduction`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleDeduction`, payload)
   }
 
   async deleteExpenseRuleDeduction(id: string, version?: number): Promise<any> {
@@ -525,13 +441,13 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleDeduction`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleDeduction`, payload)
   }
 
   async saveExpenseRuleGeneralExpense(data: any): Promise<any> {
     // Determine if this is create or update based on presence of id
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleGeneralExpense: {
         ...(hasId && { id: data.id }),
@@ -551,8 +467,8 @@ export class ExpenseSettingsClient extends RestClient {
         expenseRule: data.expenseRuleId
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleGeneralExpense`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleGeneralExpense`, payload)
   }
 
   async deleteExpenseRuleGeneralExpense(id: string, version?: number): Promise<any> {
@@ -562,8 +478,8 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleGeneralExpense`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleGeneralExpense`, payload)
   }
 
   async deleteExpenseRuleAllowancePeriod(id: string, version?: number): Promise<any> {
@@ -573,8 +489,8 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowancePeriod`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowancePeriod`, payload)
   }
 
   async deleteExpenseRuleAllowanceSetup(id: string, version?: number): Promise<any> {
@@ -584,13 +500,13 @@ export class ExpenseSettingsClient extends RestClient {
         ...(version !== undefined && { version })
       },
       changeMode: 'DELETE'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceSetup`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceSetup`, payload)
   }
 
   // Expense Rule Allowance Period Operations
   async saveExpenseRuleAllowancePeriod(data: any): Promise<any> {
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleAllowancePeriod: {
         ...(hasId && { id: data.id }),
@@ -612,13 +528,13 @@ export class ExpenseSettingsClient extends RestClient {
         expenseRule: data.expenseRuleId
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowancePeriod`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowancePeriod`, payload)
   }
 
   async saveBulkExpenseRuleAllowancePeriod(list: any[]): Promise<any> {
     const payload = {
-      expenseRuleAllowancePeriodList: list.map((item) => ({
+      expenseRuleAllowancePeriodList: list.map(item => ({
         ...(item.id && { id: item.id }),
         ...(item.version !== undefined && { version: item.version }),
         businessKey: item.businessKey,
@@ -637,13 +553,13 @@ export class ExpenseSettingsClient extends RestClient {
         periodOrder: item.periodOrder,
         expenseRule: item.expenseRuleId
       }))
-    };
-    return this.post(`/${BASE_PATH}/saveBulkExpenseRuleAllowancePeriod`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveBulkExpenseRuleAllowancePeriod`, payload)
   }
 
   // Expense Rule Allowance Setup Operations
   async saveExpenseRuleAllowanceSetup(data: any): Promise<any> {
-    const hasId = data.id;
+    const hasId = data.id
     const payload = {
       expenseRuleAllowanceSetup: {
         ...(hasId && { id: data.id }),
@@ -661,34 +577,34 @@ export class ExpenseSettingsClient extends RestClient {
         allowanceCode: data.allowanceCodeId
       },
       changeMode: hasId ? 'UPDATE' : 'INSERT'
-    };
-    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceSetup`, payload);
+    }
+    return this.post(`/${BASE_PATH}/saveExpenseRuleAllowanceSetup`, payload)
   }
 
   // Calculation and Utility Operations
   async getEmployeeRule(employeeId: string, allowanceDate: string): Promise<any> {
-    return this.get(`/${BASE_PATH}/getEmployeeRule/${employeeId}/${allowanceDate}`);
+    return this.get(`/${BASE_PATH}/getEmployeeRule/${employeeId}/${allowanceDate}`)
   }
 
   async calculateAllowance(requestId: string): Promise<any> {
-    return this.get(`/${BASE_PATH}/calculateAllowance/${requestId}`);
+    return this.get(`/${BASE_PATH}/calculateAllowance/${requestId}`)
   }
 
   // Validation and Conflict Detection
   async validateRuleAssignment(data: SaveExpenseRuleAssignmentInput): Promise<any> {
     // This would call a validation endpoint if available
     // For now, we can implement client-side validation
-    return this.validateAssignmentConflicts(data);
+    return this.validateAssignmentConflicts(data)
   }
 
   private validateAssignmentConflicts(data: SaveExpenseRuleAssignmentInput): any {
     // Client-side validation logic
-    const conflicts = [];
-    const warnings = [];
+    const conflicts = []
+    const warnings = []
 
     // Validate date ranges
-    const activeFrom = new Date(data.expenseRuleAssignment.activeFrom);
-    const activeTo = new Date(data.expenseRuleAssignment.activeTo);
+    const activeFrom = new Date(data.expenseRuleAssignment.activeFrom)
+    const activeTo = new Date(data.expenseRuleAssignment.activeTo)
 
     if (activeFrom >= activeTo) {
       conflicts.push({
@@ -697,7 +613,7 @@ export class ExpenseSettingsClient extends RestClient {
         message: 'Active from date must be before active to date',
         affectedRules: [data.expenseRuleAssignment.expenseRule],
         resolution: 'Adjust the date range'
-      });
+      })
     }
 
     // Validate assignment order
@@ -708,57 +624,49 @@ export class ExpenseSettingsClient extends RestClient {
         message: 'Assignment order must be greater than 0',
         affectedRules: [data.expenseRuleAssignment.expenseRule],
         resolution: 'Set a valid assignment order'
-      });
+      })
     }
 
     // Add future date validation
-    const today = new Date();
+    const today = new Date()
     if (activeTo < today) {
-      warnings.push('Rule assignment will be inactive (end date is in the past)');
+      warnings.push('Rule assignment will be inactive (end date is in the past)')
     }
 
     return {
       isValid: conflicts.length === 0,
       conflicts,
       warnings
-    };
+    }
   }
 
   // Bulk Operations - Using individual calls approach (reliable)
   async saveBulkExpenseRuleAssignment(assignments: SaveExpenseRuleAssignmentInput[]): Promise<any> {
-    console.log(`🔍 Processing ${assignments.length} assignments individually...`);
-    
-    const results = [];
-    const errors = [];
-    
+    const results = []
+    const errors = []
+
     for (let i = 0; i < assignments.length; i++) {
-      const assignment = assignments[i];
+      const assignment = assignments[i]
       try {
-        console.log(`📝 Processing assignment ${i + 1}/${assignments.length}: ${assignment.expenseRuleAssignment.id}`);
-        
         // Use the reliable individual save endpoint
-        const result = await this.saveExpenseRuleAssignment(assignment);
-        results.push({ 
-          success: true, 
-          data: result, 
+        const result = await this.saveExpenseRuleAssignment(assignment)
+        results.push({
+          success: true,
+          data: result,
           assignment: assignment.expenseRuleAssignment.id,
-          order: assignment.expenseRuleAssignment.assignmentOrder 
-        });
-        
-        console.log(`✅ Successfully saved assignment ${assignment.expenseRuleAssignment.id}`);
+          order: assignment.expenseRuleAssignment.assignmentOrder
+        })
       } catch (error) {
-        console.error(`❌ Failed to save assignment ${assignment.expenseRuleAssignment.id}:`, error);
-        errors.push({ 
-          success: false, 
-          error: error instanceof Error ? error.message : 'Unknown error', 
+        console.error(`❌ Failed to save assignment ${assignment.expenseRuleAssignment.id}:`, error)
+        errors.push({
+          success: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
           assignment: assignment.expenseRuleAssignment.id,
-          order: assignment.expenseRuleAssignment.assignmentOrder 
-        });
+          order: assignment.expenseRuleAssignment.assignmentOrder
+        })
       }
     }
-    
-    console.log(`🏁 Bulk operation completed: ${results.length} successful, ${errors.length} failed`);
-    
+
     // Return summary of all operations
     const summary = {
       totalProcessed: assignments.length,
@@ -766,45 +674,45 @@ export class ExpenseSettingsClient extends RestClient {
       failed: errors.length,
       results,
       errors
-    };
-    
+    }
+
     // If there were any failures, throw an error with details
     if (errors.length > 0) {
-      const errorMessage = `Bulk save partially failed: ${errors.length}/${assignments.length} assignments failed to save`;
-      const error = new Error(errorMessage);
-      (error as any).details = summary;
-      throw error;
+      const errorMessage = `Bulk save partially failed: ${errors.length}/${assignments.length} assignments failed to save`
+      const error = new Error(errorMessage)
+      ;(error as any).details = summary
+      throw error
     }
-    
-    return summary;
+
+    return summary
   }
 
   async bulkUpdateAssignments(assignments: SaveExpenseRuleAssignmentInput[]): Promise<any> {
-    const results = [];
+    const results = []
     for (const assignment of assignments) {
       try {
-        const result = await this.saveExpenseRuleAssignment(assignment);
-        results.push({ success: true, data: result, assignment });
+        const result = await this.saveExpenseRuleAssignment(assignment)
+        results.push({ success: true, data: result, assignment })
       } catch (error) {
-        results.push({ success: false, error, assignment });
+        results.push({ success: false, error, assignment })
       }
     }
-    return results;
+    return results
   }
 
   async bulkDeleteAssignments(assignmentIds: string[]): Promise<any> {
-    const results = [];
+    const results = []
     for (const id of assignmentIds) {
       try {
-        const result = await this.deleteExpenseRuleAssignment(id);
-        results.push({ success: true, data: result, id });
+        const result = await this.deleteExpenseRuleAssignment(id)
+        results.push({ success: true, data: result, id })
       } catch (error) {
-        results.push({ success: false, error, id });
+        results.push({ success: false, error, id })
       }
     }
-    return results;
+    return results
   }
 }
 
 // Create a singleton instance
-export const expenseSettingsClient = new ExpenseSettingsClient(); 
+export const expenseSettingsClient = new ExpenseSettingsClient()

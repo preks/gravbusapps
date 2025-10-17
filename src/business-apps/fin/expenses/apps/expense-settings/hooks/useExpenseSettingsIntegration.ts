@@ -155,7 +155,10 @@ export const useExpenseSettingsIntegration = (
 
   // Load all data
   const loadData = useCallback(async () => {
-    if (!context.accessToken) return
+    if (!context.accessToken) {
+      setIsLoading(false)
+      return
+    }
 
     setIsLoading(true)
     setError(null)
@@ -198,7 +201,10 @@ export const useExpenseSettingsIntegration = (
       limit?: number
       offset?: number
     }) => {
-      if (!context.accessToken) return
+      if (!context.accessToken) {
+        setIsAssignmentsLoading(false)
+        return
+      }
 
       setIsAssignmentsLoading(true)
       setError(null)
@@ -229,7 +235,10 @@ export const useExpenseSettingsIntegration = (
   // Search rules
   const searchRules = useCallback(
     async (params: { search?: string }) => {
-      if (!context.accessToken) return
+      if (!context.accessToken) {
+        setIsRulesLoading(false)
+        return
+      }
 
       setIsRulesLoading(true)
       setError(null)

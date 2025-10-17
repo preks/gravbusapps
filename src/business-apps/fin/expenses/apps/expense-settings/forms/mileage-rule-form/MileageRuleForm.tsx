@@ -140,7 +140,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               version: freshData.version,
               code: freshData.code || '',
               ruleName: freshData.name || '',
-              description: freshData.name || '', // Use name as description
+              description: freshData.description || '',
               rulePeriod: freshData.rulePeriod || '',
               activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom).format('YYYY-MM-DD') : '',
               activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
@@ -584,7 +584,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
         <CardHeader>
           <CardTitle>Basic Information</CardTitle>
         </CardHeader>
-        <CardContent className="gba:space-y-4" style={{ overflow: 'visible' }}>
+        <CardContent className="gba:space-y-4 gba:overflow-visible">
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <div>
               <Label htmlFor="code">Code *</Label>
@@ -714,86 +714,95 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {formData.details.map((detail, index) => (
-                      <SortableRow key={detail.tempId} id={detail.tempId!}>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="1"
-                            value={detail.limitFrom || ''}
-                            onChange={e =>
-                              updateDetail(index, 'limitFrom', e.target.value ? parseFloat(e.target.value) : undefined)
-                            }
-                            placeholder="0"
-                            data-testid={`mileage-rule-form-detail-limit-from-${index}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="1"
-                            value={detail.limitTo || ''}
-                            onChange={e =>
-                              updateDetail(index, 'limitTo', e.target.value ? parseFloat(e.target.value) : undefined)
-                            }
-                            placeholder="∞"
-                            data-testid={`mileage-rule-form-detail-limit-to-${index}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={detail.rateAmount || ''}
-                            onChange={e => {
-                              const value = e.target.value
-                              // Allow empty string for better editing experience
-                              if (value === '') {
-                                updateDetail(index, 'rateAmount', 0)
-                              } else {
-                                const parsedValue = parseFloat(value)
-                                if (!isNaN(parsedValue)) {
-                                  updateDetail(index, 'rateAmount', parsedValue)
-                                }
+                    {formData.details.map((detail, index) => {
+                      // Use stable identifier for data-testid
+                      const stableId = detail.tempId || detail.id || `detail-${index}`
+
+                      return (
+                        <SortableRow key={detail.tempId} id={detail.tempId!}>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="1"
+                              value={detail.limitFrom || ''}
+                              onChange={e =>
+                                updateDetail(
+                                  index,
+                                  'limitFrom',
+                                  e.target.value ? parseFloat(e.target.value) : undefined
+                                )
                               }
-                            }}
-                            placeholder="0.00"
-                            data-testid={`mileage-rule-form-detail-rate-amount-${index}`}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="date"
-                            value={detail.activeFrom}
-                            onChange={e => updateDetail(index, 'activeFrom', e.target.value)}
-                            data-testid={`mileage-rule-form-detail-active-from-${index}`}
-                            min="1900-01-01"
-                            max="2099-12-31"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="date"
-                            value={detail.activeTo}
-                            onChange={e => updateDetail(index, 'activeTo', e.target.value)}
-                            data-testid={`mileage-rule-form-detail-active-to-${index}`}
-                            min="1900-01-01"
-                            max="2099-12-31"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeDetail(index)}
-                            data-testid={`mileage-rule-form-detail-delete-${index}`}
-                            className="gba:text-red-600 hover:gba:text-red-800"
-                          >
-                            <PiTrash className="gba:w-4 gba:h-4" />
-                          </Button>
-                        </TableCell>
-                      </SortableRow>
-                    ))}
+                              placeholder="0"
+                              data-testid={`mileage-rule-form-detail-limit-from-${stableId}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="1"
+                              value={detail.limitTo || ''}
+                              onChange={e =>
+                                updateDetail(index, 'limitTo', e.target.value ? parseFloat(e.target.value) : undefined)
+                              }
+                              placeholder="∞"
+                              data-testid={`mileage-rule-form-detail-limit-to-${stableId}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={detail.rateAmount || ''}
+                              onChange={e => {
+                                const value = e.target.value
+                                // Allow empty string for better editing experience
+                                if (value === '') {
+                                  updateDetail(index, 'rateAmount', 0)
+                                } else {
+                                  const parsedValue = parseFloat(value)
+                                  if (!isNaN(parsedValue)) {
+                                    updateDetail(index, 'rateAmount', parsedValue)
+                                  }
+                                }
+                              }}
+                              placeholder="0.00"
+                              data-testid={`mileage-rule-form-detail-rate-amount-${stableId}`}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="date"
+                              value={detail.activeFrom}
+                              onChange={e => updateDetail(index, 'activeFrom', e.target.value)}
+                              data-testid={`mileage-rule-form-detail-active-from-${stableId}`}
+                              min="1900-01-01"
+                              max="2099-12-31"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="date"
+                              value={detail.activeTo}
+                              onChange={e => updateDetail(index, 'activeTo', e.target.value)}
+                              data-testid={`mileage-rule-form-detail-active-to-${stableId}`}
+                              min="1900-01-01"
+                              max="2099-12-31"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeDetail(index)}
+                              data-testid={`mileage-rule-form-detail-delete-${stableId}`}
+                              className="gba:text-red-600 hover:gba:text-red-800"
+                            >
+                              <PiTrash className="gba:w-4 gba:h-4" />
+                            </Button>
+                          </TableCell>
+                        </SortableRow>
+                      )
+                    })}
                   </TableBody>
                 </Table>
               </SortableContext>

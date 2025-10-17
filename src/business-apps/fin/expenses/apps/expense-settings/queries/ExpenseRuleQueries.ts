@@ -684,12 +684,19 @@ export const GET_ALLOWANCE_REGION_RULE_BY_ID = (allowanceRegionRuleId: string): 
           amount
           activeFrom
           activeTo
+          home
+          travelRegionRef
           country {
             id
             code
             value
           }
           currency {
+            id
+            code
+            value
+          }
+          travelRegion {
             id
             code
             value
@@ -1180,21 +1187,7 @@ export const useGetEmployeesForAssignment = (context: BusinessAppContextProps) =
           limit,
           offset
         })
-        console.log('useGetEmployeesForAssignment query variables:', {
-          where: whereConditions,
-          activeUserLocale: getCurrentActiveUserLocale(),
-          limit,
-          offset
-        })
-        console.log('useGetEmployeesForAssignment result:', result)
-        console.log('useGetEmployeesForAssignment EmployeePosition count:', result?.EmployeePosition?.length)
-        console.log(
-          'useGetEmployeesForAssignment first few IDs:',
-          result?.EmployeePosition?.slice(0, 3)?.map((emp: any) => ({
-            id: emp.employeeId,
-            name: `${emp.firstName} ${emp.lastName}`
-          }))
-        )
+
         return result
       } catch (error) {
         console.error('Error fetching employees for assignment:', error)

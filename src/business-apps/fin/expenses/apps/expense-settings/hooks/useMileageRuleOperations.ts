@@ -6,7 +6,7 @@ import { MileageRuleFormData } from '../types/ExpenseRuleTypes'
 export interface UseMileageRuleOperationsResult {
   createMileageRule: (data: MileageRuleFormData) => Promise<any>
   updateMileageRule: (id: string, data: MileageRuleFormData, version?: number) => Promise<any>
-  deleteMileageRule: (id: string) => Promise<any>
+  deleteMileageRule: (id: string, version?: number) => Promise<any>
 }
 
 /**
@@ -47,9 +47,9 @@ export const useMileageRuleOperations = (context: BusinessAppContextProps): UseM
     }
   }, [])
 
-  const deleteMileageRule = useCallback(async (id: string) => {
+  const deleteMileageRule = useCallback(async (id: string, version?: number) => {
     try {
-      const result = await expenseSettingsClient.deleteMileageRule(id)
+      const result = await expenseSettingsClient.deleteMileageRule(id, version)
       return result
     } catch (error) {
       console.error('Error deleting mileage rule:', error)

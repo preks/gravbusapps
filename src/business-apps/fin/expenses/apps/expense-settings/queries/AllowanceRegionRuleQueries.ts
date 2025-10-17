@@ -1,53 +1,54 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface AllowanceRegionRuleQueryVariables {
-  travelRegionSetId: string;
+  travelRegionSetId: string
 }
 
 export interface AllowanceRegionRuleDetail {
-  id: string;
-  amount: number;
-  activeFrom: string;
-  activeTo?: string;
-  version?: number;
-  travelRegionRef?: string;
+  id: string
+  amount: number
+  activeFrom: string
+  activeTo?: string
+  version?: number
+  home?: boolean
+  travelRegionRef?: string
   travelRegion?: {
-    id: string;
-    code: string;
-    value: string;
+    id: string
+    code: string
+    value: string
     childEntries?: Array<{
-      code: string;
-    }>;
-  };
+      code: string
+    }>
+  }
   country?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
   currency?: {
-    id: string;
-    code: string;
-    value: string;
-  };
+    id: string
+    code: string
+    value: string
+  }
 }
 
 export interface AllowanceRegionRule {
-  id: string;
-  code: string;
-  name: string;
-  activeFrom: string;
-  activeTo?: string;
-  ruleOrder?: number;
-  version?: number;
-  travelRegionSetRef?: string;
-  additionalProperties?: Record<string, any>;
-  allowanceRegionRuleDetail: AllowanceRegionRuleDetail[];
+  id: string
+  code: string
+  name: string
+  activeFrom: string
+  activeTo?: string
+  ruleOrder?: number
+  version?: number
+  travelRegionSetRef?: string
+  additionalProperties?: Record<string, any>
+  allowanceRegionRuleDetail: AllowanceRegionRuleDetail[]
 }
 
 export interface AllowanceRegionRulesResponse {
-  AllowanceRegionRule: AllowanceRegionRule[];
+  AllowanceRegionRule: AllowanceRegionRule[]
 }
 
 /**
@@ -99,27 +100,29 @@ export const GET_ALLOWANCE_REGION_RULES_WITH_DETAILS = `
       }
     }
   }
-`;
+`
 
 /**
  * Hook to fetch allowance region rules
  */
 export const useGetAllowanceRegionRules = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchAllowanceRegionRules = useCallback(async (variables: AllowanceRegionRuleQueryVariables) => {
-    try {
-      const result = await graphqlClient.request<AllowanceRegionRulesResponse>(
-        GET_ALLOWANCE_REGION_RULES_WITH_DETAILS,
-        variables
-      );
-      return result;
-    } catch (error) {
-      console.error('Error fetching allowance region rules:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchAllowanceRegionRules = useCallback(
+    async (variables: AllowanceRegionRuleQueryVariables) => {
+      try {
+        const result = await graphqlClient.request<AllowanceRegionRulesResponse>(
+          GET_ALLOWANCE_REGION_RULES_WITH_DETAILS,
+          variables
+        )
+        return result
+      } catch (error) {
+        console.error('Error fetching allowance region rules:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
-  return { fetchAllowanceRegionRules };
-};
-
+  return { fetchAllowanceRegionRules }
+}

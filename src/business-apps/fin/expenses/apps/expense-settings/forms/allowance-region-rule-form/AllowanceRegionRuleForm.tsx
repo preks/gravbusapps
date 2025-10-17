@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -8,33 +8,33 @@ import {
   Input,
   Alert,
   AlertDescription
-} from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient';
-import dayjs from 'dayjs';
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import dayjs from 'dayjs'
 
 // Custom toast function
 const toast = (message: string, type: 'success' | 'error' = 'success') => {
-  console.log(`[${type.toUpperCase()}] ${message}`);
-};
+  console.log(`[${type.toUpperCase()}] ${message}`)
+}
 
 export interface AllowanceRegionRuleFormData {
-  code: string;
-  name: string;
-  description?: string;
-  activeFrom: string;
-  activeTo?: string;
-  travelRegionSetRef?: string;
+  code: string
+  name: string
+  description?: string
+  activeFrom: string
+  activeTo?: string
+  travelRegionSetRef?: string
 }
 
 interface AllowanceRegionRuleFormProps extends BusinessAppContextProps {
-  open: boolean;
-  onClose: () => void;
-  onSave: (data: AllowanceRegionRuleFormData) => void;
-  travelRegionSetId?: string;
-  travelRegionSetName?: string;
-  prefixDataTestId?: string;
+  open: boolean
+  onClose: () => void
+  onSave: (data: AllowanceRegionRuleFormData) => void
+  travelRegionSetId?: string
+  travelRegionSetName?: string
+  prefixDataTestId?: string
 }
 
 const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
@@ -44,10 +44,10 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
   onSave,
   travelRegionSetId,
   travelRegionSetName,
-  prefixDataTestId = '',
+  prefixDataTestId = ''
 }) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState<AllowanceRegionRuleFormData>({
     code: '',
     name: '',
@@ -55,26 +55,26 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
     activeFrom: dayjs().format('YYYY-MM-DD'),
     activeTo: '',
     travelRegionSetRef: travelRegionSetId
-  });
+  })
 
-  const expenseSettingsClient = new ExpenseSettingsClient();
+  const expenseSettingsClient = useMemo(() => new ExpenseSettingsClient(), [])
 
   React.useEffect(() => {
     if (accessToken) {
-      expenseSettingsClient.setAccessToken(accessToken);
+      expenseSettingsClient.setAccessToken(accessToken)
     }
-  }, [accessToken]);
+  }, [accessToken, expenseSettingsClient])
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     if (!formData.code.trim() || !formData.name.trim()) {
-      setError('Code and Name are required');
-      return;
+      setError('Code and Name are required')
+      return
     }
 
-    setIsSubmitting(true);
-    setError(null);
+    setIsSubmitting(true)
+    setError(null)
 
     try {
       // Create the allowance region rule
@@ -87,22 +87,21 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
         travelRegionSetRef: travelRegionSetId,
         additionalProperties: {},
         businessKey: formData.code.trim()
-      };
+      }
 
-      await expenseSettingsClient.saveAllowanceRegionRule(ruleData);
-      
-      toast('Allowance region rule created successfully', 'success');
-      onSave(formData);
-      handleClose();
-      
+      await expenseSettingsClient.saveAllowanceRegionRule(ruleData)
+
+      toast('Allowance region rule created successfully', 'success')
+      onSave(formData)
+      handleClose()
     } catch (err) {
-      console.error('❌ Error creating Allowance Region Rule:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create Allowance Region Rule');
-      toast('Failed to create Allowance Region Rule', 'error');
+      console.error('❌ Error creating Allowance Region Rule:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create Allowance Region Rule')
+      toast('Failed to create Allowance Region Rule', 'error')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   const handleClose = () => {
     setFormData({
@@ -112,22 +111,28 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
       activeFrom: dayjs().format('YYYY-MM-DD'),
       activeTo: '',
       travelRegionSetRef: travelRegionSetId
-    });
-    setError(null);
-    onClose();
-  };
+    })
+    setError(null)
+    onClose()
+  }
 
   const handleInputChange = (field: keyof AllowanceRegionRuleFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (error) setError(null); // Clear error when user starts typing
-  };
+    setFormData(prev => ({ ...prev, [field]: value }))
+    if (error) setError(null) // Clear error when user starts typing
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent data-testid={`${prefixDataTestId}-allowance-region-rule-form`} className="gba:max-w-2xl gba:max-h-[85vh]">
+      <DialogContent
+        data-testid={`${prefixDataTestId}-allowance-region-rule-form`}
+        className="gba:max-w-2xl gba:max-h-[85vh]"
+      >
         <DialogHeader>
           <DialogTitle>
-            {getTranslationFromI18nKeyAndLabel('expense-settings:create_allowance_rule', 'Create Allowance Region Rule')}
+            {getTranslationFromI18nKeyAndLabel(
+              'expense-settings:create_allowance_rule',
+              'Create Allowance Region Rule'
+            )}
           </DialogTitle>
           {travelRegionSetName && (
             <p className="gba:text-sm gba:text-gray-600 gba:mt-1">
@@ -145,7 +150,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
 
           <form onSubmit={handleSubmit} className="gba:space-y-3 gba:px-1">
             <div className="gba:space-y-2">
-              <label 
+              <label
                 className="gba:text-sm gba:font-medium gba:text-gray-700"
                 htmlFor={`${prefixDataTestId}-code-input`}
               >
@@ -155,7 +160,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
               <Input
                 id={`${prefixDataTestId}-code-input`}
                 value={formData.code}
-                onChange={(e) => handleInputChange('code', e.target.value)}
+                onChange={e => handleInputChange('code', e.target.value)}
                 placeholder="Enter unique code (e.g., HOTEL_EU)"
                 data-testid={`${prefixDataTestId}-code-input`}
                 disabled={isSubmitting}
@@ -165,7 +170,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
             </div>
 
             <div className="gba:space-y-2">
-              <label 
+              <label
                 className="gba:text-sm gba:font-medium gba:text-gray-700"
                 htmlFor={`${prefixDataTestId}-name-input`}
               >
@@ -175,7 +180,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
               <Input
                 id={`${prefixDataTestId}-name-input`}
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={e => handleInputChange('name', e.target.value)}
                 placeholder="Enter display name (e.g., Hotel Allowance Europe)"
                 data-testid={`${prefixDataTestId}-name-input`}
                 disabled={isSubmitting}
@@ -185,7 +190,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
             </div>
 
             <div className="gba:space-y-2">
-              <label 
+              <label
                 className="gba:text-sm gba:font-medium gba:text-gray-700"
                 htmlFor={`${prefixDataTestId}-description-input`}
               >
@@ -194,7 +199,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
               <Input
                 id={`${prefixDataTestId}-description-input`}
                 value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 placeholder="Enter optional description"
                 data-testid={`${prefixDataTestId}-description-input`}
                 disabled={isSubmitting}
@@ -204,7 +209,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
 
             <div className="gba:grid gba:grid-cols-2 gba:gap-3">
               <div className="gba:space-y-2">
-                <label 
+                <label
                   className="gba:text-sm gba:font-medium gba:text-gray-700"
                   htmlFor={`${prefixDataTestId}-active-from-input`}
                 >
@@ -215,7 +220,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                   id={`${prefixDataTestId}-active-from-input`}
                   type="date"
                   value={formData.activeFrom}
-                  onChange={(e) => handleInputChange('activeFrom', e.target.value)}
+                  onChange={e => handleInputChange('activeFrom', e.target.value)}
                   data-testid={`${prefixDataTestId}-active-from-input`}
                   disabled={isSubmitting}
                   className="gba:h-9 gba:text-sm"
@@ -224,7 +229,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
               </div>
 
               <div className="gba:space-y-2">
-                <label 
+                <label
                   className="gba:text-sm gba:font-medium gba:text-gray-700"
                   htmlFor={`${prefixDataTestId}-active-to-input`}
                 >
@@ -234,7 +239,7 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
                   id={`${prefixDataTestId}-active-to-input`}
                   type="date"
                   value={formData.activeTo}
-                  onChange={(e) => handleInputChange('activeTo', e.target.value)}
+                  onChange={e => handleInputChange('activeTo', e.target.value)}
                   data-testid={`${prefixDataTestId}-active-to-input`}
                   disabled={isSubmitting}
                   className="gba:h-9 gba:text-sm"
@@ -243,9 +248,9 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
             </div>
 
             <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={handleClose}
                 disabled={isSubmitting}
                 size="sm"
@@ -254,24 +259,23 @@ const AllowanceRegionRuleForm: React.FC<AllowanceRegionRuleFormProps> = ({
               >
                 {getTranslationFromI18nKeyAndLabel('expense-settings:cancel', 'Cancel')}
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isSubmitting || !formData.code.trim() || !formData.name.trim()}
                 size="sm"
                 className="gba:h-9 gba:text-sm"
                 data-testid={`${prefixDataTestId}-save-button`}
               >
-                {isSubmitting 
-                  ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...') 
-                  : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')
-                }
+                {isSubmitting
+                  ? getTranslationFromI18nKeyAndLabel('expense-settings:creating', 'Creating...')
+                  : getTranslationFromI18nKeyAndLabel('expense-settings:create', 'Create')}
               </Button>
             </div>
           </form>
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default AllowanceRegionRuleForm;
+export default AllowanceRegionRuleForm

@@ -12,13 +12,15 @@ interface MileageRulesPaginationProps {
   pageSize: number
   totalItems: number
   onPageChange: (pagination: PaginationChangeParams) => void
+  itemLabel?: string
 }
 
 const MileageRulesPagination: React.FC<MileageRulesPaginationProps> = ({
   currentPage,
   pageSize,
   totalItems,
-  onPageChange
+  onPageChange,
+  itemLabel = 'rules'
 }) => {
   if (totalItems <= 0) {
     return null
@@ -32,7 +34,7 @@ const MileageRulesPagination: React.FC<MileageRulesPaginationProps> = ({
       data-testid="mileage-rules-pagination"
     >
       <div className="gba:text-sm gba:text-muted-foreground" data-testid="mileage-rules-pagination-info">
-        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} rules`}
+        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} ${itemLabel}`}
       </div>
       <div className="gba:flex gba:items-center gba:gap-6 gba:lg:gap-8 gba:shrink-0">
         <div className="gba:flex gba:items-center gba:space-x-2 gba:shrink-0">

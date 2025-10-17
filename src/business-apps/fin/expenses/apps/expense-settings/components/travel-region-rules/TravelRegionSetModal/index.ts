@@ -1,4 +1,5 @@
-import TravelRegionSetModal from './TravelRegionSetModal';
+import TravelRegionSetModal from './TravelRegionSetModal'
 
-export { TravelRegionSetModal };
-export default TravelRegionSetModal;
+export { TravelRegionSetModal }
+export type { TravelRegionSetFormData } from './TravelRegionSetModal'
+export default TravelRegionSetModal

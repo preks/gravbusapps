@@ -1,107 +1,122 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { 
-  Button, 
-  Typography, 
-  Space, 
-  Alert, 
-  Row, 
-  Col, 
-  Spin,
-  Tabs,
-  Form,
+import React, { useState, useEffect, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import {
+  Button,
   Input,
-  Checkbox,
+  Label,
   Select,
-  DatePicker,
-  message
-} from 'antd';
-import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries';
-import { 
-  PiArrowLeft, 
-  PiWarning,
-  PiCheckCircle
-} from 'react-icons/pi';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Card,
+  CardContent,
+  Switch as NWSwitch
+} from '@newwork/nw-design-system'
+import { toast, Toaster } from 'sonner'
+import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
+import { PiArrowLeft, PiWarning, PiCheckCircle, PiCalendar } from 'react-icons/pi'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
 
 // Register dayjs plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
+dayjs.extend(weekday)
+dayjs.extend(localeData)
 
 // Tab components (these would be separate modules in a full implementation)
-import GeneralExpensesTab from './tabs/GeneralExpensesTab';
-import MileageRulesTab from './tabs/MileageRulesTab';
-import AllowancePeriodTab from './tabs/AllowancePeriodTab';
-import AllowanceCodeTab from './tabs/AllowanceCodeTab';
-import AllowanceSetupTab from './tabs/AllowanceSetupTab';
-import DeductionTab from './tabs/DeductionTab';
-import CustomFieldsTab from './tabs/CustomFieldsTab';
-import OtherCalculationTab from './tabs/OtherCalculationTab';
-
-const { Title } = Typography;
-const { Option } = Select;
+import GeneralExpensesTab from './tabs/GeneralExpensesTab'
+import MileageRulesTab from './tabs/MileageRulesTab'
+import AllowancePeriodTab from './tabs/AllowancePeriodTab'
+import AllowanceCodeTab from './tabs/AllowanceCodeTab'
+import AllowanceSetupTab from './tabs/AllowanceSetupTab'
+import DeductionTab from './tabs/DeductionTab'
+import CustomFieldsTab from './tabs/CustomFieldsTab'
+import OtherCalculationTab from './tabs/OtherCalculationTab'
 
 interface CatalogOption {
-  id: string;
-  value: string;
-  code: string;
+  id: string
+  value: string
+  code: string
 }
 
 interface CalculationRuleRecordProps extends BusinessAppContextProps {
-  ruleId: string;
-  page?: string;
-  onNavigateBack: () => void;
+  ruleId: string
+  page?: string
+  onNavigateBack: () => void
 }
 
 interface CalculationRuleDetails {
-  id: string;
-  code: string;
-  name: string;
-  calculationTypeRef?: string;
+  id: string
+  code: string
+  name: string
+  calculationTypeRef?: string
   calculationType?: {
-    id: string;
-    value: string;
-  };
-  standard: boolean;
-  activeFrom: string;
-  activeTo?: string;
+    id: string
+    value: string
+  }
+  standard: boolean
+  activeFrom: string
+  activeTo?: string
   currency?: {
-    id: string;
-    value: string;
-    code: string;
-  };
-  currencyRef?: string;
+    id: string
+    value: string
+    code: string
+  }
+  currencyRef?: string
   country?: {
-    id: string;
-    value: string;
-    code: string;
-  };
-  countryRef?: string;
-  deductionLimit: boolean;
-  taxesCode?: string;
-  useLastCountry: boolean;
-  nonpayableCode?: string;
-  advancePaymentCode?: string;
-  useSingleCurrency: boolean;
-  version: number;
-  createdAt: string;
-  updatedAt: string;
-  isDeleted: boolean;
+    id: string
+    value: string
+    code: string
+  }
+  countryRef?: string
+  deductionLimit: boolean
+  taxesCode?: string
+  useLastCountry: boolean
+  nonpayableCode?: string
+  advancePaymentCode?: string
+  useSingleCurrency: boolean
+  version: number
+  createdAt: string
+  updatedAt: string
+  isDeleted: boolean
 }
 
 interface ExpenseRuleFlag {
-  id?: string;
-  expenseRuleId: string;
-  code: string;
-  name: string;
-  value: string;
-  version?: number;
+  id?: string
+  expenseRuleId: string
+  code: string
+  name: string
+  value: string
+  version?: number
 }
 
-
+interface FormData {
+  code: string
+  name: string
+  standard: boolean
+  activeFrom: string
+  activeTo: string
+  calculationTypeRef: string
+  currencyRef: string
+  advancePaymentCode: string
+  taxesCode: string
+  nonpayableCode: string
+  countryRef: string
+  useLastCountry: boolean
+  deductionLimit: boolean
+  useSingleCurrency: boolean
+  romanianCalculation: boolean
+  austrianAbroad: boolean
+}
 
 const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   ruleId,
@@ -110,97 +125,104 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
   accessToken,
   ...context
 }) => {
-  const [form] = Form.useForm();
-  const [ruleDetails, setRuleDetails] = useState<CalculationRuleDetails | null>(null);
-  const [ruleFlags, setRuleFlags] = useState<ExpenseRuleFlag[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [ruleDetails, setRuleDetails] = useState<CalculationRuleDetails | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Controlled form state
+  const [formData, setFormData] = useState<FormData>({
+    code: '',
+    name: '',
+    standard: false,
+    activeFrom: '',
+    activeTo: '',
+    calculationTypeRef: '',
+    currencyRef: '',
+    advancePaymentCode: '',
+    taxesCode: '',
+    nonpayableCode: '',
+    countryRef: '',
+    useLastCountry: false,
+    deductionLimit: false,
+    useSingleCurrency: false,
+    romanianCalculation: false,
+    austrianAbroad: false
+  })
   // Tab and sub-tab management with query parameters
   const getInitialTab = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const tabFromUrl = urlParams.get('tab');
-    const validTabs = ['general', 'expenses', 'mileage', 'allowance', 'other-calculation', 'custom-fields'];
-    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general';
-  };
+    const urlParams = new URLSearchParams(window.location.search)
+    const tabFromUrl = urlParams.get('tab')
+    const validTabs = ['general', 'expenses', 'mileage', 'allowance', 'other-calculation', 'custom-fields']
+    return tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : 'general'
+  }
 
   const getInitialSubTab = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const subTabFromUrl = urlParams.get('subTab');
-    const validSubTabs = ['allowance-period', 'allowance-code', 'allowance-setup', 'allowance-deduction'];
-    return subTabFromUrl && validSubTabs.includes(subTabFromUrl) ? subTabFromUrl : 'allowance-period';
-  };
+    const urlParams = new URLSearchParams(window.location.search)
+    const subTabFromUrl = urlParams.get('subTab')
+    const validSubTabs = ['allowance-period', 'allowance-code', 'allowance-setup', 'allowance-deduction']
+    return subTabFromUrl && validSubTabs.includes(subTabFromUrl) ? subTabFromUrl : 'allowance-period'
+  }
 
-  const [activeTab, setActiveTab] = useState(getInitialTab());
-  const [activeSubTab, setActiveSubTab] = useState(getInitialSubTab());
-  const [hasChanges, setHasChanges] = useState(false);
+  const [activeTab, setActiveTab] = useState(getInitialTab())
+  const [activeSubTab, setActiveSubTab] = useState(getInitialSubTab())
+  const [hasChanges, setHasChanges] = useState(false)
+  const [initialFormData, setInitialFormData] = useState<FormData | null>(null)
 
   // Catalog data
-  const [calculationTypes, setCalculationTypes] = useState<CatalogOption[]>([]);
-  const [currencies, setCurrencies] = useState<CatalogOption[]>([]);
-  const [countries, setCountries] = useState<CatalogOption[]>([]);
-  const [catalogsLoading, setCatalogsLoading] = useState(true);
-
-  // Form field change tracking
-  const [_formValues, setFormValues] = useState<any>({});
+  const [calculationTypes, setCalculationTypes] = useState<CatalogOption[]>([])
+  const [currencies, setCurrencies] = useState<CatalogOption[]>([])
+  const [countries, setCountries] = useState<CatalogOption[]>([])
+  const [catalogsLoading, setCatalogsLoading] = useState(true)
 
   // URL update functions for tab navigation
   const updateUrl = (newTab?: string, newSubTab?: string) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    
+    const urlParams = new URLSearchParams(window.location.search)
+
     if (newTab !== undefined) {
-      urlParams.set('tab', newTab);
+      urlParams.set('tab', newTab)
     }
-    
+
     if (newSubTab !== undefined) {
       if (newTab === 'allowance' || activeTab === 'allowance') {
-        urlParams.set('subTab', newSubTab);
+        urlParams.set('subTab', newSubTab)
       } else {
         // Clear subTab if not on allowance tab
-        urlParams.delete('subTab');
+        urlParams.delete('subTab')
       }
     }
 
-    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
-    window.history.replaceState({}, '', newUrl);
-  };
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
+  }
 
   const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    updateUrl(tab, tab === 'allowance' ? activeSubTab : undefined);
-  };
+    setActiveTab(tab)
+    updateUrl(tab, tab === 'allowance' ? activeSubTab : undefined)
+  }
 
   const handleSubTabChange = (subTab: string) => {
-    setActiveSubTab(subTab);
-    updateUrl(undefined, subTab);
-  };
+    setActiveSubTab(subTab)
+    updateUrl(undefined, subTab)
+  }
 
   // Use the GraphQL hook for fetching expense rule data
-  const { fetchExpenseRuleById } = useGetExpenseRuleById({ accessToken, ...context });
-  
+  const { fetchExpenseRuleById } = useGetExpenseRuleById({ accessToken, ...context })
+
   // Catalog client for loading calculation types and currencies
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const loadRuleDetails = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      console.log('🔍 Fetching expense rule details for ID:', ruleId);
-      
-      // Fetch actual data from GraphQL
-      const ruleData = await fetchExpenseRuleById(ruleId);
-      
-      if (!ruleData) {
-        throw new Error(`Expense rule with ID ${ruleId} not found`);
-      }
+    setIsLoading(true)
+    setError(null)
 
-      console.log('✅ Loaded expense rule data:', {
-        id: ruleData.id,
-        code: ruleData.code,
-        name: ruleData.name,
-        calculationType: ruleData.calculationType?.value
-      });
+    try {
+      // Fetch actual data from GraphQL
+      const ruleData = await fetchExpenseRuleById(ruleId)
+
+      if (!ruleData) {
+        throw new Error(`Expense rule with ID ${ruleId} not found`)
+      }
 
       // Transform GraphQL data to component format
       const ruleDetails: CalculationRuleDetails = {
@@ -208,24 +230,30 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         code: ruleData.code,
         name: ruleData.name,
         calculationTypeRef: ruleData.calculationType?.id,
-        calculationType: ruleData.calculationType ? {
-          id: ruleData.calculationType.id,
-          value: ruleData.calculationType.value
-        } : undefined,
+        calculationType: ruleData.calculationType
+          ? {
+              id: ruleData.calculationType.id,
+              value: ruleData.calculationType.value
+            }
+          : undefined,
         standard: ruleData.standard || false,
         activeFrom: ruleData.activeFrom,
         activeTo: ruleData.activeTo,
-        currency: ruleData.currency ? {
-          id: ruleData.currency.id,
-          value: ruleData.currency.value,
-          code: ruleData.currency.code
-        } : undefined,
+        currency: ruleData.currency
+          ? {
+              id: ruleData.currency.id,
+              value: ruleData.currency.value,
+              code: ruleData.currency.code
+            }
+          : undefined,
         currencyRef: ruleData.currency?.id,
-        country: ruleData.country ? {
-          id: ruleData.country.id,
-          value: ruleData.country.value,
-          code: ruleData.country.code
-        } : undefined,
+        country: ruleData.country
+          ? {
+              id: ruleData.country.id,
+              value: ruleData.country.value,
+              code: ruleData.country.code
+            }
+          : undefined,
         countryRef: ruleData.country?.id,
         deductionLimit: ruleData.deductionLimit || false,
         taxesCode: ruleData.taxesCode || '',
@@ -237,7 +265,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         createdAt: ruleData.createdAt || new Date().toISOString(),
         updatedAt: ruleData.updatedAt || new Date().toISOString(),
         isDeleted: false
-      };
+      }
 
       // For now, use mock flags until we have proper flag data structure from GraphQL
       const mockFlags: ExpenseRuleFlag[] = [
@@ -249,52 +277,51 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
           value: 'true',
           version: 1
         }
-      ];
+      ]
 
-      setRuleDetails(ruleDetails);
-      setRuleFlags(mockFlags);
+      setRuleDetails(ruleDetails)
+      // Note: mockFlags prepared for future rule validation feature
 
       // Initialize form values
-      const initialValues = {
+      const initialValues: FormData = {
         // Basic Information
         code: ruleDetails.code || '',
         name: ruleDetails.name || '',
         standard: ruleDetails.standard || false,
-        
+
         // Validity & Configuration
-        activeFrom: ruleDetails.activeFrom ? dayjs(ruleDetails.activeFrom) : null,
-        activeTo: ruleDetails.activeTo ? dayjs(ruleDetails.activeTo) : null,
+        activeFrom: ruleDetails.activeFrom ? dayjs(ruleDetails.activeFrom).format('YYYY-MM-DD') : '',
+        activeTo: ruleDetails.activeTo ? dayjs(ruleDetails.activeTo).format('YYYY-MM-DD') : '',
         calculationTypeRef: ruleDetails.calculationTypeRef || '',
         currencyRef: ruleDetails.currencyRef || '',
-        
+
         // Wage Codes
         advancePaymentCode: ruleDetails.advancePaymentCode || '',
         taxesCode: ruleDetails.taxesCode || '',
         nonpayableCode: ruleDetails.nonpayableCode || '',
         countryRef: ruleDetails.countryRef || '',
-        
+
         // Special Settings
         useLastCountry: ruleDetails.useLastCountry || false,
         deductionLimit: ruleDetails.deductionLimit || false,
         useSingleCurrency: ruleDetails.useSingleCurrency || false,
         romanianCalculation: mockFlags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
         austrianAbroad: mockFlags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
-      };
-      
-      setFormValues(initialValues);
-      form.setFieldsValue(initialValues);
-      
+      }
+
+      setFormData(initialValues)
+      setInitialFormData(initialValues)
     } catch (err) {
-      console.error('❌ Error loading expense rule details:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load rule details');
+      console.error('❌ Error loading expense rule details:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load rule details')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [ruleId, form, fetchExpenseRuleById]);
+  }, [ruleId, fetchExpenseRuleById])
 
   // Load catalog data for calculation types, currencies, and countries
   const loadCatalogData = useCallback(async () => {
-    setCatalogsLoading(true);
+    setCatalogsLoading(true)
     try {
       const [calculationTypesRes, currenciesRes, countriesRes] = await Promise.all([
         catalogClient.getCatalogEntriesList(
@@ -309,596 +336,542 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
           { catalogIdentifier: 'Country', version: 'v1' },
           { limit: 500, offset: 0, returnTotalRecords: true, includeChildCatalogEntries: true }
         )
-      ]);
+      ])
 
-      setCalculationTypes(calculationTypesRes.data.map((item: any) => ({
-        id: item.id,
-        value: item.value,
-        code: item.code
-      })));
+      setCalculationTypes(
+        calculationTypesRes.data.map((item: any) => ({
+          id: item.id,
+          value: item.value,
+          code: item.code
+        }))
+      )
 
-      setCurrencies(currenciesRes.data.map((item: any) => ({
-        id: item.id,
-        value: item.value,
-        code: item.code
-      })));
+      setCurrencies(
+        currenciesRes.data.map((item: any) => ({
+          id: item.id,
+          value: item.value,
+          code: item.code
+        }))
+      )
 
-      setCountries(countriesRes.data.map((item: any) => ({
-        id: item.id,
-        value: item.value,
-        code: item.code
-      })));
-
+      setCountries(
+        countriesRes.data.map((item: any) => ({
+          id: item.id,
+          value: item.value,
+          code: item.code
+        }))
+      )
     } catch (error) {
-      console.error('Error loading catalog data:', error);
+      console.error('Error loading catalog data:', error)
     } finally {
-      setCatalogsLoading(false);
+      setCatalogsLoading(false)
     }
-  }, [catalogClient]);
+  }, [catalogClient])
 
   useEffect(() => {
     if (ruleId && accessToken) {
-      loadRuleDetails();
+      loadRuleDetails()
     }
-  }, [ruleId, accessToken, loadRuleDetails]);
+  }, [ruleId, accessToken, loadRuleDetails])
 
   useEffect(() => {
     if (accessToken) {
-      loadCatalogData();
+      loadCatalogData()
     }
-  }, [accessToken, loadCatalogData]);
+  }, [accessToken, loadCatalogData])
 
   // Ensure URL always has tab parameter and handle browser navigation
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+    const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('tab')) {
-      updateUrl(activeTab, activeTab === 'allowance' ? activeSubTab : undefined);
+      updateUrl(activeTab, activeTab === 'allowance' ? activeSubTab : undefined)
     }
 
     const handlePopState = () => {
-      const newTab = getInitialTab();
-      const newSubTab = getInitialSubTab();
-      setActiveTab(newTab);
-      setActiveSubTab(newSubTab);
-    };
+      const newTab = getInitialTab()
+      const newSubTab = getInitialSubTab()
+      setActiveTab(newTab)
+      setActiveSubTab(newSubTab)
+    }
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [activeTab, activeSubTab]);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [activeTab, activeSubTab])
 
-  const handleFormChange = (_changedFields: any, allValues: any) => {
-    setFormValues(allValues);
-    
-    // Check if there are any changes
-    const initialValues = {
-      // Basic Information
-      code: ruleDetails?.code || '',
-      name: ruleDetails?.name || '',
-      standard: ruleDetails?.standard || false,
-      
-      // Validity & Configuration (convert dates back to dayjs for comparison)
-      activeFrom: ruleDetails?.activeFrom ? dayjs(ruleDetails.activeFrom) : null,
-      activeTo: ruleDetails?.activeTo ? dayjs(ruleDetails.activeTo) : null,
-      calculationTypeRef: ruleDetails?.calculationTypeRef || '',
-      currencyRef: ruleDetails?.currencyRef || '',
-      
-      // Wage Codes
-      advancePaymentCode: ruleDetails?.advancePaymentCode || '',
-      taxesCode: ruleDetails?.taxesCode || '',
-      nonpayableCode: ruleDetails?.nonpayableCode || '',
-      countryRef: ruleDetails?.countryRef || '',
-      
-      // Special Settings
-      useLastCountry: ruleDetails?.useLastCountry || false,
-      deductionLimit: ruleDetails?.deductionLimit || false,
-      useSingleCurrency: ruleDetails?.useSingleCurrency || false,
-      romanianCalculation: ruleFlags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
-      austrianAbroad: ruleFlags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
-    };
+  // Track form changes
+  useEffect(() => {
+    if (!initialFormData) return
 
-    const hasModifications = Object.keys(allValues).some(key => 
-      (allValues as any)[key] !== (initialValues as any)[key]
-    );
-    
-    setHasChanges(hasModifications);
-  };
+    const hasModifications = Object.keys(formData).some(
+      key => formData[key as keyof FormData] !== initialFormData[key as keyof FormData]
+    )
+
+    setHasChanges(hasModifications)
+  }, [formData, initialFormData])
 
   const handleSave = async () => {
     try {
-      setIsSaving(true);
-      
+      setIsSaving(true)
+
       // TODO: Implement actual save logic with GraphQL mutations
       // const saveData = {
       //   expenseRule: {
       //     id: ruleDetails?.id,
       //     version: ruleDetails?.version,
-      //     ...formValues
+      //     ...formData
       //   },
       //   changeMode: 'UPDATE'
       // };
 
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      message.success('Rule saved successfully');
-      setHasChanges(false);
-      
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      toast.success('Rule saved successfully')
+      setHasChanges(false)
+
       // Reload data
-      await loadRuleDetails();
-      
+      await loadRuleDetails()
     } catch (err) {
-      message.error('Failed to save rule');
-      console.error('Save error:', err);
+      toast.error('Failed to save rule')
+      console.error('Save error:', err)
     } finally {
-      setIsSaving(false);
+      setIsSaving(false)
     }
-  };
+  }
 
   const handleDiscard = () => {
-    if (ruleDetails) {
-      const initialValues = {
-        // Basic Information
-        code: ruleDetails.code || '',
-        name: ruleDetails.name || '',
-        standard: ruleDetails.standard || false,
-        
-        // Validity & Configuration
-        activeFrom: ruleDetails.activeFrom ? dayjs(ruleDetails.activeFrom) : null,
-        activeTo: ruleDetails.activeTo ? dayjs(ruleDetails.activeTo) : null,
-        calculationTypeRef: ruleDetails.calculationTypeRef || '',
-        currencyRef: ruleDetails.currencyRef || '',
-        
-        // Wage Codes
-        advancePaymentCode: ruleDetails.advancePaymentCode || '',
-        taxesCode: ruleDetails.taxesCode || '',
-        nonpayableCode: ruleDetails.nonpayableCode || '',
-        countryRef: ruleDetails.countryRef || '',
-        
-        // Special Settings
-        useLastCountry: ruleDetails.useLastCountry || false,
-        deductionLimit: ruleDetails.deductionLimit || false,
-        useSingleCurrency: ruleDetails.useSingleCurrency || false,
-        romanianCalculation: ruleFlags.some(f => f.code === 'romanianCalculation' && f.value === 'true'),
-        austrianAbroad: ruleFlags.some(f => f.code === 'austrianAbroad' && f.value === 'true')
-      };
-      
-      setFormValues(initialValues);
-      form.setFieldsValue(initialValues);
-      setHasChanges(false);
+    if (initialFormData) {
+      setFormData(initialFormData)
+      setHasChanges(false)
     }
-  };
+  }
 
   if (isLoading) {
     return (
-      <div 
+      <div
         data-testid="calculation-rule-record-loading"
         className="gba:flex gba:justify-center gba:items-center gba:min-h-96"
       >
-        <Spin size="large" />
+        <Spinner className="gba:w-12 gba:h-12" />
       </div>
-    );
+    )
   }
 
   if (error || !ruleDetails) {
     return (
-      <div data-testid="calculation-rule-record-error">
-        <Alert
-          message="Error Loading Rule Details"
-          description={error || 'Rule not found'}
-          type="error"
-          showIcon
-          icon={<PiWarning />}
-          action={
-            <Space>
-              <Button size="small" onClick={loadRuleDetails}>
-                Retry
-              </Button>
-              <Button size="small" onClick={onNavigateBack}>
-                Go Back
-              </Button>
-            </Space>
-          }
-        />
+      <div data-testid="calculation-rule-record-error" className="gba:p-6">
+        <Alert variant="destructive">
+          <PiWarning className="gba:h-4 gba:w-4" />
+          <AlertDescription>
+            <div className="gba:flex gba:flex-col gba:gap-4">
+              <div>
+                <strong>Error Loading Rule Details</strong>
+                <p className="gba:text-sm gba:mt-1">{error || 'Rule not found'}</p>
+              </div>
+              <div className="gba:flex gba:gap-2">
+                <Button size="sm" onClick={loadRuleDetails} data-testid="retry-button">
+                  Retry
+                </Button>
+                <Button size="sm" variant="outline" onClick={onNavigateBack} data-testid="go-back-button">
+                  Go Back
+                </Button>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid="calculation-rule-record-container" className="gba:h-full gba:flex gba:flex-col gba:p-6">
+      <Toaster />
+
       {/* Simple Header */}
       <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <Button
-            icon={<PiArrowLeft />}
-            onClick={onNavigateBack}
-            data-testid="calculation-rule-record-back-button"
-          >
+          <Button variant="outline" onClick={onNavigateBack} data-testid="calculation-rule-record-back-button">
+            <PiArrowLeft className="gba:mr-2 gba:h-4 gba:w-4" />
             Back{page && ` to ${page}`}
           </Button>
-          <Title level={2} style={{ margin: 0 }}>
-            {form.getFieldValue('name') || ruleDetails.name || 'Calculation Rule'}
-          </Title>
+          <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">
+            {formData.name || ruleDetails.name || 'Calculation Rule'}
+          </h2>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="gba:flex-1">
-        <Tabs 
-          activeKey={activeTab} 
-          onChange={handleTabChange}
-          data-testid="calculation-rule-record-tabs"
-          items={[
-            {
-              key: 'general',
-              label: 'General',
-              children: (
-                <Form
-                  form={form}
-                  layout="vertical"
-                  onValuesChange={handleFormChange}
-                  data-testid="calculation-rule-general-form"
-                >
-                  {/* Basic Information Section */}
-                  <div className="gba:mb-8">
-                    <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
-                      Basic Information
-                    </Title>
-                    <Row gutter={[24, 16]}>
-                      <Col xs={24} md={8}>
-                        <Form.Item 
-                          name="code" 
-                          label="Code"
-                          data-testid="rule-code-input"
-                          rules={[{ required: true, message: 'Code is required' }]}
-                        >
-                          <Input placeholder="Enter rule code" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item 
-                          name="name" 
-                          label="Name"
-                          data-testid="rule-name-input"
-                          rules={[{ required: true, message: 'Name is required' }]}
-                        >
-                          <Input placeholder="Enter rule name" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={4}>
-                        <Form.Item 
-                          name="standard" 
-                          valuePropName="checked"
+        <Tabs value={activeTab} onValueChange={handleTabChange} data-testid="calculation-rule-record-tabs">
+          <TabsList className="gba:mb-4">
+            <TabsTrigger value="general" data-testid="tab-general">
+              General
+            </TabsTrigger>
+            <TabsTrigger value="expenses" data-testid="tab-expenses">
+              Expenses
+            </TabsTrigger>
+            <TabsTrigger value="mileage" data-testid="tab-mileage">
+              Mileage
+            </TabsTrigger>
+            <TabsTrigger value="allowance" data-testid="tab-allowance">
+              Allowance
+            </TabsTrigger>
+            <TabsTrigger value="other-calculation" data-testid="tab-other-calculation">
+              Other Calculation
+            </TabsTrigger>
+            <TabsTrigger value="custom-fields" data-testid="tab-custom-fields">
+              Custom Fields
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="general" data-testid="general-tab-content">
+            <Card>
+              <CardContent className="gba:pt-6">
+                {/* Basic Information Section */}
+                <div className="gba:mb-8">
+                  <h4 className="gba:text-lg gba:font-semibold gba:mb-6 gba:pb-2 gba:border-b gba:border-border">
+                    Basic Information
+                  </h4>
+                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-12 gba:gap-6">
+                    <div className="md:gba:col-span-4">
+                      <Label htmlFor="code">Code *</Label>
+                      <Input
+                        id="code"
+                        data-testid="rule-code-input"
+                        placeholder="Enter rule code"
+                        value={formData.code}
+                        onChange={e => setFormData({ ...formData, code: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="md:gba:col-span-6">
+                      <Label htmlFor="name">Name *</Label>
+                      <Input
+                        id="name"
+                        data-testid="rule-name-input"
+                        placeholder="Enter rule name"
+                        value={formData.name}
+                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div className="md:gba:col-span-2 gba:flex gba:items-end">
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <NWSwitch
+                          id="standard"
                           data-testid="rule-standard-checkbox"
-                        >
-                          <Checkbox>Standard</Checkbox>
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-
-                  {/* Validity & Configuration Section */}
-                  <div className="gba:mb-8">
-                    <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
-                      Validity & Configuration
-                    </Title>
-                    <Row gutter={[24, 16]}>
-                      <Col xs={24} md={8}>
-                        <Form.Item 
-                          name="activeFrom" 
-                          label="Valid From"
-                          data-testid="rule-active-from-picker"
-                          rules={[{ required: true, message: 'Valid from date is required' }]}
-                        >
-                          <DatePicker 
-                            style={{ width: '100%' }}
-                            format="DD/MM/YYYY"
-                            placeholder="Select start date"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item 
-                          name="activeTo" 
-                          label="Valid To"
-                          data-testid="rule-active-to-picker"
-                        >
-                          <DatePicker 
-                            style={{ width: '100%' }}
-                            format="DD/MM/YYYY"
-                            placeholder="Select end date (optional)"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item 
-                          name="calculationTypeRef" 
-                          label="Calculation Type"
-                          data-testid="rule-calculation-type-select"
-                        >
-                          <Select 
-                            placeholder="Select calculation type"
-                            loading={catalogsLoading}
-                            disabled={catalogsLoading}
-                          >
-                            {calculationTypes.map(type => (
-                              <Option key={type.id} value={type.id}>
-                                {type.value}
-                              </Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={[24, 16]}>
-                      <Col xs={24} md={8}>
-                        <Form.Item 
-                          name="currencyRef" 
-                          label="Currency"
-                          data-testid="rule-currency-select"
-                        >
-                          <Select 
-                            placeholder="Select currency"
-                            loading={catalogsLoading}
-                            disabled={catalogsLoading}
-                          >
-                            {currencies.map(currency => (
-                              <Option key={currency.id} value={currency.id}>
-                                {currency.code} - {currency.value}
-                              </Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                  </div>
-
-                  {/* Two Column Layout for Wage Codes and Special Settings */}
-                  <Row gutter={[48, 0]}>
-                    {/* Left Column - Wage Codes */}
-                    <Col xs={24} lg={12}>
-                      <div className="gba:mb-6">
-                        <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
-                          Wage Codes
-                        </Title>
-                        
-                        <div className="gba:space-y-4">
-                          <Form.Item 
-                            name="advancePaymentCode" 
-                            label="Advance Payment"
-                            data-testid="advance-payment-input"
-                            className="gba:mb-4"
-                          >
-                            <Input placeholder="" />
-                          </Form.Item>
-                          
-                          <Form.Item 
-                            name="taxesCode" 
-                            label="Taxes"
-                            data-testid="taxes-input"
-                            className="gba:mb-4"
-                          >
-                            <Input placeholder="" />
-                          </Form.Item>
-                          
-                          <Form.Item 
-                            name="nonpayableCode" 
-                            label="Non Payable"
-                            data-testid="non-payable-input"
-                            className="gba:mb-4"
-                          >
-                            <Input placeholder="" />
-                          </Form.Item>
-                          
-                          <Form.Item 
-                            name="countryRef" 
-                            label="Home Country"
-                            data-testid="home-country-select"
-                            className="gba:mb-4"
-                          >
-                            <Select 
-                              placeholder="Select home country"
-                              showSearch
-                              optionFilterProp="children"
-                              loading={catalogsLoading}
-                              disabled={catalogsLoading}
-                            >
-                              {countries.map(country => (
-                                <Option key={country.id} value={country.id}>
-                                  {country.value} ({country.code})
-                                </Option>
-                              ))}
-                            </Select>
-                          </Form.Item>
-                        </div>
+                          checked={formData.standard}
+                          onCheckedChange={checked => setFormData({ ...formData, standard: checked })}
+                        />
+                        <Label htmlFor="standard">Standard</Label>
                       </div>
-                    </Col>
-
-                    {/* Right Column - Special Settings */}
-                    <Col xs={24} lg={12}>
-                      <div className="gba:mb-6">
-                        <Title level={4} className="gba:mb-6" style={{ borderBottom: '1px solid #d9d9d9', paddingBottom: '8px' }}>
-                          Special Setting
-                        </Title>
-                        
-                        <div className="gba:space-y-4">
-                          <Form.Item 
-                            name="austrianAbroad" 
-                            valuePropName="checked"
-                            data-testid="austrian-abroad-checkbox"
-                            className="gba:mb-4"
-                          >
-                            <Checkbox
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  form.setFieldValue('romanianCalculation', false);
-                                }
-                              }}
-                            >
-                              Austrian Calculation
-                            </Checkbox>
-                          </Form.Item>
-                          
-                          <Form.Item 
-                            name="romanianCalculation" 
-                            valuePropName="checked"
-                            data-testid="romanian-calculation-checkbox"
-                            className="gba:mb-4"
-                          >
-                            <Checkbox
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  form.setFieldValue('austrianAbroad', false);
-                                }
-                              }}
-                            >
-                              Romanian Calculation
-                            </Checkbox>
-                          </Form.Item>
-                          
-                          <Form.Item 
-                            name="useLastCountry" 
-                            valuePropName="checked"
-                            data-testid="use-last-country-checkbox"
-                            className="gba:mb-4"
-                          >
-                            <Checkbox>Use Last Country</Checkbox>
-                          </Form.Item>
-                          
-                          <Form.Item 
-                            name="deductionLimit" 
-                            valuePropName="checked"
-                            data-testid="deduction-limit-checkbox"
-                            className="gba:mb-4"
-                          >
-                            <Checkbox>Deduction Limit</Checkbox>
-                          </Form.Item>
-                          
-                          <Form.Item 
-                            name="useSingleCurrency" 
-                            valuePropName="checked"
-                            data-testid="use-single-currency-checkbox"
-                            className="gba:mb-4"
-                          >
-                            <Checkbox>Use single currency in expense</Checkbox>
-                          </Form.Item>
-                        </div>
-                      </div>
-                    </Col>
-                  </Row>
-
-                  {/* Action Buttons */}
-                  <div className="gba:flex gba:gap-3 gba:pt-4">
-                    <Button 
-                      type="primary" 
-                      onClick={handleSave}
-                      loading={isSaving}
-                      disabled={!hasChanges}
-                      icon={<PiCheckCircle />}
-                      data-testid="save-button"
-                    >
-                      Save
-                    </Button>
-                    <Button 
-                      onClick={handleDiscard}
-                      disabled={!hasChanges}
-                      data-testid="discard-button"
-                    >
-                      Discard
-                    </Button>
+                    </div>
                   </div>
-                </Form>
-              )
-            },
-            {
-              key: 'expenses',
-              label: 'Expenses',
-              children: <GeneralExpensesTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
-            },
-            {
-              key: 'mileage',
-              label: 'Mileage',
-              children: <MileageRulesTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
-            },
-            {
-              key: 'allowance',
-              label: 'Allowance',
-              children: (
-                <div data-testid="allowance-tab-container" className="gba:p-2">
-                  <Tabs
-                    activeKey={activeSubTab}
-                    onChange={handleSubTabChange}
-                    data-testid="allowance-subtabs"
-                    items={[
-                      {
-                        key: 'allowance-period',
-                        label: 'Allowance Period',
-                        children: (
-                          <AllowancePeriodTab
-                            ruleId={ruleId}
-                            accessToken={accessToken}
-                            activeFrom={ruleDetails.activeFrom}
-                          />
-                        )
-                      },
-                      {
-                        key: 'allowance-code',
-                        label: 'Allowance Code',
-                        children: (
-                          <AllowanceCodeTab
-                            ruleId={ruleId}
-                            accessToken={accessToken}
-                            activeFrom={ruleDetails.activeFrom}
-                          />
-                        )
-                      },
-                      {
-                        key: 'allowance-setup',
-                        label: 'Allowance Setup',
-                        children: (
-                          <AllowanceSetupTab
-                            ruleId={ruleId}
-                            accessToken={accessToken}
-                            activeFrom={ruleDetails.activeFrom}
-                          />
-                        )
-                      },
-                      {
-                        key: 'allowance-deduction',
-                        label: 'Allowance Deduction',
-                        children: (
-                          <DeductionTab
-                            ruleId={ruleId}
-                            accessToken={accessToken}
-                            activeFrom={ruleDetails.activeFrom}
-                          />
-                        )
-                      }
-                    ]}
-                  />
                 </div>
-              )
-            },
-            {
-              key: 'other-calculation',
-              label: 'Other Calculation',
-              children: (
-                <OtherCalculationTab
-                  ruleId={ruleId}
-                  accessToken={accessToken}
-                  activeFrom={ruleDetails.activeFrom}
-                />
-              )
-            },
-            {
-              key: 'custom-fields',
-              label: 'Custom Fields',
-              children: <CustomFieldsTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
-            }
-          ]}
-        />
+
+                {/* Validity & Configuration Section */}
+                <div className="gba:mb-8">
+                  <h4 className="gba:text-lg gba:font-semibold gba:mb-6 gba:pb-2 gba:border-b gba:border-border">
+                    Validity & Configuration
+                  </h4>
+                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-6 gba:mb-6">
+                    <div>
+                      <Label htmlFor="activeFrom" className="gba:flex gba:items-center gba:gap-2">
+                        <PiCalendar className="gba:h-4 gba:w-4" />
+                        Valid From *
+                      </Label>
+                      <Input
+                        id="activeFrom"
+                        type="date"
+                        data-testid="rule-active-from-picker"
+                        value={formData.activeFrom}
+                        onChange={e => setFormData({ ...formData, activeFrom: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="activeTo" className="gba:flex gba:items-center gba:gap-2">
+                        <PiCalendar className="gba:h-4 gba:w-4" />
+                        Valid To
+                      </Label>
+                      <Input
+                        id="activeTo"
+                        type="date"
+                        data-testid="rule-active-to-picker"
+                        value={formData.activeTo}
+                        onChange={e => setFormData({ ...formData, activeTo: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="calculationTypeRef">Calculation Type</Label>
+                      <Select
+                        value={formData.calculationTypeRef}
+                        onValueChange={value => setFormData({ ...formData, calculationTypeRef: value })}
+                        disabled={catalogsLoading}
+                      >
+                        <SelectTrigger id="calculationTypeRef" data-testid="rule-calculation-type-select">
+                          <SelectValue placeholder="Select calculation type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {calculationTypes.map(type => (
+                            <SelectItem
+                              key={type.id}
+                              value={type.id}
+                              data-testid={`calculation-type-option-${type.code}`}
+                            >
+                              {type.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-3 gba:gap-6">
+                    <div>
+                      <Label htmlFor="currencyRef">Currency</Label>
+                      <Select
+                        value={formData.currencyRef}
+                        onValueChange={value => setFormData({ ...formData, currencyRef: value })}
+                        disabled={catalogsLoading}
+                      >
+                        <SelectTrigger id="currencyRef" data-testid="rule-currency-select">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {currencies.map(currency => (
+                            <SelectItem
+                              key={currency.id}
+                              value={currency.id}
+                              data-testid={`currency-option-${currency.code}`}
+                            >
+                              {currency.code} - {currency.value}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Two Column Layout for Wage Codes and Special Settings */}
+                <div className="gba:grid gba:grid-cols-1 lg:gba:grid-cols-2 gba:gap-12">
+                  {/* Left Column - Wage Codes */}
+                  <div className="gba:mb-6">
+                    <h4 className="gba:text-lg gba:font-semibold gba:mb-6 gba:pb-2 gba:border-b gba:border-border">
+                      Wage Codes
+                    </h4>
+
+                    <div className="gba:space-y-4">
+                      <div>
+                        <Label htmlFor="advancePaymentCode">Advance Payment</Label>
+                        <Input
+                          id="advancePaymentCode"
+                          data-testid="advance-payment-input"
+                          placeholder=""
+                          value={formData.advancePaymentCode}
+                          onChange={e => setFormData({ ...formData, advancePaymentCode: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="taxesCode">Taxes</Label>
+                        <Input
+                          id="taxesCode"
+                          data-testid="taxes-input"
+                          placeholder=""
+                          value={formData.taxesCode}
+                          onChange={e => setFormData({ ...formData, taxesCode: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="nonpayableCode">Non Payable</Label>
+                        <Input
+                          id="nonpayableCode"
+                          data-testid="non-payable-input"
+                          placeholder=""
+                          value={formData.nonpayableCode}
+                          onChange={e => setFormData({ ...formData, nonpayableCode: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="countryRef">Home Country</Label>
+                        <Select
+                          value={formData.countryRef}
+                          onValueChange={value => setFormData({ ...formData, countryRef: value })}
+                          disabled={catalogsLoading}
+                        >
+                          <SelectTrigger id="countryRef" data-testid="home-country-select">
+                            <SelectValue placeholder="Select home country" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {countries.map(country => (
+                              <SelectItem
+                                key={country.id}
+                                value={country.id}
+                                data-testid={`country-option-${country.code}`}
+                              >
+                                {country.value} ({country.code})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Special Settings */}
+                  <div className="gba:mb-6">
+                    <h4 className="gba:text-lg gba:font-semibold gba:mb-6 gba:pb-2 gba:border-b gba:border-border">
+                      Special Setting
+                    </h4>
+
+                    <div className="gba:space-y-4">
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <NWSwitch
+                          id="austrianAbroad"
+                          data-testid="austrian-abroad-checkbox"
+                          checked={formData.austrianAbroad}
+                          onCheckedChange={checked => {
+                            if (checked) {
+                              setFormData({ ...formData, austrianAbroad: true, romanianCalculation: false })
+                            } else {
+                              setFormData({ ...formData, austrianAbroad: false })
+                            }
+                          }}
+                        />
+                        <Label htmlFor="austrianAbroad">Austrian Calculation</Label>
+                      </div>
+
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <NWSwitch
+                          id="romanianCalculation"
+                          data-testid="romanian-calculation-checkbox"
+                          checked={formData.romanianCalculation}
+                          onCheckedChange={checked => {
+                            if (checked) {
+                              setFormData({ ...formData, romanianCalculation: true, austrianAbroad: false })
+                            } else {
+                              setFormData({ ...formData, romanianCalculation: false })
+                            }
+                          }}
+                        />
+                        <Label htmlFor="romanianCalculation">Romanian Calculation</Label>
+                      </div>
+
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <NWSwitch
+                          id="useLastCountry"
+                          data-testid="use-last-country-checkbox"
+                          checked={formData.useLastCountry}
+                          onCheckedChange={checked => setFormData({ ...formData, useLastCountry: checked })}
+                        />
+                        <Label htmlFor="useLastCountry">Use Last Country</Label>
+                      </div>
+
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <NWSwitch
+                          id="deductionLimit"
+                          data-testid="deduction-limit-checkbox"
+                          checked={formData.deductionLimit}
+                          onCheckedChange={checked => setFormData({ ...formData, deductionLimit: checked })}
+                        />
+                        <Label htmlFor="deductionLimit">Deduction Limit</Label>
+                      </div>
+
+                      <div className="gba:flex gba:items-center gba:space-x-2">
+                        <NWSwitch
+                          id="useSingleCurrency"
+                          data-testid="use-single-currency-checkbox"
+                          checked={formData.useSingleCurrency}
+                          onCheckedChange={checked => setFormData({ ...formData, useSingleCurrency: checked })}
+                        />
+                        <Label htmlFor="useSingleCurrency">Use single currency in expense</Label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="gba:flex gba:gap-3 gba:border-t gba:border-border gba:mt-6 gba:pt-6">
+                  <Button onClick={handleSave} disabled={isSaving || !hasChanges} data-testid="save-button">
+                    {isSaving ? (
+                      <>
+                        <Spinner className="gba:mr-2 gba:h-4 gba:w-4" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <PiCheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
+                        Save
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={handleDiscard} disabled={!hasChanges} data-testid="discard-button">
+                    Discard
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="expenses" data-testid="expenses-tab-content">
+            <GeneralExpensesTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+          </TabsContent>
+
+          <TabsContent value="mileage" data-testid="mileage-tab-content">
+            <MileageRulesTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+          </TabsContent>
+
+          <TabsContent value="allowance" data-testid="allowance-tab-content">
+            <div data-testid="allowance-tab-container" className="gba:p-2">
+              <Tabs value={activeSubTab} onValueChange={handleSubTabChange} data-testid="allowance-subtabs">
+                <TabsList className="gba:mb-4">
+                  <TabsTrigger value="allowance-period" data-testid="subtab-allowance-period">
+                    Allowance Period
+                  </TabsTrigger>
+                  <TabsTrigger value="allowance-code" data-testid="subtab-allowance-code">
+                    Allowance Code
+                  </TabsTrigger>
+                  <TabsTrigger value="allowance-setup" data-testid="subtab-allowance-setup">
+                    Allowance Setup
+                  </TabsTrigger>
+                  <TabsTrigger value="allowance-deduction" data-testid="subtab-allowance-deduction">
+                    Allowance Deduction
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="allowance-period">
+                  <AllowancePeriodTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                </TabsContent>
+
+                <TabsContent value="allowance-code">
+                  <AllowanceCodeTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                </TabsContent>
+
+                <TabsContent value="allowance-setup">
+                  <AllowanceSetupTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                </TabsContent>
+
+                <TabsContent value="allowance-deduction">
+                  <DeductionTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="other-calculation" data-testid="other-calculation-tab-content">
+            <OtherCalculationTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+          </TabsContent>
+
+          <TabsContent value="custom-fields" data-testid="custom-fields-tab-content">
+            <CustomFieldsTab ruleId={ruleId} accessToken={accessToken} activeFrom={ruleDetails.activeFrom} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default CalculationRuleRecord; 
+export default CalculationRuleRecord

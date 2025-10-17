@@ -39,18 +39,13 @@ import { useMileageRuleOperations } from '../../hooks/useMileageRuleOperations'
 import { MileageRuleForm, MileageRuleFormData } from '../../forms/mileage-rule-form'
 import MileageRuleDetails from './MileageRuleDetails'
 import MileageRulesPagination from './MileageRulesPagination'
+import DeleteMileageRuleDialog from './DeleteMileageRuleDialog'
 import TimePeriodFilter from './filters/TimePeriodFilter'
 import RulePeriodFilter from './filters/RulePeriodFilter'
 import { MileageRulePeriod } from '../../types/ExpenseEnums'
 import { PiPlus, PiPencil, PiTrash } from 'react-icons/pi'
 import { Lightning } from '@phosphor-icons/react'
-
-// Custom toast implementation until design system provides one
-const toast = ({ title, description, variant }: { title: string; description: string; variant?: string }) => {
-  const style = variant === 'destructive' ? 'color: red' : 'color: green'
-  console.log(`%c${title}: ${description}`, style)
-  // TODO: Replace with proper toast implementation when available in design system
-}
+import { toast, Toaster } from 'sonner'
 
 // Re-export the enhanced interface for external use
 export type { EnhancedMileageRule as MileageRule }
@@ -81,6 +76,11 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false)
   const [isEditModalVisible, setIsEditModalVisible] = useState(false)
   const [editingRule, setEditingRule] = useState<EnhancedMileageRule | null>(null)
+
+  // Delete modal state management
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false)
+  const [deletingRule, setDeletingRule] = useState<EnhancedMileageRule | null>(null)
+  const [deleteBlocked, setDeleteBlocked] = useState(false)
 
   // Drawer state management
   const [isDetailsDrawerVisible, setIsDetailsDrawerVisible] = useState(false)
@@ -114,20 +114,13 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
   const handleCreateSubmit = async (formData: MileageRuleFormData) => {
     try {
       const result = await createMileageRule(formData)
-      toast({
-        title: 'Success',
-        description: 'Mileage rule created successfully'
-      })
+      toast.success('Mileage rule created successfully')
       setIsCreateModalVisible(false)
       refetch({})
       return result // ✅ Return the response so the form can capture the new rule ID
     } catch (error) {
       console.error('Error creating rule:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to create mileage rule',
-        variant: 'destructive'
-      })
+      toast.error('Failed to create mileage rule')
       throw error // Re-throw so the form knows it failed
     }
   }
@@ -136,21 +129,15 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
     try {
       if (!editingRule) return
       const result = await updateMileageRule(editingRule.id, formData)
-      toast({
-        title: 'Success',
-        description: 'Mileage rule updated successfully'
-      })
+      toast.success('Mileage rule updated successfully')
       setIsEditModalVisible(false)
       setEditingRule(null)
       refetch({})
       return result // ✅ Return the response
     } catch (error) {
       console.error('Error updating rule:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to update mileage rule',
-        variant: 'destructive'
-      })
+      toast.error('Failed to update mileage rule')
+      throw error
     }
   }
 
@@ -166,13 +153,28 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
   }
 
   const handleDeleteRule = (rule: EnhancedMileageRule) => {
-    // TODO: Implement delete confirmation dialog
-    console.log('Delete rule:', rule)
-    toast({
-      title: 'Info',
-      description: 'Delete functionality not yet implemented',
-      variant: 'destructive'
-    })
+    setDeletingRule(rule)
+    // Check if rule is being used in any calculation rules
+    // For now, we'll allow deletion (set blocked to false)
+    // TODO: Add actual check for rule usage
+    setDeleteBlocked(false)
+    setIsDeleteModalVisible(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingRule) return
+
+    try {
+      await deleteMileageRule(deletingRule.id, deletingRule.version)
+      toast.success('Mileage rule deleted successfully')
+      setIsDeleteModalVisible(false)
+      setDeletingRule(null)
+      refetch({})
+    } catch (error) {
+      console.error('Error deleting rule:', error)
+      toast.error('Failed to delete mileage rule')
+      setIsDeleteModalVisible(false)
+    }
   }
 
   // Use the GraphQL integration hook
@@ -182,7 +184,10 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
   })
 
   // Use the API integration hook for CRUD operations
-  const { createMileageRule, updateMileageRule } = useMileageRuleOperations({ ...context, accessToken })
+  const { createMileageRule, updateMileageRule, deleteMileageRule } = useMileageRuleOperations({
+    ...context,
+    accessToken
+  })
 
   // Single unified useEffect for all filtering (search + filters)
   useEffect(() => {
@@ -303,6 +308,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
 
   return (
     <div data-testid={`${PREFIX}-app`} className="gba:p-6">
+      <Toaster />
       <DataContainer
         dataControllerProps={dataControllerProps}
         dataFilterProps={{
@@ -604,17 +610,6 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                 }))
               }
 
-              // DEBUG: Log what we're passing to the form
-              console.log('🐛 EditingRule initial data:', {
-                ruleId: initialData.id,
-                ruleVersion: initialData.version,
-                ruleCode: initialData.code,
-                detailsWithVersions: initialData.details.map(d => ({
-                  id: d.id,
-                  version: d.version
-                }))
-              })
-
               return (
                 <MileageRuleForm
                   accessToken={accessToken}
@@ -626,6 +621,19 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
             })()}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Mileage Rule Dialog */}
+      <DeleteMileageRuleDialog
+        open={isDeleteModalVisible}
+        onOpenChange={(open: boolean) => {
+          setIsDeleteModalVisible(open)
+          if (!open) {
+            setDeletingRule(null)
+          }
+        }}
+        blocked={deleteBlocked}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

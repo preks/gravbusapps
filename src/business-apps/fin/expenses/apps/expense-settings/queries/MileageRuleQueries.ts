@@ -67,14 +67,11 @@ export const GET_MILEAGE_RULES = (variables: MileageRuleQueryVariables): string 
   // Add search conditions (OR logic across code, name, and rulePeriod)
   if (search && search.trim()) {
     const searchTerm = search.trim().replace(/"/g, '\\"')
-    console.log('🔍 Adding search condition:', searchTerm)
     andConditions.push(`_or: [
       { code: { _ilike: "%${searchTerm}%" } }
       { name: { _ilike: "%${searchTerm}%" } }
       { rulePeriod: { _ilike: "%${searchTerm}%" } }
     ]`)
-  } else {
-    console.log('⚪ No search term - empty WHERE condition for search')
   }
 
   // Add status filter

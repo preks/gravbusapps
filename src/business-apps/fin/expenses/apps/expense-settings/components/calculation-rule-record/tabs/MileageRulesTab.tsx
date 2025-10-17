@@ -553,6 +553,11 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         }}
         scroll={{ x: 600 }}
         data-testid="mileage-rules-table"
+        onRow={record =>
+          ({
+            'data-testid': `mileage-rules-table-row-${record.id}`
+          }) as any
+        }
       />
 
       {/* Add/Edit Modal */}
@@ -564,25 +569,33 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
         confirmLoading={isSaving}
         width={600}
         data-testid="mileage-rule-modal"
+        okButtonProps={{ 'data-testid': 'mileage-rule-modal-ok-button' } as any}
+        cancelButtonProps={{ 'data-testid': 'mileage-rule-modal-cancel-button' } as any}
       >
         <Form form={form} layout="vertical" data-testid="mileage-rule-form">
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <Form.Item name="code" label="Code" rules={[{ required: true, message: 'Please enter a code' }]}>
-              <Input placeholder="Enter mileage code" />
+              <Input placeholder="Enter mileage code" data-testid="mileage-rule-code-input" />
             </Form.Item>
 
             <Form.Item name="name" label="Name" rules={[{ required: true, message: 'Please enter a name' }]}>
-              <Input placeholder="Enter mileage name" />
+              <Input placeholder="Enter mileage name" data-testid="mileage-rule-name-input" />
             </Form.Item>
           </div>
 
           <div className="gba:grid gba:grid-cols-3 gba:gap-4">
             <Form.Item name="reimbursable" label="Reimbursable" valuePropName="checked">
-              <Switch />
+              <Switch data-testid="mileage-rule-reimbursable-switch" />
             </Form.Item>
 
             <Form.Item name="unitPrice" label="Unit Price">
-              <InputNumber min={0} step={0.01} style={{ width: '100%' }} placeholder="0.00" />
+              <InputNumber
+                min={0}
+                step={0.01}
+                style={{ width: '100%' }}
+                placeholder="0.00"
+                data-testid="mileage-rule-unit-price-input"
+              />
             </Form.Item>
           </div>
 
@@ -594,6 +607,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                 optionFilterProp="children"
                 loading={catalogsLoading}
                 disabled={catalogsLoading}
+                data-testid="mileage-rule-tax-code-select"
               >
                 {taxCodes.map(taxCode => (
                   <Option key={taxCode.id} value={taxCode.id}>
@@ -611,13 +625,14 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                 style={{ width: '100%' }}
                 formatter={value => `${value}%`}
                 parser={value => value?.replace('%', '') as any}
+                data-testid="mileage-rule-tax-value-input"
               />
             </Form.Item>
           </div>
 
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <Form.Item name="expenseGroupRef" label="Expense Group">
-              <Select placeholder="Select expense group">
+              <Select placeholder="Select expense group" data-testid="mileage-rule-expense-group-select">
                 {expenseGroupOptions.map(option => (
                   <Option key={option.value} value={option.value}>
                     {option.label}
@@ -627,7 +642,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
             </Form.Item>
 
             <Form.Item name="measurementUnitRef" label="Measurement Unit">
-              <Select placeholder="Select measurement unit">
+              <Select placeholder="Select measurement unit" data-testid="mileage-rule-measurement-unit-select">
                 {measurementUnitOptions.map(option => (
                   <Option key={option.value} value={option.value}>
                     {option.label}
@@ -643,16 +658,16 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
               label="Valid From"
               rules={[{ required: true, message: 'Please select start date' }]}
             >
-              <DatePicker style={{ width: '100%' }} />
+              <DatePicker style={{ width: '100%' }} data-testid="mileage-rule-active-from-picker" />
             </Form.Item>
 
             <Form.Item name="activeTo" label="Valid To">
-              <DatePicker style={{ width: '100%' }} />
+              <DatePicker style={{ width: '100%' }} data-testid="mileage-rule-active-to-picker" />
             </Form.Item>
           </div>
 
           <Form.Item name="wageCode" label="Wage Code">
-            <Input placeholder="Enter wage code (optional)" />
+            <Input placeholder="Enter wage code (optional)" data-testid="mileage-rule-wage-code-input" />
           </Form.Item>
         </Form>
       </Modal>

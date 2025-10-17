@@ -1,93 +1,109 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Table, 
-  Button, 
-  Space, 
-  Alert, 
-  Spin, 
-  Tag, 
-  Modal, 
-  Form, 
-  Input, 
-  Select, 
-  Switch, 
-  DatePicker, 
-  message, 
-  Popconfirm,
-  Tooltip,
-  Card
-} from 'antd';
-import { 
-  PiPlus, 
-  PiPencil, 
-  PiTrash, 
-  PiCalendar,
-  PiCode,
-  PiDatabase
-} from 'react-icons/pi';
-import type { ColumnsType } from 'antd/es/table';
-import dayjs from 'dayjs';
-import weekday from 'dayjs/plugin/weekday';
-import localeData from 'dayjs/plugin/localeData';
+import React, { useState, useEffect, useCallback } from 'react'
+import {
+  Button,
+  Badge,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Alert,
+  AlertDescription,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  Input,
+  Label,
+  Spinner,
+  Toaster,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch as NWSwitch
+} from '@newwork/nw-design-system'
+import { PiPlus, PiPencil, PiCalendar, PiCode, PiDatabase } from 'react-icons/pi'
+import { toast } from 'sonner'
+import dayjs from 'dayjs'
+import weekday from 'dayjs/plugin/weekday'
+import localeData from 'dayjs/plugin/localeData'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 // Register dayjs plugins
-dayjs.extend(weekday);
-dayjs.extend(localeData);
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
+dayjs.extend(weekday)
+dayjs.extend(localeData)
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 
 interface CustomFieldsTabProps {
-  ruleId: string;
-  accessToken: string;
-  activeFrom: string;
+  ruleId: string
+  accessToken: string
+  activeFrom: string
 }
 
 interface CustomField {
-  id: string;
-  source: string; // derived from related entity
-  code: string; // from related entity
-  name: string; // from related entity
-  valueType: string; // approximated or default
-  mandatory: boolean;
-  validFrom: string;
-  validTo?: string;
-  infoValue: string; // the actual value/description
-  version?: number;
-  isDeleted: boolean;
-  relatedEntity: string; // general or mileage
+  id: string
+  source: string // derived from related entity
+  code: string // from related entity
+  name: string // from related entity
+  valueType: string // approximated or default
+  mandatory: boolean
+  validFrom: string
+  validTo?: string
+  infoValue: string // the actual value/description
+  version?: number
+  isDeleted: boolean
+  relatedEntity: string // general or mileage
 }
 
 interface CustomFieldFormData {
-  id?: string;
-  source: string;
-  code: string;
-  name: string;
-  valueType: string;
-  mandatory: boolean;
-  validFrom: string;
-  validTo?: string;
-  infoValue: string;
-  version?: number;
+  id?: string
+  source: string
+  code: string
+  name: string
+  valueType: string
+  mandatory: boolean
+  validFrom: string
+  validTo?: string
+  infoValue: string
+  version?: number
 }
 
-const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
-  ruleId,
-  accessToken,
-  activeFrom
-}) => {
-  const [customFields, setCustomFields] = useState<CustomField[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editingItem, setEditingItem] = useState<CustomField | null>(null);
-  const [form] = Form.useForm();
-  const graphqlClient = useGraphQLClient(accessToken);
+const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, activeFrom }) => {
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  const [customFields, setCustomFields] = useState<CustomField[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isModalVisible, setIsModalVisible] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editingItem, setEditingItem] = useState<CustomField | null>(null)
+  const [formData, setFormData] = useState<CustomFieldFormData>({
+    source: 'Manual Entry',
+    code: '',
+    name: '',
+    valueType: 'STRING',
+    mandatory: false,
+    validFrom: activeFrom,
+    infoValue: ''
+  })
+
+  // Set up client
+  expenseSettingsClient.setAccessToken(accessToken)
 
   // REAL GraphQL data from ExpenseRuleOtherInfo
   const fetchCustomFields = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    
+    setIsLoading(true)
+    setError(null)
+
     try {
       const query = `
         query GetExpenseRuleOtherInfo($ruleId: uuid!) {
@@ -117,47 +133,44 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
             }
           }
         }
-      `;
-      
-      const result = await graphqlClient.request<{ ExpenseRule: { expenseRuleOtherInfo: any[] }[] }>(
-        query, 
-        { ruleId }
-      );
-      
-      const expenseRule = result.ExpenseRule?.[0];
-      const otherInfos = expenseRule?.expenseRuleOtherInfo || [];
-      
+      `
+
+      const result = await graphqlClient.request<{ ExpenseRule: { expenseRuleOtherInfo: any[] }[] }>(query, { ruleId })
+
+      const expenseRule = result.ExpenseRule?.[0]
+      const otherInfos = expenseRule?.expenseRuleOtherInfo || []
+
       const transformedFields: CustomField[] = otherInfos.map((info: any) => {
         // Determine source and get code/name from related entity
-        let source = 'Manual Entry';
-        let code = 'CUSTOM_FIELD';
-        let name = 'Custom Field';
-        let relatedEntity = 'unknown';
-        
+        let source = 'Manual Entry'
+        let code = 'CUSTOM_FIELD'
+        let name = 'Custom Field'
+        let relatedEntity = 'unknown'
+
         if (info.expenseRuleGeneralExpense) {
-          source = 'General Expense System';
-          code = info.expenseRuleGeneralExpense.code;
-          name = info.expenseRuleGeneralExpense.name;
-          relatedEntity = 'general';
+          source = 'General Expense System'
+          code = info.expenseRuleGeneralExpense.code
+          name = info.expenseRuleGeneralExpense.name
+          relatedEntity = 'general'
         } else if (info.expenseRuleMileage) {
-          source = 'Mileage System';
-          code = info.expenseRuleMileage.code;
-          name = info.expenseRuleMileage.name;
-          relatedEntity = 'mileage';
+          source = 'Mileage System'
+          code = info.expenseRuleMileage.code
+          name = info.expenseRuleMileage.name
+          relatedEntity = 'mileage'
         }
-        
+
         // Determine value type based on infoValue content (simple heuristic)
-        let valueType = 'STRING'; // default
+        let valueType = 'STRING' // default
         if (info.infoValue) {
           if (!isNaN(Number(info.infoValue))) {
-            valueType = 'NUMBER';
+            valueType = 'NUMBER'
           } else if (info.infoValue.toLowerCase() === 'true' || info.infoValue.toLowerCase() === 'false') {
-            valueType = 'BOOLEAN';
+            valueType = 'BOOLEAN'
           } else if (info.infoValue.includes('/') && info.infoValue.length === 10) {
-            valueType = 'DATE';
+            valueType = 'DATE'
           }
         }
-        
+
         return {
           id: info.id,
           source,
@@ -171,26 +184,26 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
           version: info.version || 1,
           isDeleted: false,
           relatedEntity
-        };
-      });
-      
-      setCustomFields(transformedFields);
+        }
+      })
+
+      setCustomFields(transformedFields)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load custom fields');
+      setError(err instanceof Error ? err.message : 'Failed to load custom fields')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [ruleId, graphqlClient]);
+  }, [ruleId, graphqlClient])
 
   useEffect(() => {
     if (ruleId && accessToken) {
-      fetchCustomFields();
+      fetchCustomFields()
     }
-  }, [ruleId, accessToken, fetchCustomFields]);
+  }, [ruleId, accessToken, fetchCustomFields])
 
   const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY');
-  };
+    return dayjs(dateString).format('DD/MM/YYYY')
+  }
 
   const valueTypeOptions = [
     { value: 'STRING', label: 'String' },
@@ -199,7 +212,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
     { value: 'DATE', label: 'Date' },
     { value: 'ENUM', label: 'Enumeration' },
     { value: 'JSON', label: 'JSON Object' }
-  ];
+  ]
 
   const sourceOptions = [
     { value: 'Manual Entry', label: 'Manual Entry' },
@@ -207,71 +220,54 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
     { value: 'HR System', label: 'HR System' },
     { value: 'Finance System', label: 'Finance System' },
     { value: 'Time Tracking', label: 'Time Tracking' }
-  ];
+  ]
 
   const handleAdd = () => {
-    setEditingItem(null);
-    form.resetFields();
-    form.setFieldsValue({
+    setEditingItem(null)
+    setFormData({
       source: 'Manual Entry',
+      code: '',
+      name: '',
       valueType: 'STRING',
       mandatory: false,
-      validFrom: dayjs(activeFrom)
-    });
-    setIsModalVisible(true);
-  };
+      validFrom: activeFrom,
+      infoValue: ''
+    })
+    setIsModalVisible(true)
+  }
 
   const handleEdit = async (record: CustomField) => {
-    // ✅ FIX: Fetch fresh data instead of relying on potentially stale list data
-    setEditingItem(record);
-    setIsModalVisible(true);
-    
-    try {
-      setIsSaving(true);
-      // TODO: In a real implementation, fetch fresh data for this specific item:
-      // const freshData = await expenseSettingsClient.getExpenseRuleOtherInfoById(record.id);
-      
-      // For now, use the existing record data but with explicit refresh pattern
-      const freshData = record;
-      
-      form.setFieldsValue({
-        ...freshData,
-        validFrom: dayjs(freshData.validFrom),
-        validTo: freshData.validTo ? dayjs(freshData.validTo) : undefined
-      });
-    } catch (err) {
-      message.error('Failed to load latest data for editing');
-      console.error('Edit load error:', err);
-      setIsModalVisible(false);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+    setEditingItem(record)
 
-  const handleDelete = async (record: CustomField) => {
     try {
-      setIsSaving(true);
-      await expenseSettingsClient.deleteExpenseRuleOtherInfo(record.id);
-      message.success('Custom field deleted successfully');
-      await fetchCustomFields();
+      // Use the existing record data to populate the form
+      const freshData = record
+
+      setFormData({
+        id: freshData.id,
+        source: freshData.source,
+        code: freshData.code,
+        name: freshData.name,
+        valueType: freshData.valueType,
+        mandatory: freshData.mandatory,
+        validFrom: freshData.validFrom,
+        validTo: freshData.validTo,
+        infoValue: freshData.infoValue,
+        version: freshData.version
+      })
+
+      setIsModalVisible(true)
     } catch (err) {
-      message.error('Failed to delete custom field');
-      console.error('Delete error:', err);
-    } finally {
-      setIsSaving(false);
+      toast.error('Failed to load latest data for editing')
+      console.error('Edit load error:', err)
     }
-  };
+  }
+
+  // Note: Delete actions are now handled through AppActionButton's context flow
 
   const handleSave = async () => {
     try {
-      setIsSaving(true);
-      const values = await form.validateFields();
-      
-      const formData: CustomFieldFormData = {
-        ...values,
-        validFrom: values.validFrom.toISOString(),
-        validTo: values.validTo ? values.validTo.toISOString() : undefined
-      };
+      setIsSaving(true)
 
       const payload = {
         ...(editingItem && { id: editingItem.id, version: editingItem.version }),
@@ -286,311 +282,394 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({
         // association optional; based on code/name we cannot infer IDs; keep undefined
         expenseRuleMileageId: undefined,
         expenseRuleGeneralExpenseId: undefined
-      };
-      await expenseSettingsClient.saveExpenseRuleOtherInfo(payload);
-
-      message.success(`Custom field ${editingItem ? 'updated' : 'created'} successfully`);
-      setIsModalVisible(false);
-      await fetchCustomFields();
-    } catch (err) {
-      message.error(`Failed to ${editingItem ? 'update' : 'create'} custom field`);
-      console.error('Save error:', err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const columns: ColumnsType<CustomField> = [
-    {
-      title: 'Source',
-      dataIndex: 'source',
-      key: 'source',
-      width: 130,
-      render: (source) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiDatabase className="gba:text-blue-500" />
-          <Tag color="blue">{source}</Tag>
-        </div>
-      )
-    },
-    {
-      title: 'Code & Name',
-      key: 'codeAndName',
-      width: 200,
-      render: (_, record) => (
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <PiCode className="gba:text-gray-400" />
-          <div>
-            <div className="gba:font-mono gba:font-medium gba:text-sm">
-              {record.code}
-            </div>
-            <div className="gba:text-gray-600 gba:text-xs">
-              {record.name}
-            </div>
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Value',
-      dataIndex: 'infoValue',
-      key: 'infoValue',
-      width: 150,
-      render: (infoValue) => (
-        <span className="gba:text-sm gba:text-gray-700 gba:font-medium">
-          {infoValue || '-'}
-        </span>
-      )
-    },
-    {
-      title: 'Value Type',
-      dataIndex: 'valueType',
-      key: 'valueType',
-      width: 120,
-      render: (valueType) => {
-        const colors = {
-          STRING: 'green',
-          NUMBER: 'blue',
-          BOOLEAN: 'orange',
-          DATE: 'purple',
-          ENUM: 'cyan',
-          JSON: 'red'
-        };
-        return <Tag color={colors[valueType as keyof typeof colors] || 'default'}>{valueType}</Tag>;
       }
-    },
-    {
-      title: 'Mandatory',
-      dataIndex: 'mandatory',
-      key: 'mandatory',
-      width: 100,
-      align: 'center',
-      render: (mandatory) => (
-        <Tag color={mandatory ? 'red' : 'green'}>
-          {mandatory ? 'Required' : 'Optional'}
-        </Tag>
-      )
-    },
-    {
-      title: 'Validity',
-      key: 'validity',
-      width: 180,
-      render: (_, record) => (
-        <div className="gba:flex gba:items-center gba:gap-1">
-          <PiCalendar className="gba:text-gray-400" />
-          <span className="gba:text-sm">
-            {formatDate(record.validFrom)} - {record.validTo ? formatDate(record.validTo) : '∞'}
-          </span>
-        </div>
-      )
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      width: 100,
-      render: (_, record) => (
-        <Space size="small">
-          <Tooltip title="Edit custom field">
-            <Button
-              type="text"
-              size="small"
-              icon={<PiPencil />}
-              onClick={() => handleEdit(record)}
-              data-testid={`edit-custom-field-${record.id}`}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Delete custom field"
-            description="Are you sure you want to delete this custom field?"
-            onConfirm={() => handleDelete(record)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Tooltip title="Delete custom field">
-              <Button
-                type="text"
-                size="small"
-                icon={<PiTrash />}
-                danger
-                loading={isSaving}
-                data-testid={`delete-custom-field-${record.id}`}
-              />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      )
+      await expenseSettingsClient.saveExpenseRuleOtherInfo(payload)
+
+      toast.success(`Custom field ${editingItem ? 'updated' : 'created'} successfully`)
+      setIsModalVisible(false)
+      await fetchCustomFields()
+    } catch (err) {
+      toast.error(`Failed to ${editingItem ? 'update' : 'create'} custom field`)
+      console.error('Save error:', err)
+    } finally {
+      setIsSaving(false)
     }
-  ];
+  }
+
+  // Removed Ant Design columns definition - using NW design system Table now
 
   if (isLoading) {
     return (
-      <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
-        <Spin size="large" />
+      <div
+        data-testid="custom-fields-tab-loading"
+        className="gba:flex gba:justify-center gba:items-center gba:min-h-64"
+      >
+        <Spinner className="gba:w-8 gba:h-8" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Custom Fields"
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={fetchCustomFields}>
-            Retry
-          </Button>
-        }
-      />
-    );
+      <Alert variant="destructive" data-testid="custom-fields-tab-error">
+        <AlertDescription>
+          <div className="gba:flex gba:items-start gba:justify-between">
+            <div>
+              <strong>Error Loading Custom Fields</strong>
+              <p className="gba:mt-1">{error}</p>
+            </div>
+            <Button size="sm" onClick={fetchCustomFields} variant="outline">
+              Retry
+            </Button>
+          </div>
+        </AlertDescription>
+      </Alert>
+    )
   }
 
   return (
-    <Card data-testid="custom-fields-tab">
-      <div className="gba:flex gba:justify-between gba:items-center gba:mb-4">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <h4 className="gba:text-lg gba:font-semibold gba:m-0">Custom Fields</h4>
-          <Tag color="blue">{customFields.length} fields</Tag>
-        </div>
-        <Button
-          type="primary"
-          icon={<PiPlus />}
-          onClick={handleAdd}
-          data-testid="add-custom-field-button"
-        >
-          Add Custom Field
-        </Button>
-      </div>
+    <div data-testid="custom-fields-tab">
+      <Toaster />
 
-      <Table
-        columns={columns}
-        dataSource={customFields}
-        rowKey="id"
-        loading={isLoading}
-        pagination={{
-          pageSize: 10,
-          showSizeChanger: true,
-          showQuickJumper: true,
-          showTotal: (total, range) => 
-            `${range[0]}-${range[1]} of ${total} custom fields`,
-        }}
-        scroll={{ x: 800 }}
-        data-testid="custom-fields-table"
-      />
+      <Card data-testid="custom-fields-card">
+        <CardHeader data-testid="custom-fields-card-header">
+          <div className="gba:flex gba:justify-between gba:items-center">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <CardTitle data-testid="custom-fields-card-title">Custom Fields</CardTitle>
+              <Badge variant="default" data-testid="custom-fields-count-badge">
+                {customFields.length} fields
+              </Badge>
+            </div>
+            <Button onClick={handleAdd} data-testid="add-custom-field-button">
+              <PiPlus className="gba:mr-2" />
+              Add Custom Field
+            </Button>
+          </div>
+        </CardHeader>
 
-      <Modal
-        title={editingItem ? 'Edit Custom Field' : 'Add Custom Field'}
-        open={isModalVisible}
-        onOk={handleSave}
-        onCancel={() => setIsModalVisible(false)}
-        confirmLoading={isSaving}
-        width={600}
-        data-testid="custom-field-modal"
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          data-testid="custom-field-form"
-        >
-          <Form.Item
-            name="source"
-            label="Source"
-            rules={[{ required: true, message: 'Please select a source' }]}
-          >
-            <Select 
-              placeholder="Select source"
-              options={sourceOptions}
-              data-testid="custom-field-source-select"
-            />
-          </Form.Item>
+        <CardContent data-testid="custom-fields-card-content">
+          {customFields.length > 0 ? (
+            <Table data-testid="custom-fields-table">
+              <TableHeader data-testid="custom-fields-table-header">
+                <TableRow data-testid="custom-fields-table-header-row">
+                  <TableHead className="gba:w-[60px]" data-testid="custom-fields-table-header-actions">
+                    ACTIONS
+                  </TableHead>
+                  <TableHead className="gba:w-[130px]" data-testid="custom-fields-table-header-source">
+                    SOURCE
+                  </TableHead>
+                  <TableHead className="gba:w-[200px]" data-testid="custom-fields-table-header-code-name">
+                    CODE & NAME
+                  </TableHead>
+                  <TableHead className="gba:w-[150px]" data-testid="custom-fields-table-header-value">
+                    VALUE
+                  </TableHead>
+                  <TableHead className="gba:w-[120px]" data-testid="custom-fields-table-header-value-type">
+                    VALUE TYPE
+                  </TableHead>
+                  <TableHead className="gba:w-[100px]" data-testid="custom-fields-table-header-mandatory">
+                    MANDATORY
+                  </TableHead>
+                  <TableHead className="gba:w-[180px]" data-testid="custom-fields-table-header-validity">
+                    VALIDITY
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody data-testid="custom-fields-table-body">
+                {customFields.map(record => (
+                  <TableRow key={record.id} data-testid={`custom-field-row-${record.id}`}>
+                    <TableCell data-testid={`custom-field-actions-cell-${record.id}`}>
+                      <div className="gba:flex gba:justify-start gba:gap-2">
+                        <AppActionButton
+                          data-testid={`custom-field-action-${record.id}`}
+                          size="icon"
+                          contextsArray={[]}
+                          externalContextData={{ customFieldId: record.id }}
+                          prefixDataTestId="custom-field-action"
+                          accessToken={accessToken}
+                          emptyStateBehavior="enable"
+                          deferMainContextRequestsUntilClick
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(record)}
+                          data-testid={`edit-custom-field-${record.id}`}
+                        >
+                          <PiPencil className="gba:h-4 gba:w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
 
-          <Form.Item
-            name="code"
-            label="Code"
-            rules={[
-              { required: true, message: 'Please enter a code' },
-              { pattern: /^[A-Z_][A-Z0-9_]*$/, message: 'Code must be uppercase letters, numbers, and underscores only' }
-            ]}
-          >
-            <Input 
-              placeholder="e.g., PROJECT_CODE"
-              data-testid="custom-field-code-input"
-            />
-          </Form.Item>
+                    <TableCell data-testid={`custom-field-source-cell-${record.id}`}>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiDatabase
+                          className="gba:text-primary"
+                          data-testid={`custom-field-source-icon-${record.id}`}
+                        />
+                        <Badge variant="default" data-testid={`custom-field-source-badge-${record.id}`}>
+                          {record.source}
+                        </Badge>
+                      </div>
+                    </TableCell>
 
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, message: 'Please enter a name' }]}
-          >
-            <Input 
-              placeholder="e.g., Project Code"
-              data-testid="custom-field-name-input"
-            />
-          </Form.Item>
+                    <TableCell data-testid={`custom-field-code-name-cell-${record.id}`}>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <PiCode
+                          className="gba:text-muted-foreground"
+                          data-testid={`custom-field-code-icon-${record.id}`}
+                        />
+                        <div>
+                          <div
+                            className="gba:font-mono gba:font-medium gba:text-sm"
+                            data-testid={`custom-field-code-text-${record.id}`}
+                          >
+                            {record.code}
+                          </div>
+                          <div
+                            className="gba:text-muted-foreground gba:text-xs"
+                            data-testid={`custom-field-name-text-${record.id}`}
+                          >
+                            {record.name}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
 
-          <Form.Item
-            name="infoValue"
-            label="Value/Description"
-            rules={[{ required: true, message: 'Please enter a value or description' }]}
-          >
-            <Input 
-              placeholder="e.g., License Plate"
-              data-testid="custom-field-info-value-input"
-            />
-          </Form.Item>
+                    <TableCell data-testid={`custom-field-value-cell-${record.id}`}>
+                      <span
+                        className="gba:text-sm gba:font-medium"
+                        data-testid={`custom-field-value-text-${record.id}`}
+                      >
+                        {record.infoValue || '-'}
+                      </span>
+                    </TableCell>
 
-          <Form.Item
-            name="valueType"
-            label="Value Type"
-            rules={[{ required: true, message: 'Please select a value type' }]}
-          >
-            <Select 
-              placeholder="Select value type"
-              options={valueTypeOptions}
-              data-testid="custom-field-value-type-select"
-            />
-          </Form.Item>
+                    <TableCell data-testid={`custom-field-value-type-cell-${record.id}`}>
+                      <Badge
+                        variant={
+                          record.valueType === 'STRING'
+                            ? 'default'
+                            : record.valueType === 'NUMBER'
+                              ? 'default'
+                              : record.valueType === 'BOOLEAN'
+                                ? 'default'
+                                : 'default'
+                        }
+                        data-testid={`custom-field-value-type-badge-${record.id}`}
+                      >
+                        {record.valueType}
+                      </Badge>
+                    </TableCell>
 
-          <Form.Item
-            name="mandatory"
-            label="Mandatory"
-            valuePropName="checked"
-          >
-            <Switch 
-              checkedChildren="Required" 
-              unCheckedChildren="Optional"
-              data-testid="custom-field-mandatory-switch"
-            />
-          </Form.Item>
+                    <TableCell data-testid={`custom-field-mandatory-cell-${record.id}`}>
+                      <Badge
+                        variant={record.mandatory ? 'destructive' : 'default'}
+                        data-testid={`custom-field-mandatory-badge-${record.id}`}
+                      >
+                        {record.mandatory ? 'Required' : 'Optional'}
+                      </Badge>
+                    </TableCell>
 
-          <Form.Item
-            name="validFrom"
-            label="Valid From"
-            rules={[{ required: true, message: 'Please select a valid from date' }]}
-          >
-            <DatePicker 
-              style={{ width: '100%' }}
-              format="DD/MM/YYYY"
-              data-testid="custom-field-valid-from-picker"
-            />
-          </Form.Item>
+                    <TableCell data-testid={`custom-field-validity-cell-${record.id}`}>
+                      <div className="gba:flex gba:items-center gba:gap-1">
+                        <PiCalendar
+                          className="gba:text-muted-foreground"
+                          data-testid={`custom-field-validity-icon-${record.id}`}
+                        />
+                        <span className="gba:text-sm" data-testid={`custom-field-validity-text-${record.id}`}>
+                          {formatDate(record.validFrom)} - {record.validTo ? formatDate(record.validTo) : '∞'}
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="gba:text-center gba:py-8 gba:text-muted-foreground" data-testid="custom-fields-empty-state">
+              <p className="gba:m-0" data-testid="custom-fields-empty-message">
+                No custom fields configured
+              </p>
+              <p className="gba:text-xs gba:mt-1" data-testid="custom-fields-empty-hint">
+                Click "Add Custom Field" to create your first custom field
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-          <Form.Item
-            name="validTo"
-            label="Valid To"
-          >
-            <DatePicker 
-              style={{ width: '100%' }}
-              format="DD/MM/YYYY"
-              data-testid="custom-field-valid-to-picker"
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </Card>
-  );
-};
+      {/* Add/Edit Dialog */}
+      <Dialog open={isModalVisible} onOpenChange={setIsModalVisible}>
+        <DialogContent className="gba:max-w-2xl" data-testid="custom-field-modal">
+          <DialogHeader data-testid="custom-field-modal-header">
+            <DialogTitle data-testid="custom-field-modal-title">
+              {editingItem ? 'Edit' : 'Add'} Custom Field
+            </DialogTitle>
+          </DialogHeader>
 
-export default CustomFieldsTab; 
+          <div data-testid="custom-field-form" className="gba:space-y-4">
+            {/* Source */}
+            <div className="gba:space-y-2" data-testid="custom-field-source-field">
+              <Label htmlFor="source" data-testid="custom-field-source-label">
+                Source *
+              </Label>
+              <Select value={formData.source} onValueChange={value => setFormData({ ...formData, source: value })}>
+                <SelectTrigger id="source" data-testid="custom-field-source-select">
+                  <SelectValue placeholder="Select source" />
+                </SelectTrigger>
+                <SelectContent data-testid="custom-field-source-options">
+                  {sourceOptions.map(option => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      data-testid={`custom-field-source-option-${option.value}`}
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Code */}
+            <div className="gba:space-y-2" data-testid="custom-field-code-field">
+              <Label htmlFor="code" data-testid="custom-field-code-label">
+                Code *
+              </Label>
+              <Input
+                id="code"
+                placeholder="e.g., PROJECT_CODE"
+                value={formData.code}
+                onChange={e => setFormData({ ...formData, code: e.target.value })}
+                data-testid="custom-field-code-input"
+              />
+              <p className="gba:text-xs gba:text-muted-foreground" data-testid="custom-field-code-hint">
+                Must be uppercase letters, numbers, and underscores only
+              </p>
+            </div>
+
+            {/* Name */}
+            <div className="gba:space-y-2" data-testid="custom-field-name-field">
+              <Label htmlFor="name" data-testid="custom-field-name-label">
+                Name *
+              </Label>
+              <Input
+                id="name"
+                placeholder="e.g., Project Code"
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                data-testid="custom-field-name-input"
+              />
+            </div>
+
+            {/* Value/Description */}
+            <div className="gba:space-y-2" data-testid="custom-field-info-value-field">
+              <Label htmlFor="infoValue" data-testid="custom-field-info-value-label">
+                Value/Description *
+              </Label>
+              <Input
+                id="infoValue"
+                placeholder="e.g., License Plate"
+                value={formData.infoValue}
+                onChange={e => setFormData({ ...formData, infoValue: e.target.value })}
+                data-testid="custom-field-info-value-input"
+              />
+            </div>
+
+            {/* Value Type */}
+            <div className="gba:space-y-2" data-testid="custom-field-value-type-field">
+              <Label htmlFor="valueType" data-testid="custom-field-value-type-label">
+                Value Type *
+              </Label>
+              <Select
+                value={formData.valueType}
+                onValueChange={value => setFormData({ ...formData, valueType: value })}
+              >
+                <SelectTrigger id="valueType" data-testid="custom-field-value-type-select">
+                  <SelectValue placeholder="Select value type" />
+                </SelectTrigger>
+                <SelectContent data-testid="custom-field-value-type-options">
+                  {valueTypeOptions.map(option => (
+                    <SelectItem
+                      key={option.value}
+                      value={option.value}
+                      data-testid={`custom-field-value-type-option-${option.value}`}
+                    >
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Mandatory */}
+            <div className="gba:flex gba:items-center gba:justify-between" data-testid="custom-field-mandatory-field">
+              <Label htmlFor="mandatory" data-testid="custom-field-mandatory-label">
+                Mandatory
+              </Label>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <span className="gba:text-sm gba:text-muted-foreground" data-testid="custom-field-mandatory-status">
+                  {formData.mandatory ? 'Required' : 'Optional'}
+                </span>
+                <NWSwitch
+                  id="mandatory"
+                  checked={formData.mandatory}
+                  onCheckedChange={checked => setFormData({ ...formData, mandatory: checked })}
+                  data-testid="custom-field-mandatory-switch"
+                />
+              </div>
+            </div>
+
+            {/* Validity Period */}
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <div className="gba:space-y-2" data-testid="custom-field-valid-from-field">
+                <Label htmlFor="validFrom" data-testid="custom-field-valid-from-label">
+                  Valid From *
+                </Label>
+                <Input
+                  id="validFrom"
+                  type="date"
+                  value={formData.validFrom ? dayjs(formData.validFrom).format('YYYY-MM-DD') : ''}
+                  onChange={e => setFormData({ ...formData, validFrom: e.target.value })}
+                  data-testid="custom-field-valid-from-input"
+                />
+              </div>
+
+              <div className="gba:space-y-2" data-testid="custom-field-valid-to-field">
+                <Label htmlFor="validTo" data-testid="custom-field-valid-to-label">
+                  Valid To
+                </Label>
+                <Input
+                  id="validTo"
+                  type="date"
+                  value={formData.validTo ? dayjs(formData.validTo).format('YYYY-MM-DD') : ''}
+                  onChange={e => setFormData({ ...formData, validTo: e.target.value || undefined })}
+                  data-testid="custom-field-valid-to-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter data-testid="custom-field-modal-footer">
+            <Button
+              variant="outline"
+              onClick={() => setIsModalVisible(false)}
+              disabled={isSaving}
+              data-testid="custom-field-modal-cancel-button"
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving} data-testid="custom-field-modal-save-button">
+              {isSaving ? <Spinner className="gba:w-4 gba:h-4 gba:mr-2" /> : null}
+              {editingItem ? 'Update' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+export default CustomFieldsTab

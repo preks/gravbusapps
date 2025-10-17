@@ -94,10 +94,6 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
           code: item.code
         }))
       )
-
-      console.log(
-        `📦 Loaded ${countriesList.length} countries (alphabetically sorted A-Z). Currencies loaded. Travel regions will load after country selection.`
-      )
     } catch (err) {
       console.error('Error loading catalog data:', err)
       setError('Failed to load catalog data')
@@ -137,8 +133,6 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
       setCountries(prev => [...prev, ...newCountries].sort((a, b) => a.value.localeCompare(b.value))) // Re-sort entire list
       countryOffsetRef.current += newCountries.length
       hasMoreCountriesRef.current = newCountries.length >= 50 // If we got 50, assume there may be more
-
-      console.log(`✅ Loaded ${newCountries.length} more countries. Total loaded: ${countryOffsetRef.current}`)
     } catch (err) {
       console.error('❌ Error loading more countries:', err)
     } finally {
@@ -151,7 +145,6 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
   const loadTravelRegions = useCallback(
     async (countryCode?: string) => {
       if (!travelRegionSetId) {
-        console.log('⚠️ No travelRegionSetId provided, skipping travel regions load')
         return
       }
 
@@ -179,14 +172,6 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
         offsetRef.current = regions.length
         hasMoreRef.current = offsetRef.current < totalRegionsRef.current
         isLoadingRef.current = false
-
-        console.log(
-          `📊 Loaded first ${regions.length} regions of ${totalRegionsRef.current}${countryCode ? ` (filtered by country: ${countryCode})` : ''}`,
-          {
-            offset: offsetRef.current,
-            hasMore: hasMoreRef.current
-          }
-        )
       } catch (err) {
         console.error('❌ Error loading travel regions:', err)
         setError('Failed to load travel regions')
@@ -232,10 +217,6 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
       setTravelRegions(prev => [...prev, ...newRegions])
       offsetRef.current += newRegions.length
       hasMoreRef.current = offsetRef.current < totalRegionsRef.current
-
-      console.log(
-        `✅ Loaded ${newRegions.length} more regions. Total: ${offsetRef.current}/${totalRegionsRef.current}${countryCode ? ` (filtered by country: ${countryCode})` : ''}`
-      )
     } catch (err) {
       console.error('❌ Error loading more travel regions:', err)
     } finally {
@@ -255,7 +236,6 @@ export const useCatalogData = ({ accessToken, travelRegionSetId }: UseCatalogDat
   // Initial load
   useEffect(() => {
     if (accessToken && !initialLoadDoneRef.current) {
-      console.log('🔄 Initial catalog load triggered')
       initialLoadDoneRef.current = true
       loadCatalogData()
     }
