@@ -21,13 +21,13 @@ export const EmployeeTerminationForm: React.FC = () => {
 
   return (
     <div className="gba:max-w-[500px] gba:mx-auto gba:bg-white gba:rounded-2xl gba:shadow-lg gba:flex gba:flex-col gba:min-h-[600px] gba:p-0">
-      <div className="gba:flex gba:items-center gba:gap-3 gba:pt-8 gba:pb-6 gba:border-b gba:border-[#F0F0F0]">
+      <div className="gba:flex gba:items-center gba:gap-3 gba:pt-8 gba:pb-6 gba:border-b gba:border-border">
         <img
           src={flowSmall}
           alt="Flow Small"
           style={{
             filter: 'brightness(0)',
-            fill: '#000',
+            fill: 'var(--nw-foreground)',
             width: '24px',
             height: '24px'
           }}
@@ -98,7 +98,7 @@ export const EmployeeTerminationForm: React.FC = () => {
           <div className="gba:pt-6">
             <button
               type="button"
-              className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:rounded gba:hover:bg-gray-100/50 gba:transition-colors"
+              className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:rounded gba:hover:bg-muted/50 gba:transition-colors"
               onClick={() => setFormValues({ terminateJobPosition: !formValues.terminateJobPosition })}
               data-testid="terminate-job-checkbox-container"
             >
@@ -119,7 +119,7 @@ export const EmployeeTerminationForm: React.FC = () => {
           </div>
         </div>
 
-        <div className="gba:border-t gba:border-[#F0F0F0] gba:flex gba:gap-4 gba:justify-start gba:pt-4">
+        <div className="gba:border-t gba:border-border gba:flex gba:gap-4 gba:justify-start gba:pt-4">
           <Button
             variant="primary"
             disabled={!isFormValid}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   Button,
   Textarea,
@@ -14,11 +14,11 @@ import {
   AvatarFallback,
   AvatarImage
 } from '@newwork/nw-design-system'
-import { CopyOutlined, UndoOutlined, DownOutlined } from '@ant-design/icons'
+import { DownOutlined } from '@ant-design/icons'
 import { useFeedbackForm } from '../context/FeedbackFormContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import EmployeeSearchableSelect from '../../../../../crm/common/forms/lead-form/components/EmployeeSearchableSelect'
+import EmployeeSearchableSelect from '../../../../../crm/core/forms/lead-form/components/EmployeeSearchableSelect'
 
 const prefixDataTestId = 'FeedbackForm'
 
@@ -98,7 +98,7 @@ const FeedbackFormComponent: React.FC = () => {
         {/* Modal Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('feedback.form.title', 'Give Feedback')}
             </h2>
           </div>
@@ -110,9 +110,9 @@ const FeedbackFormComponent: React.FC = () => {
           <div className="gba:space-y-2">
             {/* Show loading state for pre-selected employee */}
             {hasPreSelectedEmployee && preSelectedEmployeeLoading && (
-              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-gray-50 gba:rounded-lg">
+              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
                 <Spinner size="sm" />
-                <span className="gba:text-sm gba:text-gray-500">
+                <span className="gba:text-sm gba:text-muted-foreground">
                   {getTranslationFromI18nKeyAndLabel('feedback.form.employee.loading', 'Loading employee details...')}
                 </span>
               </div>
@@ -127,7 +127,7 @@ const FeedbackFormComponent: React.FC = () => {
 
             {/* Show selected employee or dropdown */}
             {selectedEmployee && !preSelectedEmployeeLoading && !isPreSelectedEmployeeCurrentUser ? (
-              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-gray-50 gba:rounded-lg">
+              <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
                 <Avatar className="gba:w-10 gba:h-10">
                   {selectedEmployee.pictureThumbnail && (
                     <AvatarImage
@@ -135,7 +135,7 @@ const FeedbackFormComponent: React.FC = () => {
                       alt={selectedEmployee.name}
                     />
                   )}
-                  <AvatarFallback className="gba:bg-gray-300">
+                  <AvatarFallback className="gba:bg-muted">
                     {selectedEmployee.name !== '-'
                       ? selectedEmployee.name
                           .split(' ')
@@ -146,9 +146,9 @@ const FeedbackFormComponent: React.FC = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div className="gba:flex-1">
-                  <div className="gba:font-medium gba:text-gray-900">{selectedEmployee.name}</div>
+                  <div className="gba:font-medium gba:text-foreground">{selectedEmployee.name}</div>
                   {selectedEmployee.jobTitle && (
-                    <div className="gba:text-sm gba:text-gray-500">{selectedEmployee.jobTitle}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{selectedEmployee.jobTitle}</div>
                   )}
                 </div>
                 {!hasPreSelectedEmployee && (
@@ -156,7 +156,7 @@ const FeedbackFormComponent: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     onClick={() => setFormValues({ employeeId: undefined, employeeName: undefined })}
-                    className="gba:text-gray-400 hover:gba:text-gray-600"
+                    className="gba:text-muted-foreground hover:gba:text-foreground"
                   >
                     Change
                   </Button>
@@ -200,7 +200,7 @@ const FeedbackFormComponent: React.FC = () => {
 
           {/* Feedback Text Section */}
           <div className="gba:space-y-2">
-            <Label htmlFor="feedback-text" className="gba:text-sm gba:text-gray-600">
+            <Label htmlFor="feedback-text" className="gba:text-sm gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('feedback.form.text.label', 'Feedback')} *
             </Label>
             <Textarea
@@ -211,7 +211,7 @@ const FeedbackFormComponent: React.FC = () => {
               onChange={handleTextChange}
               placeholder="Enter your feedback here..."
               rows={12}
-              className="gba:resize-none gba:border-gray-300 gba:focus:border-blue-500 gba:focus:ring-blue-500 gba:min-h-[200px]"
+              className="gba:resize-none gba:border-border gba:focus:border-ring gba:focus:ring-ring gba:min-h-[200px]"
             />
           </div>
 
@@ -222,7 +222,7 @@ const FeedbackFormComponent: React.FC = () => {
                 <Button
                   variant="default"
                   disabled={!formValues.feedbackText.trim() || isLoading}
-                  className="gba:w-full gba:justify-between gba:bg-red-500 hover:gba:bg-red-600 gba:text-white gba:border-red-500"
+                  className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
                   data-testid={formatDataTestId(prefixDataTestId, 'TransformDropdown')}
                 >
                   <span>
@@ -233,25 +233,25 @@ const FeedbackFormComponent: React.FC = () => {
                   <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+              <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
                 <DropdownMenuItem
                   onClick={() => handleTransform('formalize')}
                   data-testid={formatDataTestId(prefixDataTestId, 'FormalizeOption')}
-                  className="gba:px-3 gba:py-2 gba:hover:bg-gray-50 gba:cursor-pointer"
+                  className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
                 >
                   {getTranslationFromI18nKeyAndLabel('feedback.form.formalize', 'Formalize')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleTransform('translate')}
                   data-testid={formatDataTestId(prefixDataTestId, 'TranslateOption')}
-                  className="gba:px-3 gba:py-2 gba:hover:bg-gray-50 gba:cursor-pointer"
+                  className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
                 >
                   {getTranslationFromI18nKeyAndLabel('feedback.form.translate', 'Translate')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleTransform('shorten')}
                   data-testid={formatDataTestId(prefixDataTestId, 'ShortenOption')}
-                  className="gba:px-3 gba:py-2 gba:hover:bg-gray-50 gba:cursor-pointer"
+                  className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
                 >
                   {getTranslationFromI18nKeyAndLabel('feedback.form.shorten', 'Shorten')}
                 </DropdownMenuItem>
@@ -268,7 +268,7 @@ const FeedbackFormComponent: React.FC = () => {
         </div>
 
         {/* Action Buttons - Fixed at bottom */}
-        <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-2 gba:justify-end">
+        <div className="gba:p-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
           <Button
             variant="secondary"
             onClick={onCancel}
@@ -282,7 +282,7 @@ const FeedbackFormComponent: React.FC = () => {
             disabled={!isFormValid || isLoading || (hasPreSelectedEmployee && preSelectedEmployeeLoading)}
             size="default"
             onClick={handleSubmit}
-            className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:px-6 gba:py-2 gba:rounded-lg"
+            className="gba:bg-primary hover:gba:bg-primary gba:text-primary-foreground gba:px-6 gba:py-2 gba:rounded-lg"
             data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
           >
             {isLoading && <Spinner size="sm" className="gba:mr-2" />}

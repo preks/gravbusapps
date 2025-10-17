@@ -17,7 +17,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = props => {
   if (!accessToken) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-        <div className="gba:text-gray-500">Access token required</div>
+        <div className="gba:text-muted-foreground">Access token required</div>
       </div>
     )
   }
@@ -25,7 +25,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = props => {
   if (!employeeId) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-        <div className="gba:text-gray-500">Employee ID required</div>
+        <div className="gba:text-muted-foreground">Employee ID required</div>
       </div>
     )
   }
