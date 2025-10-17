@@ -84,6 +84,18 @@ export interface InvestmentOpportunityQueryResult {
   }
   accountId?: string
 
+  // Contact relationships
+  investmentOpportunityContact?: Array<{
+    id: string
+    contact: {
+      id: string
+      firstName?: string
+      lastName?: string
+      fullName?: string
+      email?: string
+    }
+  }>
+
   // Owner Information
   ownerEmployee?: {
     id: string
@@ -197,6 +209,18 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = `
         name
       }
       accountId
+      
+      # Contact relationships
+      investmentOpportunityContact(where: { isDeleted: { _eq: false } }) {
+        id
+        contact {
+          id
+          firstName
+          lastName
+          fullName
+          email
+        }
+      }
       
       # Owner Information
       ownerEmployee {

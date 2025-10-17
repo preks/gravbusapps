@@ -26,7 +26,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
       title: 'FTE / Employee Count',
       value: isLoading ? 'Loading...' : `${statistics.totalFte.toFixed(1)} / ${statistics.employeeCount}`,
       icon: 'users',
-      iconColor: '#1890ff',
+      iconColor: 'var(--nw-info)',
       footer: 'Full-time equivalent ratio'
     },
     {
@@ -34,7 +34,7 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
       title: 'Average Tenure',
       value: isLoading ? 'Loading...' : statistics.averageTenure,
       icon: 'calendar',
-      iconColor: '#722ed1',
+      iconColor: 'var(--nw-info)',
       footer: 'Company-wide average'
     },
     {
@@ -42,7 +42,12 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
       title: 'Gap Rate',
       value: isLoading ? 'Loading...' : `${statistics.gapRate.toFixed(1)}%`,
       icon: 'mail',
-      iconColor: statistics.gapRate > 15 ? '#ff4d4f' : statistics.gapRate > 10 ? '#fa8c16' : '#52c41a',
+      iconColor:
+        statistics.gapRate > 15
+          ? 'var(--nw-destructive)'
+          : statistics.gapRate > 10
+            ? 'var(--nw-warning)'
+            : 'var(--nw-success)',
       footer: `${statistics.vacantPositions}/${statistics.totalPositions} positions`
     },
     {
@@ -50,7 +55,12 @@ const EmploymentStatistics: React.FC<EmploymentStatisticsProps> = ({ statistics,
       title: 'Probation Rate',
       value: isLoading ? 'Loading...' : `${statistics.probationRate.toFixed(1)}%`,
       icon: 'users',
-      iconColor: statistics.probationRate > 20 ? '#ff4d4f' : statistics.probationRate > 10 ? '#fa8c16' : '#52c41a',
+      iconColor:
+        statistics.probationRate > 20
+          ? 'var(--nw-destructive)'
+          : statistics.probationRate > 10
+            ? 'var(--nw-warning)'
+            : 'var(--nw-success)',
       footer: `${statistics.employeesInProbation}/${statistics.totalEmployees} employees`
     }
   ]

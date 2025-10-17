@@ -16,7 +16,7 @@ const FeedbackRequestForm: React.FC<BusinessAppContextProps & FeedbackRequestFor
   if (!accessToken) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <div className="gba:text-red-500">
+        <div className="gba:text-destructive">
           Error: No access token found. Please ensure you are properly authenticated.
         </div>
       </div>

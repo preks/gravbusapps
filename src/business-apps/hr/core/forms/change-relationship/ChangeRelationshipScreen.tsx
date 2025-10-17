@@ -308,8 +308,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               style={{ filter: 'brightness(0)' }}
             />
             <h2
-              className="gba:text-xl gba:font-semibold"
-              style={{ color: 'var(--nw-color-text-primary)' }}
+              className="gba:text-xl gba:font-semibold gba:text-foreground"
               data-testid={formatDataTestId(prefixDataTestId, 'Title')}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.title', 'Change Relationship Data')}
@@ -318,7 +317,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
         </div>
 
         {/* Divider */}
-        <div className="gba:border-t gba:border-gray-200" />
+        <div className="gba:border-t gba:border-border" />
 
         {/* Content */}
         <div className="gba:px-0 gba:py-6 gba:flex gba:flex-col gba:gap-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">

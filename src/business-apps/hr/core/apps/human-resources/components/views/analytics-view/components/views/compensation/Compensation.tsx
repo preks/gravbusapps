@@ -71,7 +71,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         value: loading ? 'Loading...' : `${formattedTotalPayroll.value.toFixed(1)}M`,
         prefix: '$',
         icon: 'users',
-        iconColor: '#1890ff',
+        iconColor: 'var(--nw-chart-1)',
         footer: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_payroll', formattedTotalPayroll.label)
       },
       {
@@ -80,7 +80,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         value: loading ? 'Loading...' : `${formattedMedianSalary.value}K`,
         prefix: '$',
         icon: 'users',
-        iconColor: '#52c41a',
+        iconColor: 'var(--nw-chart-2)',
         footer: getTranslationFromI18nKeyAndLabel('hr_analytics_company_median', formattedMedianSalary.label)
       },
       {
@@ -89,7 +89,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         value: loading ? 'Loading...' : `${formattedAverageSalary.value}K`,
         prefix: '$',
         icon: 'users',
-        iconColor: '#722ed1',
+        iconColor: 'var(--nw-chart-3)',
         footer: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_average', formattedAverageSalary.label)
       },
       {
@@ -97,7 +97,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         title: getTranslationFromI18nKeyAndLabel('hr_analytics_merit_increases', 'Merit Increases'),
         value: loading ? 'Loading...' : `${meritIncreases.value}%`,
         icon: 'calendar',
-        iconColor: '#fa8c16',
+        iconColor: 'var(--nw-chart-4)',
         footer: getTranslationFromI18nKeyAndLabel('hr_analytics_average_increase', meritIncreases.label)
       }
     ],
@@ -107,9 +107,11 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
   if (error) {
     return (
       <div data-testid={`${prefixDataTestId}-Error`} className="gba:p-6">
-        <div className="gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-lg gba:p-4">
-          <h3 className="gba:text-red-800 gba:font-medium">Error Loading Compensation Data</h3>
-          <p className="gba:text-red-600 gba:mt-2">{error instanceof Error ? error.message : String(error)}</p>
+        <div className="gba:bg-destructive-secondary gba:border gba:border-destructive-secondary gba:rounded-lg gba:p-4">
+          <h3 className="gba:text-destructive-secondary-foreground gba:font-medium">Error Loading Compensation Data</h3>
+          <p className="gba:text-destructive-secondary-foreground gba:mt-2">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
         </div>
       </div>
     )
@@ -118,20 +120,15 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
   return (
     <div
       data-testid={prefixDataTestId}
-      className="gba:flex gba:flex-col gba:gap-6 gba:p-6"
-      style={{
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        borderRadius: '8px'
-      }}
+      className="gba:flex gba:flex-col gba:gap-6 gba:p-6 gba:bg-muted gba:min-h-full gba:rounded-lg"
     >
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={3} className="gba:m-0 gba:text-gray-800">
+          <Title level={3} className="gba:m-0 gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_compensation_analysis', 'Compensation Analysis')}
           </Title>
-          <Text className="gba:text-gray-600">
+          <Text className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'hr_analytics_compensation_description',
               'Comprehensive compensation metrics, salary analysis, and payroll insights'

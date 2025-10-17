@@ -11,7 +11,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
         data-testid="entitlements-loading"
       >
         {[1, 2, 3].map(i => (
-          <div key={i} className="gba:h-40 gba:bg-gray-100 gba:rounded gba:animate-pulse"></div>
+          <div key={i} className="gba:h-40 gba:bg-muted gba:rounded gba:animate-pulse"></div>
         ))}
       </div>
     )
@@ -20,10 +20,10 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
   if (error) {
     return (
       <div className="gba:error-container gba:text-center gba:py-8" data-testid="entitlements-error">
-        <div className="gba:text-red-500 gba:text-lg gba:mb-2">
+        <div className="gba:text-destructive gba:text-lg gba:mb-2">
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.error_loading', 'Failed to load entitlements data.')}
         </div>
-        <div className="gba:text-gray-500">
+        <div className="gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.try_again', 'Try again.')}
         </div>
       </div>
@@ -32,7 +32,10 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
 
   if (entitlements.length === 0) {
     return (
-      <div className="gba:no-entitlements gba:text-center gba:text-gray-500 gba:py-8" data-testid="no-entitlements">
+      <div
+        className="gba:no-entitlements gba:text-center gba:text-muted-foreground gba:py-8"
+        data-testid="no-entitlements"
+      >
         {getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.no_data_found', 'No data found')}
       </div>
     )
@@ -61,7 +64,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
 
           <div className="gba:entitlement-details gba:mt-4">
             <div className="gba:flex gba:justify-between gba:mb-1">
-              <span className="gba:text-gray-500">
+              <span className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')}
               </span>
               <span className="gba:font-medium">
@@ -69,7 +72,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
               </span>
             </div>
 
-            <div className="gba:progress-bar gba:bg-gray-200 gba:rounded-full gba:h-2 gba:mb-3">
+            <div className="gba:progress-bar gba:bg-border gba:rounded-full gba:h-2 gba:mb-3">
               <div
                 className="gba:progress gba:h-full gba:rounded-full"
                 style={{
@@ -80,10 +83,10 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
             </div>
 
             <div className="gba:flex gba:justify-between gba:items-center">
-              <span className="gba:text-gray-500">
+              <span className="gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.available', 'Available')}
               </span>
-              <span className="gba:font-medium gba:text-lg gba:text-green-600">{entitlement.available}</span>
+              <span className="gba:font-medium gba:text-lg gba:text-success">{entitlement.available}</span>
             </div>
 
             {entitlement.pending > 0 && (
@@ -91,7 +94,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
                 <span className="gba:text-amber-500">{getAbsenceStatusLabel('PENDING')}</span>
                 <div className="gba:flex gba:items-center gba:gap-1">
                   <span className="gba:text-amber-500 gba:font-medium">{entitlement.pending}</span>
-                  <span className="gba:text-xs gba:text-gray-500">
+                  <span className="gba:text-xs gba:text-muted-foreground">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.status_in_approval', 'days in approval')}
                   </span>
                 </div>
@@ -99,7 +102,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
             )}
 
             {entitlement.checkEntitlement && (
-              <div className="gba:entitlement-note gba:mt-3 gba:text-xs gba:text-gray-500 gba:border-t gba:pt-2">
+              <div className="gba:entitlement-note gba:mt-3 gba:text-xs gba:text-muted-foreground gba:border-t gba:pt-2">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absence_hub.entitlement_note',
                   'Entitlement is checked before approval'

@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
-import { Table, Card, Typography, Tabs, Tag, Progress, Tooltip } from 'antd'
+import { Table, Card, Tabs, Tag, Progress, Tooltip } from 'antd'
 import { AbsenceTableData } from '../types/absenceTypes'
 
-const { Title } = Typography
 const { TabPane } = Tabs
 
 interface AbsenceDetailsTableProps {
@@ -18,34 +17,34 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Cost Center',
       dataIndex: 'costCenter',
       key: 'costCenter',
-      render: (text: string) => <Tag color="blue">{text}</Tag>
+      render: (text: string) => <Tag color="var(--nw-info)">{text}</Tag>
     },
     {
       title: 'Vacation',
       dataIndex: 'vacation',
       key: 'vacation',
-      render: (days: number) => <span style={{ color: '#1890ff', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-info gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.vacation - b.vacation
     },
     {
       title: 'Sick Leave',
       dataIndex: 'sickLeave',
       key: 'sickLeave',
-      render: (days: number) => <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-destructive gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.sickLeave - b.sickLeave
     },
     {
       title: 'Special Leave',
       dataIndex: 'specialLeave',
       key: 'specialLeave',
-      render: (days: number) => <span style={{ color: '#722ed1', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-info gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.specialLeave - b.specialLeave
     },
     {
       title: 'Work Leave',
       dataIndex: 'workLeave',
       key: 'workLeave',
-      render: (days: number) => <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-success gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.workLeave - b.workLeave
     },
     {
@@ -53,7 +52,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       dataIndex: 'total',
       key: 'total',
       render: (total: number) => (
-        <Tag color="purple" style={{ fontSize: '14px', padding: '4px 8px' }}>
+        <Tag color="var(--nw-info)" className="gba:text-sm gba:py-1 gba:px-2">
           {total} days
         </Tag>
       ),
@@ -69,8 +68,10 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       key: 'employee',
       render: (employee: any) => (
         <div>
-          <div style={{ fontWeight: 'bold' }}>{employee.displayName}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>ID: {employee.businessKey || employee.id.slice(0, 8)}</div>
+          <div className="gba:font-bold">{employee.displayName}</div>
+          <div className="gba:text-xs gba:text-muted-foreground">
+            ID: {employee.businessKey || employee.id.slice(0, 8)}
+          </div>
         </div>
       ),
       width: 200
@@ -79,7 +80,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Vacation',
       dataIndex: 'vacation',
       key: 'vacation',
-      render: (days: number) => <span style={{ color: '#1890ff', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-info gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.vacation - b.vacation,
       width: 100
     },
@@ -87,7 +88,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Sick Leave',
       dataIndex: 'sickLeave',
       key: 'sickLeave',
-      render: (days: number) => <span style={{ color: '#ff4d4f', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-destructive gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.sickLeave - b.sickLeave,
       width: 100
     },
@@ -95,7 +96,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Special',
       dataIndex: 'specialLeave',
       key: 'specialLeave',
-      render: (days: number) => <span style={{ color: '#722ed1', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-info gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.specialLeave - b.specialLeave,
       width: 80
     },
@@ -103,7 +104,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Work',
       dataIndex: 'workLeave',
       key: 'workLeave',
-      render: (days: number) => <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{days} days</span>,
+      render: (days: number) => <span className="gba:text-success gba:font-bold">{days} days</span>,
       sorter: (a: any, b: any) => a.workLeave - b.workLeave,
       width: 80
     },
@@ -112,7 +113,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       dataIndex: 'totalDays',
       key: 'totalDays',
       render: (total: number) => (
-        <Tag color="purple" style={{ fontSize: '14px' }}>
+        <Tag color="var(--nw-info)" className="gba:text-sm">
           {total} days
         </Tag>
       ),
@@ -124,11 +125,13 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       dataIndex: 'usagePercentage',
       key: 'usagePercentage',
       render: (percentage: number) => (
-        <div style={{ width: '80px' }}>
+        <div className="gba:w-20">
           <Progress
             percent={percentage}
             size="small"
-            strokeColor={percentage > 80 ? '#ff4d4f' : percentage > 60 ? '#fa8c16' : '#52c41a'}
+            strokeColor={
+              percentage > 80 ? 'var(--nw-destructive)' : percentage > 60 ? 'var(--nw-warning)' : 'var(--nw-success)'
+            }
           />
         </div>
       ),
@@ -146,13 +149,13 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
               key={index}
               title={`${balance.type}: ${balance.used}/${balance.allocated} used, ${balance.remaining} remaining`}
             >
-              <Tag color="geekblue" style={{ marginBottom: '2px', fontSize: '10px' }}>
+              <Tag color="geekblue" className="gba:mb-0.5 gba:text-xs">
                 {balance.type}: {balance.remaining} left
               </Tag>
             </Tooltip>
           ))}
           {balanceInfo.length > 3 && (
-            <Tag color="default" style={{ fontSize: '10px' }}>
+            <Tag color="default" className="gba:text-xs">
               +{balanceInfo.length - 3} more
             </Tag>
           )}
@@ -169,8 +172,8 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       key: 'type',
       render: (type: any) => (
         <div>
-          <div style={{ fontWeight: 'bold', color: '#1890ff' }}>{type.value}</div>
-          <div style={{ fontSize: '12px', color: '#666' }}>Code: {type.code}</div>
+          <div className="gba:font-bold gba:text-info">{type.value}</div>
+          <div className="gba:text-xs gba:text-muted-foreground">Code: {type.code}</div>
         </div>
       ),
       width: 200
@@ -201,7 +204,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Total Days',
       dataIndex: 'totalDays',
       key: 'totalDays',
-      render: (days: number) => <span style={{ fontWeight: 'bold', fontSize: '16px' }}>{days}</span>,
+      render: (days: number) => <span className="gba:font-bold gba:text-base">{days}</span>,
       sorter: (a: any, b: any) => a.totalDays - b.totalDays,
       defaultSortOrder: 'descend' as const,
       width: 100
@@ -210,7 +213,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Employees',
       dataIndex: 'employeeCount',
       key: 'employeeCount',
-      render: (count: number) => <Tag color="cyan">{count} employees</Tag>,
+      render: (count: number) => <Tag color="var(--nw-info)">{count} employees</Tag>,
       sorter: (a: any, b: any) => a.employeeCount - b.employeeCount,
       width: 120
     },
@@ -218,7 +221,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
       title: 'Avg Days/Employee',
       dataIndex: 'averageDaysPerEmployee',
       key: 'averageDaysPerEmployee',
-      render: (avg: number) => <span style={{ color: '#52c41a', fontWeight: 'bold' }}>{avg.toFixed(1)} days</span>,
+      render: (avg: number) => <span className="gba:text-success gba:font-bold">{avg.toFixed(1)} days</span>,
       sorter: (a: any, b: any) => a.averageDaysPerEmployee - b.averageDaysPerEmployee,
       width: 150
     }
@@ -226,7 +229,7 @@ const AbsenceDetailsTable: React.FC<AbsenceDetailsTableProps> = ({ tableData, da
 
   return (
     <div data-testid={`${dataTestId}-details-table`}>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} type="card" size="large" style={{ marginBottom: '16px' }}>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} type="card" size="large" className="gba:mb-4">
         <TabPane tab={<span data-testid={`${dataTestId}-cost-center-tab`}>Cost Center Analysis</span>} key="costCenter">
           <Card title={`Cost Center Breakdown (${tableData.byCostCenter.length} centers)`} size="small">
             <Table
