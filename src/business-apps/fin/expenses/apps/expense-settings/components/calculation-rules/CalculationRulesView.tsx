@@ -26,6 +26,7 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = context => {
   // Data integration hook (for assignments tab)
   const {
     assignments,
+    totalAssignments,
     rules,
     isLoading,
     refetch,
@@ -88,6 +89,7 @@ const CalculationRulesView: React.FC<CalculationRulesViewProps> = context => {
           <CalculationRuleAssignmentList
             {...context}
             assignments={assignments}
+            totalAssignments={totalAssignments}
             rules={rules}
             isLoading={isLoading}
             onCreate={createAssignment}

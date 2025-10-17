@@ -38,17 +38,19 @@ import dayjs from 'dayjs'
 
 // Import filter components
 import TargetTypeFilter from './filters/TargetTypeFilter'
+import AssignmentsPagination from './AssignmentsPagination'
 import CascadingFilter from './filters/CascadingFilter'
 import TimePeriodFilter from '../mileage-rules/filters/TimePeriodFilter'
 
 export interface CalculationRuleAssignmentListProps extends BusinessAppContextProps {
   assignments: EnhancedExpenseRuleAssignment[]
+  totalAssignments: number
   rules: ExpenseRule[]
   isLoading: boolean
   onCreate: (data: SaveExpenseRuleAssignmentInput) => Promise<any>
   onUpdate: (id: string, data: SaveExpenseRuleAssignmentInput) => Promise<any>
   onDelete: (id: string) => Promise<any>
-  onSearch: (params: { search?: string; orderBy?: any[] }) => Promise<void>
+  onSearch: (params: { search?: string; orderBy?: any[]; limit?: number; offset?: number }) => Promise<void>
   onRefresh: () => void
 }
 
@@ -57,6 +59,7 @@ const PREFIX = 'calculation-rule-assignments'
 const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps> = ({
   accessToken,
   assignments,
+  totalAssignments,
   rules,
   isLoading,
   onCreate,
@@ -67,7 +70,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
   // State management
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
   const [sortField, setSortField] = useState<string>('assignmentOrder')
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC' | ''>('ASC')
 
@@ -127,65 +130,25 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
     }
   }, [sortField, sortOrder])
 
-  // Filter assignments (client-side filtering for filters only)
-  const filteredAssignments = useMemo(() => {
-    let filtered = [...assignments]
-
-    // Apply target type filter
-    const hasTargetFilter = Object.values(targetTypeFilter).some(v => v)
-    if (hasTargetFilter) {
-      filtered = filtered.filter(a => {
-        if (targetTypeFilter.employee && a.employeeId) return true
-        if (targetTypeFilter.company && a.companyId && !a.employeeId && !a.organizationalUnitId) return true
-        if (targetTypeFilter.orgUnit && a.organizationalUnitId) return true
-        if (targetTypeFilter.general && !a.employeeId && !a.companyId && !a.organizationalUnitId) return true
-        return false
-      })
-    }
-
-    // Apply cascading filter
-    if (cascadingFilter.true && !cascadingFilter.false) {
-      filtered = filtered.filter(a => a.cascading === true)
-    } else if (!cascadingFilter.true && cascadingFilter.false) {
-      filtered = filtered.filter(a => a.cascading === false)
-    }
-
-    // Apply effective period filter
-    if (effectivePeriodFrom || effectivePeriodTo) {
-      filtered = filtered.filter(a => {
-        const fromDate = effectivePeriodFrom ? new Date(effectivePeriodFrom) : null
-        const toDate = effectivePeriodTo ? new Date(effectivePeriodTo) : null
-        const activeFrom = new Date(a.activeFrom)
-        const activeTo = new Date(a.activeTo)
-
-        if (fromDate && toDate) {
-          return activeFrom >= fromDate && activeTo <= toDate
-        } else if (fromDate) {
-          return activeFrom >= fromDate
-        } else if (toDate) {
-          return activeTo <= toDate
-        }
-        return true
-      })
-    }
-
-    return filtered
-  }, [assignments, targetTypeFilter, cascadingFilter, effectivePeriodFrom, effectivePeriodTo])
-
-  // Pagination
-  const paginatedAssignments = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize
-    return filteredAssignments.slice(startIndex, startIndex + pageSize)
-  }, [filteredAssignments, currentPage, pageSize])
-
-  // Handle search and sorting with debounce (500ms)
+  // Handle search, sorting, and pagination with debounce (500ms)
   useEffect(() => {
     const timer = setTimeout(() => {
-      // Trigger search with sort parameters
-      onSearch({ search: search.trim() || undefined, orderBy })
+      const offset = (currentPage - 1) * pageSize
+      // Trigger search with sort parameters and pagination
+      onSearch({
+        search: search.trim() || undefined,
+        orderBy,
+        limit: pageSize,
+        offset
+      })
     }, 500)
     return () => clearTimeout(timer)
-  }, [search, orderBy, onSearch])
+  }, [search, orderBy, currentPage, pageSize, onSearch])
+
+  // Reset to page 1 when search or sort changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, sortField, sortOrder])
 
   // Handlers
   const handleSort = useCallback(
@@ -339,7 +302,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
   // Data controller props
   const dataControllerProps: DataControllerProps = {
     listTitle: getTranslationFromI18nKeyAndLabel('expenseSettings.assignments.title', 'Rule Assignments'),
-    listAmount: filteredAssignments.length,
+    listAmount: totalAssignments,
     search,
     setSearch,
     debounceDelay: 500,
@@ -383,14 +346,14 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                     <Spinner data-testid={`${PREFIX}-loading`} />
                   </div>
                 )}
-                {!isLoading && filteredAssignments.length === 0 && (
+                {!isLoading && assignments.length === 0 && (
                   <div className="gba:p-8 gba:text-center">
                     <div className="gba:text-gray-500" data-testid={`${PREFIX}-empty`}>
                       {getTranslationFromI18nKeyAndLabel('common.noDataFound', 'No data found')}
                     </div>
                   </div>
                 )}
-                {!isLoading && filteredAssignments.length > 0 && (
+                {!isLoading && assignments.length > 0 && (
                   <>
                     <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-[100%]">
                       <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[2000px] gba:w-[100%]">
@@ -431,7 +394,7 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {paginatedAssignments.map((assignment, index) => (
+                          {assignments.map((assignment, index) => (
                             <TableRow
                               key={assignment.id}
                               data-testid={`${PREFIX}-row-${index}`}
@@ -593,36 +556,17 @@ const CalculationRuleAssignmentList: React.FC<CalculationRuleAssignmentListProps
                         </TableBody>
                       </Table>
                     </div>
+
                     {/* Pagination */}
-                    {filteredAssignments.length > 0 && (
-                      <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:px-6">
-                        <div className="gba:text-sm gba:text-gray-700">
-                          Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                          {Math.min(currentPage * pageSize, filteredAssignments.length)} of {filteredAssignments.length}{' '}
-                          assignments
-                        </div>
-                        <div className="gba:flex gba:gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(currentPage - 1)}
-                            data-testid={`${PREFIX}-prev-page`}
-                          >
-                            Previous
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={currentPage * pageSize >= filteredAssignments.length}
-                            onClick={() => setCurrentPage(currentPage + 1)}
-                            data-testid={`${PREFIX}-next-page`}
-                          >
-                            Next
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    <AssignmentsPagination
+                      currentPage={currentPage}
+                      pageSize={pageSize}
+                      totalItems={totalAssignments}
+                      onPageChange={pagination => {
+                        setCurrentPage(pagination.current)
+                        setPageSize(pagination.pageSize)
+                      }}
+                    />
                   </>
                 )}
               </CardContent>

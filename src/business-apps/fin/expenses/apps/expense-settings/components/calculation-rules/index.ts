@@ -1,2 +1,2 @@
-export { default as CalculationRulesList } from './CalculationRulesList';
-export { default as CalculationRulesView } from './CalculationRulesView'; 
+export { default as CalculationRulesView } from './CalculationRulesView'
+export { default as AssignmentsPagination } from './AssignmentsPagination'

@@ -167,7 +167,7 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
   )
 
   const refetchWithFilters = useCallback(
-    (filters: MileageRulesFilters) => {
+    (filters: MileageRulesFilters, limit?: number, offset?: number) => {
       // Convert rule period filter to array of period values
       const rulePeriodFilter = filters.rulePeriodFilter || []
 
@@ -176,7 +176,9 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
         validFromFilter: filters.validFromFilter,
         validToFilter: filters.validToFilter,
         rulePeriodFilter,
-        search: filters.search // Pass search term (undefined if empty)
+        search: filters.search, // Pass search term (undefined if empty)
+        limit: limit || 20,
+        offset: offset || 0
       })
     },
     [loadMileageRules]

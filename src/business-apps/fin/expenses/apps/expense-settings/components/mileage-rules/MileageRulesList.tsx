@@ -38,6 +38,7 @@ import { useMileageRulesIntegration, EnhancedMileageRule } from '../../hooks/use
 import { useMileageRuleOperations } from '../../hooks/useMileageRuleOperations'
 import { MileageRuleForm, MileageRuleFormData } from '../../forms/mileage-rule-form'
 import MileageRuleDetails from './MileageRuleDetails'
+import MileageRulesPagination from './MileageRulesPagination'
 import TimePeriodFilter from './filters/TimePeriodFilter'
 import RulePeriodFilter from './filters/RulePeriodFilter'
 import { MileageRulePeriod } from '../../types/ExpenseEnums'
@@ -63,7 +64,7 @@ const PREFIX = 'mileage-rules'
 const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = '', accessToken, ...context }) => {
   const [search, setSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(20)
   const isInitialMount = useRef(true)
 
   // Filter states
@@ -172,7 +173,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
   }
 
   // Use the GraphQL integration hook
-  const { mileageRules, isLoading, error, refetch, refetchWithFilters } = useMileageRulesIntegration({
+  const { mileageRules, totalCount, isLoading, error, refetch, refetchWithFilters } = useMileageRulesIntegration({
     ...context,
     accessToken
   })
@@ -204,28 +205,34 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
         .filter(([, isSelected]) => isSelected)
         .map(([period]) => period)
 
-      refetchWithFilters({
-        statusFilter,
-        validFromFilter,
-        validToFilter,
-        rulePeriodFilter: selectedPeriods,
-        search: search || undefined
-      })
+      const offset = (currentPage - 1) * pageSize
+
+      refetchWithFilters(
+        {
+          statusFilter,
+          validFromFilter,
+          validToFilter,
+          rulePeriodFilter: selectedPeriods,
+          search: search || undefined
+        },
+        pageSize,
+        offset
+      )
     }, 300) // 300ms debounce for all changes
 
     return () => clearTimeout(timeoutId)
-  }, [search, statusFilter, validFromFilter, validToFilter, rulePeriodFilter, refetchWithFilters])
+  }, [
+    search,
+    statusFilter,
+    validFromFilter,
+    validToFilter,
+    rulePeriodFilter,
+    currentPage,
+    pageSize,
+    refetchWithFilters
+  ])
 
-  // No client-side filtering - data comes filtered from GraphQL
-  const filteredData = mileageRules
-
-  // Pagination
-  const paginatedData = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize
-    return filteredData.slice(startIndex, startIndex + pageSize)
-  }, [filteredData, currentPage, pageSize])
-
-  // Reset to page 1 when filters change
+  // Reset to page 1 when filters change (not pagination)
   useEffect(() => {
     setCurrentPage(1)
   }, [statusFilter, search, validFromFilter, validToFilter, rulePeriodFilter])
@@ -276,7 +283,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
   // Data controller props
   const dataControllerProps: DataControllerProps = {
     listTitle: getTranslationFromI18nKeyAndLabel('expenseSettings.mileageRules.title', 'Mileage Rules'),
-    listAmount: filteredData.length,
+    listAmount: totalCount,
     search,
     setSearch,
     debounceDelay: 300,
@@ -332,14 +339,14 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                     </Alert>
                   </div>
                 )}
-                {!isLoading && !error && filteredData.length === 0 && (
+                {!isLoading && !error && mileageRules.length === 0 && (
                   <div className="gba:p-8 gba:text-center">
                     <div className="gba:text-gray-500" data-testid={`${PREFIX}-empty`}>
                       {getTranslationFromI18nKeyAndLabel('common.noDataFound', 'No data found')}
                     </div>
                   </div>
                 )}
-                {!isLoading && !error && filteredData.length > 0 && (
+                {!isLoading && !error && mileageRules.length > 0 && (
                   <>
                     <div className="gba:overflow-x-auto gba:mt-4 gba:max-w-[100%]">
                       <Table data-testid={`${PREFIX}-table`} className="gba:min-w-[1100px] gba:w-[100%]">
@@ -395,7 +402,7 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {paginatedData.map((record, index) => (
+                          {mileageRules.map((record, index) => (
                             <TableRow
                               key={record.id}
                               className="gba:border-b hover:gba:bg-gray-50 gba:cursor-pointer"
@@ -496,35 +503,17 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                         </TableBody>
                       </Table>
                     </div>
+
                     {/* Pagination */}
-                    {filteredData.length > 0 && (
-                      <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:px-6">
-                        <div className="gba:text-sm gba:text-gray-700">
-                          Showing {(currentPage - 1) * pageSize + 1} to{' '}
-                          {Math.min(currentPage * pageSize, filteredData.length)} of {filteredData.length} rules
-                        </div>
-                        <div className="gba:flex gba:gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(currentPage - 1)}
-                            data-testid={`${PREFIX}-prev-page`}
-                          >
-                            Previous
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={currentPage * pageSize >= filteredData.length}
-                            onClick={() => setCurrentPage(currentPage + 1)}
-                            data-testid={`${PREFIX}-next-page`}
-                          >
-                            Next
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    <MileageRulesPagination
+                      currentPage={currentPage}
+                      pageSize={pageSize}
+                      totalItems={totalCount}
+                      onPageChange={pagination => {
+                        setCurrentPage(pagination.current)
+                        setPageSize(pagination.pageSize)
+                      }}
+                    />
                   </>
                 )}
               </CardContent>

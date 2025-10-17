@@ -19,6 +19,7 @@ export interface UseExpenseSettingsIntegrationResult {
   assignments: EnhancedExpenseRuleAssignment[]
   rules: ExpenseRule[]
   statistics: ExpenseSettingsStatistics
+  totalAssignments: number
 
   // Loading states
   isLoading: boolean
@@ -53,6 +54,8 @@ export interface UseExpenseSettingsIntegrationResult {
     search?: string
     filters?: ExpenseRuleAssignmentFilters
     orderBy?: any[]
+    limit?: number
+    offset?: number
   }) => Promise<void>
   searchRules: (params: { search?: string }) => Promise<void>
 }
@@ -62,6 +65,7 @@ export const useExpenseSettingsIntegration = (
 ): UseExpenseSettingsIntegrationResult => {
   // State
   const [assignments, setAssignments] = useState<EnhancedExpenseRuleAssignment[]>([])
+  const [totalAssignments, setTotalAssignments] = useState(0)
   const [rules, setRules] = useState<ExpenseRule[]>([])
   const [statistics, setStatistics] = useState<ExpenseSettingsStatistics>({
     totalRules: 0,
@@ -187,7 +191,13 @@ export const useExpenseSettingsIntegration = (
 
   // Search assignments
   const searchAssignments = useCallback(
-    async (params: { search?: string; filters?: ExpenseRuleAssignmentFilters; orderBy?: any[] }) => {
+    async (params: {
+      search?: string
+      filters?: ExpenseRuleAssignmentFilters
+      orderBy?: any[]
+      limit?: number
+      offset?: number
+    }) => {
       if (!context.accessToken) return
 
       setIsAssignmentsLoading(true)
@@ -198,11 +208,13 @@ export const useExpenseSettingsIntegration = (
           search: params.search,
           filters: params.filters,
           orderBy: params.orderBy,
-          limit: 100
+          limit: params.limit || 20,
+          offset: params.offset || 0
         })
 
         const enhancedAssignments = transformAssignments(response.ExpenseRuleAssignment || [])
         setAssignments(enhancedAssignments)
+        setTotalAssignments(response.ExpenseRuleAssignmentAggregate?.aggregate?.count || 0)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Search failed'
         setError(errorMessage)
@@ -416,6 +428,7 @@ export const useExpenseSettingsIntegration = (
   return {
     // Data
     assignments,
+    totalAssignments,
     rules,
     statistics,
 
