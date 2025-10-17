@@ -14,12 +14,198 @@ import {
   CheckCircle,
   CheckCircle2,
   X,
-  AlertCircle
+  AlertCircle,
+  Copy,
+  Check
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Label } from '@newwork/nw-design-system'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { SYSTEM_PROMPT } from './config/systemPrompt'
+
+// Simple markdown renderer for code blocks and inline code
+const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
+  const [copiedBlocks, setCopiedBlocks] = useState<Set<number>>(new Set())
+
+  const copyToClipboard = (text: string, blockIndex: number) => {
+    navigator.clipboard.writeText(text)
+    setCopiedBlocks(prev => new Set(prev).add(blockIndex))
+    setTimeout(() => {
+      setCopiedBlocks(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(blockIndex)
+        return newSet
+      })
+    }, 2000)
+  }
+
+  // Split content by code blocks
+  const parts: Array<{ type: 'text' | 'code'; content: string; language?: string }> = []
+  let currentPos = 0
+  let blockIndex = 0
+
+  // Match code blocks with ```language
+  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g
+  let match
+
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    // Add text before code block
+    if (match.index > currentPos) {
+      parts.push({ type: 'text', content: content.slice(currentPos, match.index) })
+    }
+
+    // Add code block
+    parts.push({
+      type: 'code',
+      content: match[2],
+      language: match[1] || 'text'
+    })
+
+    currentPos = match.index + match[0].length
+  }
+
+  // Add remaining text
+  if (currentPos < content.length) {
+    parts.push({ type: 'text', content: content.slice(currentPos) })
+  }
+
+  // Render inline code and formatting in text parts
+  const renderText = (text: string) => {
+    // Handle inline code `code`
+    const inlineCodeRegex = /`([^`]+)`/g
+    const segments: React.ReactNode[] = []
+    let lastIndex = 0
+
+    text.replace(inlineCodeRegex, (match, code, offset) => {
+      // Add text before code
+      if (offset > lastIndex) {
+        const beforeText = text.slice(lastIndex, offset)
+        segments.push(<span key={`text-${lastIndex}`}>{renderFormatting(beforeText)}</span>)
+      }
+
+      // Add inline code
+      segments.push(
+        <code
+          key={`code-${offset}`}
+          className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:text-sm gba:font-mono gba:text-primary"
+        >
+          {code}
+        </code>
+      )
+
+      lastIndex = offset + match.length
+      return match
+    })
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      segments.push(<span key={`text-${lastIndex}`}>{renderFormatting(text.slice(lastIndex))}</span>)
+    }
+
+    return segments.length > 0 ? segments : renderFormatting(text)
+  }
+
+  // Render bold, italic, lists
+  const renderFormatting = (text: string) => {
+    const lines = text.split('\n')
+    return lines.map((line, i) => (
+      <React.Fragment key={i}>
+        {line.startsWith('- ') || line.startsWith('* ') ? (
+          <div className="gba:flex gba:gap-2 gba:ml-4">
+            <span className="gba:text-primary">•</span>
+            <span>{renderInlineFormatting(line.slice(2))}</span>
+          </div>
+        ) : line.match(/^\d+\.\s/) ? (
+          <div className="gba:flex gba:gap-2 gba:ml-4">
+            <span className="gba:text-primary gba:font-semibold">{line.match(/^(\d+)\./)?.[1]}.</span>
+            <span>{renderInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
+          </div>
+        ) : line.startsWith('# ') ? (
+          <h1 className="gba:text-2xl gba:font-bold gba:mt-4 gba:mb-2">{line.slice(2)}</h1>
+        ) : line.startsWith('## ') ? (
+          <h2 className="gba:text-xl gba:font-bold gba:mt-3 gba:mb-2">{line.slice(3)}</h2>
+        ) : line.startsWith('### ') ? (
+          <h3 className="gba:text-lg gba:font-semibold gba:mt-2 gba:mb-1">{line.slice(4)}</h3>
+        ) : (
+          <>{renderInlineFormatting(line)}</>
+        )}
+        {i < lines.length - 1 && <br />}
+      </React.Fragment>
+    ))
+  }
+
+  // Render **bold** and *italic*
+  const renderInlineFormatting = (text: string) => {
+    // Handle **bold**
+    const result: React.ReactNode[] = []
+    let lastIndex = 0
+    const boldRegex = /\*\*([^\*]+)\*\*/g
+
+    text.replace(boldRegex, (match, content, offset) => {
+      if (offset > lastIndex) {
+        result.push(text.slice(lastIndex, offset))
+      }
+      result.push(
+        <strong key={`bold-${offset}`} className="gba:font-semibold">
+          {content}
+        </strong>
+      )
+      lastIndex = offset + match.length
+      return match
+    })
+
+    if (lastIndex < text.length) {
+      result.push(text.slice(lastIndex))
+    }
+
+    return result.length > 0 ? result : text
+  }
+
+  return (
+    <div className="gba:space-y-3">
+      {parts.map((part, i) => {
+        if (part.type === 'code') {
+          const isCopied = copiedBlocks.has(blockIndex)
+          const currentBlockIndex = blockIndex++
+
+          return (
+            <div key={i} className="gba:relative gba:group">
+              <div className="gba:absolute gba:right-2 gba:top-2 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity">
+                <button
+                  onClick={() => copyToClipboard(part.content, currentBlockIndex)}
+                  className="gba:p-1.5 gba:rounded gba:bg-muted/50 hover:gba:bg-muted gba:transition-colors"
+                  title="Copy code"
+                >
+                  {isCopied ? (
+                    <Check className="gba:w-3.5 gba:h-3.5 gba:text-success" />
+                  ) : (
+                    <Copy className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground" />
+                  )}
+                </button>
+              </div>
+              <div className="gba:rounded-lg gba:bg-muted/50 gba:border gba:border-border gba:overflow-hidden">
+                {part.language && (
+                  <div className="gba:px-3 gba:py-1 gba:text-xs gba:text-muted-foreground gba:bg-muted/30 gba:border-b gba:border-border gba:font-mono">
+                    {part.language}
+                  </div>
+                )}
+                <pre className="gba:p-4 gba:overflow-x-auto gba:text-sm">
+                  <code className="gba:font-mono gba:text-foreground">{part.content}</code>
+                </pre>
+              </div>
+            </div>
+          )
+        }
+
+        return (
+          <div key={i} className="gba:text-sm gba:leading-relaxed">
+            {renderText(part.content)}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 // API Configuration - EXACT same as FORGE demo
 const API_URL = 'https://forge-api-production-db58.up.railway.app'
@@ -45,11 +231,15 @@ interface Message {
   }
 }
 
-interface ChangesSummary {
-  total: number
+interface UniqueFileSummary {
+  totalUniqueFiles: number
   created: number
   modified: number
   deleted: number
+  files: Array<{
+    path: string
+    type: 'create' | 'modify' | 'delete'
+  }>
 }
 
 // EXACT API function from FORGE
@@ -164,7 +354,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
   const [buildEnabled] = useState(true)
   const [llmProvider] = useState<'claude' | 'openai'>('claude')
   const [sessionId, setSessionId] = useState<string>('')
-  const [changesSummary, setChangesSummary] = useState<ChangesSummary | null>(null)
+  const [uniqueFileSummary, setUniqueFileSummary] = useState<UniqueFileSummary | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
   const [screenPath, setScreenPath] = useState('')
   const [detectedScreenPath, setDetectedScreenPath] = useState<string | null>(null)
@@ -200,7 +390,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
     localStorage.setItem('ai-builder-session-id', sid)
     setSessionId(sid)
     setMessages([])
-    setChangesSummary(null)
+    setUniqueFileSummary(null)
     setUsage({
       totalInputTokens: 0,
       totalOutputTokens: 0,
@@ -222,7 +412,32 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
     try {
       const data = await getChanges(REPO_ID, sessionId)
       console.log('Changes received:', data)
-      setChangesSummary(data.summary || null)
+
+      // Calculate unique files summary (not counting duplicates)
+      if (data.summary && data.summary.files) {
+        const fileMap = new Map<string, { path: string; type: 'create' | 'modify' | 'delete' }>()
+
+        // Process files in order - later changes override earlier ones
+        data.summary.files.forEach((file: { path: string; type: string }) => {
+          const normalizedType = file.type === 'create' ? 'create' : file.type === 'delete' ? 'delete' : 'modify'
+          fileMap.set(file.path, { path: file.path, type: normalizedType })
+        })
+
+        const uniqueFiles = Array.from(fileMap.values())
+        const created = uniqueFiles.filter(f => f.type === 'create').length
+        const modified = uniqueFiles.filter(f => f.type === 'modify').length
+        const deleted = uniqueFiles.filter(f => f.type === 'delete').length
+
+        setUniqueFileSummary({
+          totalUniqueFiles: uniqueFiles.length,
+          created,
+          modified,
+          deleted,
+          files: uniqueFiles
+        })
+
+        console.log('✨ Unique files summary:', { total: uniqueFiles.length, created, modified, deleted })
+      }
 
       // Auto-detect screen path from created files
       // Support both /apps/ and /screens/ structures
@@ -703,10 +918,11 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
               </Button>
 
               {/* Show publish button if we have changes */}
-              {changesSummary && changesSummary.total > 0 && (
+              {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
                 <Button size="sm" onClick={() => setShowPublishDialog(true)} className="gba:gap-2">
                   <Upload className="gba:w-4 gba:h-4" />
-                  Publish ({changesSummary.total} files)
+                  Publish ({uniqueFileSummary.totalUniqueFiles}{' '}
+                  {uniqueFileSummary.totalUniqueFiles === 1 ? 'file' : 'files'})
                 </Button>
               )}
             </div>
@@ -714,40 +930,99 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
         </div>
       </div>
 
-      {/* Changes Banner */}
-      {changesSummary && changesSummary.total > 0 && (
-        <div className="gba:bg-warning-secondary gba:border-b">
-          <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-warning gba:animate-pulse" />
-                <div>
-                  <h3 className="gba:font-semibold gba:text-warning-secondary-foreground gba:text-sm">
-                    📝 {changesSummary.total} File{changesSummary.total === 1 ? '' : 's'} Changed
-                  </h3>
-                  <p className="gba:text-xs gba:text-warning-secondary-foreground/80">
-                    {changesSummary.created || 0} created · {changesSummary.modified || 0} modified ·{' '}
-                    {changesSummary.deleted || 0} deleted
-                  </p>
+      {/* Modern Changes Banner */}
+      {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
+        <div className="gba:bg-gradient-to-r gba:from-primary/5 gba:to-accent/5 gba:backdrop-blur-sm gba:border-b gba:border-primary/10">
+          <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
+            <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+              {/* Left: File summary with expandable list */}
+              <div className="gba:flex gba:items-start gba:gap-4 gba:flex-1">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:relative gba:flex gba:items-center gba:justify-center">
+                    <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                      <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-primary" />
+                    </div>
+                    <div className="gba:absolute gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/20 gba:animate-ping" />
+                  </div>
+                  <div className="gba:space-y-1">
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">Ready to Publish</h3>
+                      <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
+                        {uniqueFileSummary.totalUniqueFiles}{' '}
+                        {uniqueFileSummary.totalUniqueFiles === 1 ? 'file' : 'files'}
+                      </span>
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                      {uniqueFileSummary.created > 0 && (
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
+                          {uniqueFileSummary.created} created
+                        </span>
+                      )}
+                      {uniqueFileSummary.modified > 0 && (
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
+                          {uniqueFileSummary.modified} modified
+                        </span>
+                      )}
+                      {uniqueFileSummary.deleted > 0 && (
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
+                          {uniqueFileSummary.deleted} deleted
+                        </span>
+                      )}
+                    </div>
+                    {/* File list */}
+                    <details className="gba:mt-2 gba:text-xs">
+                      <summary className="gba:cursor-pointer gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors">
+                        View files
+                      </summary>
+                      <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
+                        {uniqueFileSummary.files.map((file, index) => (
+                          <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-0.5">
+                            <span
+                              className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${
+                                file.type === 'create'
+                                  ? 'gba:bg-success'
+                                  : file.type === 'delete'
+                                    ? 'gba:bg-destructive'
+                                    : 'gba:bg-warning'
+                              }`}
+                            />
+                            <span className="gba:font-mono gba:text-muted-foreground gba:truncate" title={file.path}>
+                              {file.path}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </div>
                 </div>
               </div>
-              <div className="gba:flex gba:gap-2">
+
+              {/* Right: Actions */}
+              <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
                 <Button
-                  variant="outline"
                   size="sm"
+                  variant="default"
+                  onClick={() => setShowPublishDialog(true)}
+                  className="gba:gap-2 gba:shadow-sm"
+                >
+                  <Upload className="gba:w-4 gba:h-4" />
+                  Publish
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   onClick={() => downloadPatch(REPO_ID, sessionId)}
                   className="gba:gap-2"
                 >
                   <Download className="gba:w-4 gba:h-4" />
-                  Download Patch
+                  Patch
                 </Button>
                 <Button variant="outline" size="sm" onClick={fixBuildIssues} className="gba:gap-2">
                   <CheckCircle className="gba:w-4 gba:h-4" />
-                  Fix Build Issues
-                </Button>
-                <Button size="sm" onClick={() => setShowPublishDialog(true)} className="gba:gap-2">
-                  <Upload className="gba:w-4 gba:h-4" />
-                  Publish to Platform
+                  Fix
                 </Button>
               </div>
             </div>
@@ -811,11 +1086,11 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
                 )}
                 <div className="gba:max-w-[85%]">
                   {message.role === 'user' ? (
-                    <div className="gba:bg-primary gba:text-primary-foreground gba:rounded-lg gba:px-4 gba:py-2">
-                      <p className="gba:text-sm">{message.content}</p>
+                    <div className="gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:px-4 gba:py-3 gba:shadow-sm">
+                      <p className="gba:text-sm gba:leading-relaxed">{message.content}</p>
                     </div>
                   ) : (
-                    <div className="gba:space-y-2">
+                    <div className="gba:space-y-3 gba:bg-muted/30 gba:rounded-2xl gba:px-4 gba:py-3 gba:border gba:border-border/50">
                       {message.thinkingLog && (
                         <div>
                           <button
@@ -848,7 +1123,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
                             </span>
                           </div>
                         )}
-                        <div className="gba:text-sm gba:whitespace-pre-wrap gba:leading-relaxed">{message.content}</div>
+                        <MarkdownRenderer content={message.content} />
                       </div>
 
                       {message.toolCalls && message.toolCalls.length > 0 && (
@@ -856,15 +1131,52 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
                           <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
                             Tools ({message.toolCalls.length})
                           </span>
-                          {message.toolCalls.map(tool => (
-                            <div key={tool.id} className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                              <span
-                                className={`gba:w-2 gba:h-2 gba:rounded-full ${tool.status === 'complete' ? 'gba:bg-success' : 'gba:bg-warning'}`}
-                              />
-                              <span className="gba:font-mono">{tool.tool}()</span>
-                              {tool.args && <span className="gba:text-muted-foreground gba:truncate">{tool.args}</span>}
-                            </div>
-                          ))}
+                          {message.toolCalls.map(tool => {
+                            // Extract file path from tool args
+                            let displayText = tool.tool
+                            let filePath: string | null = null
+
+                            if (tool.args) {
+                              // Try to extract file path from different tool types
+                              if (tool.tool === 'write_file' || tool.tool === 'read_file') {
+                                // Match patterns like: filePath: "src/..." or path: "src/..."
+                                const pathMatch = tool.args.match(/(?:filePath|path|target_file):\s*"([^"]+)"/)
+                                if (pathMatch) {
+                                  filePath = pathMatch[1]
+                                  displayText = tool.tool === 'write_file' ? '✍️ Writing' : '📖 Reading'
+                                }
+                              } else if (tool.tool === 'propose_change') {
+                                const fileMatch = tool.args.match(/file_path:\s*"([^"]+)"/)
+                                if (fileMatch) {
+                                  filePath = fileMatch[1]
+                                  displayText = '🔧 Editing'
+                                }
+                              }
+                            }
+
+                            return (
+                              <div key={tool.id} className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                                <span
+                                  className={`gba:w-2 gba:h-2 gba:rounded-full gba:flex-shrink-0 ${tool.status === 'complete' ? 'gba:bg-success' : 'gba:bg-warning gba:animate-pulse'}`}
+                                />
+                                <span className="gba:font-medium gba:text-muted-foreground">{displayText}</span>
+                                {filePath ? (
+                                  <span
+                                    className="gba:font-mono gba:text-xs gba:text-primary gba:truncate"
+                                    title={filePath}
+                                  >
+                                    {filePath}
+                                  </span>
+                                ) : (
+                                  tool.args && (
+                                    <span className="gba:text-muted-foreground gba:truncate gba:text-[10px]">
+                                      {tool.args}
+                                    </span>
+                                  )
+                                )}
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -960,11 +1272,50 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
               {/* Files Summary */}
               <div>
                 <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-                  Files to Publish ({changesSummary?.total || 0})
+                  Files to Publish ({uniqueFileSummary?.totalUniqueFiles || 0})
                 </h4>
-                <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:text-xs gba:text-muted-foreground">
-                  {changesSummary?.created || 0} created · {changesSummary?.modified || 0} modified ·{' '}
-                  {changesSummary?.deleted || 0} deleted
+                <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                    {uniqueFileSummary && uniqueFileSummary.created > 0 && (
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
+                        {uniqueFileSummary.created} created
+                      </span>
+                    )}
+                    {uniqueFileSummary && uniqueFileSummary.modified > 0 && (
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
+                        {uniqueFileSummary.modified} modified
+                      </span>
+                    )}
+                    {uniqueFileSummary && uniqueFileSummary.deleted > 0 && (
+                      <span className="gba:flex gba:items-center gba:gap-1">
+                        <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
+                        {uniqueFileSummary.deleted} deleted
+                      </span>
+                    )}
+                  </div>
+                  {/* File list */}
+                  {uniqueFileSummary && uniqueFileSummary.files.length > 0 && (
+                    <div className="gba:mt-2 gba:space-y-1 gba:max-h-32 gba:overflow-y-auto gba:text-xs">
+                      {uniqueFileSummary.files.map((file, index) => (
+                        <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:py-0.5">
+                          <span
+                            className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${
+                              file.type === 'create'
+                                ? 'gba:bg-success'
+                                : file.type === 'delete'
+                                  ? 'gba:bg-destructive'
+                                  : 'gba:bg-warning'
+                            }`}
+                          />
+                          <span className="gba:font-mono gba:text-muted-foreground gba:truncate" title={file.path}>
+                            {file.path}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
