@@ -450,6 +450,23 @@ const ScreenName: React.FC<BusinessAppContextProps> = (context) => {
 
 ---
 
+## 🚫 FORBIDDEN LIBRARIES (Runtime Will Fail!):
+
+**NEVER import or use these - they cause runtime errors:**
+\`\`\`typescript
+// ❌ These require @emotion/is-prop-valid which is NOT available
+import styled from 'styled-components'
+import { motion } from 'framer-motion'
+import anything from '@emotion/*'
+\`\`\`
+
+**✅ Use these instead:**
+- \`@newwork/nw-design-system\` components with \`gba:\` Tailwind classes
+- \`clsx\` or \`tailwind-merge\` for conditional classes
+- Native CSS transitions
+
+---
+
 ## 🚫 FORBIDDEN PATTERNS (Build Will Fail):
 
 \`\`\`typescript
