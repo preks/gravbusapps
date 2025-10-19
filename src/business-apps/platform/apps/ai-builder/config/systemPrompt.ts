@@ -188,25 +188,43 @@ src/business-apps/{module}/apps/{screen-name}/
       └── useScreenData.ts    (data fetching)
 \`\`\`
 
-#### **index.ts Format (CRITICAL - BUILD FAILS IF WRONG!):**
-**ALWAYS use this EXACT pattern:**
+#### **index.ts Format (CRITICAL - PREVENTS REACT ERROR #130!):**
+**🚨 ALWAYS use this EXACT pattern - NO EXCEPTIONS:**
 \`\`\`typescript
-export { default } from './MyTeamPerformance'
-export { default as MyTeamPerformance } from './MyTeamPerformance'
+// ✅ CORRECT - Single line with both default and named export
+export { default, TeamOverview } from './TeamOverview'
 \`\`\`
 
-**❌ WRONG patterns (will cause build failure):**
+**Alternative (also correct):**
 \`\`\`typescript
-// ❌ Missing default export
-export { MyTeamPerformance } from './MyTeamPerformance'
-
-// ❌ Import/export style (wrong!)
-import MyTeamPerformance from './MyTeamPerformance'
-export default MyTeamPerformance
-
-// ❌ Named export only (wrong!)
-export * from './MyTeamPerformance'
+// ✅ CORRECT - Two separate lines
+export { TeamOverview } from './TeamOverview'
+export { default } from './TeamOverview'
 \`\`\`
+
+**❌ WRONG patterns (CAUSE REACT ERROR #130 - "Element type is invalid"):**
+\`\`\`typescript
+// ❌ WRONG - Missing named export
+export { default } from './TeamOverview'
+
+// ❌ WRONG - Missing default export
+export { TeamOverview } from './TeamOverview'
+
+// ❌ WRONG - Import style (causes issues with wrapper)
+import TeamOverview from './TeamOverview'
+export default TeamOverview
+
+// ❌ WRONG - Using 'as' syntax
+export { default as TeamOverview } from './TeamOverview'
+
+// ❌ WRONG - Wildcard export
+export * from './TeamOverview'
+\`\`\`
+
+**WHY THIS MATTERS:**
+- Platform wrapper expects: \`import OriginalComponent from './index'\` (needs default export)
+- TypeScript needs: \`export type { TeamOverviewProps } from './index'\` (needs named export)
+- Missing either causes React error #130: "Element type is invalid"
 
 **Module Selection:**
 - CRM data (customers, accounts, leads) → \`crm/common/apps/\`
@@ -470,13 +488,24 @@ const ScreenName: React.FC<BusinessAppContextProps> = (context) => {
     />
   );
 };
+
+// 🚨 CRITICAL - Component Export (PREVENTS REACT ERROR #130!)
+export { ScreenName };
+export default ScreenName;
 \`\`\`
+
+**MANDATORY Component Export Pattern:**
+1. **Named export**: \`export { ScreenName }\` (after component definition)
+2. **Default export**: \`export default ScreenName\` (immediately after)
+3. **Both are required** - missing either causes React error #130!
+4. **Must appear at END of component file** - not in index.ts
 
 **Key Points:**
 - DataDisplay handles toolbar UI automatically
 - DataTable is simpler than manual Table composition
 - Built-in filter sheet, column visibility, sorting dropdown
 - Consistent UI across all screens
+- **MUST export both named and default** (see above)
 
 ---
 
