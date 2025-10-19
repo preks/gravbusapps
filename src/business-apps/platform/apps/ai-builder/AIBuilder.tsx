@@ -714,12 +714,13 @@ The screen has compilation errors.
               // usage
               if (data.type === 'usage' && data.content) {
                 const usageData = typeof data.content === 'string' ? JSON.parse(data.content) : data.content
-                setUsage({
-                  totalInputTokens: usageData.totalInputTokens || 0,
-                  totalOutputTokens: usageData.totalOutputTokens || 0,
-                  totalCost: usageData.totalCost || 0,
+                // Accumulate costs across all messages in the conversation
+                setUsage(prev => ({
+                  totalInputTokens: prev.totalInputTokens + (usageData.totalInputTokens || 0),
+                  totalOutputTokens: prev.totalOutputTokens + (usageData.totalOutputTokens || 0),
+                  totalCost: prev.totalCost + (usageData.totalCost || 0),
                   lastCallCost: usageData.callCost || 0
-                })
+                }))
                 setMessages(prev => {
                   const newMessages = [...prev]
                   for (let i = newMessages.length - 1; i >= 0; i--) {
@@ -727,9 +728,10 @@ The screen has compilation errors.
                       newMessages[i] = {
                         ...newMessages[i],
                         cost: {
+                          // Show the cost for THIS message only (from usageData which is per-request)
                           inputTokens: usageData.totalInputTokens || 0,
                           outputTokens: usageData.totalOutputTokens || 0,
-                          totalCost: usageData.totalCost || 0
+                          totalCost: usageData.totalCost || 0 // This is the cost for this request/message
                         }
                       }
                       break
