@@ -667,37 +667,12 @@ The screen has compilation errors.
       console.log('Total messages:', messages.length)
       console.log('Session ID:', sessionId)
 
-      // 🚨 SMART COST OPTIMIZATION (Same as FORGE):
-      // Keep: First message (context) + Last 6 messages (recent) + Important middle messages
-      let optimizedHistory = messages
-      if (messages.length > 6) {
-        const firstMessage = messages[0]
-        const recentMessages = messages.slice(-6)
-        const middleMessages = messages.slice(1, -6)
+      // ✅ Backend now handles full conversation history via RAG
+      // Frontend just sends recent messages for bandwidth optimization
+      // Backend loads full history from database + uses semantic search for best context
+      const optimizedHistory = messages.slice(-20) // Last 20 for redundancy
 
-        // Filter middle for important messages (code blocks, file mentions)
-        const importantMiddle = middleMessages.filter(msg => {
-          const content = msg.content.toLowerCase()
-          return (
-            msg.content.includes('```') || // Code blocks
-            /\w+\.(tsx?|jsx?|css|md)/.test(msg.content) || // File mentions
-            content.includes('error') ||
-            content.includes('bug') ||
-            content.includes('create') ||
-            content.includes('fix')
-          )
-        })
-
-        optimizedHistory = [firstMessage, ...importantMiddle, ...recentMessages]
-      }
-
-      console.log(
-        'Optimized:',
-        optimizedHistory.length,
-        'messages (saved',
-        messages.length - optimizedHistory.length,
-        'messages)'
-      )
+      console.log('Sending:', optimizedHistory.length, 'messages (backend loads full history from database & uses RAG)')
       console.log('========================')
 
       // Compatibility shim: if no history yet, add a dummy assistant thinking header

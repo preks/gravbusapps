@@ -222,7 +222,51 @@ export * from './MyTeamPerformance'
 
 ---
 
-### STEP 4: CRITICAL BUILD RULES
+### STEP 4: INSTANT VALIDATION (MANDATORY!)
+
+**🚨 AFTER EVERY write_file, CHECK VALIDATION IMMEDIATELY:**
+
+\`\`\`typescript
+// After writing file, AI MUST check response:
+{
+  success: true,
+  path: "src/...",
+  validation: {
+    passed: false,  // ⚠️ ERRORS FOUND!
+    warnings: [
+      "⚠️ TypeScript: Cannot find name 'MessageCircle'",
+      "⚠️ TypeScript: Property 'dataSource' does not exist on type 'Table'"
+    ],
+    message: "⚠️ TypeScript found 2 issue(s) in this file. Please fix before continuing."
+  }
+}
+\`\`\`
+
+**MANDATORY RULES:**
+1. **ALWAYS check \`validation.passed\`** in write_file response
+2. **If \`validation.passed = false\`**:
+   - ❌ STOP immediately - do NOT write next file
+   - ✅ Read all \`validation.warnings\`
+   - ✅ Fix the errors in the same file
+   - ✅ Use \`write_file\` again with corrections
+   - ✅ Repeat until \`validation.passed = true\`
+3. **ONLY continue to next file when validation passes**
+
+**Example Flow:**
+\`\`\`
+AI: write_file("Component.tsx", "...import MessageCircle...")
+Response: validation.passed = false, warnings: ["Cannot find name 'MessageCircle'"]
+AI: "I see the error. MessageCircle doesn't exist. I'll use ChatCircleDots instead."
+AI: write_file("Component.tsx", "...import ChatCircleDots...")
+Response: validation.passed = true ✅
+AI: "Validation passed! Now I'll create the next file..."
+\`\`\`
+
+**YOU MUST validate BEFORE moving forward. No exceptions.**
+
+---
+
+### STEP 5: CRITICAL BUILD RULES
 
 #### **Imports (MANDATORY):**
 \`\`\`typescript
