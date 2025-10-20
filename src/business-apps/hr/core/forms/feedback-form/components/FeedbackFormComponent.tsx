@@ -12,7 +12,8 @@ import {
   AlertDescription,
   Avatar,
   AvatarFallback,
-  AvatarImage
+  AvatarImage,
+  Switch
 } from '@newwork/nw-design-system'
 import { DownOutlined } from '@ant-design/icons'
 import { useFeedbackForm } from '../context/FeedbackFormContext'
@@ -99,7 +100,7 @@ const FeedbackFormComponent: React.FC = () => {
         <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2">
             <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('feedback.form.title', 'Give Feedback')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.title', 'Give Feedback')}
             </h2>
           </div>
         </div>
@@ -113,7 +114,10 @@ const FeedbackFormComponent: React.FC = () => {
               <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
                 <Spinner size="sm" />
                 <span className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('feedback.form.employee.loading', 'Loading employee details...')}
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_give_form.employee.loading',
+                    'Loading employee details...'
+                  )}
                 </span>
               </div>
             )}
@@ -164,11 +168,11 @@ const FeedbackFormComponent: React.FC = () => {
               </div>
             ) : (!hasPreSelectedEmployee || isPreSelectedEmployeeCurrentUser) && !preSelectedEmployeeLoading ? (
               <EmployeeSearchableSelect
-                label={getTranslationFromI18nKeyAndLabel('feedback.form.employee.label', 'Employee')}
+                label={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.employee.label', 'Employee')}
                 name="employee-select"
                 value={formValues.employeeId}
                 placeholder={getTranslationFromI18nKeyAndLabel(
-                  'feedback.form.employee.placeholder',
+                  'lowcoder:feedback_give_form.employee.placeholder',
                   'Select an employee...'
                 )}
                 options={employees.map(emp => ({
@@ -198,10 +202,23 @@ const FeedbackFormComponent: React.FC = () => {
             ) : null}
           </div>
 
+          {/* Public switch */}
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <Label htmlFor="feedback-public" className="gba:text-sm gba:text-gray-600">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.public.label', 'Public Feedback')}
+            </Label>
+            <Switch
+              id="feedback-public"
+              checked={!!formValues.feedbackPublic}
+              onCheckedChange={(v: boolean) => setFormValues({ feedbackPublic: v })}
+              data-testid={formatDataTestId(prefixDataTestId, 'PublicSwitch')}
+            />
+          </div>
+
           {/* Feedback Text Section */}
           <div className="gba:space-y-2">
             <Label htmlFor="feedback-text" className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel('feedback.form.text.label', 'Feedback')} *
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.text.label', 'Feedback')} *
             </Label>
             <Textarea
               id="feedback-text"
@@ -209,7 +226,10 @@ const FeedbackFormComponent: React.FC = () => {
               data-testid={formatDataTestId(prefixDataTestId, 'Textarea')}
               value={formValues.feedbackText}
               onChange={handleTextChange}
-              placeholder="Enter your feedback here..."
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:feedback_give_form.text.placeholder',
+                'Enter your feedback here...'
+              )}
               rows={12}
               className="gba:resize-none gba:border-border gba:focus:border-ring gba:focus:ring-ring gba:min-h-[200px]"
             />
@@ -227,8 +247,11 @@ const FeedbackFormComponent: React.FC = () => {
                 >
                   <span>
                     {isLoading
-                      ? getTranslationFromI18nKeyAndLabel('feedback.form.transforming', 'Transforming')
-                      : getTranslationFromI18nKeyAndLabel('feedback.form.transform.placeholder', 'Text Tool')}
+                      ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.transforming', 'Transforming')
+                      : getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:feedback_give_form.transform.placeholder',
+                          'Text Tool'
+                        )}
                   </span>
                   <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
                 </Button>
@@ -239,21 +262,21 @@ const FeedbackFormComponent: React.FC = () => {
                   data-testid={formatDataTestId(prefixDataTestId, 'FormalizeOption')}
                   className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
                 >
-                  {getTranslationFromI18nKeyAndLabel('feedback.form.formalize', 'Formalize')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.formalize', 'Formalize')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleTransform('translate')}
                   data-testid={formatDataTestId(prefixDataTestId, 'TranslateOption')}
                   className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
                 >
-                  {getTranslationFromI18nKeyAndLabel('feedback.form.translate', 'Translate')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.translate', 'Translate')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => handleTransform('shorten')}
                   data-testid={formatDataTestId(prefixDataTestId, 'ShortenOption')}
                   className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
                 >
-                  {getTranslationFromI18nKeyAndLabel('feedback.form.shorten', 'Shorten')}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.shorten', 'Shorten')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -275,7 +298,7 @@ const FeedbackFormComponent: React.FC = () => {
             data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
             className="gba:px-6 gba:py-2 gba:rounded-lg"
           >
-            {getTranslationFromI18nKeyAndLabel('feedback.form.cancel', 'Cancel')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.cancel', 'Cancel')}
           </Button>
           <Button
             variant="default"
@@ -286,7 +309,7 @@ const FeedbackFormComponent: React.FC = () => {
             data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
           >
             {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-            {getTranslationFromI18nKeyAndLabel('feedback.form.submit', 'Submit')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_give_form.submit', 'Submit')}
           </Button>
         </div>
       </div>
