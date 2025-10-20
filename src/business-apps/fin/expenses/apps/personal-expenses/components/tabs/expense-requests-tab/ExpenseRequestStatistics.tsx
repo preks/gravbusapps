@@ -14,6 +14,7 @@ interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   onWidgetClick?: (widgetKey: string) => void
   activeWidgetKey?: string
   currencyCode?: string
+  selectedCurrencyRef?: string
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
@@ -22,6 +23,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   fetchRequestStatistics = () => Promise.resolve(),
   onWidgetClick,
   activeWidgetKey,
+  currencyCode,
+  selectedCurrencyRef,
   ...contextProps
 }) => {
   // Memoize context props to ensure stable reference
@@ -41,7 +44,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     fetchStatistics
   } = useGetExpenseRequestStatistics(
     stableContextProps,
-    ((contextProps as any).selectedCurrencyRef as string) || 'Currency:v1:EUR'
+    selectedCurrencyRef || 'Currency:v1:EUR'
   )
 
   // Combine loading states
@@ -56,7 +59,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   }, [
     stableContextProps.accessToken,
     stableContextProps.userInfo?.employeeDetails?.employeeId,
-    (contextProps as any).selectedCurrencyRef,
+    selectedCurrencyRef,
     fetchStatistics
   ])
 
@@ -170,6 +173,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), (contextProps as any).currencyCode || 'EUR')}`,
+      // currencyCode provided by parent (derived from selectedCurrencyRef)
+      // fallback to 'EUR' when not available
+      
       prefix: <DollarOutlined />,
       color: '#3f8600',
       precision: 2,
@@ -200,7 +206,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
-      value: formatCurrencyDisplay(statistics.reimbursableAmount, (contextProps as any).currencyCode || 'EUR'),
+      value: formatCurrencyDisplay(statistics.reimbursableAmount, currencyCode || 'EUR'),
       prefix: <DollarOutlined />,
       color: '#722ed1',
       precision: 2,

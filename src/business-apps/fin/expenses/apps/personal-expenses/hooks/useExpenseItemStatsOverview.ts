@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_ITEM_STATS_OVERVIEW } from '../queries/expenseItems'
 
 export interface ExpenseItemStatsOverviewResult {
@@ -17,6 +17,7 @@ export const useExpenseItemStatsOverview = (context: BusinessAppContextProps) =>
   const [data, setData] = useState<ExpenseItemStatsOverviewResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchOverview = useCallback(
     async (currencyRef: string) => {
@@ -35,35 +36,21 @@ export const useExpenseItemStatsOverview = (context: BusinessAppContextProps) =>
       const previousEnd = lastMonth.endOf('month').format('YYYY-MM-DD HH:mm:ss')
 
       try {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_ITEM_STATS_OVERVIEW,
-            variables: {
-              employeeId,
-              currencyRef,
-              currentStart,
-              currentEnd,
-              previousStart,
-              previousEnd
-            }
-          })
+        const result = await graphqlClient.request<any>(GET_EXPENSE_ITEM_STATS_OVERVIEW, {
+          employeeId,
+          currencyRef,
+          currentStart,
+          currentEnd,
+          previousStart,
+          previousEnd
         })
 
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        const result = await response.json()
-        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '))
-
-        const currentTotals = result.data?.currentMonthTotals?.aggregate?.sum?.totalAmount ?? 0
-        const previousTotals = result.data?.previousMonthTotals?.aggregate?.sum?.totalAmount ?? 0
-        const currentPending = result.data?.currentMonthPending?.aggregate?.sum?.reimbursableAmount ?? 0
-        const previousPending = result.data?.previousMonthPending?.aggregate?.sum?.reimbursableAmount ?? 0
-        const currentPendingCount = result.data?.currentMonthPending?.aggregate?.count ?? 0
-        const previousPendingCount = result.data?.previousMonthPending?.aggregate?.count ?? 0
+        const currentTotals = result?.currentMonthTotals?.aggregate?.sum?.totalAmount ?? 0
+        const previousTotals = result?.previousMonthTotals?.aggregate?.sum?.totalAmount ?? 0
+        const currentPending = result?.currentMonthPending?.aggregate?.sum?.reimbursableAmount ?? 0
+        const previousPending = result?.previousMonthPending?.aggregate?.sum?.reimbursableAmount ?? 0
+        const currentPendingCount = result?.currentMonthPending?.aggregate?.count ?? 0
+        const previousPendingCount = result?.previousMonthPending?.aggregate?.count ?? 0
 
         setData({
           totalExpensesCurrent: currentTotals,

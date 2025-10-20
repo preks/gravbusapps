@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import { useCallback, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { env } from '@/common/env/EnvUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EXPENSE_PLANS_OVERVIEW } from '../queries/expensePlans'
 
 export interface PlansOverviewResult {
@@ -24,6 +24,7 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
   const [error, setError] = useState<string | null>(null)
   const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
   const lastKeyRef = useRef<string>()
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchOverview = useCallback(
     async (
@@ -96,17 +97,8 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       setIsLoading(true)
       setError(null)
       try {
-        const p = fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-          body: JSON.stringify({ query: GET_EXPENSE_PLANS_OVERVIEW, variables })
-        })
-          .then(async r => {
-            if (!r.ok) throw new Error(`HTTP ${r.status}`)
-            const result = await r.json()
-            if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '))
-            return result.data
-          })
+        const p = graphqlClient
+          .request<any>(GET_EXPENSE_PLANS_OVERVIEW, variables)
           .finally(() => {
             inflightRef.current.delete(key)
           })

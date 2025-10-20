@@ -1,4 +1,4 @@
-import { env } from '@/common/env/EnvUtils'
+import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import {
   aggregateCurrencyStats,
   pickMostUsedCurrencyRef,
@@ -9,7 +9,7 @@ import {
 
 export type RowMapper<T> = (row: T) => CurrencyLikeRow
 
-export interface FetchCurrencyStatsParams<TVariables, TRow = any> {
+export interface FetchCurrencyStatsParams<TVariables extends Record<string, any>, TRow = any> {
   accessToken: string
   query: string
   variables: TVariables
@@ -17,21 +17,13 @@ export interface FetchCurrencyStatsParams<TVariables, TRow = any> {
   mapRow: RowMapper<TRow>
 }
 
-export const fetchEmployeeCurrencyStats = async <TVariables, TRow = any>(
+export const fetchEmployeeCurrencyStats = async <TVariables extends Record<string, any>, TRow = any>(
   params: FetchCurrencyStatsParams<TVariables, TRow>
 ): Promise<CurrencyStat[]> => {
   const { accessToken, query, variables, dataPath, mapRow } = params
-  const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`
-    },
-    body: JSON.stringify({ query, variables })
-  })
-  if (!response.ok) return []
-  const result = await response.json()
-  let rows: any = result?.data
+  graphQLClient.setAccessToken(accessToken)
+  const result = await graphQLClient.request<any>(query, variables)
+  let rows: any = result
   for (const key of dataPath) {
     rows = rows?.[key]
   }
