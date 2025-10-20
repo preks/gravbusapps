@@ -64,13 +64,17 @@ export const mapInvestmentOpportunityDataToFormValues = (
 
     // Relationships
     accountId: opportunity.accountId || '',
-    account: opportunity.account?.id || opportunity.accountId || '',
+    account: opportunity.account?.id
+      ? { id: opportunity.account.id, name: opportunity.account.name || 'Unnamed Account' }
+      : opportunity.accountId || '', // ✅ Store full object like contact form pattern
 
-    // Contact Information
+    // Contact Information - ✅ UPDATED: Include association metadata
     contactIds:
       opportunity.investmentOpportunityContact?.map(rel => ({
         id: rel.contact.id,
-        name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim()
+        name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim(),
+        associationId: rel.id, // ✅ NEW: Capture association ID
+        associationVersion: rel.version // ✅ NEW: Capture association version
       })) || [],
 
     // Owner Information
