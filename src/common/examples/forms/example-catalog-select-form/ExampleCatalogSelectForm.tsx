@@ -16,7 +16,7 @@ import {
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { CatalogSelect, CatalogSelectProvider } from '@/components/catalog-select'
+import { CatalogSelect, CatalogSelectProvider, useCatalogSelectController } from '@/components/catalog-select'
 
 /**
  * Enhanced CatalogSelect Example Form
