@@ -4,7 +4,6 @@ import { createChangeLogService } from '../../services/changeLogService'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import ChangeLogFilters from './ChangeLogFilters'
 import ChangeLogEntry from './ChangeLogEntry'
-import ViewModeToggle from './ViewModeToggle'
 
 // Types for Change Log
 export interface ChangeLogEntry {
@@ -64,7 +63,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
     changeActor: [],
     searchTerm: ''
   })
-  const [viewMode, setViewMode] = useState<'grouped' | 'flat'>('grouped')
 
   // Fetch change log data
   const fetchChangeLogData = useCallback(async () => {
@@ -246,12 +244,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
         userRole={userRole}
         filteredEntriesCount={filteredEntries.length}
         totalEntriesCount={changeLogEntries.length}
-      />
-
-      {/* View Mode Toggle */}
-      <ViewModeToggle
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
       />
 
       {/* Change Log Entries */}
