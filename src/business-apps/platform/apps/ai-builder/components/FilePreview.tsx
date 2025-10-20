@@ -113,17 +113,28 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
         </div>
 
         {/* Content */}
-        <div className="gba:flex-1 gba:overflow-auto gba:p-4 gba:bg-background">
+        <div className="gba:flex-1 gba:overflow-auto gba:bg-background">
           {loading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
               <div className="gba:animate-pulse">Loading file content...</div>
             </div>
           ) : (
-            <pre
-              className={`gba:text-xs gba:font-mono gba:whitespace-pre-wrap gba:leading-relaxed gba:text-foreground language-${ext}`}
-            >
-              {content}
-            </pre>
+            <div className="gba:flex gba:font-mono gba:text-xs">
+              {/* Line numbers */}
+              <div className="gba:flex-shrink-0 gba:py-4 gba:pl-4 gba:pr-3 gba:bg-muted/30 gba:text-muted-foreground gba:select-none gba:text-right gba:border-r gba:border-border">
+                {content.split('\n').map((_, i) => (
+                  <div key={i} className="gba:leading-relaxed">
+                    {i + 1}
+                  </div>
+                ))}
+              </div>
+              {/* Code content */}
+              <pre
+                className={`gba:flex-1 gba:py-4 gba:px-4 gba:whitespace-pre gba:overflow-x-auto gba:leading-relaxed gba:text-foreground language-${ext}`}
+              >
+                {content}
+              </pre>
+            </div>
           )}
         </div>
       </div>
