@@ -169,10 +169,10 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="flw_changePersonalData_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6"/>
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0 gba:[&>div[data-testid='change-personal-data']]:!px-0"
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0"
         data-testid="change-personal-data-form-content"
       >
         {/* moved upload below comment - removed from here */}

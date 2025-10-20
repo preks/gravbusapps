@@ -1,6 +1,7 @@
 import React from 'react'
 import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { ChevronFirst, ChevronLeft, ChevronRight, ChevronLast } from 'lucide-react'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface PaginationChangeParams {
   current: number
@@ -32,11 +33,13 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
       data-testid="expense-requests-pagination"
     >
       <div className="gba:text-sm gba:text-muted-foreground" data-testid="expense-requests-pagination-info">
-        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} of ${totalItems} items`}
+        {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalItems)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalItems} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.items', 'items')}`}
       </div>
       <div className="gba:flex gba:items-center gba:gap-6 gba:lg:gap-8 gba:shrink-0">
         <div className="gba:flex gba:items-center gba:space-x-2 gba:shrink-0">
-          <p className="gba:text-sm gba:font-medium">Rows per page</p>
+          <p className="gba:text-sm gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.rows_per_page', 'Rows per page')}
+          </p>
           <Select
             value={pageSize.toString()}
             onValueChange={value => {
@@ -59,7 +62,8 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
           className="gba:flex gba:w-[100px] gba:items-center gba:justify-center gba:text-sm gba:font-medium gba:shrink-0"
           data-testid="page-info"
         >
-          Page {currentPage} of {totalPages}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.page', 'Page')} {currentPage}{' '}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} {totalPages}
         </div>
         <div className="gba:flex gba:items-center gba:space-x-2 gba:shrink-0">
           <Button
@@ -74,23 +78,23 @@ const ExpenseRequestPagination: React.FC<ExpenseRequestPaginationProps> = ({
           </Button>
           <Button
             variant="outline"
-            className="gba:h-8 gba:w-8 gba:p-0"
+            className="gba:h-8 gba:px-3"
             onClick={() => onPageChange({ current: currentPage - 1, pageSize })}
             disabled={currentPage === 1}
             data-testid="previous-page-button"
           >
-            <span className="gba:sr-only">Go to previous page</span>
-            <ChevronLeft className="gba:h-4 gba:w-4" />
+            <ChevronLeft className="gba:h-4 gba:w-4 gba:mr-1" />
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
           </Button>
           <Button
             variant="outline"
-            className="gba:h-8 gba:w-8 gba:p-0"
+            className="gba:h-8 gba:px-3"
             onClick={() => onPageChange({ current: currentPage + 1, pageSize })}
             disabled={currentPage >= totalPages}
             data-testid="next-page-button"
           >
-            <span className="gba:sr-only">Go to next page</span>
-            <ChevronRight className="gba:h-4 gba:w-4" />
+            {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
+            <ChevronRight className="gba:h-4 gba:w-4 gba:ml-1" />
           </Button>
           <Button
             variant="outline"
