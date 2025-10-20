@@ -14,9 +14,18 @@ const FIELD_CATEGORIES = [
   { value: 'working', label: getTranslationFromI18nKeyAndLabel('changelog.categories.working', 'Working Conditions') },
   { value: 'financial', label: getTranslationFromI18nKeyAndLabel('changelog.categories.financial', 'Financial') },
   { value: 'skills', label: getTranslationFromI18nKeyAndLabel('changelog.categories.skills', 'Skills & Capabilities') },
-  { value: 'performance', label: getTranslationFromI18nKeyAndLabel('changelog.categories.performance', 'Performance & Goals') },
-  { value: 'absence', label: getTranslationFromI18nKeyAndLabel('changelog.categories.absence', 'Absence Entitlements') },
-  { value: 'emergency', label: getTranslationFromI18nKeyAndLabel('changelog.categories.emergency', 'Emergency Contacts') }
+  {
+    value: 'performance',
+    label: getTranslationFromI18nKeyAndLabel('changelog.categories.performance', 'Performance & Goals')
+  },
+  {
+    value: 'absence',
+    label: getTranslationFromI18nKeyAndLabel('changelog.categories.absence', 'Absence Entitlements')
+  },
+  {
+    value: 'emergency',
+    label: getTranslationFromI18nKeyAndLabel('changelog.categories.emergency', 'Emergency Contacts')
+  }
 ]
 
 export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
@@ -30,12 +39,8 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
         <div className="gba:flex gba:items-center gba:gap-3">
           <div className="gba:w-5 gba:h-5 gba:bg-blue-500 gba:rounded"></div>
           <div>
-            <h4 className="gba:font-medium gba:text-gray-900 gba:m-0">
-              {entry.fieldName}
-            </h4>
-            <p className="gba:text-sm gba:text-gray-500 gba:m-0">
-              {categoryInfo?.label}
-            </p>
+            <h4 className="gba:font-medium gba:text-gray-900 gba:m-0">{entry.fieldName}</h4>
+            <p className="gba:text-sm gba:text-gray-500 gba:m-0">{categoryInfo?.label}</p>
           </div>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
@@ -46,19 +51,21 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
           )}
           {entry.changeOrigin.isSystemGenerated && (
             <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-gray-100 gba:text-gray-800">
-              System
+              Systems
             </span>
           )}
         </div>
       </div>
-      
+
       <div className="gba:mt-4 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
         <div>
           <label className="gba:text-sm gba:font-medium gba:text-gray-700">
             {getTranslationFromI18nKeyAndLabel('changelog.labels.previous_value', 'Previous Value')}
           </label>
           <p className="gba:text-sm gba:text-gray-900 gba:bg-gray-50 gba:p-2 gba:rounded gba:mt-1">
-            {entry.isMasked ? getTranslationFromI18nKeyAndLabel('changelog.privacy.hidden', 'Hidden for privacy') : (entry.previousValue || getTranslationFromI18nKeyAndLabel('changelog.common.not_available', 'N/A'))}
+            {entry.isMasked
+              ? getTranslationFromI18nKeyAndLabel('changelog.privacy.hidden', 'Hidden for privacy')
+              : entry.previousValue || getTranslationFromI18nKeyAndLabel('changelog.common.not_available', 'N/A')}
           </p>
         </div>
         <div>
@@ -66,14 +73,18 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
             {getTranslationFromI18nKeyAndLabel('changelog.labels.new_value', 'New Value')}
           </label>
           <p className="gba:text-sm gba:text-gray-900 gba:bg-green-50 gba:p-2 gba:rounded gba:mt-1">
-            {entry.isMasked ? getTranslationFromI18nKeyAndLabel('changelog.privacy.hidden', 'Hidden for privacy') : (entry.newValue || getTranslationFromI18nKeyAndLabel('changelog.common.not_available', 'N/A'))}
+            {entry.isMasked
+              ? getTranslationFromI18nKeyAndLabel('changelog.privacy.hidden', 'Hidden for privacy')
+              : entry.newValue || getTranslationFromI18nKeyAndLabel('changelog.common.not_available', 'N/A')}
           </p>
         </div>
       </div>
-      
+
       <div className="gba:mt-4 gba:flex gba:justify-between gba:items-center gba:text-sm gba:text-gray-500">
         <div className="gba:flex gba:items-center gba:gap-4">
-          <span>{getTranslationFromI18nKeyAndLabel('changelog.labels.changed_by', 'Changed by')}: {entry.changedBy.userName}</span>
+          <span>
+            {getTranslationFromI18nKeyAndLabel('changelog.labels.changed_by', 'Changed by')}: {entry.changedBy.userName}
+          </span>
           <span>•</span>
           <span>{format(new Date(entry.timestamp), 'MMM dd, yyyy HH:mm')}</span>
         </div>
