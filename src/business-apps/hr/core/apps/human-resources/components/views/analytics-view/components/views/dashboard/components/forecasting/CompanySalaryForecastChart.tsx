@@ -31,7 +31,7 @@ const CompanySalaryForecastChart: React.FC<CompanySalaryForecastChartProps> = ({
 
   return (
     <Card
-      className="gba:shadow gba:rounded gba:p-4 gba:mb-6 gba:border gba:border-gray-200"
+      className="gba:shadow gba:rounded gba:p-4 gba:mb-6 gba:border gba:border-border"
       data-testid="company-salary-forecast-chart"
       title={getTranslationFromI18nKeyAndLabel('company_salary_forecast', 'Company Salary Forecast')}
       loading={loading}
@@ -43,7 +43,7 @@ const CompanySalaryForecastChart: React.FC<CompanySalaryForecastChartProps> = ({
             <XAxis dataKey="month" className="gba:text-xs" />
             <YAxis className="gba:text-xs" tickFormatter={v => `$${v.toLocaleString()}`} />
             <Tooltip formatter={v => `$${v.toLocaleString()}`} />
-            <Line type="monotone" dataKey="salary" stroke="#3182ce" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="salary" stroke="var(--nw-chart-1)" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>

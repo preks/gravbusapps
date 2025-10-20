@@ -6,12 +6,23 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import AccountInformationSection from './AccountInformationSection'
 import AddressInformationSection from './AddressInformationSection'
 import FinancialInformationSection from './FinancialInformationSection'
-import ContactSelector from './ContactSelector'
+import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 
 const prefixDataTestId = 'AccountForm'
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions, setFormValues } = useAccountFormContext()
+  const {
+    formValues,
+    onCancel,
+    isLoading,
+    error,
+    hideActions,
+    setFormValues,
+    contacts,
+    contactsLoading,
+    contactsError,
+    searchContacts
+  } = useAccountFormContext()
 
   // Local loading state for submission
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -182,13 +193,17 @@ const AccountFormComponent: React.FC = () => {
           {/* Account Information Section */}
           <AccountInformationSection />
 
-          {/* Related Contact Selection - positioned right after Account Information */}
+          {/* Related Contacts Selection - Multiple contacts can be associated */}
           <div className="gba:space-y-2">
-            <ContactSelector
+            <ContactSelect
               value={formValues.contactIds}
               onChange={contactIds => setFormValues({ contactIds })}
               dataTestId={formatDataTestId(prefixDataTestId, 'contact-selector')}
               error={null}
+              contacts={contacts}
+              contactsLoading={contactsLoading}
+              contactsError={contactsError}
+              searchContacts={searchContacts}
             />
           </div>
 

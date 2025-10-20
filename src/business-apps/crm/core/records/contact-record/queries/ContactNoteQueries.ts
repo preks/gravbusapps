@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -18,7 +19,7 @@ export interface ContactNoteResponse {
   CrmNote: ContactNoteData[]
 }
 
-export const GET_CONTACT_NOTES = (variables: ContactNoteQueryVariables): string => {
+export const GET_CONTACT_NOTES = (): string => {
   return `
     query GetContactNotes($contactId: uuid!) {
       CrmNote(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
@@ -36,16 +37,19 @@ export const GET_CONTACT_NOTES = (variables: ContactNoteQueryVariables): string 
 export const useGetContactNotes = (context: BusinessAppContextProps) => {
   const graphQLClient = useGraphQLClient(context.accessToken)
 
-  const fetchContactNotes = async (variables: ContactNoteQueryVariables) => {
-    const query = GET_CONTACT_NOTES(variables)
-    try {
-      const result = await graphQLClient.request<ContactNoteResponse>(query, variables)
-      return result
-    } catch (error) {
-      console.error('Error fetching contact notes:', error)
-      throw error
-    }
-  }
+  const fetchContactNotes = useCallback(
+    async (variables: ContactNoteQueryVariables) => {
+      const query = GET_CONTACT_NOTES()
+      try {
+        const result = await graphQLClient.request<ContactNoteResponse>(query, variables)
+        return result
+      } catch (error) {
+        console.error('Error fetching contact notes:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
 
   return { fetchContactNotes }
 }

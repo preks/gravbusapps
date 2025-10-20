@@ -1,5 +1,5 @@
 // Investment Account hooks - CRM account entity operations
-import { useCallback } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type {
@@ -47,10 +47,82 @@ export interface InvestmentAccountByIdData {
   account?: InvestmentAccount
 }
 
-// Hook for getting investment accounts with full details
-export const useGetInvestmentAccounts = (context: BusinessAppContextProps) => {
+// SelectOption interface for UI components (accounts)
+export interface AccountSelectOption {
+  id: string
+  value: string
+  label: string
+  name: string
+  extraInfo?: {
+    businessKey?: string
+    code?: string
+    website?: string
+    email?: string
+    phone?: string
+    ownerEmployee?: {
+      firstName?: string
+      lastName?: string
+    }
+  }
+}
+
+// Options for enhanced hook functionality
+export interface UseGetInvestmentAccountsOptions {
+  withState?: boolean // Enable state management (default: false)
+  autoFetch?: boolean // Auto-fetch on mount (default: false)
+  pageSize?: number // Items per page (default: 20)
+  mapToSelectOptions?: boolean // Transform to AccountSelectOption[] (default: false)
+}
+
+// Return type for function-only mode (backward compatible)
+interface FunctionOnlyReturn {
+  fetchInvestmentAccounts: (variables?: InvestmentAccountQueryVariables) => Promise<InvestmentAccountQueryResponse>
+}
+
+// Return type for stateful mode
+interface StatefulReturn {
+  fetchInvestmentAccounts: (variables?: InvestmentAccountQueryVariables) => Promise<InvestmentAccountQueryResponse>
+  options: AccountSelectOption[] | InvestmentAccount[]
+  loading: boolean
+  error: string | null
+  hasMore: boolean
+  search: (searchTerm: string) => void
+  loadMore: () => void
+  reset: () => void
+  initialize: () => void
+}
+
+// Function overloads for type safety
+export function useGetInvestmentAccounts(
+  context: BusinessAppContextProps,
+  options: UseGetInvestmentAccountsOptions & { withState: true }
+): StatefulReturn
+
+export function useGetInvestmentAccounts(
+  context: BusinessAppContextProps,
+  options?: UseGetInvestmentAccountsOptions
+): FunctionOnlyReturn
+
+// Implementation
+export function useGetInvestmentAccounts(
+  context: BusinessAppContextProps,
+  options?: UseGetInvestmentAccountsOptions
+): FunctionOnlyReturn | StatefulReturn {
+  const { withState = false, autoFetch = false, pageSize = 20, mapToSelectOptions = false } = options || {}
+
   const graphqlClient = useGraphQLClient(context.accessToken)
 
+  // State management (only used when withState=true)
+  const [state, setState] = useState({
+    options: [] as AccountSelectOption[] | InvestmentAccount[],
+    loading: false,
+    error: null as string | null,
+    hasMore: false,
+    currentSearch: '',
+    offset: 0
+  })
+
+  // Core fetch function (always available)
   const fetchInvestmentAccounts = useCallback(
     async (variables: InvestmentAccountQueryVariables = {}) => {
       const query = GET_INVESTMENT_ACCOUNTS(variables)
@@ -73,6 +145,130 @@ export const useGetInvestmentAccounts = (context: BusinessAppContextProps) => {
     [graphqlClient]
   )
 
+  // Stateful fetch function (only used when withState=true)
+  const fetchAccountsWithState = useCallback(
+    async (search: string = '', offset: number = 0, append: boolean = false) => {
+      if (!context.accessToken) return
+
+      setState(prev => ({
+        ...prev,
+        loading: true,
+        error: null,
+        ...(append ? {} : { options: [] })
+      }))
+
+      try {
+        const variables: InvestmentAccountQueryVariables = {
+          limit: pageSize,
+          offset
+        }
+
+        if (search.trim()) {
+          variables.search = search.trim()
+        }
+
+        const result = await fetchInvestmentAccounts(variables)
+
+        // Map to AccountSelectOption or keep as InvestmentAccount
+        const mappedData = mapToSelectOptions
+          ? result.InvestmentAccount.map((account: InvestmentAccount) => ({
+              id: String(account.id),
+              value: String(account.id),
+              label: account.name || 'Unknown',
+              name: account.name || 'Unknown',
+              extraInfo: {
+                businessKey: account.businessKey,
+                code: account.code,
+                website: account.website,
+                email: account.email,
+                phone: account.phone,
+                ownerEmployee: account.ownerEmployee
+                  ? {
+                      firstName: account.ownerEmployee.firstName,
+                      lastName: account.ownerEmployee.lastName
+                    }
+                  : undefined
+              }
+            }))
+          : result.InvestmentAccount
+
+        const hasMoreRecords = result.InvestmentAccount.length === pageSize
+
+        setState(prev => ({
+          ...prev,
+          options: append ? ([...prev.options, ...mappedData] as typeof mappedData) : mappedData,
+          loading: false,
+          hasMore: hasMoreRecords,
+          currentSearch: search,
+          offset: append ? prev.offset + mappedData.length : mappedData.length
+        }))
+      } catch (error) {
+        console.error('Error fetching investment accounts with state:', error)
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: error instanceof Error ? error.message : 'Failed to fetch investment accounts'
+        }))
+      }
+    },
+    [context.accessToken, fetchInvestmentAccounts, pageSize, mapToSelectOptions]
+  )
+
+  // Search function (only used when withState=true)
+  const search = useCallback(
+    (searchTerm: string) => {
+      fetchAccountsWithState(searchTerm, 0, false)
+    },
+    [fetchAccountsWithState]
+  )
+
+  // Load more function (only used when withState=true)
+  const loadMore = useCallback(() => {
+    if (state.hasMore && !state.loading) {
+      fetchAccountsWithState(state.currentSearch, state.offset, true)
+    }
+  }, [fetchAccountsWithState, state.hasMore, state.loading, state.currentSearch, state.offset])
+
+  // Reset function (only used when withState=true)
+  const reset = useCallback(() => {
+    setState({
+      options: [],
+      loading: false,
+      error: null,
+      hasMore: false,
+      currentSearch: '',
+      offset: 0
+    })
+  }, [])
+
+  // Initialize function (only used when withState=true)
+  const initialize = useCallback(() => {
+    fetchAccountsWithState('', 0, false)
+  }, [fetchAccountsWithState])
+
+  // Auto-fetch on mount (only when withState=true and autoFetch=true)
+  useEffect(() => {
+    if (withState && autoFetch && context.accessToken) {
+      initialize()
+    }
+  }, [withState, autoFetch, context.accessToken, initialize])
+
+  // Return appropriate interface based on withState flag
+  if (withState) {
+    return {
+      fetchInvestmentAccounts,
+      options: state.options,
+      loading: state.loading,
+      error: state.error,
+      hasMore: state.hasMore,
+      search,
+      loadMore,
+      reset,
+      initialize
+    }
+  }
+
+  // Backward compatible: return only the fetch function
   return { fetchInvestmentAccounts }
 }
 

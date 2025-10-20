@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -19,6 +20,7 @@ export interface ContactTaskData {
   assignedEmployeeId?: string // Added assigned employee ID field
   type: {
     value: string
+    code?: string
   }
   priority: {
     value: string
@@ -46,7 +48,7 @@ export interface ContactTaskResponse {
   SalesTask: ContactTaskData[]
 }
 
-export const GET_CONTACT_TASKS = (variables: ContactTaskQueryVariables): string => {
+export const GET_CONTACT_TASKS = (): string => {
   return `
     query GetContactTasks($contactId: uuid!) {
       SalesTask(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
@@ -90,16 +92,19 @@ export const GET_CONTACT_TASKS = (variables: ContactTaskQueryVariables): string 
 export const useGetContactTasks = (context: BusinessAppContextProps) => {
   const graphQLClient = useGraphQLClient(context.accessToken)
 
-  const fetchContactTasks = async (variables: ContactTaskQueryVariables) => {
-    const query = GET_CONTACT_TASKS(variables)
-    try {
-      const result = await graphQLClient.request<ContactTaskResponse>(query, variables)
-      return result
-    } catch (error) {
-      console.error('Error fetching contact tasks:', error)
-      throw error
-    }
-  }
+  const fetchContactTasks = useCallback(
+    async (variables: ContactTaskQueryVariables) => {
+      const query = GET_CONTACT_TASKS()
+      try {
+        const result = await graphQLClient.request<ContactTaskResponse>(query, variables)
+        return result
+      } catch (error) {
+        console.error('Error fetching contact tasks:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
 
   return { fetchContactTasks }
 }

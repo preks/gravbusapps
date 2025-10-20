@@ -109,9 +109,15 @@ const OpportunityFormComponent: React.FC = () => {
         investmentOpportunityPayload.opportunityStatusRef = 'InvestmentOpportunityStatus:v1:OPEN'
       }
 
+      // Extract contact IDs from contactIds (handle both string[] and object[] formats)
+      const extractedContactIds = (formValues.contactIds || []).map(contact =>
+        typeof contact === 'object' ? contact.id : contact
+      )
+
       const payload = {
         investmentOpportunity: investmentOpportunityPayload,
-        changeMode: changeMode
+        changeMode: changeMode,
+        contactIds: extractedContactIds // Array of contact IDs
       }
 
       // Dispatch process continue event FIRST (like account form)

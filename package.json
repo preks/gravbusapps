@@ -16,7 +16,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "newwork-git-hooks",
-    "commit": "czg"
+    "commit": "dotenvx run -- czg ai"
   },
   "dependencies": {
     "@ant-design/icons": "^5.0.0",
@@ -48,9 +48,9 @@
     "@dotenvx/dotenvx": "^1.46.0",
     "@eslint/js": "^9.25.0",
     "@newwork/commitlint-config": "^0.1.0",
-    "@newwork/cz-config": "^0.1.0",
-    "@newwork/eslint-config": "^0.3.0",
-    "@newwork/git-hooks": "^0.1.1",
+    "@newwork/cz-config": "^0.2.1",
+    "@newwork/eslint-config": "^0.4.0",
+    "@newwork/git-hooks": "^0.2.0",
     "@newwork/lint-staged-config": "^0.1.0",
     "@newwork/prettier-config": "^0.2.0",
     "@originjs/vite-plugin-federation": "^1.4.1",
@@ -92,6 +92,5 @@
   "engines": {
     "node": ">=20.18.0",
     "npm": ">=10.2.3"
-  },
-  "packageManager": "npm@10.2.3"
+  }
 }

@@ -34,21 +34,24 @@ import {
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-type CatalogEntry = {
+export type CatalogEntry = {
   id?: string
   code?: string
   value?: string
   type?: string
 }
 
-type TaskItem = {
+export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
+export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+
+export type TaskItem = {
   id: string
   title: string
   description?: string
   createdAt?: string
   due?: string
   assignee?: string
-  statusCode?: 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
+  statusCode?: TaskStatusCode
   taskStatus?: CatalogEntry
   taskPriority?: CatalogEntry
   assigneeEmployee?: {
@@ -66,11 +69,11 @@ type TaskItem = {
     pictureThumbnail?: string
   }
   reference?: TaskReference
-  taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+  taskTiming?: TaskTimingType
   startDate?: string
 }
 
-interface TaskSectionProps extends BusinessAppContextProps {
+export interface TaskSectionProps extends BusinessAppContextProps {
   accountId?: string
   contactId?: string
   opportunityId?: string

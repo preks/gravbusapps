@@ -16,7 +16,7 @@ import { useSalesCampaignsGraphQL } from '../../../../common/hooks/useSalesCampa
 import { useAccountData } from '../hooks/useAccountData'
 import { useEmployeeByIdGraphQL } from '../hooks/useEmployeeByIdGraphQL'
 import { useCountriesRegions } from '../../lead-form/hooks/useCountriesRegions'
-import { useContactSelection } from '../hooks/useContactSelection'
+import { useGetInvestmentContacts } from '@/common/data/investment'
 
 interface AccountFormContextValue extends AccountContextState {
   formValues: AccountFormValues
@@ -137,9 +137,7 @@ interface AccountFormContextValue extends AccountContextState {
   contacts: SelectOption[]
   contactsLoading: boolean
   contactsError: string | null
-  contactsHasMore: boolean
   searchContacts: (search: string) => void
-  loadMoreContacts: () => void
 
   // Legacy compatibility (using employeeSizes data)
   numberOfEmployeesOptions: SelectOption[]
@@ -242,9 +240,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   // Auto-selection tracking
   const autoSelectionDone = useRef(false)
 
-  // Catalog initialization tracking
-  const hasInitialized = useRef(false)
-
   // Account data hook for fetching existing account data
   const {
     accountData,
@@ -254,11 +249,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   } = useAccountData(businessAppContext)
 
   // Current user employee hook for auto-selection
-  const {
-    employee: currentUserEmployee,
-    loading: currentUserLoading,
-    error: currentUserError
-  } = useEmployeeById({
+  const { employee: currentUserEmployee } = useEmployeeById({
     accessToken: businessAppContext.accessToken,
     employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId
   })
@@ -266,11 +257,10 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   // 🎯 Lead owner employee hook - for lead conversion scenarios
   const isLeadConversion = businessAppContext.additionalData?.isLeadConversion === true
   const leadOwnerId = businessAppContext.additionalData?.leadOwnerId
-  const {
-    employeeData: leadOwnerEmployee,
-    isLoading: leadOwnerLoading,
-    error: leadOwnerError
-  } = useEmployeeByIdGraphQL(businessAppContext.accessToken, isLeadConversion && leadOwnerId ? leadOwnerId : undefined)
+  const { employeeData: leadOwnerEmployee } = useEmployeeByIdGraphQL(
+    businessAppContext.accessToken,
+    isLeadConversion && leadOwnerId ? leadOwnerId : undefined
+  )
 
   // Employee positions hook
   const {
@@ -326,13 +316,16 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
 
   // Contact selection hook
   const {
-    contacts,
-    isLoading: contactsLoading,
-    hasMore: contactsHasMore,
+    options: contacts,
+    loading: contactsLoading,
     error: contactsError,
-    searchContacts,
-    loadMoreContacts
-  } = useContactSelection(businessAppContext)
+    search: searchContacts
+  } = useGetInvestmentContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
+  })
 
   // Countries hook
   const {
@@ -524,15 +517,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     return finalEmployees
   }, [employeePositionData, currentUserEmployee, accountData, isLeadConversion, leadOwnerEmployee, leadOwnerId])
 
-  // Use dynamic forms from catalog (same as lead form)
-  const legalForms: SelectOption[] = useMemo(() => {
-    return legalFormsHook.allOptions
-  }, [legalFormsHook.allOptions])
-
-  const industries: SelectOption[] = useMemo(() => {
-    return industriesHook.allOptions
-  }, [industriesHook.allOptions])
-
   // Form value setter
   const setFormValues = useCallback((updates: Partial<AccountFormValues>) => {
     setFormValuesState(prev => ({ ...prev, ...updates }))
@@ -589,6 +573,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   }, [
     accountData,
     mapAccountToFormValues,
+    formValues.id, // Include formValues.id since we check it in the condition
     businessAppContext.additionalData?.accountId,
     businessAppContext.additionalData?.psi_taskPayload?.psi_initialParameters?.accountId
   ])
@@ -759,9 +744,7 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
     contacts,
     contactsLoading,
     contactsError,
-    contactsHasMore,
     searchContacts,
-    loadMoreContacts,
 
     // Legacy compatibility (using employeeSizes data)
     numberOfEmployeesOptions: employeeSizesHook.allOptions
