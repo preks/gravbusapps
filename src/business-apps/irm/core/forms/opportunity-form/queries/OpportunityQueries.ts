@@ -87,6 +87,7 @@ export interface InvestmentOpportunityQueryResult {
   // Contact relationships
   investmentOpportunityContact?: Array<{
     id: string
+    version?: number // ✅ Association version for optimistic locking
     contact: {
       id: string
       firstName?: string
@@ -213,6 +214,7 @@ export const GET_INVESTMENT_OPPORTUNITY_BY_ID = `
       # Contact relationships
       investmentOpportunityContact(where: { isDeleted: { _eq: false } }) {
         id
+        version
         contact {
           id
           firstName

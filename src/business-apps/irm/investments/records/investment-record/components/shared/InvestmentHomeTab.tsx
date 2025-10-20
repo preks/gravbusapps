@@ -107,7 +107,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
         return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
       })
       setApprovals(approvalTasks)
-    } catch (err) {
+    } catch {
       // Failed to load approvals
     }
   }, [investmentId, fetchInvestmentTasksByInvestmentId])
@@ -264,17 +264,19 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
             component: ContactSection,
             props: {
               ...context,
-              contact: {
-                id: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
-                firstName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.firstName || null,
-                lastName: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.lastName || null,
-                email: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.email || null,
-                phone: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.phone || null,
-                jobTitle: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.jobPosition || null,
-                department: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.department || null,
-                communicationChannels:
-                  investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.communicationChannels || null
-              },
+              contacts:
+                investment?.investmentAccount?.investmentAccountContact
+                  ?.map((iac: any) => ({
+                    id: iac.contact?.id,
+                    firstName: iac.contact?.firstName,
+                    lastName: iac.contact?.lastName,
+                    email: iac.contact?.email,
+                    phone: iac.contact?.phone,
+                    jobTitle: iac.contact?.jobPosition,
+                    department: iac.contact?.department,
+                    communicationChannels: iac.contact?.communicationChannels
+                  }))
+                  .filter(Boolean) || [],
               contactId: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id || null,
               recordUrl: investment?.investmentAccount?.investmentAccountContact?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/irm/contact-record', {
