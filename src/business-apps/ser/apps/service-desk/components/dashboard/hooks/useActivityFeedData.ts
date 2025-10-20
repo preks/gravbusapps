@@ -1,195 +1,309 @@
-import { useState, useEffect, useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
+import { useState, useEffect, useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import dayjs from 'dayjs'
+import relativeTime from 'dayjs/plugin/relativeTime'
+import { useEmployeeNamesBatch } from '../../../../../hooks/useEmployeeNamesBatch'
 
-dayjs.extend(relativeTime);
+dayjs.extend(relativeTime)
 
 /**
- * Activity Feed Data Hook - Fetches and processes real activity data from service desk APIs
+ * Activity Feed Data Hook - Fetches real activity data from audit logs API
  */
 
 export interface ActivityItem {
-  id: string;
-  type: 'ticket_created' | 'ticket_assigned' | 'ticket_resolved' | 'ticket_escalated' | 'comment_added' | 'status_changed' | 'priority_changed' | 'user_joined';
+  id: string
+  type:
+    | 'ticket_created'
+    | 'ticket_assigned'
+    | 'ticket_resolved'
+    | 'ticket_escalated'
+    | 'comment_added'
+    | 'status_changed'
+    | 'priority_changed'
+    | 'claim'
+    | 'complete'
+    | 'updated'
+    | 'unclaim'
+    | 'reassign'
   user: {
-    name: string;
-    avatarFallback: string;
-  };
-  timestamp: Date;
-  description: string;
-  ticketId?: string;
-  priority?: 'Critical' | 'High' | 'Medium' | 'Low';
-  status?: string;
-  desk?: string;
-  isRecentActivity?: boolean;
+    name: string
+    avatarFallback: string
+    userId: string
+    pictureThumbnail?: string
+    employeeId?: string
+  }
+  timestamp: Date
+  description: string
+  ticketId?: string
+  ticketName?: string
+  flowName?: string
+  requestId?: string
+  priority?: 'Critical' | 'High' | 'Medium' | 'Low'
+  status?: string
+  action?: string
+  taskType?: string
 }
 
-export interface UseActivityFeedDataProps extends BusinessAppContextProps {}
+export interface AuditLogEntry {
+  id: string
+  timestamp: string
+  userId: string
+  flowId: string
+  flowName: string
+  taskId: string
+  taskName: string
+  taskType: 'TASK' | 'APPROVAL'
+  action: string // Changed to string to accept any action type from API
+  assignmentChange: any
+  status: string
+  previousStatus: string | null
+  newStatus: string
+  details: {
+    reason?: string | null
+    comment?: string | null
+    completed?: string | null
+    timestamp: string
+    executedBy?: string | null
+  }
+}
+
+export interface UseActivityFeedDataProps extends BusinessAppContextProps {
+  limit?: number
+}
 
 export interface UseActivityFeedDataReturn {
-  activities: ActivityItem[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
+  activities: ActivityItem[]
+  isLoading: boolean
+  error: string | null
+  refetch: () => void
 }
 
 export const useActivityFeedData = ({
   accessToken,
   userInfo,
+  limit = 20
 }: UseActivityFeedDataProps): UseActivityFeedDataReturn => {
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+  const [auditEntries, setAuditEntries] = useState<AuditLogEntry[]>([])
+  const [isLoadingAudit, setIsLoadingAudit] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Note: Removed useCompletedTickets to avoid duplicate API calls
-  // Activities are now generated from simulated data only
+  const currentUserId = userInfo?.id
 
-  // Generate realistic user names and avatars
-  const generateUser = (index: number) => {
-    const users = [
-      { name: 'Alice Johnson', avatarFallback: 'AJ' },
-      { name: 'Bob Williams', avatarFallback: 'BW' },
-      { name: 'Charlie Brown', avatarFallback: 'CB' },
-      { name: 'Diana Prince', avatarFallback: 'DP' },
-      { name: 'Eve Adams', avatarFallback: 'EA' },
-      { name: 'Frank Green', avatarFallback: 'FG' },
-      { name: 'Grace Hall', avatarFallback: 'GH' },
-      { name: 'Henry King', avatarFallback: 'HK' },
-      { name: 'Iris Moon', avatarFallback: 'IM' },
-      { name: 'Jack Stone', avatarFallback: 'JS' },
-    ];
-    return users[index % users.length];
-  };
-
-  // Generate activities from simulated data only (to avoid duplicate API calls)
-  const generateActivitiesFromRealData = useMemo((): ActivityItem[] => {
-    const activities: ActivityItem[] = [];
-
-    // Add simulated current activities
-    const now = dayjs();
-    const simulatedActivities: ActivityItem[] = [
-      {
-        id: 'sim-1',
-        type: 'ticket_created',
-        user: generateUser(0),
-        timestamp: now.subtract(5, 'minutes').toDate(),
-        description: 'New ticket "Email server connectivity issue" created in IT Support.',
-        ticketId: `TKT-${Math.floor(Math.random() * 1000)}`,
-        priority: 'High',
-        desk: 'IT Support',
-        isRecentActivity: true,
-      },
-      {
-        id: 'sim-2',
-        type: 'ticket_assigned',
-        user: generateUser(1),
-        timestamp: now.subtract(15, 'minutes').toDate(),
-        description: 'Ticket "New employee setup request" assigned to you.',
-        ticketId: `TKT-${Math.floor(Math.random() * 1000)}`,
-        priority: 'Medium',
-        desk: 'HR Support',
-      },
-      {
-        id: 'sim-3',
-        type: 'comment_added',
-        user: generateUser(2),
-        timestamp: now.subtract(30, 'minutes').toDate(),
-        description: 'Added troubleshooting steps to "Network printer issue" ticket.',
-        ticketId: `TKT-${Math.floor(Math.random() * 1000)}`,
-        desk: 'IT Support',
-      },
-      {
-        id: 'sim-4',
-        type: 'priority_changed',
-        user: generateUser(3),
-        timestamp: now.subtract(45, 'minutes').toDate(),
-        description: 'Priority of "Database backup failure" changed to Critical.',
-        ticketId: `TKT-${Math.floor(Math.random() * 1000)}`,
-        priority: 'Critical',
-        desk: 'IT Support',
-      },
-      {
-        id: 'sim-5',
-        type: 'ticket_escalated',
-        user: generateUser(4),
-        timestamp: now.subtract(1, 'hour').toDate(),
-        description: 'Ticket "System performance degradation" escalated to Tier 2.',
-        ticketId: `TKT-${Math.floor(Math.random() * 1000)}`,
-        priority: 'Critical',
-        desk: 'IT Support',
-      },
-    ];
-
-    // Return simulated activities sorted by timestamp (newest first)
-    return simulatedActivities
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      .slice(0, 15); // Limit to 15 most recent activities
-  }, []);
-
-  // Fetch additional activity data if needed
-  const fetchActivities = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // For now, we'll use the generated activities from real data
-      // In the future, this could fetch additional activity data from cflow
-      console.log('[useActivityFeedData] Generating activities from real data');
-      
-      setActivities(generateActivitiesFromRealData);
-      setLastUpdateTime(new Date());
-    } catch (err) {
-      console.error('[useActivityFeedData] Error generating activities:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch activities');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch activities on mount and when dependencies change
-  useEffect(() => {
-    if (accessToken && userInfo) {
-      fetchActivities();
-    }
-  }, [accessToken, userInfo, generateActivitiesFromRealData]);
-
-  // Simulate real-time updates every 2 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Add a new simulated activity occasionally
-      if (Math.random() > 0.7) { // 30% chance every 2 minutes
-        const newActivity: ActivityItem = {
-          id: `rt-${Date.now()}`,
-          type: Math.random() > 0.5 ? 'ticket_created' : 'comment_added',
-          user: generateUser(Math.floor(Math.random() * 5)),
-          timestamp: new Date(),
-          description: Math.random() > 0.5 
-            ? `New ticket "Automated alert #${Math.floor(Math.random() * 100)}" created.`
-            : `Comment added to ticket #${Math.floor(Math.random() * 1000)}.`,
-          ticketId: `TKT-${Math.floor(Math.random() * 1000)}`,
-          priority: ['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)] as any,
-          desk: ['IT Support', 'HR Support', 'Finance'][Math.floor(Math.random() * 3)],
-          isRecentActivity: true,
-        };
-
-        setActivities(prev => [newActivity, ...prev.slice(0, 14)]); // Keep only 15 items
-        setLastUpdateTime(new Date());
+  // Extract all unique user IDs from audit entries
+  const userIds = useMemo(() => {
+    const ids = new Set<string>()
+    auditEntries.forEach(entry => {
+      const executedBy = entry.details?.executedBy || entry.userId
+      if (executedBy && executedBy !== 'SYSTEM') {
+        ids.add(executedBy)
       }
-    }, 120000); // 2 minutes
+    })
+    return Array.from(ids)
+  }, [auditEntries])
 
-    return () => clearInterval(interval);
-  }, []);
+  // Fetch employee names and data for all users in the audit log
+  const {
+    displayNames,
+    employees,
+    isLoading: isLoadingNames
+  } = useEmployeeNamesBatch({
+    userIds,
+    accessToken,
+    enabled: userIds.length > 0
+  })
+
+  // Helper: Get user display name from userId
+  const getUserDisplayName = (userId: string): string => {
+    if (userId === 'SYSTEM') return 'System'
+    return displayNames.get(userId) || userId.substring(0, 8)
+  }
+
+  // Helper: Get initials from name or userId
+  const getInitials = (userId: string, firstName?: string, lastName?: string): string => {
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+    }
+    if (firstName) {
+      return firstName.substring(0, 2).toUpperCase()
+    }
+    // Get initials from display name if available
+    const displayName = displayNames.get(userId)
+    if (displayName && displayName !== 'Unknown User') {
+      const parts = displayName.split(' ')
+      if (parts.length >= 2) {
+        return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase()
+      }
+      return displayName.substring(0, 2).toUpperCase()
+    }
+    return 'U'
+  }
+
+  // Transform audit log entry to activity item
+  const transformAuditLogToActivity = (entry: AuditLogEntry, currentUserId: string): ActivityItem => {
+    // Determine who performed the action
+    const executedBy = entry.details?.executedBy || entry.userId
+    const isMyAction = executedBy === currentUserId
+
+    // Get employee data for avatar image
+    const employeeData = employees.get(executedBy)
+
+    // Generate user info
+    const user = {
+      name: isMyAction ? 'You' : getUserDisplayName(executedBy),
+      avatarFallback: isMyAction
+        ? getInitials(currentUserId, userInfo?.givenName, userInfo?.familyName)
+        : getInitials(executedBy),
+      userId: executedBy,
+      pictureThumbnail: employeeData?.pictureThumbnail || undefined,
+      employeeId: employeeData?.id || undefined
+    }
+
+    // Map action to activity type and description
+    let type: ActivityItem['type'] = 'updated'
+    let description = ''
+
+    switch (entry.action) {
+      case 'CLAIM':
+        type = 'claim'
+        description = `Claimed "${entry.taskName}"`
+        break
+
+      case 'COMPLETE':
+        type = 'complete'
+        description = `Completed "${entry.taskName}"`
+        // Add comment if it's meaningful (not the default message)
+        if (
+          entry.details?.comment &&
+          entry.details.comment !== 'Completed via Service Desk' &&
+          entry.details.comment !== 'Ticket completed successfully'
+        ) {
+          description += ` - ${entry.details.comment}`
+        }
+        break
+
+      case 'UNCLAIM':
+        type = 'unclaim'
+        description = `Unclaimed "${entry.taskName}"`
+        break
+
+      case 'COMMENT':
+        type = 'comment_added'
+        description = `Commented on "${entry.taskName}"`
+        if (entry.details?.comment) {
+          description += `: "${entry.details.comment}"`
+        }
+        break
+
+      case 'REASSIGN':
+        type = 'reassign'
+        description = `"${entry.taskName}" was reassigned`
+        break
+
+      case 'UPDATED':
+        type = 'status_changed'
+        if (entry.previousStatus && entry.newStatus) {
+          description = `"${entry.taskName}" status changed from ${entry.previousStatus} to ${entry.newStatus}`
+        } else {
+          description = `"${entry.taskName}" status changed to ${entry.newStatus}`
+        }
+        break
+
+      case 'ASSIGNED':
+        type = 'ticket_assigned'
+        description = `Assigned to "${entry.taskName}"`
+        break
+
+      case 'CREATED':
+        type = 'ticket_created'
+        description = `Created "${entry.taskName}"`
+        break
+
+      default:
+        // Handle unknown action types
+        console.log('[useActivityFeedData] Unknown action type:', entry.action, 'for task:', entry.taskName)
+        type = 'updated'
+        description = `${String(entry.action).toLowerCase()} "${entry.taskName}"`
+    }
+
+    return {
+      id: entry.id,
+      type,
+      user,
+      timestamp: new Date(entry.timestamp),
+      description,
+      ticketId: entry.taskId,
+      ticketName: entry.taskName,
+      flowName: entry.flowName,
+      requestId: entry.flowId,
+      status: entry.newStatus,
+      action: entry.action,
+      taskType: entry.taskType
+    }
+  }
+
+  // Fetch audit logs from API
+  const fetchAuditLogs = async () => {
+    if (!accessToken || !currentUserId) {
+      setError('Missing authentication or user information')
+      setIsLoadingAudit(false)
+      return
+    }
+
+    try {
+      setIsLoadingAudit(true)
+      setError(null)
+
+      const baseUrl = import.meta.env.VITE_FLOW_ENGINE_BASE_URL || 'https://newwork-dev.newwork.com/flow-engine'
+      const response = await fetch(`${baseUrl}/api/audit/logs?limit=${limit}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch audit logs: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      const entries: AuditLogEntry[] = data.data?.entries || []
+
+      // Show all activities (user requested to see all users)
+      setAuditEntries(entries)
+    } catch (err) {
+      console.error('[useActivityFeedData] Error fetching audit logs:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch activity data')
+    } finally {
+      setIsLoadingAudit(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchAuditLogs()
+
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchAuditLogs()
+    }, 30000)
+
+    return () => clearInterval(interval)
+  }, [accessToken, currentUserId, limit])
+
+  // Transform audit entries to activities once employee names are loaded
+  const activities = useMemo(() => {
+    if (!currentUserId) return []
+
+    return auditEntries.map(entry => transformAuditLogToActivity(entry, currentUserId))
+  }, [auditEntries, currentUserId, displayNames])
 
   const refetch = () => {
-    fetchActivities();
-  };
+    fetchAuditLogs()
+  }
 
   return {
     activities,
-    isLoading: isLoading && !generateActivitiesFromRealData.length,
+    isLoading: isLoadingAudit || isLoadingNames,
     error,
-    refetch,
-  };
-};
+    refetch
+  }
+}

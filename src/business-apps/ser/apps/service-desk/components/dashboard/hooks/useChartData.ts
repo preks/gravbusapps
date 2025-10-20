@@ -1,121 +1,155 @@
-import { useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useServiceDeskCatalogCache } from '../../../../../hooks/useServiceDeskCatalogCache';
-import { useMultipleDeskCounts } from '../../../hooks/useMultipleDeskCounts';
-import dayjs from 'dayjs';
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { createConductorWorkflowEngine } from '../../../../../services'
+import dayjs from 'dayjs'
 
 /**
- * Chart Data Hook - Transforms real service desk data into chart-friendly formats for dashboard visualizations
+ * Chart Data Hook - Fetches REAL USER-SPECIFIC analytics data from Flow Engine API
+ * Uses the same analytics endpoints as Manager Analytics but filtered for current user
+ * Focus: Personal productivity and workload visualization with real aggregated data
  */
 
 export interface ChartDataPoint {
-  [key: string]: string | number;
+  [key: string]: string | number
 }
 
-export interface UseChartDataProps extends BusinessAppContextProps {}
+export type UseChartDataProps = BusinessAppContextProps
 
 export interface UseChartDataReturn {
-  ticketVolumeData: ChartDataPoint[];
-  deskDistributionData: ChartDataPoint[];
-  resolutionTimeData: ChartDataPoint[];
-  priorityData: ChartDataPoint[];
-  isLoading: boolean;
-  error: string | null;
+  myStatusDistribution: ChartDataPoint[]
+  myWeeklyActivity: ChartDataPoint[]
+  myResponseTimeTrend: ChartDataPoint[]
+  isLoading: boolean
+  error: string | null
 }
 
-export const useChartData = ({
-  accessToken,
-  userInfo,
-}: UseChartDataProps): UseChartDataReturn => {
-  // Get only the data we need for charts (avoid duplicate API calls)
-  const { catalogEntries } = useServiceDeskCatalogCache({ accessToken, userInfo });
-  const deskKeys = catalogEntries.map(entry => entry.code);
-  const { counts: deskCounts, isLoading: countsLoading } = useMultipleDeskCounts({ 
-    deskKeys, 
-    accessToken, 
-    userInfo 
-  });
+export const useChartData = ({ accessToken, userInfo }: UseChartDataProps): UseChartDataReturn => {
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Generate ticket volume data for the last 7 days
-  const ticketVolumeData = useMemo((): ChartDataPoint[] => {
-    // Generate sample data based on desk counts
-    const totalTickets = Object.values(deskCounts).reduce((sum, count) => sum + count, 0);
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const baseVolume = Math.max(10, Math.floor(totalTickets / 7));
-    
-    return days.map((day, index) => {
-      // Simulate realistic daily variations
-      const variation = Math.random() * 0.4 + 0.8; // 80% - 120% variation
-      const created = Math.floor(baseVolume * variation);
-      const resolved = Math.floor(created * (Math.random() * 0.3 + 0.7)); // 70-100% resolution rate
-      const pending = Math.max(0, created - resolved);
-      
-      return {
-        date: day,
-        created,
-        resolved,
-        pending,
-      };
-    });
-  }, [deskCounts]);
+  const currentUserId = userInfo?.id
 
-  // Generate desk distribution data
-  const deskDistributionData = useMemo((): ChartDataPoint[] => {
-    // Use real desk counts data
-    const colors = [
-      'var(--nw-chart-1)',
-      'var(--nw-chart-2)',
-      'var(--nw-chart-3)',
-      'var(--nw-chart-4)',
-      'var(--nw-chart-5)',
-    ];
+  // Fetch real analytics data from Flow Engine API
+  const fetchAnalyticsData = useCallback(async () => {
+    if (!accessToken || !currentUserId) {
+      setError('Missing authentication or user information')
+      setIsLoading(false)
+      return
+    }
 
-    return catalogEntries
-      .filter(entry => deskCounts[entry.code] > 0)
-      .slice(0, 5) // Limit to top 5 for readability
-      .map((entry, index) => ({
-        desk: entry.value || entry.code,
-        tickets: deskCounts[entry.code],
-        fill: colors[index % colors.length],
-      }));
-  }, [catalogEntries, deskCounts]);
+    try {
+      setIsLoading(true)
+      setError(null)
 
-  // Generate resolution time trends (weekly data)
-  const resolutionTimeData = useMemo((): ChartDataPoint[] => {
-    // Generate sample resolution time data
-    const slaTarget = 4.0;
-    
-    return [
-      { week: 'Week 1', avgTime: 5.2, slaTarget },
-      { week: 'Week 2', avgTime: 4.8, slaTarget },
-      { week: 'Week 3', avgTime: 4.5, slaTarget },
-      { week: 'Week 4', avgTime: 4.2, slaTarget },
-    ];
-  }, []);
+      const workflowEngine = createConductorWorkflowEngine({ accessToken, userInfo })
 
-  // Generate priority distribution data
-  const priorityData = useMemo((): ChartDataPoint[] => {
-    // Calculate priority distribution based on total tickets
-    const total = Object.values(deskCounts).reduce((sum, count) => sum + count, 0);
-    const critical = Math.floor(total * 0.05); // ~5% critical
-    const high = Math.floor(total * 0.20); // ~20% high priority
-    const medium = Math.floor(total * 0.50); // ~50% medium priority
-    const low = Math.max(0, total - critical - high - medium); // Remaining are low
+      // Fetch user-specific task performance analytics (last 7 days for weekly activity)
+      const result = await (workflowEngine as any).getTaskPerformanceAnalytics({
+        timeframe: 'wtd', // Week to date
+        userId: currentUserId // Filter for current user only
+      })
+
+      console.log('[useChartData] Fetched real analytics data:', result)
+      setAnalyticsData(result)
+    } catch (err) {
+      console.error('[useChartData] Error fetching analytics data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch chart data')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [accessToken, currentUserId])
+
+  useEffect(() => {
+    fetchAnalyticsData()
+  }, [fetchAnalyticsData])
+
+  // 1. My Ticket Status Distribution (Pie Chart) - from real API data
+  const myStatusDistribution = useMemo((): ChartDataPoint[] => {
+    if (!analyticsData?.data) return []
+
+    const pending = analyticsData.data.pendingTasks || 0
+    const overdue = analyticsData.data.overdueTasks || 0
+    const completed = analyticsData.data.completedTasks || 0
 
     return [
-      { priority: 'Critical', count: critical, fill: 'var(--nw-destructive)' },
-      { priority: 'High', count: high, fill: 'var(--nw-chart-1)' },
-      { priority: 'Medium', count: medium, fill: 'var(--nw-chart-2)' },
-      { priority: 'Low', count: low, fill: 'var(--nw-chart-3)' },
-    ].filter(item => item.count > 0); // Only show priorities with tickets
-  }, [deskCounts]);
+      { status: 'Open', count: pending, fill: 'var(--nw-chart-3)' },
+      { status: 'Overdue', count: overdue, fill: 'var(--nw-chart-4)' },
+      { status: 'Completed', count: completed, fill: 'var(--nw-chart-2)' }
+    ].filter(item => item.count > 0)
+  }, [analyticsData])
+
+  // 2. My Weekly Activity (Bar Chart - tickets completed per day) - from real API data
+  const myWeeklyActivity = useMemo((): ChartDataPoint[] => {
+    if (!analyticsData?.data?.userProductivity) {
+      // Return empty data structure for all days of the week
+      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
+        day,
+        completed: 0
+      }))
+    }
+
+    // Find current user's productivity data
+    const userProductivity = analyticsData.data.userProductivity.find((user: any) => user.userId === currentUserId)
+
+    if (!userProductivity?.dailyActivity) {
+      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => ({
+        day,
+        completed: 0
+      }))
+    }
+
+    // Map daily activity to chart format
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    const activityByDay: Record<string, number> = {}
+
+    // Initialize all days to 0
+    days.forEach(day => (activityByDay[day] = 0))
+
+    // Fill in actual data from API
+    userProductivity.dailyActivity.forEach((activity: any) => {
+      const date = dayjs(activity.date)
+      const dayOfWeek = date.format('ddd')
+      if (activityByDay[dayOfWeek] !== undefined) {
+        activityByDay[dayOfWeek] = activity.tasksCompleted || 0
+      }
+    })
+
+    return days.map(day => ({
+      day,
+      completed: activityByDay[day] || 0
+    }))
+  }, [analyticsData, currentUserId])
+
+  // 3. My Response Time Trend (Line Chart - last 4 weeks) - from real API data
+  const myResponseTimeTrend = useMemo((): ChartDataPoint[] => {
+    if (!analyticsData?.data?.taskTypePerformance) {
+      return ['Week 1', 'Week 2', 'Week 3', 'Week 4'].map(week => ({
+        week,
+        avgTime: 0,
+        target: 4.0
+      }))
+    }
+
+    // Calculate average response time from task type performance
+    const avgResponseTime =
+      analyticsData.data.taskTypePerformance.reduce((sum: number, task: any) => sum + (task.avgResponseTime || 0), 0) /
+      (analyticsData.data.taskTypePerformance.length || 1)
+
+    // For now, show current week's average
+    // In a real implementation, we'd fetch historical data for each week
+    return ['Week 1', 'Week 2', 'Week 3', 'Week 4'].map((week, index) => ({
+      week,
+      avgTime: index === 3 ? Math.round(avgResponseTime * 10) / 10 : 0, // Show data for current week only
+      target: 4.0
+    }))
+  }, [analyticsData])
 
   return {
-    ticketVolumeData,
-    deskDistributionData,
-    resolutionTimeData,
-    priorityData,
-    isLoading: countsLoading,
-    error: null,
-  };
-};
+    myStatusDistribution,
+    myWeeklyActivity,
+    myResponseTimeTrend,
+    isLoading,
+    error
+  }
+}

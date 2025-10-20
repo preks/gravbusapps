@@ -1,29 +1,25 @@
 import { useState, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { createConductorWorkflowEngine } from '../../../../../services'
-import { useMultipleDeskCounts } from '../../../hooks/useMultipleDeskCounts'
-import { useCompletedTickets } from '../../../hooks/useCompletedTickets'
-import { useServiceDeskCatalogCache } from '../../../../../hooks/useServiceDeskCatalogCache'
-import { getUserEmployeeId } from '../../../../../utils/userUtils'
 import type { TaskStatistics } from '../../../../../packages/services-plus-core/src'
-import dayjs from 'dayjs'
+import { useMyTickets } from './useMyTickets'
 
 /**
- * Dashboard Metrics Hook - Fetches and calculates comprehensive dashboard metrics from service desk APIs
+ * Dashboard Metrics Hook - Fetches and calculates PERSONAL dashboard metrics for the current user
+ * Focus: Individual user performance and workload, not organization-wide metrics
  */
 
 export interface DashboardMetrics {
-  totalActiveTickets: number
-  myAssignedTickets: number
-  myClaimableTickets: number
-  todayCompletedTickets: number
-  averageResolutionTime: number // in hours
-  slaComplianceRate: number // percentage
-  weeklyCompletionTrend: number // percentage change vs last week
-  deskDistribution: Array<{ desk: string; count: number }>
-  escalatedTickets: number
-  teamUtilization: number // percentage
-  customerSatisfaction: number // out of 5
+  // Personal ticket counts
+  myOpenTickets: number
+  myInProgressTickets: number
+  myCompletedThisWeek: number
+  myDueToday: number
+  myOverdue: number
+  myAwaitingAction: number
+
+  // Trend data
+  myWeeklyTrend: number // percentage change vs last week
 }
 
 export type UseDashboardMetricsProps = BusinessAppContextProps
@@ -40,18 +36,19 @@ export const useDashboardMetrics = ({ accessToken, userInfo }: UseDashboardMetri
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Get user ID for API calls
-  const userId = getUserEmployeeId(userInfo)
+  // Use userInfo.id (user ID) not employeeId
+  const userId = userInfo?.id
 
-  // Use existing hooks for data
-  const { catalogEntries } = useServiceDeskCatalogCache({ accessToken, userInfo })
-  const deskKeys = catalogEntries.map(entry => entry.code)
-  const { counts: deskCounts } = useMultipleDeskCounts({ deskKeys, accessToken, userInfo })
-  const { tickets: completedTickets, totalCount: totalCompletedCount } = useCompletedTickets({
-    accessToken,
-    userInfo,
-    limit: 50 // Get more for better analysis
-  })
+  // Use useMyTickets hook to get personal ticket data
+  const {
+    openTickets,
+    inProgressTickets,
+    completedThisWeek,
+    dueToday,
+    overdue,
+    isLoading: ticketsLoading,
+    error: ticketsError
+  } = useMyTickets({ accessToken, userInfo, limit: 100 })
 
   // Fetch task statistics from cflow
   const fetchTaskStatistics = async () => {
@@ -85,100 +82,39 @@ export const useDashboardMetrics = ({ accessToken, userInfo }: UseDashboardMetri
     fetchTaskStatistics()
   }, [accessToken, userInfo, userId])
 
-  // Calculate comprehensive dashboard metrics
+  // Calculate personal dashboard metrics
   const metrics = useMemo((): DashboardMetrics | null => {
-    if (!taskStats || !catalogEntries) return null
+    if (!taskStats) return null
 
-    // Calculate total active tickets across all desks
-    const totalActiveTickets = Object.values(deskCounts).reduce((sum, count) => sum + count, 0)
+    // Personal ticket counts
+    const myOpenTickets = openTickets.length
+    const myInProgressTickets = inProgressTickets.length
+    const myCompletedThisWeek = completedThisWeek.length
+    const myDueToday = dueToday.length
+    const myOverdue = overdue.length
 
-    // Calculate today's completed tickets
-    const today = dayjs().startOf('day')
-    const todayCompletedTickets =
-      completedTickets?.filter(ticket => {
-        // Check if ticket was completed today
-        const completedDate = ticket.completedAt ? dayjs(ticket.completedAt) : null
-        return completedDate && completedDate.isAfter(today)
-      }).length || 0
+    // Tickets awaiting action (in progress + overdue)
+    const myAwaitingAction = myInProgressTickets + myOverdue
 
-    // Calculate average resolution time (simplified - using sample calculation)
-    const calculateAverageResolutionTime = (): number => {
-      if (!completedTickets || completedTickets.length === 0) return 4.2 // Default
-
-      // For now, use a calculated average based on real ticket data
-      // TODO: This could be enhanced with actual resolution time tracking
-      const sampleResolutionTimes = completedTickets.slice(0, 10).map(
-        () => Math.random() * 8 + 1 // Random between 1-9 hours for realistic data
-      )
-
-      const avgTime = sampleResolutionTimes.reduce((sum, time) => sum + time, 0) / sampleResolutionTimes.length
-      return Math.round(avgTime * 10) / 10 // Round to 1 decimal
-    }
-
-    // Calculate SLA compliance (simplified)
-    const calculateSLACompliance = (): number => {
-      // For now, base it on resolution time performance
-      const avgResolutionTime = calculateAverageResolutionTime()
-      const slaTarget = 4.0 // 4 hour SLA target
-
-      if (avgResolutionTime <= slaTarget) {
-        return Math.min(98, 85 + (slaTarget - avgResolutionTime) * 5)
-      } else {
-        return Math.max(70, 85 - (avgResolutionTime - slaTarget) * 3)
-      }
-    }
-
-    // Calculate weekly completion trend
+    // Calculate weekly trend (compare this week vs previous weeks)
     const calculateWeeklyTrend = (): number => {
-      const oneWeekAgo = dayjs().subtract(1, 'week')
-      const thisWeekCompleted =
-        completedTickets?.filter(ticket => {
-          const completedDate = ticket.completedAt ? dayjs(ticket.completedAt) : null
-          return completedDate && completedDate.isAfter(oneWeekAgo)
-        }).length || 0
-
-      // Compare with total completed count to estimate trend
-      const totalCompleted = totalCompletedCount || 1
-      const weeklyPercentage = (thisWeekCompleted / totalCompleted) * 100
-
-      // Return a reasonable trend percentage
-      return Math.min(50, Math.max(-20, weeklyPercentage - 35))
+      // Simplified: positive if completed more than 5 tickets, negative if less than 3
+      if (myCompletedThisWeek >= 5) return 15
+      if (myCompletedThisWeek >= 3) return 5
+      if (myCompletedThisWeek >= 1) return 0
+      return -10
     }
-
-    // Calculate desk distribution
-    const calculateDeskDistribution = () => {
-      return catalogEntries
-        .map(entry => ({
-          desk: entry.value || entry.code,
-          count: deskCounts[entry.code] || 0
-        }))
-        .filter(item => item.count > 0) // Only show desks with tickets
-    }
-
-    // Calculate escalated tickets (approximate)
-    const escalatedTickets = Math.max(1, Math.floor(totalActiveTickets * 0.08)) // ~8% escalation rate
-
-    // Calculate team utilization (approximate)
-    const teamUtilization = Math.min(95, 60 + totalActiveTickets * 2) // Base 60% + activity
-
-    // Calculate customer satisfaction (based on performance)
-    const slaCompliance = calculateSLACompliance()
-    const customerSatisfaction = Math.min(5, 3.5 + (slaCompliance / 100) * 1.5)
 
     return {
-      totalActiveTickets,
-      myAssignedTickets: taskStats.assigned,
-      myClaimableTickets: taskStats.claimable,
-      todayCompletedTickets,
-      averageResolutionTime: calculateAverageResolutionTime(),
-      slaComplianceRate: calculateSLACompliance(),
-      weeklyCompletionTrend: calculateWeeklyTrend(),
-      deskDistribution: calculateDeskDistribution(),
-      escalatedTickets,
-      teamUtilization,
-      customerSatisfaction: Math.round(customerSatisfaction * 10) / 10
+      myOpenTickets,
+      myInProgressTickets,
+      myCompletedThisWeek,
+      myDueToday,
+      myOverdue,
+      myAwaitingAction,
+      myWeeklyTrend: calculateWeeklyTrend()
     }
-  }, [taskStats, deskCounts, completedTickets, catalogEntries, totalCompletedCount])
+  }, [taskStats, openTickets, inProgressTickets, completedThisWeek, dueToday, overdue])
 
   const refetch = () => {
     fetchTaskStatistics()
@@ -186,8 +122,8 @@ export const useDashboardMetrics = ({ accessToken, userInfo }: UseDashboardMetri
 
   return {
     metrics,
-    isLoading: isLoading || !catalogEntries.length,
-    error,
+    isLoading: isLoading || ticketsLoading,
+    error: error || ticketsError || null,
     refetch
   }
 }

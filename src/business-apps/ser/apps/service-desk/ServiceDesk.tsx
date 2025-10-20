@@ -255,7 +255,7 @@ const ServiceDesk: React.FC<ServiceDeskProps> = ({ accessToken, userInfo, deskKe
   const renderSubViewContent = () => {
     switch (activeSubView) {
       case 'dashboard':
-        return <Dashboard accessToken={accessToken} userInfo={userInfo} />
+        return <Dashboard accessToken={accessToken} userInfo={userInfo} onTaskSelect={handleTaskSelect} />
       case 'tickets':
         return (
           <Tickets
