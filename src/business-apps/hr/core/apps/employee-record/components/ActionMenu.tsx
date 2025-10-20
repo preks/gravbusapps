@@ -1,44 +1,41 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import { Employee } from '../hooks/useEmployeeData';
-import { navigateTo } from '@/common/utils/navigationUtils';
+import React, { useState } from 'react'
+import { Employee } from '../hooks/useEmployeeData'
+import { navigateTo } from '@/common/utils/navigationUtils'
 
 interface ActionMenuProps {
-  employee: Employee;
-  isLoggedUser: boolean;
+  employee: Employee
+  isLoggedUser: boolean
 }
 
 interface ActionItem {
-  id: string;
-  label: string;
-  isHeader?: boolean;
+  id: string
+  label: string
+  isHeader?: boolean
 }
 
 /**
  * Action Menu Component
  * Provides a dropdown menu with actions related to the employee
  */
-const ActionMenu: React.FC<ActionMenuProps> = ({ 
-  employee, 
-  isLoggedUser 
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
-  
+const ActionMenu: React.FC<ActionMenuProps> = ({ employee, isLoggedUser }) => {
+  const [isOpen, setIsOpen] = useState(false)
+
   // Toggle dropdown
   const toggleDropdown = () => {
-    setIsOpen(!isOpen);
-  };
-  
+    setIsOpen(!isOpen)
+  }
+
   // Close dropdown when clicking outside
   const closeDropdown = () => {
-    setIsOpen(false);
-  };
-  
+    setIsOpen(false)
+  }
+
   // Handle action selection
   const handleAction = (action: string) => {
-    setIsOpen(false);
-    
+    setIsOpen(false)
+
     // Trigger the appropriate flow based on the action
     if (typeof window !== 'undefined' && window.dispatchEvent) {
       switch (action) {
@@ -53,8 +50,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'changeAddress':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -66,8 +63,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'changeBankAccount':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -79,8 +76,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'changePersonalData':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -92,8 +89,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'changeCommunication':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -105,8 +102,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'changeProfilePicture':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -118,8 +115,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'changeRelationship':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -131,8 +128,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'createExpense':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -144,8 +141,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'reportSickLeave':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -157,8 +154,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'requestSpecialLeave':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -170,8 +167,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'requestVacation':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -183,8 +180,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'uploadDocument':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -196,8 +193,8 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'giveFeedback':
           window.dispatchEvent(
             new CustomEvent('com.newwork.process.start', {
@@ -209,93 +206,95 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
                 }
               }
             })
-          );
-          break;
+          )
+          break
         case 'updateOrganizationalData':
           // Navigate to organization chart with employee highlighted
-          navigateTo(`/orgchart/active/organization?employeeId=${employee.id}`);
-          break;
+          navigateTo(`/orgchart/active/organization?employeeId=${employee.id}`)
+          break
         case 'goToAbsences':
-          navigateTo('/platform/landing_screen/srn_absenceLandingScreen');
-          break;
+          navigateTo('/platform/landing_screen/srn_absenceLandingScreen')
+          break
         case 'goToManagerProfile':
           // Modify only the URL parameter instead of full navigation
           if (employee.employeePosition?.supervisor?.id) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('employeeId', employee.employeePosition.supervisor.id);
-            window.history.pushState({}, '', url.toString());
+            const url = new URL(window.location.href)
+            url.searchParams.set('employeeId', employee.employeePosition.supervisor.id)
+            window.history.pushState({}, '', url.toString())
           }
-          break;
+          break
         case 'goToTeamAvailability':
-          navigateTo('/platform/landing_screen/srn_teamAvailability');
-          break;
+          navigateTo('/platform/landing_screen/srn_teamAvailability')
+          break
         case 'goToOrgUnit':
-          navigateTo(`/orgchart/active/organization?organizationUnitId=${employee.employeePosition?.organizationalUnitId}`);
-          break;
+          navigateTo(
+            `/orgchart/active/organization?organizationUnitId=${employee.employeePosition?.organizationalUnitId}`
+          )
+          break
         default:
-          break;
+          break
       }
     }
-  };
-  
+  }
+
   // Define actions based on whether the user is viewing their own profile
   const getActions = (): ActionItem[] => {
     const commonActions: ActionItem[] = [
-      { id: 'addSkills', label: "Add/Change Skills" },
-      { id: 'uploadDocument', label: "Upload Document" },
-    ];
-    
+      { id: 'addSkills', label: 'Add/Change Skills' },
+      { id: 'uploadDocument', label: 'Upload Document' }
+    ]
+
     const personalActions: ActionItem[] = [
-      { id: 'changeAddress', label: "Change Address" },
-      { id: 'changeBankAccount', label: "Change Bank Account" },
-      { id: 'changePersonalData', label: "Change Personal Data" },
-      { id: 'changeCommunication', label: "Change Communication" },
-      { id: 'changeProfilePicture', label: "Change Profile Picture" },
-      { id: 'changeRelationship', label: "Change Relationship Status" },
-      { id: 'createExpense', label: "Create Expense Report" },
-      { id: 'reportSickLeave', label: "Report Sick Leave" },
-      { id: 'requestSpecialLeave', label: "Request Special Leave" },
-      { id: 'requestVacation', label: "Request Vacation" },
-    ];
-    
+      { id: 'changeAddress', label: 'Change Address' },
+      { id: 'changeBankAccount', label: 'Change Bank Account' },
+      { id: 'changePersonalData', label: 'Change Personal Data' },
+      { id: 'changeCommunication', label: 'Change Communication' },
+      { id: 'changeProfilePicture', label: 'Change Profile Picture' },
+      { id: 'changeRelationship', label: 'Change Relationship Status' },
+      { id: 'createExpense', label: 'Create Expense Report' },
+      { id: 'reportSickLeave', label: 'Report Sick Leave' },
+      { id: 'requestSpecialLeave', label: 'Request Special Leave' },
+      { id: 'requestVacation', label: 'Request Vacation' }
+    ]
+
     const managerActions: ActionItem[] = [
-      { id: 'giveFeedback', label: "Give Feedback" },
-      { id: 'updateOrganizationalData', label: "Update Organizational Data" },
-    ];
-    
+      { id: 'giveFeedback', label: 'Give Feedback' },
+      { id: 'updateOrganizationalData', label: 'Update Organizational Data' }
+    ]
+
     const navigationActions: ActionItem[] = [
-      { id: 'goToAbsences', label: "Go to Absences" },
-      { id: 'goToManagerProfile', label: "Go to Manager Profile" },
-      { id: 'goToTeamAvailability', label: "Go to Team Availability" },
-      { id: 'goToOrgUnit', label: "Go to Organizational Unit" },
-    ];
-    
+      { id: 'goToAbsences', label: 'Go to Absences' },
+      { id: 'goToManagerProfile', label: 'Go to Manager Profile' },
+      { id: 'goToTeamAvailability', label: 'Go to Team Availability' },
+      { id: 'goToOrgUnit', label: 'Go to Organizational Unit' }
+    ]
+
     if (isLoggedUser) {
       return [
-        { id: 'actions', label: "Actions", isHeader: true },
+        { id: 'actions', label: 'Actions', isHeader: true },
         ...personalActions,
-        { id: 'navigation', label: "Navigation", isHeader: true },
+        { id: 'navigation', label: 'Navigation', isHeader: true },
         ...navigationActions
-      ];
+      ]
     } else {
       return [
-        { id: 'actions', label: "Actions", isHeader: true },
+        { id: 'actions', label: 'Actions', isHeader: true },
         ...commonActions,
         ...managerActions,
-        { id: 'navigation', label: "Navigation", isHeader: true },
+        { id: 'navigation', label: 'Navigation', isHeader: true },
         ...navigationActions
-      ];
+      ]
     }
-  };
-  
-  const actions = getActions();
+  }
+
+  const actions = getActions()
 
   return (
     <div className="gba:relative gba:inline-block gba:text-left">
       <div>
         <button
           type="button"
-          className="gba:inline-flex gba:justify-center gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-white gba:bg-blue-600 gba:rounded-md gba:hover:bg-blue-700 gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-white/75"
+          className="gba:inline-flex gba:justify-center gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-primary-foreground gba:bg-info gba:rounded-md gba:hover:bg-info-secondary gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-white/75"
           onClick={toggleDropdown}
         >
           Actions
@@ -317,39 +316,34 @@ const ActionMenu: React.FC<ActionMenuProps> = ({
 
       {isOpen && (
         <>
-          <div 
-            className="gba:fixed gba:inset-0 gba:z-10" 
-            onClick={closeDropdown}
-          ></div>
-          <div
-            className="gba:absolute gba:right-0 gba:mt-2 gba:w-56 gba:rounded-md gba:shadow-lg gba:bg-white gba:ring-1 gba:ring-black/50 gba:z-20 gba:max-h-96 gba:overflow-y-auto"
-          >
+          <div className="gba:fixed gba:inset-0 gba:z-10" onClick={closeDropdown}></div>
+          <div className="gba:absolute gba:right-0 gba:mt-2 gba:w-56 gba:rounded-md gba:shadow-lg gba:bg-primary-foreground gba:ring-1 gba:ring-border gba:z-20 gba:max-h-96 gba:overflow-y-auto">
             <div className="gba:py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
-              {actions.map((action) => (
+              {actions.map(action =>
                 action.isHeader ? (
-                  <div 
+                  <div
                     key={action.id}
-                    className="gba:px-4 gba:py-2 gba:text-xs gba:font-bold gba:text-gray-500 gba:uppercase gba:tracking-wider gba:bg-gray-50"
+                    className="gba:px-4 gba:py-2 gba:text-xs gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:bg-muted"
                   >
                     {action.label}
                   </div>
                 ) : (
                   <button
                     key={action.id}
-                    className="gba:block gba:w-full gba:text-left gba:px-4 gba:py-2 gba:text-sm gba:text-gray-700 gba:hover:bg-gray-100 gba:hover:text-gray-900"
+                    className="gba:block gba:w-full gba:text-left gba:px-4 gba:py-2 gba:text-sm gba:text-foreground gba:hover:bg-muted gba:hover:text-foreground"
                     role="menuitem"
                     onClick={() => handleAction(action.id)}
                   >
                     {action.label}
                   </button>
                 )
-              ))}
+              )}
             </div>
           </div>
         </>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ActionMenu;
+export default ActionMenu

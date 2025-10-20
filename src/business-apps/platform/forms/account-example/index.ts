@@ -1,6 +1,4 @@
-import AccountExampleForm from './AccountExampleForm';
+import AccountExampleForm from './AccountExampleForm'
 
-export { AccountExampleForm };
-export default AccountExampleForm;
-
-
+export { AccountExampleForm }
+export default AccountExampleForm

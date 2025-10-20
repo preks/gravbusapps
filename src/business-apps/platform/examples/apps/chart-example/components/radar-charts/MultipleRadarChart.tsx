@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,23 +11,27 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { CircleWavyIcon } from "@phosphor-icons/react";
-import radarChartData from "../../data/radarChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts'
+import { CircleWavyIcon } from '@phosphor-icons/react'
+import radarChartData from '../../data/radarChartData.json'
 
 interface MultipleRadarChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const MultipleRadarChart: React.FC<MultipleRadarChartProps> = ({ moduleColor }) => {
-  const chartData = radarChartData.multiple;
+  const chartData = radarChartData.multiple
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="multiple-radar-chart">
@@ -39,32 +43,19 @@ const MultipleRadarChart: React.FC<MultipleRadarChartProps> = ({ moduleColor }) 
         </div>
       </CardHeader>
       <CardContent className="gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <RadarChart data={chartData}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <PolarAngleAxis dataKey="month" />
             <PolarGrid />
-            <Radar
-              dataKey="desktop"
-              stroke="var(--color-desktop)"
-              fill="var(--color-desktop)"
-              fillOpacity={0.6}
-            />
-            <Radar
-              dataKey="mobile"
-              stroke="var(--color-mobile)"
-              fill="var(--color-mobile)"
-              fillOpacity={0.6}
-            />
+            <Radar dataKey="desktop" stroke="var(--color-desktop)" fill="var(--color-desktop)" fillOpacity={0.6} />
+            <Radar dataKey="mobile" stroke="var(--color-mobile)" fill="var(--color-mobile)" fillOpacity={0.6} />
             <ChartLegend content={<ChartLegendContent />} />
           </RadarChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default MultipleRadarChart;
+export default MultipleRadarChart

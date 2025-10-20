@@ -1,27 +1,24 @@
-import React from "react";
+import React from 'react'
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
-} from "@newwork/nw-design-system";
-import { CodeIcon } from "@phosphor-icons/react";
+  SheetTrigger
+} from '@newwork/nw-design-system'
+import { CodeIcon } from '@phosphor-icons/react'
 
 // Import tooltip examples
-import DefaultTooltip from "./DefaultTooltip";
-import CustomTooltip from "./CustomTooltip";
-import AdvancedTooltip from "./AdvancedTooltip";
-import NoTooltip from "./NoTooltip";
-import InteractiveTooltip from "./InteractiveTooltip";
-import MultilineTooltip from "./MultilineTooltip";
+import DefaultTooltip from './DefaultTooltip'
+import CustomTooltip from './CustomTooltip'
+import AdvancedTooltip from './AdvancedTooltip'
+import NoTooltip from './NoTooltip'
+import InteractiveTooltip from './InteractiveTooltip'
+import MultilineTooltip from './MultilineTooltip'
 
 // Import code examples
 import {
@@ -30,66 +27,66 @@ import {
   advancedTooltipCode,
   noTooltipCode,
   interactiveTooltipCode,
-  multilineTooltipCode,
-} from "./code-examples";
+  multilineTooltipCode
+} from './code-examples'
 
 interface TooltipsTabProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 interface TooltipExample {
-  id: string;
-  title: string;
-  description: string;
-  component: React.ComponentType<{ moduleColor?: string }>;
-  code: string;
+  id: string
+  title: string
+  description: string
+  component: React.ComponentType<{ moduleColor?: string }>
+  code: string
 }
 
 const TooltipsTab: React.FC<TooltipsTabProps> = ({ moduleColor }) => {
   const examples: TooltipExample[] = [
     {
-      id: "default",
-      title: "Default Tooltip",
-      description: "Standard tooltip with default styling and behavior.",
+      id: 'default',
+      title: 'Default Tooltip',
+      description: 'Standard tooltip with default styling and behavior.',
       component: DefaultTooltip,
-      code: defaultTooltipCode,
+      code: defaultTooltipCode
     },
     {
-      id: "custom",
-      title: "Custom Tooltip",
-      description: "Customized tooltip with enhanced styling and information.",
+      id: 'custom',
+      title: 'Custom Tooltip',
+      description: 'Customized tooltip with enhanced styling and information.',
       component: CustomTooltip,
-      code: customTooltipCode,
+      code: customTooltipCode
     },
     {
-      id: "advanced",
-      title: "Advanced Tooltip",
-      description: "Advanced tooltip with multiple data series and formatting.",
+      id: 'advanced',
+      title: 'Advanced Tooltip',
+      description: 'Advanced tooltip with multiple data series and formatting.',
       component: AdvancedTooltip,
-      code: advancedTooltipCode,
+      code: advancedTooltipCode
     },
     {
-      id: "none",
-      title: "No Tooltip",
-      description: "Chart with tooltips disabled for cleaner presentation.",
+      id: 'none',
+      title: 'No Tooltip',
+      description: 'Chart with tooltips disabled for cleaner presentation.',
       component: NoTooltip,
-      code: noTooltipCode,
+      code: noTooltipCode
     },
     {
-      id: "interactive",
-      title: "Interactive Tooltip",
-      description: "Interactive tooltip with hover effects and animations.",
+      id: 'interactive',
+      title: 'Interactive Tooltip',
+      description: 'Interactive tooltip with hover effects and animations.',
       component: InteractiveTooltip,
-      code: interactiveTooltipCode,
+      code: interactiveTooltipCode
     },
     {
-      id: "multiline",
-      title: "Multiline Tooltip",
-      description: "Tooltip displaying multiple data points with labels.",
+      id: 'multiline',
+      title: 'Multiline Tooltip',
+      description: 'Tooltip displaying multiple data points with labels.',
       component: MultilineTooltip,
-      code: multilineTooltipCode,
-    },
-  ];
+      code: multilineTooltipCode
+    }
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid="tooltips-tab">
@@ -97,14 +94,15 @@ const TooltipsTab: React.FC<TooltipsTabProps> = ({ moduleColor }) => {
       <div>
         <h1 className="gba:text-3xl gba:font-bold gba:tracking-tight">Tooltips</h1>
         <p className="gba:text-muted-foreground gba:mt-2">
-          Tooltips provide contextual information when users interact with chart elements. They can be customized to show specific data, formatted values, and multiple data series.
+          Tooltips provide contextual information when users interact with chart elements. They can be customized to
+          show specific data, formatted values, and multiple data series.
         </p>
       </div>
 
       {/* Examples Grid */}
       <div className="gba:grid gba:gap-6 gba:md:grid-cols-2">
-        {examples.map((example) => {
-          const TooltipComponent = example.component;
+        {examples.map(example => {
+          const TooltipComponent = example.component
           return (
             <div key={example.id} className="gba:space-y-0">
               {/* Top slim card: Title, description, and code button */}
@@ -142,17 +140,17 @@ const TooltipsTab: React.FC<TooltipsTabProps> = ({ moduleColor }) => {
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* Bottom card: Chart only */}
               <div>
                 <TooltipComponent moduleColor={moduleColor} />
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default TooltipsTab;
+export default TooltipsTab

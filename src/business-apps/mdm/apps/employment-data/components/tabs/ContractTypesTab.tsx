@@ -1,15 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useTranslation } from 'react-i18next';
-import {
-  Button,
-  Card,
-  CardContent,
-  Input,
-  Spinner,
-  DataTable,
-  Icon,
-  Badge,
-} from '@newwork/nw-design-system';
+import React, { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge } from '@newwork/nw-design-system'
 import {
   EyeIcon,
   ArrowsDownUpIcon,
@@ -17,123 +8,121 @@ import {
   PencilSimpleLineIcon,
   FileCodeIcon,
   TagIcon,
-  InfoIcon,
-} from '@phosphor-icons/react';
-import { ColumnDef, SortingState } from '@tanstack/react-table';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { useUserLocale } from '@/common/locale/useUserLocale';
-import CardTabHeaderComponent from '../../../generic-components/card';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton';
-import ContractTypeForm from '@/business-apps/mdm/forms/contract-type-form/ContractTypeForm';
-import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent';
-import { useGetContractTypesData } from '../../queries/ContractTypesQueries';
-import { toast } from 'sonner';
+  InfoIcon
+} from '@phosphor-icons/react'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useUserLocale } from '@/common/locale/useUserLocale'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import ContractTypeForm from '@/business-apps/mdm/forms/contract-type-form/ContractTypeForm'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { useGetContractTypesData } from '../../queries/ContractTypesQueries'
+import { toast } from 'sonner'
 import {
   CONTRACT_TYPE_CATALOG,
-  CONTRACT_TYPE_VERSION,
-} from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes';
+  CONTRACT_TYPE_VERSION
+} from '@/business-apps/hr/core/forms/job-position/hooks/useContractTypes'
 
 export interface ContractType {
-  id: string;
-  code: string;
-  value: string;
-  alternativeCode?: string;
-  additionalValue1?: string;
-  additionalValue2?: string;
-  additionalValue3?: string;
+  id: string
+  code: string
+  value: string
+  alternativeCode?: string
+  additionalValue1?: string
+  additionalValue2?: string
+  additionalValue3?: string
   translations: Array<{
-    localeCode: string;
-    value: string;
-  }>;
+    localeCode: string
+    value: string
+  }>
 }
 
 export interface ContractTypeTable {
-  id: string;
-  code: string;
-  value: string;
-  description: string | undefined;
+  id: string
+  code: string
+  value: string
+  description: string | undefined
 }
 
 export interface ContractTypesTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const DATA_TEST_ID_PREFIX = 'ContractTypesTab';
+const DATA_TEST_ID_PREFIX = 'ContractTypesTab'
 
 const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefixDataTestId }) => {
-  const { t } = useTranslation();
-  const userLocale = useUserLocale() ?? 'en-US';
-  const catalogClient = useCatalogManagerClient(accessToken);
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
+  const { t } = useTranslation()
+  const userLocale = useUserLocale() ?? 'en-US'
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
 
-  const { fetchContractTypes } = useGetContractTypesData(catalogClient, userLocale);
+  const { fetchContractTypes } = useGetContractTypesData(catalogClient, userLocale)
 
-  const [contractTypes, setContractTypes] = useState<ContractType[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedType, setSelectedType] = useState<ContractType | null>(null);
-  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [selectedRows, setSelectedRows] = useState<ContractTypeTable[]>([]);
+  const [contractTypes, setContractTypes] = useState<ContractType[]>([])
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedType, setSelectedType] = useState<ContractType | null>(null)
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [selectedRows, setSelectedRows] = useState<ContractTypeTable[]>([])
 
   const loadContractTypes = async () => {
     try {
-      setLoading(true);
+      setLoading(true)
 
-      const types = (await fetchContractTypes()) ?? [];
-      setContractTypes(types);
+      const types = (await fetchContractTypes()) ?? []
+      setContractTypes(types)
     } catch {
-      toast.error('Failed to load contract types');
+      toast.error('Failed to load contract types')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const usedCodes = useMemo(() => {
-    return contractTypes.map((contractType) => contractType.code);
-  }, [contractTypes]);
+    return contractTypes.map(contractType => contractType.code)
+  }, [contractTypes])
   useEffect(() => {
     if (selectedType) {
-      const newContractType = contractTypes.find(
-        (contractType) => contractType.id === selectedType.id,
-      );
+      const newContractType = contractTypes.find(contractType => contractType.id === selectedType.id)
 
       if (newContractType) {
-        setSelectedType(newContractType);
+        setSelectedType(newContractType)
       }
     }
-  }, [contractTypes]);
+  }, [contractTypes])
 
   useEffect(() => {
-    loadContractTypes();
-  }, [userLocale]);
+    loadContractTypes()
+  }, [userLocale])
 
   const filteredContractTypes = useMemo(() => {
     return contractTypes.filter(
-      (contractType) =>
+      contractType =>
         contractType.value.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contractType.code.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [contractTypes, searchTerm]);
+        contractType.code.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  }, [contractTypes, searchTerm])
 
   const handleDelete = async (record: ContractTypeTable) => {
-    await catalogClient.deleteCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, record.id);
+    await catalogClient.deleteCatalogEntry(CONTRACT_TYPE_CATALOG, CONTRACT_TYPE_VERSION, record.id)
 
-    setContractTypes((prev) => prev.filter((contractType) => contractType.id !== record.id));
-  };
+    setContractTypes(prev => prev.filter(contractType => contractType.id !== record.id))
+  }
 
   const handleViewDetails = (record: ContractTypeTable) => {
-    const contractType = contractTypes.find((contractType) => contractType.id === record.id);
-    if (!contractType) return;
+    const contractType = contractTypes.find(contractType => contractType.id === record.id)
+    if (!contractType) return
 
-    setSelectedType(contractType);
-    setIsDrawerVisible(true);
-  };
+    setSelectedType(contractType)
+    setIsDrawerVisible(true)
+  }
 
   const drawerItems = useMemo(() => {
-    if (!selectedType) return [];
+    if (!selectedType) return []
     const items = [
       {
         icon: <InfoIcon />,
@@ -141,23 +130,23 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         items: [
           {
             label: 'Name',
-            value: selectedType.value,
+            value: selectedType.value
           },
           {
             label: 'Code',
-            value: selectedType.code || '-',
+            value: selectedType.code || '-'
           },
           {
             label: 'Description',
-            value: selectedType.additionalValue1 ?? '-',
-          },
+            value: selectedType.additionalValue1 ?? '-'
+          }
         ],
-        verticalTable: true,
-      },
-    ];
+        verticalTable: true
+      }
+    ]
 
-    return items;
-  }, [selectedType]);
+    return items
+  }, [selectedType])
 
   const renderContractTypesTable = () => {
     const columns: ColumnDef<ContractTypeTable>[] = [
@@ -175,13 +164,13 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const code = getValue();
+          const code = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <Badge variant="info">{(code as string) ?? 'N/A'}</Badge>
             </div>
-          );
-        },
+          )
+        }
       },
       {
         accessorKey: 'value',
@@ -197,13 +186,13 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const name = getValue();
+          const name = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:font-semibold">{name as string}</div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
         accessorKey: 'description',
@@ -219,15 +208,15 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         ),
         enableSorting: true,
         cell: ({ getValue }) => {
-          const description = getValue();
+          const description = getValue()
           return (
             <div className="gba:flex gba:items-center">
               <div className="gba:max-w-[300px] gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
             </div>
-          );
-        },
+          )
+        }
       },
       {
         id: 'actions',
@@ -249,8 +238,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={e => {
+                    e.stopPropagation()
                   }}
                 >
                   <PencilSimpleLineIcon />
@@ -267,16 +256,16 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
               itemTitle="Employment Type"
             />
           </div>
-        ),
-      },
-    ];
+        )
+      }
+    ]
 
-    const dataTable: ContractTypeTable[] = filteredContractTypes.map((contractType) => ({
+    const dataTable: ContractTypeTable[] = filteredContractTypes.map(contractType => ({
       id: contractType.id,
       code: contractType.code,
       value: contractType.value,
-      description: contractType.additionalValue1,
-    }));
+      description: contractType.additionalValue1
+    }))
 
     return (
       <DataTable
@@ -290,8 +279,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         enableSelection
         enablePagination
       />
-    );
-  };
+    )
+  }
 
   return (
     <Card data-testid={`${dataTestId}`} className="gba:overflow-hidden">
@@ -302,8 +291,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
               usedCodes={usedCodes}
               childAddButton={
                 <Button
-                  onClick={(e) => {
-                    e.stopPropagation();
+                  onClick={e => {
+                    e.stopPropagation()
                   }}
                   data-testid={`${dataTestId}-add-button`}
                 >
@@ -325,17 +314,14 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           <Input
             placeholder="Search contract types..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             className="gba:pl-10"
             data-testid={`${dataTestId}-search-input`}
           />
         </div>
 
         {loading && contractTypes.length === 0 ? (
-          <div
-            data-testid={`${dataTestId}`}
-            className="gba:flex gba:justify-center gba:items-center gba:h-64"
-          >
+          <div data-testid={`${dataTestId}`} className="gba:flex gba:justify-center gba:items-center gba:h-64">
             <Spinner />
           </div>
         ) : (
@@ -346,11 +332,11 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
           <SheetWrapperComponent
             prefixDataTestId={dataTestId}
             isDrawerVisible={isDrawerVisible}
-            onOpenChange={(openStatus) => {
+            onOpenChange={openStatus => {
               if (!openStatus) {
-                setSelectedType(null);
+                setSelectedType(null)
               }
-              setIsDrawerVisible(openStatus);
+              setIsDrawerVisible(openStatus)
             }}
             title="Contract Type Details"
             titleIcon={FileCodeIcon}
@@ -365,8 +351,8 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
               <ContractTypeForm
                 childAddButton={
                   <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
+                    onClick={e => {
+                      e.stopPropagation()
                     }}
                   >
                     <PencilSimpleLineIcon /> Edit
@@ -379,17 +365,17 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
                   id: selectedType.id,
                   code: selectedType.code,
                   value: selectedType.value,
-                  description: selectedType.additionalValue1,
+                  description: selectedType.additionalValue1
                 }}
                 isDrawerActive={true}
                 key={selectedType.id}
-              />,
+              />
             ]}
           />
         )}
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export { ContractTypesTab };
+export { ContractTypesTab }

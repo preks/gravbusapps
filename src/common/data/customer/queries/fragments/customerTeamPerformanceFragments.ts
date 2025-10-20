@@ -1,5 +1,5 @@
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
 // ==========================================
 // CUSTOMER TEAM PERFORMANCE FRAGMENTS
@@ -45,7 +45,7 @@ export const CUSTOMER_TEAM_PERFORMANCE_METRICS = `
     currency {
       ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const CUSTOMER_ACTIVITY_PERFORMANCE = `
     id
@@ -83,7 +83,7 @@ export const CUSTOMER_ACTIVITY_PERFORMANCE = `
     activityType {
       ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const CUSTOMER_TEAM_COMPARISON = `
     id
@@ -127,7 +127,7 @@ export const CUSTOMER_TEAM_COMPARISON = `
     manager {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 export const CUSTOMER_PERFORMANCE_PERIOD = `
     id
@@ -158,7 +158,7 @@ export const CUSTOMER_PERFORMANCE_PERIOD = `
     lastUpdatedAt
     
     ${AUDIT_FIELDS}
-`;
+`
 
 export const CUSTOMER_PERFORMANCE_GOAL = `
     id
@@ -188,7 +188,7 @@ export const CUSTOMER_PERFORMANCE_GOAL = `
     employee {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 export const CUSTOMER_TEAM_PERFORMANCE_SUMMARY = `
     id
@@ -229,7 +229,7 @@ export const CUSTOMER_TEAM_PERFORMANCE_SUMMARY = `
       managerId
       departmentId
     }
-`;
+`
 
 // ==========================================
 // REFERENCE FRAGMENTS FOR RELATED ENTITIES
@@ -243,14 +243,14 @@ export const CUSTOMER_EMPLOYEE_PERFORMANCE_REF = `
     lastName
     picture
     pictureThumbnail
-`;
+`
 
 export const CUSTOMER_TEAM_REF = `
     id
     name
     managerId
     departmentId
-`;
+`
 
 // ==========================================
 // AGGREGATED PERFORMANCE FRAGMENTS
@@ -278,7 +278,7 @@ export const CUSTOMER_PERFORMANCE_SUMMARY = `
     employee {
       ${EMPLOYEE_REF}
     }
-`;
+`
 
 export const CUSTOMER_TEAM_PERFORMANCE_AGGREGATE = `
     # Team-level aggregations
@@ -294,7 +294,7 @@ export const CUSTOMER_TEAM_PERFORMANCE_AGGREGATE = `
     team {
       ${CUSTOMER_TEAM_REF}
     }
-`;
+`
 
 // ==========================================
 // PERFORMANCE TREND FRAGMENTS
@@ -321,7 +321,7 @@ export const CUSTOMER_PERFORMANCE_TREND = `
     currentPeriodEnd
     previousPeriodStart
     previousPeriodEnd
-`;
+`
 
 // ==========================================
 // ENHANCED ACTIVITY FRAGMENTS FOR PERFORMANCE
@@ -381,4 +381,4 @@ export const CUSTOMER_ACTIVITY_WITH_PERFORMANCE = `
       name
       estimatedAmount
     }
-`;
+`

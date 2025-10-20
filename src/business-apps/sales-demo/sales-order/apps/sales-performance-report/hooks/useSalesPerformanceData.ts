@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphqlClient } from "@/common/network/graphql/useGraphQLClient";
-import dayjs from 'dayjs';
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import dayjs from 'dayjs'
 import {
   SalesPerformanceKPI,
   SalesPerformanceData,
@@ -12,37 +12,29 @@ import {
   PaginationParams,
   PRODUCT_CATEGORIES,
   REGIONS
-} from '../types';
-import {
-  getSalesPerformanceKPIs,
-  getSalesPerformanceData,
-  getSalesPipelineData,
-  getFulfillmentData,
-  getProductCategoryPerformance,
-  getRegionalSalesData
-} from '../queries/salesPerformanceQueries';
+} from '../types'
 
 // Helper function to calculate trend percentage
 const calculateTrend = (current: number, previous: number): number => {
-  if (previous === 0) return current > 0 ? 100 : 0;
-  return Math.round(((current - previous) / previous) * 100);
-};
+  if (previous === 0) return current > 0 ? 100 : 0
+  return Math.round(((current - previous) / previous) * 100)
+}
 
 // Helper function to generate mock automotive data
 const generateMockAutomotiveData = (): {
-  kpiData: SalesPerformanceKPI;
-  performanceData: SalesPerformanceData[];
-  productCategoryData: ProductCategoryData[];
-  regionalData: RegionalSalesData[];
-  pipelineMetrics: PipelineMetrics;
-  fulfillmentMetrics: FulfillmentMetrics;
+  kpiData: SalesPerformanceKPI
+  performanceData: SalesPerformanceData[]
+  productCategoryData: ProductCategoryData[]
+  regionalData: RegionalSalesData[]
+  pipelineMetrics: PipelineMetrics
+  fulfillmentMetrics: FulfillmentMetrics
 } => {
   // Generate realistic KPI data
-  const currentSales = 2850000; // $2.85M
-  const previousSales = 2650000; // $2.65M
-  const currentOrders = 1240;
-  const previousOrders = 1180;
-  
+  const currentSales = 2850000 // $2.85M
+  const previousSales = 2650000 // $2.65M
+  const currentOrders = 1240
+  const previousOrders = 1180
+
   const kpiData: SalesPerformanceKPI = {
     totalSales: {
       value: currentSales,
@@ -66,47 +58,47 @@ const generateMockAutomotiveData = (): {
       trend: calculateTrend(currentSales, previousSales),
       period: 'vs last 6 months'
     }
-  };
+  }
 
   // Generate 6-month performance data
-  const performanceData: SalesPerformanceData[] = [];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+  const performanceData: SalesPerformanceData[] = []
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
   months.forEach((month, index) => {
-    const currentPeriod = 450000 + (Math.random() * 100000) + (index * 15000);
-    const previousPeriod = currentPeriod * (0.85 + Math.random() * 0.2);
+    const currentPeriod = 450000 + Math.random() * 100000 + index * 15000
+    const previousPeriod = currentPeriod * (0.85 + Math.random() * 0.2)
     performanceData.push({
       month,
       currentPeriod,
       previousPeriod,
       growth: calculateTrend(currentPeriod, previousPeriod)
-    });
-  });
+    })
+  })
 
   // Generate product category data
   const productCategoryData: ProductCategoryData[] = PRODUCT_CATEGORIES.slice(0, 5).map((category, index) => {
-    const sales = 500000 - (index * 80000) + (Math.random() * 50000);
-    const orders = Math.floor(sales / 2300);
+    const sales = 500000 - index * 80000 + Math.random() * 50000
+    const orders = Math.floor(sales / 2300)
     return {
       category,
       sales,
       orders,
       averageValue: sales / orders,
-      growth: -5 + (Math.random() * 25)
-    };
-  });
+      growth: -5 + Math.random() * 25
+    }
+  })
 
   // Generate regional data
   const regionalData: RegionalSalesData[] = REGIONS.map((region, index) => {
-    const sales = 600000 - (index * 100000) + (Math.random() * 80000);
-    const orders = Math.floor(sales / 2400);
+    const sales = 600000 - index * 100000 + Math.random() * 80000
+    const orders = Math.floor(sales / 2400)
     return {
       region,
       sales,
       orders,
-      growth: -3 + (Math.random() * 20),
-      marketShare: 35 - (index * 6) + (Math.random() * 5)
-    };
-  });
+      growth: -3 + Math.random() * 20,
+      marketShare: 35 - index * 6 + Math.random() * 5
+    }
+  })
 
   // Generate pipeline metrics
   const pipelineMetrics: PipelineMetrics = {
@@ -124,7 +116,7 @@ const generateMockAutomotiveData = (): {
       { stage: 'Delivered', count: 58, value: 165300, averageTime: 2, conversionRate: 100, dropOffRate: 0 },
       { stage: 'Closed', count: 58, value: 165300, averageTime: 1, conversionRate: 100, dropOffRate: 0 }
     ]
-  };
+  }
 
   // Generate fulfillment metrics
   const fulfillmentMetrics: FulfillmentMetrics = {
@@ -133,7 +125,7 @@ const generateMockAutomotiveData = (): {
     averageFulfillmentTime: 21.2,
     totalOrdersShipped: 1156,
     totalOrdersDelivered: 1089
-  };
+  }
 
   return {
     kpiData,
@@ -142,107 +134,103 @@ const generateMockAutomotiveData = (): {
     regionalData,
     pipelineMetrics,
     fulfillmentMetrics
-  };
-};
+  }
+}
 
 interface UseSalesPerformanceDataProps {
-  accessToken: string;
+  accessToken: string
 }
 
 interface UseSalesPerformanceDataReturn {
-  kpiData: SalesPerformanceKPI | null;
-  performanceData: SalesPerformanceData[];
-  productCategoryData: ProductCategoryData[];
-  regionalData: RegionalSalesData[];
-  pipelineMetrics: PipelineMetrics | null;
-  fulfillmentMetrics: FulfillmentMetrics | null;
-  loading: boolean;
-  error: Error | null;
-  filters: SalesPerformanceFilters;
-  pagination: PaginationParams;
-  setFilters: (filters: SalesPerformanceFilters) => void;
-  setPagination: (pagination: PaginationParams) => void;
-  refreshData: () => void;
+  kpiData: SalesPerformanceKPI | null
+  performanceData: SalesPerformanceData[]
+  productCategoryData: ProductCategoryData[]
+  regionalData: RegionalSalesData[]
+  pipelineMetrics: PipelineMetrics | null
+  fulfillmentMetrics: FulfillmentMetrics | null
+  loading: boolean
+  error: Error | null
+  filters: SalesPerformanceFilters
+  pagination: PaginationParams
+  setFilters: (filters: SalesPerformanceFilters) => void
+  setPagination: (pagination: PaginationParams) => void
+  refreshData: () => void
 }
 
-export const useSalesPerformanceData = ({ 
-  accessToken 
+export const useSalesPerformanceData = ({
+  accessToken
 }: UseSalesPerformanceDataProps): UseSalesPerformanceDataReturn => {
   // GraphQL client
-  const graphqlClient = useGraphqlClient(accessToken);
+  const graphqlClient = useGraphqlClient(accessToken)
 
   // State
-  const [kpiData, setKpiData] = useState<SalesPerformanceKPI | null>(null);
-  const [performanceData, setPerformanceData] = useState<SalesPerformanceData[]>([]);
-  const [productCategoryData, setProductCategoryData] = useState<ProductCategoryData[]>([]);
-  const [regionalData, setRegionalData] = useState<RegionalSalesData[]>([]);
-  const [pipelineMetrics, setPipelineMetrics] = useState<PipelineMetrics | null>(null);
-  const [fulfillmentMetrics, setFulfillmentMetrics] = useState<FulfillmentMetrics | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  
+  const [kpiData, setKpiData] = useState<SalesPerformanceKPI | null>(null)
+  const [performanceData, setPerformanceData] = useState<SalesPerformanceData[]>([])
+  const [productCategoryData, setProductCategoryData] = useState<ProductCategoryData[]>([])
+  const [regionalData, setRegionalData] = useState<RegionalSalesData[]>([])
+  const [pipelineMetrics, setPipelineMetrics] = useState<PipelineMetrics | null>(null)
+  const [fulfillmentMetrics, setFulfillmentMetrics] = useState<FulfillmentMetrics | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+
   const [filters, setFiltersState] = useState<SalesPerformanceFilters>({
-    dateRange: [
-      dayjs().subtract(6, 'months').format('YYYY-MM-DD'),
-      dayjs().format('YYYY-MM-DD')
-    ]
-  });
-  
+    dateRange: [dayjs().subtract(6, 'months').format('YYYY-MM-DD'), dayjs().format('YYYY-MM-DD')]
+  })
+
   const [pagination, setPaginationState] = useState<PaginationParams>({
     page: 1,
     pageSize: 20,
     total: 0
-  });
+  })
 
   // Fetch data function
   const fetchData = useCallback(async () => {
-    if (!accessToken) return;
-    
-    setLoading(true);
-    setError(null);
+    if (!accessToken) return
+
+    setLoading(true)
+    setError(null)
 
     try {
       // For now, use mock data since we're focusing on UI implementation
       // In production, this would make actual GraphQL requests
-      const mockData = generateMockAutomotiveData();
-      
+      const mockData = generateMockAutomotiveData()
+
       // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      setKpiData(mockData.kpiData);
-      setPerformanceData(mockData.performanceData);
-      setProductCategoryData(mockData.productCategoryData);
-      setRegionalData(mockData.regionalData);
-      setPipelineMetrics(mockData.pipelineMetrics);
-      setFulfillmentMetrics(mockData.fulfillmentMetrics);
-      
-      setPaginationState(prev => ({ ...prev, total: 1240 }));
-      
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      setKpiData(mockData.kpiData)
+      setPerformanceData(mockData.performanceData)
+      setProductCategoryData(mockData.productCategoryData)
+      setRegionalData(mockData.regionalData)
+      setPipelineMetrics(mockData.pipelineMetrics)
+      setFulfillmentMetrics(mockData.fulfillmentMetrics)
+
+      setPaginationState(prev => ({ ...prev, total: 1240 }))
     } catch (err) {
-      console.error('Error fetching sales performance data:', err);
-      setError(err as Error);
+      console.error('Error fetching sales performance data:', err)
+      setError(err as Error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [accessToken, filters]);
+  }, [accessToken, filters])
 
   // Initial data fetch
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData()
+  }, [fetchData])
 
   // Wrapper functions for state setters
   const setFilters = useCallback((newFilters: SalesPerformanceFilters) => {
-    setFiltersState(newFilters);
-  }, []);
+    setFiltersState(newFilters)
+  }, [])
 
   const setPagination = useCallback((newPagination: PaginationParams) => {
-    setPaginationState(newPagination);
-  }, []);
+    setPaginationState(newPagination)
+  }, [])
 
   const refreshData = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchData()
+  }, [fetchData])
 
   return {
     kpiData,
@@ -258,5 +246,5 @@ export const useSalesPerformanceData = ({
     setFilters,
     setPagination,
     refreshData
-  };
-};
+  }
+}

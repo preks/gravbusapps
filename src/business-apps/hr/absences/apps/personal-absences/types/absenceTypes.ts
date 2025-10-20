@@ -1,35 +1,34 @@
 export interface AbsenceItem {
-  id: number;
-  type: string;
-  icon: React.ReactNode;
-  dates: string;
-  description: string;
-  timeUntil: string;
-  bgColor: string;
+  id: number
+  type: string
+  icon: React.ReactNode
+  dates: string
+  description: string
+  timeUntil: string
+  bgColor: string
 }
 
 export interface AbsenceListCardAbsence {
-  type: string;
-  status: string;
-  title: string;
-  startDate: string;
-  endDate: string;
-  duration: string;
-  description: string;
-  requestedInfo: string;
-  icon: React.ReactNode;
-  typeColor: string;
-  statusColor: string;
-  requestDate: string;
+  type: string
+  status: string
+  title: string
+  startDate: string
+  endDate: string
+  duration: string
+  description: string
+  requestedInfo: string
+  icon: React.ReactNode
+  typeColor: string
+  statusColor: string
+  requestDate: string
 }
 
 export interface AbsenceListCardProps {
-  absence: AbsenceListCardAbsence;
+  absence: AbsenceListCardAbsence
 }
 
-
 export interface StatItem {
-  daysLeft?: number;
+  daysLeft?: number
   title: string
   used: number
   total: number
@@ -48,13 +47,13 @@ export interface UpcomingAbsenceCardProps {
 }
 
 export interface TeamCalendarDayProps {
-  day: number;
-  hasEvent: boolean;
-  eventText?: string;
+  day: number
+  hasEvent: boolean
+  eventText?: string
 }
 
 export interface TeamCalendarProps {
-  currentWeek: string;
-  onPreviousWeek: () => void;
-  onNextWeek: () => void;
+  currentWeek: string
+  onPreviousWeek: () => void
+  onNextWeek: () => void
 }

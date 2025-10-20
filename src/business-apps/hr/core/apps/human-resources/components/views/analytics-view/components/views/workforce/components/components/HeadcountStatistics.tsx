@@ -1,25 +1,21 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData';
+import React from 'react'
+import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import type { HeadcountStatistics } from '../../../../../hooks/useHeadcountTrendsData'
 
 interface HeadcountStatisticsProps {
-  statistics: HeadcountStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: HeadcountStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
-const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({
-  statistics,
-  isLoading,
-  dataTestId
-}) => {
+const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, isLoading, dataTestId }) => {
   const kpiCards: KpiCardData[] = [
     {
       id: 'monthly-hires',
       title: 'Monthly Hires',
       value: statistics.monthlyHires,
       icon: 'users',
-      iconColor: '#52c41a',
+      iconColor: 'var(--nw-success)',
       footer: 'New hires this month'
     },
     {
@@ -27,7 +23,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({
       title: 'Monthly Departures',
       value: statistics.monthlyExits,
       icon: 'users',
-      iconColor: '#ff4d4f',
+      iconColor: 'var(--nw-destructive)',
       footer: 'Departures this month'
     },
     {
@@ -35,7 +31,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({
       title: 'Net Change',
       value: statistics.netChange > 0 ? `+${statistics.netChange}` : statistics.netChange.toString(),
       icon: 'users',
-      iconColor: statistics.netChange >= 0 ? '#52c41a' : '#ff4d4f',
+      iconColor: statistics.netChange >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
       footer: 'Monthly headcount change'
     },
     {
@@ -43,30 +39,30 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({
       title: 'Growth Rate',
       value: `${statistics.growthRate > 0 ? '+' : ''}${statistics.growthRate.toFixed(2)}%`,
       icon: 'calendar',
-      iconColor: statistics.growthRate >= 0 ? '#52c41a' : '#ff4d4f',
+      iconColor: statistics.growthRate >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
       footer: 'Monthly growth percentage'
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
       value: 'Loading...'
-    }));
-    
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default HeadcountStatistics; 
+export default HeadcountStatistics

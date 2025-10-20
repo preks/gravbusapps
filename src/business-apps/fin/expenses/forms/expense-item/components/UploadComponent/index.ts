@@ -1,4 +1,4 @@
-import { UploadComponent } from './UploadComponent';
+import { UploadComponent } from './UploadComponent'
 
-export { UploadComponent };
-export default UploadComponent;
+export { UploadComponent }
+export default UploadComponent

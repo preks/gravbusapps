@@ -1,32 +1,29 @@
-import React from "react";
+import React from 'react'
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
-} from "@newwork/nw-design-system";
-import { CodeIcon } from "@phosphor-icons/react";
+  SheetTrigger
+} from '@newwork/nw-design-system'
+import { CodeIcon } from '@phosphor-icons/react'
 
 // Import chart examples
-import SimplePieChart from "./SimplePieChart";
-import PieChartLabel from "./PieChartLabel";
-import DonutChart from "./DonutChart";
-import DonutChartText from "./DonutChartText";
-import PieChartLegend from "./PieChartLegend";
-import InteractivePieChart from "./InteractivePieChart";
-import PieChartSeparatorNone from "./PieChartSeparatorNone";
-import PieChartCustomLabel from "./PieChartCustomLabel";
-import PieChartLabelList from "./PieChartLabelList";
-import DonutChartActive from "./DonutChartActive";
-import PieChartStacked from "./PieChartStacked";
+import SimplePieChart from './SimplePieChart'
+import PieChartLabel from './PieChartLabel'
+import DonutChart from './DonutChart'
+import DonutChartText from './DonutChartText'
+import PieChartLegend from './PieChartLegend'
+import InteractivePieChart from './InteractivePieChart'
+import PieChartSeparatorNone from './PieChartSeparatorNone'
+import PieChartCustomLabel from './PieChartCustomLabel'
+import PieChartLabelList from './PieChartLabelList'
+import DonutChartActive from './DonutChartActive'
+import PieChartStacked from './PieChartStacked'
 
 // Import code examples
 import {
@@ -40,101 +37,101 @@ import {
   pieChartCustomLabelCode,
   pieChartLabelListCode,
   donutChartActiveCode,
-  pieChartStackedCode,
-} from "./code-examples";
+  pieChartStackedCode
+} from './code-examples'
 
 interface PieChartsTabProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 interface ChartExample {
-  id: string;
-  title: string;
-  description: string;
-  component: React.ComponentType<{ moduleColor?: string }>;
-  code: string;
+  id: string
+  title: string
+  description: string
+  component: React.ComponentType<{ moduleColor?: string }>
+  code: string
 }
 
 const PieChartsTab: React.FC<PieChartsTabProps> = ({ moduleColor }) => {
   const examples: ChartExample[] = [
     {
-      id: "simple",
-      title: "Pie Chart",
-      description: "A basic pie chart showing data distribution with automatic colors.",
+      id: 'simple',
+      title: 'Pie Chart',
+      description: 'A basic pie chart showing data distribution with automatic colors.',
       component: SimplePieChart,
-      code: simplePieCode,
+      code: simplePieCode
     },
     {
-      id: "label",
-      title: "Pie Chart - Label",
-      description: "A pie chart with percentage labels displayed on each slice.",
+      id: 'label',
+      title: 'Pie Chart - Label',
+      description: 'A pie chart with percentage labels displayed on each slice.',
       component: PieChartLabel,
-      code: pieLabelCode,
+      code: pieLabelCode
     },
     {
-      id: "donut",
-      title: "Donut Chart",
-      description: "A pie chart with a hollow center creating a donut effect.",
+      id: 'donut',
+      title: 'Donut Chart',
+      description: 'A pie chart with a hollow center creating a donut effect.',
       component: DonutChart,
-      code: donutCode,
+      code: donutCode
     },
     {
-      id: "donut-text",
-      title: "Donut Chart - Text",
-      description: "A donut chart with text displayed in the center.",
+      id: 'donut-text',
+      title: 'Donut Chart - Text',
+      description: 'A donut chart with text displayed in the center.',
       component: DonutChartText,
-      code: donutTextCode,
+      code: donutTextCode
     },
     {
-      id: "legend",
-      title: "Pie Chart - Legend",
-      description: "A pie chart with a legend showing data series and labels.",
+      id: 'legend',
+      title: 'Pie Chart - Legend',
+      description: 'A pie chart with a legend showing data series and labels.',
       component: PieChartLegend,
-      code: pieLegendCode,
+      code: pieLegendCode
     },
     {
-      id: "interactive",
-      title: "Pie Chart - Interactive",
-      description: "An interactive pie chart with hover effects and animations.",
+      id: 'interactive',
+      title: 'Pie Chart - Interactive',
+      description: 'An interactive pie chart with hover effects and animations.',
       component: InteractivePieChart,
-      code: interactivePieCode,
+      code: interactivePieCode
     },
     {
-      id: "separator-none",
-      title: "Pie Chart - Separator None",
-      description: "A pie chart with no separators between slices for a clean look.",
+      id: 'separator-none',
+      title: 'Pie Chart - Separator None',
+      description: 'A pie chart with no separators between slices for a clean look.',
       component: PieChartSeparatorNone,
-      code: pieChartSeparatorNoneCode,
+      code: pieChartSeparatorNoneCode
     },
     {
-      id: "custom-label",
-      title: "Pie Chart - Custom Label",
-      description: "A pie chart with custom positioned and formatted labels.",
+      id: 'custom-label',
+      title: 'Pie Chart - Custom Label',
+      description: 'A pie chart with custom positioned and formatted labels.',
       component: PieChartCustomLabel,
-      code: pieChartCustomLabelCode,
+      code: pieChartCustomLabelCode
     },
     {
-      id: "label-list",
-      title: "Pie Chart - Label List",
-      description: "A pie chart with labels displayed using LabelList component.",
+      id: 'label-list',
+      title: 'Pie Chart - Label List',
+      description: 'A pie chart with labels displayed using LabelList component.',
       component: PieChartLabelList,
-      code: pieChartLabelListCode,
+      code: pieChartLabelListCode
     },
     {
-      id: "donut-active",
-      title: "Donut Chart - Active",
-      description: "A donut chart with active states and hover effects.",
+      id: 'donut-active',
+      title: 'Donut Chart - Active',
+      description: 'A donut chart with active states and hover effects.',
       component: DonutChartActive,
-      code: donutChartActiveCode,
+      code: donutChartActiveCode
     },
     {
-      id: "stacked",
-      title: "Pie Chart - Stacked",
-      description: "A stacked pie chart with multiple data series in concentric circles.",
+      id: 'stacked',
+      title: 'Pie Chart - Stacked',
+      description: 'A stacked pie chart with multiple data series in concentric circles.',
       component: PieChartStacked,
-      code: pieChartStackedCode,
-    },
-  ];
+      code: pieChartStackedCode
+    }
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid="pie-charts-tab">
@@ -142,14 +139,15 @@ const PieChartsTab: React.FC<PieChartsTabProps> = ({ moduleColor }) => {
       <div>
         <h1 className="gba:text-3xl gba:font-bold gba:tracking-tight">Pie Charts</h1>
         <p className="gba:text-muted-foreground gba:mt-2">
-          Pie charts show proportions and percentages of a whole. They are ideal for displaying categorical data where you want to show the relative sizes of different parts.
+          Pie charts show proportions and percentages of a whole. They are ideal for displaying categorical data where
+          you want to show the relative sizes of different parts.
         </p>
       </div>
 
       {/* Examples Grid */}
       <div className="gba:grid gba:gap-6 gba:md:grid-cols-2">
-        {examples.map((example) => {
-          const ChartComponent = example.component;
+        {examples.map(example => {
+          const ChartComponent = example.component
           return (
             <div key={example.id} className="gba:space-y-0">
               {/* Top slim card: Title, description, and code button */}
@@ -187,17 +185,17 @@ const PieChartsTab: React.FC<PieChartsTabProps> = ({ moduleColor }) => {
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* Bottom card: Chart only */}
               <div>
                 <ChartComponent moduleColor={moduleColor} />
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PieChartsTab;
+export default PieChartsTab

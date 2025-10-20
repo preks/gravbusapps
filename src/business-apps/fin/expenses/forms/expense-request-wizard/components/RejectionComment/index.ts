@@ -1,4 +1,4 @@
-import RejectionComment from './RejectionComment';
+import RejectionComment from './RejectionComment'
 
-export default RejectionComment;
-export { RejectionComment };
+export default RejectionComment
+export { RejectionComment }

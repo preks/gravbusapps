@@ -1,64 +1,58 @@
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system';
-import { PlusIcon, UserIcon, CalendarBlankIcon, BellIcon, DotsThreeVertical } from '@phosphor-icons/react';
-import dayjs from 'dayjs';
-import { AppAction } from '@/components/app-action';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import type { AppActionCommonProps } from '@/common/hooks/useAppActionData';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
+import React from 'react'
+import { Card, CardContent, CardHeader, CardTitle, Button } from '@newwork/nw-design-system'
+import { PlusIcon, UserIcon, CalendarBlankIcon, BellIcon, DotsThreeVertical } from '@phosphor-icons/react'
+import dayjs from 'dayjs'
+import { AppAction } from '@/components/app-action'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-type NoteItem = {
-  id: string;
-  noteTitle: string;
-  noteText: string;
-  createdAt: string;
-  createdBy: string;
-  authorEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string };
-  assigneeEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string };
-  reminderAt?: string | null;
-};
+export type NoteItem = {
+  id: string
+  noteTitle: string
+  noteText: string
+  createdAt: string
+  createdBy: string
+  authorEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
+  assigneeEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
+  reminderAt?: string | null
+}
 
-interface NoteSectionProps extends BusinessAppContextProps {
-  notes?: NoteItem[];
-  noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
-  noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>;
-  'data-testid'?: string;
+export interface NoteSectionProps extends BusinessAppContextProps {
+  notes?: NoteItem[]
+  noteActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  noteEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
+  'data-testid'?: string
 }
 
 // Standard React component that can be used with SectionWrapper
-const NoteSection: React.FC<NoteSectionProps> = (props) => {
-  const { 
-    accessToken, 
-    notes: notesProp, 
-    noteEntityActionProps
-  } = props;
+const NoteSection: React.FC<NoteSectionProps> = props => {
+  const { accessToken, notes: notesProp, noteEntityActionProps } = props
 
-  const notes = notesProp || [];
+  const notes = notesProp || []
 
   const getAuthorName = (authorEmployee: any) => {
-    if (!authorEmployee) return null;
-    
+    if (!authorEmployee) return null
+
     // Use firstName + lastName first
-    const fullName = `${authorEmployee.firstName || ''} ${authorEmployee.lastName || ''}`.trim();
-    if (fullName) return fullName;
-    
+    const fullName = `${authorEmployee.firstName || ''} ${authorEmployee.lastName || ''}`.trim()
+    if (fullName) return fullName
+
     // Fallback to displayName
-    return authorEmployee.displayName || null;
-  };
+    return authorEmployee.displayName || null
+  }
 
   const handleEmployeeClick = (employeeId: string) => {
-    navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }));
-  };
+    navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
+  }
 
   return (
-    <div data-testid={props['data-testid'] || "note-section-new-content"} className="gba:space-y-4">
+    <div data-testid={props['data-testid'] || 'note-section-new-content'} className="gba:space-y-4">
       {notes.length === 0 ? (
-        <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-          No notes yet. Create your first note.
-        </div>
+        <div className="gba:text-center gba:py-8 gba:text-muted-foreground">No notes yet. Create your first note.</div>
       ) : (
-        notes.map((note) => (
+        notes.map(note => (
           <Card key={note.id} className="gba:shadow-none gba:border gba:border-gray-200">
             <CardHeader className="gba:flex gba:flex-row gba:items-center gba:space-y-0 gba:pb-2 gba:gap-2">
               <CardTitle className="gba:text-base gba:flex-1 gba:truncate">{note.noteTitle}</CardTitle>
@@ -71,7 +65,7 @@ const NoteSection: React.FC<NoteSectionProps> = (props) => {
                   deferMainContextRequestsUntilClick={true}
                   emptyStateBehavior="enable"
                 >
-                  <div 
+                  <div
                     className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-gray-100 gba:transition-colors gba:flex-shrink-0"
                     data-testid={`note-menu-${note.id}`}
                   >
@@ -87,10 +81,12 @@ const NoteSection: React.FC<NoteSectionProps> = (props) => {
                   <UserIcon size={12} />
                   {note.authorEmployee?.id && getAuthorName(note.authorEmployee) ? (
                     <a
-                      href={buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId: note.authorEmployee.id })}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleEmployeeClick(note.authorEmployee!.id!);
+                      href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                        employeeId: note.authorEmployee.id
+                      })}
+                      onClick={e => {
+                        e.preventDefault()
+                        handleEmployeeClick(note.authorEmployee!.id!)
                       }}
                       className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
                       data-testid={`note-author-link-${note.authorEmployee.id}`}
@@ -108,10 +104,12 @@ const NoteSection: React.FC<NoteSectionProps> = (props) => {
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <UserIcon size={12} /> Assigned to{' '}
                     <a
-                      href={buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId: note.assigneeEmployee.id })}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleEmployeeClick(note.assigneeEmployee!.id!);
+                      href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                        employeeId: note.assigneeEmployee.id
+                      })}
+                      onClick={e => {
+                        e.preventDefault()
+                        handleEmployeeClick(note.assigneeEmployee!.id!)
                       }}
                       className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
                       data-testid={`note-assignee-link-${note.assigneeEmployee.id}`}
@@ -131,16 +129,16 @@ const NoteSection: React.FC<NoteSectionProps> = (props) => {
         ))
       )}
     </div>
-  );
-};
+  )
+}
 
 // Static properties for SectionWrapper
-(NoteSection as any).sectionTitle = 'Notes';
-(NoteSection as any).sectionActions = (props: NoteSectionProps) => {
-  const { accessToken, noteActionProps } = props;
-  
+;(NoteSection as any).sectionTitle = 'Notes'
+;(NoteSection as any).sectionActions = (props: NoteSectionProps) => {
+  const { accessToken, noteActionProps } = props
+
   if (!noteActionProps) {
-    return null;
+    return null
   }
 
   return (
@@ -155,7 +153,7 @@ const NoteSection: React.FC<NoteSectionProps> = (props) => {
         <PlusIcon />
       </Button>
     </AppAction>
-  );
-};
+  )
+}
 
-export default NoteSection;
+export default NoteSection

@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { useGraphqlClient } from '../graphql/useGraphQLClient';
+import { useMemo } from 'react'
+import { useGraphqlClient } from '../graphql/useGraphQLClient'
 
 // Query for approved expense plans
 export const approvedExpensePlansQuery = `
@@ -64,24 +64,24 @@ export const approvedExpensePlansQuery = `
       }
     }
   }
-`;
+`
 
 export const useApprovedExpensePlans = (accessToken: string, employeeId: string, activeUserLocale: string) => {
-  const graphQLClient = useGraphqlClient(accessToken);
-  
-  const fetchExpensePlans = useMemo(() => async () => {
-    try {
-      const data = await graphQLClient.request(
-        approvedExpensePlansQuery,
-        { employeeId, activeUserLocale }
-      );
-      
-      return data;
-    } catch (error) {
-      console.error('Error fetching expense plans:', error);
-      throw error;
-    }
-  }, [graphQLClient, employeeId, activeUserLocale, accessToken]);
-  
-  return fetchExpensePlans;
-};
+  const graphQLClient = useGraphqlClient(accessToken)
+
+  const fetchExpensePlans = useMemo(
+    () => async () => {
+      try {
+        const data = await graphQLClient.request(approvedExpensePlansQuery, { employeeId, activeUserLocale })
+
+        return data
+      } catch (error) {
+        console.error('Error fetching expense plans:', error)
+        throw error
+      }
+    },
+    [graphQLClient, employeeId, activeUserLocale, accessToken]
+  )
+
+  return fetchExpensePlans
+}

@@ -1,203 +1,194 @@
-import { resolve } from "path";
-import { defineConfig, loadEnv, type PluginOption } from "vite";
-import react from "@vitejs/plugin-react";
-import tailwindCSS from "@tailwindcss/vite";
-import fs from "fs"; // For synchronous file system operations
-import { readFile, rename as fsRename } from "fs/promises"; // For asynchronous file system operations in the plugin
-import crypto from "crypto";
-import path from "path";
-import dotenv from "@dotenvx/dotenvx";
+import { resolve } from 'path'
+import { defineConfig, loadEnv, type PluginOption } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindCSS from '@tailwindcss/vite'
+import fs from 'fs' // For synchronous file system operations
+import { readFile, rename as fsRename } from 'fs/promises' // For asynchronous file system operations in the plugin
+import crypto from 'crypto'
+import path from 'path'
+import dotenv from '@dotenvx/dotenvx'
 
 // Function to get dynamic entries for Vite build using synchronous fs methods
 function getDynamicEntries(projectRootDir: string): Record<string, string> {
-  const businessAppsDir = path.join(projectRootDir, "src", "business-apps");
-  const entries: Record<string, string> = {};
+  const businessAppsDir = path.join(projectRootDir, 'src', 'business-apps')
+  const entries: Record<string, string> = {}
 
   if (!fs.existsSync(businessAppsDir)) {
-    return entries;
+    return entries
   }
 
   // Get all products (top-level directories) that don't start with '.' and aren't 'node_modules'
   const products = fs
     .readdirSync(businessAppsDir)
     .filter(
-      (product) =>
+      product =>
         fs.statSync(path.join(businessAppsDir, product)).isDirectory() &&
-        !product.startsWith(".") &&
-        product !== "node_modules",
-    );
+        !product.startsWith('.') &&
+        product !== 'node_modules'
+    )
 
   // Function to recursively find index.ts files in a directory
   function findIndexFiles(dir: string, product: string, pathParts: string[] = []) {
-    const items = fs.readdirSync(dir);
+    const items = fs.readdirSync(dir)
 
     for (const item of items) {
-      const itemPath = path.join(dir, item);
-      const stats = fs.statSync(itemPath);
+      const itemPath = path.join(dir, item)
+      const stats = fs.statSync(itemPath)
 
       if (stats.isDirectory()) {
         // Continue recursion for directories
-        findIndexFiles(itemPath, product, [...pathParts, item]);
-      } else if (item === "index.ts" && stats.isFile()) {
+        findIndexFiles(itemPath, product, [...pathParts, item])
+      } else if (item === 'index.ts' && stats.isFile()) {
         // Found an index.ts file
         // The screen name is the directory containing the index.ts file
-        const screenName = path.basename(dir);
+        const screenName = path.basename(dir)
         // Remove the screenName from pathParts as it will be added separately
-        const intermediatePath = pathParts.slice(0, -1).join("/");
+        const intermediatePath = pathParts.slice(0, -1).join('/')
         // Create the entry key with the pattern product/intermediate-path/screenName
-        const entryKey = intermediatePath
-          ? `${product}/${intermediatePath}/${screenName}`
-          : `${product}/${screenName}`;
-        entries[entryKey] = itemPath;
+        const entryKey = intermediatePath ? `${product}/${intermediatePath}/${screenName}` : `${product}/${screenName}`
+        entries[entryKey] = itemPath
       }
     }
   }
 
   // Process each product directory
-  products.forEach((product) => {
-    const productPath = path.join(businessAppsDir, product);
-    findIndexFiles(productPath, product);
-  });
+  products.forEach(product => {
+    const productPath = path.join(businessAppsDir, product)
+    findIndexFiles(productPath, product)
+  })
 
   // Also include example entries from src/common/examples (apps, forms, popups)
-  const examplesDir = path.join(projectRootDir, "src", "common", "examples");
+  const examplesDir = path.join(projectRootDir, 'src', 'common', 'examples')
   if (fs.existsSync(examplesDir)) {
     const findExampleIndexFiles = (dir: string) => {
-      const items = fs.readdirSync(dir);
+      const items = fs.readdirSync(dir)
       for (const item of items) {
-        const itemPath = path.join(dir, item);
-        const stats = fs.statSync(itemPath);
+        const itemPath = path.join(dir, item)
+        const stats = fs.statSync(itemPath)
         if (stats.isDirectory()) {
-          findExampleIndexFiles(itemPath);
-        } else if (item === "index.ts" && stats.isFile()) {
+          findExampleIndexFiles(itemPath)
+        } else if (item === 'index.ts' && stats.isFile()) {
           // Compute relative path from examples root to the directory containing index.ts
-          const relativeDir = path
-            .relative(examplesDir, path.dirname(itemPath))
-            .replace(/\\/g, "/");
+          const relativeDir = path.relative(examplesDir, path.dirname(itemPath)).replace(/\\/g, '/')
           if (relativeDir) {
             // Screen key pattern: examples/<relativeDir>
-            const entryKey = `examples/${relativeDir}`;
-            entries[entryKey] = itemPath;
+            const entryKey = `examples/${relativeDir}`
+            entries[entryKey] = itemPath
           }
         }
       }
-    };
-    findExampleIndexFiles(examplesDir);
+    }
+    findExampleIndexFiles(examplesDir)
   }
 
-  return entries;
+  return entries
 }
 
 // Helper function for SHA256
 function getSha256(data: Buffer): string {
-  return crypto.createHash("sha256").update(data).digest("hex").substring(0, 16); // 16-char hash
+  return crypto.createHash('sha256').update(data).digest('hex').substring(0, 16) // 16-char hash
 }
 
 // Custom plugin for SHA256 content hashing
 function sha256ContentHashPlugin(shouldApply: boolean) {
   if (!shouldApply) {
-    return null;
+    return null
   }
   return {
-    name: "sha256-content-hash",
+    name: 'sha256-content-hash',
     async writeBundle(options: any, bundle: any) {
-      console.log("[sha256-plugin] Processing bundle for SHA256 content hashing...");
-      const outputDir = options.dir;
+      console.log('[sha256-plugin] Processing bundle for SHA256 content hashing...')
+      const outputDir = options.dir
       if (!outputDir) {
-        console.error("[sha256-plugin] Output directory not found in options.");
-        return;
+        console.error('[sha256-plugin] Output directory not found in options.')
+        return
       }
 
-      const newBundleEntries: Record<string, any> = {};
-      const oldKeys: string[] = [];
+      const newBundleEntries: Record<string, any> = {}
+      const oldKeys: string[] = []
 
       for (const originalChunkFileName in bundle) {
-        const chunk = bundle[originalChunkFileName];
-        if (
-          chunk.type === "chunk" &&
-          chunk.isEntry &&
-          chunk.facadeModuleId &&
-          chunk.fileName.endsWith(".js")
-        ) {
-          const originalFilePath = path.join(outputDir, chunk.fileName);
+        const chunk = bundle[originalChunkFileName]
+        if (chunk.type === 'chunk' && chunk.isEntry && chunk.facadeModuleId && chunk.fileName.endsWith('.js')) {
+          const originalFilePath = path.join(outputDir, chunk.fileName)
           try {
-            const fileContent = await readFile(originalFilePath); // Using readFile from 'fs/promises'
-            const hash = getSha256(fileContent);
-            const dirName = path.dirname(chunk.fileName);
-            const baseName = path.basename(chunk.fileName, ".js");
-            const newChunkFileName = `${dirName}/${baseName}-${hash}.js`;
-            const newFilePath = path.join(outputDir, newChunkFileName);
+            const fileContent = await readFile(originalFilePath) // Using readFile from 'fs/promises'
+            const hash = getSha256(fileContent)
+            const dirName = path.dirname(chunk.fileName)
+            const baseName = path.basename(chunk.fileName, '.js')
+            const newChunkFileName = `${dirName}/${baseName}-${hash}.js`
+            const newFilePath = path.join(outputDir, newChunkFileName)
 
             if (originalFilePath !== newFilePath) {
-              await fsRename(originalFilePath, newFilePath); // Using fsRename from 'fs/promises'
-              console.log(`[sha256-plugin] Renamed: ${chunk.fileName} -> ${newChunkFileName}`);
-              chunk.fileName = newChunkFileName;
-              newBundleEntries[newChunkFileName] = chunk;
-              oldKeys.push(originalChunkFileName);
+              await fsRename(originalFilePath, newFilePath) // Using fsRename from 'fs/promises'
+              console.log(`[sha256-plugin] Renamed: ${chunk.fileName} -> ${newChunkFileName}`)
+              chunk.fileName = newChunkFileName
+              newBundleEntries[newChunkFileName] = chunk
+              oldKeys.push(originalChunkFileName)
             } else {
-              newBundleEntries[originalChunkFileName] = chunk;
+              newBundleEntries[originalChunkFileName] = chunk
             }
           } catch (error) {
-            console.error(`[sha256-plugin] Error processing file ${originalFilePath}:`, error);
-            newBundleEntries[originalChunkFileName] = chunk;
+            console.error(`[sha256-plugin] Error processing file ${originalFilePath}:`, error)
+            newBundleEntries[originalChunkFileName] = chunk
           }
         } else {
-          newBundleEntries[originalChunkFileName] = chunk;
+          newBundleEntries[originalChunkFileName] = chunk
         }
       }
-      oldKeys.forEach((key) => delete bundle[key]);
-      Object.assign(bundle, newBundleEntries);
-    },
-  };
+      oldKeys.forEach(key => delete bundle[key])
+      Object.assign(bundle, newBundleEntries)
+    }
+  }
 }
 
 // Changed to a function to access the mode (e.g., 'production', 'development')
 export default defineConfig(({ command, mode }) => {
   // Determine projectRootDir based on the command
-  const projectRootDirFromEnv = process.env.PROJECT_ROOT_DIR;
-  let projectRootDir;
+  const projectRootDirFromEnv = process.env.PROJECT_ROOT_DIR
+  let projectRootDir
 
-  if (command === "build") {
+  if (command === 'build') {
     if (!projectRootDirFromEnv) {
       console.error(
-        '[vite.config.ts] FATAL ERROR: PROJECT_ROOT_DIR environment variable must be set by the calling script for "build" commands.',
-      );
-      process.exit(1);
+        '[vite.config.ts] FATAL ERROR: PROJECT_ROOT_DIR environment variable must be set by the calling script for "build" commands.'
+      )
+      process.exit(1)
     }
-    projectRootDir = projectRootDirFromEnv;
+    projectRootDir = projectRootDirFromEnv
   } else {
     // For 'serve' or other commands, default to process.cwd() if PROJECT_ROOT_DIR is not set.
-    projectRootDir = projectRootDirFromEnv || process.cwd();
+    projectRootDir = projectRootDirFromEnv || process.cwd()
   }
-  console.log(`[vite.config.ts] Running in mode: "${mode}", command: "${command}"`);
-  console.log(`[vite.config.ts] Using project root directory: ${projectRootDir}`);
+  console.log(`[vite.config.ts] Running in mode: "${mode}", command: "${command}"`)
+  console.log(`[vite.config.ts] Using project root directory: ${projectRootDir}`)
 
   // Load environment variables using the determined projectRootDir
-  const env = loadEnv(mode, projectRootDir, "");
+  const env = loadEnv(mode, projectRootDir, '')
 
   // --- Original logic for TARGET_ENTRY_KEY and TARGET_ENTRY_FILE ---
-  const targetEntryKey = env.TARGET_ENTRY_KEY; // e.g., 'irm/detail-screens/LeadDetail'
-  const targetEntryFile = env.TARGET_ENTRY_FILE; // e.g., 'src/business-apps/irm/detail-screens/LeadDetail/index.ts'
+  const targetEntryKey = env.TARGET_ENTRY_KEY // e.g., 'irm/detail-screens/LeadDetail'
+  const targetEntryFile = env.TARGET_ENTRY_FILE // e.g., 'src/business-apps/irm/detail-screens/LeadDetail/index.ts'
   // --- End of original logic ---
 
-  let dynamicEntries = {};
-  const isProduction = mode === "production";
-  const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === "true";
-  const isBuildCommand = command === "build";
-  const isSingleBuild = targetEntryKey && targetEntryFile;
+  let dynamicEntries = {}
+  const isProduction = mode === 'production'
+  const shouldHashFilesForDeployment = isProduction && env.VITE_BUILD_FOR_DEPLOYMENT === 'true'
+  const isBuildCommand = command === 'build'
+  const isSingleBuild = targetEntryKey && targetEntryFile
 
   if (isBuildCommand && isSingleBuild) {
-    console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`);
+    console.log(`[vite.config.ts] Single build detected for: ${targetEntryKey}`)
   }
 
   // Define content for the __APP_BUILD_INFO__ banner
-  const gitUserForBanner = env.VITE_GIT_USER || "N/A";
-  const publishTimeForBanner = env.VITE_PUBLISH_TIME || new Date().toISOString();
+  const gitUserForBanner = env.VITE_GIT_USER || 'N/A'
+  const publishTimeForBanner = env.VITE_PUBLISH_TIME || new Date().toISOString()
   const appBuildInfoObject = {
     gitUser: gitUserForBanner,
-    publishTime: publishTimeForBanner,
-  };
-  const appBuildInfoStringForBanner = JSON.stringify(appBuildInfoObject);
+    publishTime: publishTimeForBanner
+  }
+  const appBuildInfoStringForBanner = JSON.stringify(appBuildInfoObject)
 
   // This is the banner string structure you want, with the problematic console.log commented out
   const injectedBannerString = `/* --- Injected Banner Start --- */
@@ -236,330 +227,328 @@ if (globalThis.__APP_BUILD_INFO__) {
   console.log('Screen Build Info: Not available');
 }
 /* --- Injected Banner End --- */
-`;
+`
 
   // Updated banner plugin to use the injectedBannerString
   const prependBuildInfoBannerPlugin = {
-    name: "prepend-custom-build-info-banner",
+    name: 'prepend-custom-build-info-banner',
     renderChunk(code: string, chunk: any) {
       // isProduction is from the outer closure
       if (
         !shouldHashFilesForDeployment &&
         isProduction &&
         chunk.isEntry &&
-        chunk.facadeModuleId?.endsWith("index.ts") &&
-        chunk.name !== "index" &&
+        chunk.facadeModuleId?.endsWith('index.ts') &&
+        chunk.name !== 'index' &&
         chunk.exports.length > 0
       ) {
-        console.log(
-          `[vite.config.ts prependBannerPlugin] Prepending build info banner to: ${chunk.name}`,
-        );
-        return injectedBannerString + code;
+        console.log(`[vite.config.ts prependBannerPlugin] Prepending build info banner to: ${chunk.name}`)
+        return injectedBannerString + code
       }
-      return null;
-    },
-  };
+      return null
+    }
+  }
 
   // Get all possible entries using our flexible pattern finder
-  const allPossibleEntriesRaw = getDynamicEntries(projectRootDir);
+  const allPossibleEntriesRaw = getDynamicEntries(projectRootDir)
 
   // Convert absolute paths to relative paths for dynamic imports
-  const allPossibleEntries: Record<string, string> = {};
+  const allPossibleEntries: Record<string, string> = {}
   Object.entries(allPossibleEntriesRaw).forEach(([key, absolutePath]) => {
-    const relativePath = path.relative(projectRootDir, absolutePath).replace(/\\/g, "/");
-    allPossibleEntries[key] = relativePath;
-  });
+    const relativePath = path.relative(projectRootDir, absolutePath).replace(/\\/g, '/')
+    allPossibleEntries[key] = relativePath
+  })
 
   if (isBuildCommand && isSingleBuild) {
     // Single build mode - use only the specified entry
-    dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
-    console.log(`[vite.config.ts] Single build: Targeting entry: ${targetEntryKey}`);
-  } else if (command === "serve") {
+    dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile)
+    console.log(`[vite.config.ts] Single build: Targeting entry: ${targetEntryKey}`)
+  } else if (command === 'serve') {
     // Development server mode - optimize for speed
     if (targetEntryKey && targetEntryFile) {
       // If a specific entry is requested, use only that one
-      dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile);
-      console.log(`[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`);
+      dynamicEntries[targetEntryKey] = resolve(projectRootDir, targetEntryFile)
+      console.log(`[vite.config.ts] Dev server targeting specific entry: ${targetEntryKey}`)
     } else {
       // For faster dev server startup, only load essential entries
       // Business app screens will be loaded on-demand
-      console.log("[vite.config.ts] Dev server using minimal entries for fast startup");
-      console.log("[vite.config.ts] Business app screens will be loaded on-demand");
+      console.log('[vite.config.ts] Dev server using minimal entries for fast startup')
+      console.log('[vite.config.ts] Business app screens will be loaded on-demand')
 
       // Don't load any business app entries initially - they'll be loaded dynamically
       // This significantly improves dev server startup time
-      dynamicEntries = {};
+      dynamicEntries = {}
     }
   } else {
     // Multi-build mode (default build) - use all discovered entries
-    dynamicEntries = allPossibleEntriesRaw;
-    console.log("[vite.config.ts] Multi-build: Generating all entries.");
-    console.log("[vite.config.ts] Generated entries for multi-build:", dynamicEntries);
+    dynamicEntries = allPossibleEntriesRaw
+    console.log('[vite.config.ts] Multi-build: Generating all entries.')
+    console.log('[vite.config.ts] Generated entries for multi-build:', dynamicEntries)
   }
 
   const extraPlugins: PluginOption[] = [
     // Add @dotenvx/dotenvx plugin only for development mode
-    ...(mode === "development"
+    ...(mode === 'development'
       ? [
           {
-            name: "@dotenvx/dotenvx",
+            name: '@dotenvx/dotenvx',
             config() {
-              dotenv.config({ path: ".env" });
+              dotenv.config({ path: '.env' })
               return {
                 define: {
-                  "process.env": {
-                    ...dotenv.config({ path: ".env" }).parsed,
-                  },
-                },
-              };
-            },
-          },
+                  'process.env': {
+                    ...dotenv.config({ path: '.env' }).parsed
+                  }
+                }
+              }
+            }
+          }
         ]
-      : []),
-  ];
+      : [])
+  ]
 
   // Virtual module for wrapping components
   const virtualModulePlugin = {
-    name: "virtual-module-plugin",
+    name: 'virtual-module-plugin',
     resolveId(id) {
-      if (id === "virtual:wrapped-entries") {
-        return id;
+      if (id === 'virtual:wrapped-entries') {
+        return id
       }
-      if (id === "virtual:dynamic-screen-loader") {
-        return id;
+      if (id === 'virtual:dynamic-screen-loader') {
+        return id
       }
-      return null;
+      return null
     },
     load(id) {
-      if (id === "virtual:wrapped-entries") {
+      if (id === 'virtual:wrapped-entries') {
         // Generate a module that re-exports all the wrapped components
         let code = `import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
-`;
+`
 
         // For each entry in our dynamic entries, create an import and export
-        Object.keys(dynamicEntries).forEach((entryKey) => {
-          const entryPath = dynamicEntries[entryKey];
-          const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, "/");
+        Object.keys(dynamicEntries).forEach(entryKey => {
+          const entryPath = dynamicEntries[entryKey]
+          const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, '/')
           // Use a unique variable name for each import based on entryKey
-          const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, "_");
+          const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, '_')
           code += `import ${cleanEntryKey}Original from './${relativePath}';
-`;
+`
           code += `export const ${cleanEntryKey} = wrapWithUiCatalog(${cleanEntryKey}Original);
-`;
-        });
+`
+        })
 
-        console.log("[UiCatalogWrapper] Created virtual module with wrapped components");
-        return code;
+        console.log('[UiCatalogWrapper] Created virtual module with wrapped components')
+        return code
       }
 
-      if (id === "virtual:dynamic-screen-loader") {
+      if (id === 'virtual:dynamic-screen-loader') {
         // Generate a module that can dynamically load any business app screen
-        const availableScreensJson = JSON.stringify(allPossibleEntries, null, 2);
+        const availableScreensJson = JSON.stringify(allPossibleEntries, null, 2)
 
-        let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n";
-        code += "// Available screen entries for dynamic loading\n";
-        code += "const availableScreens = " + availableScreensJson + ";\n\n";
-        code += "// Cache for loaded screens with metadata\n";
-        code += "const screenCache = new Map();\n";
-        code += "const loadingPromises = new Map();\n\n";
-        code += "// Function to dynamically load a screen with optimized caching\n";
-        code += "export async function loadScreen(screenKey) {\n";
-        code += "  // Check cache first\n";
-        code += "  if (screenCache.has(screenKey)) {\n";
-        code += "    const cached = screenCache.get(screenKey);\n";
-        code += "    console.log(`[Dynamic Screen Loader] Using cached screen: ${screenKey}`);\n";
-        code += "    return cached.component;\n";
-        code += "  }\n";
-        code += "  \n";
-        code += "  // Check if already loading to prevent duplicate requests\n";
-        code += "  if (loadingPromises.has(screenKey)) {\n";
+        let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n"
+        code += '// Available screen entries for dynamic loading\n'
+        code += 'const availableScreens = ' + availableScreensJson + ';\n\n'
+        code += '// Cache for loaded screens with metadata\n'
+        code += 'const screenCache = new Map();\n'
+        code += 'const loadingPromises = new Map();\n\n'
+        code += '// Function to dynamically load a screen with optimized caching\n'
+        code += 'export async function loadScreen(screenKey) {\n'
+        code += '  // Check cache first\n'
+        code += '  if (screenCache.has(screenKey)) {\n'
+        code += '    const cached = screenCache.get(screenKey);\n'
+        code += '    console.log(`[Dynamic Screen Loader] Using cached screen: ${screenKey}`);\n'
+        code += '    return cached.component;\n'
+        code += '  }\n'
+        code += '  \n'
+        code += '  // Check if already loading to prevent duplicate requests\n'
+        code += '  if (loadingPromises.has(screenKey)) {\n'
+        code += '    console.log(`[Dynamic Screen Loader] Waiting for existing load: ${screenKey}`);\n'
+        code += '    return loadingPromises.get(screenKey);\n'
+        code += '  }\n'
+        code += '  \n'
+        code += '  const screenPath = availableScreens[screenKey];\n'
+        code += '  if (!screenPath) {\n'
         code +=
-          "    console.log(`[Dynamic Screen Loader] Waiting for existing load: ${screenKey}`);\n";
-        code += "    return loadingPromises.get(screenKey);\n";
-        code += "  }\n";
-        code += "  \n";
-        code += "  const screenPath = availableScreens[screenKey];\n";
-        code += "  if (!screenPath) {\n";
+          '    throw new Error(`Screen "${screenKey}" not found. Available screens: ${Object.keys(availableScreens).join(\', \')}`);\n'
+        code += '  }\n'
+        code += '  \n'
+        code += '  // Create loading promise\n'
+        code += '  const loadingPromise = (async () => {\n'
+        code += '    try {\n'
+        code += '      const startTime = performance.now();\n'
+        code += '      \n'
+        code += '      // Dynamic import the screen (screenPath is already relative to project root)\n'
+        code += "      const importPath = screenPath.startsWith('./') ? screenPath : './' + screenPath;\n"
+        code += '      \n'
+        code += '      console.log(`[Dynamic Screen Loader] Loading screen: ${screenKey} from ${importPath}`);\n'
+        code += '      \n'
+        code += '      const module = await import(/* @vite-ignore */ importPath);\n'
+        code += '      const component = module.default;\n'
+        code += '      \n'
+        code += '      if (!component) {\n'
+        code += '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n'
+        code += '      }\n'
+        code += '      \n'
+        code += '      // Wrap with UI catalog\n'
+        code += '      const wrappedComponent = wrapWithUiCatalog(component);\n'
+        code += '      \n'
+        code += '      const loadTime = performance.now() - startTime;\n'
+        code += '      \n'
+        code += '      // Cache the wrapped component with metadata\n'
+        code += '      screenCache.set(screenKey, {\n'
+        code += '        component: wrappedComponent,\n'
+        code += '        loadTime,\n'
+        code += '        loadedAt: Date.now()\n'
+        code += '      });\n'
+        code += '      \n'
         code +=
-          "    throw new Error(`Screen \"${screenKey}\" not found. Available screens: ${Object.keys(availableScreens).join(', ')}`);\n";
-        code += "  }\n";
-        code += "  \n";
-        code += "  // Create loading promise\n";
-        code += "  const loadingPromise = (async () => {\n";
-        code += "    try {\n";
-        code += "      const startTime = performance.now();\n";
-        code += "      \n";
-        code +=
-          "      // Dynamic import the screen (screenPath is already relative to project root)\n";
-        code +=
-          "      const importPath = screenPath.startsWith('./') ? screenPath : './' + screenPath;\n";
-        code += "      \n";
-        code +=
-          "      console.log(`[Dynamic Screen Loader] Loading screen: ${screenKey} from ${importPath}`);\n";
-        code += "      \n";
-        code += "      const module = await import(/* @vite-ignore */ importPath);\n";
-        code += "      const component = module.default;\n";
-        code += "      \n";
-        code += "      if (!component) {\n";
-        code +=
-          '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n';
-        code += "      }\n";
-        code += "      \n";
-        code += "      // Wrap with UI catalog\n";
-        code += "      const wrappedComponent = wrapWithUiCatalog(component);\n";
-        code += "      \n";
-        code += "      const loadTime = performance.now() - startTime;\n";
-        code += "      \n";
-        code += "      // Cache the wrapped component with metadata\n";
-        code += "      screenCache.set(screenKey, {\n";
-        code += "        component: wrappedComponent,\n";
-        code += "        loadTime,\n";
-        code += "        loadedAt: Date.now()\n";
-        code += "      });\n";
-        code += "      \n";
-        code +=
-          "      console.log(`[Dynamic Screen Loader] Successfully loaded screen: ${screenKey} in ${loadTime.toFixed(2)}ms`);\n";
-        code += "      return wrappedComponent;\n";
-        code += "    } catch (error) {\n";
-        code +=
-          '      console.error(`[Dynamic Screen Loader] Failed to load screen "${screenKey}":`, error);\n';
-        code += "      throw error;\n";
-        code += "    } finally {\n";
-        code += "      // Remove from loading promises\n";
-        code += "      loadingPromises.delete(screenKey);\n";
-        code += "    }\n";
-        code += "  })();\n";
-        code += "  \n";
-        code += "  // Store loading promise\n";
-        code += "  loadingPromises.set(screenKey, loadingPromise);\n";
-        code += "  \n";
-        code += "  return loadingPromise;\n";
-        code += "}\n\n";
-        code += "// Function to preload a screen (optional)\n";
-        code += "export async function preloadScreen(screenKey) {\n";
-        code += "  return loadScreen(screenKey);\n";
-        code += "}\n\n";
-        code += "// Function to get all available screen keys\n";
-        code += "export function getAvailableScreens() {\n";
-        code += "  return Object.keys(availableScreens);\n";
-        code += "}\n\n";
-        code += "// Function to check if a screen is available\n";
-        code += "export function isScreenAvailable(screenKey) {\n";
-        code += "  return screenKey in availableScreens;\n";
-        code += "}\n\n";
-        code += "// Function to get screen info\n";
-        code += "export function getScreenInfo(screenKey) {\n";
-        code += "  return {\n";
-        code += "    key: screenKey,\n";
-        code += "    path: availableScreens[screenKey],\n";
-        code += "    isLoaded: screenCache.has(screenKey)\n";
-        code += "  };\n";
-        code += "}\n\n";
-        code += "// Export the screens map for debugging\n";
-        code += "export { availableScreens };\n";
+          '      console.log(`[Dynamic Screen Loader] Successfully loaded screen: ${screenKey} in ${loadTime.toFixed(2)}ms`);\n'
+        code += '      return wrappedComponent;\n'
+        code += '    } catch (error) {\n'
+        code += '      console.error(`[Dynamic Screen Loader] Failed to load screen "${screenKey}":`, error);\n'
+        code += '      throw error;\n'
+        code += '    } finally {\n'
+        code += '      // Remove from loading promises\n'
+        code += '      loadingPromises.delete(screenKey);\n'
+        code += '    }\n'
+        code += '  })();\n'
+        code += '  \n'
+        code += '  // Store loading promise\n'
+        code += '  loadingPromises.set(screenKey, loadingPromise);\n'
+        code += '  \n'
+        code += '  return loadingPromise;\n'
+        code += '}\n\n'
+        code += '// Function to preload a screen (optional)\n'
+        code += 'export async function preloadScreen(screenKey) {\n'
+        code += '  return loadScreen(screenKey);\n'
+        code += '}\n\n'
+        code += '// Function to get all available screen keys\n'
+        code += 'export function getAvailableScreens() {\n'
+        code += '  return Object.keys(availableScreens);\n'
+        code += '}\n\n'
+        code += '// Function to check if a screen is available\n'
+        code += 'export function isScreenAvailable(screenKey) {\n'
+        code += '  return screenKey in availableScreens;\n'
+        code += '}\n\n'
+        code += '// Function to get screen info\n'
+        code += 'export function getScreenInfo(screenKey) {\n'
+        code += '  return {\n'
+        code += '    key: screenKey,\n'
+        code += '    path: availableScreens[screenKey],\n'
+        code += '    isLoaded: screenCache.has(screenKey)\n'
+        code += '  };\n'
+        code += '}\n\n'
+        code += '// Export the screens map for debugging\n'
+        code += 'export { availableScreens };\n'
 
-        console.log("[Dynamic Screen Loader] Created virtual module for on-demand screen loading");
-        return code;
+        console.log('[Dynamic Screen Loader] Created virtual module for on-demand screen loading')
+        return code
       }
 
-      return null;
-    },
-  };
+      return null
+    }
+  }
 
   // Custom plugin to wrap each chunk in an IIFE
   const wrapInIIFEPlugin = {
-    name: "wrap-in-iife",
+    name: 'wrap-in-iife',
     renderChunk(code: string, chunk: any) {
       // Only transform JavaScript files
-      if (!chunk.fileName.endsWith(".js")) return code;
+      if (!chunk.fileName.endsWith('.js')) return code
 
       // Skip if already wrapped
-      if (code.startsWith("(function()") || code.startsWith("(function(")) {
-        return code;
+      if (code.startsWith('(function()') || code.startsWith('(function(')) {
+        return code
       }
 
-      return `(function() {\n${code}\n})();`;
-    },
-  };
+      return `(function() {\n${code}\n})();`
+    }
+  }
 
   // Create wrapped versions of all entries (only for non-development builds)
-  const wrappedEntries: Record<string, string> = {};
+  const wrappedEntries: Record<string, string> = {}
 
-  if (command !== "serve" || Object.keys(dynamicEntries).length > 0) {
-    Object.keys(dynamicEntries).forEach((entryKey) => {
+  if (command !== 'serve' || Object.keys(dynamicEntries).length > 0) {
+    Object.keys(dynamicEntries).forEach(entryKey => {
       // Create a virtual entry file that imports the original component, wraps it, and re-exports it
-      const wrappedEntryPath = path.join(projectRootDir, `src/wrapped-entries/${entryKey}.ts`);
+      const wrappedEntryPath = path.join(projectRootDir, `src/wrapped-entries/${entryKey}.ts`)
       // Ensure the directory exists
-      const wrappedEntryDir = path.dirname(wrappedEntryPath);
+      const wrappedEntryDir = path.dirname(wrappedEntryPath)
       if (!fs.existsSync(wrappedEntryDir)) {
-        fs.mkdirSync(wrappedEntryDir, { recursive: true });
+        fs.mkdirSync(wrappedEntryDir, { recursive: true })
       }
 
       // Generate the wrapper module content
-      const originalEntryPath = dynamicEntries[entryKey];
-      const relativeEntryPath = path
-        .relative(path.dirname(wrappedEntryPath), originalEntryPath)
-        .replace(/\\/g, "/");
+      const originalEntryPath = dynamicEntries[entryKey]
+      const relativeEntryPath = path.relative(path.dirname(wrappedEntryPath), originalEntryPath).replace(/\\/g, '/')
 
       // Check if this is a types, queries, hooks, tabs, components, utils, views, pages, or services entry (contains any of these keywords in the path)
       // These directories typically export multiple named exports but no single default export
-      const isNamedExportsOnlyEntry = entryKey.includes('/types') || entryKey.endsWith('/types') || 
-                                      entryKey.includes('/queries') || entryKey.endsWith('/queries') ||
-                                      entryKey.includes('/hooks') || entryKey.endsWith('/hooks') ||
-                                      entryKey.includes('/tabs') || entryKey.endsWith('/tabs') ||
-                                      entryKey.includes('/components') || entryKey.endsWith('/components') ||
-                                      entryKey.includes('/utils') || entryKey.endsWith('/utils') ||
-                                      entryKey.includes('/views') || entryKey.endsWith('/views') ||
-                                      entryKey.includes('/pages') || entryKey.endsWith('/pages') ||
-                                      entryKey.includes('/services') || entryKey.endsWith('/services');
-      
-      const wrapperContent = isNamedExportsOnlyEntry 
+      const isNamedExportsOnlyEntry =
+        entryKey.includes('/types') ||
+        entryKey.endsWith('/types') ||
+        entryKey.includes('/queries') ||
+        entryKey.endsWith('/queries') ||
+        entryKey.includes('/hooks') ||
+        entryKey.endsWith('/hooks') ||
+        entryKey.includes('/tabs') ||
+        entryKey.endsWith('/tabs') ||
+        entryKey.includes('/components') ||
+        entryKey.endsWith('/components') ||
+        entryKey.includes('/utils') ||
+        entryKey.endsWith('/utils') ||
+        entryKey.includes('/views') ||
+        entryKey.endsWith('/views') ||
+        entryKey.includes('/pages') ||
+        entryKey.endsWith('/pages') ||
+        entryKey.includes('/services') ||
+        entryKey.endsWith('/services')
+
+      const wrapperContent = isNamedExportsOnlyEntry
         ? `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports
-export * from '${relativeEntryPath.startsWith(".") ? relativeEntryPath : "./" + relativeEntryPath}';
+export * from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 `
         : `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
-import OriginalComponent from '${
-        relativeEntryPath.startsWith(".") ? relativeEntryPath : "./" + relativeEntryPath
-      }';
+import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
 export default wrapWithUiCatalog(OriginalComponent);
-`;
+`
 
       // Write the wrapper file
-      fs.writeFileSync(wrappedEntryPath, wrapperContent, "utf8");
+      fs.writeFileSync(wrappedEntryPath, wrapperContent, 'utf8')
 
       // Replace the original entry with our wrapped version
-      wrappedEntries[entryKey] = wrappedEntryPath;
-    });
+      wrappedEntries[entryKey] = wrappedEntryPath
+    })
   }
 
-  console.log("[vite.config.ts] wrappedEntries:", wrappedEntries);
+  console.log('[vite.config.ts] wrappedEntries:', wrappedEntries)
 
   return {
     optimizeDeps: {
       include: [
-        "antd",
-        "recharts",
-        "@newwork/nw-design-system",
-        "dayjs",
-        "react-i18next",
-        "@newwork/gravity-ui-catalog",
-        "@phosphor-icons/react",
-        "lucide-react",
-        "@dnd-kit/core",
-        "@dnd-kit/sortable",
-        "@dnd-kit/utilities",
-        "zustand",
-        "react",
-        "react-icons",
-        "react-dom",
+        'antd',
+        'recharts',
+        '@newwork/nw-design-system',
+        'dayjs',
+        'react-i18next',
+        '@newwork/gravity-ui-catalog',
+        '@phosphor-icons/react',
+        'lucide-react',
+        '@dnd-kit/core',
+        '@dnd-kit/sortable',
+        '@dnd-kit/utilities',
+        'zustand',
+        'react',
+        'react-icons',
+        'react-dom'
       ],
       // Optimize caching strategy
       esbuildOptions: {
-        target: "es2020",
-      },
+        target: 'es2020'
+      }
       // Let Vite automatically handle all other dependencies including React, antd, etc.
     },
     plugins: [
@@ -569,44 +558,42 @@ export default wrapWithUiCatalog(OriginalComponent);
       virtualModulePlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
       wrapInIIFEPlugin,
-      ...(shouldHashFilesForDeployment
-        ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)]
-        : []),
-      ...extraPlugins,
+      ...(shouldHashFilesForDeployment ? [sha256ContentHashPlugin(shouldHashFilesForDeployment)] : []),
+      ...extraPlugins
     ].filter(Boolean),
 
     define: {
       // This replaces process.env.NODE_ENV with the current mode in the build output
-      "process.env.NODE_ENV": JSON.stringify(mode),
+      'process.env.NODE_ENV': JSON.stringify(mode)
       // globalThis.__APP_BUILD_INFO__ is handled by the prependBannerPlugin, so no need to define it here.
     },
     resolve: {
       alias: {
-        "@": resolve(__dirname, "src"),
-        "@/components": resolve(__dirname, "src/components"),
-        "@/business-apps": resolve(__dirname, "src/business-apps"),
-        "@/assets": resolve(__dirname, "src/assets"),
-        "@/hooks": resolve(__dirname, "src/hooks"),
-        "@/modules": resolve(__dirname, "src/modules"),
-        "@/common": resolve(__dirname, "src/common"),
-      },
+        '@': resolve(__dirname, 'src'),
+        '@/components': resolve(__dirname, 'src/components'),
+        '@/business-apps': resolve(__dirname, 'src/business-apps'),
+        '@/assets': resolve(__dirname, 'src/assets'),
+        '@/hooks': resolve(__dirname, 'src/hooks'),
+        '@/modules': resolve(__dirname, 'src/modules'),
+        '@/common': resolve(__dirname, 'src/common')
+      }
     },
     build: {
-      outDir: resolve(projectRootDir, "dist"),
+      outDir: resolve(projectRootDir, 'dist'),
       // emptyOutDir behavior:
       // true for 'npm run build' (multi-screen, full clean)
       // false for 'npm run publish:screen' (single-screen, script handles specific sub-dir deletion)
       emptyOutDir: isBuildCommand && !isSingleBuild,
       lib: {
         entry: wrappedEntries, // Use the wrapped entries instead of the original ones
-        name: "GravityBusinessApps", // Name for UMD global, less critical for CJS
-        formats: ["cjs"],
-        cssFileName: "main",
+        name: 'GravityBusinessApps', // Name for UMD global, less critical for CJS
+        formats: ['cjs'],
+        cssFileName: 'main'
       },
-      minify: isProduction ? "esbuild" : false, // Ensure minification for production
+      minify: isProduction ? 'esbuild' : false, // Ensure minification for production
       // Enable CSS processing
       css: {
-        devSourcemap: true,
+        devSourcemap: true
       },
       cssCodeSplit: true,
       rollupOptions: {
@@ -616,81 +603,77 @@ export default wrapWithUiCatalog(OriginalComponent);
           ? {
               // Use TEMP_INDEX_CSS if provided, otherwise fallback to default index.css
               main:
-                env.TEMP_INDEX_CSS && env.SINGLE_SCREEN_CSS === "true"
+                env.TEMP_INDEX_CSS && env.SINGLE_SCREEN_CSS === 'true'
                   ? env.TEMP_INDEX_CSS
-                  : resolve(projectRootDir, "src/index.css"),
-              ...wrappedEntries,
+                  : resolve(projectRootDir, 'src/index.css'),
+              ...wrappedEntries
             }
           : {
-              main: resolve(projectRootDir, "src/index.css"),
-              ...wrappedEntries,
+              main: resolve(projectRootDir, 'src/index.css'),
+              ...wrappedEntries
             },
 
         // Only keep React-related packages as external
         // All other imports will be bundled into the main file
         external: [
-          "react",
-          "react-dom",
-          "antd",
-          "@ant-design/icons",
-          "react-icons/pi",
-          "react/jsx-runtime",
-          "@dnd-kit/core",
-          "@dnd-kit/sortable",
-          "@dnd-kit/utilities",
-          "zustand",
-          "react-i18next",
-          "react-icons",
-          "clsx",
-          "tailwind-merge",
-          "@newwork/gravity-ui-catalog",
-          "@remixicon/react",
-          "class-variance-authority",
-          "lucide-react",
-          "react-router-dom",
+          'react',
+          'react-dom',
+          'antd',
+          '@ant-design/icons',
+          'react-icons/pi',
+          'react/jsx-runtime',
+          '@dnd-kit/core',
+          '@dnd-kit/sortable',
+          '@dnd-kit/utilities',
+          'zustand',
+          'react-i18next',
+          'react-icons',
+          'clsx',
+          'tailwind-merge',
+          '@newwork/gravity-ui-catalog',
+          '@remixicon/react',
+          'class-variance-authority',
+          'lucide-react',
+          'react-router-dom'
         ],
         output: {
           globals: {
-            react: "React",
-            "react-dom": "ReactDOM",
-            antd: "antd",
-            "@ant-design/icons": "antDesignIcons",
-            "react-i18next": "reactI18next",
-            "react-icons": "reactIcons",
-            "react-icons/pi": "reactIconsPi",
-            clsx: "clsx",
-            "tailwind-merge": "tailwindMerge",
-            "@dnd-kit/core": "DNDKitCore",
-            "@dnd-kit/sortable": "DNDKitSortable",
-            "@dnd-kit/utilities": "DNDKitUtilities",
-            zustand: "zustand",
-            "@newwork/gravity-ui-catalog": "GravityUICatalog",
-            "@remixicon/react": "remixIconReact",
-            "class-variance-authority": "classVarianceAuthority",
-            "lucide-react": "lucideReact",
-            "react-router-dom": "reactRouterDom",
+            react: 'React',
+            'react-dom': 'ReactDOM',
+            antd: 'antd',
+            '@ant-design/icons': 'antDesignIcons',
+            'react-i18next': 'reactI18next',
+            'react-icons': 'reactIcons',
+            'react-icons/pi': 'reactIconsPi',
+            clsx: 'clsx',
+            'tailwind-merge': 'tailwindMerge',
+            '@dnd-kit/core': 'DNDKitCore',
+            '@dnd-kit/sortable': 'DNDKitSortable',
+            '@dnd-kit/utilities': 'DNDKitUtilities',
+            zustand: 'zustand',
+            '@newwork/gravity-ui-catalog': 'GravityUICatalog',
+            '@remixicon/react': 'remixIconReact',
+            'class-variance-authority': 'classVarianceAuthority',
+            'lucide-react': 'lucideReact',
+            'react-router-dom': 'reactRouterDom'
           },
           // entryFileNames will now always output a predictable name;
           // the sha256ContentHashPlugin will handle renaming for deployment builds.
-          entryFileNames: (chunkInfo) => {
+          entryFileNames: chunkInfo => {
             // Handle CSS entry point differently from component entries
-            if (chunkInfo.name === "main") {
-              return "main.js"; // This won't actually be used since it's CSS
+            if (chunkInfo.name === 'main') {
+              return 'main.js' // This won't actually be used since it's CSS
             }
-            return `${chunkInfo.name}/index.js`;
+            return `${chunkInfo.name}/index.js`
           },
 
           // For non-entry chunks and assets, use Vite's hashing only for deployment builds.
-          chunkFileNames: shouldHashFilesForDeployment
-            ? `_chunks/[name]-[hash].js`
-            : `_chunks/[name].js`,
-          assetFileNames: shouldHashFilesForDeployment
-            ? `assets/[name]-[hash][extname]`
-            : `assets/[name][extname]`,
-          exports: "named", // Address mixed export warnings
-        },
-      },
+          chunkFileNames: shouldHashFilesForDeployment ? `_chunks/[name]-[hash].js` : `_chunks/[name].js`,
+          assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`,
+          exports: 'named' // Address mixed export warnings
+        }
+      }
     },
-    base: "./",
-  };
-});
+    base: './'
+  }
+})

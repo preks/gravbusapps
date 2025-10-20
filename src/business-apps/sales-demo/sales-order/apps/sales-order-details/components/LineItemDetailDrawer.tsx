@@ -1,32 +1,31 @@
 /**
  * Line Item Detail Drawer Component
- * 
+ *
  * Displays detailed information about a selected sales order line item in a side drawer.
  * Includes product information, inventory, pricing, shipping, and system details.
  */
 
-import React from 'react';
-import { Drawer, Typography, Descriptions, Tag, Divider, Empty, Spin, Alert, Dropdown, Button, Space } from 'antd';
-import { 
-  ShoppingCartOutlined, 
-  DollarOutlined, 
-  InfoCircleOutlined, 
+import React from 'react'
+import { Drawer, Typography, Descriptions, Divider, Empty, Dropdown, Button } from 'antd'
+import {
+  ShoppingCartOutlined,
+  DollarOutlined,
+  InfoCircleOutlined,
   SettingOutlined,
-  MoreOutlined,
   DownOutlined,
   EnvironmentOutlined
-} from '@ant-design/icons';
-import dayjs from 'dayjs';
-import { SalesOrderItem } from '../types';
+} from '@ant-design/icons'
+import dayjs from 'dayjs'
+import { SalesOrderItem } from '../types'
 
-const { Title, Text } = Typography;
+const { Title, Text } = Typography
 
 interface LineItemDetailDrawerProps {
-  visible: boolean;
-  lineItem: SalesOrderItem | null;
-  onClose: () => void;
-  onAction?: (action: { key: string }) => void;
-  orderCurrency?: string;
+  visible: boolean
+  lineItem: SalesOrderItem | null
+  onClose: () => void
+  onAction?: (action: { key: string }) => void
+  orderCurrency?: string
 }
 
 const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
@@ -42,15 +41,15 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
       style: 'currency',
       currency: currencyCode,
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
-  };
+      maximumFractionDigits: 2
+    }).format(amount)
+  }
 
   // Format date
   const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return dayjs(dateString).format('MMM D, YYYY HH:mm');
-  };
+    if (!dateString) return 'N/A'
+    return dayjs(dateString).format('MMM D, YYYY HH:mm')
+  }
 
   // Actions dropdown items
   const actionItems = [
@@ -66,7 +65,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
       key: 'check-stock',
       label: 'Check Stock'
     }
-  ];
+  ]
 
   // Drawer title with actions
   const drawerTitle = (
@@ -90,12 +89,12 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
         </Button>
       </Dropdown>
     </div>
-  );
+  )
 
   // Helper function to render the main content
   const renderContent = () => {
     if (!lineItem) {
-      return <Empty description="No line item details available" />;
+      return <Empty description="No line item details available" />
     }
 
     return (
@@ -116,12 +115,8 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
             <Descriptions.Item label="Description">
               <Text>{lineItem.description || 'N/A'}</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="Product Type Code">
-              {lineItem.productTypeCode || 'N/A'}
-            </Descriptions.Item>
-            <Descriptions.Item label="State Code">
-              {lineItem.salesOrderStateCode || 'N/A'}
-            </Descriptions.Item>
+            <Descriptions.Item label="Product Type Code">{lineItem.productTypeCode || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="State Code">{lineItem.salesOrderStateCode || 'N/A'}</Descriptions.Item>
           </Descriptions>
         </div>
 
@@ -165,7 +160,12 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
           </Title>
           <Descriptions column={1} size="small" bordered>
             <Descriptions.Item label="Unit Price">
-              <Text strong>{formatCurrency(lineItem.pricePerUnit || lineItem.unitPrice || 0, lineItem.currencyCode || orderCurrency)}</Text>
+              <Text strong>
+                {formatCurrency(
+                  lineItem.pricePerUnit || lineItem.unitPrice || 0,
+                  lineItem.currencyCode || orderCurrency
+                )}
+              </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Base Amount">
               {formatCurrency(lineItem.baseAmount || 0, lineItem.currencyCode || orderCurrency)}
@@ -176,14 +176,14 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Manual Discount">
-              {lineItem.manualDiscountAmount ? formatCurrency(lineItem.manualDiscountAmount, lineItem.currencyCode || orderCurrency) : 'N/A'}
+              {lineItem.manualDiscountAmount
+                ? formatCurrency(lineItem.manualDiscountAmount, lineItem.currencyCode || orderCurrency)
+                : 'N/A'}
             </Descriptions.Item>
             <Descriptions.Item label="Tax Amount">
               {lineItem.taxAmount ? formatCurrency(lineItem.taxAmount, lineItem.currencyCode || orderCurrency) : 'N/A'}
             </Descriptions.Item>
-            <Descriptions.Item label="Currency">
-              {lineItem.currencyCode || orderCurrency || 'N/A'}
-            </Descriptions.Item>
+            <Descriptions.Item label="Currency">{lineItem.currencyCode || orderCurrency || 'N/A'}</Descriptions.Item>
           </Descriptions>
         </div>
 
@@ -198,9 +198,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
                 Shipping Information
               </Title>
               <Descriptions column={1} size="small" bordered>
-                <Descriptions.Item label="Ship To Name">
-                  {lineItem.shipToAddress.name || 'N/A'}
-                </Descriptions.Item>
+                <Descriptions.Item label="Ship To Name">{lineItem.shipToAddress.name || 'N/A'}</Descriptions.Item>
                 <Descriptions.Item label="Contact Name">
                   {lineItem.shipToAddress.contactName || 'N/A'}
                 </Descriptions.Item>
@@ -214,14 +212,14 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
                         lineItem.shipToAddress.city,
                         lineItem.shipToAddress.stateOrProvince,
                         lineItem.shipToAddress.postalCode
-                      ].filter(Boolean).join(', ')}
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
                     </div>
                     {lineItem.shipToAddress.country && <div>{lineItem.shipToAddress.country}</div>}
                   </div>
                 </Descriptions.Item>
-                <Descriptions.Item label="Telephone">
-                  {lineItem.shipToAddress.telephone || 'N/A'}
-                </Descriptions.Item>
+                <Descriptions.Item label="Telephone">{lineItem.shipToAddress.telephone || 'N/A'}</Descriptions.Item>
                 <Descriptions.Item label="Freight Terms">
                   {lineItem.shipToAddress.freightTermsCode || 'N/A'}
                 </Descriptions.Item>
@@ -241,26 +239,16 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
             <Descriptions.Item label="Line Item ID">
               <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{lineItem.id}</Text>
             </Descriptions.Item>
-            <Descriptions.Item label="Sequence Number">
-              {lineItem.sequenceNumber || 'N/A'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Created At">
-              {formatDate(lineItem.createdAt)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Updated At">
-              {formatDate(lineItem.updatedAt)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Version">
-              {lineItem.version || 'N/A'}
-            </Descriptions.Item>
+            <Descriptions.Item label="Sequence Number">{lineItem.sequenceNumber || 'N/A'}</Descriptions.Item>
+            <Descriptions.Item label="Created At">{formatDate(lineItem.createdAt)}</Descriptions.Item>
+            <Descriptions.Item label="Updated At">{formatDate(lineItem.updatedAt)}</Descriptions.Item>
+            <Descriptions.Item label="Version">{lineItem.version || 'N/A'}</Descriptions.Item>
             <Descriptions.Item label="Is Deleted">
               {lineItem.isDeleted !== undefined ? (lineItem.isDeleted ? 'Yes' : 'No') : 'N/A'}
             </Descriptions.Item>
             {lineItem.processInstanceId && (
               <Descriptions.Item label="Process Instance">
-                <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                  {lineItem.processInstanceId}
-                </Text>
+                <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{lineItem.processInstanceId}</Text>
               </Descriptions.Item>
             )}
           </Descriptions>
@@ -271,7 +259,9 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
           <>
             <Divider />
             <div data-testid="additional-details-section">
-              <Title level={5} className="gba:mb-3">Additional Details</Title>
+              <Title level={5} className="gba:mb-3">
+                Additional Details
+              </Title>
               <Descriptions column={1} size="small" bordered>
                 {lineItem.requestDeliveryBy && (
                   <Descriptions.Item label="Request Delivery By">
@@ -280,23 +270,17 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
                 )}
                 {lineItem.quoteDetailId && (
                   <Descriptions.Item label="Quote Detail ID">
-                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                      {lineItem.quoteDetailId}
-                    </Text>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{lineItem.quoteDetailId}</Text>
                   </Descriptions.Item>
                 )}
                 {lineItem.parentBundleId && (
                   <Descriptions.Item label="Parent Bundle ID">
-                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                      {lineItem.parentBundleId}
-                    </Text>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{lineItem.parentBundleId}</Text>
                   </Descriptions.Item>
                 )}
                 {lineItem.salesRepId && (
                   <Descriptions.Item label="Sales Rep ID">
-                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                      {lineItem.salesRepId}
-                    </Text>
+                    <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{lineItem.salesRepId}</Text>
                   </Descriptions.Item>
                 )}
               </Descriptions>
@@ -304,8 +288,8 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
           </>
         )}
       </div>
-    );
-  };
+    )
+  }
 
   return (
     <Drawer
@@ -318,7 +302,7 @@ const LineItemDetailDrawer: React.FC<LineItemDetailDrawerProps> = ({
     >
       {renderContent()}
     </Drawer>
-  );
-};
+  )
+}
 
-export default LineItemDetailDrawer;
+export default LineItemDetailDrawer

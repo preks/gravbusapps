@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,23 +9,27 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
-import { CircleWavyIcon } from "@phosphor-icons/react";
-import radarChartData from "../../data/radarChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { RadarChart, PolarGrid, PolarAngleAxis, Radar } from 'recharts'
+import { CircleWavyIcon } from '@phosphor-icons/react'
+import radarChartData from '../../data/radarChartData.json'
 
 interface RadarChartDotsProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const RadarChartDots: React.FC<RadarChartDotsProps> = ({ moduleColor }) => {
-  const chartData = radarChartData.dots;
+  const chartData = radarChartData.dots
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="radar-chart-dots">
@@ -37,10 +41,7 @@ const RadarChartDots: React.FC<RadarChartDotsProps> = ({ moduleColor }) => {
         </div>
       </CardHeader>
       <CardContent className="gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <RadarChart data={chartData}>
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <PolarAngleAxis dataKey="month" />
@@ -52,7 +53,7 @@ const RadarChartDots: React.FC<RadarChartDotsProps> = ({ moduleColor }) => {
               fillOpacity={0.6}
               dot={{
                 r: 4,
-                fillOpacity: 1,
+                fillOpacity: 1
               }}
             />
             <Radar
@@ -62,14 +63,14 @@ const RadarChartDots: React.FC<RadarChartDotsProps> = ({ moduleColor }) => {
               fillOpacity={0.6}
               dot={{
                 r: 4,
-                fillOpacity: 1,
+                fillOpacity: 1
               }}
             />
           </RadarChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default RadarChartDots;
+export default RadarChartDots

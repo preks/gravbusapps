@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -19,41 +19,41 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Checkbox,
-} from "@newwork/nw-design-system";
-import { useForm } from "react-hook-form";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+  Checkbox
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 interface ConditionFormData {
-  name: string;
-  description: string;
-  generate_task: boolean;
-  checked_type: "Automated" | "User" | "Manager" | "Owner";
-  deadline_enabled: boolean;
-  deadline_duration: number;
-  deadline_duration_measurement_unit_ref: string;
+  name: string
+  description: string
+  generate_task: boolean
+  checked_type: 'Automated' | 'User' | 'Manager' | 'Owner'
+  deadline_enabled: boolean
+  deadline_duration: number
+  deadline_duration_measurement_unit_ref: string
 }
 
 interface ConditionFormProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  editingCondition?: any;
-  selectedStage: any;
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  editingCondition?: any
+  selectedStage: any
   catalogConfig: {
-    conditionCatalog: string;
-    version?: string;
-  };
-  prefixDataTestId?: string;
+    conditionCatalog: string
+    version?: string
+  }
+  prefixDataTestId?: string
 }
 
 const CHECKED_TYPE_OPTIONS = [
-  { value: "Automated", label: "Automated" },
-  { value: "User", label: "User" },
-  { value: "Manager", label: "Manager" },
-  { value: "Owner", label: "Owner" },
-];
+  { value: 'Automated', label: 'Automated' },
+  { value: 'User', label: 'User' },
+  { value: 'Manager', label: 'Manager' },
+  { value: 'Owner', label: 'Owner' }
+]
 
 const ConditionForm: React.FC<ConditionFormProps> = ({
   isOpen,
@@ -62,37 +62,37 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
   editingCondition,
   selectedStage,
   catalogConfig,
-  accessToken,
+  accessToken
 }) => {
-  const [operationLoading, setOperationLoading] = useState(false);
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const [operationLoading, setOperationLoading] = useState(false)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const form = useForm<ConditionFormData>({
     defaultValues: {
-      name: "",
-      description: "",
+      name: '',
+      description: '',
       generate_task: false,
-      checked_type: "User",
+      checked_type: 'User',
       deadline_enabled: false,
       deadline_duration: 1,
-      deadline_duration_measurement_unit_ref: "",
-    },
-  });
+      deadline_duration_measurement_unit_ref: ''
+    }
+  })
 
   const handleCreateCondition = async (data: ConditionFormData) => {
-    if (!selectedStage) return;
+    if (!selectedStage) return
 
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       // Auto-generate code from condition name
-      const code = `CONDITION_${Date.now()}`;
-      const newRank = 1; // Will be calculated based on existing conditions
+      const code = `CONDITION_${Date.now()}`
+      const newRank = 1 // Will be calculated based on existing conditions
 
       const newConditionEntry = {
         code: code,
         value: data.name,
-        alternativeCode: "CONDITION",
+        alternativeCode: 'CONDITION',
         parentEntryId: selectedStage.id,
         additionalValue1: newRank.toString(),
         displayOrder: newRank,
@@ -104,46 +104,46 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
           check_type: data.checked_type,
           deadline_enabled: data.deadline_enabled,
           deadline_duration: data.deadline_duration,
-          deadline_duration_measurement_unit_ref: data.deadline_duration_measurement_unit_ref,
+          deadline_duration_measurement_unit_ref: data.deadline_duration_measurement_unit_ref
         },
-        translations: [],
-      };
+        translations: []
+      }
 
       await catalogClient.createCatalogEntry(
         catalogConfig.conditionCatalog,
-        catalogConfig.version || "v1",
+        catalogConfig.version || 'v1',
         newConditionEntry
-      );
+      )
 
-      onClose();
-      form.reset();
-      onSuccess();
+      onClose()
+      form.reset()
+      onSuccess()
     } catch (err) {
-      console.error("Error creating condition:", err);
+      console.error('Error creating condition:', err)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   const handleUpdateCondition = async (data: ConditionFormData) => {
-    if (!editingCondition || !selectedStage) return;
+    if (!editingCondition || !selectedStage) return
 
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       // Fetch the current condition data to preserve all fields
-      const currentCondition = await catalogClient.getCatalogEntryById(editingCondition.id);
+      const currentCondition = await catalogClient.getCatalogEntryById(editingCondition.id)
 
       const updateData = {
         // Required fields that must be preserved
         id: editingCondition.id,
         code: editingCondition.code, // Keep original code - cannot be updated
         value: data.name,
-        alternativeCode: "CONDITION",
+        alternativeCode: 'CONDITION',
         parentEntryId: selectedStage.id,
         displayOrder: editingCondition.displayOrder, // Keep original rank
         additionalValue1: editingCondition.additionalValue1, // Keep original rank
-        
+
         // Additional fields - preserve existing values
         additionalValue2: currentCondition.additionalValue2 || undefined,
         additionalValue3: currentCondition.additionalValue3 || undefined,
@@ -153,23 +153,23 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
           check_type: data.checked_type,
           deadline_enabled: data.deadline_enabled,
           deadline_duration: data.deadline_duration,
-          deadline_duration_measurement_unit_ref: data.deadline_duration_measurement_unit_ref,
-        },
-      };
+          deadline_duration_measurement_unit_ref: data.deadline_duration_measurement_unit_ref
+        }
+      }
 
-      await catalogClient.updateCatalogEntry(editingCondition.id, updateData);
+      await catalogClient.updateCatalogEntry(editingCondition.id, updateData)
 
-      onClose();
-      form.reset();
-      onSuccess();
+      onClose()
+      form.reset()
+      onSuccess()
     } catch (err) {
-      console.error("Error updating condition:", err);
+      console.error('Error updating condition:', err)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
-  const handleSubmit = editingCondition ? handleUpdateCondition : handleCreateCondition;
+  const handleSubmit = editingCondition ? handleUpdateCondition : handleCreateCondition
 
   // Reset form when modal opens/closes or editing condition changes
   React.useEffect(() => {
@@ -177,38 +177,36 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
       if (editingCondition) {
         form.reset({
           name: editingCondition.value,
-          description: editingCondition.objectValue?.description || editingCondition.additionalValue1 || "",
+          description: editingCondition.objectValue?.description || editingCondition.additionalValue1 || '',
           generate_task: editingCondition.objectValue?.generateTask || false,
-          checked_type: editingCondition.objectValue?.check_type || "User",
+          checked_type: editingCondition.objectValue?.check_type || 'User',
           deadline_enabled: editingCondition.objectValue?.deadline_enabled || false,
           deadline_duration: editingCondition.objectValue?.deadline_duration || 1,
           deadline_duration_measurement_unit_ref:
-            editingCondition.objectValue?.deadline_duration_measurement_unit_ref || "",
-        });
+            editingCondition.objectValue?.deadline_duration_measurement_unit_ref || ''
+        })
       } else {
         form.reset({
-          name: "",
-          description: "",
+          name: '',
+          description: '',
           generate_task: false,
-          checked_type: "User",
+          checked_type: 'User',
           deadline_enabled: false,
           deadline_duration: 1,
-          deadline_duration_measurement_unit_ref: "",
-        });
+          deadline_duration_measurement_unit_ref: ''
+        })
       }
     }
-  }, [isOpen, editingCondition, form]);
+  }, [isOpen, editingCondition, form])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {editingCondition ? "Edit Condition" : "Create New Condition"}
-          </DialogTitle>
+          <DialogTitle>{editingCondition ? 'Edit Condition' : 'Create New Condition'}</DialogTitle>
           <DialogDescription>
             {editingCondition
-              ? "Update the condition information below."
+              ? 'Update the condition information below.'
               : `Add a new condition for stage: ${selectedStage?.value}`}
           </DialogDescription>
         </DialogHeader>
@@ -224,7 +222,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
               <FormField
                 control={form.control}
                 name="name"
-                rules={{ required: "Please enter a condition name" }}
+                rules={{ required: 'Please enter a condition name' }}
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Condition Name</FormLabel>
@@ -270,7 +268,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {CHECKED_TYPE_OPTIONS.map((option) => (
+                        {CHECKED_TYPE_OPTIONS.map(option => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}
                           </SelectItem>
@@ -310,15 +308,13 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                     </FormControl>
                     <div className="gba:space-y-1 gba:leading-none">
                       <FormLabel>Enable Deadline</FormLabel>
-                      <p className="gba:text-sm gba:text-muted-foreground">
-                        Set a deadline for this condition
-                      </p>
+                      <p className="gba:text-sm gba:text-muted-foreground">Set a deadline for this condition</p>
                     </div>
                   </FormItem>
                 )}
               />
 
-              {form.watch("deadline_enabled") && (
+              {form.watch('deadline_enabled') && (
                 <FormField
                   control={form.control}
                   name="deadline_duration"
@@ -331,7 +327,7 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
                           {...field}
                           type="number"
                           min="1"
-                          onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                          onChange={e => field.onChange(parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -342,30 +338,18 @@ const ConditionForm: React.FC<ConditionFormProps> = ({
             </div>
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={operationLoading}
-              >
+              <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {operationLoading
-                  ? "Saving..."
-                  : editingCondition
-                  ? "Update Condition"
-                  : "Create Condition"}
+                {operationLoading ? 'Saving...' : editingCondition ? 'Update Condition' : 'Create Condition'}
               </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default ConditionForm;
-
-
-
+export default ConditionForm

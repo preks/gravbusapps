@@ -1,16 +1,13 @@
-import { 
-  DetailedProduct, 
-  ProductKPIData, 
-  ProductInventoryLocation, 
-  ProductPriceHistory, 
-  ProductSalesMetrics, 
-  ProductSupplierInfo, 
-  ProductDocument, 
-  ProductStockMovement, 
-  ProductCrossReference, 
-  ProductLifecycleInfo, 
-  ProductQualityInfo 
-} from '../types';
+import {
+  DetailedProduct,
+  ProductKPIData,
+  ProductInventoryLocation,
+  ProductPriceHistory,
+  ProductSalesMetrics,
+  ProductSupplierInfo,
+  ProductDocument,
+  ProductStockMovement
+} from '../types'
 
 /**
  * Generates comprehensive demo data for product detail view
@@ -24,7 +21,8 @@ export const generateDemoProductDetail = (productId: string): DetailedProduct =>
       id: 'demo-product-1',
       name: 'Professional Software License',
       productNumber: 'PSL-2024-001',
-      description: 'Annual license for professional software suite with full features and support. Includes cloud storage, advanced analytics, and 24/7 customer support.',
+      description:
+        'Annual license for professional software suite with full features and support. Includes cloud storage, advanced analytics, and 24/7 customer support.',
       productUrl: 'https://example.com/products/professional-software-license',
       productTypeCode: 'License',
       productStructure: 'Standalone',
@@ -38,10 +36,10 @@ export const generateDemoProductDetail = (productId: string): DetailedProduct =>
       supplierName: 'TechSoft Solutions',
       price: 1299.99,
       priceBase: 1299.99,
-      standardCost: 650.00,
-      standardCostBase: 650.00,
-      currentCost: 650.00,
-      currentCostBase: 650.00,
+      standardCost: 650.0,
+      standardCostBase: 650.0,
+      currentCost: 650.0,
+      currentCostBase: 650.0,
       exchangeRate: 1.0,
       currencyId: 'eur-001',
       currency: 'EUR',
@@ -76,7 +74,8 @@ export const generateDemoProductDetail = (productId: string): DetailedProduct =>
       id: 'demo-product-2',
       name: 'Enterprise Hardware Bundle',
       productNumber: 'EHB-2024-002',
-      description: 'Complete hardware bundle including server, networking equipment, and accessories. Perfect for medium to large enterprise deployments.',
+      description:
+        'Complete hardware bundle including server, networking equipment, and accessories. Perfect for medium to large enterprise deployments.',
       productUrl: 'https://example.com/products/enterprise-hardware-bundle',
       productTypeCode: 'Bundle',
       productStructure: 'Bundle',
@@ -88,12 +87,12 @@ export const generateDemoProductDetail = (productId: string): DetailedProduct =>
       vendorName: 'Hardware Dynamics Corp.',
       vendorPartNumber: 'HDC-EHB-2024',
       supplierName: 'Hardware Dynamics',
-      price: 15750.00,
-      priceBase: 15750.00,
-      standardCost: 12600.00,
-      standardCostBase: 12600.00,
-      currentCost: 12600.00,
-      currentCostBase: 12600.00,
+      price: 15750.0,
+      priceBase: 15750.0,
+      standardCost: 12600.0,
+      standardCostBase: 12600.0,
+      currentCost: 12600.0,
+      currentCostBase: 12600.0,
       exchangeRate: 1.0,
       currencyId: 'eur-001',
       currency: 'EUR',
@@ -124,11 +123,11 @@ export const generateDemoProductDetail = (productId: string): DetailedProduct =>
         maintenanceContract: 'Available'
       }
     }
-  };
+  }
 
   // Return specific product or default to first one
-  return demoProducts[productId] || demoProducts['demo-product-1'];
-};
+  return demoProducts[productId] || demoProducts['demo-product-1']
+}
 
 export const generateDemoProductKPIs = (productId: string): ProductKPIData => {
   return {
@@ -138,7 +137,7 @@ export const generateDemoProductKPIs = (productId: string): ProductKPIData => {
       status: productId === 'demo-product-1' ? 'Normal' : 'Normal'
     },
     monthlyRevenue: {
-      value: 45750.00,
+      value: 45750.0,
       trend: 12.8,
       currency: 'EUR'
     },
@@ -151,12 +150,12 @@ export const generateDemoProductKPIs = (productId: string): ProductKPIData => {
       trend: 15.3,
       unit: 'units/month'
     }
-  };
-};
+  }
+}
 
 export const generateDemoInventoryLocations = (productId: string): ProductInventoryLocation[] => {
   if (productId === 'demo-product-1') {
-    return []; // Software license has no physical inventory
+    return [] // Software license has no physical inventory
   }
 
   return [
@@ -196,12 +195,12 @@ export const generateDemoInventoryLocations = (productId: string): ProductInvent
       lastStockMovement: '2024-02-10T09:15:00Z',
       locationStatus: 'Active'
     }
-  ];
-};
+  ]
+}
 
 export const generateDemoPriceHistory = (productId: string): ProductPriceHistory[] => {
-  const basePrice = productId === 'demo-product-1' ? 1299.99 : 15750.00;
-  
+  const basePrice = productId === 'demo-product-1' ? 1299.99 : 15750.0
+
   return [
     {
       id: 'price-001',
@@ -239,41 +238,41 @@ export const generateDemoPriceHistory = (productId: string): ProductPriceHistory
       reason: 'Cost increase adjustment',
       changedBy: 'pricing-manager'
     }
-  ];
-};
+  ]
+}
 
 export const generateDemoSalesMetrics = (productId: string): ProductSalesMetrics => {
   return {
-    totalRevenue: 137250.00,
+    totalRevenue: 137250.0,
     totalQuantitySold: productId === 'demo-product-1' ? 105 : 8,
     averageOrderValue: productId === 'demo-product-1' ? 1307.14 : 17156.25,
     topCustomers: [
       {
         customerId: 'cust-001',
         customerName: 'Acme Corporation',
-        totalPurchases: 25750.00,
+        totalPurchases: 25750.0,
         lastPurchaseDate: '2024-02-10T00:00:00Z'
       },
       {
         customerId: 'cust-002',
         customerName: 'Global Tech Solutions',
-        totalPurchases: 18900.00,
+        totalPurchases: 18900.0,
         lastPurchaseDate: '2024-02-05T00:00:00Z'
       },
       {
         customerId: 'cust-003',
         customerName: 'Enterprise Systems Ltd.',
-        totalPurchases: 15600.00,
+        totalPurchases: 15600.0,
         lastPurchaseDate: '2024-01-28T00:00:00Z'
       }
     ],
     salesTrend: [
-      { period: '2024-02', revenue: 45750.00, quantity: productId === 'demo-product-1' ? 35 : 3 },
-      { period: '2024-01', revenue: 52000.00, quantity: productId === 'demo-product-1' ? 40 : 3 },
-      { period: '2023-12', revenue: 39500.00, quantity: productId === 'demo-product-1' ? 30 : 2 }
+      { period: '2024-02', revenue: 45750.0, quantity: productId === 'demo-product-1' ? 35 : 3 },
+      { period: '2024-01', revenue: 52000.0, quantity: productId === 'demo-product-1' ? 40 : 3 },
+      { period: '2023-12', revenue: 39500.0, quantity: productId === 'demo-product-1' ? 30 : 2 }
     ]
-  };
-};
+  }
+}
 
 export const generateDemoSupplierInfo = (productId: string): ProductSupplierInfo[] => {
   if (productId === 'demo-product-1') {
@@ -288,11 +287,11 @@ export const generateDemoSupplierInfo = (productId: string): ProductSupplierInfo
         leadTime: 1,
         minimumOrderQuantity: 1,
         lastPurchaseDate: '2024-01-15T00:00:00Z',
-        totalPurchaseValue: 68250.00,
+        totalPurchaseValue: 68250.0,
         performanceRating: 9.2,
         status: 'Preferred'
       }
-    ];
+    ]
   }
 
   return [
@@ -306,7 +305,7 @@ export const generateDemoSupplierInfo = (productId: string): ProductSupplierInfo
       leadTime: 14,
       minimumOrderQuantity: 1,
       lastPurchaseDate: '2024-01-20T00:00:00Z',
-      totalPurchaseValue: 100800.00,
+      totalPurchaseValue: 100800.0,
       performanceRating: 8.7,
       status: 'Active'
     },
@@ -320,12 +319,12 @@ export const generateDemoSupplierInfo = (productId: string): ProductSupplierInfo
       leadTime: 21,
       minimumOrderQuantity: 5,
       lastPurchaseDate: '2023-12-15T00:00:00Z',
-      totalPurchaseValue: 45600.00,
+      totalPurchaseValue: 45600.0,
       performanceRating: 7.8,
       status: 'Active'
     }
-  ];
-};
+  ]
+}
 
 export const generateDemoDocuments = (productId: string): ProductDocument[] => {
   return [
@@ -373,12 +372,12 @@ export const generateDemoDocuments = (productId: string): ProductDocument[] => {
       url: '/documents/products/compliance-certificate.pdf',
       description: 'ISO 9001 compliance certificate'
     }
-  ];
-};
+  ]
+}
 
 export const generateDemoStockMovements = (productId: string): ProductStockMovement[] => {
   if (productId === 'demo-product-1') {
-    return []; // Software license has no stock movements
+    return [] // Software license has no stock movements
   }
 
   return [
@@ -422,5 +421,5 @@ export const generateDemoStockMovements = (productId: string): ProductStockMovem
       location: 'Main Warehouse',
       performedBy: 'inventory-manager'
     }
-  ];
-};
+  ]
+}

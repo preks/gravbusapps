@@ -1,44 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
+import React, { useState, useEffect } from 'react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
   DialogTitle,
   Button,
   Alert,
   AlertDescription,
   Spinner
-} from '@newwork/nw-design-system';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils';
-import EmployeeSearchableSelect from '@/business-apps/crm/common/forms/lead-form/components/EmployeeSearchableSelect';
+} from '@newwork/nw-design-system'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import EmployeeSearchableSelect from '@/business-apps/crm/core/forms/lead-form/components/EmployeeSearchableSelect'
 
-const prefixDataTestId = 'RequestFeedbackModal';
+const prefixDataTestId = 'RequestFeedbackModal'
 
 interface EmployeeOption {
-  id: string;
-  name: string;
-  jobTitle?: string;
-  department?: string;
-  pictureThumbnail?: string;
-  userId?: string;
+  id: string
+  name: string
+  jobTitle?: string
+  department?: string
+  pictureThumbnail?: string
+  userId?: string
 }
 
 interface RequestFeedbackModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  businessAppContext: BusinessAppContextProps;
+  isOpen: boolean
+  onClose: () => void
+  businessAppContext: BusinessAppContextProps
 }
 
-const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
-  isOpen,
-  onClose,
-  businessAppContext
-}) => {
+const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onClose, businessAppContext }) => {
   // Safety check for businessAppContext
   if (!businessAppContext) {
     return (
@@ -54,23 +50,23 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
           </div>
         </DialogContent>
       </Dialog>
-    );
+    )
   }
 
-  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  
+  const [employees, setEmployees] = useState<EmployeeOption[]>([])
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+
   // Add null checks for businessAppContext
   if (!businessAppContext || !businessAppContext.accessToken) {
-    return null;
+    return null
   }
-  
-  const graphqlClient = useGraphQLClient(businessAppContext.accessToken);
-  const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId;
+
+  const graphqlClient = useGraphQLClient(businessAppContext.accessToken)
+  const currentUserEmployeeId = businessAppContext.userInfo?.employeeDetails?.employeeId
 
   // Safety check for accessToken
   if (!businessAppContext.accessToken) {
@@ -82,26 +78,28 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
           </DialogHeader>
           <div className="gba:p-4">
             <Alert variant="destructive">
-              <AlertDescription>Access token is not available. Please ensure you are properly authenticated.</AlertDescription>
+              <AlertDescription>
+                Access token is not available. Please ensure you are properly authenticated.
+              </AlertDescription>
             </Alert>
           </div>
         </DialogContent>
       </Dialog>
-    );
+    )
   }
 
   // Fetch employees
   const fetchEmployees = async (search?: string) => {
-    if (!businessAppContext.accessToken) return;
+    if (!businessAppContext.accessToken) return
 
-    const structureId = getCurrentActiveStructureId();
+    const structureId = getCurrentActiveStructureId()
     if (!structureId) {
-      setError('No structure ID available');
-      return;
+      setError('No structure ID available')
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       const query = `
@@ -137,56 +135,55 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
             }
           }
         }
-      `;
+      `
 
       const variables = {
         structureId,
         search: search ? `%${search}%` : '%',
         limit: 200
-      };
+      }
 
-      const result = await graphqlClient.request(query, variables);
-      
-      const employeeOptions: EmployeeOption[] = result.EmployeePosition
-        .map((emp: any) => ({
-          id: emp.employeeId,
-          name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
-          jobTitle: emp.jobPosition?.name,
-          department: emp.organizationalUnit?.name,
-          pictureThumbnail: emp.employee?.pictureThumbnail,
-          userId: emp.employee?.userId || undefined
-        }))
+      const result = await graphqlClient.request(query, variables)
+
+      const employeeOptions: EmployeeOption[] = result.EmployeePosition.map((emp: any) => ({
+        id: emp.employeeId,
+        name: emp.employee?.displayName || `${emp.firstName} ${emp.lastName}`,
+        jobTitle: emp.jobPosition?.name,
+        department: emp.organizationalUnit?.name,
+        pictureThumbnail: emp.employee?.pictureThumbnail,
+        userId: emp.employee?.userId || undefined
+      }))
         // Filter out the current user from the list
-        .filter((emp: EmployeeOption) => !currentUserEmployeeId || emp.id !== currentUserEmployeeId);
+        .filter((emp: EmployeeOption) => !currentUserEmployeeId || emp.id !== currentUserEmployeeId)
 
-      setEmployees(employeeOptions);
+      setEmployees(employeeOptions)
     } catch (err) {
-      console.error('Error fetching employees:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch employees');
+      console.error('Error fetching employees:', err)
+      setError(err instanceof Error ? err.message : 'Failed to fetch employees')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   const handleEmployeeSearch = (value: string) => {
-    setSearchTerm(value);
-    fetchEmployees(value);
-  };
+    setSearchTerm(value)
+    fetchEmployees(value)
+  }
 
   const handleEmployeeSelect = (employeeId: string) => {
-    setSelectedEmployeeId(employeeId);
-  };
+    setSelectedEmployeeId(employeeId)
+  }
 
-  const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId);
+  const selectedEmployee = employees.find(emp => emp.id === selectedEmployeeId)
 
   const handleSubmit = async () => {
     if (!selectedEmployeeId) {
-      setError('Please select an employee to request feedback from');
-      return;
+      setError('Please select an employee to request feedback from')
+      return
     }
 
-    setIsSubmitting(true);
-    setError(null);
+    setIsSubmitting(true)
+    setError(null)
 
     try {
       const payload = {
@@ -196,47 +193,45 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
           requestDate: new Date().toISOString(),
           requesterEmployeeId: currentUserEmployeeId, // Current user requesting feedback
           requestedEmployeeId: selectedEmployeeId, // Employee to request feedback from
-          status: 'pending', // Default status
+          status: 'pending' // Default status
         },
         receiverId: selectedEmployee?.userId, // The user ID of the employee to request feedback from
-        event: "request_feedback"
-      };
-      
+        event: 'request_feedback'
+      }
+
       // Dispatch the process continue event
-      dispatchProcessContinueEvent("pse_request_feedback", payload);
-      
+      dispatchProcessContinueEvent('pse_request_feedback', payload)
+
       // Close the modal
-      onClose();
+      onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to request feedback');
+      setError(err instanceof Error ? err.message : 'Failed to request feedback')
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setSelectedEmployeeId('');
-      setError(null);
-      setSearchTerm('');
-      fetchEmployees();
+      setSelectedEmployeeId('')
+      setError(null)
+      setSearchTerm('')
+      fetchEmployees()
     }
-  }, [isOpen]);
+  }, [isOpen])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="gba:max-w-md gba:w-full">
         <DialogHeader>
-          <DialogTitle>
-            {getTranslationFromI18nKeyAndLabel('feedback.request.title', 'Request Feedback')}
-          </DialogTitle>
+          <DialogTitle>{getTranslationFromI18nKeyAndLabel('feedback.request.title', 'Request Feedback')}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="gba:space-y-4">
           {/* Error Display */}
           {error && (
-            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, "ErrorAlert")}>
+            <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -280,7 +275,7 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
-              data-testid={formatDataTestId(prefixDataTestId, "CancelButton")}
+              data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
             >
               {getTranslationFromI18nKeyAndLabel('feedback.request.cancel', 'Cancel')}
             </Button>
@@ -288,8 +283,8 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
               variant="default"
               disabled={!selectedEmployeeId || isSubmitting}
               onClick={handleSubmit}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white"
-              data-testid={formatDataTestId(prefixDataTestId, "SubmitButton")}
+              className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground"
+              data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
             >
               {isSubmitting && <Spinner size="sm" className="gba:mr-2" />}
               {getTranslationFromI18nKeyAndLabel('feedback.request.submit', 'Request Feedback')}
@@ -298,7 +293,7 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default RequestFeedbackModal;
+export default RequestFeedbackModal

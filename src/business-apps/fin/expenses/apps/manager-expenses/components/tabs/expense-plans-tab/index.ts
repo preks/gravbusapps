@@ -1,3 +1,3 @@
-import ExpensePlansTab from './ExpensePlansTab';
+import ExpensePlansTab from './ExpensePlansTab'
 
-export default ExpensePlansTab;
+export default ExpensePlansTab

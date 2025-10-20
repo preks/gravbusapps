@@ -1,13 +1,28 @@
 // Customer Activity Queries - generic activity list queries for customer relations
-import { CUSTOMER_SALES_ACTIVITY, CUSTOMER_ACCOUNT_REF, CUSTOMER_CONTACT_REF, CUSTOMER_OPPORTUNITY_REF, CUSTOMER_LEAD_REF } from './fragments/customerRelationFragments';
-import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers';
+import {
+  CUSTOMER_SALES_ACTIVITY,
+  CUSTOMER_ACCOUNT_REF,
+  CUSTOMER_OPPORTUNITY_REF,
+  CUSTOMER_LEAD_REF
+} from './fragments/customerRelationFragments'
+import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Unified descriptors for Sales Activity (search, sort, filters, and option metadata)
 export const CUSTOMER_ACTIVITY_DESCRIPTORS: Descriptor[] = [
   // Search/sort
   { key: 'title', searchPaths: ['title', 'description'], sortPath: 'title', type: 'text' },
-  { key: 'activityType', searchPaths: ['activityType.value', 'activityType.code'], sortPath: 'activityType.code', type: 'text' },
-  { key: 'ownerEmployee', searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'], sortPath: 'ownerEmployee.displayName', type: 'text' },
+  {
+    key: 'activityType',
+    searchPaths: ['activityType.value', 'activityType.code'],
+    sortPath: 'activityType.code',
+    type: 'text'
+  },
+  {
+    key: 'ownerEmployee',
+    searchPaths: ['ownerEmployee.displayName', 'ownerEmployee.firstName', 'ownerEmployee.lastName'],
+    sortPath: 'ownerEmployee.displayName',
+    type: 'text'
+  },
   { key: 'occurredAt', searchPaths: ['occurredAt'], type: 'date' },
   { key: 'completedAt', searchPaths: ['completedAt'], type: 'date' },
   { key: 'createdAt', searchPaths: ['createdAt'], type: 'date' },
@@ -27,55 +42,55 @@ export const CUSTOMER_ACTIVITY_DESCRIPTORS: Descriptor[] = [
   { key: 'occurredAtTo', path: 'occurredAt', kind: 'dateTo' },
   { key: 'completedAtFrom', path: 'completedAt', kind: 'dateFrom' },
   { key: 'completedAtTo', path: 'completedAt', kind: 'dateTo' }
-];
+]
 
 export interface CustomerActivityQueryVariables {
-  search?: string;
-  activityTypeIds?: string[];
-  ownerEmployeeIds?: string[];
+  search?: string
+  activityTypeIds?: string[]
+  ownerEmployeeIds?: string[]
 
-  accountIds?: string[];
-  contactIds?: string[];
-  leadIds?: string[];
-  opportunityIds?: string[];
+  accountIds?: string[]
+  contactIds?: string[]
+  leadIds?: string[]
+  opportunityIds?: string[]
 
-  occurredAtFrom?: string;
-  occurredAtTo?: string;
-  completedAtFrom?: string;
-  completedAtTo?: string;
+  occurredAtFrom?: string
+  occurredAtTo?: string
+  completedAtFrom?: string
+  completedAtTo?: string
 
-  limit?: number;
-  offset?: number;
+  limit?: number
+  offset?: number
   orderBy?: Array<{
-    field: string;
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
-  }>;
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
 }
 
 // Build where condition for Customer Activity queries
 export const buildCustomerActivityWhereCondition = (variables: CustomerActivityQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }';
+  let whereClause = 'where: { isDeleted: { _eq: false }'
 
   // Generic search across dot-paths from descriptors
-  const searchOr = buildSearch(variables.search || '', CUSTOMER_ACTIVITY_DESCRIPTORS);
-  if (searchOr) whereClause += `, ${searchOr}`;
+  const searchOr = buildSearch(variables.search || '', CUSTOMER_ACTIVITY_DESCRIPTORS)
+  if (searchOr) whereClause += `, ${searchOr}`
 
   // Generic AND filters from descriptors
-  const andFilters = buildFilter(variables as any, CUSTOMER_ACTIVITY_DESCRIPTORS);
-  if (andFilters) whereClause += `, ${andFilters}`;
+  const andFilters = buildFilter(variables as any, CUSTOMER_ACTIVITY_DESCRIPTORS)
+  if (andFilters) whereClause += `, ${andFilters}`
 
-  whereClause += ' }';
-  return whereClause;
-};
+  whereClause += ' }'
+  return whereClause
+}
 
 // Get Customer Activities with full details and aggregate count
 export const GET_CUSTOMER_ACTIVITIES = (variables: CustomerActivityQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  const where = buildCustomerActivityWhereCondition(variables);
+  const limit = Math.min(variables.limit || 50, 100)
+  const offset = variables.offset || 0
+  const where = buildCustomerActivityWhereCondition(variables)
 
-  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_ACTIVITY_DESCRIPTORS);
-  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]';
+  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_ACTIVITY_DESCRIPTORS)
+  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]'
 
   return `
     query GetCustomerActivities {
@@ -98,8 +113,8 @@ export const GET_CUSTOMER_ACTIVITIES = (variables: CustomerActivityQueryVariable
         aggregate { count }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Activities by Account ID
 export const GET_CUSTOMER_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): string => {
@@ -122,8 +137,8 @@ export const GET_CUSTOMER_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): string
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Activities by Contact ID
 export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string => {
@@ -148,8 +163,8 @@ export const GET_CUSTOMER_ACTIVITIES_BY_CONTACT_ID = (contactId: string): string
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Activities by Lead ID
 export const GET_CUSTOMER_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
@@ -174,8 +189,8 @@ export const GET_CUSTOMER_ACTIVITIES_BY_LEAD_ID = (leadId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Activities by Opportunity ID
 export const GET_CUSTOMER_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
@@ -198,5 +213,5 @@ export const GET_CUSTOMER_ACTIVITIES_BY_OPPORTUNITY_ID = (opportunityId: string)
         }
       }
     }
-  `;
-};
+  `
+}

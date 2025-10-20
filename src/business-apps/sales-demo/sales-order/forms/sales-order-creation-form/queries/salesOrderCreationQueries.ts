@@ -41,7 +41,7 @@ export const getQuotes = `
       }
     }
   }
-`;
+`
 
 // Query to get accounts for customer selection with account manager info
 export const getCustomersForCreation = `
@@ -54,7 +54,7 @@ export const getCustomersForCreation = `
       }
     }
   }
-`;
+`
 
 // Query to search for products
 export const getProducts = `
@@ -81,7 +81,7 @@ export const getProducts = `
       supplierName
     }
   }
-`;
+`
 
 // Query to get a specific quote with all details
 export const getQuoteDetails = `
@@ -135,7 +135,7 @@ export const getQuoteDetails = `
       }
     }
   }
-`;
+`
 
 // Mutation to create a new sales order
 export const createSalesOrder = `
@@ -149,7 +149,7 @@ export const createSalesOrder = `
       createdAt
     }
   }
-`;
+`
 
 // Mutation to create sales order items
 export const createSalesOrderItems = `
@@ -166,7 +166,7 @@ export const createSalesOrderItems = `
       }
     }
   }
-`;
+`
 
 // Query to get the next sales order number
 export const getNextSalesOrderNumber = `
@@ -177,7 +177,7 @@ export const getNextSalesOrderNumber = `
       }
     }
   }
-`;
+`
 
 // Query to validate customer exists
 export const validateCustomer = `
@@ -188,7 +188,7 @@ export const validateCustomer = `
       isDeleted
     }
   }
-`;
+`
 
 // Query to validate product exists and get current price
 export const validateProduct = `
@@ -203,7 +203,7 @@ export const validateProduct = `
       isDeleted
     }
   }
-`;
+`
 
 // Mutation to convert quote to sales order
 export const convertQuoteToSalesOrder = `
@@ -243,4 +243,4 @@ export const convertQuoteToSalesOrder = `
       affected_rows
     }
   }
-`;
+`

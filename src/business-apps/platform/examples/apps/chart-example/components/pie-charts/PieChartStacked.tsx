@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -11,29 +11,33 @@ import {
   ChartTooltip,
   ChartTooltipContent,
   ChartLegend,
-  ChartLegendContent,
-} from "@newwork/nw-design-system";
-import { PieChart, Pie } from "recharts";
-import { ChartPieSliceIcon } from "@phosphor-icons/react";
-import pieChartData from "../../data/pieChartData.json";
+  ChartLegendContent
+} from '@newwork/nw-design-system'
+import { PieChart, Pie } from 'recharts'
+import { ChartPieSliceIcon } from '@phosphor-icons/react'
+import pieChartData from '../../data/pieChartData.json'
 
 interface PieChartStackedProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const PieChartStacked: React.FC<PieChartStackedProps> = ({ moduleColor }) => {
-  const chartData = pieChartData.stacked;
+  const chartData = pieChartData.stacked
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - no color needed (used for dataKey only)
-    visitors: { 
-      label: "Visitors", 
-      color: "none" 
-    },
-    // Visual categories - get automatic colors (used for legend)
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - no color needed (used for dataKey only)
+        visitors: {
+          label: 'Visitors',
+          color: 'none'
+        },
+        // Visual categories - get automatic colors (used for legend)
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="pie-chart-stacked">
@@ -45,22 +49,10 @@ const PieChartStacked: React.FC<PieChartStackedProps> = ({ moduleColor }) => {
         </div>
       </CardHeader>
       <CardContent className="gba:flex-1 gba:pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-        >
+        <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
           <PieChart>
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
-            <Pie
-              data={chartData}
-              dataKey="desktop"
-              nameKey="month"
-              outerRadius={60}
-              fill="var(--color-desktop)"
-            />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+            <Pie data={chartData} dataKey="desktop" nameKey="month" outerRadius={60} fill="var(--color-desktop)" />
             <Pie
               data={chartData}
               dataKey="mobile"
@@ -74,7 +66,7 @@ const PieChartStacked: React.FC<PieChartStackedProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default PieChartStacked;
+export default PieChartStacked

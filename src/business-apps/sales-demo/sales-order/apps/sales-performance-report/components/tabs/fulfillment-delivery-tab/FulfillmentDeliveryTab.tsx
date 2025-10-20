@@ -1,22 +1,6 @@
-import React from 'react';
-import {
-  Card,
-  Row,
-  Col,
-  Statistic,
-  Alert,
-  Typography,
-  Spin,
-  Progress,
-  Table
-} from 'antd';
-import {
-  TruckOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  WarningOutlined,
-  GlobalOutlined
-} from '@ant-design/icons';
+import React from 'react'
+import { Card, Row, Col, Statistic, Alert, Typography, Spin, Progress, Table } from 'antd'
+import { TruckOutlined, ClockCircleOutlined, CheckCircleOutlined, GlobalOutlined } from '@ant-design/icons'
 import {
   BarChart,
   Bar,
@@ -26,28 +10,18 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  LineChart,
-  Line,
   ScatterChart,
   Scatter
-} from 'recharts';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useSalesPerformanceData } from '../../../hooks/useSalesPerformanceData';
+} from 'recharts'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useSalesPerformanceData } from '../../../hooks/useSalesPerformanceData'
 
-const { Text } = Typography;
+const { Text } = Typography
 
 export interface FulfillmentDeliveryTabProps extends BusinessAppContextProps {}
 
-const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
-  accessToken,
-  userInfo,
-  additionalData
-}) => {
-  const {
-    fulfillmentMetrics,
-    loading,
-    error
-  } = useSalesPerformanceData({ accessToken });
+const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({ accessToken, userInfo, additionalData }) => {
+  const { fulfillmentMetrics, loading, error } = useSalesPerformanceData({ accessToken })
 
   // Helper function to format currency
   const formatCurrency = (value: number) => {
@@ -55,9 +29,9 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
+      maximumFractionDigits: 0
+    }).format(value)
+  }
 
   // Mock data for delivery mode performance
   const deliveryModeData = [
@@ -101,7 +75,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       volume: 156,
       customerSatisfaction: 3.8
     }
-  ];
+  ]
 
   // Mock data for carrier performance
   const carrierData = [
@@ -137,7 +111,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       volume: 234,
       damageRate: 0.3
     }
-  ];
+  ]
 
   // Mock data for geographic performance
   const geographicData = [
@@ -169,16 +143,40 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       volume: 156,
       challenges: ['Infrastructure', 'Documentation']
     }
-  ];
+  ]
 
   // Mock data for manufacturing lead time correlation
   const leadTimeCorrelationData = [
-    { productCategory: 'Engine Components', manufacturingTime: 14, deliveryTime: 5.2, totalLeadTime: 19.2, onTimeRate: 88.5 },
-    { productCategory: 'Brake Systems', manufacturingTime: 8, deliveryTime: 4.1, totalLeadTime: 12.1, onTimeRate: 92.3 },
-    { productCategory: 'Suspension Parts', manufacturingTime: 12, deliveryTime: 6.8, totalLeadTime: 18.8, onTimeRate: 85.7 },
-    { productCategory: 'Electrical Components', manufacturingTime: 6, deliveryTime: 3.5, totalLeadTime: 9.5, onTimeRate: 94.1 },
+    {
+      productCategory: 'Engine Components',
+      manufacturingTime: 14,
+      deliveryTime: 5.2,
+      totalLeadTime: 19.2,
+      onTimeRate: 88.5
+    },
+    {
+      productCategory: 'Brake Systems',
+      manufacturingTime: 8,
+      deliveryTime: 4.1,
+      totalLeadTime: 12.1,
+      onTimeRate: 92.3
+    },
+    {
+      productCategory: 'Suspension Parts',
+      manufacturingTime: 12,
+      deliveryTime: 6.8,
+      totalLeadTime: 18.8,
+      onTimeRate: 85.7
+    },
+    {
+      productCategory: 'Electrical Components',
+      manufacturingTime: 6,
+      deliveryTime: 3.5,
+      totalLeadTime: 9.5,
+      onTimeRate: 94.1
+    },
     { productCategory: 'Body Parts', manufacturingTime: 18, deliveryTime: 7.2, totalLeadTime: 25.2, onTimeRate: 82.4 }
-  ];
+  ]
 
   // Table columns for delivery modes
   const deliveryModeColumns = [
@@ -194,9 +192,9 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       key: 'onTimeRate',
       render: (rate: number) => (
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Progress 
-            percent={rate} 
-            size="small" 
+          <Progress
+            percent={rate}
+            size="small"
             strokeColor={rate >= 95 ? '#0DBC7B' : rate >= 85 ? '#faad14' : '#D3004F'}
             showInfo={false}
             style={{ width: '60px' }}
@@ -229,7 +227,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       key: 'customerSatisfaction',
       render: (rating: number) => `${rating}/5.0`
     }
-  ];
+  ]
 
   // Table columns for carriers
   const carrierColumns = [
@@ -245,9 +243,9 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       key: 'onTimeRate',
       render: (rate: number) => (
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Progress 
-            percent={rate} 
-            size="small" 
+          <Progress
+            percent={rate}
+            size="small"
             strokeColor={rate >= 90 ? '#0DBC7B' : rate >= 80 ? '#faad14' : '#D3004F'}
             showInfo={false}
             style={{ width: '60px' }}
@@ -279,32 +277,25 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
       dataIndex: 'damageRate',
       key: 'damageRate',
       render: (rate: number) => (
-        <Text style={{ color: rate > 2 ? '#D3004F' : rate > 1 ? '#faad14' : '#0DBC7B' }}>
-          {rate}%
-        </Text>
+        <Text style={{ color: rate > 2 ? '#D3004F' : rate > 1 ? '#faad14' : '#0DBC7B' }}>{rate}%</Text>
       )
     }
-  ];
+  ]
 
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-96" data-testid="fulfillment-delivery-loading">
         <Spin size="large" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
       <div className="gba:p-6" data-testid="fulfillment-delivery-error">
-        <Alert
-          message="Error Loading Fulfillment Data"
-          description={error.message}
-          type="error"
-          showIcon
-        />
+        <Alert message="Error Loading Fulfillment Data" description={error.message} type="error" showIcon />
       </div>
-    );
+    )
   }
 
   if (!fulfillmentMetrics) {
@@ -317,7 +308,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
           showIcon
         />
       </div>
-    );
+    )
   }
 
   return (
@@ -331,7 +322,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
               value={fulfillmentMetrics.onTimeDeliveryRate}
               prefix={<CheckCircleOutlined />}
               suffix="%"
-              valueStyle={{ 
+              valueStyle={{
                 fontSize: '24px',
                 color: fulfillmentMetrics.onTimeDeliveryRate >= 90 ? '#3f8600' : '#cf1322'
               }}
@@ -436,12 +427,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={geographicData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="region" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
+                <XAxis dataKey="region" angle={-45} textAnchor="end" height={80} />
                 <YAxis />
                 <Tooltip />
                 <Legend />
@@ -457,17 +443,9 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
             <ResponsiveContainer width="100%" height={300}>
               <ScatterChart data={leadTimeCorrelationData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="manufacturingTime" 
-                  name="Manufacturing Time"
-                  unit=" days"
-                />
-                <YAxis 
-                  dataKey="deliveryTime" 
-                  name="Delivery Time"
-                  unit=" days"
-                />
-                <Tooltip 
+                <XAxis dataKey="manufacturingTime" name="Manufacturing Time" unit=" days" />
+                <YAxis dataKey="deliveryTime" name="Delivery Time" unit=" days" />
+                <Tooltip
                   cursor={{ strokeDasharray: '3 3' }}
                   formatter={(value, name) => [
                     `${value} days`,
@@ -481,7 +459,7 @@ const FulfillmentDeliveryTab: React.FC<FulfillmentDeliveryTabProps> = ({
         </Col>
       </Row>
     </div>
-  );
-};
+  )
+}
 
-export default FulfillmentDeliveryTab;
+export default FulfillmentDeliveryTab

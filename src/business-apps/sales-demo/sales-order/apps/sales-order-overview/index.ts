@@ -1,4 +1,4 @@
-import SalesOrderOverview from './SalesOrderOverview';
+import SalesOrderOverview from './SalesOrderOverview'
 
-export { SalesOrderOverview };
-export default SalesOrderOverview;
+export { SalesOrderOverview }
+export default SalesOrderOverview

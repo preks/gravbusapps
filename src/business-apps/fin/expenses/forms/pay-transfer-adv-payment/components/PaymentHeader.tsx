@@ -1,6 +1,6 @@
-import React from "react";
-import { Separator } from "@newwork/nw-design-system";
-import { getTranslationFromI18nKeyAndLabel } from "@/common/utils/windowUtils";
+import React from 'react'
+import { Separator } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const PaymentHeader: React.FC = () => {
   return (
@@ -10,13 +10,13 @@ const PaymentHeader: React.FC = () => {
         data-testid="pay-transfer-adv-payment-title"
       >
         {getTranslationFromI18nKeyAndLabel(
-          "lowcoder:confirm_transfer_advance_payment.advance_payment_transfer_title",
-          "Confirm Advance Payment Transfer"
+          'lowcoder:confirm_transfer_advance_payment.advance_payment_transfer_title',
+          'Confirm Advance Payment Transfer'
         )}
       </h1>
       <Separator className="gba:h-px gba:bg-secondary" />
     </div>
-  );
-};
+  )
+}
 
-export default PaymentHeader;
+export default PaymentHeader

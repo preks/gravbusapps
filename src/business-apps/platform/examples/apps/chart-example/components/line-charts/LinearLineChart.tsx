@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,23 +9,27 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import lineChartData from "../../data/lineChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import lineChartData from '../../data/lineChartData.json'
 
 interface LinearLineChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const LinearLineChart: React.FC<LinearLineChartProps> = ({ moduleColor }) => {
-  const chartData = lineChartData.linear;
+  const chartData = lineChartData.linear
 
-  const chartConfig = useMemo(() => ({
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="linear-line-chart">
@@ -45,7 +49,7 @@ const LinearLineChart: React.FC<LinearLineChartProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <YAxis tickLine={false} axisLine={false} tickMargin={8} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
@@ -55,12 +59,12 @@ const LinearLineChart: React.FC<LinearLineChartProps> = ({ moduleColor }) => {
               stroke="var(--color-desktop)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-desktop)",
+                fill: 'var(--color-desktop)',
                 strokeWidth: 2,
-                r: 4,
+                r: 4
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
             <Line
@@ -69,19 +73,19 @@ const LinearLineChart: React.FC<LinearLineChartProps> = ({ moduleColor }) => {
               stroke="var(--color-mobile)"
               strokeWidth={2}
               dot={{
-                fill: "var(--color-mobile)",
+                fill: 'var(--color-mobile)',
                 strokeWidth: 2,
-                r: 4,
+                r: 4
               }}
               activeDot={{
-                r: 6,
+                r: 6
               }}
             />
           </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default LinearLineChart;
+export default LinearLineChart

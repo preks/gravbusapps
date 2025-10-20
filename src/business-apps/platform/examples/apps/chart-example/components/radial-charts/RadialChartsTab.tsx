@@ -1,27 +1,24 @@
-import React from "react";
+import React from 'react'
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
-} from "@newwork/nw-design-system";
-import { CodeIcon } from "@phosphor-icons/react";
+  SheetTrigger
+} from '@newwork/nw-design-system'
+import { CodeIcon } from '@phosphor-icons/react'
 
 // Import chart examples
-import SimpleRadialChart from "./SimpleRadialChart";
-import RadialChartText from "./RadialChartText";
-import RadialChartLabel from "./RadialChartLabel";
-import RadialChartGrid from "./RadialChartGrid";
-import RadialChartStacked from "./RadialChartStacked";
-import RadialChartShape from "./RadialChartShape";
+import SimpleRadialChart from './SimpleRadialChart'
+import RadialChartText from './RadialChartText'
+import RadialChartLabel from './RadialChartLabel'
+import RadialChartGrid from './RadialChartGrid'
+import RadialChartStacked from './RadialChartStacked'
+import RadialChartShape from './RadialChartShape'
 
 // Import code examples
 import {
@@ -30,66 +27,66 @@ import {
   radialLabelCode,
   radialGridCode,
   radialStackedCode,
-  radialShapeCode,
-} from "./code-examples";
+  radialShapeCode
+} from './code-examples'
 
 interface RadialChartsTabProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 interface ChartExample {
-  id: string;
-  title: string;
-  description: string;
-  component: React.ComponentType<{ moduleColor?: string }>;
-  code: string;
+  id: string
+  title: string
+  description: string
+  component: React.ComponentType<{ moduleColor?: string }>
+  code: string
 }
 
 const RadialChartsTab: React.FC<RadialChartsTabProps> = ({ moduleColor }) => {
   const examples: ChartExample[] = [
     {
-      id: "simple",
-      title: "Simple Radial Chart",
-      description: "A basic radial bar chart showing data in circular format.",
+      id: 'simple',
+      title: 'Simple Radial Chart',
+      description: 'A basic radial bar chart showing data in circular format.',
       component: SimpleRadialChart,
-      code: simpleRadialCode,
+      code: simpleRadialCode
     },
     {
-      id: "text",
-      title: "Radial Chart with Text",
-      description: "A radial chart with text displayed in the center.",
+      id: 'text',
+      title: 'Radial Chart with Text',
+      description: 'A radial chart with text displayed in the center.',
       component: RadialChartText,
-      code: radialTextCode,
+      code: radialTextCode
     },
     {
-      id: "label",
-      title: "Radial Chart with Labels",
-      description: "A radial chart with percentage labels on each segment.",
+      id: 'label',
+      title: 'Radial Chart with Labels',
+      description: 'A radial chart with percentage labels on each segment.',
       component: RadialChartLabel,
-      code: radialLabelCode,
+      code: radialLabelCode
     },
     {
-      id: "grid",
-      title: "Radial Chart with Grid",
-      description: "A radial chart with customized grid lines and styling.",
+      id: 'grid',
+      title: 'Radial Chart with Grid',
+      description: 'A radial chart with customized grid lines and styling.',
       component: RadialChartGrid,
-      code: radialGridCode,
+      code: radialGridCode
     },
     {
-      id: "stacked",
-      title: "Stacked Radial Chart",
-      description: "A radial chart with multiple stacked data series.",
+      id: 'stacked',
+      title: 'Stacked Radial Chart',
+      description: 'A radial chart with multiple stacked data series.',
       component: RadialChartStacked,
-      code: radialStackedCode,
+      code: radialStackedCode
     },
     {
-      id: "shape",
-      title: "Radial Chart with Shape",
-      description: "A radial chart with custom shapes and styling variations.",
+      id: 'shape',
+      title: 'Radial Chart with Shape',
+      description: 'A radial chart with custom shapes and styling variations.',
       component: RadialChartShape,
-      code: radialShapeCode,
-    },
-  ];
+      code: radialShapeCode
+    }
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid="radial-charts-tab">
@@ -97,14 +94,15 @@ const RadialChartsTab: React.FC<RadialChartsTabProps> = ({ moduleColor }) => {
       <div>
         <h1 className="gba:text-3xl gba:font-bold gba:tracking-tight">Radial Charts</h1>
         <p className="gba:text-muted-foreground gba:mt-2">
-          Radial charts display data in a circular format, perfect for showing progress, completion rates, or hierarchical data with visual impact.
+          Radial charts display data in a circular format, perfect for showing progress, completion rates, or
+          hierarchical data with visual impact.
         </p>
       </div>
 
       {/* Examples Grid */}
       <div className="gba:grid gba:gap-6 gba:md:grid-cols-2">
-        {examples.map((example) => {
-          const ChartComponent = example.component;
+        {examples.map(example => {
+          const ChartComponent = example.component
           return (
             <div key={example.id} className="gba:space-y-0">
               {/* Top slim card: Title, description, and code button */}
@@ -142,17 +140,17 @@ const RadialChartsTab: React.FC<RadialChartsTabProps> = ({ moduleColor }) => {
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* Bottom card: Chart only */}
               <div>
                 <ChartComponent moduleColor={moduleColor} />
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default RadialChartsTab;
+export default RadialChartsTab

@@ -1,6 +1,12 @@
 // Customer Task Queries - generic task list queries for customer relations
-import { CUSTOMER_TASK, CUSTOMER_ACCOUNT_REF, CUSTOMER_CONTACT_REF, CUSTOMER_OPPORTUNITY_REF, CUSTOMER_LEAD_REF } from './fragments/customerRelationFragments';
-import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers';
+import {
+  CUSTOMER_TASK,
+  CUSTOMER_ACCOUNT_REF,
+  CUSTOMER_CONTACT_REF,
+  CUSTOMER_OPPORTUNITY_REF,
+  CUSTOMER_LEAD_REF
+} from './fragments/customerRelationFragments'
+import { buildOrderBy, buildSearch, buildFilter, type Descriptor } from '@/common/network/graphql/queryHelpers'
 
 // Unified descriptors for Sales Task (search, sort, filters, and option metadata)
 export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
@@ -9,8 +15,18 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   { key: 'taskType', searchPaths: ['typeRef'], sortPath: 'typeRef', type: 'text' },
   { key: 'taskPriority', searchPaths: ['priorityRef'], sortPath: 'priorityRef', type: 'text' },
   { key: 'taskStatus', searchPaths: ['statusRef'], sortPath: 'statusRef', type: 'text' },
-  { key: 'assignedEmployee', searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'], sortPath: 'assignedEmployee.displayName', type: 'text' },
-  { key: 'creatorEmployee', searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'], sortPath: 'creatorEmployee.displayName', type: 'text' },
+  {
+    key: 'assignedEmployee',
+    searchPaths: ['assignedEmployee.displayName', 'assignedEmployee.firstName', 'assignedEmployee.lastName'],
+    sortPath: 'assignedEmployee.displayName',
+    type: 'text'
+  },
+  {
+    key: 'creatorEmployee',
+    searchPaths: ['creatorEmployee.displayName', 'creatorEmployee.firstName', 'creatorEmployee.lastName'],
+    sortPath: 'creatorEmployee.displayName',
+    type: 'text'
+  },
   { key: 'dueDate', searchPaths: ['dueDate'], type: 'date' },
   { key: 'startDate', searchPaths: ['startDate'], type: 'date' },
   { key: 'endDate', searchPaths: ['endDate'], type: 'date' },
@@ -37,61 +53,61 @@ export const CUSTOMER_TASK_DESCRIPTORS: Descriptor[] = [
   { key: 'startDateTo', path: 'startDate', kind: 'dateTo' },
   { key: 'endDateFrom', path: 'endDate', kind: 'dateFrom' },
   { key: 'endDateTo', path: 'endDate', kind: 'dateTo' }
-];
+]
 
 export interface CustomerTaskQueryVariables {
-  search?: string;
-  taskTypeIds?: string[];
-  taskPriorityIds?: string[];
-  taskStatusIds?: string[];
-  assignedEmployeeIds?: string[];
-  creatorEmployeeIds?: string[];
-  timingTypes?: string[];
+  search?: string
+  taskTypeIds?: string[]
+  taskPriorityIds?: string[]
+  taskStatusIds?: string[]
+  assignedEmployeeIds?: string[]
+  creatorEmployeeIds?: string[]
+  timingTypes?: string[]
 
-  accountIds?: string[];
-  contactIds?: string[];
-  leadIds?: string[];
-  opportunityIds?: string[];
+  accountIds?: string[]
+  contactIds?: string[]
+  leadIds?: string[]
+  opportunityIds?: string[]
 
-  dueDateFrom?: string;
-  dueDateTo?: string;
-  startDateFrom?: string;
-  startDateTo?: string;
-  endDateFrom?: string;
-  endDateTo?: string;
+  dueDateFrom?: string
+  dueDateTo?: string
+  startDateFrom?: string
+  startDateTo?: string
+  endDateFrom?: string
+  endDateTo?: string
 
-  limit?: number;
-  offset?: number;
+  limit?: number
+  offset?: number
   orderBy?: Array<{
-    field: string;
-    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST';
-  }>;
+    field: string
+    direction: 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
+  }>
 }
 
 // Build where condition for Customer Task queries
 export const buildCustomerTaskWhereCondition = (variables: CustomerTaskQueryVariables = {}) => {
-  let whereClause = 'where: { isDeleted: { _eq: false }';
+  let whereClause = 'where: { isDeleted: { _eq: false }'
 
   // Generic search across dot-paths from descriptors
-  const searchOr = buildSearch(variables.search || '', CUSTOMER_TASK_DESCRIPTORS);
-  if (searchOr) whereClause += `, ${searchOr}`;
+  const searchOr = buildSearch(variables.search || '', CUSTOMER_TASK_DESCRIPTORS)
+  if (searchOr) whereClause += `, ${searchOr}`
 
   // Generic AND filters from descriptors
-  const andFilters = buildFilter(variables as any, CUSTOMER_TASK_DESCRIPTORS);
-  if (andFilters) whereClause += `, ${andFilters}`;
+  const andFilters = buildFilter(variables as any, CUSTOMER_TASK_DESCRIPTORS)
+  if (andFilters) whereClause += `, ${andFilters}`
 
-  whereClause += ' }';
-  return whereClause;
-};
+  whereClause += ' }'
+  return whereClause
+}
 
 // Get Customer Tasks with full details and aggregate count
 export const GET_CUSTOMER_TASKS = (variables: CustomerTaskQueryVariables = {}): string => {
-  const limit = Math.min(variables.limit || 50, 100);
-  const offset = variables.offset || 0;
-  const where = buildCustomerTaskWhereCondition(variables);
+  const limit = Math.min(variables.limit || 50, 100)
+  const offset = variables.offset || 0
+  const where = buildCustomerTaskWhereCondition(variables)
 
-  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_TASK_DESCRIPTORS);
-  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]';
+  const orderByBuilt = buildOrderBy(variables.orderBy || [], CUSTOMER_TASK_DESCRIPTORS)
+  const orderByClause = orderByBuilt || 'orderBy: [{ createdAt: DESC }]'
 
   return `
     query GetCustomerTasks {
@@ -114,8 +130,8 @@ export const GET_CUSTOMER_TASKS = (variables: CustomerTaskQueryVariables = {}): 
         aggregate { count }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Tasks by Account ID
 export const GET_CUSTOMER_TASKS_BY_ACCOUNT_ID = (accountId: string): string => {
@@ -138,8 +154,8 @@ export const GET_CUSTOMER_TASKS_BY_ACCOUNT_ID = (accountId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Tasks by Contact ID
 export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
@@ -163,8 +179,8 @@ export const GET_CUSTOMER_TASKS_BY_CONTACT_ID = (contactId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Tasks by Lead ID
 export const GET_CUSTOMER_TASKS_BY_LEAD_ID = (leadId: string): string => {
@@ -189,8 +205,8 @@ export const GET_CUSTOMER_TASKS_BY_LEAD_ID = (leadId: string): string => {
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Tasks by Opportunity ID
 export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): string => {
@@ -213,8 +229,8 @@ export const GET_CUSTOMER_TASKS_BY_OPPORTUNITY_ID = (opportunityId: string): str
         }
       }
     }
-  `;
-};
+  `
+}
 
 // Get Customer Task by ID for editing
 export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
@@ -235,5 +251,5 @@ export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
         opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
       }
     }
-  `;
-};
+  `
+}

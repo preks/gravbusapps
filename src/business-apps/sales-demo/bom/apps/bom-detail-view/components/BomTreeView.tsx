@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Tree, Card, Space, Typography, Tag, Tooltip, Input, Button } from 'antd';
+import React, { useState, useMemo } from 'react'
+import { Tree, Card, Space, Typography, Tag, Tooltip, Input, Button } from 'antd'
 import {
   PiCube,
   PiGear,
@@ -10,19 +10,18 @@ import {
   PiTreeStructure,
   PiPlus,
   PiMinus
-} from 'react-icons/pi';
-import type { TreeProps } from 'antd';
-import { BomTreeNode } from '../../../types';
+} from 'react-icons/pi'
+import { BomTreeNode } from '../../../types'
 
-const { Text, Title } = Typography;
-const { Search } = Input;
+const { Text, Title } = Typography
+const { Search } = Input
 
 interface BomTreeViewProps {
-  treeData: BomTreeNode[];
-  loading?: boolean;
-  onNodeSelect?: (selectedKeys: React.Key[], info: any) => void;
-  className?: string;
-  'data-testid'?: string;
+  treeData: BomTreeNode[]
+  loading?: boolean
+  onNodeSelect?: (selectedKeys: React.Key[], info: any) => void
+  className?: string
+  'data-testid'?: string
 }
 
 const BomTreeView: React.FC<BomTreeViewProps> = ({
@@ -32,58 +31,58 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
   className = '',
   'data-testid': dataTestId = 'bom-tree-view'
 }) => {
-  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
-  const [searchValue, setSearchValue] = useState('');
-  const [autoExpandParent, setAutoExpandParent] = useState(true);
-  const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
+  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([])
+  const [searchValue, setSearchValue] = useState('')
+  const [autoExpandParent, setAutoExpandParent] = useState(true)
+  const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([])
 
   // Helper function to get component type icon
   const getComponentTypeIcon = (type: string) => {
     switch (type) {
       case 'ASSEMBLY':
-        return <PiCube className="gba:text-blue-500" />;
+        return <PiCube className="gba:text-blue-500" />
       case 'MATERIAL':
-        return <PiGear className="gba:text-green-500" />;
+        return <PiGear className="gba:text-green-500" />
       case 'PHANTOM':
-        return <PiStack className="gba:text-purple-500" />;
+        return <PiStack className="gba:text-purple-500" />
       case 'REFERENCE':
-        return <PiInfo className="gba:text-gray-500" />;
+        return <PiInfo className="gba:text-gray-500" />
       case 'TOOL':
-        return <PiWarning className="gba:text-orange-500" />;
+        return <PiWarning className="gba:text-orange-500" />
       case 'RESOURCE':
-        return <PiTreeStructure className="gba:text-cyan-500" />;
+        return <PiTreeStructure className="gba:text-cyan-500" />
       default:
-        return <PiGear className="gba:text-gray-400" />;
+        return <PiGear className="gba:text-gray-400" />
     }
-  };
+  }
 
   // Helper function to get component type color
   const getComponentTypeColor = (type: string) => {
     switch (type) {
       case 'ASSEMBLY':
-        return 'blue';
+        return 'blue'
       case 'MATERIAL':
-        return 'green';
+        return 'green'
       case 'PHANTOM':
-        return 'purple';
+        return 'purple'
       case 'REFERENCE':
-        return 'gray';
+        return 'gray'
       case 'TOOL':
-        return 'orange';
+        return 'orange'
       case 'RESOURCE':
-        return 'cyan';
+        return 'cyan'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   // Generate tree data with search highlighting
   const generateTreeData = (data: BomTreeNode[]): any[] => {
     return data.map(node => {
-      const isMatch = searchValue && (
-        node.title.toLowerCase().includes(searchValue.toLowerCase()) ||
-        node.productNumber.toLowerCase().includes(searchValue.toLowerCase())
-      );
+      const isMatch =
+        searchValue &&
+        (node.title.toLowerCase().includes(searchValue.toLowerCase()) ||
+          node.productNumber.toLowerCase().includes(searchValue.toLowerCase()))
 
       const title = (
         <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:pr-4">
@@ -91,10 +90,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
             {getComponentTypeIcon(node.componentType)}
             <div className="gba:flex-1">
               <div className="gba:flex gba:items-center gba:gap-2">
-                <Text 
-                  strong={isMatch} 
-                  className={isMatch ? 'gba:text-blue-600' : ''}
-                >
+                <Text strong={isMatch} className={isMatch ? 'gba:text-blue-600' : ''}>
                   {node.title}
                 </Text>
                 {node.isCritical && (
@@ -109,16 +105,12 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
                 )}
               </div>
               <div className="gba:flex gba:items-center gba:gap-4 gba:mt-1">
-                <Text className="gba:text-sm gba:text-gray-500">
-                  {node.productNumber}
-                </Text>
+                <Text className="gba:text-sm gba:text-gray-500">{node.productNumber}</Text>
                 <Text className="gba:text-sm gba:text-gray-500">
                   Qty: {node.quantity} {node.uom}
                 </Text>
                 {node.unitCost && (
-                  <Text className="gba:text-sm gba:text-gray-500">
-                    Unit: €{node.unitCost.toFixed(2)}
-                  </Text>
+                  <Text className="gba:text-sm gba:text-gray-500">Unit: €{node.unitCost.toFixed(2)}</Text>
                 )}
               </div>
             </div>
@@ -134,87 +126,87 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
             )}
           </div>
         </div>
-      );
+      )
 
       return {
         key: node.key,
         title,
         children: node.children ? generateTreeData(node.children) : undefined,
         className: isMatch ? 'gba:bg-blue-50' : ''
-      };
-    });
-  };
+      }
+    })
+  }
 
   // Get all keys for expansion
   const getAllKeys = (data: BomTreeNode[]): React.Key[] => {
-    const keys: React.Key[] = [];
+    const keys: React.Key[] = []
     const traverse = (nodes: BomTreeNode[]) => {
       nodes.forEach(node => {
-        keys.push(node.key);
+        keys.push(node.key)
         if (node.children) {
-          traverse(node.children);
+          traverse(node.children)
         }
-      });
-    };
-    traverse(data);
-    return keys;
-  };
+      })
+    }
+    traverse(data)
+    return keys
+  }
 
   // Handle search
   const handleSearch = (value: string) => {
-    setSearchValue(value);
+    setSearchValue(value)
     if (value) {
       // Auto-expand all nodes when searching
-      setExpandedKeys(getAllKeys(treeData));
-      setAutoExpandParent(true);
+      setExpandedKeys(getAllKeys(treeData))
+      setAutoExpandParent(true)
     } else {
       // Collapse all when clearing search
-      setExpandedKeys([]);
-      setAutoExpandParent(false);
+      setExpandedKeys([])
+      setAutoExpandParent(false)
     }
-  };
+  }
 
   // Handle expand/collapse all
   const handleExpandAll = () => {
-    setExpandedKeys(getAllKeys(treeData));
-    setAutoExpandParent(true);
-  };
+    setExpandedKeys(getAllKeys(treeData))
+    setAutoExpandParent(true)
+  }
 
   const handleCollapseAll = () => {
-    setExpandedKeys([]);
-    setAutoExpandParent(false);
-  };
+    setExpandedKeys([])
+    setAutoExpandParent(false)
+  }
 
   // Handle tree events
   const handleExpand = (expandedKeysValue: React.Key[]) => {
-    setExpandedKeys(expandedKeysValue);
-    setAutoExpandParent(false);
-  };
+    setExpandedKeys(expandedKeysValue)
+    setAutoExpandParent(false)
+  }
 
   const handleSelect = (selectedKeysValue: React.Key[], info: any) => {
-    setSelectedKeys(selectedKeysValue);
+    setSelectedKeys(selectedKeysValue)
     if (onNodeSelect) {
-      onNodeSelect(selectedKeysValue, info);
+      onNodeSelect(selectedKeysValue, info)
     }
-  };
+  }
 
   // Memoized tree data
-  const memoizedTreeData = useMemo(() => generateTreeData(treeData), [treeData, searchValue]);
+  const memoizedTreeData = useMemo(() => generateTreeData(treeData), [treeData, searchValue])
 
   // Calculate total cost
   const totalCost = useMemo(() => {
     const calculateTotal = (nodes: BomTreeNode[]): number => {
       return nodes.reduce((sum, node) => {
-        const nodeCost = node.totalCost || 0;
-        const childrenCost = node.children ? calculateTotal(node.children) : 0;
-        return sum + nodeCost + childrenCost;
-      }, 0);
-    };
-    return calculateTotal(treeData);
-  }, [treeData]);
+        const nodeCost = node.totalCost || 0
+        const childrenCost = node.children ? calculateTotal(node.children) : 0
+        return sum + nodeCost + childrenCost
+      }, 0)
+    }
+    return calculateTotal(treeData)
+  }, [treeData])
 
   return (
-    <Card 
+    <Card
       className={`gba:h-full ${className}`}
       data-testid={dataTestId}
       title={
@@ -226,9 +218,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
             </Title>
           </div>
           <div className="gba:flex gba:items-center gba:gap-2">
-            <Text className="gba:text-sm gba:text-gray-500">
-              Total Cost: 
-            </Text>
+            <Text className="gba:text-sm gba:text-gray-500">Total Cost:</Text>
             <Text strong className="gba:text-green-600">
               €{totalCost.toFixed(2)}
             </Text>
@@ -264,7 +254,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
         <Search
           placeholder="Search components..."
           value={searchValue}
-          onChange={(e) => handleSearch(e.target.value)}
+          onChange={e => handleSearch(e.target.value)}
           prefix={<PiMagnifyingGlass />}
           allowClear
           data-testid="tree-search-input"
@@ -289,9 +279,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
 
       {/* Legend */}
       <div className="gba:mt-4 gba:pt-4 gba:border-t gba:border-gray-200">
-        <Text className="gba:text-sm gba:text-gray-500 gba:mb-2 gba:block">
-          Component Types:
-        </Text>
+        <Text className="gba:text-sm gba:text-gray-500 gba:mb-2 gba:block">Component Types:</Text>
         <div className="gba:flex gba:flex-wrap gba:gap-2">
           <Tag color="blue" size="small">
             <PiCube className="gba:mr-1" />
@@ -320,7 +308,7 @@ const BomTreeView: React.FC<BomTreeViewProps> = ({
         </div>
       </div>
     </Card>
-  );
-};
+  )
+}
 
-export default BomTreeView;
+export default BomTreeView

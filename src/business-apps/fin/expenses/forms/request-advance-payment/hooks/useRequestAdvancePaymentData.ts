@@ -1,63 +1,63 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { getCurrentActiveUserLocale, getCurrentActiveStructureId } from '@/common/utils/windowUtils';
-import { GET_EXPENSE_PLANS_BY_USER, GET_EXPENSE_PLAN_DETAILS } from '../queries/RequestAdvancePaymentQueries';
+import { useState, useEffect, useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { GET_EXPENSE_PLANS_BY_USER, GET_EXPENSE_PLAN_DETAILS } from '../queries/RequestAdvancePaymentQueries'
 
 export interface ExpensePlan {
-  id: string;
-  code: string;
-  title: string;
-  status: string;
-  totalAmountExpense?: number;
-  totalAmount?: number;
-  totalRemainingAmount?: number;
-  costCenterId?: string;
+  id: string
+  code: string
+  title: string
+  status: string
+  totalAmountExpense?: number
+  totalAmount?: number
+  totalRemainingAmount?: number
+  costCenterId?: string
   requestType?: {
-    value: string;
+    value: string
     translations: Array<{
-      localeCode: string;
-      value: string;
-    }>;
+      localeCode: string
+      value: string
+    }>
     catalog: {
-      defaultLocale: string;
-    };
-  };
+      defaultLocale: string
+    }
+  }
   currency?: {
-    id: string;
-    code: string;
-  };
-  currencyRef?: string;
+    id: string
+    code: string
+  }
+  currencyRef?: string
 }
 
 export interface Currency {
-  id: string;
-  code: string;
-  name: string;
+  id: string
+  code: string
+  name: string
 }
 
 export interface CostCenter {
-  id: string;
-  name: string;
-  code?: string;
+  id: string
+  name: string
+  code?: string
 }
 
 export interface PaymentMethod {
-  id: string;
-  name: string;
-  code: string;
+  id: string
+  name: string
+  code: string
 }
 
 export interface UseRequestAdvancePaymentDataReturn {
-  expensePlans: ExpensePlan[];
-  currencies: Currency[];
-  costCenters: CostCenter[];
-  paymentMethods: PaymentMethod[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
-  fetchExpensePlanDetails: (planId: string) => Promise<void>;
+  expensePlans: ExpensePlan[]
+  currencies: Currency[]
+  costCenters: CostCenter[]
+  paymentMethods: PaymentMethod[]
+  isLoading: boolean
+  error: string | null
+  refetch: () => Promise<void>
+  fetchExpensePlanDetails: (planId: string) => Promise<void>
 }
 
 // Constants to avoid duplication
@@ -66,84 +66,82 @@ const FALLBACK_CURRENCIES: Currency[] = [
   { id: 'USD', code: 'USD', name: 'USD' },
   { id: 'GBP', code: 'GBP', name: 'GBP' },
   { id: 'CHF', code: 'CHF', name: 'CHF' }
-];
+]
 
-export const useRequestAdvancePaymentData = (
-  context: BusinessAppContextProps
-): UseRequestAdvancePaymentDataReturn => {
+export const useRequestAdvancePaymentData = (context: BusinessAppContextProps): UseRequestAdvancePaymentDataReturn => {
+  const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([])
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [expensePlans, setExpensePlans] = useState<ExpensePlan[]>([]);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [costCenters, setCostCenters] = useState<CostCenter[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const catalogClient = useCatalogManagerClient(context.accessToken)
 
-  const graphqlClient = useGraphQLClient(context.accessToken);
-  const catalogClient = useCatalogManagerClient(context.accessToken);
- 
   const fetchExpensePlansAndCostCenters = useCallback(async () => {
     if (!context.accessToken || !context.userInfo?.employeeDetails?.employeeId) {
-      return;
+      return
     }
-    
+
     try {
-      const structureId = getCurrentActiveStructureId();
-      const employeeId = context.userInfo.employeeDetails.employeeId;
+      const structureId = getCurrentActiveStructureId()
+      const employeeId = context.userInfo.employeeDetails.employeeId
 
       const response = await graphqlClient.request(GET_EXPENSE_PLANS_BY_USER, {
         status: ['APPROVED', 'ASSIGNED'],
         structureId,
         employeeId
-      });
+      })
 
       if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
         // Filter plans to only include APPROVED and ASSIGNED status
-        const filteredPlans = response.ExpensePlan.filter((plan: any) => 
-          plan.status === 'APPROVED' || plan.status === 'ASSIGNED'
-        );
-        setExpensePlans(filteredPlans);
+        const filteredPlans = response.ExpensePlan.filter(
+          (plan: any) => plan.status === 'APPROVED' || plan.status === 'ASSIGNED'
+        )
+        setExpensePlans(filteredPlans)
       } else {
-        console.log('No expense plans found with APPROVED or ASSIGNED status');
+        console.log('No expense plans found with APPROVED or ASSIGNED status')
       }
 
       if (response?.CostCenter) {
-        setCostCenters(response.CostCenter);
+        setCostCenters(response.CostCenter)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch expense plans and cost centers');
+      setError(err instanceof Error ? err.message : 'Failed to fetch expense plans and cost centers')
     }
-  }, [graphqlClient, context.accessToken, context.userInfo?.employeeDetails?.employeeId]);
+  }, [graphqlClient, context.accessToken, context.userInfo?.employeeDetails?.employeeId])
 
-  const fetchExpensePlanDetails = useCallback(async (planId: string) => {
-    if (!context.accessToken) {
-      return;
-    }
-
-    try {
-      const activeUserLocale = getCurrentActiveUserLocale();
-
-      const response = await graphqlClient.request(GET_EXPENSE_PLAN_DETAILS, {
-        planId,
-        activeUserLocale
-      });
-
-      if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
-        const planDetails = response.ExpensePlan[0];
-        // Update the expense plan with detailed information
-        setExpensePlans(prev => prev.map(plan => 
-          plan.id === planId ? { ...plan, ...planDetails } : plan
-        ));
+  const fetchExpensePlanDetails = useCallback(
+    async (planId: string) => {
+      if (!context.accessToken) {
+        return
       }
-    } catch (err) {
-      console.error('Error fetching expense plan details:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch expense plan details');
-    }
-  }, [graphqlClient, context.accessToken]);
+
+      try {
+        const activeUserLocale = getCurrentActiveUserLocale()
+
+        const response = await graphqlClient.request(GET_EXPENSE_PLAN_DETAILS, {
+          planId,
+          activeUserLocale
+        })
+
+        if (response?.ExpensePlan && response.ExpensePlan.length > 0) {
+          const planDetails = response.ExpensePlan[0]
+          // Update the expense plan with detailed information
+          setExpensePlans(prev => prev.map(plan => (plan.id === planId ? { ...plan, ...planDetails } : plan)))
+        }
+      } catch (err) {
+        console.error('Error fetching expense plan details:', err)
+        setError(err instanceof Error ? err.message : 'Failed to fetch expense plan details')
+      }
+    },
+    [graphqlClient, context.accessToken]
+  )
 
   const fetchCurrencies = useCallback(async () => {
     if (!context.accessToken) {
-      return;
+      return
     }
 
     try {
@@ -158,28 +156,29 @@ export const useRequestAdvancePaymentData = (
           returnTotalRecords: true,
           includeChildCatalogEntries: false
         }
-      );
+      )
 
       // Handle the response based on the actual structure
-      const catalogEntries = (response as any)?.catalogEntries || (response as any)?.data?.catalogEntries || response?.data || [];
-      
+      const catalogEntries =
+        (response as any)?.catalogEntries || (response as any)?.data?.catalogEntries || response?.data || []
+
       if (catalogEntries.length > 0) {
         const currencyOptions: Currency[] = catalogEntries.map((entry: any) => ({
           id: entry.id,
           code: entry.value || entry.code || entry.name,
           name: entry.value || entry.code || entry.name
-        }));
-        setCurrencies(currencyOptions);
+        }))
+        setCurrencies(currencyOptions)
       } else {
         // Fallback to common currencies if catalog is empty
-        setCurrencies(FALLBACK_CURRENCIES);
+        setCurrencies(FALLBACK_CURRENCIES)
       }
     } catch (err) {
-      console.error('Error fetching currencies:', err);
+      console.error('Error fetching currencies:', err)
       // Fallback to common currencies on error
-      setCurrencies(FALLBACK_CURRENCIES);
+      setCurrencies(FALLBACK_CURRENCIES)
     }
-  }, [catalogClient, context.accessToken]);
+  }, [catalogClient, context.accessToken])
 
   const fetchPaymentMethods = useCallback(async () => {
     // Payment methods are hardcoded since there's no PaymentMethod catalog
@@ -194,45 +193,36 @@ export const useRequestAdvancePaymentData = (
         name: 'Cash Payment',
         code: 'CASH_PAYMENT'
       }
-    ];
-    
-    setPaymentMethods(paymentMethodOptions);
-  }, []);
+    ]
+
+    setPaymentMethods(paymentMethodOptions)
+  }, [])
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      setError('Missing access token');
-      setIsLoading(false);
-      return;
+      setError('Missing access token')
+      setIsLoading(false)
+      return
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsLoading(true)
+    setError(null)
 
     try {
       // Only fetch basic data initially - expense plans list, currencies, cost centers, and payment methods
       // Detailed plan data will be fetched when a plan is selected
-      await Promise.all([
-        fetchExpensePlansAndCostCenters(),
-        fetchCurrencies(),
-        fetchPaymentMethods()
-      ]);
+      await Promise.all([fetchExpensePlansAndCostCenters(), fetchCurrencies(), fetchPaymentMethods()])
     } catch (err) {
-      console.error('Error loading data:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load data');
+      console.error('Error loading data:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load data')
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  }, [
-    context.accessToken,
-    fetchExpensePlansAndCostCenters,
-    fetchCurrencies,
-    fetchPaymentMethods
-  ]);
+  }, [context.accessToken, fetchExpensePlansAndCostCenters, fetchCurrencies, fetchPaymentMethods])
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadData()
+  }, [loadData])
 
   return {
     expensePlans,
@@ -243,5 +233,5 @@ export const useRequestAdvancePaymentData = (
     error,
     refetch: loadData,
     fetchExpensePlanDetails
-  };
-};
+  }
+}

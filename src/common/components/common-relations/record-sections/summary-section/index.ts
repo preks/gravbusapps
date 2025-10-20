@@ -1,2 +1,1 @@
-export { default as SummarySection } from './SummarySection';
-
+export { default as SummarySection } from './SummarySection'

@@ -1,4 +1,4 @@
-import { env } from "@/common/env/EnvUtils";
+import { env } from '@/common/env/EnvUtils'
 
 export enum HttpMethod {
   GET = 'GET',
@@ -18,212 +18,181 @@ export enum ResponseType {
 }
 
 export type RequestOptions = {
-  headers?: Record<string, string>;
-  params?: Record<string, string | number | boolean>;
-  responseType?: ResponseType;
-  withCredentials?: boolean; // Whether to include credentials in the request
-};
+  headers?: Record<string, string>
+  params?: Record<string, string | number | boolean>
+  responseType?: ResponseType
+  withCredentials?: boolean // Whether to include credentials in the request
+}
 
 export type RequestOptionsWithBody = RequestOptions & {
-  body?: any;
-};
+  body?: any
+}
 
 export class RestClient {
-  protected headers: Record<string, string> = {};
-  protected baseUrl: string;
+  protected headers: Record<string, string> = {}
+  protected baseUrl: string
 
   constructor(baseUrl?: string, headers: Record<string, string> = {}) {
     if (!baseUrl) {
-      baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? "";
+      baseUrl = env('NEXT_PUBLIC_BASE_URL') ?? ''
     }
 
-    this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    this.headers = headers;
+    this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+    this.headers = headers
   }
 
-  private async request<T = any>(
-    method: HttpMethod,
-    path: string,
-    options: RequestOptionsWithBody = {}
-  ): Promise<T> {
-    const url = new URL(this.baseUrl + path);
+  private async request<T = any>(method: HttpMethod, path: string, options: RequestOptionsWithBody = {}): Promise<T> {
+    const url = new URL(this.baseUrl + path)
 
     // Add query parameters if provided
     if (options.params) {
       Object.entries(options.params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          url.searchParams.append(key, String(value));
+          url.searchParams.append(key, String(value))
         }
-      });
+      })
     }
 
     // Start with default headers
     let headers = {
       ...this.headers,
-      ...(options.headers || {}),
-    };
-    
+      ...(options.headers || {})
+    }
+
     // Handle FormData specially - don't set Content-Type for FormData
     // as the browser needs to set it with the proper multipart boundary
-    const isFormData = options.body instanceof FormData;
-    
+    const isFormData = options.body instanceof FormData
+
     if (!isFormData) {
       // Only set Content-Type for non-FormData requests
       headers = {
         'Content-Type': 'application/json',
-        ...headers,
-      };
+        ...headers
+      }
     } else if (headers['Content-Type']) {
       // Remove any Content-Type header for FormData requests
-      const headersCopy = { ...headers };
-      delete headersCopy['Content-Type'];
-      headers = headersCopy;
+      const headersCopy = { ...headers }
+      delete headersCopy['Content-Type']
+      headers = headersCopy
     }
 
     const requestOptions: RequestInit = {
       method,
       headers,
       credentials: options.withCredentials ? 'include' : 'same-origin',
-      mode: 'cors',
-    };
+      mode: 'cors'
+    }
 
     // Add body for non-GET/HEAD requests
     if (method !== HttpMethod.GET && method !== HttpMethod.HEAD && options.body !== undefined) {
       // Send FormData as-is without JSON.stringify
-      requestOptions.body = isFormData ? options.body : JSON.stringify(options.body);
+      requestOptions.body = isFormData ? options.body : JSON.stringify(options.body)
     }
 
-    const response = await fetch(url.toString(), requestOptions);
+    const response = await fetch(url.toString(), requestOptions)
 
     if (!response.ok) {
-      let errorMessage = `HTTP error! status: ${response.status}`;
+      let errorMessage = `HTTP error! status: ${response.status}`
 
       try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorMessage;
+        const errorData = await response.json()
+        errorMessage = errorData.message || errorMessage
       } catch (e) {
-        errorMessage = response.statusText || errorMessage;
+        errorMessage = response.statusText || errorMessage
       }
 
-      throw new Error(`REST request failed: ${response.status} - ${errorMessage}`);
+      throw new Error(`REST request failed: ${response.status} - ${errorMessage}`)
     }
 
     if (response.status === 204) {
-      return null as unknown as T;
+      return null as unknown as T
     }
 
     try {
       // If responseType is specified in options, use that
-      const responseType = options.responseType || ResponseType.AUTO;
-      
+      const responseType = options.responseType || ResponseType.AUTO
+
       if (responseType === ResponseType.JSON) {
-        return await response.json();
-      }
-      else if (responseType === ResponseType.TEXT) {
-        return await response.text() as unknown as T;
-      }
-      else if (responseType === ResponseType.BLOB) {
-        return await response.blob() as unknown as T;
-      }
-      else {
+        return await response.json()
+      } else if (responseType === ResponseType.TEXT) {
+        return (await response.text()) as unknown as T
+      } else if (responseType === ResponseType.BLOB) {
+        return (await response.blob()) as unknown as T
+      } else {
         // Auto-detect based on Content-Type
-        const contentType = response.headers.get('Content-Type');
-        
+        const contentType = response.headers.get('Content-Type')
+
         // Handle JSON responses
         if (contentType && contentType.includes('application/json')) {
-          return await response.json();
+          return await response.json()
         }
         // Handle text responses
         else if (contentType && (contentType.includes('text/') || contentType.includes('application/xml'))) {
-          return await response.text() as unknown as T;
+          return (await response.text()) as unknown as T
         }
         // Handle blob/binary responses
-        else if (contentType && (
-          contentType.includes('image/') || 
-          contentType.includes('application/pdf') || 
-          contentType.includes('application/octet-stream')
-        )) {
-          return await response.blob() as unknown as T;
+        else if (
+          contentType &&
+          (contentType.includes('image/') ||
+            contentType.includes('application/pdf') ||
+            contentType.includes('application/octet-stream'))
+        ) {
+          return (await response.blob()) as unknown as T
         }
         // Default to JSON if can't determine
         else {
-          return await response.json();
+          return await response.json()
         }
       }
     } catch (e: unknown) {
-      console.error('Failed to parse response:', e);
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      throw new Error(`Failed to parse response: ${errorMessage}`);
+      console.error('Failed to parse response:', e)
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      throw new Error(`Failed to parse response: ${errorMessage}`)
     }
   }
 
-  public async get<T = any>(
-    path: string,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<T> {
-
-    return this.request<T>(HttpMethod.GET, path, options);
+  public async get<T = any>(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<T> {
+    return this.request<T>(HttpMethod.GET, path, options)
   }
 
-  public async post<T = any>(
-    path: string,
-    body?: any,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<T> {
-    return this.request<T>(HttpMethod.POST, path, { ...options, body });
+  public async post<T = any>(path: string, body?: any, options: Omit<RequestOptions, 'body'> = {}): Promise<T> {
+    return this.request<T>(HttpMethod.POST, path, { ...options, body })
   }
 
-  public async put<T = any>(
-    path: string,
-    body?: any,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<T> {
-    return this.request<T>(HttpMethod.PUT, path, { ...options, body });
+  public async put<T = any>(path: string, body?: any, options: Omit<RequestOptions, 'body'> = {}): Promise<T> {
+    return this.request<T>(HttpMethod.PUT, path, { ...options, body })
   }
 
-  public async patch<T = any>(
-    path: string,
-    body?: any,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<T> {
-    return this.request<T>(HttpMethod.PATCH, path, { ...options, body });
+  public async patch<T = any>(path: string, body?: any, options: Omit<RequestOptions, 'body'> = {}): Promise<T> {
+    return this.request<T>(HttpMethod.PATCH, path, { ...options, body })
   }
 
-  public async delete<T = any>(
-    path: string,
-    options: RequestOptions = {}
-  ): Promise<T> {
-    return this.request<T>(HttpMethod.DELETE, path, options);
+  public async delete<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
+    return this.request<T>(HttpMethod.DELETE, path, options)
   }
 
-  public async head(
-    path: string,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<Headers> {
+  public async head(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<Headers> {
     const response = await fetch(this.baseUrl + path, {
       method: HttpMethod.HEAD,
       headers: {
         ...this.headers,
-        ...(options.headers || {}),
+        ...(options.headers || {})
       },
       credentials: 'same-origin',
-      mode: 'cors',
-    });
-    return response.headers;
+      mode: 'cors'
+    })
+    return response.headers
   }
 
-  public async options(
-    path: string,
-    options: Omit<RequestOptions, 'body'> = {}
-  ): Promise<Response> {
+  public async options(path: string, options: Omit<RequestOptions, 'body'> = {}): Promise<Response> {
     return fetch(this.baseUrl + path, {
       method: HttpMethod.OPTIONS,
       headers: {
         ...this.headers,
-        ...(options.headers || {}),
+        ...(options.headers || {})
       },
       credentials: 'same-origin',
-      mode: 'cors',
-    });
+      mode: 'cors'
+    })
   }
 }

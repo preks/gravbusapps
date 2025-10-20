@@ -111,7 +111,7 @@ export interface GetCompensationBandDataVariables {
 }
 
 export const useGetCompensationBandData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphqlClient(context.accessToken);
+  const graphqlClient = useGraphqlClient(context.accessToken)
 
   const fetchCompensationBandData = async (variables: GetCompensationBandDataVariables = {}) => {
     const query = GET_COMPENSATION_BAND_DATA({
@@ -119,16 +119,16 @@ export const useGetCompensationBandData = (context: BusinessAppContextProps) => 
       offset: variables.offset || 0,
       search: variables.search,
       compensationBandId: variables.compensationBandId
-    });
+    })
 
     try {
-      const result = await graphqlClient.request<CompensationBandData>(query);
-      return result;
+      const result = await graphqlClient.request<CompensationBandData>(query)
+      return result
     } catch (error) {
-      console.error('Error fetching compensation band data:', error);
-      throw error;
+      console.error('Error fetching compensation band data:', error)
+      throw error
     }
-  };
+  }
 
-  return { fetchCompensationBandData };
-}; 
+  return { fetchCompensationBandData }
+}

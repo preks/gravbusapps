@@ -1,0 +1,1 @@
+export { OpportunityView } from './OpportunityView'

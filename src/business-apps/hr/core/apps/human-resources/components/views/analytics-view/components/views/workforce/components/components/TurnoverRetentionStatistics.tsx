@@ -1,11 +1,11 @@
-import React from 'react';
-import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system';
-import type { TurnoverRetentionStatistics } from '../../../../../hooks/useTurnoverRetentionData';
+import React from 'react'
+import { SectionKpiCards, KpiCardData } from '@newwork/nw-design-system'
+import type { TurnoverRetentionStatistics } from '../../../../../hooks/useTurnoverRetentionData'
 
 interface TurnoverRetentionStatisticsProps {
-  statistics: TurnoverRetentionStatistics;
-  isLoading: boolean;
-  dataTestId: string;
+  statistics: TurnoverRetentionStatistics
+  isLoading: boolean
+  dataTestId: string
 }
 
 const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = ({
@@ -19,7 +19,8 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'Voluntary Turnover Rate',
       value: statistics.currentTurnoverRate ? `${statistics.currentTurnoverRate.toFixed(1)}%` : 'N/A',
       icon: 'calendar',
-      iconColor: statistics.currentTurnoverRate > 10 ? '#ff4d4f' : statistics.currentTurnoverRate > 5 ? '#fa8c16' : '#52c41a',
+      iconColor:
+        statistics.currentTurnoverRate > 10 ? 'var(--nw-destructive)' : statistics.currentTurnoverRate > 5 ? 'var(--nw-warning)' : 'var(--nw-success)',
       footer: 'Current month rate'
     },
     {
@@ -27,7 +28,7 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'Average Tenure',
       value: statistics.averageTenure || 'N/A',
       icon: 'users',
-      iconColor: '#722ed1',
+      iconColor: 'var(--nw-info)',
       footer: 'Company-wide average'
     },
     {
@@ -35,7 +36,8 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'At-Risk Departments',
       value: statistics.atRiskDepartments,
       icon: 'mail',
-      iconColor: statistics.atRiskDepartments > 3 ? '#ff4d4f' : statistics.atRiskDepartments > 0 ? '#fa8c16' : '#52c41a',
+      iconColor:
+        statistics.atRiskDepartments > 3 ? 'var(--nw-destructive)' : statistics.atRiskDepartments > 0 ? 'var(--nw-warning)' : 'var(--nw-success)',
       footer: `Below ${statistics.retentionTarget}% retention target`
     },
     {
@@ -43,30 +45,30 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'Target Retention',
       value: `${statistics.retentionTarget}%`,
       icon: 'users',
-      iconColor: '#1890ff',
+      iconColor: 'var(--nw-info)',
       footer: 'Company target retention rate'
     }
-  ];
+  ]
 
   if (isLoading) {
     // Create loading placeholder cards
     const loadingCards: KpiCardData[] = kpiCards.map(card => ({
       ...card,
       value: 'Loading...'
-    }));
-    
+    }))
+
     return (
       <div data-testid={`${dataTestId}-statistics`}>
         <SectionKpiCards cards={loadingCards} />
       </div>
-    );
+    )
   }
 
   return (
     <div data-testid={`${dataTestId}-statistics`}>
       <SectionKpiCards cards={kpiCards} />
     </div>
-  );
-};
+  )
+}
 
-export default TurnoverRetentionStatistics; 
+export default TurnoverRetentionStatistics

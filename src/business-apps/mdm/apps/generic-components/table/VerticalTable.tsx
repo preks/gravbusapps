@@ -6,29 +6,29 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  cn,
-} from "@newwork/nw-design-system";
-import { useCallback } from "react";
+  cn
+} from '@newwork/nw-design-system'
+import React, { useCallback } from 'react'
 
 export type VerticalTableProps = {
-  title: string;
-  icon: React.ReactNode;
-  verticalTable?: boolean;
+  title: string
+  icon: React.ReactNode
+  verticalTable?: boolean
   items: {
-    label: string;
-    value: string | number | React.ReactNode;
-    textColor?: string;
-  }[];
-};
+    label: string
+    value: string | number | React.ReactNode
+    textColor?: string
+  }[]
+}
 
 const VerticalTable = ({ icon, title, items, verticalTable = true }: VerticalTableProps) => {
   const verticalTableRender = useCallback(
     (
       items: {
-        label: string;
-        value: string | number | React.ReactNode;
-        textColor?: string;
-      }[],
+        label: string
+        value: string | number | React.ReactNode
+        textColor?: string
+      }[]
     ) => (
       <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:gap-2">
         {items.map((item, index) => (
@@ -42,33 +42,33 @@ const VerticalTable = ({ icon, title, items, verticalTable = true }: VerticalTab
         ))}
       </div>
     ),
-    [],
-  );
+    []
+  )
 
   const itemsTableRender = useCallback(
     (
       items: {
-        label: string;
-        value: string | number | React.ReactNode;
-        textColor?: string;
-        verticalTable?: boolean;
-      }[],
+        label: string
+        value: string | number | React.ReactNode
+        textColor?: string
+        verticalTable?: boolean
+      }[]
     ) => (
       <div className="gba:w-full gba:flex gba:flex-col gba:justify-center gba:items-center gba:border gba:border-border  gba:rounded-lg">
         {items.map((item, index) => (
           <div
             key={index}
-            className={cn("gba:flex gba:items-center gba:justify-between gba:w-full", {
-              "gba:border-b gba:border-gray-200": items.length - 1 !== index,
+            className={cn('gba:flex gba:items-center gba:justify-between gba:w-full', {
+              'gba:border-b gba:border-gray-200': items.length - 1 !== index
             })}
           >
             <div
               className={cn(
-                "gba:w-1/2 gba:!h-full gba:bg-gray-50 gba:py-2 gba:px-3 border-r border-border gba:text-sm gba:font-medium gba:text-start",
+                'gba:w-1/2 gba:!h-full gba:bg-gray-50 gba:py-2 gba:px-3 border-r border-border gba:text-sm gba:font-medium gba:text-start',
                 {
-                  "gba:rounded-tl-lg": index === 0,
-                  "gba:rounded-bl-lg": items.length - 1 === index,
-                },
+                  'gba:rounded-tl-lg': index === 0,
+                  'gba:rounded-bl-lg': items.length - 1 === index
+                }
               )}
             >
               {item.label}
@@ -76,18 +76,15 @@ const VerticalTable = ({ icon, title, items, verticalTable = true }: VerticalTab
             <Tooltip>
               <TooltipTrigger asChild>
                 <div
-                  className={cn("gba:!h-full gba:w-1/2 gba:py-2 gba:px-3 gba:text-sm", {
+                  className={cn('gba:!h-full gba:w-1/2 gba:py-2 gba:px-3 gba:text-sm', {
                     [`gba:text-${item.textColor}`]: item.textColor,
-                    "gba:truncate": typeof item.value === "string",
+                    'gba:truncate': typeof item.value === 'string'
                   })}
                 >
                   {item.value}
                 </div>
               </TooltipTrigger>
-              <TooltipContent
-                className="gba:!z-[1002]"
-                hidden={String(item.value).trim().length <= 15}
-              >
+              <TooltipContent className="gba:!z-[1002]" hidden={String(item.value).trim().length <= 15}>
                 {item.value}
               </TooltipContent>
             </Tooltip>
@@ -95,8 +92,8 @@ const VerticalTable = ({ icon, title, items, verticalTable = true }: VerticalTab
         ))}
       </div>
     ),
-    [],
-  );
+    []
+  )
 
   return (
     <Card className="gba:shadow-sm">
@@ -105,11 +102,9 @@ const VerticalTable = ({ icon, title, items, verticalTable = true }: VerticalTab
           {icon} {title}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        {verticalTable ? verticalTableRender(items) : itemsTableRender(items)}
-      </CardContent>
+      <CardContent>{verticalTable ? verticalTableRender(items) : itemsTableRender(items)}</CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export { VerticalTable };
+export { VerticalTable }

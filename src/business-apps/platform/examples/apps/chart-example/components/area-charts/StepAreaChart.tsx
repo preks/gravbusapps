@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,26 +9,30 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import areaChartData from "../../data/areaChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import areaChartData from '../../data/areaChartData.json'
 
 interface StepAreaChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const StepAreaChart: React.FC<StepAreaChartProps> = ({ moduleColor }) => {
-  const chartData = areaChartData.step;
+  const chartData = areaChartData.step
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - used for area sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - used for area sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="step-area-chart">
@@ -45,7 +49,7 @@ const StepAreaChart: React.FC<StepAreaChartProps> = ({ moduleColor }) => {
             data={chartData}
             margin={{
               left: 12,
-              right: 12,
+              right: 12
             }}
           >
             <CartesianGrid vertical={false} />
@@ -54,7 +58,7 @@ const StepAreaChart: React.FC<StepAreaChartProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Area
@@ -77,7 +81,7 @@ const StepAreaChart: React.FC<StepAreaChartProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default StepAreaChart;
+export default StepAreaChart

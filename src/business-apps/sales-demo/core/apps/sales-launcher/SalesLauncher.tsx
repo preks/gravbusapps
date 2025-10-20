@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { 
-  LauncherLayout, 
-  type LauncherSectionConfig, 
-  type NavigationCardData, 
+import React, { useMemo } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  LauncherLayout,
+  type LauncherSectionConfig,
+  type NavigationCardData,
   type KpiData,
   type QuickActionData,
   Spinner,
@@ -11,32 +11,25 @@ import {
   AlertTitle,
   AlertDescription,
   Button
-} from '@newwork/nw-design-system';
-import { salesAreas, categoryLabels, salesQuickActions } from './utils/salesAreas';
-import { SalesArea, SalesQuickAction } from './types';
-import { useSalesStats } from './hooks/useSalesStats';
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils';
-import * as RemixIcons from '@remixicon/react';
-import { MODULE_COLORS } from '@/common/constants/ui';
+} from '@newwork/nw-design-system'
+import { salesAreas, salesQuickActions } from './utils/salesAreas'
+import { SalesArea, SalesQuickAction } from './types'
+import { useSalesStats } from './hooks/useSalesStats'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import * as RemixIcons from '@remixicon/react'
+import { MODULE_COLORS } from '@/common/constants/ui'
 // Import PhosphorIcons for LauncherLayout
-import { 
-  ShoppingCart,
-  Package,
-  ChartBar,
-  TreeStructure,
-  Users,
-  Briefcase
-} from '@phosphor-icons/react';
+import { ShoppingCart } from '@phosphor-icons/react'
 
 interface SalesLauncherProps extends BusinessAppContextProps {}
-const moduleColor = MODULE_COLORS.ERP;
-const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
-  const { stats, isLoading, error, refetch } = useSalesStats(context);
+const moduleColor = MODULE_COLORS.ERP
+const SalesLauncher: React.FC<SalesLauncherProps> = context => {
+  const { stats, isLoading, error, refetch } = useSalesStats(context)
 
   // Format numbers for display
   const formatNumber = (num: number): string => {
-    return num.toLocaleString();
-  };
+    return num.toLocaleString()
+  }
 
   // Format currency for display
   const formatCurrency = (amount: number): string => {
@@ -44,14 +37,14 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+      maximumFractionDigits: 0
+    }).format(amount)
+  }
 
   // Convert stats to KpiData format for header
   const headerKpis = useMemo((): KpiData[] => {
-    if (error) return [];
-    
+    if (error) return []
+
     return [
       {
         id: 'total-orders',
@@ -77,23 +70,28 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
         value: isLoading ? '...' : formatNumber(stats.totalProducts),
         color: 'default'
       }
-    ];
-  }, [stats, isLoading, error]);
+    ]
+  }, [stats, isLoading, error])
 
   // Helper functions
   const getDefaultButtonLabel = (areaId: string): string => {
     switch (areaId) {
-      case 'sales-orders': return 'Manage Orders';
-      case 'sales-performance': return 'View Reports';
-      case 'product-management': return 'Manage Products';
-      case 'bom-management': return 'Manage BOMs';
-      default: return 'View Details';
+      case 'sales-orders':
+        return 'Manage Orders'
+      case 'sales-performance':
+        return 'View Reports'
+      case 'product-management':
+        return 'Manage Products'
+      case 'bom-management':
+        return 'Manage BOMs'
+      default:
+        return 'View Details'
     }
-  };
+  }
 
   // Generate sections for LauncherLayout
   const sections = useMemo((): LauncherSectionConfig[] => {
-    const areas: SalesArea[] = salesAreas;
+    const areas: SalesArea[] = salesAreas
 
     // Convert areas to NavigationCardData format
     const cards: NavigationCardData[] = areas.map(area => {
@@ -103,40 +101,45 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
           case 'sales-orders':
             return {
               value: formatNumber(stats.totalOrders),
-              label: 'Total Orders',
-            };
+              label: 'Total Orders'
+            }
           case 'sales-performance':
             return {
               value: formatCurrency(stats.totalRevenue),
-              label: 'Total Revenue',
-            };
+              label: 'Total Revenue'
+            }
           case 'product-management':
             return {
               value: formatNumber(stats.totalProducts),
-              label: 'Total Products',
-            };
+              label: 'Total Products'
+            }
           case 'bom-management':
             return {
               value: formatNumber(stats.activeBoms),
-              label: 'Active BOMs',
-            };
+              label: 'Active BOMs'
+            }
           default:
-            return { value: '0', label: 'Items' };
+            return { value: '0', label: 'Items' }
         }
-      };
+      }
 
-      const areaStats = getAreaStats(area.id);
+      const areaStats = getAreaStats(area.id)
 
       // Get variant based on category
       const getVariant = (category: string) => {
         switch (category) {
-          case 'orders': return 'info';
-          case 'analytics': return 'success';
-          case 'products': return 'warning';
-          case 'manufacturing': return 'default';
-          default: return 'default';
+          case 'orders':
+            return 'info'
+          case 'analytics':
+            return 'success'
+          case 'products':
+            return 'warning'
+          case 'manufacturing':
+            return 'default'
+          default:
+            return 'default'
         }
-      };
+      }
 
       return {
         id: area.id,
@@ -144,90 +147,93 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
         description: area.description,
         icon: area.icon,
         stats: areaStats,
-        actions: area.links?.map(link => ({
-          label: link.label,
-          onClick: () => handleLinkClick(link.action)
-        })) || [],
+        actions:
+          area.links?.map(link => ({
+            label: link.label,
+            onClick: () => handleLinkClick(link.action)
+          })) || [],
         primaryAction: {
           label: area.buttonLabel || getDefaultButtonLabel(area.id),
           onClick: () => handleNavigationClick(area)
         },
         variant: getVariant(area.category)
-      };
-    });
+      }
+    })
 
-    return [{
-      id: 'sales-modules',
-      title: 'Sales Management Hub',
-      description: 'Comprehensive sales tools for order management, product catalog, and performance analytics',
-      cards
-    }];
-  }, [stats]);
+    return [
+      {
+        id: 'sales-modules',
+        title: 'Sales Management Hub',
+        description: 'Comprehensive sales tools for order management, product catalog, and performance analytics',
+        cards
+      }
+    ]
+  }, [stats])
 
   const handleNavigationClick = (area: SalesArea) => {
-    console.log(`Navigation clicked for ${area.title}`);
-    
+    console.log(`Navigation clicked for ${area.title}`)
+
     // Map areas to their corresponding navigation paths
     const areaToPathMap: Record<string, string> = {
       'sales-orders': '/platform/sales-demo/sales-order-overview',
       'sales-performance': '/platform/sales-demo/sales-performance-report',
       'product-management': '/platform/sales-demo/product-management-overview',
       'bom-management': '/platform/sales-demo/bom-management-overview'
-    };
-    
-    const navigationPath = areaToPathMap[area.id];
-    
-    if (navigationPath) {
-      const salesUrl = buildPlatformUrl(navigationPath);
-      navigateTo(salesUrl);
     }
-  };
+
+    const navigationPath = areaToPathMap[area.id]
+
+    if (navigationPath) {
+      const salesUrl = buildPlatformUrl(navigationPath)
+      navigateTo(salesUrl)
+    }
+  }
 
   const handleLinkClick = (actionPath: string) => {
-    console.log(`Link clicked: ${actionPath}`);
-    const salesUrl = buildPlatformUrl(actionPath);
-    navigateTo(salesUrl);
-  };
+    console.log(`Link clicked: ${actionPath}`)
+    const salesUrl = buildPlatformUrl(actionPath)
+    navigateTo(salesUrl)
+  }
 
   const handleQuickAction = (action: SalesQuickAction) => {
-    console.log(`Quick action: ${action.action}`);
-    
+    console.log(`Quick action: ${action.action}`)
+
     switch (action.action) {
       case 'create-sales-order':
         // Navigate to sales order overview
-        const orderUrl = buildPlatformUrl('/platform/sales-demo/sales-order-overview');
-        navigateTo(orderUrl);
-        break;
+        const orderUrl = buildPlatformUrl('/platform/sales-demo/sales-order-overview')
+        navigateTo(orderUrl)
+        break
       case 'add-product':
         // Navigate to product management
-        const productUrl = buildPlatformUrl('/platform/sales-demo/product-management-overview');
-        navigateTo(productUrl);
-        break;
+        const productUrl = buildPlatformUrl('/platform/sales-demo/product-management-overview')
+        navigateTo(productUrl)
+        break
       case 'view-analytics':
         // Navigate to sales performance report
-        const analyticsUrl = buildPlatformUrl('/platform/sales-demo/sales-performance-report');
-        navigateTo(analyticsUrl);
-        break;
+        const analyticsUrl = buildPlatformUrl('/platform/sales-demo/sales-performance-report')
+        navigateTo(analyticsUrl)
+        break
       case 'manage-pipeline':
         // Navigate to sales performance report
-        const pipelineUrl = buildPlatformUrl('/platform/sales-demo/sales-performance-report');
-        navigateTo(pipelineUrl);
-        break;
+        const pipelineUrl = buildPlatformUrl('/platform/sales-demo/sales-performance-report')
+        navigateTo(pipelineUrl)
+        break
       default:
-        console.log('Unknown quick action:', action.action);
+        console.log('Unknown quick action:', action.action)
     }
-  };
+  }
 
   // Convert quick actions to LauncherLayout format
   const launcherQuickActions = useMemo((): QuickActionData[] => {
-    return salesQuickActions.map((action) => ({
+    return salesQuickActions.map(action => ({
       id: action.id,
       label: action.label,
       icon: action.icon,
       onClick: () => handleQuickAction(action),
-      variant: "secondary",
-    }));
-  }, []);
+      variant: 'secondary'
+    }))
+  }, [])
 
   // Show loading state
   if (isLoading) {
@@ -240,7 +246,7 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   // Show error state if stats loading failed
@@ -252,13 +258,9 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
             <RemixIcons.RiErrorWarningLine className="h-4 w-4" />
             <AlertTitle>Error Loading Data</AlertTitle>
             <AlertDescription>
-              {error} 
+              {error}
               <div className="mt-2">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={refetch}
-                >
+                <Button size="sm" variant="outline" onClick={refetch}>
                   <RemixIcons.RiRefreshLine className="h-4 w-4 mr-1" />
                   Retry
                 </Button>
@@ -267,7 +269,7 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
           </Alert>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -282,7 +284,7 @@ const SalesLauncher: React.FC<SalesLauncherProps> = (context) => {
       quickActionsDescription="Frequently used sales functions and shortcuts"
       variant={moduleColor}
     />
-  );
-};
+  )
+}
 
-export default SalesLauncher;
+export default SalesLauncher

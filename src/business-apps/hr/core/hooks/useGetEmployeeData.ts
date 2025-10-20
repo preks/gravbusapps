@@ -1,36 +1,36 @@
-import { useEffect, useState } from "react";
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient';
+import { useEffect, useState } from 'react'
+import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeData {
-  id: string;
-  firstName: string;
-  lastName: string;
-  pictureThumbnail?: string;
+  id: string
+  firstName: string
+  lastName: string
+  pictureThumbnail?: string
   employeePosition?: {
     jobPosition?: {
-      name: string;
-    };
+      name: string
+    }
     organizationalUnit?: {
-      name: string;
-    };
-  };
+      name: string
+    }
+  }
 }
 
 interface UseGetEmployeeDataProps {
-  employeeId?: string;
-  accessToken: string;
+  employeeId?: string
+  accessToken: string
 }
 
 export function useGetEmployeeData({ employeeId, accessToken }: UseGetEmployeeDataProps) {
-  const client = useGraphqlClient(accessToken);
-  const [employee, setEmployee] = useState<EmployeeData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const client = useGraphqlClient(accessToken)
+  const [employee, setEmployee] = useState<EmployeeData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
   useEffect(() => {
-    if (!employeeId || !client) return;
-    setLoading(true);
-    setError(null);
+    if (!employeeId || !client) return
+    setLoading(true)
+    setError(null)
 
     const EMPLOYEE_QUERY = `
       query GetEmployee($employeeId: uuid!) {
@@ -49,22 +49,23 @@ export function useGetEmployeeData({ employeeId, accessToken }: UseGetEmployeeDa
           }
         }
       }
-    `;
+    `
 
-    client.request(EMPLOYEE_QUERY, { employeeId })
+    client
+      .request(EMPLOYEE_QUERY, { employeeId })
       .then((data: any) => {
         if (data && data.Employee && data.Employee.length > 0) {
-          setEmployee(data.Employee[0]);
+          setEmployee(data.Employee[0])
         } else {
-          setEmployee(null);
+          setEmployee(null)
         }
       })
-      .catch((err) => {
-        setError(err as Error);
-        setEmployee(null);
+      .catch(err => {
+        setError(err as Error)
+        setEmployee(null)
       })
-      .finally(() => setLoading(false));
-  }, [client, employeeId]);
+      .finally(() => setLoading(false))
+  }, [client, employeeId])
 
-  return { employee, loading, error };
+  return { employee, loading, error }
 }

@@ -1,75 +1,72 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { Card, Badge, Button } from '@newwork/nw-design-system';
-import { PiArrowLeft, PiUsers, PiCalendar, PiClock } from 'react-icons/pi';
-import { useEmployeeWorkLifeBalance } from '../../hooks/useEmployeeWorkLifeBalance';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Card, Badge, Button } from '@newwork/nw-design-system'
+import { PiArrowLeft } from 'react-icons/pi'
+import { useEmployeeWorkLifeBalance } from '../../hooks/useEmployeeWorkLifeBalance'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface WorkLifeBalanceAnalysisPageProps extends BusinessAppContextProps {
-  onNavigateBack: () => void;
-}
-
-interface EmployeeWorkLifeBalance {
-  id: string;
-  name: string;
-  initials: string;
-  status: 'excellent' | 'good' | 'needs-attention';
-  avgStreak: number;
-  longestStreak: number;
-  avgBreak: number;
+  onNavigateBack: () => void
 }
 
 export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPageProps> = ({
   onNavigateBack,
   ...props
 }) => {
-  const { employees, isLoading, error } = useEmployeeWorkLifeBalance(props);
+  const { employees, isLoading, error } = useEmployeeWorkLifeBalance(props)
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'excellent':
-        return 'success';
+        return 'success'
       case 'good':
-        return 'default';
+        return 'default'
       case 'needs-attention':
-        return 'destructive';
+        return 'destructive'
       default:
-        return 'default';
+        return 'default'
     }
-  };
+  }
 
   const getStatusText = (status: string) => {
     switch (status) {
       case 'excellent':
-        return 'Excellent';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.statistics_tab.excellent',
+          'Excellent'
+        )
       case 'good':
-        return 'Good';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_manager.statistics_tab.good', 'Good')
       case 'needs-attention':
-        return 'Needs Attention';
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:absence_management_hub_manager.statistics_tab.needs_attention',
+          'Needs Attention'
+        )
       default:
-        return 'Unknown';
+        return getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.unknown_type', 'Unknown')
     }
-  };
+  }
 
   if (isLoading) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="work-life-balance-loading">
-        Loading work-life balance analysis...
+        {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.loading', 'Loading...')}
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="work-life-balance-error">
-        Error: {error}
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="work-life-balance-error">
+        {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.error', 'Error:')} {error}
       </div>
-    );
+    )
   }
 
   return (
-    <div className="gba:min-h-screen gba:bg-white" data-testid="work-life-balance-analysis-page">
+    <div className="gba:min-h-screen gba:bg-primary-foreground" data-testid="work-life-balance-analysis-page">
       {/* Header */}
-      <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6 gba:py-4">
+      <div className="gba:bg-primary-foreground gba:border-b gba:border gba:px-6 gba:py-4">
         <div className="gba:space-y-4">
           {/* Back Button */}
           <Button
@@ -79,16 +76,25 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
             data-testid="work-life-balance-back-button"
           >
             <PiArrowLeft className="gba:text-lg" />
-            Back to Statistics
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_management_hub_manager.statistics_tab.back_to_statistics',
+              'Back to Statistics'
+            )}
           </Button>
-          
+
           {/* Title and Subtitle */}
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="work-life-balance-title">
-              Individual Work-Life Balance Analysis
+            <h1 className="gba:text-2xl gba:font-bold gba:text-foreground" data-testid="work-life-balance-title">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_manager.statistics_tab.individual_work_life_balance_analysis',
+                'Individual Work-Life Balance Analysis'
+              )}
             </h1>
-            <p className="gba:text-gray-600 gba:mt-1" data-testid="work-life-balance-subtitle">
-              Detailed breakdown of each team member's work patterns and wellness indicators
+            <p className="gba:text-muted-foreground gba:mt-1" data-testid="work-life-balance-subtitle">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:absence_management_hub_manager.statistics_tab.detailed_breakdown_indicators',
+                "Detailed breakdown of each team member's work patterns and wellness indicators"
+              )}
             </p>
           </div>
         </div>
@@ -102,17 +108,17 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
               <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
                 {/* Employee Info */}
                 <div className="gba:flex gba:items-center gba:gap-4">
-                  <div 
-                    className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-blue-100 gba:flex gba:items-center gba:justify-center gba:text-blue-600 gba:font-semibold"
+                  <div
+                    className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-info-secondary gba:flex gba:items-center gba:justify-center gba:text-info gba:font-semibold"
                     data-testid={`employee-avatar-${employee.id}`}
                   >
                     {employee.initials}
                   </div>
                   <div>
-                    <h3 className="gba:font-semibold gba:text-gray-900" data-testid={`employee-name-${employee.id}`}>
+                    <h3 className="gba:font-semibold gba:text-foreground" data-testid={`employee-name-${employee.id}`}>
                       {employee.name}
                     </h3>
-                    <Badge 
+                    <Badge
                       variant={getStatusColor(employee.status)}
                       className="gba:mt-1"
                       data-testid={`employee-status-${employee.id}`}
@@ -126,31 +132,37 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
                 <div className="gba:flex gba:gap-4">
                   {/* Average Streak */}
                   <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-avg-streak-${employee.id}`}>
-                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                      {employee.avgStreak}
-                    </div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                      Avg Streak
+                    <div className="gba:text-2xl gba:font-bold gba:text-foreground">{employee.avgStreak}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_management_hub_manager.statistics_tab.avg_streak',
+                        'Avg Streak'
+                      )}
                     </div>
                   </div>
 
                   {/* Longest Streak */}
-                  <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-longest-streak-${employee.id}`}>
-                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                      {employee.longestStreak}
-                    </div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                      Longest Streak
+                  <div
+                    className="gba:text-center gba:min-w-[80px]"
+                    data-testid={`employee-longest-streak-${employee.id}`}
+                  >
+                    <div className="gba:text-2xl gba:font-bold gba:text-foreground">{employee.longestStreak}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_management_hub_manager.statistics_tab.longest_streak',
+                        'Longest Streak'
+                      )}
                     </div>
                   </div>
 
                   {/* Average Break */}
                   <div className="gba:text-center gba:min-w-[80px]" data-testid={`employee-avg-break-${employee.id}`}>
-                    <div className="gba:text-2xl gba:font-bold gba:text-gray-900">
-                      {employee.avgBreak}
-                    </div>
-                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                      Avg Break
+                    <div className="gba:text-2xl gba:font-bold gba:text-foreground">{employee.avgBreak}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_management_hub_manager.statistics_tab.avg_break',
+                        'Avg Break'
+                      )}
                     </div>
                   </div>
                 </div>
@@ -160,5 +172,5 @@ export const WorkLifeBalanceAnalysisPage: React.FC<WorkLifeBalanceAnalysisPagePr
         </div>
       </div>
     </div>
-  );
-}; 
+  )
+}

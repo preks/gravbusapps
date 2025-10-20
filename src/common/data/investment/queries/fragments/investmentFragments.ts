@@ -1,8 +1,7 @@
-import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments';
-import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments';
+import { CATALOG_ENTRY, AUDIT_FIELDS } from '@/common/network/graphql/commonFragments'
+import { EMPLOYEE_REF } from '@/common/data/employee/queries/fragments/employeeFragments'
 
-
-export const INVESTMENT_REF=`
+export const INVESTMENT_REF = `
     id
     code
     name
@@ -12,6 +11,7 @@ export const INVESTMENT_REF=`
     investmentMarketValue
     acquisitionDate
     exitDate
+    additionalProperties
     
     # Basic investment info
     investmentType {
@@ -20,7 +20,7 @@ export const INVESTMENT_REF=`
     currency {
     ${CATALOG_ENTRY}
     }
-`;
+`
 
 export const INVESTMENT = `
     id
@@ -79,5 +79,201 @@ export const INVESTMENT = `
     ownerEmployee {
         ${EMPLOYEE_REF}
     }
-`;
+    
+    # Investment Role relationships (array)
+    investmentRole(where: { isDeleted: { _eq: false } }, orderBy: { displayOrder: ASC_NULLS_LAST }) {
+        id
+        version
+        displayOrder
+        isDeleted
+        investmentRole {
+            ${CATALOG_ENTRY}
+        }
+    }
+`
 
+// Investment specialization fragments
+export const EQUITY_INVESTMENT_REF = `
+    id
+    foundationDate
+    marketValue
+    ebitdaAmount
+    turnoverAmount
+    additionalProperties
+`
+
+export const EQUITY_INVESTMENT = `
+    id
+    version
+    foundationDate
+    marketValue
+    turnoverAmount
+    ebitdaAmount
+    additionalProperties
+    ${AUDIT_FIELDS}
+    
+    # Investment relationship
+    investment {
+        id
+        name
+        code
+    }
+    
+    # Investment rounds
+    equityInvestmentRound {
+        id
+        name
+        year
+        preValue
+        investmentVolume
+        volumeShare
+        roundSharePercentage
+        currencyRef
+        currency {
+            ${CATALOG_ENTRY}
+        }
+        additionalProperties
+        ${AUDIT_FIELDS}
+    }
+    
+    # Investment reports
+    equityInvestmentReport {
+        id
+        date
+        marketValue
+        additionalProperties
+    }
+`
+
+export const REAL_ESTATE_INVESTMENT_REF = `
+    id
+    buildingYear
+    numberOfUnits
+    annualNetColdRent
+    actualAnnualExpenses
+    targetAnnualExpenses
+    funding
+    occupancyPercent
+    size
+    sizeMeasurementUnitRef
+    locality
+    postalCode
+    additionalProperties
+`
+
+export const REAL_ESTATE_INVESTMENT = `
+    id
+    version
+    buildingYear
+    numberOfUnits
+    annualNetColdRent
+    actualAnnualExpenses
+    targetAnnualExpenses
+    funding
+    occupancyPercent
+    size
+    locality
+    postalCode
+    addressLine
+    liquidityForecast
+    additionalProperties
+    ${AUDIT_FIELDS}
+    
+    # Investment relationship
+    investment {
+        id
+        name
+        code
+    }
+    
+    # Location relationships
+    country {
+        ${CATALOG_ENTRY}
+    }
+    region {
+        ${CATALOG_ENTRY}
+    }
+    
+    # Size measurement unit
+    sizeMeasurementUnit {
+        ${CATALOG_ENTRY}
+    }
+    
+    # Investment reports
+    realEstateInvestmentReport {
+        id
+        date
+        actualAnnualExpenses
+        annualNetColdRent
+        funding
+        numberOfUnits
+        occupancyPercent
+        size
+        sizeMeasurementUnitRef
+        liquidityForecast
+        additionalProperties
+        ${AUDIT_FIELDS}
+    }
+`
+
+export const LIQUID_FUND_INVESTMENT_REF = `
+    id
+    proprietorName
+    bankName
+    bankAccountNumber
+    earlyTerminationAllowed
+    interestRate
+    maturityDate
+    additionalProperties
+    
+    # Investment liquid fund type
+    investmentLiquidFundType {
+        ${CATALOG_ENTRY}
+    }
+`
+
+export const LIQUID_FUND_INVESTMENT = `
+    id
+    version
+    proprietorName
+    bankName
+    bankAccountNumber
+    earlyTerminationAllowed
+    interestRate
+    maturityDate
+    additionalProperties
+    ${AUDIT_FIELDS}
+    
+    # Investment relationship
+    investment {
+        id
+        name
+        code
+    }
+    
+    # Investment liquid fund type
+    investmentLiquidFundType {
+        ${CATALOG_ENTRY}
+    }
+    
+    # Interest payment frequency
+    interestPaymentFrequency {
+        ${CATALOG_ENTRY}
+    }
+    
+    # Investment reports
+    liquidFundInvestmentReport {
+        id
+        date
+        interestRate
+        maturityDate
+        proprietorName
+        bankName
+        bankAccountNumber
+        earlyTerminationAllowed
+        interestPaymentFrequencyRef
+        investmentLiquidFundTypeRef
+        additionalProperties
+        ${AUDIT_FIELDS}
+    }
+`

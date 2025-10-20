@@ -1,10 +1,7 @@
-import { useCallback } from 'react';
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import {
-  HierarchyQueryVariables,
-  OrganizationalUnitRelationshipResponse,
-} from '../types/hierarchyTypes';
+import { useCallback } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { HierarchyQueryVariables, OrganizationalUnitRelationshipResponse } from '../types/hierarchyTypes'
 
 export const GET_HIERARCHY_DATA = (variables: HierarchyQueryVariables): string => {
   return `
@@ -125,26 +122,29 @@ export const GET_HIERARCHY_DATA = (variables: HierarchyQueryVariables): string =
         }
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetHierarchyData = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchHierarchyData = useCallback(async (variables: HierarchyQueryVariables) => {
-    const query = GET_HIERARCHY_DATA(variables);
-    
-    try {
-      const result = await graphqlClient.request<OrganizationalUnitRelationshipResponse>(query, variables);
-      return result;
-    } catch (error) {
-      console.error('Error fetching hierarchy data:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchHierarchyData = useCallback(
+    async (variables: HierarchyQueryVariables) => {
+      const query = GET_HIERARCHY_DATA(variables)
 
-  return { fetchHierarchyData };
-};
+      try {
+        const result = await graphqlClient.request<OrganizationalUnitRelationshipResponse>(query, variables)
+        return result
+      } catch (error) {
+        console.error('Error fetching hierarchy data:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchHierarchyData }
+}
 
 // Additional query for getting basic structure info
 export const GET_STRUCTURE_INFO = (): string => {
@@ -159,32 +159,35 @@ export const GET_STRUCTURE_INFO = (): string => {
         structureType
       }
     }
-  `;
-};
+  `
+}
 
 export const useGetStructureInfo = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken);
+  const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchStructureInfo = useCallback(async (structureId: string) => {
-    const query = GET_STRUCTURE_INFO();
-    
-    try {
-      const result = await graphqlClient.request<{
-        Structure: Array<{
-          id: string;
-          name: string;
-          code: string | null;
-          description: string | null;
-          isActive: boolean;
-          structureType: string | null;
-        }>;
-      }>(query, { structureId });
-      return result;
-    } catch (error) {
-      console.error('Error fetching structure info:', error);
-      throw error;
-    }
-  }, [graphqlClient]);
+  const fetchStructureInfo = useCallback(
+    async (structureId: string) => {
+      const query = GET_STRUCTURE_INFO()
 
-  return { fetchStructureInfo };
-}; 
+      try {
+        const result = await graphqlClient.request<{
+          Structure: Array<{
+            id: string
+            name: string
+            code: string | null
+            description: string | null
+            isActive: boolean
+            structureType: string | null
+          }>
+        }>(query, { structureId })
+        return result
+      } catch (error) {
+        console.error('Error fetching structure info:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
+
+  return { fetchStructureInfo }
+}

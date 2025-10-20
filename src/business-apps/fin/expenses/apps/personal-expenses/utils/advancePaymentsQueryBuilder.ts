@@ -2,113 +2,111 @@
 // SOLID: keep query construction separate from static query strings
 
 export interface AdvancePaymentFilters {
-  statusFilter?: string[];
-  amountRange?: { min?: number; max?: number };
-  advanceRange?: { min?: number; max?: number };
-  currencyRef?: string;
+  statusFilter?: string[]
+  amountRange?: { min?: number; max?: number }
+  advanceRange?: { min?: number; max?: number }
+  currencyRef?: string
 }
 
 export interface FilterState {
-  hasStatusFilter: boolean;
-  hasAmountRange: boolean;
-  hasAdvanceRange: boolean;
-  hasCurrencyRef: boolean;
+  hasStatusFilter: boolean
+  hasAmountRange: boolean
+  hasAdvanceRange: boolean
+  hasCurrencyRef: boolean
 }
 
 export const validateFilters = (filters: AdvancePaymentFilters): FilterState => {
-  const hasStatusFilter = Boolean(filters.statusFilter && filters.statusFilter.length > 0);
+  const hasStatusFilter = Boolean(filters.statusFilter && filters.statusFilter.length > 0)
   const hasAmountRange = Boolean(
-    filters.amountRange &&
-    (filters.amountRange.min !== undefined || filters.amountRange.max !== undefined)
-  );
+    filters.amountRange && (filters.amountRange.min !== undefined || filters.amountRange.max !== undefined)
+  )
   const hasAdvanceRange = Boolean(
-    filters.advanceRange &&
-    (filters.advanceRange.min !== undefined || filters.advanceRange.max !== undefined)
-  );
-  const hasCurrencyRef = Boolean(filters.currencyRef && filters.currencyRef.length > 0);
+    filters.advanceRange && (filters.advanceRange.min !== undefined || filters.advanceRange.max !== undefined)
+  )
+  const hasCurrencyRef = Boolean(filters.currencyRef && filters.currencyRef.length > 0)
 
   return {
     hasStatusFilter,
     hasAmountRange,
     hasAdvanceRange,
     hasCurrencyRef
-  };
-};
+  }
+}
 
 const buildQueryParameters = (filterState: FilterState): string => {
-  const parameters: string[] = [];
+  const parameters: string[] = []
 
   if (filterState.hasStatusFilter) {
-    parameters.push('$statusFilter: [String!]');
+    parameters.push('$statusFilter: [String!]')
   }
 
   if (filterState.hasAmountRange) {
-    parameters.push('$amountMin: numeric, $amountMax: numeric');
+    parameters.push('$amountMin: numeric, $amountMax: numeric')
   }
 
   if (filterState.hasAdvanceRange) {
-    parameters.push('$advanceMin: numeric, $advanceMax: numeric');
+    parameters.push('$advanceMin: numeric, $advanceMax: numeric')
   }
 
   if (filterState.hasCurrencyRef) {
-    parameters.push('$currencyRef: String!');
+    parameters.push('$currencyRef: String!')
   }
 
   // Add orderBy parameter for dynamic sorting
-  parameters.push('$orderBy: [AdvancePaymentOrderBy!]');
+  parameters.push('$orderBy: [AdvancePaymentOrderBy!]')
 
-  return parameters.join(', ');
-};
+  return parameters.join(', ')
+}
 
 const buildExpensePlanConditions = (filterState: FilterState, filters: AdvancePaymentFilters): string => {
   if (filterState.hasAmountRange && filters.amountRange) {
-    const { min, max } = filters.amountRange;
-    const conditions: string[] = [];
+    const { min, max } = filters.amountRange
+    const conditions: string[] = []
 
     if (min !== undefined) {
-      conditions.push('_gte: $amountMin');
+      conditions.push('_gte: $amountMin')
     }
     if (max !== undefined) {
-      conditions.push('_lte: $amountMax');
+      conditions.push('_lte: $amountMax')
     }
 
     if (conditions.length > 0) {
-      return `totalAmount: { ${conditions.join(', ')} }`;
+      return `totalAmount: { ${conditions.join(', ')} }`
     }
   }
 
-  return '';
-};
+  return ''
+}
 
 const buildAdvancePaymentConditions = (filterState: FilterState, filters: AdvancePaymentFilters): string => {
   if (filterState.hasAdvanceRange && filters.advanceRange) {
-    const { min, max } = filters.advanceRange;
-    const conditions: string[] = [];
+    const { min, max } = filters.advanceRange
+    const conditions: string[] = []
 
     if (min !== undefined) {
-      conditions.push('_gte: $advanceMin');
+      conditions.push('_gte: $advanceMin')
     }
     if (max !== undefined) {
-      conditions.push('_lte: $advanceMax');
+      conditions.push('_lte: $advanceMax')
     }
 
     if (conditions.length > 0) {
-      return `amount: { ${conditions.join(', ')} }`;
+      return `amount: { ${conditions.join(', ')} }`
     }
   }
 
-  return '';
-};
+  return ''
+}
 
 export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): string => {
-  const filterState = validateFilters(filters);
-  const queryParameters = buildQueryParameters(filterState);
-  const expensePlanConditions = buildExpensePlanConditions(filterState, filters);
-  const advancePaymentConditions = buildAdvancePaymentConditions(filterState, filters);
+  const filterState = validateFilters(filters)
+  const queryParameters = buildQueryParameters(filterState)
+  const expensePlanConditions = buildExpensePlanConditions(filterState, filters)
+  const advancePaymentConditions = buildAdvancePaymentConditions(filterState, filters)
 
-  const parameterString = queryParameters ? `, ${queryParameters}` : '';
-  const expensePlanConditionString = expensePlanConditions ? `, ${expensePlanConditions}` : '';
-  const advancePaymentConditionString = advancePaymentConditions ? `, ${advancePaymentConditions}` : '';
+  const parameterString = queryParameters ? `, ${queryParameters}` : ''
+  const expensePlanConditionString = expensePlanConditions ? `, ${expensePlanConditions}` : ''
+  const advancePaymentConditionString = advancePaymentConditions ? `, ${advancePaymentConditions}` : ''
 
   return `
     query GetAdvancePaymentsByEmployee(
@@ -247,7 +245,5 @@ export const buildAdvancePaymentsQuery = (filters: AdvancePaymentFilters): strin
         expensePlanId
       }
     }
-  `;
-};
-
-
+  `
+}

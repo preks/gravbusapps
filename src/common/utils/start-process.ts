@@ -1,14 +1,18 @@
-import { getCurrentActiveStructureId as  WindowUtilsGetCurrentActiveStructureId, getPlatformContext as WindowUtilsGetPlatformContext } from "./windowUtils";
+import {
+  getCurrentActiveStructureId as WindowUtilsGetCurrentActiveStructureId,
+  getPlatformContext as WindowUtilsGetPlatformContext
+} from './windowUtils'
 export interface ProcessStartInfo {
-  domain: string;
-  processName: string;
-  payload?: { [key: string]: any };
-  processInstanceId?: string;
-  builderType?: "NATIVE_SCREEN" | "LOWCODER";
+  domain: string
+  processName: string
+  payload?: { [key: string]: any }
+  processInstanceId?: string
+  builderType?: 'NATIVE_SCREEN' | 'LOWCODER'
+  skipScreen?: boolean
 }
 
 export function getCurrentActiveStructureId() {
-  return WindowUtilsGetCurrentActiveStructureId();
+  return WindowUtilsGetCurrentActiveStructureId()
 }
 
 /**
@@ -24,7 +28,7 @@ export function getCurrentActiveStructureId() {
  * @returns {uuid} context.locationId - The locationId of the manager.
  */
 export function getPlatformContext() {
-  return WindowUtilsGetPlatformContext();
+  return WindowUtilsGetPlatformContext()
 }
 
 export function startProcess({
@@ -32,17 +36,19 @@ export function startProcess({
   processName,
   payload,
   processInstanceId,
-  builderType = "LOWCODER",
+  builderType = 'LOWCODER',
+  skipScreen = false
 }: ProcessStartInfo) {
   window.dispatchEvent(
-    new CustomEvent("com.newwork.process.start", {
+    new CustomEvent('com.newwork.process.start', {
       detail: {
         domain,
         processName,
         startProcessBody: { ...getPlatformContext(), ...payload },
         processInstanceId,
         builderType,
-      },
+        skipScreen
+      }
     })
-  );
+  )
 }

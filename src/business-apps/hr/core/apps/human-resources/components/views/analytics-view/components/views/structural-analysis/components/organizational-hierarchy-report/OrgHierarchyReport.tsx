@@ -1,53 +1,45 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useHierarchyDataIntegration } from './hooks/useHierarchyData';
-import RadialBarChart from './components/RadialBarChart';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useHierarchyDataIntegration } from './hooks/useHierarchyData'
+import RadialBarChart from './components/RadialBarChart'
 
 export interface OrganizationalHierarchyReportProps extends BusinessAppContextProps {
   // Add any additional props if needed
 }
 
-const OrganizationalHierarchyReport: React.FC<OrganizationalHierarchyReportProps> = (context) => {
-  const {
-    sunburstData,
-    statistics,
-    tableData,
-    isLoading,
-    error,
-    viewMode,
-    setViewMode,
-    refetch
-  } = useHierarchyDataIntegration(context);
+const OrganizationalHierarchyReport: React.FC<OrganizationalHierarchyReportProps> = context => {
+  const { sunburstData, statistics, tableData, isLoading, error, viewMode, setViewMode, refetch } =
+    useHierarchyDataIntegration(context)
 
-  const prefixDataTestId = 'OrganizationalHierarchyReport';
+  const prefixDataTestId = 'OrganizationalHierarchyReport'
 
   if (isLoading) {
     return (
-      <div 
+      <div
         data-testid={`${prefixDataTestId}-Loading`}
-        style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          minHeight: '400px' 
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '400px'
         }}
       >
         <div style={{ textAlign: 'center' }}>
           <h3>Loading hierarchy data...</h3>
         </div>
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div 
+      <div
         data-testid={`${prefixDataTestId}-Error`}
-        style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          minHeight: '400px' 
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '400px'
         }}
       >
         <div style={{ textAlign: 'center', color: 'red' }}>
@@ -55,7 +47,7 @@ const OrganizationalHierarchyReport: React.FC<OrganizationalHierarchyReportProps
           <p>{error}</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -71,7 +63,7 @@ const OrganizationalHierarchyReport: React.FC<OrganizationalHierarchyReportProps
         onViewModeChange={setViewMode}
       />
     </div>
-  );
-};
+  )
+}
 
-export default OrganizationalHierarchyReport; 
+export default OrganizationalHierarchyReport

@@ -1,2 +1,0 @@
-export { useAccountView } from './useAccountView';
-

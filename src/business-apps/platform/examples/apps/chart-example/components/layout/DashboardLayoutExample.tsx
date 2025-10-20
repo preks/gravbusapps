@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -10,99 +10,111 @@ import {
   ChartConfig,
   ChartTooltip,
   ChartTooltipContent,
-  SectionKpiCards,
-} from "@newwork/nw-design-system";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, BarChart, Bar, RadialBarChart, RadialBar } from "recharts";
-import { TrendUpIcon, ChartPieSliceIcon, ChartBarIcon, CircleHalfIcon } from "@phosphor-icons/react";
+  SectionKpiCards
+} from '@newwork/nw-design-system'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, PieChart, Pie, RadialBarChart, RadialBar } from 'recharts'
+import { TrendUpIcon, ChartPieSliceIcon, ChartBarIcon, CircleHalfIcon } from '@phosphor-icons/react'
 
 interface DashboardLayoutExampleProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 // Various data sets for dashboard
 const revenueData = [
-  { month: "Jan", revenue: 4000 },
-  { month: "Feb", revenue: 3000 },
-  { month: "Mar", revenue: 5000 },
-  { month: "Apr", revenue: 4500 },
-  { month: "May", revenue: 6000 },
-  { month: "Jun", revenue: 5500 },
-];
+  { month: 'Jan', revenue: 4000 },
+  { month: 'Feb', revenue: 3000 },
+  { month: 'Mar', revenue: 5000 },
+  { month: 'Apr', revenue: 4500 },
+  { month: 'May', revenue: 6000 },
+  { month: 'Jun', revenue: 5500 }
+]
 
 const categoryData = [
-  { category: "Products", value: 400, fill: "var(--color-products)" },
-  { category: "Services", value: 300, fill: "var(--color-services)" },
-  { category: "Support", value: 200, fill: "var(--color-support)" },
-];
+  { category: 'Products', value: 400, fill: 'var(--color-products)' },
+  { category: 'Services', value: 300, fill: 'var(--color-services)' },
+  { category: 'Support', value: 200, fill: 'var(--color-support)' }
+]
 
 const performanceData = [
-  { metric: "Sales", current: 85, target: 100, fill: "var(--color-sales)" },
-  { metric: "Marketing", current: 92, target: 100, fill: "var(--color-marketing)" },
-  { metric: "Support", current: 78, target: 100, fill: "var(--color-support)" },
-];
+  { metric: 'Sales', current: 85, target: 100, fill: 'var(--color-sales)' },
+  { metric: 'Marketing', current: 92, target: 100, fill: 'var(--color-marketing)' },
+  { metric: 'Support', current: 78, target: 100, fill: 'var(--color-support)' }
+]
 
 const DashboardLayoutExample: React.FC<DashboardLayoutExampleProps> = ({ moduleColor }) => {
   // KPI data for SectionKpiCards
-  const kpiData = useMemo(() => [
-    {
-      id: "revenue",
-      title: "Total Revenue",
-      value: "$45,231.89",
-      prefix: <TrendUpIcon />,
-      color: "#1890ff",
-      description: "+20.1% from last month",
-    },
-    {
-      id: "customers",
-      title: "New Customers", 
-      value: "+2,350",
-      prefix: <ChartBarIcon />,
-      color: "#52c41a",
-      description: "+180.1% from last month",
-    },
-    {
-      id: "projects",
-      title: "Active Projects",
-      value: "12,234",
-      prefix: <ChartPieSliceIcon />,
-      color: "#faad14",
-      description: "+19% from last month",
-    },
-    {
-      id: "completion",
-      title: "Completion Rate",
-      value: "85%",
-      prefix: <CircleHalfIcon />,
-      color: "#722ed1",
-      description: "+3% from last month",
-    },
-  ], []);
+  const kpiData = useMemo(
+    () => [
+      {
+        id: 'revenue',
+        title: 'Total Revenue',
+        value: '$45,231.89',
+        prefix: <TrendUpIcon />,
+        color: '#1890ff',
+        description: '+20.1% from last month'
+      },
+      {
+        id: 'customers',
+        title: 'New Customers',
+        value: '+2,350',
+        prefix: <ChartBarIcon />,
+        color: '#52c41a',
+        description: '+180.1% from last month'
+      },
+      {
+        id: 'projects',
+        title: 'Active Projects',
+        value: '12,234',
+        prefix: <ChartPieSliceIcon />,
+        color: '#faad14',
+        description: '+19% from last month'
+      },
+      {
+        id: 'completion',
+        title: 'Completion Rate',
+        value: '85%',
+        prefix: <CircleHalfIcon />,
+        color: '#722ed1',
+        description: '+3% from last month'
+      }
+    ],
+    []
+  )
 
-  const revenueConfig = useMemo(() => ({
-    revenue: { label: "Revenue" },
-  }) satisfies ChartConfig, []);
+  const revenueConfig = useMemo(
+    () =>
+      ({
+        revenue: { label: 'Revenue' }
+      }) satisfies ChartConfig,
+    []
+  )
 
-  const categoryConfig = useMemo(() => ({
-    products: { label: "Products" },
-    services: { label: "Services" },
-    support: { label: "Support" },
-  }) satisfies ChartConfig, []);
+  const categoryConfig = useMemo(
+    () =>
+      ({
+        products: { label: 'Products' },
+        services: { label: 'Services' },
+        support: { label: 'Support' }
+      }) satisfies ChartConfig,
+    []
+  )
 
-  const performanceConfig = useMemo(() => ({
-    current: { label: "Current" },
-    sales: { label: "Sales" },
-    marketing: { label: "Marketing" },
-    support: { label: "Support" },
-  }) satisfies ChartConfig, []);
+  const performanceConfig = useMemo(
+    () =>
+      ({
+        current: { label: 'Current' },
+        sales: { label: 'Sales' },
+        marketing: { label: 'Marketing' },
+        support: { label: 'Support' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <div data-testid="dashboard-layout-example">
       {/* Top Row - KPI Cards */}
       <div className="gba:mb-6">
-        <SectionKpiCards 
-          cards={kpiData}
-          data-testid="dashboard-kpi-cards"
-        />
+        <SectionKpiCards cards={kpiData} data-testid="dashboard-kpi-cards" />
       </div>
 
       {/* Main Content Row */}
@@ -120,21 +132,10 @@ const DashboardLayoutExample: React.FC<DashboardLayoutExampleProps> = ({ moduleC
             <ChartContainer config={revenueConfig} className="gba:w-full gba:aspect-auto gba:h-[300px]">
               <LineChart data={revenueData} margin={{ left: 12, right: 12 }}>
                 <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
+                <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
                 <YAxis tickLine={false} axisLine={false} tickMargin={8} />
                 <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Line
-                  dataKey="revenue"
-                  type="monotone"
-                  stroke="var(--color-revenue)"
-                  strokeWidth={3}
-                  dot={false}
-                />
+                <Line dataKey="revenue" type="monotone" stroke="var(--color-revenue)" strokeWidth={3} dot={false} />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -150,21 +151,10 @@ const DashboardLayoutExample: React.FC<DashboardLayoutExampleProps> = ({ moduleC
             </div>
           </CardHeader>
           <CardContent className="gba:flex-1 gba:pb-0">
-            <ChartContainer
-              config={categoryConfig}
-              className="gba:mx-auto gba:aspect-square gba:max-h-[250px]"
-            >
+            <ChartContainer config={categoryConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[250px]">
               <PieChart>
-                <ChartTooltip
-                  cursor={false}
-                  content={<ChartTooltipContent hideLabel nameKey="category" />}
-                />
-                <Pie
-                  data={categoryData}
-                  dataKey="value"
-                  nameKey="category"
-                  innerRadius={60}
-                />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="category" />} />
+                <Pie data={categoryData} dataKey="value" nameKey="category" innerRadius={60} />
               </PieChart>
             </ChartContainer>
           </CardContent>
@@ -183,15 +173,9 @@ const DashboardLayoutExample: React.FC<DashboardLayoutExampleProps> = ({ moduleC
               </div>
             </CardHeader>
             <CardContent className="gba:flex-1 gba:pb-0">
-              <ChartContainer
-                config={performanceConfig}
-                className="gba:mx-auto gba:aspect-square gba:max-h-[150px]"
-              >
+              <ChartContainer config={performanceConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[150px]">
                 <RadialBarChart data={[item]} innerRadius={30} outerRadius={80}>
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel nameKey="metric" />}
-                  />
+                  <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="metric" />} />
                   <RadialBar dataKey="current" cornerRadius={10} />
                 </RadialBarChart>
               </ChartContainer>
@@ -200,7 +184,7 @@ const DashboardLayoutExample: React.FC<DashboardLayoutExampleProps> = ({ moduleC
         ))}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default DashboardLayoutExample;
+export default DashboardLayoutExample

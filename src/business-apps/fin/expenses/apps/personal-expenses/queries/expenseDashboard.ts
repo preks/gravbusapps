@@ -250,7 +250,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
           { currencyRef: {_eq: $currency} },
           { _or: [
               { _and: [
-                  { requestDate: { _gte: $previousQuarterStart, _lt: $previousQuarterEnd } },
+                  { expenseItem: { expenseDate: { _gte: $previousQuarterStart, _lt: $previousQuarterEnd } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [
@@ -279,7 +279,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
           { currencyRef: {_eq: $currency} },
           { _or: [
               { _and: [
-                  { requestDate: { _gte: $currentYearStart, _lt: $currentYearEnd } },
+                  { expenseItem: { expenseDate: { _gte: $currentYearStart, _lt: $currentYearEnd } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [
@@ -308,7 +308,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
           { currencyRef: {_eq: $currency} },
           { _or: [
               { _and: [
-                  { requestDate: { _gte: $currentYearStart, _lt: $currentYearEnd } },
+                  { expenseItem: { expenseDate: { _gte: $currentYearStart, _lt: $currentYearEnd } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [
@@ -335,7 +335,7 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
           { currencyRef: {_eq: $currency} },
           { _or: [
               { _and: [
-                  { requestDate: { _gte: $previousYearStart, _lte: $previousYearEnd } },
+                  { expenseItem: { expenseDate: { _gte: $previousYearStart, _lte: $previousYearEnd } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} } 
                 ] },
               { _and: [
@@ -488,4 +488,4 @@ export const GET_EXPENSE_DASHBOARD_BY_EMPLOYEE = `
     }
 
   }
-`;
+`

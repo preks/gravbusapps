@@ -1,0 +1,77 @@
+import type { Control } from 'react-hook-form'
+
+export interface CatalogTranslation {
+  value?: string
+}
+
+export interface CatalogEntry {
+  id: string | number
+  value?: string
+  translations?: CatalogTranslation[]
+}
+
+export interface EmployeeByPk {
+  id?: string
+  userId?: string
+  version?: number
+  salutationRef?: string | null
+  title?: string
+  firstName?: string
+  lastName?: string
+  preferredName?: string
+  displayName?: string
+  birthName?: string
+  birthDate?: string | null
+  birthPlace?: string
+  genderRef?: string | null
+  nationalityRef?: string | null
+  languageRef?: string | null
+  maritalStatusRef?: string | null
+  severelyDisabilityDegree?: string | number | null
+  schoolQualificationRef?: string | null
+  academicTitleRef?: string[] | string | null
+  notes?: string
+  employeeId?: string
+}
+
+export interface EmployeeDataResponse {
+  EmployeeByPk?: EmployeeByPk
+}
+
+export interface CatalogsDataResponse {
+  salutation?: CatalogEntry[]
+  gender?: CatalogEntry[]
+  nationality?: CatalogEntry[]
+  language?: CatalogEntry[]
+  maritalStatus?: CatalogEntry[]
+  schoolQualification?: CatalogEntry[]
+  academicTitle?: CatalogEntry[]
+}
+
+export interface ChangePersonalDataContextData {
+  employee: EmployeeDataResponse | null
+  catalogs: CatalogsDataResponse | null
+}
+
+export type PersonalDataFormValues = {
+  salutationRef: string | null
+  title: string
+  firstName: string
+  lastName: string
+  displayName: string
+  preferredName: string
+  birthName: string
+  birthDate: string
+  birthPlace?: string
+  genderRef?: string | null
+  nationalityRef?: string | null
+  languageRef?: string | null
+  maritalStatusRef?: string | null
+  severelyDisabilityDegree?: string | number
+  schoolQualificationRef?: string | null
+  academicTitleRefs?: string[]
+  comment?: string
+  employeeDocumentId?: string
+}
+
+export interface TypedControl extends Control<PersonalDataFormValues> {}

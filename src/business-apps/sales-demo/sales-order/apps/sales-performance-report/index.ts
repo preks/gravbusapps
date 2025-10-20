@@ -1,4 +1,4 @@
-import SalesPerformanceReport from './SalesPerformanceReport';
+import SalesPerformanceReport from './SalesPerformanceReport'
 
-export { SalesPerformanceReport };
-export default SalesPerformanceReport;
+export { SalesPerformanceReport }
+export default SalesPerformanceReport

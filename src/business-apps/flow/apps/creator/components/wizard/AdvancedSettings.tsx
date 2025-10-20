@@ -1,71 +1,57 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system';
-import { 
-  Form, 
-  Input, 
-  Select, 
-  Switch, 
-  InputNumber, 
-  TimePicker, 
-  Divider, 
-  Space, 
-  Typography,
-  Alert,
-  Tooltip
-} from 'antd';
-import { InfoCircleOutlined } from '@ant-design/icons';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
-import { useWizardStore } from '../../hooks/useWizardStore';
-import dayjs from 'dayjs';
+import React, { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
+import { Form, Input, Select, Switch, InputNumber, TimePicker, Divider, Space, Typography, Alert, Tooltip } from 'antd'
+import { InfoCircleOutlined } from '@ant-design/icons'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useWizardStore } from '../../hooks/useWizardStore'
+import dayjs from 'dayjs'
 
-const { Title, Text } = Typography;
-const { Option } = Select;
+const { Title, Text } = Typography
+const { Option } = Select
 
 interface AdvancedSettingsProps {
-  'data-testid'?: string;
+  'data-testid'?: string
 }
 
 interface AdvancedConfiguration {
   reminder?: {
-    enabled: boolean;
-    beforeDeadline: number;
-    beforeDeadlineUnit: 'minutes' | 'hours' | 'days';
-    message?: string;
-  };
+    enabled: boolean
+    beforeDeadline: number
+    beforeDeadlineUnit: 'minutes' | 'hours' | 'days'
+    message?: string
+  }
   escalation?: {
-    enabled: boolean;
-    afterDeadline: number;
-    afterDeadlineUnit: 'minutes' | 'hours' | 'days';
-    escalateTo: 'manager' | 'admin' | 'custom';
-    customEscalationTargets?: string[];
-    message?: string;
-  };
+    enabled: boolean
+    afterDeadline: number
+    afterDeadlineUnit: 'minutes' | 'hours' | 'days'
+    escalateTo: 'manager' | 'admin' | 'custom'
+    customEscalationTargets?: string[]
+    message?: string
+  }
   timing?: {
-    defaultDeadline: number;
-    defaultDeadlineUnit: 'minutes' | 'hours' | 'days';
-    businessHoursOnly: boolean;
+    defaultDeadline: number
+    defaultDeadlineUnit: 'minutes' | 'hours' | 'days'
+    businessHoursOnly: boolean
     workingHours?: {
-      start: string;
-      end: string;
-    };
-    excludeWeekends: boolean;
-  };
+      start: string
+      end: string
+    }
+    excludeWeekends: boolean
+  }
   notifications?: {
-    emailEnabled: boolean;
-    smsEnabled: boolean;
-    pushEnabled: boolean;
-    digestEnabled: boolean;
-  };
+    emailEnabled: boolean
+    smsEnabled: boolean
+    pushEnabled: boolean
+    digestEnabled: boolean
+  }
 }
 
 /**
  * Advanced settings component for configuring timing, escalation, and other advanced workflow options
  */
-export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
-  'data-testid': testId = 'advanced-settings'
-}) => {
-  const { configuration, updateConfiguration } = useWizardStore();
-  const [form] = Form.useForm();
+export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({ 'data-testid': testId = 'advanced-settings' }) => {
+  const { configuration, updateConfiguration } = useWizardStore()
+  const [form] = Form.useForm()
   const [advancedConfig, setAdvancedConfig] = useState<AdvancedConfiguration>(() => ({
     reminder: {
       enabled: false,
@@ -96,20 +82,20 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
       pushEnabled: true,
       digestEnabled: false
     }
-  }));
+  }))
 
   // Load existing configuration
   useEffect(() => {
     if (configuration.advanced) {
-      setAdvancedConfig(prev => ({ ...prev, ...configuration.advanced }));
-      form.setFieldsValue(configuration.advanced);
+      setAdvancedConfig(prev => ({ ...prev, ...configuration.advanced }))
+      form.setFieldsValue(configuration.advanced)
     }
-  }, [configuration.advanced, form]);
+  }, [configuration.advanced, form])
 
   // Update configuration when advanced config changes
   useEffect(() => {
-    updateConfiguration('advanced', advancedConfig);
-  }, [advancedConfig, updateConfiguration]);
+    updateConfiguration('advanced', advancedConfig)
+  }, [advancedConfig, updateConfiguration])
 
   const handleConfigChange = (section: keyof AdvancedConfiguration, updates: any) => {
     setAdvancedConfig(prev => ({
@@ -118,20 +104,20 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
         ...prev[section],
         ...updates
       }
-    }));
-  };
+    }))
+  }
 
   const timeUnitOptions = [
     { value: 'minutes', label: 'Minutes' },
     { value: 'hours', label: 'Hours' },
     { value: 'days', label: 'Days' }
-  ];
+  ]
 
   const escalationOptions = [
     { value: 'manager', label: 'Direct Manager' },
     { value: 'admin', label: 'System Administrator' },
     { value: 'custom', label: 'Custom Recipients' }
-  ];
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid={testId}>
@@ -141,7 +127,10 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
           {getTranslationFromI18nKeyAndLabel('flow.wizard.advancedSettings', 'Advanced Settings')}
         </Title>
         <Text className="gba:text-gray-600">
-          {getTranslationFromI18nKeyAndLabel('flow.wizard.advancedSettingsDescription', 'Configure timing, escalation, and notification settings for your workflow')}
+          {getTranslationFromI18nKeyAndLabel(
+            'flow.wizard.advancedSettingsDescription',
+            'Configure timing, escalation, and notification settings for your workflow'
+          )}
         </Text>
       </div>
 
@@ -162,14 +151,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 <Input.Group compact>
                   <InputNumber
                     value={advancedConfig.timing?.defaultDeadline}
-                    onChange={(value) => handleConfigChange('timing', { defaultDeadline: value })}
+                    onChange={value => handleConfigChange('timing', { defaultDeadline: value })}
                     min={1}
                     max={365}
                     style={{ width: '60%' }}
                   />
                   <Select
                     value={advancedConfig.timing?.defaultDeadlineUnit}
-                    onChange={(value) => handleConfigChange('timing', { defaultDeadlineUnit: value })}
+                    onChange={value => handleConfigChange('timing', { defaultDeadlineUnit: value })}
                     style={{ width: '40%' }}
                   >
                     {timeUnitOptions.map(option => (
@@ -184,7 +173,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               <Form.Item label="Business Hours Only">
                 <Switch
                   checked={advancedConfig.timing?.businessHoursOnly}
-                  onChange={(checked) => handleConfigChange('timing', { businessHoursOnly: checked })}
+                  onChange={checked => handleConfigChange('timing', { businessHoursOnly: checked })}
                 />
               </Form.Item>
 
@@ -192,13 +181,19 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 <>
                   <Form.Item label="Working Hours Start">
                     <TimePicker
-                      value={advancedConfig.timing?.workingHours?.start ? dayjs(advancedConfig.timing.workingHours.start, 'HH:mm') : undefined}
-                      onChange={(time) => handleConfigChange('timing', { 
-                        workingHours: { 
-                          ...advancedConfig.timing?.workingHours, 
-                          start: time?.format('HH:mm') || '09:00' 
-                        } 
-                      })}
+                      value={
+                        advancedConfig.timing?.workingHours?.start
+                          ? dayjs(advancedConfig.timing.workingHours.start, 'HH:mm')
+                          : undefined
+                      }
+                      onChange={time =>
+                        handleConfigChange('timing', {
+                          workingHours: {
+                            ...advancedConfig.timing?.workingHours,
+                            start: time?.format('HH:mm') || '09:00'
+                          }
+                        })
+                      }
                       format="HH:mm"
                       style={{ width: '100%' }}
                     />
@@ -206,13 +201,19 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
 
                   <Form.Item label="Working Hours End">
                     <TimePicker
-                      value={advancedConfig.timing?.workingHours?.end ? dayjs(advancedConfig.timing.workingHours.end, 'HH:mm') : undefined}
-                      onChange={(time) => handleConfigChange('timing', { 
-                        workingHours: { 
-                          ...advancedConfig.timing?.workingHours, 
-                          end: time?.format('HH:mm') || '17:00' 
-                        } 
-                      })}
+                      value={
+                        advancedConfig.timing?.workingHours?.end
+                          ? dayjs(advancedConfig.timing.workingHours.end, 'HH:mm')
+                          : undefined
+                      }
+                      onChange={time =>
+                        handleConfigChange('timing', {
+                          workingHours: {
+                            ...advancedConfig.timing?.workingHours,
+                            end: time?.format('HH:mm') || '17:00'
+                          }
+                        })
+                      }
                       format="HH:mm"
                       style={{ width: '100%' }}
                     />
@@ -223,7 +224,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               <Form.Item label="Exclude Weekends">
                 <Switch
                   checked={advancedConfig.timing?.excludeWeekends}
-                  onChange={(checked) => handleConfigChange('timing', { excludeWeekends: checked })}
+                  onChange={checked => handleConfigChange('timing', { excludeWeekends: checked })}
                 />
               </Form.Item>
             </div>
@@ -244,7 +245,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             <Form.Item label="Enable Reminders">
               <Switch
                 checked={advancedConfig.reminder?.enabled}
-                onChange={(checked) => handleConfigChange('reminder', { enabled: checked })}
+                onChange={checked => handleConfigChange('reminder', { enabled: checked })}
               />
             </Form.Item>
 
@@ -254,14 +255,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                   <Input.Group compact>
                     <InputNumber
                       value={advancedConfig.reminder?.beforeDeadline}
-                      onChange={(value) => handleConfigChange('reminder', { beforeDeadline: value })}
+                      onChange={value => handleConfigChange('reminder', { beforeDeadline: value })}
                       min={1}
                       max={365}
                       style={{ width: '60%' }}
                     />
                     <Select
                       value={advancedConfig.reminder?.beforeDeadlineUnit}
-                      onChange={(value) => handleConfigChange('reminder', { beforeDeadlineUnit: value })}
+                      onChange={value => handleConfigChange('reminder', { beforeDeadlineUnit: value })}
                       style={{ width: '40%' }}
                     >
                       {timeUnitOptions.map(option => (
@@ -276,7 +277,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 <Form.Item label="Custom Reminder Message">
                   <Input.TextArea
                     value={advancedConfig.reminder?.message}
-                    onChange={(e) => handleConfigChange('reminder', { message: e.target.value })}
+                    onChange={e => handleConfigChange('reminder', { message: e.target.value })}
                     placeholder="Optional custom message for reminders"
                     rows={2}
                   />
@@ -300,7 +301,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
             <Form.Item label="Enable Escalation">
               <Switch
                 checked={advancedConfig.escalation?.enabled}
-                onChange={(checked) => handleConfigChange('escalation', { enabled: checked })}
+                onChange={checked => handleConfigChange('escalation', { enabled: checked })}
               />
             </Form.Item>
 
@@ -310,14 +311,14 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                   <Input.Group compact>
                     <InputNumber
                       value={advancedConfig.escalation?.afterDeadline}
-                      onChange={(value) => handleConfigChange('escalation', { afterDeadline: value })}
+                      onChange={value => handleConfigChange('escalation', { afterDeadline: value })}
                       min={1}
                       max={365}
                       style={{ width: '60%' }}
                     />
                     <Select
                       value={advancedConfig.escalation?.afterDeadlineUnit}
-                      onChange={(value) => handleConfigChange('escalation', { afterDeadlineUnit: value })}
+                      onChange={value => handleConfigChange('escalation', { afterDeadlineUnit: value })}
                       style={{ width: '40%' }}
                     >
                       {timeUnitOptions.map(option => (
@@ -332,7 +333,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 <Form.Item label="Escalate To">
                   <Select
                     value={advancedConfig.escalation?.escalateTo}
-                    onChange={(value) => handleConfigChange('escalation', { escalateTo: value })}
+                    onChange={value => handleConfigChange('escalation', { escalateTo: value })}
                     style={{ width: '100%' }}
                   >
                     {escalationOptions.map(option => (
@@ -346,7 +347,7 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
                 <Form.Item label="Custom Escalation Message">
                   <Input.TextArea
                     value={advancedConfig.escalation?.message}
-                    onChange={(e) => handleConfigChange('escalation', { message: e.target.value })}
+                    onChange={e => handleConfigChange('escalation', { message: e.target.value })}
                     placeholder="Optional custom message for escalations"
                     rows={2}
                   />
@@ -371,28 +372,28 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
               <Form.Item label="Email Notifications">
                 <Switch
                   checked={advancedConfig.notifications?.emailEnabled}
-                  onChange={(checked) => handleConfigChange('notifications', { emailEnabled: checked })}
+                  onChange={checked => handleConfigChange('notifications', { emailEnabled: checked })}
                 />
               </Form.Item>
 
               <Form.Item label="SMS Notifications">
                 <Switch
                   checked={advancedConfig.notifications?.smsEnabled}
-                  onChange={(checked) => handleConfigChange('notifications', { smsEnabled: checked })}
+                  onChange={checked => handleConfigChange('notifications', { smsEnabled: checked })}
                 />
               </Form.Item>
 
               <Form.Item label="Push Notifications">
                 <Switch
                   checked={advancedConfig.notifications?.pushEnabled}
-                  onChange={(checked) => handleConfigChange('notifications', { pushEnabled: checked })}
+                  onChange={checked => handleConfigChange('notifications', { pushEnabled: checked })}
                 />
               </Form.Item>
 
               <Form.Item label="Daily Digest">
                 <Switch
                   checked={advancedConfig.notifications?.digestEnabled}
-                  onChange={(checked) => handleConfigChange('notifications', { digestEnabled: checked })}
+                  onChange={checked => handleConfigChange('notifications', { digestEnabled: checked })}
                 />
               </Form.Item>
             </div>
@@ -409,5 +410,5 @@ export const AdvancedSettings: React.FC<AdvancedSettingsProps> = ({
         data-testid={`${testId}-info-alert`}
       />
     </div>
-  );
-}; 
+  )
+}

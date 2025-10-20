@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
@@ -9,26 +9,30 @@ import {
   ChartContainer,
   ChartConfig,
   ChartTooltip,
-  ChartTooltipContent,
-} from "@newwork/nw-design-system";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
-import { TrendUpIcon } from "@phosphor-icons/react";
-import areaChartData from "../../data/areaChartData.json";
+  ChartTooltipContent
+} from '@newwork/nw-design-system'
+import { AreaChart, Area, XAxis, CartesianGrid } from 'recharts'
+import { TrendUpIcon } from '@phosphor-icons/react'
+import areaChartData from '../../data/areaChartData.json'
 
 interface LinearAreaChartProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 const LinearAreaChart: React.FC<LinearAreaChartProps> = ({ moduleColor }) => {
-  const chartData = areaChartData.linear;
+  const chartData = areaChartData.linear
 
-  const chartConfig = useMemo(() => ({
-    // Data dimensions - used for area sizing only
-    visitors: { label: "Visitors", color: "none" },
-    // Visual categories - used for legend/colors
-    desktop: { label: "Desktop" },
-    mobile: { label: "Mobile" },
-  }) satisfies ChartConfig, []);
+  const chartConfig = useMemo(
+    () =>
+      ({
+        // Data dimensions - used for area sizing only
+        visitors: { label: 'Visitors', color: 'none' },
+        // Visual categories - used for legend/colors
+        desktop: { label: 'Desktop' },
+        mobile: { label: 'Mobile' }
+      }) satisfies ChartConfig,
+    []
+  )
 
   return (
     <Card data-testid="linear-area-chart">
@@ -45,7 +49,7 @@ const LinearAreaChart: React.FC<LinearAreaChartProps> = ({ moduleColor }) => {
             data={chartData}
             margin={{
               left: 12,
-              right: 12,
+              right: 12
             }}
           >
             <CartesianGrid vertical={false} />
@@ -54,33 +58,17 @@ const LinearAreaChart: React.FC<LinearAreaChartProps> = ({ moduleColor }) => {
               tickLine={false}
               axisLine={false}
               tickMargin={8}
-              tickFormatter={(value) => typeof value === 'string' ? value.slice(0, 3) : value}
+              tickFormatter={value => (typeof value === 'string' ? value.slice(0, 3) : value)}
             />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <defs>
               <linearGradient id="fillDesktop" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-desktop)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-desktop)"
-                  stopOpacity={0.1}
-                />
+                <stop offset="5%" stopColor="var(--color-desktop)" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="var(--color-desktop)" stopOpacity={0.1} />
               </linearGradient>
               <linearGradient id="fillMobile" x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor="var(--color-mobile)"
-                  stopOpacity={0.8}
-                />
-                <stop
-                  offset="95%"
-                  stopColor="var(--color-mobile)"
-                  stopOpacity={0.1}
-                />
+                <stop offset="5%" stopColor="var(--color-mobile)" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="var(--color-mobile)" stopOpacity={0.1} />
               </linearGradient>
             </defs>
             <Area
@@ -103,7 +91,7 @@ const LinearAreaChart: React.FC<LinearAreaChartProps> = ({ moduleColor }) => {
         </ChartContainer>
       </CardContent>
     </Card>
-  );
-};
+  )
+}
 
-export default LinearAreaChart;
+export default LinearAreaChart

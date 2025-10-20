@@ -1,2 +1,0 @@
-export { PerformanceTrendsChart, type TimeFilter } from './PerformanceTrendsChart';
-export { usePerformanceTrendsData, type PerformanceTrendsDataPoint, type UsePerformanceTrendsDataResult } from './hooks/usePerformanceTrendsData'; 

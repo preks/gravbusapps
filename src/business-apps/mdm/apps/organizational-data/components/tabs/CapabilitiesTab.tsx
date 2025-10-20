@@ -1,683 +1,442 @@
-import React, { useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
+import React, { useState, useMemo, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCapabilities } from '../../hooks/useCapabilities'
 import {
-  Table,
-  Button,
-  Input,
-  Space,
-  message,
-  Modal,
-  Select,
-  Tag,
-  Spin,
-  Alert,
-  Descriptions,
   Card,
-  Divider,
-  Typography,
-} from "antd";
+  CardContent,
+  DataTable,
+  Button,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Icon,
+  Input,
+  Spinner
+} from '@newwork/nw-design-system'
+import CardTabHeaderComponent from '../../../generic-components/card'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  SearchOutlined,
-  TrophyOutlined,
-  InfoCircleOutlined,
-  ApartmentOutlined,
-  OrderedListOutlined,
-  GroupOutlined,
-  TagOutlined,
-  BulbOutlined,
-  BookOutlined,
-  FlagOutlined,
-  UserOutlined,
-  RiseOutlined,
-  AuditOutlined,
-  LineChartOutlined,
-} from "@ant-design/icons";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCapabilities } from "../../hooks/useCapabilities";
-import { DataDetailsDrawer } from "@/components/data-details/DataDetailsDrawer";
-import { startProcess } from "@/common/utils/start-process";
-
-const { Title, Text } = Typography;
-const { Option } = Select;
+  ArrowsDownUpIcon,
+  FileCodeIcon,
+  InfoIcon,
+  PencilSimpleLineIcon,
+  EyeIcon,
+  XCircleIcon,
+  PlusIcon,
+  UserIcon,
+  TrendUpIcon,
+  FilesIcon,
+  ChartLineIcon
+} from '@phosphor-icons/react'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
+import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
+import CapabilityForm from '@/business-apps/mdm/forms/capability-form'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 export interface CapabilityExtended {
-  id: string;
-  structureId: string;
-  name: string;
-  description?: string;
-  rankInLayer?: number;
-  layer: string;
-  rankInGroup?: number;
-  groupId?: string;
+  id: string
+  structureId: string
+  name: string
+  description?: string
+  rankInLayer?: number
+  layer: string
+  rankInGroup?: number
+  groupId?: string
 }
 
 export interface Capability {
-  id: string;
-  name: string;
-  code: string;
-  category: string;
-  level: string;
-  description?: string;
-  status: "Active" | "Inactive";
-  competencyArea: string;
-  requiredLevel: string;
-  certificationRequired: boolean;
+  id: string
+  name: string
+  category: string
+  description?: string
+  structureId: string
+  layerId: string
+  groupId?: string
+  groupName?: string
+}
+
+export interface CapabilityLayer {
+  capabilities: Capability[]
+  capabilityGroup: Capability[]
+  createdAt: string
+  description: string
+  id: string
+  name: string
+  rank: number
+  structureId: string
+  updatedAt: string
 }
 
 export interface CapabilitiesTabProps extends BusinessAppContextProps {
-  prefixDataTestId?: string;
+  prefixDataTestId?: string
 }
 
-const CapabilitiesTab: React.FC<CapabilitiesTabProps> = (context) => {
-  const { t } = useTranslation();
-  const { prefixDataTestId, userInfo } = context;
+const DATA_TEST_ID_PREFIX = 'CapabilitiesTab'
+const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
-  const {
-    capabilities,
-    isLoading,
-    error,
-    refetch,
-    totalCapabilities,
-    activeCapabilities,
-    totalCount,
-    currentPage,
-    pageSize,
-    handlePageChange,
-    handlePageSizeChange,
-  } = useCapabilities(context);
+const CapabilitiesTab: React.FC<CapabilitiesTabProps> = context => {
+  const { t } = useTranslation()
+  const { prefixDataTestId } = context
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const restClient = useRestClient(ORGCHART_BASE_URL)
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [editingCapability, setEditingCapability] = useState<Capability | null>(
-    null
-  );
-  const [selectedCapability, setSelectedCapability] =
-    useState<Capability | null>(null);
-  const [drawerVisible, setDrawerVisible] = useState(false);
+  const { capabilities, layers, isLoading, error, refetch, totalCount, structureId } = useCapabilities(context)
+
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedCapability, setSelectedCapability] = useState<Capability | null>(null)
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [sorting, setSorting] = useState<SortingState>([])
 
   const filteredCapabilities = capabilities.filter(
-    (capability) =>
+    capability =>
       capability.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      capability.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      capability.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      capability.competencyArea.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+      capability.category.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
-  const handleAdd = () => {
-    setEditingCapability(null);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeCapability",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+  useEffect(() => {
+    if (selectedCapability) {
+      const updatedSelectedCapability = capabilities.find(capability => capability.id === selectedCapability.id)
 
-  const handleEdit = (record: Capability) => {
-    setEditingCapability(record);
-    // No process started for regular edit from table
-  };
-  
-  const handleDrawerEdit = (record: Capability) => {
-    // When editing from drawer button, start the process
-    setEditingCapability(record);
-    startProcess({
-      domain: "dummy-domain",
-      processName: "changeCapability",
-      payload: {
-        employeeId: userInfo?.employeeDetails.employeeId,
-        capability: record,
-      },
-      builderType: "NATIVE_SCREEN",
-    });
-  };
+      if (updatedSelectedCapability) {
+        setSelectedCapability(updatedSelectedCapability)
+      }
+    }
+  }, [capabilities, selectedCapability])
 
-  const handleDelete = async (record: Capability) => {
-    Modal.confirm({
-      title: "Delete Capability",
-      content: `Are you sure you want to delete "${record.name}"?`,
-      okText: "Delete",
-      okType: "danger",
-      cancelText: "Cancel",
-      onOk: async () => {
-        message.warning(
-          "Delete functionality will be implemented with process API integration"
-        );
-        await refetch();
-      },
-    });
-  };
+  const handleDelete = async (capability: Capability | undefined) => {
+    if (!capability) return
 
-  const handleRowClick = useCallback((record: Capability) => {
-    setSelectedCapability(record);
-    setDrawerVisible(true);
-  }, []);
+    await restClient.delete(`/capabilities/${capability.id}`, {
+      headers: { Authorization: `Bearer ${context.accessToken}` }
+    })
 
-  const handleCloseDrawer = useCallback(() => {
-    setDrawerVisible(false);
-    setTimeout(() => {
-      setSelectedCapability(null);
-    }, 300); // Clear selected capability after drawer close animation completes
-  }, []);
+    refetch()
+  }
 
-  const columns = [
-    {
-      title: "Name",
-      dataIndex: "name",
-      key: "name",
-      sorter: (a: Capability, b: Capability) => a.name.localeCompare(b.name),
-    },
-    {
-      title: "Code",
-      dataIndex: "code",
-      key: "code",
-      sorter: (a: Capability, b: Capability) => a.code.localeCompare(b.code),
-    },
-    {
-      title: "Category",
-      dataIndex: "category",
-      key: "category",
-      filters: [
-        { text: "Technical", value: "Technical" },
-        { text: "Leadership", value: "Leadership" },
-        { text: "Analytical", value: "Analytical" },
-        { text: "Creative", value: "Creative" },
-      ],
-      onFilter: (value: any, record: Capability) => record.category === value,
-    },
-    {
-      title: "Level",
-      dataIndex: "level",
-      key: "level",
-      render: (level: string) => {
-        const color =
-          level === "Expert" ? "gold" : level === "Advanced" ? "blue" : "green";
-        return <Tag color={color}>{level}</Tag>;
-      },
-    },
-    {
-      title: "Competency Area",
-      dataIndex: "competencyArea",
-      key: "competencyArea",
-    },
-    {
-      title: "Certification Required",
-      dataIndex: "certificationRequired",
-      key: "certificationRequired",
-      render: (required: boolean) => (
-        <Tag color={required ? "red" : "green"}>
-          {required ? "Required" : "Not Required"}
-        </Tag>
-      ),
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) => (
-        <Tag color={status === "Active" ? "green" : "red"}>{status}</Tag>
-      ),
-      filters: [
-        { text: "Active", value: "Active" },
-        { text: "Inactive", value: "Inactive" },
-      ],
-      onFilter: (value: any, record: Capability) => record.status === value,
-    },
-    {
-      title: "Actions",
-      key: "actions",
-      render: (_: any, record: Capability) => (
-        <Space size="middle">
+  const handleView = (record: Capability | undefined) => {
+    if (!record) return
+    setSelectedCapability(record)
+    setDrawerVisible(true)
+  }
+
+  const dataTable = useMemo(() => {
+    return filteredCapabilities.map(capability => ({
+      ...capability
+    }))
+  }, [filteredCapabilities])
+
+  const renderCapabilitiesTable = () => {
+    const columns: ColumnDef<Capability>[] = [
+      {
+        accessorKey: 'name',
+        header: ({ column }) => (
           <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-            data-testid={`${prefixDataTestId || ""}-edit-capability-${
-              record.id
-            }`}
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
-            Edit
+            Name
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
           </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
-            data-testid={`${prefixDataTestId || ""}-delete-capability-${
-              record.id
-            }`}
-          >
-            Delete
-          </Button>
-        </Space>
-      ),
-    },
-  ];
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const name = getValue()
+          return (
+            <div className="gba:flex gba:items-center gba:min-w-[300px]">
+              <div className="gba:font-semibold">{name as string}</div>
+            </div>
+          )
+        }
+      },
 
-  if (isLoading) {
+      {
+        accessorKey: 'category',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Layer
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const layer = getValue()
+          return layer ?? '-'
+        }
+      },
+
+      {
+        accessorKey: 'groupName',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Capability Group
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const groupName = getValue()
+          return groupName ?? '-'
+        }
+      },
+
+      {
+        accessorKey: 'description',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+          >
+            Description
+            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
+          </Button>
+        ),
+        enableSorting: true,
+        cell: ({ getValue }) => {
+          const description = getValue()
+          return description ?? '-'
+        }
+      },
+      {
+        id: 'actions',
+        header: 'Actions',
+        enableSorting: false,
+        enableHiding: true,
+        cell: ({ row }) => {
+          const targetCapability = capabilities.find(capability => capability.id === row.original.id)
+
+          return (
+            <div className="gba:flex gba:items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleView(targetCapability)}
+                data-testid={`${dataTestId}-view-function-${row.original.id}`}
+              >
+                <EyeIcon className="gba:h-4 gba:w-4" />
+              </Button>
+
+              <CapabilityForm
+                childAddButton={
+                  <Button
+                    variant="ghost"
+                    onClick={event => event.stopPropagation()}
+                    data-testid={`${prefixDataTestId || ''}-CapabilitiesTab-EditButton`}
+                  >
+                    <PencilSimpleLineIcon />
+                  </Button>
+                }
+                structureId={structureId}
+                refetch={refetch}
+                accessToken={context.accessToken}
+                layers={layers}
+                capability={targetCapability}
+                isDrawerActive={true}
+              />
+              <DeleteButton
+                onDelete={() => handleDelete(targetCapability)}
+                itemName={targetCapability?.name ?? ''}
+                itemTitle={'Capability'}
+              />
+            </div>
+          )
+        }
+      }
+    ]
+
+    return (
+      <DataTable
+        data={dataTable}
+        columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
+        enableSorting
+        enablePagination
+        sorting={sorting}
+        onSortingChange={setSorting}
+      />
+    )
+  }
+
+  const drawerItems = useMemo(() => {
+    if (!selectedCapability) return []
+
+    const items = [
+      {
+        icon: <InfoIcon />,
+        title: 'Basic Information',
+        verticalTable: true,
+        items: [
+          {
+            label: 'Name',
+            value: selectedCapability.name ?? '-'
+          },
+          {
+            label: 'Description',
+            value: selectedCapability.description ?? '-'
+          },
+          {
+            label: 'Layer',
+            value: selectedCapability.category ?? '-'
+          },
+          {
+            label: 'Capability Group',
+            value: selectedCapability.groupName ?? '-'
+          }
+        ]
+      }
+    ]
+
+    return items
+  }, [selectedCapability])
+
+  const navigationItems = useMemo(() => {
+    if (!selectedCapability) return []
+
+    const items = [
+      {
+        title: 'View Job Profiles',
+        redirectLink: `/job-profiles?capabilityId=${selectedCapability.id}`,
+        icon: UserIcon,
+        color: 'blue',
+        description: 'View job profiles with this capability'
+      },
+      {
+        title: 'View Related Skills',
+        redirectLink: `/skills?capabilityId=${selectedCapability.id}`,
+        icon: TrendUpIcon,
+        color: 'green',
+        description: 'View skills associated with this capability'
+      },
+      {
+        title: 'View Assessments',
+        redirectLink: `/assessments?capabilityId=${selectedCapability.id}`,
+        icon: FilesIcon,
+        color: 'purple',
+        description: 'View assessments related to this capability'
+      },
+      {
+        title: 'Capability Trends',
+        redirectLink: `/analytics/capability-trends?id=${selectedCapability.id}`,
+        icon: ChartLineIcon,
+        color: 'cyan',
+        description: 'View capability adoption trends and metrics'
+      }
+    ]
+
+    return items
+  }, [selectedCapability])
+
+  if (isLoading && capabilities.length === 0) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <Alert
-        message="Error Loading Capabilities"
-        description={error}
-        type="error"
-        showIcon
-        action={
-          <Button size="small" onClick={refetch}>
-            Retry
-          </Button>
-        }
-      />
-    );
+      <div className="gba:p-6 gba:text-center">
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
+          <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+            <Icon icon={XCircleIcon} />
+            Error Loading Capabilities
+          </AlertTitle>
+          <AlertDescription>
+            <Button size="sm" variant="destructive" onClick={() => refetch()}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
   }
 
   return (
-    <div
-      data-testid={`${prefixDataTestId || ""}-CapabilitiesTab`}
-      style={{
-        background: "linear-gradient(to bottom, #f9fafb, #f3f4f6)",
-        minHeight: "100%",
-        padding: "24px",
-        borderRadius: "8px",
-      }}
-    >
-      <div
-        style={{
-          marginBottom: 16,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <Title
-            level={4}
-            style={{
-              margin: 0,
-              color: "#1f2937",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-            }}
-          >
-            <TrophyOutlined />
-            {t("hr.capabilities", "Capabilities")}
-          </Title>
-          <Tag color="blue">{totalCapabilities} capabilities</Tag>
-          <Tag color="green">{activeCapabilities} active</Tag>
-        </div>
-        <Space>
-          <Input
-            placeholder={t("hr.search_capabilities", "Search capabilities...")}
-            prefix={<SearchOutlined />}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-            data-testid={`${prefixDataTestId || ""}-search-capabilities`}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-            data-testid={`${prefixDataTestId || ""}-add-capability`}
-          >
-            Add Capability
-          </Button>
-        </Space>
-      </div>
-
-      <Table
-        onRow={(record) => ({
-          onClick: () => handleRowClick(record),
-          style: { cursor: "pointer" },
-        })}
-        columns={columns}
-        dataSource={filteredCapabilities}
-        rowKey="id"
-        pagination={false}
-        data-testid={`${prefixDataTestId || ""}-capabilities-table`}
-        style={{
-          background: "white",
-          borderRadius: "8px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-        }}
-      />
-
-      {/* Custom pagination component */}
-      <div className="gba:mt-4 gba:flex gba:justify-between gba:items-center gba:bg-white gba:p-4 gba:rounded-lg gba:shadow-sm">
-        <div className="gba:text-gray-600">
-          Showing {(currentPage - 1) * pageSize + 1} to{" "}
-          {Math.min(currentPage * pageSize, totalCount)} of {totalCount} entries
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-4">
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <span className="gba:text-gray-600">Show</span>
-            <Select
-              value={pageSize}
-              onChange={(value) => handlePageSizeChange(currentPage, value)}
-              data-testid={`${prefixDataTestId || ""}-page-size-selector`}
-            >
-              <Option value={10}>10</Option>
-              <Option value={20}>20</Option>
-              <Option value={50}>50</Option>
-              <Option value={100}>100</Option>
-            </Select>
-            <span className="gba:text-gray-600">entries</span>
-          </div>
-          <div>
-            <Button
-              disabled={currentPage === 1}
-              onClick={() => handlePageChange(currentPage - 1)}
-              icon={<span>«</span>}
-              data-testid={`${prefixDataTestId || ""}-prev-page`}
-            />
-            <Button type="primary" style={{ margin: "0 8px" }}>
-              {currentPage}
-            </Button>
-            <Button
-              disabled={currentPage * pageSize >= totalCount}
-              onClick={() => handlePageChange(currentPage + 1)}
-              icon={<span>»</span>}
-              data-testid={`${prefixDataTestId || ""}-next-page`}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Capability Details Drawer */}
-      <DataDetailsDrawer
-        title="Capability Details"
-        icon={<TrophyOutlined className="gba:text-blue-500" />}
-        placement="right"
-        onClose={handleCloseDrawer}
-        open={drawerVisible}
-        width={450}
-        dataTestId={`${prefixDataTestId || ""}-CapabilitiesTab-Drawer`}
-        className="gba:text-base"
-        navigationLinks={
-          selectedCapability
-            ? [
-                {
-                  label: "View Job Profiles",
-                  url: `/job-profiles?capabilityId=${selectedCapability.id}`,
-                  icon: <UserOutlined />,
-                  color: "blue",
-                  description: "View job profiles with this capability",
-                  dataTestId: `${
-                    prefixDataTestId || ""
-                  }-capability-job-profiles-link`,
-                },
-                {
-                  label: "View Related Skills",
-                  url: `/skills?capabilityId=${selectedCapability.id}`,
-                  icon: <RiseOutlined />,
-                  color: "green",
-                  description: "View skills associated with this capability",
-                  dataTestId: `${
-                    prefixDataTestId || ""
-                  }-capability-skills-link`,
-                },
-                {
-                  label: "View Assessments",
-                  url: `/assessments?capabilityId=${selectedCapability.id}`,
-                  icon: <AuditOutlined />,
-                  color: "purple",
-                  description: "View assessments related to this capability",
-                  dataTestId: `${
-                    prefixDataTestId || ""
-                  }-capability-assessments-link`,
-                },
-                {
-                  label: "Capability Trends",
-                  url: `/analytics/capability-trends?id=${selectedCapability.id}`,
-                  icon: <LineChartOutlined />,
-                  color: "cyan",
-                  description: "View capability adoption trends and metrics",
-                  dataTestId: `${
-                    prefixDataTestId || ""
-                  }-capability-trends-link`,
-                },
-              ]
-            : undefined
-        }
-      >
-        {selectedCapability && (
-          <div className="gba:space-y-6">
-            {/* Basic Information */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <InfoCircleOutlined /> Basic Information
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <Descriptions column={1} size="small" layout="vertical">
-                <Descriptions.Item label="Name">
-                  <div className="gba:flex gba:items-center gba:space-x-2">
-                    <Text strong className="gba:text-lg">
-                      {selectedCapability.name || "-"}
-                    </Text>
-                  </div>
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Code">
-                  <Tag color="blue">{selectedCapability.code || "-"}</Tag>
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Description">
-                  {selectedCapability.description || "-"}
-                </Descriptions.Item>
-
-                <Descriptions.Item label="Status">
-                  <Tag
-                    color={
-                      selectedCapability.status === "Active" ? "green" : "red"
-                    }
-                  >
-                    {selectedCapability.status || "Unknown"}
-                  </Tag>
-                </Descriptions.Item>
-              </Descriptions>
-            </Card>
-
-            {/* Classification */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <TagOutlined /> Classification
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">Category</div>
-                  <div className="gba:text-base gba:mb-2">
-                    {selectedCapability.category || "-"}
-                  </div>
-
-                  <div className="gba:text-sm gba:text-gray-500">
-                    Competency Area
-                  </div>
-                  <div className="gba:text-base">
-                    {selectedCapability.competencyArea || "-"}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">Level</div>
-                  <div className="gba:flex gba:items-center gba:mb-2">
-                    <Tag
-                      color={
-                        selectedCapability.level === "Expert"
-                          ? "gold"
-                          : selectedCapability.level === "Advanced"
-                          ? "blue"
-                          : "green"
-                      }
-                    >
-                      {selectedCapability.level || "-"}
-                    </Tag>
-                  </div>
-
-                  <div className="gba:text-sm gba:text-gray-500">
-                    Required Level
-                  </div>
-                  <div className="gba:text-base">
-                    {selectedCapability.requiredLevel || "-"}
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Certification */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <BookOutlined /> Certification
-                </span>
-              }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:text-base">Certification Required</div>
-                <Tag
-                  color={
-                    selectedCapability.certificationRequired ? "red" : "green"
-                  }
+    <Card data-testid={`${prefixDataTestId || ''}-CapabilitiesTab`} className="gba:overflow-hidden">
+      {!isLoading && (
+        <CardTabHeaderComponent
+          addButton={
+            <CapabilityForm
+              childAddButton={
+                <Button
+                  variant="default"
+                  onClick={event => event.stopPropagation()}
+                  data-testid={`${prefixDataTestId || ''}-add-capability`}
                 >
-                  {selectedCapability.certificationRequired
-                    ? "Required"
-                    : "Not Required"}
-                </Tag>
-              </div>
-            </Card>
-
-            {/* Technical Information (Generic placeholders if not in API data) */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <BulbOutlined /> Technical Information
-                </span>
+                  <PlusIcon /> Add Capability
+                </Button>
               }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:space-y-3">
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">
-                    Structure ID
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Text copyable>
-                      {"99b1ba64-a4d3-4dd0-8302-b1dc0c4daaaf"}
-                    </Text>
-                  </div>
-                </div>
+              structureId={structureId}
+              refetch={refetch}
+              accessToken={context.accessToken}
+              layers={layers}
+            />
+          }
+          cardTitle={`${t('hr.capabilities', 'Capabilities')} (${totalCount})`}
+          cardDescription="Manage capabilities and their details"
+        />
+      )}
 
-                <div>
-                  <div className="gba:text-sm gba:text-gray-500">Layer</div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <ApartmentOutlined className="gba:text-blue-500" />
-                    <div>{"Technical Layer"}</div>
-                  </div>
-                </div>
+      <CardContent>
+        <div className="gba:mb-6 gba:relative gba:max-w-sm">
+          <Input
+            placeholder="Search capabilities..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            data-testid={`${dataTestId}-search-input`}
+          />
+        </div>
 
-                <Divider className="gba:my-3" />
+        {renderCapabilitiesTable()}
 
-                <div className="gba:grid gba:grid-cols-2 gba:gap-4">
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Rank in Layer
-                    </div>
-                    <div className="gba:text-base">
-                      <Tag color="blue" icon={<OrderedListOutlined />}>
-                        {Math.floor(Math.random() * 10) + 1}
-                      </Tag>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="gba:text-sm gba:text-gray-500">
-                      Group ID
-                    </div>
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <GroupOutlined className="gba:text-gray-500" />
-                      <Text className="gba:text-xs" ellipsis>
-                        {selectedCapability.id.substring(0, 8)}
-                      </Text>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Related Applications (Placeholder) */}
-            <Card
-              title={
-                <span className="gba:flex gba:items-center gba:gap-2">
-                  <FlagOutlined /> Related Applications
-                </span>
+        {selectedCapability && (
+          <SheetWrapperComponent
+            prefixDataTestId={dataTestId}
+            isDrawerVisible={drawerVisible}
+            onOpenChange={openStatus => {
+              if (!openStatus) {
+                setSelectedCapability(null)
               }
-              className="gba:shadow-sm"
-            >
-              <div className="gba:space-y-2">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div className="gba:text-base">Associated Applications</div>
-                  <Tag color="processing">{Math.floor(Math.random() * 5)}</Tag>
-                </div>
-                <div className="gba:text-sm gba:text-gray-500">
-                  Applications that require this capability
-                </div>
-              </div>
-            </Card>
-
-            {/* Action Buttons */}
-            <div className="gba:flex gba:gap-2">
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  handleDrawerEdit(selectedCapability);
-                  handleCloseDrawer();
-                }}
-                data-testid={`${
-                  prefixDataTestId || ""
-                }-CapabilitiesTab-EditButton`}
-              >
-                Edit
-              </Button>
-              <Button
-                icon={<DeleteOutlined />}
-                danger
-                onClick={() => {
-                  handleCloseDrawer();
-                  handleDelete(selectedCapability);
-                }}
-                data-testid={`${
-                  prefixDataTestId || ""
-                }-CapabilitiesTab-DeleteButton`}
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
+              setDrawerVisible(openStatus)
+            }}
+            title="Capability Details"
+            titleIcon={FileCodeIcon}
+            drawerItems={drawerItems}
+            navigationItems={navigationItems}
+            footerButtons={[
+              <CapabilityForm
+                childAddButton={
+                  <Button data-testid={`${prefixDataTestId || ''}-CapabilitiesTab-EditButton`}>
+                    <PencilSimpleLineIcon /> Edit
+                  </Button>
+                }
+                structureId={structureId}
+                refetch={refetch}
+                accessToken={context.accessToken}
+                layers={layers}
+                capability={selectedCapability}
+                isDrawerActive={true}
+                key={selectedCapability.id}
+              />
+            ]}
+          />
         )}
-      </DataDetailsDrawer>
-    </div>
-  );
-};
+      </CardContent>
+    </Card>
+  )
+}
 
-export default CapabilitiesTab;
-export { CapabilitiesTab };
+export default CapabilitiesTab
+export { CapabilitiesTab }

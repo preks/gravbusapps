@@ -1,24 +1,24 @@
-'use client';
+'use client'
 
-import React, { useMemo } from 'react';
-import dayjs from 'dayjs';
-import { Card } from '@newwork/gravity-ui-catalog';
-import { Employee } from '../../hooks/useEmployeeData';
-import { formatPhoneNumber } from '../../utils/formatters';
-import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles';
-import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils';
-import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions';
-import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu';
-import { FlowContextName } from '@/common/types/FlowRegistryTypes';
-import { PiPencilSimple } from 'react-icons/pi';
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext';
+import React, { useMemo } from 'react'
+import dayjs from 'dayjs'
+import { Card } from '@newwork/gravity-ui-catalog'
+import { Employee } from '../../hooks/useEmployeeData'
+import { formatPhoneNumber } from '../../utils/formatters'
+import { useGetAcademicTitles } from '../../../../hooks/useGetAcademicTitles'
+import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
+import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
+import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { PiPencilSimple } from 'react-icons/pi'
+import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 
 interface DetailsTabProps {
-  employee: Employee;
-  accessToken: string;
-  employeeId?: string; // Optional employeeId override for permissions check
-  userInfo?: UserInfoProps; // Current user info
-  isSelfView: boolean; // Whether user is viewing their own profile
+  employee: Employee
+  accessToken: string
+  employeeId?: string // Optional employeeId override for permissions check
+  userInfo?: UserInfoProps // Current user info
+  isSelfView: boolean // Whether user is viewing their own profile
 }
 
 /**
@@ -28,186 +28,208 @@ interface DetailsTabProps {
 const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, userInfo, isSelfView }) => {
   // Remove debug log
   // Use employee ID from props or fallback to employee data
-  const employeeIdForPermissions = employeeId || employee?.id;
-  
+  const employeeIdForPermissions = employeeId || employee?.id
+
   // Check permissions for sections
-  const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken);
+  const { isSectionVisible } = useEmployeePermissions(employeeIdForPermissions, accessToken)
   // Fetch academic titles from catalog
-  const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken);
-  
+  const { titles: academicTitles, loading: loadingTitles } = useGetAcademicTitles(accessToken)
+
   // Find the academic titles that match the employee's title references
   const academicTitleName = useMemo(() => {
     if (loadingTitles) {
-      return '';
+      return ''
     }
 
-    if (!employee.academicTitleRef || !Array.isArray(employee.academicTitleRef) || 
-        employee.academicTitleRef.length === 0 || academicTitles.length === 0) {
+    if (
+      !employee.academicTitleRef ||
+      !Array.isArray(employee.academicTitleRef) ||
+      employee.academicTitleRef.length === 0 ||
+      academicTitles.length === 0
+    ) {
       // Return the raw academicTitleRef if it's a string, or join them if it's an array
-      return Array.isArray(employee.academicTitleRef) 
-        ? employee.academicTitleRef.join(', ') 
-        : (employee.academicTitleRef || '');
+      return Array.isArray(employee.academicTitleRef)
+        ? employee.academicTitleRef.join(', ')
+        : employee.academicTitleRef || ''
     }
-    
+
     // Find all matching titles by ID in the academicTitles array
     const matchingTitles = employee.academicTitleRef.map(titleRef => {
-      const match = academicTitles.find(
-        (title) => title.id === titleRef || title.id.includes(titleRef)
-      );
-      return match ? match.value : titleRef;
-    });
-    
+      const match = academicTitles.find(title => title.id === titleRef || title.id.includes(titleRef))
+      return match ? match.value : titleRef
+    })
+
     // Join all titles with a comma
-    return matchingTitles.join(', ');
-  }, [employee.academicTitleRef, academicTitles, loadingTitles]);
+    return matchingTitles.join(', ')
+  }, [employee.academicTitleRef, academicTitles, loadingTitles])
 
   const personalData = [
     {
-      label: "Salutation",
+      label: 'Salutation',
       value: employee.salutation?.value || ''
     },
     {
-      label: "Academic Titles",
+      label: 'Academic Titles',
       value: academicTitleName || ''
     },
     {
-      label: "First Name",
+      label: 'First Name',
       value: employee.firstName || ''
     },
     {
-      label: "Last Name",
+      label: 'Last Name',
       value: employee.lastName || ''
     },
     {
-      label: "Preferred Name",
+      label: 'Preferred Name',
       value: employee.preferredName || ''
     },
     {
-      label: "Birth Name",
+      label: 'Birth Name',
       value: employee.birthName || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: "Date of Birth",
+      label: 'Date of Birth',
       value: employee.birthDate ? dayjs(employee.birthDate).format('MMM D, YYYY') : '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: "Place of Birth",
-      value: employee.birthPlace?.value || '',
+      label: 'Place of Birth',
+      value: employee.birthPlace || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: "Nationality",
-      value: employee.nationality?.value || '',
+      label: 'Nationality',
+      value: employee.nationality?.translations?.[0]?.value || employee.nationality?.value || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: "Gender",
+      label: 'Gender',
       value: employee.gender?.value || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {
-      label: "Marital Status",
+      label: 'Marital Status',
       value: employee.maritalStatus?.value || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     }
-  ];
+  ]
 
   // Prepare address data
   const getAddressData = () => {
-    const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY');
-    
+    const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
+
     return [
       {
-        label: "Postal Code",
+        label: 'Postal Code',
         value: primaryAddress?.postalCode || ''
       },
       {
-        label: "City",
+        label: 'City',
         value: primaryAddress?.locality || ''
       },
       {
-        label: "Country",
+        label: 'Country',
         value: primaryAddress?.country?.value || ''
       },
       {
-        label: "Address Line",
+        label: 'Address Line',
         value: primaryAddress?.addressLine?.filter(line => line?.trim())?.join(', ') || ''
       }
-    ];
-  };
+    ]
+  }
 
-  const addressData = getAddressData();
+  const addressData = getAddressData()
 
   // Prepare bank account data
   const getBankAccountData = () => {
-    const primaryBankAccount = employee.bankAccounts?.[0];
-    
+    const primaryBankAccount = employee.bankAccounts?.[0]
+
     return [
       {
-        label: "Bank Name",
+        label: 'Bank Name',
         value: primaryBankAccount?.bankName || ''
       },
       {
-        label: "Account Holder",
+        label: 'Account Holder',
         value: primaryBankAccount?.accountHolder || ''
       },
       {
-        label: "IBAN",
+        label: 'IBAN',
         value: primaryBankAccount?.iban || ''
       }
-    ];
-  };
+    ]
+  }
 
-  const bankAccountData = getBankAccountData();
+  const bankAccountData = getBankAccountData()
 
   // Prepare private communication data
   const getPrivateCommunication = () => {
-    const communications = employee.communication || [];
-    const privateComms = communications.filter(
-      comm => comm.purpose === 'PRIVATE'
-    );
+    // Safely extract private communication; it may be empty
+    const communications = employee.communication || []
+    const privateComms = communications.filter(comm => comm?.purpose === 'PRIVATE')
 
-    const privatePhone = privateComms.find(comm => comm.channel.code === 'Phone');
-    const privateMobile = privateComms.find(comm => comm.channel.code === 'Mobile');
-    const privateEmail = privateComms.find(comm => comm.channel.code === 'e-mail');
+    // Helper: pick latest by channel code and type (Primary/Secondary)
+    const lastByCodeAndType = (code: string, typeLabel: 'Primary' | 'Secondary') => {
+      for (let i = privateComms.length - 1; i >= 0; i--) {
+        const comm = privateComms[i]
+        if (comm?.channel?.code === code && comm?.type?.value === typeLabel) {
+          return comm
+        }
+      }
+      return undefined
+    }
+
+    const primaryPhone = lastByCodeAndType('Phone', 'Primary')
+    const secondaryPhone = lastByCodeAndType('Phone', 'Secondary')
+    const primaryMobile = lastByCodeAndType('Mobile', 'Primary')
+    const secondaryMobile = lastByCodeAndType('Mobile', 'Secondary')
+    const primaryEmail = lastByCodeAndType('e-mail', 'Primary')
+    const secondaryEmail = lastByCodeAndType('e-mail', 'Secondary')
+
+    const formatOrEmpty = (val?: string) => (val && val.trim() !== '' ? val : '')
 
     return [
       {
-        label: "Private Phone",
-        value: privatePhone?.value ? formatPhoneNumber(privatePhone.value) : ''
+        label: 'Private Phone',
+        value: primaryPhone?.value ? formatPhoneNumber(primaryPhone.value) : '',
+        secondary: secondaryPhone?.value ? formatPhoneNumber(secondaryPhone.value) : undefined
       },
       {
-        label: "Private Mobile",
-        value: privateMobile?.value ? formatPhoneNumber(privateMobile.value) : ''
+        label: 'Private Mobile',
+        value: primaryMobile?.value ? formatPhoneNumber(primaryMobile.value) : '',
+        secondary: secondaryMobile?.value ? formatPhoneNumber(secondaryMobile.value) : undefined
       },
       {
-        label: "Private Email",
-        value: privateEmail?.value || ''
+        label: 'Private Email',
+        value: formatOrEmpty(primaryEmail?.value),
+        secondary: formatOrEmpty(secondaryEmail?.value) || undefined
       }
-    ];
-  };
+    ]
+  }
 
-  const privateCommunicationData = getPrivateCommunication();
+  const privateCommunicationData = getPrivateCommunication()
 
   // Prepare emergency contact data
   const getEmergencyContact = () => {
-    const emergencyContact = employee.relationship?.find(rel => rel.isEmergencyContact);
-    
+    const emergencyContact = employee.relationship?.find(rel => rel.isEmergencyContact)
+
     return [
       {
-        label: "Contact Name",
-        value: emergencyContact ? `${emergencyContact.firstName || ''} ${emergencyContact.lastName || ''}`.trim() || '' : ''
+        label: 'Contact Name',
+        value: emergencyContact
+          ? `${emergencyContact.firstName || ''} ${emergencyContact.lastName || ''}`.trim() || ''
+          : ''
       },
       {
-        label: "Phone Number",
+        label: 'Phone Number',
         value: emergencyContact?.phoneNumber ? formatPhoneNumber(emergencyContact.phoneNumber) : ''
       }
-    ];
-  };
+    ]
+  }
 
-  const emergencyContactData = getEmergencyContact();
+  const emergencyContactData = getEmergencyContact()
 
   // Payroll data has been moved to EmploymentTab
 
@@ -215,65 +237,63 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
   const getMaskedValue = (value: string, sectionKey: string) => {
     // Return dash for empty values regardless of permissions
     if (!value || value.trim() === '') {
-      return '-';
+      return '-'
     }
-    
+
     // If user is viewing their own profile, always show the data
     if (isSelfView) {
-      return value;
+      return value
     }
-    
+
     // Special handling for personalInfoPrivate section
     if (sectionKey === SECTION_KEYS.details.personalInfoPrivate) {
       // Mask all personalInfoPrivate fields when viewing other profiles
-      return '••••••••';
+      return '••••••••'
     }
-    
+
     // For other sections, check permissions
     if (sectionKey && isSectionVisible('details', sectionKey)) {
-      return value;
+      return value
     }
-    
-   // If no permission, mask the value
-   return '••••••••';
-  };
+
+    // If no permission, mask the value
+    return '••••••••'
+  }
 
   // Helper function to render data items in a grid with 3 columns
-  const renderDataItems = (data: Array<{label: string; value: string; sectionKey?: string}>) => (
+  const renderDataItems = (data: Array<{ label: string; value: string; secondary?: string; sectionKey?: string }>) => (
     <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-3 gba:mt-2">
-      {data.map((item) => (
-        <div 
-          key={`${item.label}-${item.value}`} 
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-gray-50 gba:rounded-md gba:transition-colors"
+      {data.map(item => (
+        <div
+          key={`${item.label}-${item.value}`}
+          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors"
           data-testid={`details-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-gray-500 gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-gray-800">{item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : (item.value || '-')}</span>
+          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
+          <span className="gba:font-medium gba:text-foreground">
+            {item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : item.value || '-'}
+          </span>
+          {item.secondary ? (
+            <span className="gba:font-medium gba:text-foreground gba:mt-1">
+              {item.sectionKey ? getMaskedValue(item.secondary, item.sectionKey) : item.secondary}
+            </span>
+          ) : null}
         </div>
       ))}
     </div>
-  );
+  )
 
   return (
     <div className="gba:details-tab gba:space-y-6" data-testid="details-tab-container">
       {/* Details Overview Headline */}
       <div className="gba:details-header" data-testid="details-header">
-        <div
-          className="gba:font-bold gba:text-2xl"
-          data-testid="details-title"
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_employee.details_overview",
-            "Employee Details"
-          )}
+        <div className="gba:font-bold gba:text-2xl" data-testid="details-title">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.details_overview', 'Employee Details')}
         </div>
-        <div
-          className="gba:text-gray-500 gba:text-lg gba:mb-4"
-          data-testid="details-description"
-        >
+        <div className="gba:text-muted-foreground gba:text-lg gba:mb-4" data-testid="details-description">
           {getTranslationFromI18nKeyAndLabel(
-            "lowcoder:hr_employee.details_description",
-            "View employee personal information"
+            'lowcoder:hr_employee.details_description',
+            'View employee personal information'
           )}
         </div>
       </div>
@@ -282,17 +302,17 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Personal Data Card - Public info is always visible, private info requires permission */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-personal"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Personal Data</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Personal Data</h3>
             {isSelfView && (
-              <AppActionMenu 
+              <AppActionMenu
                 data-testid="personal-data-action-button"
                 contextsArray={[FlowContextName.updateEmployeePersonalData]}
                 externalContextData={{
-                  employeeId: employee?.id,
+                  employeeId: employee?.id
                 }}
                 prefixDataTestId="personal-data-action"
                 accessToken={accessToken}
@@ -309,17 +329,17 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Address Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-address"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Address</h3>
             {isSelfView && (
-              <AppActionMenu 
+              <AppActionMenu
                 data-testid="employee-address-action-button"
                 contextsArray={[FlowContextName.updateEmployeeAddress]}
                 externalContextData={{
-                  employeeId: employee?.id,
+                  employeeId: employee?.id
                 }}
                 prefixDataTestId="employee-address-action"
                 accessToken={accessToken}
@@ -329,23 +349,23 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
               </AppActionMenu>
             )}
           </div>
-          {renderDataItems(addressData.map(item => ({...item, sectionKey: SECTION_KEYS.details.addressPublic})))}
+          {renderDataItems(addressData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.addressPublic })))}
         </Card>
 
         {/* Bank Account Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-bank"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Bank Account</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Bank Account</h3>
             {isSelfView && (
-              <AppActionMenu 
+              <AppActionMenu
                 data-testid="bank-account-action-button"
                 contextsArray={[FlowContextName.updateEmployeeBankAccount]}
                 externalContextData={{
-                  employeeId: employee?.id,
+                  employeeId: employee?.id
                 }}
                 prefixDataTestId="bank-account-action"
                 accessToken={accessToken}
@@ -355,23 +375,23 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
               </AppActionMenu>
             )}
           </div>
-          {renderDataItems(bankAccountData.map(item => ({...item, sectionKey: SECTION_KEYS.details.bankAccount})))}
+          {renderDataItems(bankAccountData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.bankAccount })))}
         </Card>
 
         {/* Private Communication Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-communication"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Private Communication</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Private Communication</h3>
             {isSelfView && (
-              <AppActionMenu 
+              <AppActionMenu
                 data-testid="private-communication-action-button"
                 contextsArray={[FlowContextName.updateEmployeeCommunication]}
                 externalContextData={{
-                  employeeId: employee?.id,
+                  employeeId: employee?.id
                 }}
                 prefixDataTestId="private-communication-action"
                 accessToken={accessToken}
@@ -381,25 +401,29 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
               </AppActionMenu>
             )}
           </div>
-          {renderDataItems(privateCommunicationData.map(item => ({...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate})))}
+          {renderDataItems(
+            privateCommunicationData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate }))
+          )}
         </Card>
 
         {/* Emergency Contact Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-emergency"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Emergency Contact</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
           </div>
-          {renderDataItems(emergencyContactData.map(item => ({...item, sectionKey: SECTION_KEYS.details.relationships})))}
+          {renderDataItems(
+            emergencyContactData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships }))
+          )}
         </Card>
 
         {/* Payroll Data Card has been moved to EmploymentTab */}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default DetailsTab;
+export default DetailsTab

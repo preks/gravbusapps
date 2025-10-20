@@ -25,26 +25,13 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
   return (
     <Card
       hoverable
-      className="gba:shadow-md"
-      style={{ 
-        borderRadius: '12px',
-        border: '1px solid #e5e7eb',
-        overflow: 'hidden'
-      }}
+      className="gba:shadow-md gba:rounded-xl gba:overflow-hidden gba:border gba:border-border"
       data-testid={dataTestId}
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className="gba:flex gba:items-center gba:gap-3">
           {icon && (
             <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: '#eff6ff',
-                padding: '8px',
-                borderRadius: '8px',
-                color: '#2563eb'
-              }}
+              className="gba:flex gba:items-center gba:justify-center gba:p-2 gba:rounded-lg gba:bg-decorative-secondary gba:text-info"
               data-testid={`${dataTestId}-Title-Icon`}
             >
               {isValidElement(icon)
@@ -54,91 +41,51 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
                 : icon}
             </div>
           )}
-          <span style={{ color: '#1e40af', fontWeight: 600, fontSize: '16px' }}>
-            {title}
-          </span>
+          <span className="gba:font-semibold gba:text-base gba:text-info">{title}</span>
         </div>
       }
     >
       {typeof description === 'string' && description.trim().length > 0 && (
-        <Typography.Paragraph 
-          style={{ 
-            color: '#6b7280', 
-            marginBottom: '16px',
-            fontSize: '14px'
-          }}
-        >
+        <Typography.Paragraph className="gba:mb-4 gba:text-sm gba:text-muted-foreground">
           {description}
         </Typography.Paragraph>
       )}
 
       {entries && entries.length > 0 && (
-        <div style={{ position: 'relative' }}>
-          <div
-            // text={`${entries.length} items`} 
-            // color="blue" 
-            style={{ fontSize: '12px' }}
-          >
-            <div style={{ paddingTop: '8px' }}>
+        <div className="gba:relative">
+          <div className="gba:text-xs">
+            <div className="gba:pt-2">
               {entries.map((entry, idx) => (
-                <div 
-                  key={`${idx}-${entry.label}`}
-                  style={{ marginBottom: '8px' }}
-                >
+                <div key={`${idx}-${entry.label}`} className="gba:mb-2">
                   {entry.disabled ? (
-                    <div 
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        backgroundColor: '#f9fafb',
-                        borderRadius: '8px',
-                        color: '#9ca3af',
-                        cursor: 'not-allowed'
-                      }}
-                    >
-                      <span style={{ fontWeight: 500 }}>{entry.label}</span>
-                      <RiArrowRightSLine style={{ fontSize: '16px', opacity: 0.5 }} />
+                    <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4 gba:rounded-lg gba:cursor-not-allowed gba:bg-muted gba:text-muted-foreground gba:opacity-60">
+                      <span className="gba:font-medium">{entry.label}</span>
+                      <RiArrowRightSLine className="gba:text-base gba:opacity-50" />
                     </div>
                   ) : (
                     <div
                       data-testid={`${dataTestId}-Navigation-Item`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '12px 16px',
-                        backgroundColor: '#f9fafb',
-                        borderRadius: '8px',
-                        color: '#374151',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        border: '1px solid transparent'
+                      className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4 gba:rounded-lg gba:cursor-pointer gba:transition-all gba:duration-200 gba:border gba:border-transparent gba:bg-muted gba:text-foreground"
+                      onMouseEnter={e => {
+                        e.currentTarget.style.backgroundColor = 'var(--nw-decorative-secondary)'
+                        e.currentTarget.style.color = 'var(--nw-info)'
+                        e.currentTarget.style.borderColor = 'var(--nw-info-secondary)'
                       }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#eff6ff';
-                        e.currentTarget.style.color = '#1d4ed8';
-                        e.currentTarget.style.borderColor = '#bfdbfe';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f9fafb';
-                        e.currentTarget.style.color = '#374151';
-                        e.currentTarget.style.borderColor = 'transparent';
+                      onMouseLeave={e => {
+                        e.currentTarget.style.backgroundColor = 'var(--nw-muted)'
+                        e.currentTarget.style.color = 'var(--nw-foreground)'
+                        e.currentTarget.style.borderColor = 'transparent'
                       }}
                       onClick={() => {
                         navigateTo(entry.url)
                       }}
                     >
-                      <span 
-                        data-testid={`${dataTestId}-Navigation-Label`} 
-                        style={{ fontWeight: 500 }}
-                      >
+                      <span data-testid={`${dataTestId}-Navigation-Label`} className="gba:font-medium">
                         {entry.label}
                       </span>
                       <RiArrowRightSLine
                         data-testid={`${dataTestId}-Navigation-Icon`}
-                        style={{ fontSize: '16px', transition: 'transform 0.2s' }}
+                        className="gba:text-base gba:transition-transform gba:duration-200"
                       />
                     </div>
                   )}
@@ -150,4 +97,4 @@ export const HrSettingsCard = ({ title, description, icon, entries, prefixDataTe
       )}
     </Card>
   )
-} 
+}

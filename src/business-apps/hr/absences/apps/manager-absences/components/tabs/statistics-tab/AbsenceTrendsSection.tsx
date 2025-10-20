@@ -1,37 +1,21 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData';
-import { AbsenceTrendsChart } from '../../KPISection/AbsenceTrendsChart';
-import { AbsenceFilters } from '../../../types';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData'
+import { AbsenceTrendsChart } from '../../KPISection/AbsenceTrendsChart'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export interface AbsenceTrendsSectionProps extends BusinessAppContextProps {}
+export const AbsenceTrendsSection: React.FC<BusinessAppContextProps> = props => {
+  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props)
 
-export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props) => {
-  const filters: AbsenceFilters = {
-    search: '',
-    statuses: [],
-    types: [],
-    groups: [],
-    employees: [],
-    startDate: undefined,
-    endDate: undefined,
-  };
-
-  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props, filters);
-
-  const loading = dataLoading;
-  const error = dataError;
+  const loading = dataLoading
+  const error = dataError
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (
-      <div
-        className="gba:p-6 gba:text-center gba:text-red-600"
-        data-testid="absence-trends-error-no-employee"
-      >
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="absence-trends-error-no-employee">
         Error: Employee ID not found. Please check your user profile.
       </div>
-    );
+    )
   }
 
   if (loading) {
@@ -39,15 +23,15 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
       <div className="gba:p-6 gba:text-center" data-testid="absence-trends-loading">
         Loading absence trends data...
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-trends-error">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="absence-trends-error">
         Error: {error}
       </div>
-    );
+    )
   }
 
   if (!data) {
@@ -55,26 +39,26 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
       <div className="gba:p-6 gba:text-center" data-testid="absence-trends-no-data">
         No absence trends data available.
       </div>
-    );
+    )
   }
 
-  const allUniqueGroups = new Set<string>();
+  const allUniqueGroups = new Set<string>()
   data.barChartData.forEach((monthData: { [key: string]: string | number }) => {
-    Object.keys(monthData).forEach((key) => {
+    Object.keys(monthData).forEach(key => {
       if (key !== 'month') {
-        allUniqueGroups.add(key);
+        allUniqueGroups.add(key)
       }
-    });
-  });
+    })
+  })
 
-  const uniqueGroups = Array.from(allUniqueGroups).sort((a, b) => a.localeCompare(b));
+  const uniqueGroups = Array.from(allUniqueGroups).sort((a, b) => a.localeCompare(b))
 
   return (
     <section className="gba:mb-6" data-testid="absence-trends-section">
       <h3 className="gba:text-lg gba:font-bold gba:mb-4" data-testid="absence-trends-section-title">
         {getTranslationFromI18nKeyAndLabel(
           'lowcoder:absence_management_hub_backoffice.absence_trends',
-          'Absence Trends',
+          'Absence Trends'
         )}
       </h3>
       <div className="gba:grid gba:grid-cols-1">
@@ -86,5 +70,5 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = (props)
         />
       </div>
     </section>
-  );
-};
+  )
+}

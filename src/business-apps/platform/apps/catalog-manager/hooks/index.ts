@@ -1,2 +1,1 @@
-export { useCatalogData } from './useCatalogData';
-
+export { useCatalogData } from './useCatalogData'

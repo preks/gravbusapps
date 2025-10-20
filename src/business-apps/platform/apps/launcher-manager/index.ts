@@ -1,4 +1,2 @@
-export { default } from './LauncherManager';
-export * from './LauncherManager';
-
-
+export { default } from './LauncherManager'
+export * from './LauncherManager'

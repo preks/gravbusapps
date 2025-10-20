@@ -1,40 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, Card, Row, Col, Typography, Space, Spin, Alert, Button } from 'antd';
-import { CalendarOutlined, BarChartOutlined, TableOutlined, ReloadOutlined } from '@ant-design/icons';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useAbsenceDataIntegration } from '../../../hooks/useAbsenceDataIntegration';
-import AbsenceStatisticsDashboard from './components/AbsenceStatisticsDashboard';
-import AbsenceChartsView from './components/AbsenceChartsView';
-import AbsenceDetailsTable from './components/AbsenceDetailsTable';
+import React, { useState, useEffect } from 'react'
+import { Tabs, Card, Row, Col, Typography, Space, Spin, Alert, Button } from 'antd'
+import { CalendarOutlined, BarChartOutlined, TableOutlined, ReloadOutlined } from '@ant-design/icons'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAbsenceDataIntegration } from '../../../hooks/useAbsenceDataIntegration'
+import AbsenceStatisticsDashboard from './components/AbsenceStatisticsDashboard'
+import AbsenceChartsView from './components/AbsenceChartsView'
+import AbsenceDetailsTable from './components/AbsenceDetailsTable'
 
-const { TabPane } = Tabs;
-const { Text, Title } = Typography;
+const { TabPane } = Tabs
+const { Text, Title } = Typography
 
-interface AbsenceReportProps extends BusinessAppContextProps {}
-
-const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
+const AbsenceReport: React.FC<BusinessAppContextProps> = context => {
   // Define valid tabs
-  const validTabs = ['overview', 'charts', 'details'];
-  const defaultTab = 'overview';
+  const validTabs = ['overview', 'charts', 'details']
+  const defaultTab = 'overview'
 
   // Get content from URL query parameter or use default
   const getInitialTab = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const contentFromUrl = urlParams.get('content');
-    
+    const urlParams = new URLSearchParams(window.location.search)
+    const contentFromUrl = urlParams.get('content')
+
     if (validTabs.includes(contentFromUrl ?? '')) {
-      return contentFromUrl!;
+      return contentFromUrl!
     } else {
       // No valid content in URL, set default content in URL
-      const url = new URL(window.location.href);
-      url.searchParams.set('content', defaultTab);
-      window.history.replaceState({}, '', url.toString());
-      return defaultTab;
+      const url = new URL(window.location.href)
+      url.searchParams.set('content', defaultTab)
+      window.history.replaceState({}, '', url.toString())
+      return defaultTab
     }
-  };
+  }
 
-  const [activeTab, setActiveTab] = useState<string>(getInitialTab);
-  
+  const [activeTab, setActiveTab] = useState<string>(getInitialTab)
+
   const {
     absenceData,
     balanceData,
@@ -46,42 +44,34 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
     isLoading,
     error,
     refetch
-  } = useAbsenceDataIntegration(context);
+  } = useAbsenceDataIntegration(context)
 
-  const prefixDataTestId = 'AbsenceReport';
+  const prefixDataTestId = 'AbsenceReport'
 
   // Update URL when content changes
   const handleTabChange = (key: string) => {
-    setActiveTab(key);
-    const url = new URL(window.location.href);
-    url.searchParams.set('content', key);
-    window.history.pushState({}, '', url.toString());
-  };
+    setActiveTab(key)
+    const url = new URL(window.location.href)
+    url.searchParams.set('content', key)
+    window.history.pushState({}, '', url.toString())
+  }
 
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const contentFromUrl = urlParams.get('content');
-      const newTab = validTabs.includes(contentFromUrl ?? '') ? contentFromUrl! : defaultTab;
-      setActiveTab(newTab);
-    };
+      const urlParams = new URLSearchParams(window.location.search)
+      const contentFromUrl = urlParams.get('content')
+      const newTab = validTabs.includes(contentFromUrl ?? '') ? contentFromUrl! : defaultTab
+      setActiveTab(newTab)
+    }
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   if (error) {
     return (
-      <div 
-        data-testid={`${prefixDataTestId}-error`}
-        style={{ 
-          background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-          minHeight: '100%',
-          padding: '24px',
-          borderRadius: '8px'
-        }}
-      >
+      <div data-testid={`${prefixDataTestId}-error`} className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg">
         <Alert
           message="Failed to Load Absence Data"
           description={error}
@@ -94,80 +84,56 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
           }
         />
       </div>
-    );
+    )
   }
 
   if (isLoading) {
     return (
-      <div 
+      <div
         data-testid={`${prefixDataTestId}-loading`}
-        style={{ 
-          background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-          minHeight: '100%',
-          padding: '24px',
-          borderRadius: '8px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flexDirection: 'column'
-        }}
+        className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg gba:flex gba:justify-center gba:items-center gba:flex-col"
       >
         <Spin size="large" />
-        <Text style={{ marginTop: '16px', color: '#666' }}>
-          Loading absence data and analytics...
-        </Text>
+        <Text className="gba:mt-4 gba:text-muted-foreground">Loading absence data and analytics...</Text>
       </div>
-    );
+    )
   }
 
   // Safe access to array properties with fallbacks
-  const safeAbsenceTypes = absenceTypes || [];
-  const safeAbsenceGroups = absenceGroups || [];
-  const safeAbsenceData = absenceData || [];
-  const safeBalanceData = balanceData || [];
+  const safeAbsenceTypes = absenceTypes || []
+  const safeAbsenceGroups = absenceGroups || []
+  const safeAbsenceData = absenceData || []
+  const safeBalanceData = balanceData || []
 
   return (
-    <div
-      data-testid={prefixDataTestId}
-      style={{ 
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        padding: '24px',
-        borderRadius: '8px'
-      }}
-    >
+    <div data-testid={prefixDataTestId} className="gba:bg-muted gba:min-h-full gba:p-6 gba:rounded-lg">
       {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        marginBottom: '24px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Title level={3} style={{ margin: 0, color: '#1f2937' }}>
+      <div className="gba:flex gba:justify-between gba:items-center gba:mb-6">
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <Title level={3} className="gba:m-0 gba:text-foreground">
             Absence Report & Analytics
           </Title>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <Card size="small" style={{ padding: '4px 8px' }}>
-              <Text strong style={{ color: '#1890ff' }}>
+          <div className="gba:flex gba:gap-2">
+            <Card size="small" className="gba:py-1 gba:px-2">
+              <Text strong className="gba:text-info">
                 {statistics?.totalEmployees || 0} Employees
               </Text>
             </Card>
-            <Card size="small" style={{ padding: '4px 8px' }}>
-              <Text strong style={{ color: '#722ed1' }}>
+            <Card size="small" className="gba:py-1 gba:px-2">
+              <Text strong className="gba:text-info">
                 {safeAbsenceTypes.length} Absence Types
               </Text>
             </Card>
-            <Card size="small" style={{ padding: '4px 8px' }}>
-              <Text strong style={{ color: '#52c41a' }}>
+            <Card size="small" className="gba:py-1 gba:px-2">
+              <Text strong className="gba:text-success">
                 {statistics?.totalAbsenceDays || 0} Total Days
               </Text>
             </Card>
           </div>
         </div>
-        <Button 
-          type="primary" 
-          icon={<ReloadOutlined />} 
+        <Button
+          type="primary"
+          icon={<ReloadOutlined />}
           onClick={refetch}
           data-testid={`${prefixDataTestId}-refresh-button`}
         >
@@ -176,93 +142,68 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
       </div>
 
       {/* Main Content */}
-      <Tabs 
-        activeKey={activeTab} 
+      <Tabs
+        activeKey={activeTab}
         onChange={handleTabChange}
         type="card"
         size="large"
-        style={{ 
-          background: '#fff', 
-          borderRadius: '8px',
-          padding: '16px'
-        }}
+        className="gba:bg-primary-foreground gba:rounded-lg gba:p-4"
       >
-        <TabPane 
+        <TabPane
           tab={
             <Space>
               <CalendarOutlined />
-              <span data-testid={`${prefixDataTestId}-overview-tab`}>
-                Overview & Statistics
-              </span>
+              <span data-testid={`${prefixDataTestId}-overview-tab`}>Overview & Statistics</span>
             </Space>
-          } 
+          }
           key="overview"
         >
-          <AbsenceStatisticsDashboard 
-            statistics={statistics as any}
-            isLoading={isLoading}
-          />
+          <AbsenceStatisticsDashboard statistics={statistics as any} isLoading={isLoading} />
         </TabPane>
-        
-        <TabPane 
+
+        <TabPane
           tab={
             <Space>
               <BarChartOutlined />
-              <span data-testid={`${prefixDataTestId}-charts-tab`}>
-                Charts & Trends
-              </span>
+              <span data-testid={`${prefixDataTestId}-charts-tab`}>Charts & Trends</span>
             </Space>
-          } 
+          }
           key="charts"
         >
-          <AbsenceChartsView 
-            chartData={chartData as any}
-            isLoading={isLoading}
-            dataTestId={prefixDataTestId}
-          />
+          <AbsenceChartsView chartData={chartData as any} isLoading={isLoading} dataTestId={prefixDataTestId} />
         </TabPane>
-        
-        <TabPane 
+
+        <TabPane
           tab={
             <Space>
               <TableOutlined />
-              <span data-testid={`${prefixDataTestId}-details-tab`}>
-                Detailed Analysis
-              </span>
+              <span data-testid={`${prefixDataTestId}-details-tab`}>Detailed Analysis</span>
             </Space>
-          } 
+          }
           key="details"
         >
-          <AbsenceDetailsTable 
-            tableData={tableData as any}
-            dataTestId={prefixDataTestId}
-          />
+          <AbsenceDetailsTable tableData={tableData as any} dataTestId={prefixDataTestId} />
         </TabPane>
       </Tabs>
 
       {/* Footer Summary */}
       <Row gutter={[16, 16]} style={{ marginTop: '24px' }}>
         <Col span={24}>
-          <Card size="small" style={{ background: '#f0f2f5' }}>
+          <Card size="small" className="gba:bg-muted">
             <Row gutter={[16, 8]} justify="space-between" align="middle">
               <Col>
                 <Text type="secondary">
-                  Last Updated: {new Date().toLocaleDateString()} • 
-                  Data includes {safeAbsenceData.length} absence records and {safeBalanceData.length} balance entries
+                  Last Updated: {new Date().toLocaleDateString()} • Data includes {safeAbsenceData.length} absence
+                  records and {safeBalanceData.length} balance entries
                 </Text>
               </Col>
               <Col>
                 <Space>
                   {safeAbsenceGroups.length > 0 ? (
                     safeAbsenceGroups.map((group, index: number) => (
-                      <div key={group?.code || `group-${index}`} style={{ textAlign: 'center' }}>
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: ['#1890ff', '#ff4d4f', '#722ed1', '#52c41a'][index % 4] 
-                        }}>
-                          {group?.value || 'Unknown'}
-                        </div>
-                        <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+                      <div key={group?.code || `group-${index}`} className="gba:text-center">
+                        <div className="gba:text-xs gba:text-info">{group?.value || 'Unknown'}</div>
+                        <div className="gba:text-sm gba:font-bold">
                           {statistics?.groupStats?.find(s => s.groupCode === group?.code)?.totalDays || 0} days
                         </div>
                       </div>
@@ -277,7 +218,7 @@ const AbsenceReport: React.FC<AbsenceReportProps> = (context) => {
         </Col>
       </Row>
     </div>
-  );
-};
+  )
+}
 
-export default AbsenceReport; 
+export default AbsenceReport

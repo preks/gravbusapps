@@ -1,4 +1,4 @@
-import ExpenseItem from './ExpenseItem';
+import ExpenseItem from './ExpenseItem'
 
-export { ExpenseItem };
-export default ExpenseItem;
+export { ExpenseItem }
+export default ExpenseItem

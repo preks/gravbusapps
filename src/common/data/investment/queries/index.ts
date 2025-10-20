@@ -2,22 +2,22 @@
 // Based on actual GraphQL schema discovered via newwork-mcp
 
 // Investment Account Queries
-export * from './investmentAccountQueries';
+export * from './investmentAccountQueries'
 
-// Investment Contact Queries  
-export * from './investmentContactQueries';
+// Investment Contact Queries
+export * from './investmentContactQueries'
 
 // Investment Lead Queries
-export * from './investmentLeadQueries';
+export * from './investmentLeadQueries'
 
 // Investment Opportunity Queries
-export * from './investmentOpportunityQueries';
+export * from './investmentOpportunityQueries'
 
 // Investment Activity Queries
-export * from './investmentActivityQueries';
+export * from './investmentActivityQueries'
 
 // Core Investment Queries (with specializations)
-export * from './investmentQueries';
+export * from './investmentQueries'
 
 // Investment Relations Queries - now split into individual entity queries above
 
@@ -25,4 +25,4 @@ export * from './investmentQueries';
 // export * from './investmentReportQueries'; // DEPRECATED - use @/common/data/investment-report/ instead
 
 // Investment Task Queries
-export * from './investmentTaskQueries';
+export * from './investmentTaskQueries'

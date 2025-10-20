@@ -1,34 +1,44 @@
-import React from 'react';
-import { Card, CardHeader, CardTitle, Badge, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system';
-import { PipelineStatistics, PipelineStatisticsMetrics } from './widgets/PipelineStatistics';
-import { OpportunityFunnel, OpportunityFunnelData } from './widgets/OpportunityFunnel';
-import { ConversionPerformance, WinRateMetrics } from './widgets/ConversionPerformance';
-import { ActivityVolume, ActivityVolumeMetrics } from './widgets/ActivityVolume';
-import { PerformanceLeaderboard, SalesRepPerformance } from './widgets/PerformanceLeaderboard';
+import React from 'react'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  Badge,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@newwork/nw-design-system'
+import { PipelineStatistics, PipelineStatisticsMetrics } from './widgets/PipelineStatistics'
+import { OpportunityFunnel, OpportunityFunnelData } from './widgets/OpportunityFunnel'
+import { ConversionPerformance, WinRateMetrics } from './widgets/ConversionPerformance'
+import { ActivityVolume, ActivityVolumeMetrics } from './widgets/ActivityVolume'
+import { PerformanceLeaderboard, SalesRepPerformance } from './widgets/PerformanceLeaderboard'
 
 export interface PipelineTabLayoutProps {
-  moduleColor?: string;
-  headerLeft?: React.ReactNode;                 // Optional header content (e.g., icon/title) if needed
+  moduleColor?: string
+  headerLeft?: React.ReactNode // Optional header content (e.g., icon/title) if needed
 
   // Pipeline selector ownership here
-  pipelines?: Array<{ id: string; name: string }>;
-  selectedPipelineId?: string;
-  onPipelineChange?: (pipelineId: string) => void;
-  pipelineHeaderBadges?: { label: string; variant?: 'default' | 'secondary' | 'outline' }[];
-  pipelineTitle?: string;
-  pipelineDescription?: string;
-  
+  pipelines?: Array<{ id: string; name: string }>
+  selectedPipelineId?: string
+  onPipelineChange?: (pipelineId: string) => void
+  pipelineHeaderBadges?: { label: string; variant?: 'default' | 'secondary' | 'outline' }[]
+  pipelineTitle?: string
+  pipelineDescription?: string
+
   // Data props for widgets
-  pipelineId: string;
-  metrics: PipelineStatisticsMetrics;
-  funnelData: OpportunityFunnelData[];
-  winRateMetrics: WinRateMetrics;
-  activityVolume: ActivityVolumeMetrics;
-  leaderboard: SalesRepPerformance[];
+  pipelineId: string
+  metrics: PipelineStatisticsMetrics
+  funnelData: OpportunityFunnelData[]
+  winRateMetrics: WinRateMetrics
+  activityVolume: ActivityVolumeMetrics
+  leaderboard: SalesRepPerformance[]
 }
 
 export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
-  moduleColor = "default",
+  moduleColor = 'default',
   headerLeft,
   pipelines,
   selectedPipelineId,
@@ -41,10 +51,10 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
   funnelData,
   winRateMetrics,
   activityVolume,
-  leaderboard,
+  leaderboard
 }) => {
   // Remove unused variable warning
-  const _ = moduleColor;
+  const _ = moduleColor
   return (
     <div className="gba:space-y-6">
       {/* Pipeline Header */}
@@ -55,13 +65,9 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
               {headerLeft}
               <div className="gba:flex gba:items-center gba:gap-3">
                 <div>
-                  <CardTitle className="gba:text-gray-900">
-                    {pipelineTitle}
-                  </CardTitle>
+                  <CardTitle className="gba:text-gray-900">{pipelineTitle}</CardTitle>
                   {pipelineDescription && (
-                    <p className="gba:text-gray-600 gba:text-sm gba:mt-1">
-                      {pipelineDescription}
-                    </p>
+                    <p className="gba:text-gray-600 gba:text-sm gba:mt-1">{pipelineDescription}</p>
                   )}
                 </div>
                 {pipelines && pipelines.length > 1 && onPipelineChange && (
@@ -70,12 +76,10 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
                       <SelectValue placeholder="Select pipeline" />
                     </SelectTrigger>
                     <SelectContent>
-                      {pipelines.map((p) => (
+                      {pipelines.map(p => (
                         <SelectItem key={p.id} value={p.id}>
                           <div className="gba:flex gba:items-center gba:gap-2">
-                            <div 
-                              className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-blue-500"
-                            />
+                            <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-blue-500" />
                             <span>{p.name}</span>
                           </div>
                         </SelectItem>
@@ -116,7 +120,7 @@ export const PipelineTabLayout: React.FC<PipelineTabLayoutProps> = ({
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PipelineTabLayout;
+export default PipelineTabLayout

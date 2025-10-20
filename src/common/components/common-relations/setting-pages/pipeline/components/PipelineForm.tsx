@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -13,27 +13,27 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Input,
-} from "@newwork/nw-design-system";
-import { useForm } from "react-hook-form";
-import { BusinessAppContextProps } from "@/common/BusinessAppContext";
-import { useCatalogManagerClient } from "@/common/network/catalogs/useCatalogManagerClient";
+  Input
+} from '@newwork/nw-design-system'
+import { useForm } from 'react-hook-form'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 interface PipelineFormData {
-  value: string;
-  description: string;
+  value: string
+  description: string
 }
 
 interface PipelineFormProps extends BusinessAppContextProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  editingPipeline?: any;
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: () => void
+  editingPipeline?: any
   catalogConfig: {
-    pipelineCatalog: string;
-    version?: string;
-  };
-  prefixDataTestId?: string;
+    pipelineCatalog: string
+    version?: string
+  }
+  prefixDataTestId?: string
 }
 
 const PipelineForm: React.FC<PipelineFormProps> = ({
@@ -42,25 +42,25 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
   onSuccess,
   editingPipeline,
   catalogConfig,
-  prefixDataTestId = "pipeline-form",
-  accessToken,
+  prefixDataTestId = 'pipeline-form',
+  accessToken
 }) => {
-  const [operationLoading, setOperationLoading] = useState(false);
-  const catalogClient = useCatalogManagerClient(accessToken);
+  const [operationLoading, setOperationLoading] = useState(false)
+  const catalogClient = useCatalogManagerClient(accessToken)
 
   const form = useForm<PipelineFormData>({
     defaultValues: {
-      value: "",
-      description: "",
-    },
-  });
+      value: '',
+      description: ''
+    }
+  })
 
   const handleCreatePipeline = async (data: PipelineFormData) => {
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       const payload = {
-        code: data.value.toUpperCase().replace(/[^A-Z0-9]/g, "_"),
+        code: data.value.toUpperCase().replace(/[^A-Z0-9]/g, '_'),
         value: data.value,
         alternativeCode: null,
         displayOrder: null,
@@ -69,34 +69,30 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
         additionalValue3: null,
         objectValue: null,
         parentEntryId: null,
-        translations: [],
-      };
-
-      if (data.description) {
-        payload.additionalValue1 = data.description;
+        translations: []
       }
 
-      await catalogClient.createCatalogEntry(
-        catalogConfig.pipelineCatalog,
-        catalogConfig.version || "v1",
-        payload
-      );
+      if (data.description) {
+        payload.additionalValue1 = data.description
+      }
 
-      onClose();
-      form.reset();
-      onSuccess();
+      await catalogClient.createCatalogEntry(catalogConfig.pipelineCatalog, catalogConfig.version || 'v1', payload)
+
+      onClose()
+      form.reset()
+      onSuccess()
     } catch (error) {
-      console.error("Error creating pipeline:", error);
+      console.error('Error creating pipeline:', error)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
   const handleUpdatePipeline = async (data: PipelineFormData) => {
-    if (!editingPipeline) return;
+    if (!editingPipeline) return
 
     try {
-      setOperationLoading(true);
+      setOperationLoading(true)
 
       await catalogClient.updateCatalogEntry(editingPipeline.id, {
         code: editingPipeline.code, // Keep original code
@@ -107,20 +103,20 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
         additionalValue2: editingPipeline.additionalValue2,
         additionalValue3: editingPipeline.additionalValue3,
         objectValue: editingPipeline.objectValue,
-        parentEntryId: editingPipeline.parentEntryId,
-      });
+        parentEntryId: editingPipeline.parentEntryId
+      })
 
-      onClose();
-      form.reset();
-      onSuccess();
+      onClose()
+      form.reset()
+      onSuccess()
     } catch (error) {
-      console.error("Error updating pipeline:", error);
+      console.error('Error updating pipeline:', error)
     } finally {
-      setOperationLoading(false);
+      setOperationLoading(false)
     }
-  };
+  }
 
-  const handleSubmit = editingPipeline ? handleUpdatePipeline : handleCreatePipeline;
+  const handleSubmit = editingPipeline ? handleUpdatePipeline : handleCreatePipeline
 
   // Reset form when modal opens/closes or editing pipeline changes
   React.useEffect(() => {
@@ -128,28 +124,24 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
       if (editingPipeline) {
         form.reset({
           value: editingPipeline.value,
-          description: editingPipeline.additionalValue1 || "",
-        });
+          description: editingPipeline.additionalValue1 || ''
+        })
       } else {
         form.reset({
-          value: "",
-          description: "",
-        });
+          value: '',
+          description: ''
+        })
       }
     }
-  }, [isOpen, editingPipeline, form]);
+  }, [isOpen, editingPipeline, form])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>
-            {editingPipeline ? "Edit Pipeline" : "Create New Pipeline"}
-          </DialogTitle>
+          <DialogTitle>{editingPipeline ? 'Edit Pipeline' : 'Create New Pipeline'}</DialogTitle>
           <DialogDescription>
-            {editingPipeline
-              ? "Update the pipeline information below."
-              : "Enter the pipeline details below."}
+            {editingPipeline ? 'Update the pipeline information below.' : 'Enter the pipeline details below.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -158,7 +150,7 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
             <FormField
               control={form.control}
               name="value"
-              rules={{ required: "Pipeline name is required" }}
+              rules={{ required: 'Pipeline name is required' }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Pipeline Name</FormLabel>
@@ -185,30 +177,18 @@ const PipelineForm: React.FC<PipelineFormProps> = ({
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={operationLoading}
-              >
+              <Button type="button" variant="outline" onClick={onClose} disabled={operationLoading}>
                 Cancel
               </Button>
               <Button type="submit" disabled={operationLoading}>
-                {operationLoading
-                  ? "Saving..."
-                  : editingPipeline
-                  ? "Update Pipeline"
-                  : "Create Pipeline"}
+                {operationLoading ? 'Saving...' : editingPipeline ? 'Update Pipeline' : 'Create Pipeline'}
               </Button>
             </DialogFooter>
           </form>
         </Form>
       </DialogContent>
     </Dialog>
-  );
-};
+  )
+}
 
-export default PipelineForm;
-
-
-
+export default PipelineForm

@@ -1,34 +1,30 @@
-import { Control, FieldValues } from 'react-hook-form';
-import { DynamicFormField } from '@/components/dynamic-form-field';
-import { formatDataTestId } from '@/common/utils/formatDataTestId';
-import {
-  DynamicFormConfiguration,
-  DynamicFormFieldDefinition,
-  DynamicFormFieldGroup,
-} from './types';
+import { Control, FieldValues } from 'react-hook-form'
+import { DynamicFormField } from '@/components/dynamic-form-field'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { DynamicFormConfiguration, DynamicFormFieldDefinition, DynamicFormFieldGroup } from './types'
 
 /**
  * Props for DynamicForm component
  */
 export interface DynamicFormProps<TFieldValues extends FieldValues = FieldValues> {
   /** Form configuration (JSON structure) */
-  configuration: DynamicFormConfiguration;
+  configuration: DynamicFormConfiguration
   /** React Hook Form control */
-  control: Control<TFieldValues>;
+  control: Control<TFieldValues>
   /** Access token for API requests (required for CATALOG_ fields) */
-  accessToken: string;
+  accessToken: string
   /** Optional data-testid prefix */
-  testIdPrefix?: string;
+  testIdPrefix?: string
   /** Currency symbol to display in amount fields */
-  currencySymbol?: string;
+  currencySymbol?: string
   /** Custom renderer for REF_ fields */
-  renderReferenceField?: (entityType: string, field: DynamicFormFieldDefinition, fieldName: string) => React.ReactNode;
+  renderReferenceField?: (entityType: string, field: DynamicFormFieldDefinition, fieldName: string) => React.ReactNode
   /** Loading state */
-  isLoading?: boolean;
+  isLoading?: boolean
   /** Error message */
-  error?: string | null;
+  error?: string | null
   /** Empty state message */
-  emptyMessage?: string;
+  emptyMessage?: string
 }
 
 /**
@@ -39,20 +35,16 @@ export interface DynamicFormProps<TFieldValues extends FieldValues = FieldValues
  * - "equityInvestment.marketValue" → "equityInvestment.marketValue"
  * - "liquidFundInvestment.additionalProperties.name" → "liquidFundInvestment.additionalProperties.name"
  * - "size" → "size"
+ *
+ * NOTE: Catalog fields use property WITHOUT "Ref" suffix in form state
+ * - Config property: "investment.investmentType" (no Ref)
+ * - Form field: "investment.investmentType" (no Ref)
+ * - API payload: "investment.investmentTypeRef" (has Ref - handled by payload builder)
  */
 function getFieldNameFromProperty(property: string, fieldType: string): string {
-  // For CATALOG_ fields, ensure the property path ends with "Ref"
-  if (fieldType.startsWith('CATALOG_') && !property.endsWith('Ref')) {
-    // Add Ref to the last segment of the path
-    // e.g., "equityInvestment.fundType" → "equityInvestment.fundTypeRef"
-    const parts = property.split('.');
-    const lastPart = parts[parts.length - 1];
-    parts[parts.length - 1] = `${lastPart}Ref`;
-    return parts.join('.');
-  }
-
-  // For nested structure, use the FULL property path
-  return property;
+  // Use the property path as-is (no Ref suffix manipulation needed)
+  // Form state uses catalog fields WITHOUT "Ref" suffix
+  return property
 }
 
 /**
@@ -61,22 +53,22 @@ function getFieldNameFromProperty(property: string, fieldType: string): string {
  * Fields with display order "2" will be in their own group
  */
 function groupFieldsByDisplayOrder(fields: DynamicFormFieldDefinition[]): Record<string, DynamicFormFieldDefinition[]> {
-  const groups: Record<string, DynamicFormFieldDefinition[]> = {};
+  const groups: Record<string, DynamicFormFieldDefinition[]> = {}
 
-  fields.forEach((field) => {
-    const orderBase = String(field.displayOrder).split('.')[0];
+  fields.forEach(field => {
+    const orderBase = String(field.displayOrder).split('.')[0]
     if (!groups[orderBase]) {
-      groups[orderBase] = [];
+      groups[orderBase] = []
     }
-    groups[orderBase].push(field);
-  });
+    groups[orderBase].push(field)
+  })
 
   // Sort each group by full display order
-  Object.keys(groups).forEach((key) => {
-    groups[key].sort((a, b) => String(a.displayOrder).localeCompare(String(b.displayOrder)));
-  });
+  Object.keys(groups).forEach(key => {
+    groups[key].sort((a, b) => String(a.displayOrder).localeCompare(String(b.displayOrder)))
+  })
 
-  return groups;
+  return groups
 }
 
 /**
@@ -118,7 +110,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
   renderReferenceField,
   isLoading = false,
   error = null,
-  emptyMessage = 'No form fields available',
+  emptyMessage = 'No form fields available'
 }: DynamicFormProps<TFieldValues>) {
   // ============================================================================
   // LOADING STATE
@@ -132,7 +124,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
       >
         Loading form fields...
       </div>
-    );
+    )
   }
 
   // ============================================================================
@@ -147,7 +139,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
       >
         <div className="gba:text-sm">Error loading form fields: {error}</div>
       </div>
-    );
+    )
   }
 
   // ============================================================================
@@ -162,7 +154,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
       >
         {emptyMessage}
       </div>
-    );
+    )
   }
 
   // ============================================================================
@@ -170,12 +162,12 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
   // ============================================================================
 
   // Sort groups by display order
-  const sortedGroups = [...configuration.formFields].sort((a, b) => a.displayOrder - b.displayOrder);
+  const sortedGroups = [...configuration.formFields].sort((a, b) => a.displayOrder - b.displayOrder)
 
   return (
     <div data-testid={formatDataTestId(testIdPrefix, 'Container')}>
       {sortedGroups.map((group: DynamicFormFieldGroup) => {
-        const fieldGroups = groupFieldsByDisplayOrder(group.fields);
+        const fieldGroups = groupFieldsByDisplayOrder(group.fields)
 
         return (
           <div
@@ -191,13 +183,13 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
             {/* Render fields grouped by display order */}
             {Object.keys(fieldGroups)
               .sort((a, b) => parseInt(a) - parseInt(b))
-              .map((orderBase) => {
-                const fieldsInOrder = fieldGroups[orderBase];
+              .map(orderBase => {
+                const fieldsInOrder = fieldGroups[orderBase]
 
                 if (fieldsInOrder.length === 1) {
                   // Single field - full width
-                  const field = fieldsInOrder[0];
-                  const fieldName = getFieldNameFromProperty(field.property, field.type);
+                  const field = fieldsInOrder[0]
+                  const fieldName = getFieldNameFromProperty(field.property, field.type)
 
                   return (
                     <div key={orderBase}>
@@ -211,7 +203,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
                         renderReferenceField={renderReferenceField}
                       />
                     </div>
-                  );
+                  )
                 } else {
                   // Multiple fields - same row (grid layout)
                   return (
@@ -219,11 +211,11 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
                       key={orderBase}
                       className="gba:grid gba:gap-4"
                       style={{
-                        gridTemplateColumns: `repeat(${fieldsInOrder.length}, 1fr)`,
+                        gridTemplateColumns: `repeat(${fieldsInOrder.length}, 1fr)`
                       }}
                     >
-                      {fieldsInOrder.map((field) => {
-                        const fieldName = getFieldNameFromProperty(field.property, field.type);
+                      {fieldsInOrder.map(field => {
+                        const fieldName = getFieldNameFromProperty(field.property, field.type)
 
                         return (
                           <div key={field.property}>
@@ -237,16 +229,15 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
                               renderReferenceField={renderReferenceField}
                             />
                           </div>
-                        );
+                        )
                       })}
                     </div>
-                  );
+                  )
                 }
               })}
           </div>
-        );
+        )
       })}
     </div>
-  );
+  )
 }
-

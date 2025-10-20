@@ -3,130 +3,187 @@
  */
 
 export const GET_TOTAL_COMPANY_SPEND_MONTHLY = `
-  query GetTotalCompanySpendMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentDate: timestamp, $previousMonthStart: timestamp, $previousMonthEnd: timestamp, $selectedDepartment: uuid) {
-    currentPeriodSpend: ExpenseRequestAggregate(
+  query GetTotalCompanySpendMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp, $previousMonthStart: timestamp, $previousMonthEnd: timestamp, $selectedDepartment: uuid) {
+    currentPeriodSpend: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $currentMonthStart, _lte: $currentDate } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
-    previousPeriodSpend: ExpenseRequestAggregate(
+    previousPeriodSpend: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $previousMonthStart, _lte: $previousMonthEnd } }
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $previousMonthStart, _lt: $previousMonthEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousMonthStart, _lt: $previousMonthEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
   }
-`;
+`
 
 export const GET_TOTAL_COMPANY_SPEND_QUARTERLY = `
-  query GetTotalCompanySpendQuarterly($selectedCurrency: String, $quarterStart: timestamp, $currentDate: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp, $selectedDepartment: uuid) {
-    currentPeriodSpend: ExpenseRequestAggregate(
+  query GetTotalCompanySpendQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp, $selectedDepartment: uuid) {
+    currentPeriodSpend: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $quarterStart, _lte: $currentDate } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $quarterStart, _lte: $quarterEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
-    previousPeriodSpend: ExpenseRequestAggregate(
+    previousPeriodSpend: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
   }
-`;
+`
 
 export const GET_TOTAL_COMPANY_SPEND_YEARLY = `
   query GetTotalCompanySpendYearly($selectedCurrency: String, $yearStart: timestamp, $currentDate: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp, $selectedDepartment: uuid) {
-    currentPeriodSpend: ExpenseRequestAggregate(
+    currentPeriodSpend: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $yearStart, _lte: $currentDate } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $yearStart, _lte: $currentDate } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $yearStart, _lte: $currentDate } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
-    previousPeriodSpend: ExpenseRequestAggregate(
+    previousPeriodSpend: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $previousYearStart, _lte: $previousYearEnd } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $previousYearStart, _lte: $previousYearEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousYearStart, _lte: $previousYearEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
   }
-`;
+`
 
 export const GET_ACTUAL_VS_PLANNED_YEARLY = `
   query GetActualVsPlannedYearly($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp, $selectedDepartment: uuid) {
-    actualExpenses: ExpenseRequestAggregate(
+    actualExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $yearStart, _lte: $yearEnd } },
-          { isDeleted: { _eq: false } }
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $yearStart, _lte: $yearEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $yearStart, _lte: $yearEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
@@ -136,26 +193,9 @@ export const GET_ACTUAL_VS_PLANNED_YEARLY = `
           { status: { _nin: ["CREATED", "DISCARDED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
-          {
-            _or: [
-              { startDate: { _gte: $yearStart, _lte: $yearEnd } },
-              { endDate: { _gte: $yearStart, _lte: $yearEnd } },
-              {
-                _and: [
-                  { startDate: { _lte: $yearStart } },
-                  { endDate: { _gte: $yearEnd } }
-                ]
-              },
-              {
-                _and: [
-                  { startDate: { _isNull: true } },
-                  { endDate: { _isNull: true } },
-                  { planDate: { _gte: $yearStart, _lte: $yearEnd } }
-                ]
-              }
-            ]
-          }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { startDate: { _gte: $yearStart, _lte: $yearEnd } }
         ]
       }
     ) {
@@ -165,23 +205,69 @@ export const GET_ACTUAL_VS_PLANNED_YEARLY = `
       }
     }
   }
-`;
+`
+
+export const GET_ACTUAL_VS_PLANNED_YEARLY_NODEPT = `
+  query GetActualVsPlannedYearlyNoDept($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp) {
+    actualExpenses: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $yearStart, _lte: $yearEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $yearStart, _lte: $yearEnd } } }
+            ] }
+          ] }
+        ]
+      }
+    ) {
+      aggregate { sum { reimbursableAmount } count }
+    }
+    plannedExpenses: ExpensePlanAggregate(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { startDate: { _gte: $yearStart, _lte: $yearEnd } }
+        ]
+      }
+    ) {
+      aggregate { sum { totalAmount } count }
+    }
+  }
+`
 
 export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
   query GetActualVsPlannedQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
-    actualExpenses: ExpenseRequestAggregate(
+    actualExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } },
-          { isDeleted: { _eq: false } }
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $quarterStart, _lte: $quarterEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
@@ -191,26 +277,9 @@ export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
           { status: { _nin: ["CREATED", "DISCARDED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
-          {
-            _or: [
-              { startDate: { _gte: $quarterStart, _lte: $quarterEnd } },
-              { endDate: { _gte: $quarterStart, _lte: $quarterEnd } },
-              {
-                _and: [
-                  { startDate: { _lte: $quarterStart } },
-                  { endDate: { _gte: $quarterEnd } }
-                ]
-              },
-              {
-                _and: [
-                  { startDate: { _isNull: true } },
-                  { endDate: { _isNull: true } },
-                  { planDate: { _gte: $quarterStart, _lte: $quarterEnd } }
-                ]
-              }
-            ]
-          }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { startDate: { _gte: $quarterStart, _lte: $quarterEnd } }
         ]
       }
     ) {
@@ -220,23 +289,69 @@ export const GET_ACTUAL_VS_PLANNED_QUARTERLY = `
       }
     }
   }
-`;
+`
+
+export const GET_ACTUAL_VS_PLANNED_QUARTERLY_NODEPT = `
+  query GetActualVsPlannedQuarterlyNoDept($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+    actualExpenses: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $quarterStart, _lte: $quarterEnd } } }
+            ] }
+          ] }
+        ]
+      }
+    ) {
+      aggregate { sum { reimbursableAmount } count }
+    }
+    plannedExpenses: ExpensePlanAggregate(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { startDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+        ]
+      }
+    ) {
+      aggregate { sum { totalAmount } count }
+    }
+  }
+`
 
 export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
   query GetActualVsPlannedMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
-    actualExpenses: ExpenseRequestAggregate(
+    actualExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $monthStart, _lte: $monthEnd } },
-          { isDeleted: { _eq: false } }
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $monthStart, _lte: $monthEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $monthStart, _lte: $monthEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
@@ -246,26 +361,9 @@ export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
           { status: { _nin: ["CREATED", "DISCARDED"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
-          {
-            _or: [
-              { startDate: { _gte: $monthStart, _lte: $monthEnd } },
-              { endDate: { _gte: $monthStart, _lte: $monthEnd } },
-              {
-                _and: [
-                  { startDate: { _lte: $monthStart } },
-                  { endDate: { _gte: $monthEnd } }
-                ]
-              },
-              {
-                _and: [
-                  { startDate: { _isNull: true } },
-                  { endDate: { _isNull: true } },
-                  { planDate: { _gte: $monthStart, _lte: $monthEnd } }
-                ]
-              }
-            ]
-          }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { startDate: { _gte: $monthStart, _lte: $monthEnd } }
         ]
       }
     ) {
@@ -275,7 +373,274 @@ export const GET_ACTUAL_VS_PLANNED_MONTHLY = `
       }
     }
   }
-`;
+`
+
+export const GET_ACTUAL_VS_PLANNED_MONTHLY_NODEPT = `
+  query GetActualVsPlannedMonthlyNoDept($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp) {
+    actualExpenses: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $monthStart, _lte: $monthEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $monthStart, _lte: $monthEnd } } }
+            ] }
+          ] }
+        ]
+      }
+    ) {
+      aggregate { sum { reimbursableAmount } count }
+    }
+    plannedExpenses: ExpensePlanAggregate(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { startDate: { _gte: $monthStart, _lte: $monthEnd } }
+        ]
+      }
+    ) {
+      aggregate { sum { totalAmount } count }
+    }
+  }
+`
+
+// DEBUG: List planned ExpensePlan IDs under the same filters (to reconcile counts)
+export const GET_PLANNED_PLAN_IDS_YEARLY = `
+  query GetPlannedPlanIdsYearly($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp, $selectedDepartment: uuid) {
+    ExpensePlan(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { startDate: { _gte: $yearStart, _lte: $yearEnd } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_PLANNED_PLAN_IDS_YEARLY_NODEPT = `
+  query GetPlannedPlanIdsYearlyNoDept($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp) {
+    ExpensePlan(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { startDate: { _gte: $yearStart, _lte: $yearEnd } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_PLANNED_PLAN_IDS_QUARTERLY = `
+  query GetPlannedPlanIdsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
+    ExpensePlan(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { startDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_PLANNED_PLAN_IDS_QUARTERLY_NODEPT = `
+  query GetPlannedPlanIdsQuarterlyNoDept($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+    ExpensePlan(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { startDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_PLANNED_PLAN_IDS_MONTHLY = `
+  query GetPlannedPlanIdsMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
+    ExpensePlan(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { startDate: { _gte: $monthStart, _lte: $monthEnd } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_PLANNED_PLAN_IDS_MONTHLY_NODEPT = `
+  query GetPlannedPlanIdsMonthlyNoDept($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp) {
+    ExpensePlan(
+      where: {
+        _and: [
+          { status: { _nin: ["CREATED", "DISCARDED"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { isDeleted: { _eq: false } },
+          { startDate: { _gte: $monthStart, _lte: $monthEnd } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+// DEBUG: Fetch startDate for specific ExpensePlan IDs
+export const GET_EXPENSE_PLAN_STARTDATES_BY_IDS = `
+  query GetExpensePlanStartDatesByIds($ids: [uuid!]) {
+    ExpensePlan(where: { id: { _in: $ids } }) {
+      id
+      startDate
+    }
+  }
+`
+
+// DEBUG: List actual ExpenseRequest IDs used in Actual vs Planned (same filters as actualExpenses)
+export const GET_ACTUAL_EXPENSE_IDS_YEARLY = `
+  query GetActualExpenseIdsYearly($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp, $selectedDepartment: uuid) {
+    ExpenseRequest(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { startDate: { _gte: $yearStart, _lte: $yearEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_ACTUAL_EXPENSE_IDS_QUARTERLY = `
+  query GetActualExpenseIdsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
+    ExpenseRequest(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { startDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_ACTUAL_EXPENSE_IDS_MONTHLY = `
+  query GetActualExpenseIdsMonthly($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp, $selectedDepartment: uuid) {
+    ExpenseRequest(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { startDate: { _gte: $monthStart, _lte: $monthEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+// DEBUG variants without department filter (used when no department is selected)
+export const GET_ACTUAL_EXPENSE_IDS_YEARLY_NODEPT = `
+  query GetActualExpenseIdsYearlyNoDept($selectedCurrency: String, $yearStart: timestamp, $yearEnd: timestamp) {
+    ExpenseRequest(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { startDate: { _gte: $yearStart, _lte: $yearEnd } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_ACTUAL_EXPENSE_IDS_QUARTERLY_NODEPT = `
+  query GetActualExpenseIdsQuarterlyNoDept($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
+    ExpenseRequest(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { startDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
+
+export const GET_ACTUAL_EXPENSE_IDS_MONTHLY_NODEPT = `
+  query GetActualExpenseIdsMonthlyNoDept($selectedCurrency: String, $monthStart: timestamp, $monthEnd: timestamp) {
+    ExpenseRequest(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { startDate: { _gte: $monthStart, _lte: $monthEnd } },
+          { isDeleted: { _eq: false } }
+        ]
+      }
+      orderBy: { startDate: ASC }
+      limit: 1000
+    ) { id code status startDate }
+  }
+`
 
 export const GET_MONTHLY_EXPENSE_TRENDS = `
   query GetMonthlyExpenseTrend($selectedCurrency: String, $startDate: timestamp!, $endDate: timestamp!, $selectedDepartment: uuid) {
@@ -285,8 +650,9 @@ export const GET_MONTHLY_EXPENSE_TRENDS = `
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
           { totalAmount: { _gt: 0 } },
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
-          { requestDate: { _gte: $startDate, _lte: $endDate } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { startDate: { _gte: $startDate, _lte: $endDate } },
+          { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -300,120 +666,166 @@ export const GET_MONTHLY_EXPENSE_TRENDS = `
       }
     }
   }
-`;
+`
 
 export const GET_SPEND_COMPARISON_YEARLY = `
   query GetSpendComparisonYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $previousYearStart: timestamp, $previousYearEnd: timestamp, $selectedDepartment: uuid) {
-    currentYearExpenses: ExpenseRequestAggregate(
+    currentYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $currentYearStart, _lte: $currentYearEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $currentYearStart, _lte: $currentYearEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
-    previousYearExpenses: ExpenseRequestAggregate(
+    previousYearExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $previousYearStart, _lte: $previousYearEnd } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $previousYearStart, _lte: $previousYearEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousYearStart, _lte: $previousYearEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
   }
-`;
+`
 
 export const GET_SPEND_COMPARISON_QUARTERLY = `
   query GetSpendComparisonQuarterly($selectedCurrency: String, $currentQuarterStart: timestamp, $currentQuarterEnd: timestamp, $previousQuarterStart: timestamp, $previousQuarterEnd: timestamp, $selectedDepartment: uuid) {
-    currentQuarterExpenses: ExpenseRequestAggregate(
+    currentQuarterExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $currentQuarterStart, _lte: $currentQuarterEnd } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $currentQuarterStart, _lte: $currentQuarterEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $currentQuarterStart, _lte: $currentQuarterEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
-    previousQuarterExpenses: ExpenseRequestAggregate(
+    previousQuarterExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
   }
-`;
+`
 
 export const GET_MONTHLY_SPEND_COMPARISON = `
   query GetMonthlySpendComparison($currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $previousMonthStart: timestamp!, $previousMonthEnd: timestamp!, $selectedCurrency: String, $selectedDepartment: uuid) {
-    currentMonthExpenses: ExpenseRequestAggregate(
+    currentMonthExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $currentMonthStart } },
-          { requestDate: { _lt: $currentMonthEnd } }
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $currentMonthStart, _lt: $currentMonthEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
-    previousMonthExpenses: ExpenseRequestAggregate(
+    previousMonthExpenses: ExpenseItemAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $previousMonthStart } },
-          { requestDate: { _lt: $previousMonthEnd } },
-          {isDeleted: {_eq: false}}
-          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $previousMonthStart, _lt: $previousMonthEnd } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousMonthStart, _lt: $previousMonthEnd } } }
+            ] }
+          ] }
         ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS = `
   query GetAdditionalDashboardMetrics($selectedCurrency: String, $currentYearStart: timestamp, $currentMonthStart: timestamp, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
@@ -445,48 +857,69 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS = `
       }
     }
   }
-`;
+`
 
 export const GET_YTD_STATS = `
-  query GetYTDStats($currentYearStart: timestamp!, $currentYTD: timestamp!, $previousYearStart: timestamp!, $previousYTD: timestamp!, $selectedDepartment: uuid) {
-    currentYearExpenses: ExpenseRequestAggregate(
+  query GetYTDStats($selectedCurrency: String!, $currentYearStart: timestamp!, $currentYTD: timestamp!, $previousYearStart: timestamp!, $previousYTD: timestamp!, $selectedDepartment: uuid) {
+    currentYearExpenses: ExpenseItemAggregate(
       where: {
-        status: { _eq: "PAID" }
-        currencyRef: { _eq: "Currency:v1:EUR" }
-        endDate: { _gte: $currentYearStart, _lt: $currentYTD }
-        employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } }
+        _and: [
+          { status: { _eq: "PAID" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $currentYearStart, _lt: $currentYTD } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $currentYearStart, _lt: $currentYTD } } }
+            ] }
+          ] }
+        ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
-    previousYearExpenses: ExpenseRequestAggregate(
+    previousYearExpenses: ExpenseItemAggregate(
       where: {
-        status: { _eq: "PAID" }
-        currencyRef: { _eq: "Currency:v1:EUR" }
-        endDate: { _gte: $previousYearStart, _lt: $previousYTD }
-        employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } }
+        _and: [
+          { status: { _eq: "PAID" } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $previousYearStart, _lt: $previousYTD } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $previousYearStart, _lt: $previousYTD } } }
+            ] }
+          ] }
+        ]
       }
     ) {
       aggregate {
-        sum { totalAmount }
+        sum { reimbursableAmount }
         count
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
-  query GetAdditionalDashboardMetricsYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $selectedDepartment: uuid) {
+  query GetAdditionalDashboardMetricsYearly($selectedCurrency: String, $selectedDepartment: uuid) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
           { status: { _eq: "BOOKED" } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _gt: 0 } },
-          { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -500,8 +933,6 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
       where: {
         _and: [
           { status: { _eq: "PENDING" } },
-          { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -512,16 +943,16 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
-  query GetAdditionalDashboardMetricsMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp, $selectedDepartment: uuid) {
+  query GetAdditionalDashboardMetricsMonthly($selectedCurrency: String, $selectedDepartment: uuid) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
           { status: { _eq: "BOOKED" } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
+          { totalAmount: { _gt: 0 } },
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -535,8 +966,6 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
       where: {
         _and: [
           { status: { _eq: "PENDING" } },
-          { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } }
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -547,16 +976,16 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
-  query GetAdditionalDashboardMetricsQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
+  query GetAdditionalDashboardMetricsQuarterly($selectedCurrency: String, $selectedDepartment: uuid) {
     transferRequired: ExpenseRequestAggregate(
       where: {
         _and: [
           { status: { _eq: "BOOKED" } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+          { totalAmount: { _gt: 0 } },
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -570,8 +999,6 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
       where: {
         _and: [
           { status: { _eq: "PENDING" } },
-          { currencyRef: { _eq: $selectedCurrency } },
-          { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } }
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -582,16 +1009,16 @@ export const GET_ADDITIONAL_DASHBOARD_METRICS_QUARTERLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENTS_APPROVED_YEARLY = `
-  query GetAdvancePaymentsApprovedYearly($selectedCurrency: String, $currentYearStart: timestamptz, $currentYearEnd: timestamptz) {
+  query GetAdvancePaymentsApprovedYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp) {
     advancePaymentsApproved: AdvancePaymentAggregate(
       where: {
         _and: [
           { status: { _eq: "APPROVED" } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { createdAt: { _gte: $currentYearStart, _lte: $currentYearEnd } },
+          { expensePlan: { startDate: { _gte: $currentYearStart, _lte: $currentYearEnd } } },
           {isDeleted: {_eq: false}}
         ]
       }
@@ -602,16 +1029,16 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY = `
-  query GetAdvancePaymentsApprovedMonthly($selectedCurrency: String, $currentMonthStart: timestamptz, $currentMonthEnd: timestamptz) {
+  query GetAdvancePaymentsApprovedMonthly($selectedCurrency: String, $currentMonthStart: timestamp, $currentMonthEnd: timestamp) {
     advancePaymentsApproved: AdvancePaymentAggregate(
       where: {
         _and: [
           { status: { _eq: "APPROVED" } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { createdAt: { _gte: $currentMonthStart, _lte: $currentMonthEnd } },
+          { expensePlan: { startDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } } },
           {isDeleted: {_eq: false}}
         ]
       }
@@ -622,16 +1049,16 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY = `
-  query GetAdvancePaymentsApprovedQuarterly($selectedCurrency: String, $quarterStart: timestamptz, $quarterEnd: timestamptz) {
+  query GetAdvancePaymentsApprovedQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp) {
     advancePaymentsApproved: AdvancePaymentAggregate(
       where: {
         _and: [
           { status: { _eq: "APPROVED" } },
           { currencyRef: { _eq: $selectedCurrency } },
-          { createdAt: { _gte: $quarterStart, _lte: $quarterEnd } },
+          { expensePlan: { startDate: { _gte: $quarterStart, _lte: $quarterEnd } } },
           {isDeleted: {_eq: false}}
         ]
       }
@@ -642,18 +1069,165 @@ export const GET_ADVANCE_PAYMENTS_APPROVED_QUARTERLY = `
       }
     }
   }
-`;
+`
+
+// ExpenseItem aggregates (expense-type) by period using expenseDate
+export const GET_EXPENSE_ITEM_SUM_MONTHLY = `
+  query GetExpenseItemSumMonthly($selectedCurrency: String, $currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $previousMonthStart: timestamp!, $previousMonthEnd: timestamp!, $selectedDepartment: uuid) {
+    currentItems: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { expenseDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }
+    previousItems: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { expenseDate: { _gte: $previousMonthStart, _lte: $previousMonthEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }
+  }
+`
+
+export const GET_EXPENSE_ITEM_SUM_QUARTERLY = `
+  query GetExpenseItemSumQuarterly($selectedCurrency: String, $quarterStart: timestamp!, $quarterEnd: timestamp!, $previousQuarterStart: timestamp!, $previousQuarterEnd: timestamp!, $selectedDepartment: uuid) {
+    currentItems: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { expenseDate: { _gte: $quarterStart, _lte: $quarterEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }
+    previousItems: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { expenseDate: { _gte: $previousQuarterStart, _lte: $previousQuarterEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }
+  }
+`
+
+export const GET_EXPENSE_ITEM_SUM_YEARLY = `
+  query GetExpenseItemSumYearly($selectedCurrency: String, $yearStart: timestamp!, $currentDate: timestamp!, $previousYearStart: timestamp!, $previousYearEnd: timestamp!, $selectedDepartment: uuid) {
+    currentItems: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { expenseDate: { _gte: $yearStart, _lte: $currentDate } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }
+    previousItems: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { expenseDate: { _gte: $previousYearStart, _lte: $previousYearEnd } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }
+  }
+`
+
+export const GET_EXPENSE_ITEM_TREND = `
+  query GetExpenseItemTrend($selectedCurrency: String, $startDate: timestamp!, $endDate: timestamp!, $selectedDepartment: uuid) {
+    ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { expenseDate: { _gte: $startDate, _lte: $endDate } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }
+  }
+`
+
+// Bulk monthly trends (Requests + Items) using aliases, one roundtrip for the full year
+export const GET_BULK_MONTHLY_TRENDS = (): string => {
+  const monthVars = Array.from({ length: 12 }, (_, i) => `$m${i + 1}Start: timestamp!, $m${i + 1}End: timestamp!`).join(
+    ', '
+  )
+  const monthFields = Array.from({ length: 12 }, (_, i) => {
+    const idx = i + 1
+    return `
+    m${idx}_req: ExpenseRequestAggregate(
+      where: {
+        _and: [
+          { currencyRef: { _eq: $selectedCurrency } },
+          { totalAmount: { _isNull: false } },
+          { totalAmount: { _gt: 0 } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { startDate: { _gte: $m${idx}Start, _lte: $m${idx}End } },
+          { requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
+        ]
+      }
+    ) { aggregate { count sum { totalAmount } } }
+    m${idx}_item: ExpenseItemAggregate(
+      where: {
+        _and: [
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
+          { currencyRef: { _eq: $selectedCurrency } },
+          { isDeleted: { _eq: false } },
+          { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } },
+          { _or: [
+            { _and: [
+              { expenseDate: { _gte: $m${idx}Start, _lte: $m${idx}End } },
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:EXPENSES" } } }
+            ] },
+            { _and: [
+              { expenseRequest: { isDeleted: { _eq: false }, requestTypeRef: { _eq: "ExpenseRequestType:v1:TRIP" }, startDate: { _gte: $m${idx}Start, _lte: $m${idx}End } } }
+            ] }
+          ] }
+        ]
+      }
+    ) { aggregate { count sum { reimbursableAmount } } }`
+  }).join('\n')
+  return `
+  query GetBulkMonthlyTrends($selectedCurrency: String, $selectedDepartment: uuid, ${monthVars}) {
+${monthFields}
+  }
+  `
+}
 
 export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
   query GetAvgSpendPerTripYearly($selectedCurrency: String, $currentYearStart: timestamp, $currentYearEnd: timestamp, $selectedDepartment: uuid) {
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
           { totalAmount: { _gt: 0 } },
-          { requestDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
+          { startDate: { _gte: $currentYearStart, _lte: $currentYearEnd } }
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -665,17 +1239,17 @@ export const GET_AVG_SPEND_PER_TRIP_YEARLY = `
       }
     }
   }
-`;
+`
 
 export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
   query GetAvgSpendPerTripMonthly($selectedCurrency: String, $currentMonthStart: timestamp!, $currentMonthEnd: timestamp!, $selectedDepartment: uuid) {
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _gt: 0 } },
-          { requestDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } },
+          { startDate: { _gte: $currentMonthStart, _lte: $currentMonthEnd } },
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -687,18 +1261,18 @@ export const GET_AVG_SPEND_PER_TRIP_MONTHLY = `
       }
     }
   }
-`;
+`
 
 export const GET_AVG_SPEND_PER_TRIP_QUARTERLY = `
   query GetAvgSpendPerTripQuarterly($selectedCurrency: String, $quarterStart: timestamp, $quarterEnd: timestamp, $selectedDepartment: uuid) {
     avgSpendPerTrip: ExpenseRequestAggregate(
       where: {
         _and: [
-          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "TRANSFERRED", "PAID", "CLOSED"] } },
+          { status: { _in: ["APPROVED", "VERIFIED", "BOOKED", "PAID"] } },
           { currencyRef: { _eq: $selectedCurrency } },
           { totalAmount: { _isNull: false } },
           { totalAmount: { _gt: 0 } },
-          { requestDate: { _gte: $quarterStart, _lte: $quarterEnd } }
+          { startDate: { _gte: $quarterStart, _lte: $quarterEnd } }
           {isDeleted: {_eq: false}}
           { employee: { employeePosition: { organizationalUnitId: { _eq: $selectedDepartment } } } }
         ]
@@ -710,4 +1284,4 @@ export const GET_AVG_SPEND_PER_TRIP_QUARTERLY = `
       }
     }
   }
-`;
+`

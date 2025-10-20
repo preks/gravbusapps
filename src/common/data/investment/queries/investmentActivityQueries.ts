@@ -1,64 +1,87 @@
-import { INVESTMENT_ACTIVITY } from './fragments/investmentRelationFragments';
+import { INVESTMENT_ACTIVITY } from './fragments/investmentRelationFragments'
 
 // Query variables interface
 export interface InvestmentActivityQueryVariables {
-  id?: string;
-  offset?: number;
-  limit?: number;
-  search?: string;
-  accountId?: string;
-  contactId?: string;
-  opportunityId?: string;
-  leadId?: string;
+  id?: string
+  offset?: number
+  limit?: number
+  search?: string
+  accountId?: string
+  contactId?: string
+  opportunityId?: string
+  leadId?: string
 }
 
 // Get investment activity by ID
 export const GET_INVESTMENT_ACTIVITY_BY_ID = (id: string): string => `
-  query GetInvestmentActivityById($id: uuid!) {
-    InvestmentActivity(where: { id: { _eq: $id } }) {
+  query GetInvestmentActivityById {
+    InvestmentActivity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
       ${INVESTMENT_ACTIVITY}
+      
+      # Entity references
+      investment {
+        id
+        code
+        name
+      }
+      account {
+        id
+        name
+      }
+      contact {
+        id
+        firstName
+        lastName
+      }
+      opportunity {
+        id
+        name
+      }
+      lead {
+        id
+        firstName
+        lastName
+      }
     }
   }
-`;
+`
 
 // Get investment activities with filtering
 export const GET_INVESTMENT_ACTIVITIES = (variables: InvestmentActivityQueryVariables = {}): string => {
-  const whereConditions = [
-    `isDeleted: { _eq: false }`
-  ];
-  
+  const whereConditions = [`isDeleted: { _eq: false }`]
+
   if (variables.id) {
-    whereConditions.push(`id: { _eq: "${variables.id}" }`);
+    whereConditions.push(`id: { _eq: "${variables.id}" }`)
   }
-  
+
   if (variables.accountId) {
-    whereConditions.push(`account: { id: { _eq: "${variables.accountId}" } }`);
+    whereConditions.push(`account: { id: { _eq: "${variables.accountId}" } }`)
   }
-  
+
   if (variables.contactId) {
-    whereConditions.push(`contact: { id: { _eq: "${variables.contactId}" } }`);
+    whereConditions.push(`contact: { id: { _eq: "${variables.contactId}" } }`)
   }
-  
+
   if (variables.opportunityId) {
-    whereConditions.push(`opportunity: { id: { _eq: "${variables.opportunityId}" } }`);
+    whereConditions.push(`opportunity: { id: { _eq: "${variables.opportunityId}" } }`)
   }
-  
+
   if (variables.leadId) {
-    whereConditions.push(`lead: { id: { _eq: "${variables.leadId}" } }`);
+    whereConditions.push(`lead: { id: { _eq: "${variables.leadId}" } }`)
   }
-  
+
   if (variables.search?.trim()) {
-    const searchPattern = `%${variables.search.trim()}%`;
+    const searchPattern = `%${variables.search.trim()}%`
     whereConditions.push(`
       _or: [
         { title: { _ilike: "${searchPattern}" } }
         { description: { _ilike: "${searchPattern}" } }
       ]
-    `);
+    `)
   }
-  
-  const whereClause = `where: { ${whereConditions.join(', ')} }`;
-  
+
+  const whereClause = `where: { ${whereConditions.join(', ')} }`
+
   return `
     query GetInvestmentActivities(
       $offset: Int = ${variables.offset || 0}
@@ -77,6 +100,5 @@ export const GET_INVESTMENT_ACTIVITIES = (variables: InvestmentActivityQueryVari
         }
       }
     }
-  `;
-};
-
+  `
+}

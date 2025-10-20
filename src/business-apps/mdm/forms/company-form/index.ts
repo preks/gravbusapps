@@ -1,4 +1,4 @@
-import { CompanyForm } from './CompanyForm';
+import CompanyForm from './CompanyForm'
 
-export { CompanyForm };
-export default CompanyForm;
+export { CompanyForm }
+export default CompanyForm

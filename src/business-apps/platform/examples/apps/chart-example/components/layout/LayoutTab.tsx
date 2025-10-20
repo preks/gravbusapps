@@ -1,68 +1,61 @@
-import React from "react";
+import React from 'react'
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   Button,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
-} from "@newwork/nw-design-system";
-import { CodeIcon } from "@phosphor-icons/react";
+  SheetTrigger
+} from '@newwork/nw-design-system'
+import { CodeIcon } from '@phosphor-icons/react'
 
 // Import layout examples
-import GridLayoutExample from "./GridLayoutExample";
-import ResponsiveLayoutExample from "./ResponsiveLayoutExample";
-import DashboardLayoutExample from "./DashboardLayoutExample";
+import GridLayoutExample from './GridLayoutExample'
+import ResponsiveLayoutExample from './ResponsiveLayoutExample'
+import DashboardLayoutExample from './DashboardLayoutExample'
 
 // Import code examples
-import {
-  gridLayoutCode,
-  responsiveLayoutCode,
-  dashboardLayoutCode,
-} from "./code-examples";
+import { gridLayoutCode, responsiveLayoutCode, dashboardLayoutCode } from './code-examples'
 
 interface LayoutTabProps {
-  moduleColor?: string;
+  moduleColor?: string
 }
 
 interface LayoutExample {
-  id: string;
-  title: string;
-  description: string;
-  component: React.ComponentType<{ moduleColor?: string }>;
-  code: string;
+  id: string
+  title: string
+  description: string
+  component: React.ComponentType<{ moduleColor?: string }>
+  code: string
 }
 
 const LayoutTab: React.FC<LayoutTabProps> = ({ moduleColor }) => {
   const examples: LayoutExample[] = [
     {
-      id: "grid",
-      title: "Grid Layout",
-      description: "Multiple charts arranged in a responsive grid layout, perfect for dashboards.",
+      id: 'grid',
+      title: 'Grid Layout',
+      description: 'Multiple charts arranged in a responsive grid layout, perfect for dashboards.',
       component: GridLayoutExample,
-      code: gridLayoutCode,
+      code: gridLayoutCode
     },
     {
-      id: "responsive",
-      title: "Responsive Layout",
-      description: "Charts that adapt to different screen sizes with responsive breakpoints.",
+      id: 'responsive',
+      title: 'Responsive Layout',
+      description: 'Charts that adapt to different screen sizes with responsive breakpoints.',
       component: ResponsiveLayoutExample,
-      code: responsiveLayoutCode,
+      code: responsiveLayoutCode
     },
     {
-      id: "dashboard",
-      title: "Dashboard Layout",
-      description: "Complete dashboard layout with mixed chart types and sizes.",
+      id: 'dashboard',
+      title: 'Dashboard Layout',
+      description: 'Complete dashboard layout with mixed chart types and sizes.',
       component: DashboardLayoutExample,
-      code: dashboardLayoutCode,
-    },
-  ];
+      code: dashboardLayoutCode
+    }
+  ]
 
   return (
     <div className="gba:space-y-6" data-testid="layout-tab">
@@ -70,14 +63,15 @@ const LayoutTab: React.FC<LayoutTabProps> = ({ moduleColor }) => {
       <div>
         <h1 className="gba:text-3xl gba:font-bold gba:tracking-tight">Layout Examples</h1>
         <p className="gba:text-muted-foreground gba:mt-2">
-          These examples demonstrate how to arrange multiple charts in responsive layouts for dashboards and analytics views.
+          These examples demonstrate how to arrange multiple charts in responsive layouts for dashboards and analytics
+          views.
         </p>
       </div>
 
       {/* Layout Examples */}
       <div className="gba:space-y-8">
-        {examples.map((example) => {
-          const LayoutComponent = example.component;
+        {examples.map(example => {
+          const LayoutComponent = example.component
           return (
             <div key={example.id} className="gba:space-y-0">
               {/* Top slim card: Title, description, and code button */}
@@ -112,17 +106,17 @@ const LayoutTab: React.FC<LayoutTabProps> = ({ moduleColor }) => {
                   </div>
                 </CardContent>
               </Card>
-              
+
               {/* Bottom card: Chart only */}
               <div>
                 <LayoutComponent moduleColor={moduleColor} />
               </div>
             </div>
-          );
+          )
         })}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default LayoutTab;
+export default LayoutTab

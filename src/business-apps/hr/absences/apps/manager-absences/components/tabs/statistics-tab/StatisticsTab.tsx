@@ -1,36 +1,36 @@
-import React from 'react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { useAbsenceStatisticsSimple } from '../../../hooks/useAbsenceStatisticsSimple';
-import { KeyInsightsSection } from './KeyInsightsSection';
-import { QuickActionsSection } from './QuickActionsSection';
-import { UsagePatternsSection } from './UsagePatternsSection';
-import { YearComparisonSection } from './YearComparisonSection';
-import { AbsenceDistributionSection } from './AbsenceDistributionSection';
-import { AbsenceTrendsSection } from './AbsenceTrendsSection';
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils';
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useAbsenceStatisticsSimple } from '../../../hooks/useAbsenceStatisticsSimple'
+import { KeyInsightsSection } from './KeyInsightsSection'
+import { QuickActionsSection } from './QuickActionsSection'
+import { UsagePatternsSection } from './UsagePatternsSection'
+import { YearComparisonSection } from './YearComparisonSection'
+import { AbsenceDistributionSection } from './AbsenceDistributionSection'
+import { AbsenceTrendsSection } from './AbsenceTrendsSection'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface StatisticsTabProps extends BusinessAppContextProps {
-  onNavigateToWorkLifeBalance?: () => void;
-  onNavigateToTeamCoverage?: () => void;
+  onNavigateToWorkLifeBalance?: () => void
+  onNavigateToTeamCoverage?: () => void
 }
 
-export const StatisticsTab: React.FC<StatisticsTabProps> = (props) => {
-  const { statistics, isLoading, error } = useAbsenceStatisticsSimple(props);
+export const StatisticsTab: React.FC<StatisticsTabProps> = props => {
+  const { statistics, isLoading, error } = useAbsenceStatisticsSimple(props)
 
   if (isLoading) {
     return (
       <div className="gba:p-6 gba:text-center" data-testid="statistics-tab-loading">
         {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
       </div>
-    );
+    )
   }
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="statistics-tab-error">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="statistics-tab-error">
         Error: {error}
       </div>
-    );
+    )
   }
 
   if (!statistics) {
@@ -38,7 +38,7 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = (props) => {
       <div className="gba:p-6 gba:text-center" data-testid="statistics-tab-no-data">
         No statistics data available.
       </div>
-    );
+    )
   }
 
   return (
@@ -70,5 +70,5 @@ export const StatisticsTab: React.FC<StatisticsTabProps> = (props) => {
         <YearComparisonSection data={statistics} />
       </div>
     </div>
-  );
-};
+  )
+}

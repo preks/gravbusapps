@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react'
 import {
   Button,
   Sheet,
@@ -6,28 +6,28 @@ import {
   SheetContent,
   SheetFooter,
   SheetHeader,
-  SheetTitle,
-} from "@newwork/nw-design-system";
-import { formatDataTestId } from "@/common/utils/formatDataTestId";
-import { VerticalTable, VerticalTableProps } from "../table/VerticalTable";
-import { NavigationLinkCards, NavigationLinkCardsProps } from "../card/NavigationLinkCards";
-import { LinkIcon } from "@phosphor-icons/react";
+  SheetTitle
+} from '@newwork/nw-design-system'
+import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import { VerticalTable, VerticalTableProps } from '../table/VerticalTable'
+import { NavigationLinkCards, NavigationLinkCardsProps } from '../card/NavigationLinkCards'
+import { LinkIcon } from '@phosphor-icons/react'
 
 type SheetWrapperComponentProps = {
-  prefixDataTestId: string;
-  isDrawerVisible: boolean;
-  onOpenChange: (openStatus: boolean) => void;
-  title: string;
-  titleIcon?: React.ElementType;
-  drawerItems: VerticalTableProps[];
-  isFooterVisible?: boolean;
-  extraContent?: React.ReactNode;
-  footerButtons?: React.ReactNode[];
-  navigationItems?: NavigationLinkCardsProps[];
-  showNavigationItems?: boolean;
-};
+  prefixDataTestId: string
+  isDrawerVisible: boolean
+  onOpenChange: (openStatus: boolean) => void
+  title: string
+  titleIcon?: React.ElementType
+  drawerItems: VerticalTableProps[]
+  isFooterVisible?: boolean
+  extraContent?: React.ReactNode
+  footerButtons?: React.ReactNode[]
+  navigationItems?: NavigationLinkCardsProps[]
+  showNavigationItems?: boolean
+}
 
-const DATA_TEST_ID_PREFIX = "SheetWrapperComponent";
+const DATA_TEST_ID_PREFIX = 'SheetWrapperComponent'
 
 const SheetWrapperComponent = ({
   prefixDataTestId,
@@ -40,21 +40,21 @@ const SheetWrapperComponent = ({
   extraContent,
   footerButtons,
   navigationItems,
-  showNavigationItems = false,
+  showNavigationItems = false
 }: SheetWrapperComponentProps) => {
-  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX);
-  const TitleIcon = titleIcon;
+  const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
+  const TitleIcon = titleIcon
 
   return (
     <Sheet open={isDrawerVisible} onOpenChange={onOpenChange}>
       <style jsx>{`
-        [data-slot="sheet-overlay"] {
+        [data-slot='sheet-overlay'] {
           z-index: 1000 !important;
         }
-        [data-slot="sheet-content"] {
+        [data-slot='sheet-content'] {
           z-index: 1001 !important;
         }
-        [data-slot="popover-content"] {
+        [data-slot='popover-content'] {
           z-index: 1002 !important;
         }
       `}</style>
@@ -68,7 +68,7 @@ const SheetWrapperComponent = ({
 
         <div className="gba:flex-1 gba:overflow-auto gba:px-4 gba:pb-4">
           <div className="gba:space-y-6">
-            {drawerItems.map((item) => {
+            {drawerItems.map(item => {
               return (
                 <VerticalTable
                   icon={item.icon}
@@ -76,7 +76,7 @@ const SheetWrapperComponent = ({
                   items={item.items}
                   verticalTable={item.verticalTable}
                 />
-              );
+              )
             })}
           </div>
           {navigationItems && showNavigationItems && (
@@ -88,19 +88,17 @@ const SheetWrapperComponent = ({
 
               <div className="gba:grid gba:grid-cols-1 gba:gap-4">
                 {navigationItems.map((item, index) => {
-                  return <NavigationLinkCards key={index} {...item} />;
+                  return <NavigationLinkCards key={index} {...item} />
                 })}
               </div>
             </div>
           )}
-          {extraContent && (
-            <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">{extraContent}</div>
-          )}
+          {extraContent && <div className="gba:bg-gray-50 gba:rounded-md gba:p-4 gba:mt-4">{extraContent}</div>}
         </div>
         {isFooterVisible && (
           <SheetFooter>
             <div className="gba:flex gba:justify-end gba:gap-2">
-              {footerButtons?.map((footerButton) => footerButton)}
+              {footerButtons?.map(footerButton => footerButton)}
               <SheetClose asChild>
                 <Button variant="outline">Close</Button>
               </SheetClose>
@@ -109,7 +107,7 @@ const SheetWrapperComponent = ({
         )}
       </SheetContent>
     </Sheet>
-  );
-};
+  )
+}
 
-export default SheetWrapperComponent;
+export default SheetWrapperComponent

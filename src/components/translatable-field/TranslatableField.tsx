@@ -1,10 +1,9 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { 
-  Input, 
-  Label, 
-  Button, 
+import {
+  Input,
+  Label,
+  Button,
   Badge,
   Popover,
   PopoverContent,
@@ -14,32 +13,32 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue
-} from '@newwork/nw-design-system';
-import { Languages, X, Settings } from 'lucide-react';
+} from '@newwork/nw-design-system'
+import { Languages, X, Settings } from 'lucide-react'
 
 export interface TranslatableFieldProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  translations: Record<string, string>;
-  onTranslationsChange: (translations: Record<string, string>) => void;
-  placeholder?: string;
-  required?: boolean;
-  error?: string;
-  defaultLanguage?: string;
-  onDefaultLanguageChange?: (language: string) => void;
-  className?: string;
-  inputClassName?: string;
-  'data-testid'?: string;
+  label: string
+  value: string
+  onChange: (value: string) => void
+  translations: Record<string, string>
+  onTranslationsChange: (translations: Record<string, string>) => void
+  placeholder?: string
+  required?: boolean
+  error?: string
+  defaultLanguage?: string
+  onDefaultLanguageChange?: (language: string) => void
+  className?: string
+  inputClassName?: string
+  'data-testid'?: string
 }
 
-const defaultLanguages = ['en-US', 'de-DE', 'ro-RO'];
+const defaultLanguages = ['en-US', 'de-DE', 'ro-RO']
 
 const languageNames: Record<string, string> = {
   'en-US': 'English',
-  'de-DE': 'German', 
+  'de-DE': 'German',
   'ro-RO': 'Romanian'
-};
+}
 
 export function TranslatableField({
   label,
@@ -59,76 +58,69 @@ export function TranslatableField({
   // Remove the unused state since we're using uncontrolled Popover
 
   // Get all languages that should be shown: default languages + languages with existing translations
-  const translatedLanguageCodes = Object.keys(translations);
-  const allLanguageCodes = Array.from(new Set([
-    ...defaultLanguages,
-    ...translatedLanguageCodes
-  ]));
-
-
+  const translatedLanguageCodes = Object.keys(translations)
+  const allLanguageCodes = Array.from(new Set([...defaultLanguages, ...translatedLanguageCodes]))
 
   const getLanguageDisplayName = (langCode: string) => {
-    return languageNames[langCode] || langCode.toUpperCase();
-  };
+    return languageNames[langCode] || langCode.toUpperCase()
+  }
 
   // Handle main field value change
   const handleMainFieldChange = (newValue: string) => {
-    onChange(newValue);
+    onChange(newValue)
     // Auto-update the default language translation
     onTranslationsChange({
       ...translations,
       [defaultLanguage]: newValue
-    });
-  };
+    })
+  }
 
   // Handle translation change for specific language
   const handleTranslationChange = (langCode: string, translationValue: string) => {
     const updatedTranslations = {
       ...translations,
       [langCode]: translationValue
-    };
+    }
 
     // If changing the default language, also update the main field
     if (langCode === defaultLanguage) {
-      onChange(translationValue);
+      onChange(translationValue)
     }
 
-    onTranslationsChange(updatedTranslations);
-  };
+    onTranslationsChange(updatedTranslations)
+  }
 
   // Handle default language change
   const handleDefaultLanguageChange = (newLanguage: string) => {
-    if (!onDefaultLanguageChange) return;
-    
+    if (!onDefaultLanguageChange) return
+
     // Update the main field value to match the new default language
-    const newDefaultValue = translations[newLanguage] || '';
-    onChange(newDefaultValue);
-    
+    const newDefaultValue = translations[newLanguage] || ''
+    onChange(newDefaultValue)
+
     // Preserve current main field value in old default language
     const updatedTranslations = {
       ...translations,
       [defaultLanguage]: value,
       [newLanguage]: newDefaultValue
-    };
-    
-    onTranslationsChange(updatedTranslations);
-    onDefaultLanguageChange(newLanguage);
-  };
+    }
 
-
+    onTranslationsChange(updatedTranslations)
+    onDefaultLanguageChange(newLanguage)
+  }
 
   // Remove language
   const removeLanguage = (langToRemove: string) => {
     // Don't allow removing the current default language
-    if (langToRemove === defaultLanguage) return;
+    if (langToRemove === defaultLanguage) return
 
-    const updatedTranslations = { ...translations };
-    delete updatedTranslations[langToRemove];
-    onTranslationsChange(updatedTranslations);
-  };
+    const updatedTranslations = { ...translations }
+    delete updatedTranslations[langToRemove]
+    onTranslationsChange(updatedTranslations)
+  }
 
-  const hasTranslations = Object.keys(translations).length > 0;
-  const currentValue = value;
+  const hasTranslations = Object.keys(translations).length > 0
+  const currentValue = value
 
   return (
     <div className={`${label ? 'gba:space-y-2' : 'gba:space-y-0'} ${className}`} data-testid={dataTestId}>
@@ -144,27 +136,25 @@ export function TranslatableField({
       <div className="gba:relative gba:inline-block gba:w-full">
         <Input
           value={currentValue}
-          onChange={(e) => handleMainFieldChange(e.target.value)}
+          onChange={e => handleMainFieldChange(e.target.value)}
           placeholder={placeholder}
           className={`${error ? 'gba:border-red-500 gba:pr-10' : 'gba:pr-10'} ${inputClassName}`}
           data-testid={`${dataTestId}-MainInput`}
         />
-        
+
         {/* Translation Icon inside field */}
         <div className="gba:absolute gba:right-2 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:z-10">
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                variant="link" 
+                variant="link"
                 size="sm"
                 className="gba:h-8 gba:w-8 gba:p-0 hover:gba:bg-gray-100"
                 data-testid={`${dataTestId}-TranslateButton`}
               >
-                <Languages 
+                <Languages
                   className={`gba:h-4 gba:w-4 gba:transition-colors ${
-                    hasTranslations
-                      ? 'gba:text-blue-500'
-                      : 'gba:text-gray-400'
+                    hasTranslations ? 'gba:text-blue-500' : 'gba:text-gray-400'
                   }`}
                 />
               </Button>
@@ -189,7 +179,7 @@ export function TranslatableField({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {allLanguageCodes.map((langCode) => (
+                          {allLanguageCodes.map(langCode => (
                             <SelectItem key={langCode} value={langCode}>
                               {getLanguageDisplayName(langCode)} ({langCode})
                             </SelectItem>
@@ -207,10 +197,10 @@ export function TranslatableField({
                 {/* Translation Inputs */}
                 <div className="gba:space-y-3">
                   <div className="gba:max-h-[70vh] gba:overflow-y-auto gba:space-y-3">
-                    {allLanguageCodes.map((langCode) => {
-                      const isCurrentLanguage = langCode === defaultLanguage;
-                      const isDefaultLanguage = defaultLanguages.includes(langCode);
-                      const canRemove = langCode !== defaultLanguage && !isDefaultLanguage;
+                    {allLanguageCodes.map(langCode => {
+                      const isCurrentLanguage = langCode === defaultLanguage
+                      const isDefaultLanguage = defaultLanguages.includes(langCode)
+                      const canRemove = langCode !== defaultLanguage && !isDefaultLanguage
 
                       return (
                         <div
@@ -236,7 +226,7 @@ export function TranslatableField({
                           <div className="gba:flex-1">
                             <Input
                               value={translations[langCode] || ''}
-                              onChange={(e) => handleTranslationChange(langCode, e.target.value)}
+                              onChange={e => handleTranslationChange(langCode, e.target.value)}
                               placeholder="Please enter..."
                               className="gba:h-9"
                             />
@@ -252,10 +242,8 @@ export function TranslatableField({
                             </Button>
                           )}
                         </div>
-                      );
+                      )
                     })}
-
-
                   </div>
                 </div>
               </div>
@@ -271,5 +259,5 @@ export function TranslatableField({
         </p>
       )}
     </div>
-  );
-} 
+  )
+}

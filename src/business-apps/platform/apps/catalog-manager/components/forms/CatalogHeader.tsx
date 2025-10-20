@@ -1,38 +1,28 @@
-import React, { useState } from 'react';
-import { 
+import React, { useState } from 'react'
+import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   Input,
   Label,
-  Textarea,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
   Separator
-} from '@newwork/nw-design-system';
-import { 
-  Calendar, 
-  User, 
-  Settings, 
-  Globe,
-  Info,
-  Hash,
-  Tag
-} from 'lucide-react';
-import { BusinessAppContextProps } from '@/common/BusinessAppContext';
-import { CatalogManagement } from '@/common/types/CatalogTypes';
-import { TranslatableField } from '@/components/translatable-field';
+} from '@newwork/nw-design-system'
+import { Calendar, User, Settings, Globe, Info, Hash, Tag } from 'lucide-react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { CatalogManagement } from '@/common/types/CatalogTypes'
+import { TranslatableField } from '@/components/translatable-field'
 
 interface CatalogHeaderFormProps extends BusinessAppContextProps {
-  data: CatalogManagement;
-  onChange: (field: string, value: any) => void;
-  isLoading?: boolean;
-  'data-testid'?: string;
+  data: CatalogManagement
+  onChange: (field: string, value: any) => void
+  isLoading?: boolean
+  'data-testid'?: string
 }
 
 const localeOptions = [
@@ -41,7 +31,7 @@ const localeOptions = [
   { value: 'ro', label: 'Romanian' },
   { value: 'es', label: 'Spanish' },
   { value: 'fr', label: 'French' }
-];
+]
 
 export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
   data,
@@ -52,28 +42,28 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
 }) => {
   const [nameTranslations, setNameTranslations] = useState<Record<string, string>>(
     data.children?.reduce((acc, child) => ({ ...acc, [child.defaultLocale || 'en']: child.name }), {}) || {}
-  );
+  )
 
-  const [descriptionTranslations, setDescriptionTranslations] = useState<Record<string, string>>({});
+  const [descriptionTranslations, setDescriptionTranslations] = useState<Record<string, string>>({})
 
   const handleTranslatableNameChange = (value: string) => {
-    onChange('name', value);
-  };
+    onChange('name', value)
+  }
 
   const handleTranslatableDescriptionChange = (value: string) => {
-    onChange('description', value);
-  };
+    onChange('description', value)
+  }
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString();
-  };
+    if (!dateString) return ''
+    return new Date(dateString).toLocaleDateString()
+  }
 
   const formatDateTime = (dateString?: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-  };
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
+  }
 
   return (
     <div className="gba:space-y-6" data-testid={dataTestId}>
@@ -95,7 +85,7 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
               <Input
                 id="catalog-identifier"
                 value={data.identifier || ''}
-                onChange={(e) => onChange('identifier', e.target.value)}
+                onChange={e => onChange('identifier', e.target.value)}
                 placeholder="e.g., job-levels, departments"
                 disabled={isLoading}
                 data-testid={`${dataTestId}-IdentifierInput`}
@@ -113,7 +103,7 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
               <Input
                 id="catalog-version"
                 value={data.version || ''}
-                onChange={(e) => onChange('version', e.target.value)}
+                onChange={e => onChange('version', e.target.value)}
                 placeholder="e.g., v1, 1.0.0"
                 disabled={isLoading}
                 data-testid={`${dataTestId}-VersionInput`}
@@ -178,15 +168,12 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
         <CardContent className="gba:space-y-4">
           <div className="gba:space-y-2">
             <Label htmlFor="default-locale">Default Locale</Label>
-            <Select
-              value={data.defaultLocale || 'en'}
-              onValueChange={(value) => onChange('defaultLocale', value)}
-            >
+            <Select value={data.defaultLocale || 'en'} onValueChange={value => onChange('defaultLocale', value)}>
               <SelectTrigger data-testid={`${dataTestId}-LocaleSelect`}>
                 <SelectValue placeholder="Select default locale" />
               </SelectTrigger>
               <SelectContent>
-                {localeOptions.map((locale) => (
+                {localeOptions.map(locale => (
                   <SelectItem key={locale.value} value={locale.value}>
                     {locale.label}
                   </SelectItem>
@@ -216,7 +203,9 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
                 id="valid-from"
                 type="datetime-local"
                 value={data.validFrom ? new Date(data.validFrom).toISOString().slice(0, 16) : ''}
-                onChange={(e) => onChange('validFrom', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                onChange={e =>
+                  onChange('validFrom', e.target.value ? new Date(e.target.value).toISOString() : undefined)
+                }
                 disabled={isLoading}
                 data-testid={`${dataTestId}-ValidFromInput`}
               />
@@ -228,7 +217,7 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
                 id="valid-to"
                 type="datetime-local"
                 value={data.validTo ? new Date(data.validTo).toISOString().slice(0, 16) : ''}
-                onChange={(e) => onChange('validTo', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                onChange={e => onChange('validTo', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
                 disabled={isLoading}
                 data-testid={`${dataTestId}-ValidToInput`}
               />
@@ -255,12 +244,15 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
                 <Calendar className="gba:h-4 gba:w-4" />
                 Created
               </Label>
-              <div className="gba:text-sm" style={{ 
-                color: 'var(--nw-color-text-secondary)',
-                padding: 'var(--nw-spacing-sm)',
-                backgroundColor: 'var(--nw-color-surface-secondary)',
-                borderRadius: 'var(--nw-border-radius-sm)'
-              }}>
+              <div
+                className="gba:text-sm"
+                style={{
+                  color: 'var(--nw-color-text-secondary)',
+                  padding: 'var(--nw-spacing-sm)',
+                  backgroundColor: 'var(--nw-color-surface-secondary)',
+                  borderRadius: 'var(--nw-border-radius-sm)'
+                }}
+              >
                 {data.createdAt ? formatDateTime(data.createdAt) : 'Not available'}
               </div>
             </div>
@@ -270,12 +262,15 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
                 <User className="gba:h-4 gba:w-4" />
                 Created By
               </Label>
-              <div className="gba:text-sm" style={{ 
-                color: 'var(--nw-color-text-secondary)',
-                padding: 'var(--nw-spacing-sm)',
-                backgroundColor: 'var(--nw-color-surface-secondary)',
-                borderRadius: 'var(--nw-border-radius-sm)'
-              }}>
+              <div
+                className="gba:text-sm"
+                style={{
+                  color: 'var(--nw-color-text-secondary)',
+                  padding: 'var(--nw-spacing-sm)',
+                  backgroundColor: 'var(--nw-color-surface-secondary)',
+                  borderRadius: 'var(--nw-border-radius-sm)'
+                }}
+              >
                 {data.createdBy || 'Not available'}
               </div>
             </div>
@@ -285,12 +280,15 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
                 <Calendar className="gba:h-4 gba:w-4" />
                 Last Updated
               </Label>
-              <div className="gba:text-sm" style={{ 
-                color: 'var(--nw-color-text-secondary)',
-                padding: 'var(--nw-spacing-sm)',
-                backgroundColor: 'var(--nw-color-surface-secondary)',
-                borderRadius: 'var(--nw-border-radius-sm)'
-              }}>
+              <div
+                className="gba:text-sm"
+                style={{
+                  color: 'var(--nw-color-text-secondary)',
+                  padding: 'var(--nw-spacing-sm)',
+                  backgroundColor: 'var(--nw-color-surface-secondary)',
+                  borderRadius: 'var(--nw-border-radius-sm)'
+                }}
+              >
                 {data.updatedAt ? formatDateTime(data.updatedAt) : 'Not available'}
               </div>
             </div>
@@ -300,12 +298,15 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
                 <User className="gba:h-4 gba:w-4" />
                 Updated By
               </Label>
-              <div className="gba:text-sm" style={{ 
-                color: 'var(--nw-color-text-secondary)',
-                padding: 'var(--nw-spacing-sm)',
-                backgroundColor: 'var(--nw-color-surface-secondary)',
-                borderRadius: 'var(--nw-border-radius-sm)'
-              }}>
+              <div
+                className="gba:text-sm"
+                style={{
+                  color: 'var(--nw-color-text-secondary)',
+                  padding: 'var(--nw-spacing-sm)',
+                  backgroundColor: 'var(--nw-color-surface-secondary)',
+                  borderRadius: 'var(--nw-border-radius-sm)'
+                }}
+              >
                 {data.updatedBy || 'Not available'}
               </div>
             </div>
@@ -318,24 +319,30 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
               <Hash className="gba:h-4 gba:w-4" />
               Record State
             </Label>
-            <div className="gba:text-sm" style={{ 
-              color: 'var(--nw-color-text-secondary)',
-              padding: 'var(--nw-spacing-sm)',
-              backgroundColor: 'var(--nw-color-surface-secondary)',
-              borderRadius: 'var(--nw-border-radius-sm)'
-            }}>
+            <div
+              className="gba:text-sm"
+              style={{
+                color: 'var(--nw-color-text-secondary)',
+                padding: 'var(--nw-spacing-sm)',
+                backgroundColor: 'var(--nw-color-surface-secondary)',
+                borderRadius: 'var(--nw-border-radius-sm)'
+              }}
+            >
               {data.recordState || 'ACTIVE'}
             </div>
           </div>
 
           {data.isDeleted && (
-            <div className="gba:text-sm" style={{ 
-              color: 'var(--nw-color-danger-500)',
-              padding: 'var(--nw-spacing-sm)',
-              backgroundColor: 'var(--nw-color-danger-50)',
-              borderRadius: 'var(--nw-border-radius-sm)',
-              border: '1px solid var(--nw-color-danger-200)'
-            }}>
+            <div
+              className="gba:text-sm"
+              style={{
+                color: 'var(--nw-color-danger-500)',
+                padding: 'var(--nw-spacing-sm)',
+                backgroundColor: 'var(--nw-color-danger-50)',
+                borderRadius: 'var(--nw-border-radius-sm)',
+                border: '1px solid var(--nw-color-danger-200)'
+              }}
+            >
               ⚠️ This catalog is marked as deleted
               {data.deletedAt && ` on ${formatDateTime(data.deletedAt)}`}
             </div>
@@ -343,8 +350,7 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
         </CardContent>
       </Card>
     </div>
-  );
-};
+  )
+}
 
-export default CatalogHeaderForm;
-
+export default CatalogHeaderForm

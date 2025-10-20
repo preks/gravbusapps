@@ -216,7 +216,7 @@ export const GET_EXPENSE_PLANS_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
 
 // Query to discover which currencies are used by the employee's expense plans
 // Used to build currency filter options and to preselect the most-used currency once
@@ -238,7 +238,7 @@ export const GET_USED_PLAN_CURRENCIES_BY_EMPLOYEE = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_PLAN_BY_ID = `
   query GetExpensePlanById($id: uuid!) {
@@ -278,7 +278,7 @@ export const GET_EXPENSE_PLAN_BY_ID = `
       }
     }
   }
-`;
+`
 
 // New query specifically for closed plans statistics
 export const GET_CLOSED_PLANS_STATISTICS = `
@@ -291,7 +291,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
           { status: {_in: ["CLOSED", "PAID"]} },
           { _or: [
               { _and: [
-                  { planDate: { _gte: $startDate, _lte: $endDate } },
+                  { expensePlanItem: { expenseDate: { _gte: $startDate, _lte: $endDate } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [
@@ -307,7 +307,7 @@ export const GET_CLOSED_PLANS_STATISTICS = `
       }
     }
   }
-`;
+`
 
 export const GET_EXPENSE_PLAN_STATISTICS = `
   query GetExpensePlanStatistics($employeeId: uuid!, $startDate: timestamp!, $endDate: timestamp!, $activeUserLocale: String!, $currencyRef: String!) {
@@ -318,7 +318,7 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
           { isDeleted: {_eq: false} },
           { _or: [
               { _and: [
-                  { planDate: { _gte: $startDate, _lte: $endDate } },
+                  { expensePlanItem: { expenseDate: { _gte: $startDate, _lte: $endDate } } },
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
                 ] },
               { _and: [
@@ -342,8 +342,8 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
           { currencyRef: {_eq: $currencyRef} },
           { _or: [
               { _and: [
-                  { planDate: { _gte: $startDate, _lte: $endDate } },
-                  { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                 { requestTypeRef: {_eq: "ExpenseRequestType:v1:EXPENSES"} }
+                 { expensePlanItem: { expenseDate: { _gte: $startDate, _lte: $endDate } } },
                 ] },
               { _and: [
                   { requestTypeRef: {_eq: "ExpenseRequestType:v1:TRIP"} },
@@ -387,4 +387,4 @@ export const GET_EXPENSE_PLAN_STATISTICS = `
       }
     }
   }
-`;
+`

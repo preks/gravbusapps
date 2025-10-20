@@ -1,0 +1,1 @@
+export { useInvestmentReportPortalIntegration } from './useInvestmentReportPortalIntegration'

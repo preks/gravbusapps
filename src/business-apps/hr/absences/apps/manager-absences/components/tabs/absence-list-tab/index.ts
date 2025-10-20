@@ -1,1 +1,1 @@
-export { AbsenceListModern } from './AbsenceListModern'; 
+export { AbsenceListModern } from './AbsenceListModern'

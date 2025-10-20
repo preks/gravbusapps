@@ -1,4 +1,4 @@
-import { TeamForm } from './TeamForm';
+import TeamForm from './TeamForm'
 
-export { TeamForm };
-export default TeamForm;
+export { TeamForm }
+export default TeamForm

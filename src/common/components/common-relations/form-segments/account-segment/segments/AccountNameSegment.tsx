@@ -1,14 +1,14 @@
-import React from "react";
-import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from "@newwork/nw-design-system";
-import { useFormContext } from "react-hook-form";
+import React from 'react'
+import { FormField, FormItem, FormLabel, FormControl, FormMessage, Input } from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
 
 interface Props {
-  label: React.ReactNode;
-  ["data-testid"]?: string;
+  label: React.ReactNode
+  ['data-testid']?: string
 }
 
-const AccountNameSegment: React.FC<Props> = ({ label, "data-testid": dataTestId = "account-segment-account-name" }) => {
-  const form = useFormContext<any>();
+const AccountNameSegment: React.FC<Props> = ({ label, 'data-testid': dataTestId = 'account-segment-account-name' }) => {
+  const form = useFormContext<any>()
   return (
     <FormField
       control={form.control as any}
@@ -16,7 +16,7 @@ const AccountNameSegment: React.FC<Props> = ({ label, "data-testid": dataTestId 
       render={({ field }) => (
         <FormItem>
           <FormLabel>
-            {label} <span className="nw:text-danger-500">*</span>
+            {label} <span className="gba:text-destructive">*</span>
           </FormLabel>
           <FormControl>
             <Input data-testid={dataTestId} {...field} />
@@ -25,10 +25,7 @@ const AccountNameSegment: React.FC<Props> = ({ label, "data-testid": dataTestId 
         </FormItem>
       )}
     />
-  );
-};
+  )
+}
 
-export default AccountNameSegment;
-
-
-
+export default AccountNameSegment

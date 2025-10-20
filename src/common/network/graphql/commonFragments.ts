@@ -20,7 +20,7 @@ export const AUDIT_FIELDS = `
   activeFrom
   activeTo
   version
-`;
+`
 
 /**
  * Catalog entry with translations
@@ -53,7 +53,7 @@ export const CATALOG_ENTRY = `
     additionalValue3
     objectValue
   }
-`;
+`
 
 // ==========================================
 // STANDARD QUERY PATTERNS
@@ -66,7 +66,7 @@ export const CATALOG_ENTRY = `
 export const buildQueryPattern = (entityName: string) => ({
   params: `$offset: Int, $limit: Int, $orderBy: [${entityName}OrderBy!], $where: ${entityName}BoolExp`,
   args: `offset: $offset, limit: $limit, orderBy: $orderBy, where: $where`
-});
+})
 
 // ==========================================
 // AGGREGATION HELPERS
@@ -81,14 +81,14 @@ export const buildAggregateQuery = (entityName: string) => `
       count
     }
   }
-`;
+`
 
 /**
  * Build financial aggregate query (with sums)
  */
 export const buildFinancialAggregateQuery = (entityName: string, sumFields: string[] = []) => {
-  const sumSelections = sumFields.map(field => `sum { ${field} }`).join('\n      ');
-  
+  const sumSelections = sumFields.map(field => `sum { ${field} }`).join('\n      ')
+
   return `
     ${entityName}Aggregate(where: $where) {
       aggregate {
@@ -96,8 +96,8 @@ export const buildFinancialAggregateQuery = (entityName: string, sumFields: stri
         ${sumSelections}
       }
     }
-  `;
-};
+  `
+}
 
 // ==========================================
 // QUERY BUILDING UTILITIES
@@ -108,14 +108,10 @@ export const buildFinancialAggregateQuery = (entityName: string, sumFields: stri
 /**
  * Build complete query with standard pagination and aggregation
  */
-export const buildStandardQuery = (
-  entityName: string,
-  fields: string,
-  includeAggregate: boolean = true
-): string => {
-  const { params, args } = buildQueryPattern(entityName);
-  const aggregateQuery = includeAggregate ? buildAggregateQuery(entityName) : '';
-  
+export const buildStandardQuery = (entityName: string, fields: string, includeAggregate: boolean = true): string => {
+  const { params, args } = buildQueryPattern(entityName)
+  const aggregateQuery = includeAggregate ? buildAggregateQuery(entityName) : ''
+
   return `
     query Get${entityName}s(${params}) {
       ${entityName}(${args}) {
@@ -124,7 +120,5 @@ export const buildStandardQuery = (
       
       ${aggregateQuery}
     }
-  `;
-};
-
-
+  `
+}
