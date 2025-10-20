@@ -4,6 +4,8 @@ import { createChangeLogService } from '../../services/changeLogService'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import ChangeLogFilters from './ChangeLogFilters'
 import ChangeLogEntry from './ChangeLogEntry'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { format } from 'date-fns'
 
 // Types for Change Log
 export interface ChangeLogEntry {
@@ -46,12 +48,12 @@ export interface ChangeLogTabProps extends BusinessAppContextProps {
   accessToken: string
 }
 
-
 export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
   employeeId,
   employeeName,
   userRole,
-  accessToken
+  accessToken,
+  userInfo
 }) => {
   const [changeLogEntries, setChangeLogEntries] = useState<ChangeLogEntry[]>([])
   const [filteredEntries, setFilteredEntries] = useState<ChangeLogEntry[]>([])
@@ -64,24 +66,74 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
     searchTerm: ''
   })
 
+  // GraphQL client for auxiliary lookups (must be called at top-level)
+  const graphqlClient = useGraphQLClient(accessToken)
+  const [availableActors, setAvailableActors] = useState<string[]>([])
+
   // Fetch change log data
   const fetchChangeLogData = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       const changeLogService = createChangeLogService({
         accessToken,
         employeeId,
         userRole
       })
-      
+
       const response = await changeLogService.fetchChangeLogEntries(filters, 50, 0)
 
-      console.log(response.entries,' entries')
-      
-      setChangeLogEntries(response.entries)
-      setFilteredEntries(response.entries)
+      console.log(response.entries, ' entries')
+
+      // 1) Collect createdBy ids
+      const createdByIds = Array.from(
+        new Set((response.entries || []).map(e => e.changedBy?.userId).filter(Boolean))
+      ) as string[]
+
+      // 2) Fetch display names in bulk (per id) using Promise.all
+      const idToNameMap: Record<string, string> = {}
+      if (createdByIds.length > 0) {
+        const query = `
+          query GetEmployeeByUserId($userId: String!) {
+            EmployeePosition(where: { employee: { userId: { _eq: $userId } } }, limit: 1) {
+              employee { displayName userId }
+            }
+          }
+        `
+        const results = await Promise.all(
+          createdByIds.map(async id => {
+            try {
+              const res = await graphqlClient.request<any>(query, { userId: id })
+              const name = res?.EmployeePosition?.[0]?.employee?.displayName
+              return { id, name }
+            } catch (err) {
+              console.warn('Failed fetching name for userId', id, err)
+              return { id, name: undefined as string | undefined }
+            }
+          })
+        )
+        results.forEach(({ id, name }) => {
+          if (name) idToNameMap[id] = name
+        })
+      }
+
+      console.log(idToNameMap, 'idToNameMap')
+
+      const withNames = (response.entries || []).map(e => ({
+        ...e,
+        changedBy: {
+          ...e.changedBy,
+          userName: idToNameMap[e.changedBy?.userId] || e.changedBy?.userName
+        }
+      }))
+
+      setChangeLogEntries(withNames)
+      setFilteredEntries(withNames)
+
+      // expose actor names for filter dropdown
+      const actorNames = Array.from(new Set(Object.values(idToNameMap).filter(Boolean))) as string[]
+      setAvailableActors(actorNames)
     } catch (err) {
       setError(getTranslationFromI18nKeyAndLabel('changelog.error.load_failed', 'Failed to load change log data'))
       console.error('Error fetching change log:', err)
@@ -96,9 +148,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
 
     // Filter by field category
     if (filters.fieldCategory.length > 0) {
-      filtered = filtered.filter(entry => 
-        filters.fieldCategory.includes(entry.fieldCategory)
-      )
+      filtered = filtered.filter(entry => filters.fieldCategory.includes(entry.fieldCategory))
     }
 
     // Filter by date range
@@ -107,32 +157,40 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
         const entryDate = new Date(entry.timestamp)
         const fromDate = filters.dateRange.from
         const toDate = filters.dateRange.to
-        
+
         if (fromDate && entryDate < fromDate) return false
         if (toDate && entryDate > toDate) return false
         return true
       })
     }
 
-    // Filter by change actor
+    // Filter by change actor (system or specific user names)
     if (filters.changeActor.length > 0) {
-      filtered = filtered.filter(entry => {
-        const actorType = entry.changeOrigin.isAIGenerated ? 'ai' : 
-                         entry.changeOrigin.isSystemGenerated ? 'system' : 'user'
-        return filters.changeActor.includes(actorType)
-      })
+      const selected = (filters.changeActor[0] || '').toLowerCase()
+      if (selected === 'system') {
+        filtered = filtered.filter(entry => {
+          const byName = (entry.changedBy.userName || '').toLowerCase()
+          const byId = (entry.changedBy.userId || '').toLowerCase()
+          return byName === 'system' || byId === 'system'
+        })
+      } else if (selected) {
+        filtered = filtered.filter(entry => (entry.changedBy.userName || '').toLowerCase() === selected)
+      }
     }
 
     // Filter by search term
     if (filters.searchTerm) {
       const searchLower = filters.searchTerm.toLowerCase()
-      filtered = filtered.filter(entry => 
-        entry.fieldName.toLowerCase().includes(searchLower) ||
-        entry.previousValue?.toLowerCase().includes(searchLower) ||
-        entry.newValue?.toLowerCase().includes(searchLower) ||
-        entry.changedBy.userName.toLowerCase().includes(searchLower)
+      filtered = filtered.filter(
+        entry =>
+          entry.fieldName.toLowerCase().includes(searchLower) ||
+          entry.previousValue?.toLowerCase().includes(searchLower) ||
+          entry.newValue?.toLowerCase().includes(searchLower) ||
+          entry.changedBy.userName.toLowerCase().includes(searchLower)
       )
     }
+
+    console.log(filtered, 'filtered')
 
     setFilteredEntries(filtered)
   }, [changeLogEntries, filters])
@@ -148,10 +206,11 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
   }, [applyFilters])
 
   // Handle filter changes
-  const handleFilterChange = (key: keyof ChangeLogFilters, value: any) => {
+  const handleFilterChange = (key: string | number | symbol, value: any) => {
+    const typedKey = key as keyof ChangeLogFilters
     setFilters(prev => ({
       ...prev,
-      [key]: value
+      [typedKey]: value
     }))
   }
 
@@ -168,14 +227,14 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
   // Export functionality (Admin only)
   const handleExport = async () => {
     if (userRole !== 'admin' && userRole !== 'hr_manager') return
-    
+
     try {
       const changeLogService = createChangeLogService({
         accessToken,
         employeeId,
         userRole
       })
-      
+
       const blob = await changeLogService.exportChangeLog(filters)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -189,7 +248,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
     }
   }
 
-
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
@@ -202,7 +260,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
     return (
       <div className="gba:text-center gba:p-8">
         <p className="gba:text-red-600">{error}</p>
-        <button 
+        <button
           onClick={fetchChangeLogData}
           className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:border-none gba:rounded gba:cursor-pointer gba:hover:bg-blue-600"
         >
@@ -223,12 +281,14 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
             {getTranslationFromI18nKeyAndLabel('changelog.title', 'Change Log')}
           </h2>
           <p className="gba:text-gray-600 gba:mt-1">
-            {getTranslationFromI18nKeyAndLabel('changelog.subtitle', 'Track all changes to {employeeName}\'s profile', { employeeName })}
+            {getTranslationFromI18nKeyAndLabel('changelog.subtitle', "Track all changes to {employeeName}'s profile", {
+              employeeName
+            }).replace('{employeeName}', employeeName)}
           </p>
         </div>
         {(userRole === 'admin' || userRole === 'hr_manager') && (
-          <button 
-            onClick={handleExport} 
+          <button
+            onClick={handleExport}
             className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:bg-white gba:cursor-pointer gba:flex gba:items-center gba:gap-2 gba:hover:bg-gray-50"
           >
             {getTranslationFromI18nKeyAndLabel('changelog.actions.export', 'Export')}
@@ -244,18 +304,54 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
         userRole={userRole}
         filteredEntriesCount={filteredEntries.length}
         totalEntriesCount={changeLogEntries.length}
+        actorNames={availableActors}
       />
 
-      {/* Change Log Entries */}
-      <div className="gba:flex gba:flex-col gba:gap-4">
-        {filteredEntries.length === 0 ? (
-          <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-8 gba:text-center">
-            <p className="gba:text-gray-500">{getTranslationFromI18nKeyAndLabel('changelog.no_results', 'No changes found matching your filters.')}</p>
+      {/* Change Log Entries grouped by day */}
+      {(() => {
+        if (filteredEntries.length === 0) {
+          return (
+            <div className="gba:bg-card gba:text-card-foreground gba:border gba:border-border gba:rounded-lg gba:p-8 gba:text-center">
+              <p className="gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('changelog.no_results', 'No changes found matching your filters.')}
+              </p>
+            </div>
+          )
+        }
+
+        const groups = filteredEntries.reduce((acc: Record<string, ChangeLogEntry[]>, entry) => {
+          const dateKey = new Date(entry.timestamp).toISOString().split('T')[0]
+          if (!acc[dateKey]) acc[dateKey] = []
+          acc[dateKey].push(entry)
+          return acc
+        }, {})
+
+        const sortedKeys = Object.keys(groups).sort((a, b) => (a > b ? -1 : 1))
+
+        return (
+          <div className="gba:flex gba:flex-col gba:gap-8">
+            {sortedKeys.map(dateKey => (
+              <div key={dateKey} className="gba:flex gba:flex-col gba:gap-4">
+                <div className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:border-b gba:border-border">
+                  <div className="gba:text-lg gba:font-semibold">{format(new Date(dateKey), 'MMM dd, yyyy')}</div>
+                  <div className="gba:text-sm gba:text-muted-foreground">{groups[dateKey].length} changes</div>
+                </div>
+                <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
+                  {groups[dateKey].map(entry => (
+                    <ChangeLogEntry
+                      key={entry.id}
+                      entry={entry}
+                      accessToken={accessToken}
+                      currentUserId={userInfo?.id || userInfo?.employeeDetails?.employeeId}
+                      currentEmployeeId={userInfo?.employeeDetails?.employeeId}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        ) : (
-          filteredEntries.map(entry => <ChangeLogEntry key={entry.id} entry={entry} />)
-        )}
-      </div>
+        )
+      })()}
     </div>
   )
 }
