@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Combobox, Label, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Combobox, Label, Alert, AlertDescription, Badge } from '@newwork/nw-design-system'
+import { X } from 'lucide-react'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 export interface SelectOption {
@@ -26,6 +27,7 @@ interface AccountSelectProps {
   dataTestId?: string
   error?: string | null
   label?: string
+  multiple?: boolean // ✅ NEW: Control single vs multi-select mode
 
   // Account data passed as props
   accounts: SelectOption[]
@@ -40,6 +42,7 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
   dataTestId,
   error,
   label = 'Related Account',
+  multiple = true, // ✅ Default to multi-select for backward compatibility with contact form
   accounts,
   accountsLoading,
   accountsError,
@@ -47,89 +50,107 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
 }) => {
   const [mergedAccounts, setMergedAccounts] = useState<SelectOption[]>([])
 
-  // Extract account ID helper
+  // Normalize value to always work with arrays internally
+  const normalizedValue = Array.isArray(value) ? value : value ? [value] : []
+
+  // Merge pre-selected accounts with loaded accounts
+  useEffect(() => {
+    const preSelectedAccounts: SelectOption[] = []
+
+    // Add pre-selected accounts that aren't already in the loaded list
+    if (normalizedValue.length > 0) {
+      normalizedValue.forEach(val => {
+        if (typeof val === 'object' && val.id && val.name) {
+          const existsInLoadedAccounts = accounts.some(a => a.id === val.id)
+          if (!existsInLoadedAccounts) {
+            preSelectedAccounts.push({
+              id: val.id,
+              value: val.id,
+              label: val.name,
+              name: val.name
+            })
+          }
+        }
+      })
+    }
+
+    // Merge: pre-selected accounts first, then loaded accounts
+    setMergedAccounts([...preSelectedAccounts, ...accounts])
+  }, [value, accounts]) // ✅ FIXED: Removed normalizedValue to prevent infinite loop
+
+  // Helper function to extract ID from value (string or object)
   const getAccountId = (accountValue: string | { id: string; name: string }): string => {
     return typeof accountValue === 'object' ? accountValue.id : accountValue
   }
 
-  // Get current account ID (handles array or single value)
-  const currentAccountId = Array.isArray(value)
-    ? value.length > 0
-      ? getAccountId(value[0])
-      : ''
-    : value
-      ? getAccountId(value)
-      : ''
-
-  // Merge pre-selected account with loaded accounts
-  useEffect(() => {
-    const preSelectedAccounts: SelectOption[] = []
-
-    // Handle both array and single value formats
-    const accountValue = Array.isArray(value) ? (value.length > 0 ? value[0] : null) : value
-
-    if (accountValue && typeof accountValue === 'object' && accountValue.id && accountValue.name) {
-      const existsInLoadedAccounts = accounts.some(a => a.id === accountValue.id)
-      if (!existsInLoadedAccounts) {
-        preSelectedAccounts.push({
-          id: accountValue.id,
-          value: accountValue.id,
-          label: accountValue.name,
-          name: accountValue.name
-        })
-      }
-    }
-
-    // Merge: pre-selected account first, then loaded accounts
-    setMergedAccounts([...preSelectedAccounts, ...accounts])
-  }, [value, accounts])
-
-  // Helper to get account label for display
-  const getAccountLabel = (): string | undefined => {
-    if (!currentAccountId) return undefined
-
-    // Check if value has a name property
-    const accountValue = Array.isArray(value) ? (value.length > 0 ? value[0] : null) : value
-    if (accountValue && typeof accountValue === 'object' && accountValue.name) {
+  // Helper to get account name for display
+  const getAccountName = (accountValue: string | { id: string; name: string }): string => {
+    if (typeof accountValue === 'object' && accountValue.name) {
       return accountValue.name
     }
 
     // Try to find in the merged accounts list
-    const account = mergedAccounts.find(a => a.id === currentAccountId)
-    return account?.label
+    const account = mergedAccounts.find(a => a.id === accountValue)
+    return account?.label || 'Unknown Account'
   }
 
-  // Handle account selection
+  // Handle add/select account
   const handleSelectAccount = (accountId: string) => {
     if (!accountId) return
 
     const selectedAccount = mergedAccounts.find(a => a.id === accountId)
     if (!selectedAccount) return
 
-    // Return format based on input format
-    if (Array.isArray(value)) {
-      onChange([{ id: accountId, name: selectedAccount.label }])
+    const accountObject = { id: accountId, name: selectedAccount.label }
+
+    if (multiple) {
+      // Multi-select: Add to existing accounts array
+      if (Array.isArray(value)) {
+        onChange([...value, accountObject])
+      } else {
+        onChange([accountObject])
+      }
     } else {
-      onChange({ id: accountId, name: selectedAccount.label })
+      // Single-select: Replace with new selection
+      if (Array.isArray(value)) {
+        onChange([accountObject])
+      } else {
+        onChange(accountObject)
+      }
     }
   }
 
-  // Prepare options for Combobox
-  const comboboxOptions = mergedAccounts.map(account => ({
-    value: account.id as string,
-    label: account.label
-  }))
+  // Handle remove account (only for multi-select)
+  const handleRemoveAccount = (accountId: string) => {
+    const filtered = normalizedValue.filter(a => getAccountId(a) !== accountId)
+    if (Array.isArray(value)) {
+      onChange(filtered)
+    } else {
+      onChange(filtered[0] || '')
+    }
+  }
+
+  // Filter out already selected accounts from available options
+  const selectedAccountIds = new Set(normalizedValue.map(a => getAccountId(a)))
+  const availableAccountOptions = mergedAccounts
+    .filter(a => !selectedAccountIds.has(a.id as string))
+    .map(a => ({ value: a.id as string, label: a.label }))
+
+  // For single-select, get the current selection
+  const currentAccountId = normalizedValue.length > 0 ? getAccountId(normalizedValue[0]) : ''
 
   return (
     <div className="gba:space-y-2">
       <Label className="gba:text-sm gba:font-medium gba:text-gray-900">{label}</Label>
 
-      {/* Combobox for account selection */}
+      {/* Combobox for adding/selecting accounts */}
       <Combobox
-        value={currentAccountId}
+        value={multiple ? '' : currentAccountId}
         onValueChange={handleSelectAccount}
-        options={comboboxOptions}
-        placeholder="Search and select account..."
+        options={
+          multiple ? availableAccountOptions : mergedAccounts.map(a => ({ value: a.id as string, label: a.label }))
+        }
+        placeholder={multiple ? 'Add account...' : 'Search and select account...'}
         searchPlaceholder="Search accounts..."
         emptyText={accountsLoading ? 'Loading...' : 'No accounts found'}
         disabled={accountsLoading}
@@ -138,13 +159,46 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
         data-testid={dataTestId || 'account-selector'}
       />
 
-      {/* Display selected account label if available */}
-      {currentAccountId && getAccountLabel() && (
+      {/* Multi-select: Selected accounts displayed as badges */}
+      {multiple && normalizedValue.length > 0 && (
+        <div
+          className="gba:space-y-2 gba:mt-3"
+          data-testid={formatDataTestId(dataTestId || 'account-selector', 'selected-list')}
+        >
+          {normalizedValue.map((account, index) => {
+            const accountId = getAccountId(account)
+            const accountName = getAccountName(account)
+            return (
+              <div
+                key={accountId}
+                className="gba:flex gba:items-center gba:gap-2 gba:p-2 gba:border gba:rounded gba:bg-card"
+                data-testid={formatDataTestId(dataTestId || 'account-selector', `selected-account-${index}`)}
+              >
+                <Badge variant="secondary" className="gba:flex-1">
+                  {accountName}
+                </Badge>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAccount(accountId)}
+                  className="gba:flex-shrink-0 gba:text-destructive hover:gba:text-destructive/80"
+                  data-testid={formatDataTestId(dataTestId || 'account-selector', `remove-account-${index}`)}
+                  aria-label={`Remove ${accountName}`}
+                >
+                  <X className="gba:h-4 gba:w-4" />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Single-select: Display selected account label */}
+      {!multiple && currentAccountId && (
         <div
           className="gba:text-sm gba:text-muted-foreground gba:mt-1"
           data-testid={formatDataTestId(dataTestId || 'account-selector', 'selected-label')}
         >
-          Selected: {getAccountLabel()}
+          Selected: {getAccountName(normalizedValue[0])}
         </div>
       )}
 

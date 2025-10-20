@@ -58,22 +58,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              account: (rawContactData as any)?.investmentAccountContact?.[0]?.account
-                ? {
-                    id: (rawContactData as any).investmentAccountContact[0].account.id,
-                    name: (rawContactData as any).investmentAccountContact[0].account.name,
-                    email: (rawContactData as any).investmentAccountContact[0].account.email,
-                    phone: (rawContactData as any).investmentAccountContact[0].account.phone,
-                    website: (rawContactData as any).investmentAccountContact[0].account.website,
-                    legalForm: (rawContactData as any).investmentAccountContact[0].account.legalForm?.value,
-                    industry: (rawContactData as any).investmentAccountContact[0].account.industryClass?.value,
-                    size: (rawContactData as any).investmentAccountContact[0].account.companySize?.value,
-                    revenue: (rawContactData as any).investmentAccountContact[0].account.accountAnnualRevenueBand
-                      ?.value,
-                    numberOfEmployees: (rawContactData as any).investmentAccountContact[0].account.companySize,
-                    annualRevenue: (rawContactData as any).investmentAccountContact[0].account.accountAnnualRevenueBand
-                  }
-                : undefined,
+              accounts:
+                (rawContactData as any)?.investmentAccountContact
+                  ?.map((iac: any) => ({
+                    id: iac.account?.id,
+                    name: iac.account?.name,
+                    email: iac.account?.email,
+                    phone: iac.account?.phone,
+                    website: iac.account?.website,
+                    legalForm: iac.account?.legalForm?.value,
+                    industry: iac.account?.industryClass?.value,
+                    size: iac.account?.companySize?.value,
+                    revenue: iac.account?.accountAnnualRevenueBand?.value,
+                    numberOfEmployees: iac.account?.companySize,
+                    annualRevenue: iac.account?.accountAnnualRevenueBand,
+                    addresses: iac.account?.addresses
+                  }))
+                  .filter(Boolean) || [],
               address: (rawContactData as any)?.investmentAccountContact?.[0]?.account
                 ? (() => {
                     const addresses = (rawContactData as any).investmentAccountContact[0].account.addresses || []
