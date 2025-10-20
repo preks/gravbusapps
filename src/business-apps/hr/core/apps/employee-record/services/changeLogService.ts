@@ -1,7 +1,7 @@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ChangeLogEntry, ChangeLogFilters } from '../components/tabs/ChangeLogTab'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { env } from '@/common/env/EnvUtils'
+import { env } from '@/utils/env-vars.utils'
 import ChangeLogDataTransformer from './changeLogDataTransformer'
 import ChangeLogVisibilityRules from './changeLogVisibilityRules'
 import { CHANGE_LOG_QUERIES } from './changeLogQueries'
