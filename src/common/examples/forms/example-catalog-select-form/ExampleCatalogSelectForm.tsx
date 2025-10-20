@@ -2,6 +2,7 @@ import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import {
+  Form,
   FormField,
   FormItem,
   FormLabel,
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { useForm } from 'react-hook-form'
+import { useForm, UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { CatalogSelect, CatalogSelectProvider, useCatalogSelectController } from '@/components/catalog-select'
@@ -49,8 +50,22 @@ type FormValues = {
   content_type: string
 }
 
+interface ControllerState {
+  birthRegion: {
+    hasOptions: boolean | undefined
+    disabled: boolean | undefined
+  }
+  residenceRegion: {
+    hasOptions: boolean | undefined
+    disabled: boolean | undefined
+  }
+}
+
 const FormContentInner: React.FC<
-  BusinessAppContextProps & { form: any; controllerStateRef: React.MutableRefObject<any> }
+  BusinessAppContextProps & {
+    form: UseFormReturn<FormValues>
+    controllerStateRef: React.MutableRefObject<ControllerState>
+  }
 > = ({ form, controllerStateRef, ...context }) => {
   // Access controllers to check hasOptions for conditional validation
   const birthRegionController = useCatalogSelectController('birthRegion')
@@ -103,43 +118,20 @@ const FormContentInner: React.FC<
       form={form}
       data-testid="example-catalog-select-form"
     >
-      {/* standalone Language on one line */}
-      <FormField
-        control={form.control}
-        name="language"
-        render={({ field }) => (
-          <FormItem data-testid="language-field">
-            <FormLabel data-testid="language-label">Language</FormLabel>
-            <FormControl>
-              <CatalogSelect
-                catalogInstanceId="language"
-                value={field.value || ''}
-                onValueChange={v => field.onChange(v)}
-                data-testid="language-combobox"
-                {...context}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      {/* a) Birth Country <-> Birth Region on one line */}
-      <div
-        className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
-        data-testid="row-birth-country-region"
-      >
+      <Form {...form}>
+        {/* standalone Language on one line */}
         <FormField
           control={form.control}
-          name="birthCountry"
+          name="language"
           render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="birth-country-field">
-              <FormLabel data-testid="birth-country-label">Birth Country</FormLabel>
+            <FormItem data-testid="language-field">
+              <FormLabel data-testid="language-label">Language</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="birthCountry"
+                  catalogInstanceId="language"
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
-                  data-testid="birth-country-combobox"
+                  data-testid="language-combobox"
                   {...context}
                 />
               </FormControl>
@@ -147,158 +139,212 @@ const FormContentInner: React.FC<
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="birthRegion"
-          render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="birth-region-field">
-              <FormLabel data-testid="birth-region-label">Birth Region</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogInstanceId="birthRegion"
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
-                  data-testid="birth-region-combobox"
-                  {...context}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+        {/* a) Birth Country <-> Birth Region on one line */}
+        <div
+          className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
+          data-testid="row-birth-country-region"
+        >
+          <FormField
+            control={form.control}
+            name="birthCountry"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="birth-country-field">
+                <FormLabel data-testid="birth-country-label">Birth Country</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogInstanceId="birthCountry"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="birth-country-combobox"
+                    {...context}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="birthRegion"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="birth-region-field">
+                <FormLabel data-testid="birth-region-label">Birth Region</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogInstanceId="birthRegion"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="birth-region-combobox"
+                    {...context}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-      {/* b) Residence Country <-> Residence Region on one line */}
-      <div
-        className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
-        data-testid="row-residence-country-region"
-      >
-        <FormField
-          control={form.control}
-          name="residenceCountry"
-          render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="residence-country-field">
-              <FormLabel data-testid="residence-country-label">Residence Country</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogInstanceId="residenceCountry"
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
-                  data-testid="residence-country-combobox"
-                  {...context}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="residenceRegion"
-          render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="residence-region-field">
-              <FormLabel data-testid="residence-region-label">Residence Region</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogInstanceId="residenceRegion"
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
-                  data-testid="residence-region-combobox"
-                  {...context}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+        {/* b) Residence Country <-> Residence Region on one line */}
+        <div
+          className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
+          data-testid="row-residence-country-region"
+        >
+          <FormField
+            control={form.control}
+            name="residenceCountry"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="residence-country-field">
+                <FormLabel data-testid="residence-country-label">Residence Country</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogInstanceId="residenceCountry"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="residence-country-combobox"
+                    {...context}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="residenceRegion"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="residence-region-field">
+                <FormLabel data-testid="residence-region-label">Residence Region</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogInstanceId="residenceRegion"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="residence-region-combobox"
+                    {...context}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-      {/* c) InvestmentGroup -> InvestmentType on one line */}
-      <div
-        className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
-        data-testid="row-unidir-investment-group-type"
-      >
-        <FormField
-          control={form.control}
-          name="investmentGroup"
-          render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="investment-group-field">
-              <FormLabel data-testid="investment-group-label">InvestmentGroup</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogInstanceId="investmentGroup"
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
-                  data-testid="investment-group-combobox"
-                  {...context}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="investmentType"
-          render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="investment-type-field">
-              <FormLabel data-testid="investment-type-label">InvestmentType</FormLabel>
-              <FormControl>
-                <CatalogSelect
-                  catalogInstanceId="investmentType"
-                  variant="select"
-                  value={field.value || ''}
-                  onValueChange={v => field.onChange(v)}
-                  data-testid="investment-type-combobox"
-                  {...context}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+        {/* c) InvestmentGroup -> InvestmentType on one line */}
+        <div
+          className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
+          data-testid="row-unidir-investment-group-type"
+        >
+          <FormField
+            control={form.control}
+            name="investmentGroup"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="investment-group-field">
+                <FormLabel data-testid="investment-group-label">InvestmentGroup</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogInstanceId="investmentGroup"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="investment-group-combobox"
+                    {...context}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="investmentType"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="investment-type-field">
+                <FormLabel data-testid="investment-type-label">InvestmentType</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogInstanceId="investmentType"
+                    variant="select"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="investment-type-combobox"
+                    {...context}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-      {/* d) External Type -> InvestmentOpportunityPipelineStage on one line */}
-      <div
-        className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
-        data-testid="row-external-type-pipeline-stage"
-      >
+        {/* d) External Type -> InvestmentOpportunityPipelineStage on one line */}
+        <div
+          className="gba:flex gba:items-start gba:justify-between gba:flex-wrap gba:sm:flex-nowrap gba:w-full gba:gap-2"
+          data-testid="row-external-type-pipeline-stage"
+        >
+          <FormField
+            control={form.control}
+            name="pipelineType"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="pipeline-type-field">
+                <FormLabel data-testid="pipeline-type-label">Pipeline Type</FormLabel>
+                <FormControl>
+                  <Select value={field.value || ''} onValueChange={v => field.onChange(v)}>
+                    <SelectTrigger className="gba:w-full" data-testid="pipeline-type-select">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DISCOVERY" data-testid="selectitem-DISCOVERY">
+                        Discovery
+                      </SelectItem>
+                      <SelectItem value="QUALIFICATION" data-testid="selectitem-QUALIFICATION">
+                        Qualification
+                      </SelectItem>
+                      <SelectItem value="NEGOTIATION" data-testid="selectitem-NEGOTIATION">
+                        Negotiation
+                      </SelectItem>
+                      <SelectItem value="CLOSED_WON" data-testid="selectitem-CLOSED_WON">
+                        Closed Won
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="pipelineStage"
+            render={({ field }) => (
+              <FormItem className="gba:w-full" data-testid="pipeline-stage-field">
+                <FormLabel data-testid="pipeline-stage-label">Pipeline Stage</FormLabel>
+                <FormControl>
+                  <CatalogSelect
+                    catalogInstanceId="pipelineStage"
+                    value={field.value || ''}
+                    onValueChange={v => field.onChange(v)}
+                    data-testid="pipeline-stage-combobox"
+                    {...context}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        {/* standalone Content Type on one line */}
         <FormField
           control={form.control}
-          name="pipelineType"
+          name="content_type"
           render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="pipeline-type-field">
-              <FormLabel data-testid="pipeline-type-label">Pipeline Type</FormLabel>
-              <FormControl>
-                <Select value={field.value || ''} onValueChange={v => field.onChange(v)}>
-                  <SelectTrigger className="gba:w-full" data-testid="pipeline-type-select">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DISCOVERY">Discovery</SelectItem>
-                    <SelectItem value="QUALIFICATION">Qualification</SelectItem>
-                    <SelectItem value="NEGOTIATION">Negotiation</SelectItem>
-                    <SelectItem value="CLOSED_WON">Closed Won</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="pipelineStage"
-          render={({ field }) => (
-            <FormItem className="gba:w-full" data-testid="pipeline-stage-field">
-              <FormLabel data-testid="pipeline-stage-label">Pipeline Stage</FormLabel>
+            <FormItem data-testid="content_type-field">
+              <FormLabel data-testid="content_type-label">Content Type</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="pipelineStage"
+                  catalogInstanceId="contentType"
+                  variant="combobox"
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
-                  data-testid="pipeline-stage-combobox"
+                  data-testid="content-type-combobox"
                   {...context}
                 />
               </FormControl>
@@ -306,28 +352,7 @@ const FormContentInner: React.FC<
             </FormItem>
           )}
         />
-      </div>
-      {/* standalone Language on one line */}
-      <FormField
-        control={form.control}
-        name="content_type"
-        render={({ field }) => (
-          <FormItem data-testid="content_type-field">
-            <FormLabel data-testid="content_type-label">Content Type</FormLabel>
-            <FormControl>
-              <CatalogSelect
-                catalogInstanceId="contentType"
-                variant="combobox"
-                value={field.value || ''}
-                onValueChange={v => field.onChange(v)}
-                data-testid="language-combobox"
-                {...context}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      </Form>
     </AppActionForm>
   )
 }
@@ -388,7 +413,10 @@ const catalogsConfig = [
 ]
 
 const FormContentWithProvider: React.FC<
-  BusinessAppContextProps & { form: any; controllerStateRef: React.MutableRefObject<any> }
+  BusinessAppContextProps & {
+    form: UseFormReturn<FormValues>
+    controllerStateRef: React.MutableRefObject<ControllerState>
+  }
 > = ({ form, controllerStateRef, ...context }) => {
   // Watch pipelineType for external values
   const pipelineType = form.watch('pipelineType')
@@ -406,7 +434,7 @@ const FormContentWithProvider: React.FC<
 
 const FormContent: React.FC<BusinessAppContextProps> = context => {
   // Ref to hold controller state for validation
-  const controllerStateRef = React.useRef<any>({
+  const controllerStateRef = React.useRef<ControllerState>({
     birthRegion: { hasOptions: false, disabled: true },
     residenceRegion: { hasOptions: false, disabled: true }
   })
