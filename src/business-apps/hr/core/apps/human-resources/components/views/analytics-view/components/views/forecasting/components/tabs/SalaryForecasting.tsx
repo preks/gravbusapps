@@ -37,28 +37,28 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_annual_payroll', 'Total Annual Payroll'),
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#1890ff'
+          iconColor: 'var(--nw-chart-1)'
         },
         {
           id: 'total-monthly-salary',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_salary', 'Total Monthly Salary'),
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#52c41a'
+          iconColor: 'var(--nw-chart-2)'
         },
         {
           id: 'next-month-forecast',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_next_month_forecast', 'Next Month Forecast'),
           value: 'Loading...',
           icon: 'calendar',
-          iconColor: '#fa8c16'
+          iconColor: 'var(--nw-chart-3)'
         },
         {
           id: 'six-month-forecast',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_six_month_forecast', '6-Month Forecast'),
           value: 'Loading...',
           icon: 'calendar',
-          iconColor: '#13c2c2'
+          iconColor: 'var(--nw-chart-4)'
         }
       ]
     }
@@ -95,7 +95,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_annual_payroll', 'Total Annual Payroll'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalAnnualSalary)} ${currencyCode}`,
         icon: 'users',
-        iconColor: '#1890ff',
+        iconColor: 'var(--nw-chart-1)',
         footer: 'Annual employee compensation'
       },
       {
@@ -103,7 +103,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_total_salary', 'Total Monthly Salary'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalMonthlySalary)} ${currencyCode}`,
         icon: 'users',
-        iconColor: '#52c41a',
+        iconColor: 'var(--nw-chart-2)',
         footer: 'Current monthly payroll'
       },
       {
@@ -111,7 +111,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_next_month_forecast', 'Next Month Forecast'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(nextMonthForecast)} ${currencyCode}`,
         icon: 'calendar',
-        iconColor: '#fa8c16',
+        iconColor: 'var(--nw-chart-3)',
         footer: 'Projected monthly payroll'
       },
       {
@@ -119,7 +119,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_six_month_forecast', '6-Month Forecast'),
         value: activeEmployees.length === 0 ? '-' : `${formatSalary(sixMonthForecast)} ${currencyCode}`,
         icon: 'calendar',
-        iconColor: '#13c2c2',
+        iconColor: 'var(--nw-chart-4)',
         footer: 'Six-month projection'
       }
     ]
@@ -130,10 +130,10 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={4} className="gba:m-0 gba:text-gray-800">
+          <Title level={4} className="gba:m-0 gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_salary_forecasting', 'Salary Forecasting')}
           </Title>
-          <Text className="gba:text-gray-600">
+          <Text className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'hr_analytics_salary_forecasting_description',
               'Salary trends, compensation projections, and payroll forecasting'

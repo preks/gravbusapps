@@ -5,7 +5,7 @@ import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangeEmployeeAddressProvider, useChangeEmployeeAddress } from './ChangeEmployeeAddressContext'
 import { useForm } from 'react-hook-form'
-import { Separator, Button, FormField } from '@newwork/nw-design-system'
+import { Button, FormField } from '@newwork/nw-design-system'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -21,7 +21,6 @@ import {
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
 import { uploadEmployeeDocumentIfAny } from './uploadHelpers'
 
-export interface ChangeEmployeeAddressFormProps extends BusinessAppContextProps {}
 
 interface AddressFormValues {
   selectedAddressId?: string | null // null means Add Address
@@ -35,7 +34,7 @@ interface AddressFormValues {
   employeeDocumentId?: string
 }
 
-const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = ({ accessToken, userInfo }) => {
+const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const [fileList, setFileList] = useState<any[]>([])
   const [addressLineCount, setAddressLineCount] = useState<number>(1)
   const [addressLinesError, setAddressLinesError] = useState<string | null>(null)
@@ -215,10 +214,10 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="change-employee-address-form-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6"/>
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address']]:!pt-0 gba:[&>div[data-testid='change-employee-address']]:!px-0"
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address']]:!pt-0"
         data-testid="change-employee-address-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -490,7 +489,7 @@ const ChangeEmployeeAddressContent: React.FC<ChangeEmployeeAddressFormProps> = (
   )
 }
 
-export const ChangeEmployeeAddress: React.FC<ChangeEmployeeAddressFormProps> = context => {
+export const ChangeEmployeeAddress: React.FC<BusinessAppContextProps> = context => {
   return (
     <ChangeEmployeeAddressProvider {...context}>
       <ChangeEmployeeAddressContent {...context} />

@@ -651,7 +651,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
           <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location',
+                'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_title',
                 'Start Location'
               )}
               icon={ICONS.PIN_ICON}
@@ -708,16 +708,16 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 errorMessage={employeeRuleError || ruleConflictError}
                 locationFormLabels={{
                   inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location',
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_input_label',
                     'Start Location'
                   ),
                   dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.departure_date',
-                    'Departure Date'
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_date_label',
+                    'Start Date'
                   ),
                   timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.departure_time',
-                    'Departure Time'
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_time_label',
+                    'Start Time'
                   )
                 }}
               />
@@ -733,7 +733,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
             >
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_collapsible_title',
+                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_title',
                   'Destination'
                 )}
                 icon={ICONS.PIN_ICON}
@@ -794,7 +794,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
           <div className="gba:py-4" data-testid="end-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_text',
+                'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_title',
                 'End Location'
               )}
               icon={ICONS.PIN_ICON}
@@ -851,7 +851,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 showFutureWarning={false}
                 locationFormLabels={{
                   inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_text',
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_input_label',
                     'End Location'
                   ),
                   dateFieldLabel: getTranslationFromI18nKeyAndLabel(
@@ -892,3 +892,5 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 }
 
 export default PlanTripScreen
+
+

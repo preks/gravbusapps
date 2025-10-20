@@ -84,20 +84,15 @@ export const Forecasting: React.FC<ForecastingProps> = props => {
   return (
     <div
       data-testid={prefixDataTestId}
-      className="gba:flex gba:flex-col gba:gap-6 gba:p-6"
-      style={{
-        background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
-        minHeight: '100%',
-        borderRadius: '8px'
-      }}
+      className="gba:flex gba:flex-col gba:gap-6 gba:p-6 gba:bg-muted gba:rounded-lg gba:min-h-full"
     >
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={3} className="gba:m-0 gba:text-gray-800">
+          <Title level={3} className="gba:m-0 gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_forecasting_analysis', 'Forecasting Analysis')}
           </Title>
-          <Text className="gba:text-gray-600">
+          <Text className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'hr_analytics_forecasting_description',
               'Predictive workforce analytics, salary trends, and headcount projections'
