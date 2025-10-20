@@ -455,8 +455,11 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
         const modified = uniqueFiles.filter(f => f.type === 'modify').length
         const deleted = uniqueFiles.filter(f => f.type === 'delete').length
 
+        // Total for publishing excludes deleted files (they won't be published)
+        const totalForPublish = uniqueFiles.filter(f => f.type !== 'delete').length
+
         setUniqueFileSummary({
-          totalUniqueFiles: uniqueFiles.length,
+          totalUniqueFiles: totalForPublish, // Only count files that will be published
           created,
           modified,
           deleted,
@@ -579,13 +582,20 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
 
     setIsPublishing(true)
     try {
-      // Get all changes from FORGE
+      // Get all changes from FORGE (excluding deleted files)
       const data = await getChanges(REPO_ID, sessionId)
-      const files = (data.changes || []).map((change: any) => ({
-        path: change.filePath,
-        content: change.newContent || '',
-        changeType: change.changeType
-      }))
+      const files = (data.changes || [])
+        .filter((change: any) => change.changeType !== 'delete')
+        .map((change: any) => ({
+          path: change.filePath,
+          content: change.newContent || '',
+          changeType: change.changeType
+        }))
+
+      console.log(
+        `Publishing ${files.length} files (excluded deleted files)`,
+        files.map(f => f.path)
+      )
 
       // Publish to platform
       const result = await publishScreen({
