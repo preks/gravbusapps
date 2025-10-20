@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
+import type { ActiveFilters } from './catalogSelectUtils'
 
 type State = {
-  value: string | null
+  value: string
   loading: boolean
   options: Array<{ value: string; label: string }>
   prefetchedOptions?: Array<{ value: string; label: string }>
@@ -25,7 +26,7 @@ export interface UseCatalogSelectDependenciesParams {
   configs: CatalogSelectConfig[]
   stateById: Record<string, State>
   setFor: (id: string, updater: (prev: State) => State) => void
-  getActiveFilters: (id: string) => any
+  getActiveFilters: (id: string) => ActiveFilters
   fetchCatalogEntriesByIdentifier: (
     identifier: string,
     params: {
@@ -79,8 +80,8 @@ export const useCatalogSelectDependencies = ({
 
             // Clear child when external filter changes
             const childState = stateById[id]
-            if (childState?.value !== null) {
-              setFor(id, prev => ({ ...prev, value: null, search: undefined }))
+            if (childState?.value !== '') {
+              setFor(id, prev => ({ ...prev, value: '', search: undefined }))
             }
 
             // Refetch with new external filter
@@ -133,7 +134,7 @@ export const useCatalogSelectDependencies = ({
 
       // Handle parent-child dependencies
       if (parentId) {
-        const parentValue = stateById[parentId]?.value || null
+        const parentValue = stateById[parentId]?.value || ''
         const lastParentValue = lastParentValuesRef.current.get(id)
 
         // Check if parent changed
@@ -150,10 +151,10 @@ export const useCatalogSelectDependencies = ({
           } else {
             // Normal parent change - clear child value and refetch
             const childState = stateById[id]
-            if (childState?.value !== null) {
+            if (childState?.value !== '') {
               // Track that this child was recently cleared to prevent bi-directional re-selection
               recentlyClearedChildrenRef.current.add(id)
-              setFor(id, prev => ({ ...prev, value: null, search: undefined }))
+              setFor(id, prev => ({ ...prev, value: '', search: undefined }))
             }
 
             // Refetch child options with new parent filter
@@ -315,7 +316,7 @@ export const useCatalogSelectDependencies = ({
                       autoSelectedParentsRef.current.add(parentId)
                       setFor(parentId, prev => ({
                         ...prev,
-                        value: entry.parentEntryId || null,
+                        value: entry.parentEntryId || '',
                         // Reset manuallyCleared flag when auto-selecting
                         manuallyCleared: false
                       }))

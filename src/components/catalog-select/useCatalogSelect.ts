@@ -49,7 +49,6 @@ export interface CatalogSelectConfig {
   catalogIdentifier: string // catalog identifier with optional version ("Country:v2" or "Country")
   prefetch?: boolean // include in initial batched prefetch
   pageSize?: number // default 25
-  selectThreshold?: number // default 7
   // Dependency config
   parentConfigId?: string // this instance depends on (filters by) the selected value of parent instance
   childConfigId?: string // this instance has a bi-directional relationship with child instance
@@ -58,8 +57,8 @@ export interface CatalogSelectConfig {
 }
 
 export interface CatalogSelectController {
-  value: string | null
-  setValue: (v: string | null) => void
+  value: string
+  setValue: (v: string | null | undefined) => void // ✅ Accepts null/undefined but normalizes to ''
   options: Array<{ value: string; label: string }>
   loading: boolean
   total: number
@@ -102,7 +101,7 @@ export const useCatalogSelect = (
   const defaultThreshold = 7
 
   type State = {
-    value: string | null
+    value: string // ✅ Use empty string instead of null for React Hook Form compatibility
     loading: boolean
     options: Array<{ value: string; label: string }>
     prefetchedOptions?: Array<{ value: string; label: string }>
@@ -124,7 +123,7 @@ export const useCatalogSelect = (
     const initial: Record<string, State> = {}
     configs.forEach(c => {
       initial[c.id] = {
-        value: null,
+        value: '',
         loading: true,
         options: [],
         prefetchedOptions: [],
@@ -155,7 +154,7 @@ export const useCatalogSelect = (
       // Parent filter
       if (cfg.parentConfigId) {
         const source = stateById[cfg.parentConfigId]
-        if (source?.value) filters.parentEntryId = source.value || undefined
+        if (source?.value) filters.parentEntryId = source.value
       }
       // External equals filters
       if (cfg.externalEqualsFilters && externalValues) {
@@ -200,10 +199,8 @@ export const useCatalogSelect = (
       matchingConfigs.forEach(cfg => {
         const limit = cfg.pageSize ?? defaultPageSize
         const total = cat.total ?? cat.entriesCount ?? 0
-        const threshold = cfg.selectThreshold ?? defaultThreshold
         const initialEntries = (cat.entries || []).slice(0, limit)
         setFor(cfg.id, prev => ({
-          // Use instance id
           ...prev,
           loading: false,
           options: toOptions(initialEntries),
@@ -212,7 +209,7 @@ export const useCatalogSelect = (
           fullTotal: total,
           limit,
           offset: initialEntries.length,
-          variant: total <= threshold ? 'select' : 'combobox',
+          variant: total <= defaultThreshold ? 'select' : 'combobox',
           metaByValue: buildEntryMeta(initialEntries as CatalogEntry[])
         }))
       })
@@ -225,14 +222,13 @@ export const useCatalogSelect = (
     const nonPrefetch = configs.filter(c => !c.prefetch)
     await Promise.all(
       nonPrefetch.map(async cfg => {
-        const threshold = cfg.selectThreshold ?? defaultThreshold
         const { identifier, version } = parseCatalogIdentifier(cfg.catalogIdentifier)
         try {
           const full = await fetchCatalog(
             {
               identifier,
               version,
-              entriesLimit: threshold,
+              entriesLimit: defaultThreshold,
               entriesOffset: 0
             },
             { includeCatalogEntries: true }
@@ -242,15 +238,15 @@ export const useCatalogSelect = (
           setFor(cfg.id, prev => ({
             ...prev,
             loading: false,
-            options: total <= threshold ? toOptions(entries) : [],
-            prefetchedOptions: total <= threshold ? toOptions(entries) : [],
+            options: total <= defaultThreshold ? toOptions(entries) : [],
+            prefetchedOptions: total <= defaultThreshold ? toOptions(entries) : [],
             total,
             fullTotal: total,
             limit: cfg.pageSize ?? defaultPageSize,
-            offset: total <= threshold ? entries.length : 0,
-            variant: total <= threshold ? 'select' : 'combobox'
+            offset: total <= defaultThreshold ? entries.length : 0,
+            variant: total <= defaultThreshold ? 'select' : 'combobox'
           }))
-        } catch (e) {
+        } catch {
           setFor(cfg.id, prev => ({ ...prev, loading: false }))
         }
       })
@@ -364,14 +360,24 @@ export const useCatalogSelect = (
       )
       const disabled = disabledRequire || disabledWhileLoading || disabledNoOptions
 
+      // ✅ hasOptions logic for validation:
+      // - Strict dependencies (requireSourceForEnable: true): only valid when parent is selected
+      // - Bi-directional dependencies (no requireSourceForEnable): valid whenever options exist
+      // - Standalone fields (no parentConfigId): valid whenever options exist
+      const hasOptionsInState = (current?.options?.length || 0) > 0
+
+      // Only strict dependencies require parent selection for validation
+      const requiresParentForValidation = cfg.requireSourceForEnable && cfg.parentConfigId && !hasParentSelected
+      const hasOptions = hasOptionsInState && !requiresParentForValidation
+
       record[id] = {
-        value: current?.value ?? null,
+        value: current?.value ?? '',
         setValue: v => {
+          const normalized = v?.length ? v : ''
           setFor(id, prev => ({
             ...prev,
-            value: v,
-            // Mark as manually cleared when setting to null, clear flag when setting a value
-            manuallyCleared: v === null && prev.value !== null ? true : false
+            value: normalized,
+            manuallyCleared: normalized === '' && prev.value !== ''
           }))
         },
         options: current?.options ?? [],
@@ -385,7 +391,7 @@ export const useCatalogSelect = (
         onSearch,
         onLoadMore,
         disabled,
-        hasOptions: (current?.options?.length || 0) > 0,
+        hasOptions,
         filterSignature: current?.lastFiltersSig
       }
     })
