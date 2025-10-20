@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 /**
  * @hook useCurrencySync
@@ -28,14 +28,14 @@ import { useState, useEffect } from 'react'
  *
  * @example
  * ```tsx
- * // Multiple charts in one component
+ * // Multiple charts in one component with initial "All" option
  * function MultiChartView({ masterCurrency }) {
- *   const [chart1Currency, setChart1Currency] = useCurrencySync(masterCurrency);
- *   const [chart2Currency, setChart2Currency] = useCurrencySync(masterCurrency);
- *   const [chart3Currency, setChart3Currency] = useCurrencySync(masterCurrency);
+ *   const [chart1Currency, setChart1Currency] = useCurrencySync(masterCurrency, 'All');
+ *   const [chart2Currency, setChart2Currency] = useCurrencySync(masterCurrency, 'All');
+ *   const [chart3Currency, setChart3Currency] = useCurrencySync(masterCurrency, 'All');
  *
- *   // All charts sync with masterCurrency automatically
- *   // But each can be changed independently
+ *   // All charts start with "All" but sync with masterCurrency when it changes
+ *   // Each can also be changed independently
  * }
  * ```
  */
@@ -44,10 +44,23 @@ export const useCurrencySync = (
   initialCurrency?: string
 ): [string, (value: string) => void] => {
   const [currency, setCurrency] = useState<string>(initialCurrency || masterCurrency)
+  const isFirstRender = useRef(true)
+  const prevMasterCurrency = useRef<string>(masterCurrency)
 
-  // Sync with master currency when it changes
+  // Sync with master currency when it changes (but skip first render to preserve initial value)
   useEffect(() => {
-    setCurrency(masterCurrency)
+    // Skip first render
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      prevMasterCurrency.current = masterCurrency
+      return
+    }
+
+    // Only sync if master currency actually changed
+    if (prevMasterCurrency.current !== masterCurrency) {
+      setCurrency(masterCurrency)
+      prevMasterCurrency.current = masterCurrency
+    }
   }, [masterCurrency])
 
   return [currency, setCurrency]

@@ -89,7 +89,7 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
               <CardDescription>{description}</CardDescription>
             </div>
           </div>
-          {valueType === 'amount' && currency && onCurrencyChange && availableCurrencies ? (
+          {currency && onCurrencyChange && availableCurrencies ? (
             <Select value={currency} onValueChange={onCurrencyChange}>
               <SelectTrigger className="gba:w-24 gba:h-8">
                 <SelectValue />

@@ -14,99 +14,129 @@ import {
 import { PieChart, Pie, Cell } from 'recharts'
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { ChartPieSliceIcon, ChartDonutIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
-import { LiquidFundInvestmentSummary } from '../../shared/types'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
+import { useLiquidFundInvestmentTypeDistribution, useLiquidFundTypeDistribution } from '../hooks'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface LiquidFundDistributionChartsProps {
-  chartData: any
-  rawLiquidFunds: LiquidFundInvestmentSummary[]
+interface LiquidFundDistributionChartsProps extends BusinessAppContextProps {
   masterCurrency: string
   availableCurrencies: string[]
 }
 
-export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionChartsProps> = ({
-  rawLiquidFunds,
-  masterCurrency,
-  availableCurrencies
-}) => {
-  // Currency sync hooks - initialize with master currency from parent
-  const [investmentTypeCurrencyFilter, setInvestmentTypeCurrencyFilter] = useCurrencySync(masterCurrency)
-  const [liquidFundTypeCurrencyFilter, setLiquidFundTypeCurrencyFilter] = useCurrencySync(masterCurrency)
+export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionChartsProps> = props => {
+  const { masterCurrency, availableCurrencies } = props
 
-  // Type Distribution by Count
+  // Currency sync hooks - count charts can select "All Currencies" or specific currency
+  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useCurrencySync(masterCurrency)
+  const [investmentTypeAmountCurrency, setInvestmentTypeAmountCurrency] = useCurrencySync(masterCurrency)
+  const [liquidFundTypeCountCurrency, setLiquidFundTypeCountCurrency] = useCurrencySync(masterCurrency)
+  const [liquidFundTypeAmountCurrency, setLiquidFundTypeAmountCurrency] = useCurrencySync(masterCurrency)
+
+  // Fetch Investment Type distribution data
+  // Count chart: uses selected currency (can be "All Currencies" = null, or specific currency)
+  // Amount chart: uses selected currency (specific currency only, no "All" option)
+  const {
+    countData: investmentTypeCountDataRaw,
+    isLoading: investmentTypeCountLoading,
+    error: investmentTypeCountError
+  } = useLiquidFundInvestmentTypeDistribution(
+    props,
+    investmentTypeCountCurrency === 'All Currencies' ? null : investmentTypeCountCurrency
+  )
+
+  const {
+    amountData: investmentTypeAmountDataRaw,
+    isLoading: investmentTypeAmountLoading,
+    error: investmentTypeAmountError
+  } = useLiquidFundInvestmentTypeDistribution(props, investmentTypeAmountCurrency)
+
+  // Fetch Liquid Fund Type distribution data
+  // Count chart: uses selected currency (can be "All Currencies" = null, or specific currency)
+  // Amount chart: uses selected currency (specific currency only, no "All" option)
+  const {
+    countData: liquidFundTypeCountDataRaw,
+    isLoading: liquidFundTypeCountLoading,
+    error: liquidFundTypeCountError
+  } = useLiquidFundTypeDistribution(
+    props,
+    liquidFundTypeCountCurrency === 'All Currencies' ? null : liquidFundTypeCountCurrency
+  )
+
+  const {
+    amountData: liquidFundTypeAmountDataRaw,
+    isLoading: liquidFundTypeAmountLoading,
+    error: liquidFundTypeAmountError
+  } = useLiquidFundTypeDistribution(props, liquidFundTypeAmountCurrency)
+
+  // Transform Investment Type count data for charts
   const investmentTypeCountData = useMemo(() => {
-    return rawLiquidFunds.reduce((acc: any[], fund: any) => {
-      const investmentType = fund.investment.investmentType?.value || 'Unknown'
-      const existing = acc.find(item => item.investmentType === investmentType)
-      if (existing) {
-        existing.count += 1
-      } else {
-        acc.push({
-          investmentType,
-          count: 1,
-          name: investmentType.toLowerCase().replace(/\s+/g, '')
-        })
-      }
-      return acc
-    }, [])
-  }, [rawLiquidFunds])
+    return investmentTypeCountDataRaw.map(item => ({
+      investmentType: item.type,
+      count: item.count,
+      name: item.type.toLowerCase().replace(/\s+/g, '')
+    }))
+  }, [investmentTypeCountDataRaw])
 
-  // Type Distribution by Total Amount (filtered by currency)
+  // Transform Investment Type amount data for charts
   const investmentTypeAmountData = useMemo(() => {
-    const filteredFunds = rawLiquidFunds.filter(fund => fund.currencyCode === investmentTypeCurrencyFilter)
-    return filteredFunds.reduce((acc: any[], fund: any) => {
-      const investmentType = fund.investment.investmentType?.value || 'Unknown'
-      const existing = acc.find(item => item.investmentType === investmentType)
-      if (existing) {
-        existing.totalAmount += fund.investment.investmentMarketValue || fund.investment.totalInvestmentAmount || 0
-      } else {
-        acc.push({
-          investmentType,
-          totalAmount: fund.investment.investmentMarketValue || fund.investment.totalInvestmentAmount || 0,
-          name: investmentType.toLowerCase().replace(/\s+/g, '')
-        })
-      }
-      return acc
-    }, [])
-  }, [rawLiquidFunds, investmentTypeCurrencyFilter])
+    return investmentTypeAmountDataRaw.map(item => ({
+      investmentType: item.type,
+      totalAmount: item.totalAmount,
+      name: item.type.toLowerCase().replace(/\s+/g, '')
+    }))
+  }, [investmentTypeAmountDataRaw])
 
-  // Type Distribution by Count
+  // Transform Liquid Fund Type count data for charts
   const liquidFundTypeCountData = useMemo(() => {
-    return rawLiquidFunds.reduce((acc: any[], fund: any) => {
-      const liquidFundType = fund.liquidFundInvestment?.investmentLiquidFundType?.value || 'Unknown'
-      const existing = acc.find(item => item.liquidFundType === liquidFundType)
-      if (existing) {
-        existing.count += 1
-      } else {
-        acc.push({
-          liquidFundType,
-          count: 1,
-          name: liquidFundType.toLowerCase().replace(/\s+/g, '')
-        })
-      }
-      return acc
-    }, [])
-  }, [rawLiquidFunds])
+    return liquidFundTypeCountDataRaw.map(item => ({
+      liquidFundType: item.type,
+      count: item.count,
+      name: item.type.toLowerCase().replace(/\s+/g, '')
+    }))
+  }, [liquidFundTypeCountDataRaw])
 
-  // Type Distribution by Total Amount (filtered by currency)
+  // Transform Liquid Fund Type amount data for charts
   const liquidFundTypeAmountData = useMemo(() => {
-    const filteredFunds = rawLiquidFunds.filter(fund => fund.currencyCode === liquidFundTypeCurrencyFilter)
-    return filteredFunds.reduce((acc: any[], fund: any) => {
-      const liquidFundType = fund.liquidFundInvestment?.investmentLiquidFundType?.value || 'Unknown'
-      const existing = acc.find(item => item.liquidFundType === liquidFundType)
-      if (existing) {
-        existing.totalAmount += fund.investment.investmentMarketValue || fund.investment.totalInvestmentAmount || 0
-      } else {
-        acc.push({
-          liquidFundType,
-          totalAmount: fund.investment.investmentMarketValue || fund.investment.totalInvestmentAmount || 0,
-          name: liquidFundType.toLowerCase().replace(/\s+/g, '')
-        })
-      }
-      return acc
-    }, [])
-  }, [rawLiquidFunds, liquidFundTypeCurrencyFilter])
+    return liquidFundTypeAmountDataRaw.map(item => ({
+      liquidFundType: item.type,
+      totalAmount: item.totalAmount,
+      name: item.type.toLowerCase().replace(/\s+/g, '')
+    }))
+  }, [liquidFundTypeAmountDataRaw])
+
+  // Chart configs - MUST be at top level (before any conditional rendering)
+  const investmentTypeCountChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    investmentTypeCountData.forEach((item: any) => {
+      config[item.name] = { label: item.investmentType }
+    })
+    return config
+  }, [investmentTypeCountData])
+
+  const investmentTypeAmountChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    investmentTypeAmountData.forEach((item: any) => {
+      config[item.name] = { label: item.investmentType }
+    })
+    return config
+  }, [investmentTypeAmountData])
+
+  const liquidFundTypeCountChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    liquidFundTypeCountData.forEach((item: any) => {
+      config[item.name] = { label: item.liquidFundType }
+    })
+    return config
+  }, [liquidFundTypeCountData])
+
+  const liquidFundTypeAmountChartConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    liquidFundTypeAmountData.forEach((item: any) => {
+      config[item.name] = { label: item.liquidFundType }
+    })
+    return config
+  }, [liquidFundTypeAmountData])
 
   return (
     <div className="gba:space-y-6">
@@ -118,61 +148,77 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Type Distribution by Count</CardTitle>
+                  <CardTitle>Type Distribution by Count ({investmentTypeCountCurrency})</CardTitle>
                   <CardDescription>Number per type</CardDescription>
                 </div>
               </div>
-              <div className="gba:w-24 gba:h-8"></div>
+              <CurrencyFilter
+                value={investmentTypeCountCurrency}
+                onChange={setInvestmentTypeCountCurrency}
+                currencies={['All Currencies', ...availableCurrencies]}
+                showLabel={false}
+                dataTestId="investment-type-count-currency-filter"
+              />
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                investmentTypeCountData.forEach((item: any) => {
-                  config[item.name] = { label: item.investmentType }
-                })
-                return config
-              }, [investmentTypeCountData])}
-              className="gba:h-[350px] gba:w-full"
-            >
-              <PieChart>
-                <Pie
-                  data={investmentTypeCountData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="var(--color-default)"
-                  dataKey="count"
-                  nameKey="name"
-                >
-                  {investmentTypeCountData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
-                  ))}
-                </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0]
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium">{data.payload.investmentType}</span>
+            {investmentTypeCountLoading ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">Loading distribution data...</div>
+              </div>
+            ) : investmentTypeCountError ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
+                <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">
+                  {investmentTypeCountError}
+                </div>
+              </div>
+            ) : investmentTypeCountData.length === 0 ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">
+                  No investment type data available for {investmentTypeCountCurrency}
+                </div>
+              </div>
+            ) : (
+              <ChartContainer config={investmentTypeCountChartConfig} className="gba:h-[350px] gba:w-full">
+                <PieChart>
+                  <Pie
+                    data={investmentTypeCountData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="var(--color-default)"
+                    dataKey="count"
+                    nameKey="name"
+                  >
+                    {investmentTypeCountData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                              />
+                              <span className="gba:font-medium">{data.payload.investmentType}</span>
+                            </div>
+                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} investments</div>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} investments</div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-              </PieChart>
-            </ChartContainer>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -182,74 +228,84 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Type Distribution by Total Amount ({investmentTypeCurrencyFilter})</CardTitle>
+                  <CardTitle>Type Distribution by Total Amount ({investmentTypeAmountCurrency})</CardTitle>
                   <CardDescription>Total amount per type</CardDescription>
                 </div>
               </div>
               <CurrencyFilter
-                value={investmentTypeCurrencyFilter}
-                onChange={setInvestmentTypeCurrencyFilter}
+                value={investmentTypeAmountCurrency}
+                onChange={setInvestmentTypeAmountCurrency}
                 currencies={availableCurrencies}
                 showLabel={false}
-                dataTestId="investment-type-currency-filter"
+                dataTestId="investment-type-amount-currency-filter"
               />
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                investmentTypeAmountData.forEach((item: any) => {
-                  config[item.name] = { label: item.investmentType }
-                })
-                return config
-              }, [investmentTypeAmountData])}
-              className="gba:h-[350px] gba:w-full"
-            >
-              <PieChart>
-                <Pie
-                  data={investmentTypeAmountData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="var(--color-default)"
-                  dataKey="totalAmount"
-                  nameKey="name"
-                >
-                  {investmentTypeAmountData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
-                  ))}
-                </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0]
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium">{data.payload.investmentType}</span>
+            {investmentTypeAmountLoading ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">Loading distribution data...</div>
+              </div>
+            ) : investmentTypeAmountError ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
+                <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">
+                  {investmentTypeAmountError}
+                </div>
+              </div>
+            ) : investmentTypeAmountData.length === 0 ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">
+                  No investment type data available for {investmentTypeAmountCurrency}
+                </div>
+              </div>
+            ) : (
+              <ChartContainer config={investmentTypeAmountChartConfig} className="gba:h-[350px] gba:w-full">
+                <PieChart>
+                  <Pie
+                    data={investmentTypeAmountData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="var(--color-default)"
+                    dataKey="totalAmount"
+                    nameKey="name"
+                  >
+                    {investmentTypeAmountData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                              />
+                              <span className="gba:font-medium">{data.payload.investmentType}</span>
+                            </div>
+                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                              {formatCurrencyCompact(data.value as number, investmentTypeAmountCurrency)}
+                            </div>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {formatCurrencyCompact(data.value as number, investmentTypeCurrencyFilter)}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-              </PieChart>
-            </ChartContainer>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Type Distribution - Side by Side */}
+      {/* Liquid Fund Type Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <Card>
           <CardHeader>
@@ -257,61 +313,77 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartDonutIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Type Distribution by Count</CardTitle>
+                  <CardTitle>Liquid Fund Type Distribution by Count ({liquidFundTypeCountCurrency})</CardTitle>
                   <CardDescription>Number per type</CardDescription>
                 </div>
               </div>
-              <div className="gba:w-24 gba:h-8"></div>
+              <CurrencyFilter
+                value={liquidFundTypeCountCurrency}
+                onChange={setLiquidFundTypeCountCurrency}
+                currencies={['All Currencies', ...availableCurrencies]}
+                showLabel={false}
+                dataTestId="liquid-fund-type-count-currency-filter"
+              />
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                liquidFundTypeCountData.forEach((item: any) => {
-                  config[item.name] = { label: item.liquidFundType }
-                })
-                return config
-              }, [liquidFundTypeCountData])}
-              className="gba:h-[350px] gba:w-full"
-            >
-              <PieChart>
-                <Pie
-                  data={liquidFundTypeCountData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="var(--color-default)"
-                  dataKey="count"
-                  nameKey="name"
-                >
-                  {liquidFundTypeCountData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
-                  ))}
-                </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0]
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium">{data.payload.liquidFundType}</span>
+            {liquidFundTypeCountLoading ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">Loading distribution data...</div>
+              </div>
+            ) : liquidFundTypeCountError ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
+                <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">
+                  {liquidFundTypeCountError}
+                </div>
+              </div>
+            ) : liquidFundTypeCountData.length === 0 ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">
+                  No liquid fund type data available for {liquidFundTypeCountCurrency}
+                </div>
+              </div>
+            ) : (
+              <ChartContainer config={liquidFundTypeCountChartConfig} className="gba:h-[350px] gba:w-full">
+                <PieChart>
+                  <Pie
+                    data={liquidFundTypeCountData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="var(--color-default)"
+                    dataKey="count"
+                    nameKey="name"
+                  >
+                    {liquidFundTypeCountData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                              />
+                              <span className="gba:font-medium">{data.payload.liquidFundType}</span>
+                            </div>
+                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} funds</div>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} funds</div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-              </PieChart>
-            </ChartContainer>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -321,69 +393,79 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={CurrencyCircleDollarIcon} variant="secondary" size="md" decorative />
                 <div>
-                  <CardTitle>Type Distribution by Total Amount ({liquidFundTypeCurrencyFilter})</CardTitle>
+                  <CardTitle>Liquid Fund Type Distribution by Total Amount ({liquidFundTypeAmountCurrency})</CardTitle>
                   <CardDescription>Total amount per type</CardDescription>
                 </div>
               </div>
               <CurrencyFilter
-                value={liquidFundTypeCurrencyFilter}
-                onChange={setLiquidFundTypeCurrencyFilter}
+                value={liquidFundTypeAmountCurrency}
+                onChange={setLiquidFundTypeAmountCurrency}
                 currencies={availableCurrencies}
                 showLabel={false}
-                dataTestId="liquid-fund-type-currency-filter"
+                dataTestId="liquid-fund-type-amount-currency-filter"
               />
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                liquidFundTypeAmountData.forEach((item: any) => {
-                  config[item.name] = { label: item.liquidFundType }
-                })
-                return config
-              }, [liquidFundTypeAmountData])}
-              className="gba:h-[350px] gba:w-full"
-            >
-              <PieChart>
-                <Pie
-                  data={liquidFundTypeAmountData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="var(--color-default)"
-                  dataKey="totalAmount"
-                  nameKey="name"
-                >
-                  {liquidFundTypeAmountData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
-                  ))}
-                </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0]
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium">{data.payload.liquidFundType}</span>
+            {liquidFundTypeAmountLoading ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">Loading distribution data...</div>
+              </div>
+            ) : liquidFundTypeAmountError ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
+                <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">
+                  {liquidFundTypeAmountError}
+                </div>
+              </div>
+            ) : liquidFundTypeAmountData.length === 0 ? (
+              <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                <div className="gba:text-gray-500 gba:text-lg">
+                  No liquid fund type data available for {liquidFundTypeAmountCurrency}
+                </div>
+              </div>
+            ) : (
+              <ChartContainer config={liquidFundTypeAmountChartConfig} className="gba:h-[350px] gba:w-full">
+                <PieChart>
+                  <Pie
+                    data={liquidFundTypeAmountData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="var(--color-default)"
+                    dataKey="totalAmount"
+                    nameKey="name"
+                  >
+                    {liquidFundTypeAmountData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                              />
+                              <span className="gba:font-medium">{data.payload.liquidFundType}</span>
+                            </div>
+                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                              {formatCurrencyCompact(data.value as number, liquidFundTypeAmountCurrency)}
+                            </div>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {formatCurrencyCompact(data.value as number, liquidFundTypeCurrencyFilter)}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-              </PieChart>
-            </ChartContainer>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
       </div>

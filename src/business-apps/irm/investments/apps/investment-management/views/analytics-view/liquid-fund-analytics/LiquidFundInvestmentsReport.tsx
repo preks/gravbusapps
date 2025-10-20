@@ -20,19 +20,11 @@ import { PieChart, TrendingUp, BarChart } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import type { LiquidFundInvestment } from '@/common/data/investment'
-import { useInvestmentDataIntegration } from '@/common/data/investment'
+import { useLiquidFundDataIntegration } from './hooks/useLiquidFundDataIntegration'
 import { useLiquidFundKPIIntegration } from './hooks/useLiquidFundKPIIntegration'
 import { LiquidFundKPICards } from './components/LiquidFundKPICards'
 import { LiquidFundDistributionCharts, LiquidFundTimelineCharts, LiquidFundAnalyticsCharts } from './components'
-import {
-  safeCurrencyExtraction,
-  getInvestmentStatusColor,
-  getInvestmentPhaseColor,
-  getRiskLevelColor,
-  getFundTypeColor
-} from '../shared/utils'
-import type { LiquidFundInvestmentSummary } from '../shared/types'
+import { safeCurrencyExtraction } from '../shared/utils'
 
 // Interface definition moved to shared/types.ts - keeping legacy export for compatibility
 
@@ -59,8 +51,8 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  // Use central investment data integration hook
-  const { investments, isLoading, error, refetch } = useInvestmentDataIntegration(context)
+  // Use optimized liquid fund data integration hook (only fetches investments)
+  const { investments, isLoading, error, refetch } = useLiquidFundDataIntegration(context)
 
   // Filter for liquid fund investments only (using type assertion for relationship)
   const liquidFundInvestments = investments.filter(
@@ -100,39 +92,6 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
     previousAverageInvestmentValue: previous.averageInvestmentValue,
     previousAverageMarketValue: previous.averageMarketValue,
     previousTotalFundValue: previous.totalMarketValue
-  }
-
-  // Transform investments for liquid fund specific data
-  const liquidFundSummaries: LiquidFundInvestmentSummary[] = liquidFundInvestments.map(
-    (investment): LiquidFundInvestmentSummary => {
-      const liquidFund = (investment as any).liquidFundInvestment?.[0] as LiquidFundInvestment
-
-      return {
-        id: investment.id,
-        investment,
-        liquidFundInvestment: liquidFund,
-        displayName: investment.code || investment.fundManagerName || `Investment ${investment.id}`,
-        currencyCode: safeCurrencyExtraction(investment.currency),
-        statusColor: getInvestmentStatusColor(investment.investmentStatus?.value || ''),
-        phaseColor: getInvestmentPhaseColor(investment.investmentPhase?.value || ''),
-        riskColor: getRiskLevelColor(investment.investmentRiskLevel?.value || ''),
-        fundTypeName: liquidFund?.investmentLiquidFundType?.value || 'Unknown',
-        fundTypeColor: getFundTypeColor(liquidFund?.investmentLiquidFundType?.value || ''),
-        daysToMaturity: liquidFund?.maturityDate
-          ? Math.ceil((new Date(liquidFund.maturityDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-          : 0,
-        isNearMaturity: liquidFund?.maturityDate
-          ? Math.ceil((new Date(liquidFund.maturityDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) <=
-            30
-          : false,
-        isActive: investment.investmentStatus?.value?.toLowerCase() === 'active'
-      }
-    }
-  )
-
-  // Create chart data from the liquid fund summaries
-  const chartData = {
-    rawLiquidFunds: liquidFundSummaries
   }
 
   if (error) {
@@ -229,29 +188,30 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
 
         <TabsContent value="distribution" className="gba:mt-6">
           <LiquidFundDistributionCharts
-            chartData={chartData}
-            rawLiquidFunds={liquidFundSummaries}
+            {...context}
             masterCurrency={selectedCurrency}
             availableCurrencies={availableCurrencies}
           />
         </TabsContent>
 
         <TabsContent value="timeline" className="gba:mt-6">
-          <LiquidFundTimelineCharts
-            chartData={chartData}
-            rawLiquidFunds={liquidFundSummaries}
-            masterCurrency={selectedCurrency}
-            availableCurrencies={availableCurrencies}
-          />
+          {activeTab === 'timeline' && (
+            <LiquidFundTimelineCharts
+              {...context}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="analytics" className="gba:mt-6">
-          <LiquidFundAnalyticsCharts
-            chartData={chartData}
-            rawLiquidFunds={liquidFundSummaries}
-            masterCurrency={selectedCurrency}
-            availableCurrencies={availableCurrencies}
-          />
+          {activeTab === 'analytics' && (
+            <LiquidFundAnalyticsCharts
+              {...context}
+              masterCurrency={selectedCurrency}
+              availableCurrencies={availableCurrencies}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

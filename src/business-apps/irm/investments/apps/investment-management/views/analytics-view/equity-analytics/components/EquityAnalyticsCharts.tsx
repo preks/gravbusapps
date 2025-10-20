@@ -13,96 +13,55 @@ import {
 } from '@newwork/nw-design-system'
 import { ComposedChart, ScatterChart, Scatter, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartScatterIcon, ChartBarIcon } from '@phosphor-icons/react'
-import type { EquityInvestmentSummary } from '../../../shared/types'
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
+import { useEquityPerformanceData } from '../hooks'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface EquityAnalyticsChartsProps {
-  rawInvestments: EquityInvestmentSummary[]
+interface EquityAnalyticsChartsProps extends BusinessAppContextProps {
   masterCurrency: string
   availableCurrencies: string[]
 }
 
-export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
-  rawInvestments,
-  masterCurrency,
-  availableCurrencies
-}) => {
-  // Currency sync hooks - automatically sync with master currency
-  const [stakeVsAmountCurrency, setStakeVsAmountCurrency] = useCurrencySync(masterCurrency)
-  const [roleVsAmountCurrency, setRoleVsAmountCurrency] = useCurrencySync(masterCurrency)
-  const [concentrationCurrency, setConcentrationCurrency] = useCurrencySync(masterCurrency)
+export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props => {
+  const { masterCurrency, availableCurrencies } = props
 
-  // Filter and compute Stake vs Amount data
-  const stakeVsInvestmentAmountData = useMemo(() => {
-    return rawInvestments
-      .filter(equity => equity.currencyCode === stakeVsAmountCurrency)
-      .filter(equity => {
-        const hasStake = equity.investment.stakePercentage
-        const hasAmount = equity.investment.totalInvestmentAmount
-        return hasStake && hasAmount
-      })
-      .map(equity => ({
-        stake: equity.investment.stakePercentage,
-        investmentAmount: equity.investment.totalInvestmentAmount,
-        company: equity.displayName || 'Unknown',
-        name: equity.displayName || 'Unknown'
-      }))
-  }, [rawInvestments, stakeVsAmountCurrency])
+  // Use single master currency for all performance charts
+  const [performanceCurrency, setPerformanceCurrency] = useCurrencySync(masterCurrency)
 
-  // Filter and compute Role vs Amount data
-  const roleInvestmentAmountData = useMemo(() => {
-    return rawInvestments
-      .filter(equity => equity.currencyCode === roleVsAmountCurrency)
-      .filter(equity => {
-        const hasAmount = equity.investment.totalInvestmentAmount
-        return hasAmount
-      })
-      .map(equity => {
-        const roleScore = 3 // Default to Lead Investor score
-        return {
-          role: roleScore,
-          investmentAmount: equity.investment.totalInvestmentAmount,
-          company: equity.displayName || 'Unknown',
-          name: equity.displayName || 'Unknown'
-        }
-      })
-  }, [rawInvestments, roleVsAmountCurrency])
+  // Fetch optimized performance data from server
+  const {
+    stakeVsAmountData: stakeVsInvestmentAmountData,
+    roleVsAmountData: roleInvestmentAmountData,
+    concentrationData: concentrationByRoleData,
+    isLoading: performanceLoading,
+    error: performanceError
+  } = useEquityPerformanceData(props, performanceCurrency)
 
-  // Filter and compute Concentration by Role data
-  const concentrationByRoleData = useMemo(() => {
-    const filteredInvestments = rawInvestments.filter(equity => equity.currencyCode === concentrationCurrency)
+  // Chart configs - must be at top level
+  const stakeVsAmountChartConfig = useMemo(
+    () => ({
+      stakevsinvestment: { label: 'Stake vs Investment' }
+    }),
+    []
+  )
 
-    // Group by role and calculate metrics
-    const roleGroups = filteredInvestments.reduce((acc: any, equity) => {
-      const roles = equity.investment.investmentRole || []
-      const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
+  const roleVsAmountChartConfig = useMemo(
+    () => ({
+      rolevsinvestment: { label: 'Role vs Investment' }
+    }),
+    []
+  )
 
-      if (!acc[role]) {
-        acc[role] = {
-          role,
-          count: 0,
-          totalValuation: 0,
-          valuations: []
-        }
-      }
-
-      acc[role].count += 1
-      acc[role].totalValuation += equity.investment.investmentMarketValue || 0
-      acc[role].valuations.push(equity.investment.investmentMarketValue || 0)
-
-      return acc
-    }, {})
-
-    // Convert to array and calculate averages
-    return Object.values(roleGroups).map((group: any) => ({
-      role: group.role,
-      count: group.count,
-      totalValuation: group.totalValuation,
-      averageValuation: group.totalValuation / group.count
-    }))
-  }, [rawInvestments, concentrationCurrency])
+  const concentrationChartConfig = useMemo(
+    () => ({
+      investmentcount: { label: 'Investment Count' },
+      totalvaluation: { label: 'Total Valuation' },
+      averagevaluation: { label: 'Average Valuation' }
+    }),
+    []
+  )
   return (
     <>
       {/* Stake vs Investment Amount Correlation - Scatter Plot (Full Width) */}
@@ -112,85 +71,94 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartScatterIcon} variant="default" size="md" decorative />
               <div>
-                <CardTitle>Stake vs Amount Correlation ({stakeVsAmountCurrency})</CardTitle>
+                <CardTitle>Stake vs Amount Correlation ({performanceCurrency})</CardTitle>
                 <CardDescription>Relationship between stake percentage and total investment amount</CardDescription>
               </div>
             </div>
             <CurrencyFilter
-              value={stakeVsAmountCurrency}
-              onChange={setStakeVsAmountCurrency}
+              value={performanceCurrency}
+              onChange={setPerformanceCurrency}
               currencies={availableCurrencies}
               showLabel={false}
-              dataTestId="stake-vs-amount-currency-filter"
+              dataTestId="performance-currency-filter"
             />
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={useMemo(
-              () => ({
-                stakevsinvestment: { label: 'Stake vs Investment' }
-              }),
-              []
-            )}
-            className="gba:h-[350px] gba:w-full"
-          >
-            <ScatterChart data={stakeVsInvestmentAmountData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <XAxis
-                type="number"
-                dataKey="stake"
-                name="Stake %"
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => `${value}%`}
-              />
-              <YAxis
-                type="number"
-                dataKey="investmentAmount"
-                name="Investment Amount"
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => formatCurrencyCompact(value, stakeVsAmountCurrency)}
-              />
-              <ChartTooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload // Get the actual data point
+          {performanceLoading ? (
+            <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-gray-500 gba:text-lg">Loading performance data...</div>
+            </div>
+          ) : performanceError ? (
+            <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+              <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
+              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{performanceError}</div>
+            </div>
+          ) : stakeVsInvestmentAmountData.length === 0 ? (
+            <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-gray-500 gba:text-lg">
+                No stake vs amount data available for {performanceCurrency}
+              </div>
+            </div>
+          ) : (
+            <ChartContainer config={stakeVsAmountChartConfig} className="gba:h-[350px] gba:w-full">
+              <ScatterChart data={stakeVsInvestmentAmountData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <XAxis
+                  type="number"
+                  dataKey="stake"
+                  name="Stake %"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={value => `${value}%`}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="investmentAmount"
+                  name="Investment Amount"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={value => formatCurrencyCompact(value, performanceCurrency)}
+                />
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload // Get the actual data point
 
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                          Company: {data.company || data.name || 'Unknown'}
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                            Company: {data.company || data.name || 'Unknown'}
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+                            />
+                            <span className="gba:font-medium">Stake Percentage:</span>
+                            <span className="gba:font-semibold">{data.stake}%</span>
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+                            />
+                            <span className="gba:font-medium">Investment Amount:</span>
+                            <span className="gba:font-semibold">
+                              {formatCurrencyCompact(data.investmentAmount, performanceCurrency)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                          <div
-                            className="gba:w-3 gba:h-3 gba:rounded-full"
-                            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
-                          />
-                          <span className="gba:font-medium">Stake Percentage:</span>
-                          <span className="gba:font-semibold">{data.stake}%</span>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                          <div
-                            className="gba:w-3 gba:h-3 gba:rounded-full"
-                            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
-                          />
-                          <span className="gba:font-medium">Investment Amount:</span>
-                          <span className="gba:font-semibold">
-                            {formatCurrencyCompact(data.investmentAmount, stakeVsAmountCurrency)}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <Scatter
-                name="stakevsinvestment"
-                data={stakeVsInvestmentAmountData}
-                fill="var(--color-stakevsinvestment)"
-              />
-            </ScatterChart>
-          </ChartContainer>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Scatter
+                  name="stakevsinvestment"
+                  data={stakeVsInvestmentAmountData}
+                  fill="var(--color-stakevsinvestment)"
+                />
+              </ScatterChart>
+            </ChartContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -201,85 +169,87 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartScatterIcon} variant="secondary" size="md" decorative />
               <div>
-                <CardTitle>Role vs Amount ({roleVsAmountCurrency})</CardTitle>
+                <CardTitle>Role vs Amount ({performanceCurrency})</CardTitle>
                 <CardDescription>Comparison of investment amounts across different investment roles</CardDescription>
               </div>
             </div>
-            <CurrencyFilter
-              value={roleVsAmountCurrency}
-              onChange={setRoleVsAmountCurrency}
-              currencies={availableCurrencies}
-              showLabel={false}
-              dataTestId="role-vs-amount-currency-filter"
-            />
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={useMemo(
-              () => ({
-                rolevsinvestment: { label: 'Role vs Investment' }
-              }),
-              []
-            )}
-            className="gba:h-[350px] gba:w-full"
-          >
-            <ScatterChart data={roleInvestmentAmountData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <XAxis
-                type="number"
-                dataKey="role"
-                name="Investment Role"
-                domain={[0, 4]}
-                ticks={[1, 2, 3]}
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => (value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead')}
-              />
-              <YAxis
-                type="number"
-                dataKey="investmentAmount"
-                name="Investment Amount"
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => formatCurrencyCompact(value, roleVsAmountCurrency)}
-              />
-              <ChartTooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload // Get the actual data point
-                    const roleValue = data.role
-                    const roleLabel = roleValue === 1 ? 'Follow-on' : roleValue === 2 ? 'Co-Investor' : 'Lead'
+          {performanceLoading ? (
+            <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-gray-500 gba:text-lg">Loading performance data...</div>
+            </div>
+          ) : performanceError ? (
+            <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+              <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
+              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{performanceError}</div>
+            </div>
+          ) : roleInvestmentAmountData.length === 0 ? (
+            <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-gray-500 gba:text-lg">
+                No role vs amount data available for {performanceCurrency}
+              </div>
+            </div>
+          ) : (
+            <ChartContainer config={roleVsAmountChartConfig} className="gba:h-[350px] gba:w-full">
+              <ScatterChart data={roleInvestmentAmountData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                <XAxis
+                  type="number"
+                  dataKey="role"
+                  name="Investment Role"
+                  domain={[0, 4]}
+                  ticks={[1, 2, 3]}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={value => (value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead')}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="investmentAmount"
+                  name="Investment Amount"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={value => formatCurrencyCompact(value, performanceCurrency)}
+                />
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload // Get the actual data point
+                      const roleValue = data.role
+                      const roleLabel = roleValue === 1 ? 'Follow-on' : roleValue === 2 ? 'Co-Investor' : 'Lead'
 
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                          Company: {data.company || data.name || 'Unknown'}
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                            Company: {data.company || data.name || 'Unknown'}
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+                            />
+                            <span className="gba:font-medium">Investment Role:</span>
+                            <span className="gba:font-semibold">{roleLabel}</span>
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+                            />
+                            <span className="gba:font-medium">Investment Amount:</span>
+                            <span className="gba:font-semibold">
+                              {formatCurrencyCompact(data.investmentAmount, performanceCurrency)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                          <div
-                            className="gba:w-3 gba:h-3 gba:rounded-full"
-                            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
-                          />
-                          <span className="gba:font-medium">Investment Role:</span>
-                          <span className="gba:font-semibold">{roleLabel}</span>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                          <div
-                            className="gba:w-3 gba:h-3 gba:rounded-full"
-                            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
-                          />
-                          <span className="gba:font-medium">Investment Amount:</span>
-                          <span className="gba:font-semibold">
-                            {formatCurrencyCompact(data.investmentAmount, roleVsAmountCurrency)}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <Scatter name="rolevsinvestment" data={roleInvestmentAmountData} fill="var(--color-rolevsinvestment)" />
-            </ScatterChart>
-          </ChartContainer>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Scatter name="rolevsinvestment" data={roleInvestmentAmountData} fill="var(--color-rolevsinvestment)" />
+              </ScatterChart>
+            </ChartContainer>
+          )}
         </CardContent>
       </Card>
 
@@ -290,102 +260,105 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartBarIcon} variant="success" size="md" decorative />
               <div>
-                <CardTitle>Portfolio Concentration by Role ({concentrationCurrency})</CardTitle>
+                <CardTitle>Portfolio Concentration by Role ({performanceCurrency})</CardTitle>
                 <CardDescription>Investment distribution and valuation metrics by role</CardDescription>
               </div>
             </div>
-            <CurrencyFilter
-              value={concentrationCurrency}
-              onChange={setConcentrationCurrency}
-              currencies={availableCurrencies}
-              showLabel={false}
-              dataTestId="concentration-currency-filter"
-            />
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer
-            config={useMemo(
-              () => ({
-                investmentcount: { label: 'Investment Count' },
-                totalvaluation: { label: 'Total Valuation' },
-                averagevaluation: { label: 'Average Valuation' }
-              }),
-              []
-            )}
-            className="gba:h-[300px] gba:w-full"
-          >
-            <ComposedChart data={concentrationByRoleData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <XAxis dataKey="role" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-              <ChartTooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                        {payload.map((entry, index) => {
-                          let formattedValue = ''
-                          let properLabel = ''
-                          let dotColor = ''
+          {performanceLoading ? (
+            <div className="gba:h-[300px] gba:w-full gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-gray-500 gba:text-lg">Loading performance data...</div>
+            </div>
+          ) : performanceError ? (
+            <div className="gba:h-[300px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+              <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
+              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{performanceError}</div>
+            </div>
+          ) : concentrationByRoleData.length === 0 ? (
+            <div className="gba:h-[300px] gba:w-full gba:flex gba:items-center gba:justify-center">
+              <div className="gba:text-gray-500 gba:text-lg">
+                No concentration data available for {performanceCurrency}
+              </div>
+            </div>
+          ) : (
+            <ChartContainer config={concentrationChartConfig} className="gba:h-[300px] gba:w-full">
+              <ComposedChart data={concentrationByRoleData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                <XAxis dataKey="role" tick={{ fontSize: 12 }} />
+                <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                <ChartTooltip
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+                          {payload.map((entry, index) => {
+                            let formattedValue = ''
+                            let properLabel = ''
+                            let dotColor = ''
 
-                          if (entry.dataKey === 'count') {
-                            formattedValue = `${entry.value}`
-                            properLabel = 'Investment Count'
-                            dotColor = 'var(--color-investmentcount)'
-                          } else if (entry.dataKey === 'totalValuation') {
-                            formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
-                            properLabel = 'Total Valuation'
-                            dotColor = 'var(--color-totalvaluation)'
-                          } else if (entry.dataKey === 'averageValuation') {
-                            formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
-                            properLabel = 'Average Valuation'
-                            dotColor = 'var(--color-averagevaluation)'
-                          }
+                            if (entry.dataKey === 'count') {
+                              formattedValue = `${entry.value}`
+                              properLabel = 'Investment Count'
+                              dotColor = 'var(--color-investmentcount)'
+                            } else if (entry.dataKey === 'totalValuation') {
+                              formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrency)
+                              properLabel = 'Total Valuation'
+                              dotColor = 'var(--color-totalvaluation)'
+                            } else if (entry.dataKey === 'averageValuation') {
+                              formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrency)
+                              properLabel = 'Average Valuation'
+                              dotColor = 'var(--color-averagevaluation)'
+                            }
 
-                          return (
-                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
-                              <span className="gba:font-medium">{properLabel}:</span>
-                              <span className="gba:font-semibold">{formattedValue}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <ChartLegend content={<ChartLegendContent />} />
-              <Bar
-                yAxisId="left"
-                dataKey="count"
-                name="investmentcount"
-                fill="var(--color-investmentcount)"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={60}
-              />
-              <Bar
-                yAxisId="right"
-                dataKey="totalValuation"
-                name="totalvaluation"
-                fill="var(--color-totalvaluation)"
-                radius={[4, 4, 0, 0]}
-                maxBarSize={60}
-              />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="averageValuation"
-                name="averagevaluation"
-                stroke="var(--color-averagevaluation)"
-                strokeWidth={3}
-                dot={{ r: 6 }}
-              />
-            </ComposedChart>
-          </ChartContainer>
+                            return (
+                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: dotColor }}
+                                />
+                                <span className="gba:font-medium">{properLabel}:</span>
+                                <span className="gba:font-semibold">{formattedValue}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <ChartLegend content={<ChartLegendContent />} />
+                <Bar
+                  yAxisId="left"
+                  dataKey="count"
+                  name="investmentcount"
+                  fill="var(--color-investmentcount)"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={60}
+                />
+                <Bar
+                  yAxisId="right"
+                  dataKey="totalValuation"
+                  name="totalvaluation"
+                  fill="var(--color-totalvaluation)"
+                  radius={[4, 4, 0, 0]}
+                  maxBarSize={60}
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="averageValuation"
+                  name="averagevaluation"
+                  stroke="var(--color-averagevaluation)"
+                  strokeWidth={3}
+                  dot={{ r: 6 }}
+                />
+              </ComposedChart>
+            </ChartContainer>
+          )}
         </CardContent>
       </Card>
     </>

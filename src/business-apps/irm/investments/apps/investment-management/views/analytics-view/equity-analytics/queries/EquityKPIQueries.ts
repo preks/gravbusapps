@@ -18,7 +18,6 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
   // Currency codes are stored as "Currency:v1:EUR" so we match the suffix pattern
   // The _ilike pattern will naturally exclude null currency values
   const currencyCondition = currencyFilter ? `{ currency: { code: { _ilike: "%${currencyFilter}%" } } }` : ''
-
   return `
     query GetEquityKPIsWithComparison {
       # Current data (equity investments only - filter by investment group, not specialization)

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
@@ -27,7 +27,7 @@ interface InvestmentWithSpecializations extends Investment {
     }
   }>
 }
-import { useEquityChartData, useEquityKPIIntegration } from './hooks'
+import { useEquityKPIIntegration, useEquityAvailableCurrencies } from './hooks'
 import {
   calculateChange,
   getInvestmentStatusColor,
@@ -56,24 +56,21 @@ interface EquityInvestmentsReportProps extends BusinessAppContextProps {
 const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport'
   const [activeTab, setActiveTab] = useState('distribution')
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('Currency:v1:EUR') // Store full ID
 
   const [equityInvestments, setEquityInvestments] = useState<EquityInvestmentSummary[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
 
-  // Extract unique currencies from investments
-  const availableCurrencies = useMemo(() => {
-    const currencies = new Set<string>()
-    equityInvestments.forEach(inv => {
-      if (inv.currencyCode) {
-        currencies.add(inv.currencyCode)
-      }
-    })
-    const currencyArray = Array.from(currencies).sort()
-    // Ensure at least the default currency is available
-    return currencyArray.length > 0 ? currencyArray : ['EUR']
-  }, [equityInvestments])
+  // Extract currency code from ID for KPI hook (it expects "EUR", not "Currency:v1:EUR")
+  const selectedCurrencyCode = selectedCurrency.split(':').pop() || 'EUR'
+
+  // Fetch available currencies from equity investments
+  const {
+    currencies: availableCurrencies,
+    isLoading: currenciesLoading,
+    error: currenciesError
+  } = useEquityAvailableCurrencies(props)
 
   // Use the new KPI integration hook for real GraphQL aggregate queries
   const {
@@ -82,13 +79,13 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useEquityKPIIntegration(props, selectedCurrency)
+  } = useEquityKPIIntegration(props, selectedCurrencyCode)
 
   const { fetchInvestments } = useGetInvestments(props)
 
   // Combined loading and error states
-  const isLoading = dataLoading || kpiLoading
-  const error = dataError || kpiError
+  const isLoading = dataLoading || kpiLoading || currenciesLoading
+  const error = dataError || kpiError || currenciesError
 
   // Transform equity data
   const transformEquityData = useCallback((investments: InvestmentWithSpecializations[]): EquityInvestmentSummary[] => {
@@ -136,7 +133,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
       })
   }, [])
 
-  // Load equity investment data for chart display
+  // Load equity investment data for chart display with currency filter
   const loadData = useCallback(async () => {
     if (!props.accessToken) {
       setDataError('Access token not available')
@@ -148,7 +145,12 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     setDataError(null)
 
     try {
-      const result = await fetchInvestments()
+      // Always fetch filtered by selected currency (server-side filtering)
+      // selectedCurrency is already in full ID format: "Currency:v1:EUR"
+      const currencyIds = selectedCurrency ? [selectedCurrency] : undefined
+      const result = await fetchInvestments({
+        currencyIds: currencyIds
+      })
       const enhancedEquityInvestments = transformEquityData(result.Investment as InvestmentWithSpecializations[])
       setEquityInvestments(enhancedEquityInvestments)
     } catch (err) {
@@ -156,14 +158,14 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     } finally {
       setDataLoading(false)
     }
-  }, [props.accessToken, fetchInvestments, transformEquityData])
+  }, [props.accessToken, fetchInvestments, transformEquityData, selectedCurrency])
 
-  // Load data on mount and when access token changes
+  // Load data on mount and when access token or selected currency changes
   useEffect(() => {
     if (props.accessToken) {
       loadData()
     }
-  }, [props.accessToken, loadData])
+  }, [props.accessToken, selectedCurrency, loadData])
 
   // Combined refetch function for error retry
   const refetch = useCallback(async () => {
@@ -171,8 +173,6 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
   }, [loadData, refetchKpis])
 
   // Chart data for Distribution and Timeline tabs (charts will handle their own currency filtering)
-  const chartData = useEquityChartData(equityInvestments)
-
   if (isLoading) {
     return (
       <div
@@ -197,14 +197,6 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
       </Alert>
     )
   }
-
-  const {
-    // Distribution tab data
-    roleData,
-    statusData,
-    stakeTypeData,
-    investmentTypeData
-  } = chartData
 
   return (
     <div
@@ -235,8 +227,8 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
             </SelectTrigger>
             <SelectContent>
               {availableCurrencies.map(currency => (
-                <SelectItem key={currency} value={currency}>
-                  {currency}
+                <SelectItem key={currency.id} value={currency.id}>
+                  {currency.code}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -267,7 +259,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               title: getTranslationFromI18nKeyAndLabel('kpi.assetsUnderManagement', 'Assets Under Management'),
               value: new Intl.NumberFormat('en-US', {
                 style: 'currency',
-                currency: selectedCurrency,
+                currency: selectedCurrencyCode,
                 notation: 'compact',
                 compactDisplay: 'short',
                 minimumFractionDigits: 0,
@@ -344,13 +336,10 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
           <TabsContent value="distribution" className="gba:mt-6">
             <div className="gba:space-y-6 gba:w-full">
               <EquityDistributionCharts
-                roleData={roleData}
-                statusData={statusData}
-                stakeTypeData={stakeTypeData}
-                investmentTypeData={investmentTypeData}
+                {...props}
                 rawInvestments={equityInvestments}
-                masterCurrency={selectedCurrency}
-                availableCurrencies={availableCurrencies}
+                masterCurrency={selectedCurrencyCode}
+                availableCurrencies={availableCurrencies.map(c => c.code)}
               />
             </div>
           </TabsContent>
@@ -358,21 +347,24 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
           <TabsContent value="timeline" className="gba:mt-6">
             <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:w-full">
               <EquityTimelineCharts
+                {...props}
                 rawInvestments={equityInvestments}
-                masterCurrency={selectedCurrency}
-                availableCurrencies={availableCurrencies}
+                masterCurrency={selectedCurrencyCode}
+                availableCurrencies={availableCurrencies.map(c => c.code)}
               />
             </div>
           </TabsContent>
 
           <TabsContent value="analytics" className="gba:mt-6">
-            <div className="gba:space-y-6">
-              <EquityAnalyticsCharts
-                rawInvestments={equityInvestments}
-                masterCurrency={selectedCurrency}
-                availableCurrencies={availableCurrencies}
-              />
-            </div>
+            {activeTab === 'analytics' && (
+              <div className="gba:space-y-6">
+                <EquityAnalyticsCharts
+                  {...props}
+                  masterCurrency={selectedCurrencyCode}
+                  availableCurrencies={availableCurrencies.map(c => c.code)}
+                />
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
