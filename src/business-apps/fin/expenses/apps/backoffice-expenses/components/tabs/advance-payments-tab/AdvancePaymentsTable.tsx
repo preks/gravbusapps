@@ -17,12 +17,7 @@ import {
   TableCell,
   Alert,
   Spinner,
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
+  Button,
   Card,
   CardContent,
   Sheet,
@@ -517,16 +512,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           {totalCount > 0 && (
             <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
               <div className="gba:text-sm gba:text-muted-foreground">
-                {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} of ${totalCount}`}
+                {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.items', 'items')}`}
               </div>
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious
-                      onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize })}
-                      className={currentPage <= 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
-                    />
-                  </PaginationItem>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize })}
+                  disabled={currentPage <= 1}
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
+                </Button>
+
+                <div className="gba:flex gba:items-center gba:gap-1">
                   {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1)
                     .filter(
                       page =>
@@ -535,34 +533,29 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     .map((page, index, array) => (
                       <React.Fragment key={page}>
                         {index > 0 && array[index - 1] !== page - 1 && (
-                          <PaginationItem>
-                            <span className="gba:px-2">...</span>
-                          </PaginationItem>
+                          <span className="gba:px-2 gba:text-muted-foreground">...</span>
                         )}
-                        <PaginationItem>
-                          <PaginationLink
-                            onClick={() => handleEnhancedTableChange({ current: page, pageSize })}
-                            className={
-                              page === currentPage ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:cursor-pointer'
-                            }
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
+                        <Button
+                          variant={page === currentPage ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleEnhancedTableChange({ current: page, pageSize })}
+                          className="gba:min-w-[36px]"
+                        >
+                          {page}
+                        </Button>
                       </React.Fragment>
                     ))}
-                  <PaginationItem>
-                    <PaginationNext
-                      onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize })}
-                      className={
-                        currentPage >= Math.ceil(totalCount / pageSize)
-                          ? 'gba:pointer-events-none gba:opacity-50'
-                          : 'gba:cursor-pointer'
-                      }
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize })}
+                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
