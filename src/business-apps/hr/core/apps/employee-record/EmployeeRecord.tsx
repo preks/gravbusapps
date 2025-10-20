@@ -77,7 +77,7 @@ const ErrorUI = () => {
   }, [])
 
   return (
-    <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
+    <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
       <p className="gba:text-xl gba:font-medium">Error</p>
       <p>Error loading employee data.</p>
     </div>
@@ -86,7 +86,7 @@ const ErrorUI = () => {
 
 // Handle not found UI
 const NotFoundUI = () => (
-  <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-gray-600">
+  <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-muted-foreground">
     <p className="gba:text-xl gba:font-medium">Not Found</p>
     <p>Employee not found.</p>
   </div>
@@ -254,9 +254,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.summary,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiUser style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Summary</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiUser className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Summary</span>
           </div>
         ),
         children: (
@@ -273,9 +273,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.details,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiIdentificationCard style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Details</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiIdentificationCard className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Details</span>
           </div>
         ),
         children: (
@@ -291,9 +291,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.employment,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiBriefcase style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Employment</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiBriefcase className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Employment</span>
           </div>
         ),
         children: (
@@ -309,9 +309,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.documents,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiFiles style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Documents</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiFiles className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Documents</span>
           </div>
         ),
         children: (
@@ -327,9 +327,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.performance,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Performance</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiChartBar className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Performance</span>
           </div>
         ),
         children: (
@@ -346,9 +346,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.feedback,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiChatCircle style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Feedback</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiChatCircle className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Feedback</span>
           </div>
         ),
         children: (
@@ -366,9 +366,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.absences,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiCalendar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absences</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiCalendar className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Absences</span>
           </div>
         ),
         children: (
@@ -385,9 +385,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.skills,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiGraduationCap style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Skills</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiGraduationCap className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Skills</span>
           </div>
         ),
         children: (
@@ -457,7 +457,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Get the tab content based on the active tab
   const getTabContent = () => {
     const activeTabItem = tabItems.find(tab => tab.key === activeTab)
-    return activeTabItem ? <div className="gba:bg-white gba:p-4 gba:rounded-md">{activeTabItem.children}</div> : null
+    return activeTabItem ? (
+      <div className="gba:bg-primary-foreground gba:p-4 gba:rounded-md">{activeTabItem.children}</div>
+    ) : null
   }
 
   // Return the current UI state

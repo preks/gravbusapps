@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import { EmployeeAbsenceEntitlement } from '../hooks/useEmployeeData'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '../../../../../../common/utils/windowUtils'
 import { AbsenceListCardAbsence, Entitlement } from '../queries/types'
+import { getAbsenceStatusLabel, getAbsenceStatusConfig } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 // Function to get the catalog value
 export const getTypeValue = (type: any) => {
@@ -20,23 +21,7 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
     type: getCatalogValue(absence.type) || '',
     typeId: absence.type?.id || '', // Store original catalog ID for grouping
     originalStatus: absence.status || '', // Store original status for color mapping
-    status: (() => {
-      switch ((absence.status || '').toUpperCase()) {
-        case 'PENDING':
-          return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')
-        case 'APPROVED':
-          return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')
-        case 'REJECTED':
-          return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')
-        case 'CANCELLED':
-          return getTranslationFromI18nKeyAndLabel(
-            'lowcoder:absences_overview_entry_screen.cancelled_status',
-            'Cancelled'
-          )
-        default:
-          return absence.status
-      }
-    })(),
+    status: getAbsenceStatusLabel(absence.status),
     title: getCatalogValue(absence.type) || '',
     startDate: absence.startDate,
     endDate: absence.endDate,
@@ -50,24 +35,11 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
     description: absence.description || '',
     icon: React.createElement(PaperClipOutlined, {
       style: {
-        color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : '#1976d2'
+        color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-info)'
       }
     }),
     typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
-    statusColor: (() => {
-      switch ((absence.status || '').toLowerCase()) {
-        case 'pending':
-          return '#f59e0b' // Orange for pending
-        case 'approved':
-          return '#10b981' // Green for approved
-        case 'rejected':
-          return '#ef4444' // Red for rejected
-        case 'cancelled':
-          return '#6b7280' // Gray for cancelled
-        default:
-          return '#6b7280' // Gray for unknown
-      }
-    })(),
+    statusColor: getAbsenceStatusConfig(absence.status).color,
     requestDate: absence.createdAt
   }))
 }
@@ -109,27 +81,27 @@ export const calculateSkillStats = (skills: any[]) => {
 export const getLevelInfo = (level: number) => {
   const levelInfo = {
     0: {
-      color: 'var(--nw-color-gray-400)',
+      color: 'var(--nw-muted-foreground)',
       description: 'No level assigned'
     },
     1: {
-      color: 'var(--nw-color-red-500)',
+      color: 'var(--nw-destructive)',
       description: 'Beginner - Basic understanding'
     },
     2: {
-      color: 'var(--nw-color-orange-500)',
+      color: 'var(--nw-warning)',
       description: 'Novice - Limited experience'
     },
     3: {
-      color: 'var(--nw-color-yellow-500)',
+      color: 'var(--nw-warning)',
       description: 'Intermediate - Working knowledge'
     },
     4: {
-      color: 'var(--nw-color-blue-500)',
+      color: 'var(--nw-info)',
       description: 'Advanced - Proficient'
     },
     5: {
-      color: 'var(--nw-color-green-500)',
+      color: 'var(--nw-success)',
       description: 'Expert - Master level'
     }
   }

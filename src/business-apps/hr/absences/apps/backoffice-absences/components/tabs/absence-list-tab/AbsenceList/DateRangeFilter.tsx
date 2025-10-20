@@ -5,7 +5,6 @@ import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../../common/utils/windowUtils'
 
-// Configure dayjs plugins
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 

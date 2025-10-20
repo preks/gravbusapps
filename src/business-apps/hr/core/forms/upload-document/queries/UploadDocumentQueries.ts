@@ -1,0 +1,96 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+
+export const GET_UPLOAD_DOCUMENT_LOOKUPS = `
+  query MyQuery($id: uuid!, $activeUserLocale: String!) {
+    Employee(where: {id: {_eq: $id}, isDeleted: {_eq: false}}) {
+      id
+      businessPartnerPerson { id lastName firstName userId }
+    }
+    documentGroup: CatalogEntry(
+      where: {
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentGroup" } }
+        additionalValue1: { _eq: "HRM" }
+      }
+    ) {
+      id
+      value
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) { localeCode value }
+      catalog { defaultLocale }
+    }
+    documentType: CatalogEntry(
+      where: { catalog: { version: { _eq: "v1" }, identifier: { _eq: "DocumentType" } } }
+    ) {
+      id
+      value
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) { localeCode value }
+      catalog { defaultLocale }
+      parentEntryId
+    }
+  }
+`
+
+export interface CatalogOption {
+  id: string
+  label: string
+  value: string
+}
+
+export interface CatalogTypeOption extends CatalogOption {
+  parentEntryId?: string | null
+}
+
+export const useUploadDocumentLookups = (context: BusinessAppContextProps) => {
+  const graphqlClient = useGraphQLClient(context.accessToken)
+  const [groups, setGroups] = useState<CatalogOption[]>([])
+  const [types, setTypes] = useState<CatalogTypeOption[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const employeeId = useMemo(
+    () => context.userInfo?.employeeDetails?.employeeId || (context.additionalData as any)?.employeeId || '',
+    [context.userInfo?.employeeDetails?.employeeId, context.additionalData]
+  )
+
+  const load = useCallback(async () => {
+    if (!employeeId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const locale = getCurrentActiveUserLocale() || 'en-US'
+      const res = await graphqlClient.request<any>(GET_UPLOAD_DOCUMENT_LOOKUPS, {
+        id: employeeId,
+        activeUserLocale: locale
+      })
+
+      const toLabel = (entry: any): string => entry?.translations?.[0]?.value || entry?.value || ''
+
+      const mappedGroups: CatalogOption[] = (res?.documentGroup || []).map((g: any) => ({
+        id: g.id,
+        value: g.value,
+        label: toLabel(g)
+      }))
+      const mappedTypes: CatalogTypeOption[] = (res?.documentType || []).map((t: any) => ({
+        id: t.id,
+        value: t.value,
+        label: toLabel(t),
+        parentEntryId: t.parentEntryId || null
+      }))
+
+      setGroups(mappedGroups)
+      setTypes(mappedTypes)
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load lookups')
+    } finally {
+      setLoading(false)
+    }
+  }, [employeeId, graphqlClient])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  return { groups, types, loading, error, refetch: load }
+}

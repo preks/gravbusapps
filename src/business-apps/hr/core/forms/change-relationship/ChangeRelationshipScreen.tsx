@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Button,
   Input,
@@ -9,10 +9,6 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Calendar,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
   Spinner
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -30,25 +26,24 @@ import { env } from '@/common/env/EnvUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { CongratulationsModal } from './CongratulationsModal'
 
-interface ChangeRelationshipScreenProps extends BusinessAppContextProps {}
-
 const prefixDataTestId = 'ChangeRelationshipScreen'
 
-const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
-  additionalData,
-  userInfo,
-  accessToken
-}) => {
+const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [relationshipTypeId, setRelationshipTypeId] = useState<string>('')
   const [birthDate, setBirthDate] = useState<string>('')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isEmergencyContact, setIsEmergencyContact] = useState(false)
+  const [selectedRelationshipId, setSelectedRelationshipId] = useState<string>('new')
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const [isUploading, setIsUploading] = useState(false)
 
-  const { options: relationshipTypeOptions } = useRelationshipTypes({ accessToken, userInfo, additionalData } as any)
+  const { options: relationshipTypeOptions, relationships } = useRelationshipTypes({
+    accessToken,
+    userInfo,
+    additionalData
+  } as any)
 
   const fileClient = useFileClient({ accessToken, userInfo })
 
@@ -64,6 +59,85 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
     const phoneOk = !isEmergencyContact || phoneNumber.trim().length > 0
     return Boolean(requiredOk && phoneOk)
   }, [relationshipTypeId, firstName, lastName, isEmergencyContact, phoneNumber])
+
+  // Map for relationship type labels
+  const relationshipTypeLabelById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const opt of relationshipTypeOptions) map[opt.id] = opt.label
+    return map
+  }, [relationshipTypeOptions])
+
+  // Currently selected existing relationship (if any)
+  const selectedExisting = useMemo(
+    () =>
+      selectedRelationshipId !== 'new'
+        ? (relationships || []).find((r: any) => r.id === selectedRelationshipId) || null
+        : null,
+    [selectedRelationshipId, relationships]
+  )
+
+  // Determine if form values equal the prefilled values for an existing relationship
+  const isUnchanged = useMemo(() => {
+    if (!selectedExisting) return false
+    const normalizedCurrentBirth = birthDate ? dayjs(birthDate).format('YYYY-MM-DD') : ''
+    const normalizedOriginalBirth = selectedExisting.birthDate
+      ? dayjs(selectedExisting.birthDate).format('YYYY-MM-DD')
+      : ''
+    return (
+      (firstName || '') === (selectedExisting.firstName || '') &&
+      (lastName || '') === (selectedExisting.lastName || '') &&
+      (phoneNumber || '') === (selectedExisting.phoneNumber || '') &&
+      Boolean(isEmergencyContact) === Boolean(selectedExisting.isEmergencyContact) &&
+      (relationshipTypeId || '') === (selectedExisting.typeRef || '') &&
+      normalizedCurrentBirth === normalizedOriginalBirth &&
+      fileList.length === 0
+    )
+  }, [selectedExisting, firstName, lastName, phoneNumber, isEmergencyContact, relationshipTypeId, birthDate, fileList])
+
+  const isSubmitDisabled = useMemo(() => {
+    if (!isValid) return true
+    if (selectedExisting && isUnchanged) return true
+    return false
+  }, [isValid, selectedExisting, isUnchanged])
+
+  // Initialize selection and fields if flow provided an existing relationship
+  useEffect(() => {
+    const rel = initialPayload?.relationship
+    if (rel && rel.id) {
+      setSelectedRelationshipId(rel.id)
+      setFirstName(rel.firstName || '')
+      setLastName(rel.lastName || '')
+      setRelationshipTypeId(rel.typeRef || '')
+      setBirthDate(rel.birthDate ? dayjs(rel.birthDate).format('YYYY-MM-DD') : '')
+      setPhoneNumber(rel.phoneNumber || '')
+      setIsEmergencyContact(Boolean(rel.isEmergencyContact))
+    }
+  }, [initialPayload])
+
+  // When user changes the relationship selection, prefill the form
+  const handleRelationshipSelection = (value: string) => {
+    setSelectedRelationshipId(value)
+    // Reset uploaded file state when switching selection
+    setFileList([])
+    if (value === 'new') {
+      setFirstName('')
+      setLastName('')
+      setRelationshipTypeId('')
+      setBirthDate('')
+      setPhoneNumber('')
+      setIsEmergencyContact(false)
+      return
+    }
+    const selected = (relationships || []).find((r: any) => r.id === value)
+    if (selected) {
+      setFirstName(selected.firstName || '')
+      setLastName(selected.lastName || '')
+      setRelationshipTypeId(selected.typeRef || '')
+      setBirthDate(selected.birthDate ? dayjs(selected.birthDate).format('YYYY-MM-DD') : '')
+      setPhoneNumber(selected.phoneNumber || '')
+      setIsEmergencyContact(Boolean(selected.isEmergencyContact))
+    }
+  }
 
   const validateForm = () => {
     const errors: string[] = []
@@ -139,11 +213,11 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
           })
           const json = await r.json().catch(() => null)
           uploadedDocumentId = json?.employeeDocument?.id || fileIdNoExt
-        } catch (_) {
+        } catch {
           // Fallback to file id without extension if processes API fails
           uploadedDocumentId = fileIdNoExt
         }
-      } catch (e) {
+      } catch {
         // Silent fail for upload; form can continue without a document
       } finally {
         setIsUploading(false)
@@ -151,11 +225,11 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
     }
 
     // Build payload with uploaded file info (like ChangeProfilePictureScreen)
+    const selectedExisting =
+      selectedRelationshipId !== 'new' ? (relationships || []).find((r: any) => r.id === selectedRelationshipId) : null
     const employeeRelationship = {
-      ...(initialPayload?.relationship?.id ? { id: initialPayload.relationship.id } : {}),
-      ...(typeof initialPayload?.relationship?.version === 'number'
-        ? { version: initialPayload.relationship.version }
-        : {}),
+      ...(selectedExisting?.id ? { id: selectedExisting.id } : {}),
+      ...(typeof selectedExisting?.version === 'number' ? { version: selectedExisting.version } : {}),
       businessKey: initialPayload?.relationship?.businessKey || '',
       additionalProperties: initialPayload?.relationship?.additionalProperties || {},
       employeeId,
@@ -203,7 +277,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
       businessAppContext={{ accessToken, userInfo, additionalData }}
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
-      isSubmitDisabled={!isValid}
+      isSubmitDisabled={isSubmitDisabled}
       // Pre-submit modal controls the flow; no need for post success modal
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
@@ -224,7 +298,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
     >
       <div className="gba:bg-white gba:w-full gba:max-w-xl gba:max-h-[90vh] gba:overflow-hidden">
         {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:px-0 gba:py-6">
           <div className="gba:flex gba:items-center gba:gap-2">
             <img
               src={flowSmall}
@@ -234,8 +308,7 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
               style={{ filter: 'brightness(0)' }}
             />
             <h2
-              className="gba:text-xl gba:font-semibold"
-              style={{ color: 'var(--nw-color-text-primary)' }}
+              className="gba:text-xl gba:font-semibold gba:text-foreground"
               data-testid={formatDataTestId(prefixDataTestId, 'Title')}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.title', 'Change Relationship Data')}
@@ -244,18 +317,18 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="gba:border-t" style={{ borderColor: 'var(--nw-color-border-default)' }} />
+        <div className="gba:border-t gba:border-border" />
 
         {/* Content */}
-        <div className="gba:p-6 gba:flex gba:flex-col gba:gap-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
-          {/* Relationship selector (Add New or Edit provided by process) */}
+        <div className="gba:px-0 gba:py-6 gba:flex gba:flex-col gba:gap-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+          {/* Relationship selector (Add New or choose existing) */}
           <div>
             <Label>
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.relationship', 'Relationship')}
             </Label>
             <div className="gba:mt-2">
-              <Select value={initialPayload?.relationship?.id ? 'existing' : 'new'} disabled>
-                <SelectTrigger data-testid="flw_changeRelationship_currentRelationship">
+              <Select value={selectedRelationshipId} onValueChange={handleRelationshipSelection}>
+                <SelectTrigger data-testid="flw_changeRelationship_selectRelationship">
                   <SelectValue
                     placeholder={getTranslationFromI18nKeyAndLabel(
                       'lowcoder:relationship_form.relationship_placeholder',
@@ -267,9 +340,14 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
                   <SelectItem value="new">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.add_new', 'Add New Relationship')}
                   </SelectItem>
-                  <SelectItem value="existing">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.update_existing', 'Update Existing')}
-                  </SelectItem>
+                  {(relationships || []).map((rel: any) => (
+                    <SelectItem key={rel.id} value={rel.id}>
+                      {`${rel.firstName || ''} ${rel.lastName || ''}`.trim() || '—'}
+                      {rel.typeRef && relationshipTypeLabelById[rel.typeRef]
+                        ? ` – ${relationshipTypeLabelById[rel.typeRef]}`
+                        : ''}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -302,57 +380,50 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
           {/* First Name */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.first_name', 'First Name')}*</Label>
-            <Input
-              value={firstName}
-              onChange={e => setFirstName(e.target.value)}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:relationship_form.first_name_placeholder',
-                'Enter First Name'
-              )}
-              data-testid="flw_changeRelationship_currentFirstName"
-            />
+            <div className="gba:mt-2">
+              <Input
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:relationship_form.first_name_placeholder',
+                  'Enter First Name'
+                )}
+                data-testid="flw_changeRelationship_currentFirstName"
+              />
+            </div>
           </div>
 
           {/* Last Name */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.last_name', 'Last Name')}*</Label>
-            <Input
-              value={lastName}
-              onChange={e => setLastName(e.target.value)}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:relationship_form.last_name_placeholder',
-                'Enter Last Name'
-              )}
-              data-testid="flw_changeRelationship_currentLastName"
-            />
+            <div className="gba:mt-2">
+              <Input
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:relationship_form.last_name_placeholder',
+                  'Enter Last Name'
+                )}
+                data-testid="flw_changeRelationship_currentLastName"
+              />
+            </div>
           </div>
 
           {/* Birth Date */}
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date', 'Birth Date')}</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="gba:justify-between"
-                  data-testid="flw_changeRelationship_currentBirthDate"
-                >
-                  {birthDate
-                    ? dayjs(birthDate).format('YYYY-MM-DD')
-                    : getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:relationship_form.birth_date_placeholder',
-                        'Select Birth Date'
-                      )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="gba:w-auto">
-                <Calendar
-                  mode="single"
-                  selected={birthDate ? new Date(birthDate) : undefined}
-                  onSelect={(d: Date | undefined) => setBirthDate(d ? dayjs(d).format('YYYY-MM-DD') : '')}
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="gba:mt-2">
+              <Input
+                type="date"
+                value={birthDate || ''}
+                onChange={e => setBirthDate(e.target.value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:relationship_form.birth_date_placeholder',
+                  'YYYY-MM-DD'
+                )}
+                data-testid="flw_changeRelationship_currentBirthDate"
+              />
+            </div>
           </div>
 
           {/* Phone Number */}
@@ -361,15 +432,17 @@ const ChangeRelationshipScreen: React.FC<ChangeRelationshipScreenProps> = ({
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.phone_number', 'Phone Number')}
               {isEmergencyContact ? '*' : ''}
             </Label>
-            <Input
-              value={phoneNumber}
-              onChange={e => setPhoneNumber(e.target.value)}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:relationship_form.phone_number_placeholder',
-                'Enter Phone Number'
-              )}
-              data-testid="flw_changeRelationship_currentPhoneNumber"
-            />
+            <div className="gba:mt-2">
+              <Input
+                value={phoneNumber}
+                onChange={e => setPhoneNumber(e.target.value)}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:relationship_form.phone_number_placeholder',
+                  'Enter Phone Number'
+                )}
+                data-testid="flw_changeRelationship_currentPhoneNumber"
+              />
+            </div>
           </div>
 
           {/* Emergency Contact */}

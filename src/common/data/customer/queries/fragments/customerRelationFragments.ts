@@ -87,7 +87,6 @@ export const CUSTOMER_OPPORTUNITY = `
     
     # Catalog relationships
     currency { ${CATALOG_ENTRY} }
-    pipeline { ${CATALOG_ENTRY} }
     salesPipeline { ${CATALOG_ENTRY} }
     salesPipelineStage { ${CATALOG_ENTRY} }
     opportunityStatus { ${CATALOG_ENTRY} }

@@ -83,7 +83,7 @@ const TagItem: React.FC<TagItemProps> = ({
   icon,
   label,
   bgColorClass,
-  textColorClass = 'gba:text-gray-800',
+  textColorClass = 'gba:text-foreground',
   borderColorClass = '',
   testId
 }) => {
@@ -109,13 +109,13 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
 }) => {
   return (
     <div className={`gba:flex gba:items-center gba:gap-2 ${className}`}>
-      <div className="gba:shrink-0 gba:text-gray-500">{icon}</div>
+      <div className="gba:shrink-0 gba:text-muted-foreground">{icon}</div>
       <div className="gba:grow">
-        <div className="gba:text-xs gba:text-gray-500">{label}</div>
+        <div className="gba:text-xs gba:text-muted-foreground">{label}</div>
         {linkTo ? (
           <a
             href={linkTo}
-            className="gba:text-sm gba:text-primary-500 gba:inline-flex gba:items-baseline gba:flex-wrap gba:hover:underline"
+            className="gba:text-sm gba:text-info gba:inline-flex gba:items-baseline gba:flex-wrap gba:hover:underline"
             target={openInNewTab ? '_blank' : undefined}
             rel={openInNewTab ? 'noopener noreferrer' : undefined}
           >
@@ -128,13 +128,13 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
               e.preventDefault()
               onClick()
             }}
-            className="gba:text-sm gba:text-blue-600 gba:inline-flex gba:items-baseline gba:flex-wrap"
+            className="gba:text-sm gba:text-info gba:inline-flex gba:items-baseline gba:flex-wrap"
             data-testid={`profile-info-${label.toLowerCase()}-link`}
           >
             <span className="gba:whitespace-normal">{value}</span>
           </a>
         ) : (
-          <div className="gba:text-sm gba:text-gray-700">{value}</div>
+          <div className="gba:text-sm gba:text-foreground">{value}</div>
         )}
       </div>
     </div>
@@ -397,14 +397,14 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Communication Actions - Always visible */}
                 <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3" data-testid="communication-buttons">
                   {loading ? (
-                    <div className="gba:text-xs gba:text-gray-500" data-testid="loading-communications">
+                    <div className="gba:text-xs gba:text-muted-foreground" data-testid="loading-communications">
                       Loading communications...
                     </div>
                   ) : (
                     <>
                       <button
                         onClick={handleChat}
-                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                         title="Chat"
                         aria-label="Chat"
                         data-testid="employee-chat-button"
@@ -413,7 +413,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       </button>
                       <button
                         onClick={handleAudioCall}
-                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                         title="Audio Call"
                         aria-label="Audio Call"
                         data-testid="employee-audio-call-button"
@@ -422,7 +422,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       </button>
                       <button
                         onClick={handleVideoCall}
-                        className="gba:bg-gray-100 gba:hover:bg-blue-100 gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
+                        className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
                         title="Video Call"
                         aria-label="Video Call"
                         data-testid="employee-video-call-button"
@@ -437,10 +437,10 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
 
             {/* Profile Info */}
             <div className="gba:grow gba:text-center">
-              <div className="gba:text-xl gba:font-bold gba:mb-1 gba:text-gray-800" data-testid="employee-name">
+              <div className="gba:text-xl gba:font-bold gba:mb-1 gba:text-foreground" data-testid="employee-name">
                 {getEmployeeFullName(employee)}
               </div>
-              <p className="gba:text-gray-600 gba:mb-4 gba:text-sm">
+              <p className="gba:text-muted-foreground gba:mb-4 gba:text-sm">
                 {employee.employeePosition?.jobPosition?.name ?? 'Not assigned'}
               </p>
 
@@ -449,7 +449,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Organization */}
                 <ProfileInfoItem
                   icon={<PiBuildings className="gba:h-4 gba:w-4" />}
-                  className="gba:text-blue-600"
+                  className="gba:text-info"
                   label={'Organization'}
                   value={employee.employeePosition?.organizationalUnit?.name ?? 'Not assigned'}
                   linkTo={
@@ -463,7 +463,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 <ProfileInfoItem
                   data-testid="employee-location-info"
                   icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
-                  className="gba:text-blue-600"
+                  className="gba:text-info"
                   label={'Location'}
                   value={employee.employeePosition?.siteLocation?.name || 'Not assigned'}
                   linkTo={
@@ -475,7 +475,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Email */}
                 <ProfileInfoItem
                   icon={<PiEnvelopeSimple className="gba:h-4 gba:w-4" />}
-                  className="gba:text-blue-600"
+                  className="gba:text-info"
                   label={'Work Email'}
                   value={employeeWithComms?.email ? employeeWithComms.email : 'N/A'}
                   linkTo={employeeWithComms?.email ? `mailto:${employeeWithComms.email}` : undefined}
@@ -484,7 +484,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
 
                 <ProfileInfoItem
                   icon={<PiPhone className="gba:h-4 gba:w-4" />}
-                  className="gba:text-blue-600"
+                  className="gba:text-info"
                   label={'Work Phone'}
                   value={employeeWithComms?.phone ? formatPhoneNumber(employeeWithComms.phone) : 'N/A'}
                   linkTo={employeeWithComms?.phone ? `tel:${employeeWithComms.phone}` : undefined}
@@ -494,7 +494,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Manager */}
                 <ProfileInfoItem
                   icon={<PiUser className="gba:h-4 gba:w-4" />}
-                  className="gba:text-blue-600"
+                  className="gba:text-info"
                   label={'Manager'}
                   value={
                     employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
@@ -521,7 +521,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                 {/* Cost Center */}
                 <ProfileInfoItem
                   icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
-                  className="gba:text-blue-600"
+                  className="gba:text-info"
                   label={'Cost Center'}
                   value={employee.employeePosition?.costCenter?.name ?? 'Not assigned'}
                   linkTo={
@@ -560,16 +560,16 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       <div className="gba:mt-4">
                         <div className="gba:flex gba:items-start gba:p-1">
                           <div className="gba:flex-1">
-                            <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Teams</div>
-                            <div className="gba:text-sm gba:text-gray-700">
+                            <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Teams</div>
+                            <div className="gba:text-sm gba:text-foreground">
                               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
                                 {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee) => (
                                   <TagItem
                                     key={teamItem.matrixUnit.id}
-                                    icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                    icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                                     label={teamItem.matrixUnit.name}
-                                    bgColorClass="gba:bg-blue-100"
-                                    textColorClass="gba:text-blue-800"
+                                    bgColorClass="gba:bg-info-secondary"
+                                    textColorClass="gba:text-info"
                                     testId={`team-${teamItem.matrixUnit.id}`}
                                   />
                                 ))}
@@ -584,10 +584,10 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   <div className="gba:mt-4" data-testid="capabilities-section">
                     <div className="gba:flex gba:items-start">
                       <div className="gba:flex-1">
-                        <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">
+                        <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">
                           Capabilities
                         </div>
-                        <div className="gba:text-sm gba:text-gray-700">
+                        <div className="gba:text-sm gba:text-foreground">
                           <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
                             {employee.employeePosition?.employeeCapabilities &&
                             employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
@@ -596,16 +596,16 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                                 .map((capItem: EmployeeCapability) => (
                                   <TagItem
                                     key={capItem.capability!.id}
-                                    icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                    icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                                     label={capItem.capability!.name}
-                                    bgColorClass="gba:bg-green-100"
-                                    textColorClass="gba:text-green-800"
+                                    bgColorClass="gba:bg-success-secondary"
+                                    textColorClass="gba:text-success"
                                     testId={`capability-${capItem.capability!.id}`}
                                   />
                                 ))
                             ) : (
                               <span
-                                className="gba:text-gray-500 gba:text-sm gba:text-left gba:block"
+                                className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
                                 data-testid="no-capabilities-message"
                               >
                                 No capabilities assigned
@@ -621,8 +621,8 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                   <div className="gba:mt-4" data-testid="skills-section">
                     <div className="gba:flex gba:items-start">
                       <div className="gba:flex-1">
-                        <div className="gba:text-sm gba:font-semibold gba:text-gray-700 gba:text-left">Skills</div>
-                        <div className="gba:text-sm gba:text-gray-700">
+                        <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Skills</div>
+                        <div className="gba:text-sm gba:text-foreground">
                           <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
                             {employee.skills?.filter(skill => skill.skill).length > 0 ? (
                               employee.skills
@@ -630,16 +630,16 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                                 .map((skillItem: EmployeeSkill) => (
                                   <TagItem
                                     key={skillItem.skill.id}
-                                    icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-gray-500" />}
+                                    icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                                     label={skillItem.skill.name}
-                                    bgColorClass="gba:bg-purple-100"
-                                    textColorClass="gba:text-purple-800"
+                                    bgColorClass="gba:bg-info-secondary"
+                                    textColorClass="gba:text-info"
                                     testId={`skill-${skillItem.skill.id}`}
                                   />
                                 ))
                             ) : (
                               <span
-                                className="gba:text-gray-500 gba:text-sm gba:text-left gba:block"
+                                className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
                                 data-testid="no-skills-message"
                               >
                                 No skills assigned

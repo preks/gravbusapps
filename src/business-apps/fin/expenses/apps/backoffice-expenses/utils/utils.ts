@@ -5,7 +5,6 @@
  * @date 2025-06-05
  */
 
-import { PillType } from '@/components/pill/Pill'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 /**
@@ -32,8 +31,7 @@ export enum ExpenseStatus {
  */
 export interface StatusDisplayConfig {
   label: string
-  type: PillType
-  badgeVariant?: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' | 'info' | 'offline'
+  badgeVariant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline' | 'info' | 'offline'
 }
 
 /**
@@ -46,28 +44,24 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
     case ExpenseStatus.CREATED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: 'draft',
         badgeVariant: 'offline'
       }
 
     case ExpenseStatus.PREPARED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-        type: 'preparing',
         badgeVariant: 'offline'
       }
 
     case ExpenseStatus.ASSIGNED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.assigned', 'Assigned'),
-        type: 'task',
         badgeVariant: 'info'
       }
 
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: 'waiting',
         badgeVariant: 'info'
       }
 
@@ -77,48 +71,41 @@ export const getExpenseRequestStatusDisplay = (status: string): StatusDisplayCon
           'lowcoder:expense_statuses.verification_required',
           'Verification Required'
         ),
-        type: 'task',
         badgeVariant: 'warning'
       }
 
     case ExpenseStatus.VERIFIED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required'),
-        type: 'task',
         badgeVariant: 'warning'
       }
 
     case ExpenseStatus.BOOKED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transfer_required', 'Transfer Required'),
-        type: 'task',
         badgeVariant: 'warning'
       }
 
     case ExpenseStatus.CLOSED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.closed', 'Closed'),
-        type: 'completed',
         badgeVariant: 'success'
       }
 
     case ExpenseStatus.PAID:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-        type: 'completed',
         badgeVariant: 'success'
       }
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        type: 'error',
         badgeVariant: 'warning'
       }
 
     default:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: 'draft',
         badgeVariant: 'offline'
       }
   }
@@ -134,55 +121,46 @@ export const getAdvancePaymentStatusDisplay = (status: string): StatusDisplayCon
     case ExpenseStatus.PENDING:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        type: 'waiting',
         badgeVariant: 'info'
       }
     case ExpenseStatus.APPROVED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        type: 'completed',
         badgeVariant: 'success'
       }
     case ExpenseStatus.BOOKED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.transfer_required', 'Transfer Required'),
-        type: 'task',
         badgeVariant: 'warning'
       }
     case ExpenseStatus.PREPARED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.prepared', 'Prepared'),
-        type: 'preparing',
         badgeVariant: 'offline'
       }
     case ExpenseStatus.REJECTED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        type: 'error',
         badgeVariant: 'destructive'
       }
     case ExpenseStatus.TRANSFERRED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.payment_required', 'Payment Required'),
-        type: 'task',
         badgeVariant: 'warning'
       }
     case ExpenseStatus.VERIFIED:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.booking_required', 'Booking Required'),
-        type: 'task',
         badgeVariant: 'warning'
       }
     case ExpenseStatus.PAID:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.paid', 'Paid'),
-        type: 'completed',
         badgeVariant: 'success'
       }
     default:
       return {
         label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        type: 'draft',
         badgeVariant: 'offline'
       }
   }

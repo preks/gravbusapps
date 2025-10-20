@@ -5,7 +5,12 @@ import { useAbsenceCatalogs } from './useAbsenceCatalogs'
 import { DateRangeFilter } from '../components/DateRangeFilter'
 import { CreationDateFilter } from '../components/CreationDateFilter'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import {
+  getAbsenceStatusLabel,
+  getAllAbsenceStatusConfigs,
+  AbsenceStatusConfig
+} from '../../../utils/absenceStatusUtils'
 
 // DataFilter interfaces to match DataContainer expectations
 export interface DataFilter {
@@ -42,35 +47,29 @@ export interface UseAbsenceFiltersReturn {
   getFilters: () => AbsenceFilters
 }
 
-// Hardcoded absence statuses based on GraphQL schema
-const ABSENCE_STATUSES = [
-  { id: 'PENDING', name: 'Pending' },
-  { id: 'APPROVED', name: 'Approved' },
-  { id: 'REJECTED', name: 'Rejected' },
-  { id: 'CANCELLED', name: 'Cancelled' }
-]
+// Status option interface
+interface StatusOption {
+  id: string
+  name: string
+}
 
-// Translation function for status values
+// Status options using centralized status mapping
+const ABSENCE_STATUSES: StatusOption[] = getAllAbsenceStatusConfigs().map((config: AbsenceStatusConfig) => ({
+  id: config.status,
+  name: config.label
+}))
+
+// Translation function for status values - now using centralized utility
 const getTranslatedStatus = (status: string) => {
-  switch (status?.toUpperCase()) {
-    case 'PENDING':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.pending', 'Pending')
-    case 'APPROVED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')
-    case 'REJECTED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')
-    case 'CANCELLED':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:absences_overview_entry_screen.cancelled_status', 'Cancelled')
-    default:
-      return status
-  }
+  return getAbsenceStatusLabel(status)
 }
 
 // Format date using user locale
 const formatDateForDisplay = (dateString: string) => {
   try {
     const date = new Date(dateString)
-    return date.toLocaleDateString('ro-RO', {
+    const userLocale = getCurrentActiveUserLocale()
+    return date.toLocaleDateString(userLocale, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
@@ -204,11 +203,11 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   const getStatusFilters = useCallback(
     (search: string) => {
       const filteredStatuses = search
-        ? ABSENCE_STATUSES.filter(status => status.name.toLowerCase().includes(search.toLowerCase()))
+        ? ABSENCE_STATUSES.filter((status: StatusOption) => status.name.toLowerCase().includes(search.toLowerCase()))
         : ABSENCE_STATUSES
 
       return {
-        filters: filteredStatuses.map(status => ({
+        filters: filteredStatuses.map((status: StatusOption) => ({
           id: status.id,
           label: getTranslatedStatus(status.name),
           selected: selectedFilters.includes(status.id)
@@ -284,9 +283,9 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
   )
 
   // Convert catalog options to filter options for static display (following leads pattern exactly)
-  const statusFilterOptions: DataFilter[] = ABSENCE_STATUSES.map(status => ({
+  const statusFilterOptions: DataFilter[] = ABSENCE_STATUSES.map((status: StatusOption) => ({
     id: status.id,
-    label: getTranslatedStatus(status.name),
+    label: status.name, // Already translated from centralized utility
     selected: selectedFilters.includes(status.id)
   }))
 
@@ -363,10 +362,10 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
 
   // Create filter label map (following leads pattern exactly)
   const filterLabelMap = {
-    ...Object.fromEntries(ABSENCE_STATUSES.map(status => [status.id, getTranslatedStatus(status.name)])),
+    ...Object.fromEntries(ABSENCE_STATUSES.map((status: StatusOption) => [status.id, status.name])),
     // Add prefixed status IDs for pre-filter compatibility
     ...Object.fromEntries(
-      ABSENCE_STATUSES.map(status => [`status-${status.id.toLowerCase()}`, getTranslatedStatus(status.name)])
+      ABSENCE_STATUSES.map((status: StatusOption) => [`status-${status.id.toLowerCase()}`, status.name])
     ),
     ...Object.fromEntries(absenceTypes.map(type => [type.id, type.name])),
     ...Object.fromEntries(absenceGroups.map(group => [group.id, group.name])),
@@ -419,14 +418,14 @@ export const useAbsenceFilters = (context: BusinessAppContextProps): UseAbsenceF
     const statuses = selectedFilters
       .filter(f => {
         // Check if it's an original status ID
-        if (ABSENCE_STATUSES.map(s => s.id).includes(f)) {
+        if (ABSENCE_STATUSES.map((s: StatusOption) => s.id).includes(f)) {
           return true
         }
         // Check if it's a prefixed status ID (status-pending, status-approved, etc.)
         const prefixedStatus = f.startsWith('status-')
         if (prefixedStatus) {
           const statusId = f.replace('status-', '').toUpperCase()
-          return ABSENCE_STATUSES.map(s => s.id).includes(statusId)
+          return ABSENCE_STATUSES.map((s: StatusOption) => s.id).includes(statusId)
         }
         return false
       })

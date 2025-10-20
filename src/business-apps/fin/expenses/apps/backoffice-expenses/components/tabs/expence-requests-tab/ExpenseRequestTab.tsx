@@ -3,7 +3,7 @@
  * Delegates table functionality to ExpenseRequestsTable and manages statistics
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Alert } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -11,10 +11,11 @@ import ExpenseRequestsTable from './ExpenseRequestsTable'
 
 interface ExpenseRequestTabProps extends BusinessAppContextProps {
   onContentHeaderChange?: (header: React.ReactNode) => void
+  isActive?: boolean // ⚡ PERFORMANCE: Only fetch data when tab is active
 }
 
 const ExpenseRequestTab: React.FC<ExpenseRequestTabProps> = props => {
-  const { onContentHeaderChange } = props
+  const { onContentHeaderChange, isActive = true } = props
 
   // Search term state for synchronization with table
   const [searchTerm, setSearchTerm] = useState<string>('')
@@ -52,12 +53,22 @@ const ExpenseRequestTab: React.FC<ExpenseRequestTabProps> = props => {
   }
 
   // Extract only the necessary props to prevent unnecessary re-renders
-  const contextProps = {
-    accessToken: props.accessToken,
-    userInfo: props.userInfo
-  }
+  const contextProps = useMemo(
+    () => ({
+      accessToken: props.accessToken,
+      userInfo: props.userInfo
+    }),
+    [props.accessToken, props.userInfo]
+  )
 
-  return <ExpenseRequestsTable {...contextProps} search={searchTerm} onSearchChange={handleSearchChange} />
+  return (
+    <ExpenseRequestsTable
+      {...contextProps}
+      search={searchTerm}
+      onSearchChange={handleSearchChange}
+      isActive={isActive}
+    />
+  )
 }
 
 export default ExpenseRequestTab

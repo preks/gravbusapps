@@ -31,12 +31,21 @@ const AddressSelector: React.FC<AddressSelectorProps> = ({
   canShowDelete
 }) => {
   const placeholder = `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.personal_information_container.select_placeholder', 'Please Select')} ${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.details_layout.address_container.address_text', 'Address')}`
-  const options = [...addresses, { type: 'Add Address', id: addSentinel }]
+  const hasPrimary = Array.isArray(addresses) && addresses.some((a: any) => a?.type === 'PRIMARY')
+  const hasSecondary = Array.isArray(addresses) && addresses.some((a: any) => a?.type === 'SECONDARY')
+  const shouldShowAdd = !(hasPrimary && hasSecondary)
+  const options = shouldShowAdd ? [...addresses, { type: 'Add Address', id: addSentinel }] : [...addresses]
+  const resolvedValue =
+    value === addSentinel && addresses.length > 0 && !shouldShowAdd
+      ? addresses[0]?.id !== undefined
+        ? String(addresses[0].id)
+        : addSentinel
+      : value
   return (
     <FormItem>
       <div className="gba:flex gba:gap-2">
         <div className="gba:flex-1">
-          <Select value={value} onValueChange={v => onChange(v || addSentinel)}>
+          <Select value={resolvedValue} onValueChange={v => onChange(v || addSentinel)}>
             <FormControl>
               <SelectTrigger
                 className="gba:block gba:!w-full gba:min-w-0 gba:!max-w-none"

@@ -348,16 +348,15 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       data-testid="create-new-absence-root"
     >
       <div
-        className="gba:flex gba:items-center gba:pb-6 gba:gap-2 gba:w-100 gba:border-b"
+        className="gba:flex gba:items-center gba:pb-6 gba:gap-2 gba:w-100 gba:border-b gba:border-border"
         data-testid="create-new-absence-header"
-        style={{ borderBottomColor: '#E0E0E0' }}
       >
         <img
           src={flowSmall}
           alt="Flow Small"
           style={{
             filter: 'brightness(0)',
-            fill: '#000',
+            fill: 'var(--nw-foreground)',
             width: '24px',
             height: '24px'
           }}
@@ -382,17 +381,17 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
             {/* Sick Leave Options - Show First When Existing Sick Leave Found */}
             {showSickLeaveOptions && existingSickLeave && (
               <div
-                className="gba:mb-4 gba:p-4 gba:border gba:border-orange-300 gba:bg-orange-50 gba:rounded"
+                className="gba:mb-4 gba:p-4 gba:border gba:border-warning gba:bg-warning-secondary gba:rounded"
                 data-testid="sick-leave-options-container"
               >
                 <div className="gba:mb-3">
-                  <h4 className="gba:text-sm gba:font-semibold gba:text-orange-800 gba:mb-2">
+                  <h4 className="gba:text-sm gba:font-semibold gba:text-warning gba:mb-2">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_form.existing_found',
                       'Existing Sick Leave Found'
                     )}
                   </h4>
-                  <p className="gba:text-sm gba:text-orange-700">
+                  <p className="gba:text-sm gba:text-warning">
                     {getTranslationFromI18nKeyAndLabel(
                       'lowcoder:absence_form.existing_message',
                       'You already have a sick leave for today. Would you like to update it or create a new absence?'
@@ -403,7 +402,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   <Button
                     type="button"
                     variant="outline"
-                    className="gba:border-orange-400 gba:text-orange-700 hover:gba:bg-orange-100"
+                    className="gba:border-warning gba:text-warning hover:gba:bg-warning-secondary"
                     onClick={handleUpdateExisting}
                     data-testid="update-existing-sick-leave-button"
                   >
@@ -412,7 +411,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   <Button
                     type="button"
                     variant="outline"
-                    className="gba:border-orange-400 gba:text-orange-700 hover:gba:bg-orange-100"
+                    className="gba:border-warning gba:text-warning hover:gba:bg-warning-secondary"
                     onClick={handleCreateNew}
                     data-testid="create-new-absence-button"
                   >
@@ -428,7 +427,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 <div className="gba:mb-4 gba:w-full">
                   <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="type-Label">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.type', 'Type')}
-                    <span className="gba:text-red-500 gba:ml-1">*</span>
+                    <span className="gba:text-destructive gba:ml-1">*</span>
                   </Label>
                   <div className="gba:w-full">
                     <Select
@@ -460,7 +459,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 <div className="gba:mb-4">
                   <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="start-date-Label">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.start_date', 'Start Date')}
-                    <span className="gba:text-red-500 gba:ml-1">*</span>
+                    <span className="gba:text-destructive gba:ml-1">*</span>
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -491,7 +490,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 <div className="gba:mb-4">
                   <Label className="gba:block gba:mb-2 gba:font-medium" data-testid="end-date-Label">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.end_date', 'End Date')}
-                    <span className="gba:text-red-500 gba:ml-1">*</span>
+                    <span className="gba:text-destructive gba:ml-1">*</span>
                   </Label>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -562,7 +561,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   </Label>
                   <Textarea
                     data-testid="comment-textarea"
-                    className="gba:w-full gba:min-h-[80px] gba:rounded gba:border gba:border-gray-300 gba:p-2 gba:text-base"
+                    className="gba:w-full gba:min-h-[80px] gba:rounded gba:border gba:border-border gba:p-2 gba:text-base"
                     value={formValuesState.comment || ''}
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => form.setValue('comment', e.target.value)}
                     placeholder={getTranslationFromI18nKeyAndLabel(
@@ -575,10 +574,10 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 {/* Update Mode Indicator */}
                 {isUpdateMode && existingSickLeave && (
                   <div
-                    className="gba:mb-4 gba:p-3 gba:border gba:border-blue-300 gba:bg-blue-50 gba:rounded"
+                    className="gba:mb-4 gba:p-3 gba:border gba:border-info gba:bg-info-secondary gba:rounded"
                     data-testid="update-mode-indicator"
                   >
-                    <p className="gba:text-sm gba:text-blue-700 gba:font-medium">
+                    <p className="gba:text-sm gba:text-info gba:font-medium">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_form.update_mode_indicator',
                         'Updating existing absence'
@@ -622,7 +621,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                 {/* Loading indicator for validation */}
                 {isValidating && (
                   <div
-                    className="gba:mb-4 gba:text-center gba:text-sm gba:text-gray-600"
+                    className="gba:mb-4 gba:text-center gba:text-sm gba:text-muted-foreground"
                     data-testid="validation-loading"
                   >
                     {getTranslationFromI18nKeyAndLabel(
@@ -654,7 +653,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                       <Button
                         type="button"
                         variant="outline"
-                        className="gba:w-full gba:h-12 gba:border-dashed gba:border-2 gba:border-gray-300 hover:gba:border-blue-400"
+                        className="gba:w-full gba:h-12 gba:border-dashed gba:border-2 gba:border-border hover:gba:border-info"
                         data-testid="upload-button"
                       >
                         <UploadOutlined className="gba:mr-2" />
@@ -664,7 +663,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                         )}
                       </Button>
                     </Upload>
-                    <div className="gba:text-xs gba:text-gray-500 gba:mt-1">
+                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                       {getTranslationFromI18nKeyAndLabel(
                         'lowcoder:absence_form.upload_hint',
                         'Supported formats: PDF, JPG, PNG (max 10MB each, up to 5 files)'

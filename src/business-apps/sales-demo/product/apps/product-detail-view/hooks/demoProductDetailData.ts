@@ -6,10 +6,7 @@ import {
   ProductSalesMetrics,
   ProductSupplierInfo,
   ProductDocument,
-  ProductStockMovement,
-  ProductCrossReference,
-  ProductLifecycleInfo,
-  ProductQualityInfo
+  ProductStockMovement
 } from '../types'
 
 /**

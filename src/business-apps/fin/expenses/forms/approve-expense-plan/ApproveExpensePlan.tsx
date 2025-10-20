@@ -159,10 +159,10 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ accessTo
   }
 
   const currencyCode = expensePlan.currency?.code || 'EUR'
-  const totalAmount = expensePlan.totalAmount || 0
-  const reimbursableAmount = expensePlan.reimbursableAmount || 0
-  const nonReimbursableAmount = expensePlan.nonReimbursableAmount || 0
-  const advancePaymentAmount = expensePlan.advancePaymentAggregate.aggregate.sum.amount | 0
+  const totalAmount = Number(expensePlan.totalAmount ?? 0)
+  const reimbursableAmount = Number(expensePlan.reimbursableAmount ?? 0)
+  const nonReimbursableAmount = Number(expensePlan.nonReimbursableAmount ?? 0)
+  const advancePaymentAmount = Number(expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount ?? 0)
   const { expenseAllowances: allowanceItems, expenseItems } = splitExpenseItems(expensePlan.expensePlanItem)
 
   // Derived destination data for Destination section
@@ -255,7 +255,7 @@ const ApproveExpensePlan: React.FC<BusinessAppContextProps> = props => {
 
   // Fallback additional data for testing when none is provided
   const fallbackAdditionalData = additionalData || {
-    planId: 'b38909fe-b3e0-467c-8906-240f11d0267d'
+    planId: '954d93df-4b5b-4da9-9a22-914be14541d7'
   }
 
   return (

@@ -7,9 +7,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const { Title, Text } = Typography
 
-interface SalaryChangesChartProps extends BusinessAppContextProps {}
-
-const SalaryChangesChart: React.FC<SalaryChangesChartProps> = props => {
+const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data } = useDepartmentMonthlySalaryStack(props, year)
 
@@ -26,11 +24,11 @@ const SalaryChangesChart: React.FC<SalaryChangesChartProps> = props => {
       const d = payload[0].payload
       const value = d.rawChange
       return (
-        <div className="gba:bg-white gba:shadow-lg gba:rounded gba:p-4" data-testid="salary-tooltip">
+        <div className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4" data-testid="salary-tooltip">
           <div className="gba:font-semibold gba:text-base gba:mb-1">
             {d.month && new Date(d.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
           </div>
-          <div className={value > 0 ? 'gba:text-green-600 gba:text-sm' : 'gba:text-red-600 gba:text-sm'}>
+          <div className={value > 0 ? 'gba:text-success gba:text-sm' : 'gba:text-destructive gba:text-sm'}>
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('salary_change', 'Salary Change')}:
             </span>{' '}
@@ -47,10 +45,10 @@ const SalaryChangesChart: React.FC<SalaryChangesChartProps> = props => {
     <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="salary-changes-chart">
       {/* Header */}
       <div className="gba:mb-4">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
+        <Title level={4} className="gba:m-0 gba:text-foreground">
           {getTranslationFromI18nKeyAndLabel('salary_changes_chart', 'Monthly Salary Changes')}
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
           {getTranslationFromI18nKeyAndLabel(
             'salary_changes_description',
             'Month-over-month salary budget changes showing increases and decreases in total compensation costs'
@@ -68,13 +66,13 @@ const SalaryChangesChart: React.FC<SalaryChangesChartProps> = props => {
             <Tooltip content={<CustomTooltip />} />
             <Bar
               dataKey="positive"
-              fill="#16a34a"
+              fill="var(--nw-color-success)"
               name={getTranslationFromI18nKeyAndLabel('salary_increase', 'Salary Increase')}
               data-testid="bar-salary-increase"
             />
             <Bar
               dataKey="negative"
-              fill="#ef4444"
+              fill="var(--nw-color-destructive)"
               name={getTranslationFromI18nKeyAndLabel('salary_decrease', 'Salary Decrease')}
               data-testid="bar-salary-decrease"
             />

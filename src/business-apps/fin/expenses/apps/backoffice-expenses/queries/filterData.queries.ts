@@ -1,27 +1,24 @@
 /**
- * GraphQL queries for fetching filter data (organizational units and currencies)
+ * GraphQL queries for fetching filter data
  */
 
 export const GET_ORGANIZATIONAL_UNITS = `
-  query GetOrganizationalUnits {
-    ExpenseRequest(
-      where: {
+  query GetOrganizationalUnits($structureId: uuid!) {
+    OrganizationalUnit(
+      where: { 
+        structureId: { _eq: $structureId },
         isDeleted: { _eq: false }
       }
     ) {
-      employeePosition {
-        organizationalUnit {
-          id
-          name
-          code
-          description
-          structureId
-          company {
-            id
-            name
-            code
-          }
-        }
+      id
+      name
+      code
+      description
+      structureId
+      company {
+        id
+        name
+        code
       }
     }
   }

@@ -35,7 +35,7 @@ const TenureDistributionChart: React.FC<TenureDistributionChartProps> = ({ data,
   if (!data || data.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <p className="gba:text-gray-500">No tenure distribution data available</p>
+        <p className="gba:text-muted-foreground">No tenure distribution data available</p>
       </div>
     )
   }
@@ -44,24 +44,31 @@ const TenureDistributionChart: React.FC<TenureDistributionChartProps> = ({ data,
     <div data-testid={dataTestId} className="gba:w-full gba:h-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="tenureRange" tick={{ fontSize: 10 }} stroke="#666" angle={-45} textAnchor="end" height={60} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-muted)" />
+          <XAxis
+            dataKey="tenureRange"
+            tick={{ fontSize: 10 }}
+            stroke="var(--nw-muted-foreground)"
+            angle={-45}
+            textAnchor="end"
+            height={60}
+          />
           <YAxis
             tick={{ fontSize: 12 }}
-            stroke="#666"
+            stroke="var(--nw-muted-foreground)"
             label={{ value: 'Employees', angle: -90, position: 'insideLeft' }}
           />
           <Tooltip
             labelFormatter={value => `Tenure: ${value}`}
             formatter={(value: number) => [value, 'Employees']}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
+              backgroundColor: 'var(--nw-primary-foreground)',
+              border: '1px solid var(--nw-border)',
               borderRadius: '6px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              boxShadow: 'var(--nw-shadow-sm)'
             }}
           />
-          <Bar dataKey="employees" fill="#722ed1" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="employees" fill="var(--nw-chart-5)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

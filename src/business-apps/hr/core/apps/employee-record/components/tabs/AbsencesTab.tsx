@@ -150,7 +150,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
             <div className="gba:font-bold gba:text-2xl" data-testid="absencehub-title">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.absence_overview', 'Absence Overview')}
             </div>
-            <div className="gba:text-gray-500 gba:text-lg" data-testid="absencehub-description">
+            <div className="gba:text-muted-foreground gba:text-lg" data-testid="absencehub-description">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_hub.absence_description',
                 'View and manage your absences'

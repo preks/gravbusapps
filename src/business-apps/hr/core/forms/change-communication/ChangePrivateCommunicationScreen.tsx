@@ -8,11 +8,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useCommunicationLookups } from './queries/ChangeCommunicationQueries'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
-interface ChangePrivateCommunicationScreenProps extends BusinessAppContextProps {}
-
 const prefixDataTestId = 'ChangePrivateCommunicationScreen'
 
-const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScreenProps> = context => {
+const ChangePrivateCommunicationScreen: React.FC<BusinessAppContextProps> = context => {
   const [channelType, setChannelType] = useState<string | undefined>(undefined)
   const [valueType, setValueType] = useState<string | undefined>(undefined)
   const [value, setValue] = useState<string>('')
@@ -296,22 +294,22 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
     >
       <div className="gba:bg-white gba:max-w-xl gba:w-full gba:max-h-[90vh] gba:overflow-hidden">
         {/* Header */}
-        <div className="gba:flex gba:items-center gba:justify-between gba:p-6">
+        <div className="gba:flex gba:items-center gba:justify-between gba:px-0 gba:py-6">
           <div className="gba:flex gba:items-center gba:gap-2">
             <img src={flowSmall} alt="Flow Small" className="gba:w-6 gba:h-6" style={{ filter: 'brightness(0)' }} />
-            <h2 className="gba:text-xl gba:font-semibold gba:text-gray-900">
+            <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.title', 'Change Private Communication')}
             </h2>
           </div>
         </div>
 
-        <div className="gba:border-t gba:border-gray-200" />
+        <div className="gba:border-t gba:border-border" />
 
         {/* Content */}
-        <div className="gba:p-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:px-0 gba:py-6 gba:space-y-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
           {/* Channel Type */}
           <div className="gba:space-y-2">
-            <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+            <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.channelType', 'Channel Type')}*
             </div>
             <Select value={channelType} onValueChange={setChannelType} disabled={loading}>
@@ -335,7 +333,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
 
           {/* Type */}
           <div className="gba:space-y-2">
-            <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+            <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.type', 'Type')}*
             </div>
             <Select value={valueType} onValueChange={setValueType} disabled={loading}>
@@ -363,7 +361,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
 
           {/* Purpose */}
           <div className="gba:space-y-2">
-            <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+            <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.purpose', 'Purpose')}*
             </div>
             <Select value={purpose} onValueChange={setPurpose}>
@@ -388,7 +386,7 @@ const ChangePrivateCommunicationScreen: React.FC<ChangePrivateCommunicationScree
 
           {/* Value */}
           <div className="gba:space-y-2">
-            <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+            <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.value', 'Value')}*
             </div>
             <Input

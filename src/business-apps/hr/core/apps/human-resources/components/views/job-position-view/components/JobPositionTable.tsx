@@ -210,7 +210,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
 
     // Generate initials and avatar props like in employee-directory
     const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase()
-    const avatarSrc = employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
+    const avatarSrc = employee?.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined
 
     return (
       <div
@@ -237,10 +237,10 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
             className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
             data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'error-state')}
           >
-            <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
+            <div className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2">
               {t('job_position.error.title', 'Error Loading Job Positions')}
             </div>
-            <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
+            <div className="gba:text-muted-foreground gba:mb-4">{error.message}</div>
             <Button
               variant="default"
               onClick={retry}
@@ -284,9 +284,9 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'table')}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
+              <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[25%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted/80"
                   onClick={() => handleSort('name')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'name-header')}
                 >
@@ -296,7 +296,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'department-header')}
                 >
                   <div className="gba:flex gba:items-center gba:gap-1">
@@ -304,8 +304,8 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                     <TooltipProvider delayDuration={300}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="gba:inline-flex gba:items-center gba:cursor-help gba:rounded gba:p-1 hover:gba:bg-gray-100">
-                            <PiInfo className="gba:text-gray-400" size={14} />
+                          <span className="gba:inline-flex gba:items-center gba:cursor-help gba:rounded gba:p-1 hover:gba:bg-muted/80">
+                            <PiInfo className="gba:text-muted-foreground" size={14} />
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" sideOffset={5}>
@@ -316,7 +316,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted/80"
                   onClick={() => handleSort('jobFunction')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'job-function-header')}
                 >
@@ -326,7 +326,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted/80"
                   onClick={() => handleSort('profile')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'profile-header')}
                 >
@@ -336,7 +336,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[25%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted/80"
                   onClick={() => handleSort('employee')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'employee-header')}
                 >
@@ -346,7 +346,7 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[5%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  className="gba:w-[5%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'actions-header')}
                 >
                   ACTIONS
@@ -359,8 +359,8 @@ export const JobPositionTable: React.FC<JobPositionTableProps> = ({
                   key={jobPosition.id}
                   onClick={() => handleRowClick(jobPosition)}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `row-${jobPosition.id}`)}
-                  className={`gba:cursor-pointer hover:gba:bg-gray-50 ${
-                    selectedJobPositionId === jobPosition.id ? 'gba:bg-gray-100' : ''
+                  className={`gba:cursor-pointer hover:gba:bg-muted ${
+                    selectedJobPositionId === jobPosition.id ? 'gba:bg-muted' : ''
                   }`}
                 >
                   {/* Name */}

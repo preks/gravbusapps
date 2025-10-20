@@ -9,15 +9,9 @@ import { useFileClient } from '@/common/network/files/useFileClient'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
-interface ChangeProfilePictureScreenProps extends BusinessAppContextProps {}
-
 const prefixDataTestId = 'ChangeProfilePictureScreen'
 
-const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
-  additionalData,
-  userInfo,
-  accessToken
-}) => {
+const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -175,8 +169,7 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
               }}
             />
             <h2
-              className="gba:text-xl gba:font-semibold"
-              style={{ color: 'var(--nw-color-text-primary)' }}
+              className="gba:text-xl gba:font-semibold gba:text-foreground"
               data-testid={formatDataTestId(prefixDataTestId, 'Title')}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.title', 'Change Profile Picture')}
@@ -185,14 +178,13 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
         </div>
 
         {/* Divider */}
-        <div className="gba:border-t" style={{ borderColor: 'var(--nw-color-border-default)' }} />
+        <div className="gba:border-t gba:border-border" />
 
         {/* Content */}
         <div className="gba:p-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
           {/* Avatar preview */}
           <div
-            className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:flex gba:items-center gba:justify-center"
-            style={{ borderColor: 'var(--nw-color-border-default)' }}
+            className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:border-border gba:flex gba:items-center gba:justify-center"
             data-testid="flw_changePicture_currentPicture"
           >
             {isImageLoading ? (
@@ -200,10 +192,7 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
             ) : imageSrc ? (
               <img src={imageSrc} alt="avatar" className="gba:w-full gba:h-full gba:object-cover" />
             ) : (
-              <div
-                className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center"
-                style={{ color: 'var(--nw-color-text-tertiary)' }}
-              >
+              <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.noImage', 'No image')}
               </div>
             )}
@@ -230,7 +219,7 @@ const ChangeProfilePictureScreen: React.FC<ChangeProfilePictureScreenProps> = ({
             </Button>
             {!selectedFile && !imageSrc && (
               <div
-                className="gba:text-red-500 gba:text-sm gba:mt-2"
+                className="gba:text-destructive gba:text-sm gba:mt-2"
                 data-testid={formatDataTestId(prefixDataTestId, 'ValidationMessage')}
               >
                 {getTranslationFromI18nKeyAndLabel(

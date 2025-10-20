@@ -17,7 +17,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       title: 'Total Workdays',
       value: statistics.totalWorkdays,
       prefix: <CalendarOutlined />,
-      color: '#1890ff',
+      color: 'var(--nw-info)',
       description: 'Cumulative workdays across all entities',
       precision: 0
     },
@@ -26,7 +26,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       title: 'Avg Workdays/Entity',
       value: statistics.averageWorkdaysPerEntity,
       prefix: <BarChartOutlined />,
-      color: '#52c41a',
+      color: 'var(--nw-success)',
       description: 'Average workdays per organizational entity',
       precision: 1
     },
@@ -35,7 +35,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       title: 'Active Entities',
       value: statistics.totalEntities,
       prefix: <TeamOutlined />,
-      color: '#fa8c16',
+      color: 'var(--nw-warning)',
       description: 'Number of organizational entities tracked',
       precision: 0
     },
@@ -44,7 +44,7 @@ const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({ statistic
       title: 'Total Employees',
       value: statistics.totalEmployees,
       prefix: <UserOutlined />,
-      color: '#722ed1',
+      color: 'var(--nw-info)',
       description: 'Employees across all tracked entities',
       precision: 0
     }

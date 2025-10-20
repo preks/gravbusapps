@@ -179,7 +179,7 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
   if (error) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8">
-        <div className="gba:text-red-500 gba:mb-4">{t('common.error_occurred', 'An error occurred')}</div>
+        <div className="gba:text-destructive gba:mb-4">{t('common.error_occurred', 'An error occurred')}</div>
         <Button variant="primary" onClick={retry} data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'RetryButton')}>
           {t('common.retry', 'Retry')}
         </Button>
