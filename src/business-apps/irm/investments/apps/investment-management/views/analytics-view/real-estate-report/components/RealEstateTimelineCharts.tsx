@@ -4,6 +4,7 @@ import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent, IconAvat
 import { ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
 import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
 
 interface RealEstateTimelineChartsProps {
   chartData: {
@@ -62,7 +63,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             <ComposedChart data={timelineData}>
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactNumber} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -147,7 +148,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             <ComposedChart data={performanceData}>
               <XAxis dataKey="period" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactNumber} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -221,7 +222,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
             <ComposedChart data={buildingYearData}>
               <XAxis dataKey="yearRange" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={formatCompactNumber} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
