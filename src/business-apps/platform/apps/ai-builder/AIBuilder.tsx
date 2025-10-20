@@ -16,12 +16,16 @@ import {
   X,
   AlertCircle,
   Copy,
-  Check
+  Check,
+  PanelLeft,
+  PanelLeftClose
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
 import { Label } from '@newwork/nw-design-system'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { SYSTEM_PROMPT } from './config/systemPrompt'
+import { FileExplorer } from './components/FileExplorer'
+import { FilePreview } from './components/FilePreview'
 
 // Simple markdown renderer for code blocks and inline code
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
@@ -359,6 +363,29 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = () => {
   const [screenPath, setScreenPath] = useState('')
   const [detectedScreenPath, setDetectedScreenPath] = useState<string | null>(null)
   const [resourceUrl, setResourceUrl] = useState('')
+
+  // File Explorer state
+  const [showFileExplorer, setShowFileExplorer] = useState(() => {
+    // Check localStorage for user preference
+    const saved = localStorage.getItem('ai-builder-show-file-explorer')
+    return saved === 'true'
+  })
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+
+  // File Explorer user permission control
+  const [fileExplorerEnabled] = useState(() => {
+    // Can be controlled per user via environment variable or config
+    const enabledForUser = localStorage.getItem('ai-builder-file-explorer-enabled')
+    // Default to true (enabled for all), can be set to false for specific users
+    return enabledForUser !== 'false'
+  })
+
+  // Toggle file explorer and save preference
+  const toggleFileExplorer = () => {
+    const newValue = !showFileExplorer
+    setShowFileExplorer(newValue)
+    localStorage.setItem('ai-builder-show-file-explorer', String(newValue))
+  }
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
 
@@ -863,148 +890,499 @@ The screen has compilation errors.
   }
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-screen gba:bg-background">
-      {/* Success Banner */}
-      {publishSuccess && (
-        <div className="gba:bg-success-secondary gba:border-b gba:border-success">
-          <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
-                <div>
-                  <p className="gba:text-sm gba:font-medium gba:text-success-secondary-foreground">
-                    Screen published successfully!
-                  </p>
-                  <a
-                    href={publishSuccess}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="gba:text-xs gba:text-success hover:gba:underline gba:flex gba:items-center gba:gap-1"
-                  >
-                    Open screen: {publishSuccess}
-                    <svg className="gba:w-3 gba:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                  </a>
-                </div>
-              </div>
-              <button
-                onClick={() => setPublishSuccess(null)}
-                className="gba:text-success-secondary-foreground hover:gba:opacity-80"
-              >
-                <X className="gba:w-4 gba:h-4" />
-              </button>
-            </div>
-          </div>
+    <div className="gba:flex gba:h-screen gba:bg-background">
+      {/* File Explorer Sidebar */}
+      {fileExplorerEnabled && showFileExplorer && sessionId && (
+        <div className="gba:w-[320px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-card">
+          <FileExplorer repoId={REPO_ID} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
         </div>
       )}
 
-      {/* Header */}
-      <div className="gba:border-b gba:bg-card">
-        <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <div className="gba:flex gba:items-center gba:gap-3">
-              <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center">
-                <Sparkles className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="gba:text-xl gba:font-bold">NEWWORK AI Builder</h1>
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  Build screens with natural language • Powered by Claude 4 Sonnet
-                  {sessionId && (
-                    <span className="gba:ml-2 gba:px-2 gba:py-0.5 gba:bg-muted gba:rounded gba:font-mono gba:text-[10px]">
-                      {sessionId.split('-').pop()}
-                    </span>
-                  )}
-                </p>
+      {/* Main Content */}
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+        {/* Success Banner */}
+        {publishSuccess && (
+          <div className="gba:bg-success-secondary gba:border-b gba:border-success">
+            <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
+                  <div>
+                    <p className="gba:text-sm gba:font-medium gba:text-success-secondary-foreground">
+                      Screen published successfully!
+                    </p>
+                    <a
+                      href={publishSuccess}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gba:text-xs gba:text-success hover:gba:underline gba:flex gba:items-center gba:gap-1"
+                    >
+                      Open screen: {publishSuccess}
+                      <svg className="gba:w-3 gba:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                        />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPublishSuccess(null)}
+                  className="gba:text-success-secondary-foreground hover:gba:opacity-80"
+                >
+                  <X className="gba:w-4 gba:h-4" />
+                </button>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="gba:flex gba:items-center gba:gap-3">
-              {usage.totalCost > 0 && (
-                <div className="gba:text-xs gba:text-muted-foreground">
-                  <span>{(usage.totalInputTokens / 1000).toFixed(1)}K in / </span>
-                  <span>{(usage.totalOutputTokens / 1000).toFixed(1)}K out • </span>
-                  <span className="gba:font-semibold gba:text-success">${usage.totalCost.toFixed(4)}</span>
+        {/* Header */}
+        <div className="gba:border-b gba:bg-card">
+          <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <div className="gba:flex gba:items-center gba:gap-3">
+                <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center">
+                  <Sparkles className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
                 </div>
-              )}
+                <div>
+                  <h1 className="gba:text-xl gba:font-bold">NEWWORK AI Builder</h1>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    Build screens with natural language • Powered by Claude 4 Sonnet
+                    {sessionId && (
+                      <span className="gba:ml-2 gba:px-2 gba:py-0.5 gba:bg-muted gba:rounded gba:font-mono gba:text-[10px]">
+                        {sessionId.split('-').pop()}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
 
-              {/* Manual refresh button for debugging */}
-              <Button variant="outline" size="sm" onClick={checkForChanges} className="gba:text-xs">
-                Check Files
-              </Button>
+              <div className="gba:flex gba:items-center gba:gap-3">
+                {usage.totalCost > 0 && (
+                  <div className="gba:text-xs gba:text-muted-foreground">
+                    <span>{(usage.totalInputTokens / 1000).toFixed(1)}K in / </span>
+                    <span>{(usage.totalOutputTokens / 1000).toFixed(1)}K out • </span>
+                    <span className="gba:font-semibold gba:text-success">${usage.totalCost.toFixed(4)}</span>
+                  </div>
+                )}
 
-              {/* New Session button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={startNewSession}
-                className="gba:text-xs"
-                title="Start a fresh session with new ID"
-              >
-                New Session
-              </Button>
-
-              {/* Refresh changes button */}
-              <Button size="sm" variant="outline" onClick={checkForChanges} className="gba:gap-2">
-                <Download className="gba:w-4 gba:h-4" />
-                Refresh Files
-              </Button>
-
-              {/* Show publish button if we have changes */}
-              {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
-                <Button size="sm" onClick={() => setShowPublishDialog(true)} className="gba:gap-2">
-                  <Upload className="gba:w-4 gba:h-4" />
-                  Publish ({uniqueFileSummary.totalUniqueFiles}{' '}
-                  {uniqueFileSummary.totalUniqueFiles === 1 ? 'file' : 'files'})
+                {/* Manual refresh button for debugging */}
+                <Button variant="outline" size="sm" onClick={checkForChanges} className="gba:text-xs">
+                  Check Files
                 </Button>
-              )}
+
+                {/* New Session button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={startNewSession}
+                  className="gba:text-xs"
+                  title="Start a fresh session with new ID"
+                >
+                  New Session
+                </Button>
+
+                {/* Refresh changes button */}
+                <Button size="sm" variant="outline" onClick={checkForChanges} className="gba:gap-2">
+                  <Download className="gba:w-4 gba:h-4" />
+                  Refresh Files
+                </Button>
+
+                {/* Show publish button if we have changes */}
+                {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
+                  <Button size="sm" onClick={() => setShowPublishDialog(true)} className="gba:gap-2">
+                    <Upload className="gba:w-4 gba:h-4" />
+                    Publish ({uniqueFileSummary.totalUniqueFiles}{' '}
+                    {uniqueFileSummary.totalUniqueFiles === 1 ? 'file' : 'files'})
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Modern Changes Banner */}
-      {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
-        <div className="gba:bg-gradient-to-r gba:from-primary/5 gba:to-accent/5 gba:backdrop-blur-sm gba:border-b gba:border-primary/10">
-          <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
-            <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-              {/* Left: File summary with expandable list */}
-              <div className="gba:flex gba:items-start gba:gap-4 gba:flex-1">
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <div className="gba:relative gba:flex gba:items-center gba:justify-center">
-                    <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                      <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-primary" />
+        {/* Modern Changes Banner */}
+        {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
+          <div className="gba:bg-gradient-to-r gba:from-primary/5 gba:to-accent/5 gba:backdrop-blur-sm gba:border-b gba:border-primary/10">
+            <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
+              <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+                {/* Left: File summary with expandable list */}
+                <div className="gba:flex gba:items-start gba:gap-4 gba:flex-1">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <div className="gba:relative gba:flex gba:items-center gba:justify-center">
+                      <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                        <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-primary" />
+                      </div>
+                      <div className="gba:absolute gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/20 gba:animate-ping" />
                     </div>
-                    <div className="gba:absolute gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/20 gba:animate-ping" />
+                    <div className="gba:space-y-1">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">Ready to Publish</h3>
+                        <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
+                          {uniqueFileSummary.totalUniqueFiles}{' '}
+                          {uniqueFileSummary.totalUniqueFiles === 1 ? 'file' : 'files'}
+                        </span>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                        {uniqueFileSummary.created > 0 && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
+                            {uniqueFileSummary.created} created
+                          </span>
+                        )}
+                        {uniqueFileSummary.modified > 0 && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
+                            {uniqueFileSummary.modified} modified
+                          </span>
+                        )}
+                        {uniqueFileSummary.deleted > 0 && (
+                          <span className="gba:flex gba:items-center gba:gap-1">
+                            <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
+                            {uniqueFileSummary.deleted} deleted
+                          </span>
+                        )}
+                      </div>
+                      {/* File list */}
+                      <details className="gba:mt-2 gba:text-xs">
+                        <summary className="gba:cursor-pointer gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors">
+                          View files
+                        </summary>
+                        <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
+                          {uniqueFileSummary.files.map((file, index) => (
+                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-0.5">
+                              <span
+                                className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${
+                                  file.type === 'create'
+                                    ? 'gba:bg-success'
+                                    : file.type === 'delete'
+                                      ? 'gba:bg-destructive'
+                                      : 'gba:bg-warning'
+                                }`}
+                              />
+                              <span className="gba:font-mono gba:text-muted-foreground gba:truncate" title={file.path}>
+                                {file.path}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
                   </div>
-                  <div className="gba:space-y-1">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">Ready to Publish</h3>
-                      <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
-                        {uniqueFileSummary.totalUniqueFiles}{' '}
-                        {uniqueFileSummary.totalUniqueFiles === 1 ? 'file' : 'files'}
-                      </span>
+                </div>
+
+                {/* Right: Actions */}
+                <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
+                  {/* File Explorer Toggle (only for enabled users) */}
+                  {fileExplorerEnabled && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={toggleFileExplorer}
+                      className="gba:gap-2"
+                      title={showFileExplorer ? 'Hide file explorer' : 'Show file explorer'}
+                    >
+                      {showFileExplorer ? (
+                        <PanelLeftClose className="gba:w-4 gba:h-4" />
+                      ) : (
+                        <PanelLeft className="gba:w-4 gba:h-4" />
+                      )}
+                      <span className="gba:hidden md:gba:inline">Files</span>
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => setShowPublishDialog(true)}
+                    className="gba:gap-2 gba:shadow-sm"
+                  >
+                    <Upload className="gba:w-4 gba:h-4" />
+                    Publish
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadPatch(REPO_ID, sessionId)}
+                    className="gba:gap-2"
+                  >
+                    <Download className="gba:w-4 gba:h-4" />
+                    Patch
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={fixBuildIssues} className="gba:gap-2">
+                    <CheckCircle className="gba:w-4 gba:h-4" />
+                    Fix
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Messages */}
+        <div className="gba:flex-1 gba:overflow-y-auto gba:p-6 gba:space-y-4">
+          {messages.length === 0 ? (
+            <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+              <div className="gba:text-center gba:space-y-6 gba:max-w-2xl">
+                <div className="gba:w-20 gba:h-20 gba:mx-auto gba:rounded-2xl gba:bg-primary gba:flex gba:items-center gba:justify-center">
+                  <Sparkles className="gba:w-10 gba:h-10 gba:text-primary-foreground" />
+                </div>
+                <div>
+                  <h2 className="gba:text-2xl gba:font-bold">Build Screens with AI</h2>
+                  <p className="gba:text-muted-foreground gba:mt-2">
+                    Describe what you want to build and I'll create it following NEWWORK patterns
+                  </p>
+                </div>
+                <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center">
+                  {['Create a lead list screen', 'Build a customer dashboard', 'Generate a contact form'].map(
+                    (s, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setInput(s)}
+                        className="gba:px-4 gba:py-2 gba:text-sm gba:rounded-lg gba:bg-muted hover:gba:bg-muted/80 gba:border"
+                      >
+                        {s}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {thinking && thinkingContent && (
+                <div className="gba:flex gba:gap-3">
+                  <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center">
+                    <Loader2 className="gba:w-4 gba:h-4 gba:text-primary-foreground gba:animate-spin" />
+                  </div>
+                  <div className="gba:flex-1 gba:bg-primary/10 gba:border gba:rounded-lg gba:px-3 gba:py-2">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                      <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:animate-pulse" />
+                      <span className="gba:text-xs gba:font-medium gba:text-primary">Claude is thinking...</span>
                     </div>
+                    <p className="gba:text-xs gba:text-muted-foreground">{thinkingContent.slice(-150)}...</p>
+                  </div>
+                </div>
+              )}
+
+              {messages.map((message, i) => (
+                <div
+                  key={i}
+                  className={`gba:flex gba:gap-3 ${message.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
+                >
+                  {message.role === 'assistant' && (
+                    <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                      <Bot className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
+                    </div>
+                  )}
+                  <div className="gba:max-w-[85%]">
+                    {message.role === 'user' ? (
+                      <div className="gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:px-4 gba:py-3 gba:shadow-sm">
+                        <p className="gba:text-sm gba:leading-relaxed">{message.content}</p>
+                      </div>
+                    ) : (
+                      <div className="gba:space-y-3 gba:bg-muted/30 gba:rounded-2xl gba:px-4 gba:py-3 gba:border gba:border-border/50">
+                        {message.thinkingLog && (
+                          <div>
+                            <button
+                              className="gba:text-xs gba:text-primary hover:gba:underline"
+                              onClick={() => {
+                                setMessages(prev => {
+                                  const next = [...prev]
+                                  next[i].thinkingCollapsed = !next[i].thinkingCollapsed
+                                  return next
+                                })
+                              }}
+                            >
+                              {message.thinkingCollapsed ? 'Show thinking' : 'Hide thinking'}
+                            </button>
+                            {!message.thinkingCollapsed && (
+                              <div className="gba:mt-1 gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap">
+                                {message.thinkingLog}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="gba:bg-card gba:border gba:rounded-lg gba:px-3 gba:py-2">
+                          {message.cost && (
+                            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2 gba:pb-2 gba:border-b">
+                              <span className="gba:text-xs gba:font-medium gba:text-primary">AI Response</span>
+                              <span className="gba:text-xs gba:text-muted-foreground">
+                                ${message.cost.totalCost.toFixed(4)} ({message.cost.inputTokens.toLocaleString()}in /{' '}
+                                {message.cost.outputTokens.toLocaleString()}out)
+                              </span>
+                            </div>
+                          )}
+                          <MarkdownRenderer content={message.content} />
+                        </div>
+
+                        {message.toolCalls && message.toolCalls.length > 0 && (
+                          <div className="gba:bg-muted/50 gba:rounded-lg gba:p-2 gba:space-y-1">
+                            <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                              Tools ({message.toolCalls.length})
+                            </span>
+                            {message.toolCalls.map(tool => {
+                              // Extract file path from tool args
+                              let displayText = tool.tool
+                              let filePath: string | null = null
+
+                              if (tool.args) {
+                                // Try to extract file path from different tool types
+                                if (tool.tool === 'write_file' || tool.tool === 'read_file') {
+                                  // Match patterns like: filePath: "src/..." or path: "src/..."
+                                  const pathMatch = tool.args.match(/(?:filePath|path|target_file):\s*"([^"]+)"/)
+                                  if (pathMatch) {
+                                    filePath = pathMatch[1]
+                                    displayText = tool.tool === 'write_file' ? '✍️ Writing' : '📖 Reading'
+                                  }
+                                } else if (tool.tool === 'propose_change') {
+                                  const fileMatch = tool.args.match(/file_path:\s*"([^"]+)"/)
+                                  if (fileMatch) {
+                                    filePath = fileMatch[1]
+                                    displayText = '🔧 Editing'
+                                  }
+                                }
+                              }
+
+                              return (
+                                <div key={tool.id} className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                                  <span
+                                    className={`gba:w-2 gba:h-2 gba:rounded-full gba:flex-shrink-0 ${tool.status === 'complete' ? 'gba:bg-success' : 'gba:bg-warning gba:animate-pulse'}`}
+                                  />
+                                  <span className="gba:font-medium gba:text-muted-foreground">{displayText}</span>
+                                  {filePath ? (
+                                    <span
+                                      className="gba:font-mono gba:text-xs gba:text-primary gba:truncate"
+                                      title={filePath}
+                                    >
+                                      {filePath}
+                                    </span>
+                                  ) : (
+                                    tool.args && (
+                                      <span className="gba:text-muted-foreground gba:truncate gba:text-[10px]">
+                                        {tool.args}
+                                      </span>
+                                    )
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {message.role === 'user' && (
+                    <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                      <User className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="gba:border-t gba:bg-card gba:p-6">
+          <form onSubmit={handleSubmit} className="gba:space-y-3">
+            <div className="gba:relative">
+              <Textarea
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSubmit(e as any)
+                  }
+                }}
+                placeholder="Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)"
+                disabled={loading}
+                rows={3}
+                className="gba:resize-none gba:text-base gba:leading-relaxed gba:pr-24"
+                data-testid="ai-builder-input"
+              />
+              <div className="gba:absolute gba:bottom-3 gba:right-3">
+                <Button
+                  type="submit"
+                  disabled={loading || !input.trim()}
+                  size="lg"
+                  className="gba:gap-2 gba:shadow-lg"
+                  data-testid="ai-builder-send-button"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="gba:w-5 gba:h-5 gba:animate-spin" />
+                      Building...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="gba:w-5 gba:h-5" />
+                      Send
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            {loading && (
+              <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2">
+                <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+                <span>AI is analyzing your request and exploring the codebase...</span>
+              </div>
+            )}
+            {!loading && input.trim() && (
+              <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
+                💡 Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"
+              </p>
+            )}
+          </form>
+        </div>
+
+        {/* Publish Dialog */}
+        {showPublishDialog && (
+          <div className="gba:fixed gba:inset-0 gba:bg-background/80 gba:backdrop-blur-sm gba:flex gba:items-center gba:justify-center gba:z-50 gba:p-4">
+            <Card className="gba:w-full gba:max-w-2xl">
+              <CardHeader>
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <CardTitle className="gba:flex gba:items-center gba:gap-2">
+                    <Upload className="gba:w-5 gba:h-5" />
+                    Publish to NEWWORK Platform
+                  </CardTitle>
+                  <button
+                    onClick={() => setShowPublishDialog(false)}
+                    className="gba:text-muted-foreground hover:gba:text-foreground"
+                  >
+                    <X className="gba:w-5 gba:h-5" />
+                  </button>
+                </div>
+              </CardHeader>
+
+              <CardContent className="gba:space-y-6">
+                {/* Files Summary */}
+                <div>
+                  <h4 className="gba:text-sm gba:font-medium gba:mb-2">
+                    Files to Publish ({uniqueFileSummary?.totalUniqueFiles || 0})
+                  </h4>
+                  <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:space-y-2">
                     <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                      {uniqueFileSummary.created > 0 && (
+                      {uniqueFileSummary && uniqueFileSummary.created > 0 && (
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
                           {uniqueFileSummary.created} created
                         </span>
                       )}
-                      {uniqueFileSummary.modified > 0 && (
+                      {uniqueFileSummary && uniqueFileSummary.modified > 0 && (
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
                           {uniqueFileSummary.modified} modified
                         </span>
                       )}
-                      {uniqueFileSummary.deleted > 0 && (
+                      {uniqueFileSummary && uniqueFileSummary.deleted > 0 && (
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
                           {uniqueFileSummary.deleted} deleted
@@ -1012,13 +1390,10 @@ The screen has compilation errors.
                       )}
                     </div>
                     {/* File list */}
-                    <details className="gba:mt-2 gba:text-xs">
-                      <summary className="gba:cursor-pointer gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors">
-                        View files
-                      </summary>
-                      <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
+                    {uniqueFileSummary && uniqueFileSummary.files.length > 0 && (
+                      <div className="gba:mt-2 gba:space-y-1 gba:max-h-32 gba:overflow-y-auto gba:text-xs">
                         {uniqueFileSummary.files.map((file, index) => (
-                          <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-0.5">
+                          <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:py-0.5">
                             <span
                               className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${
                                 file.type === 'create'
@@ -1034,434 +1409,125 @@ The screen has compilation errors.
                           </div>
                         ))}
                       </div>
-                    </details>
+                    )}
                   </div>
                 </div>
-              </div>
 
-              {/* Right: Actions */}
-              <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => setShowPublishDialog(true)}
-                  className="gba:gap-2 gba:shadow-sm"
-                >
-                  <Upload className="gba:w-4 gba:h-4" />
-                  Publish
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadPatch(REPO_ID, sessionId)}
-                  className="gba:gap-2"
-                >
-                  <Download className="gba:w-4 gba:h-4" />
-                  Patch
-                </Button>
-                <Button variant="outline" size="sm" onClick={fixBuildIssues} className="gba:gap-2">
-                  <CheckCircle className="gba:w-4 gba:h-4" />
-                  Fix
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:p-6 gba:space-y-4">
-        {messages.length === 0 ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <div className="gba:text-center gba:space-y-6 gba:max-w-2xl">
-              <div className="gba:w-20 gba:h-20 gba:mx-auto gba:rounded-2xl gba:bg-primary gba:flex gba:items-center gba:justify-center">
-                <Sparkles className="gba:w-10 gba:h-10 gba:text-primary-foreground" />
-              </div>
-              <div>
-                <h2 className="gba:text-2xl gba:font-bold">Build Screens with AI</h2>
-                <p className="gba:text-muted-foreground gba:mt-2">
-                  Describe what you want to build and I'll create it following NEWWORK patterns
-                </p>
-              </div>
-              <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center">
-                {['Create a lead list screen', 'Build a customer dashboard', 'Generate a contact form'].map((s, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setInput(s)}
-                    className="gba:px-4 gba:py-2 gba:text-sm gba:rounded-lg gba:bg-muted hover:gba:bg-muted/80 gba:border"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
-            {thinking && thinkingContent && (
-              <div className="gba:flex gba:gap-3">
-                <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center">
-                  <Loader2 className="gba:w-4 gba:h-4 gba:text-primary-foreground gba:animate-spin" />
-                </div>
-                <div className="gba:flex-1 gba:bg-primary/10 gba:border gba:rounded-lg gba:px-3 gba:py-2">
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                    <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:animate-pulse" />
-                    <span className="gba:text-xs gba:font-medium gba:text-primary">Claude is thinking...</span>
-                  </div>
-                  <p className="gba:text-xs gba:text-muted-foreground">{thinkingContent.slice(-150)}...</p>
-                </div>
-              </div>
-            )}
-
-            {messages.map((message, i) => (
-              <div
-                key={i}
-                className={`gba:flex gba:gap-3 ${message.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
-              >
-                {message.role === 'assistant' && (
-                  <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                    <Bot className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
-                  </div>
-                )}
-                <div className="gba:max-w-[85%]">
-                  {message.role === 'user' ? (
-                    <div className="gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:px-4 gba:py-3 gba:shadow-sm">
-                      <p className="gba:text-sm gba:leading-relaxed">{message.content}</p>
-                    </div>
-                  ) : (
-                    <div className="gba:space-y-3 gba:bg-muted/30 gba:rounded-2xl gba:px-4 gba:py-3 gba:border gba:border-border/50">
-                      {message.thinkingLog && (
+                {/* Auto-Detected Screen Path */}
+                {detectedScreenPath ? (
+                  <Alert className="gba:bg-success-secondary gba:border-success">
+                    <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-success" />
+                    <AlertDescription>
+                      <div className="gba:text-sm gba:space-y-2">
                         <div>
-                          <button
-                            className="gba:text-xs gba:text-primary hover:gba:underline"
-                            onClick={() => {
-                              setMessages(prev => {
-                                const next = [...prev]
-                                next[i].thinkingCollapsed = !next[i].thinkingCollapsed
-                                return next
-                              })
-                            }}
-                          >
-                            {message.thinkingCollapsed ? 'Show thinking' : 'Hide thinking'}
-                          </button>
-                          {!message.thinkingCollapsed && (
-                            <div className="gba:mt-1 gba:px-3 gba:py-2 gba:bg-muted gba:rounded gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap">
-                              {message.thinkingLog}
-                            </div>
-                          )}
+                          <strong className="gba:text-success">✅ Ready to publish!</strong>
+                          <p className="gba:text-xs gba:mt-1 gba:text-muted-foreground">
+                            Everything is configured automatically. Just click "Publish Screen" below!
+                          </p>
                         </div>
-                      )}
-
-                      <div className="gba:bg-card gba:border gba:rounded-lg gba:px-3 gba:py-2">
-                        {message.cost && (
-                          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2 gba:pb-2 gba:border-b">
-                            <span className="gba:text-xs gba:font-medium gba:text-primary">AI Response</span>
-                            <span className="gba:text-xs gba:text-muted-foreground">
-                              ${message.cost.totalCost.toFixed(4)} ({message.cost.inputTokens.toLocaleString()}in /{' '}
-                              {message.cost.outputTokens.toLocaleString()}out)
-                            </span>
-                          </div>
-                        )}
-                        <MarkdownRenderer content={message.content} />
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                          <span className="gba:text-muted-foreground">Screen path:</span>
+                          <code className="gba:bg-background gba:px-2 gba:py-1 gba:rounded">{detectedScreenPath}</code>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
+                          <span className="gba:text-muted-foreground">Resource URL:</span>
+                          <code className="gba:bg-background gba:px-2 gba:py-1 gba:rounded">{resourceUrl}</code>
+                        </div>
                       </div>
-
-                      {message.toolCalls && message.toolCalls.length > 0 && (
-                        <div className="gba:bg-muted/50 gba:rounded-lg gba:p-2 gba:space-y-1">
-                          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-                            Tools ({message.toolCalls.length})
-                          </span>
-                          {message.toolCalls.map(tool => {
-                            // Extract file path from tool args
-                            let displayText = tool.tool
-                            let filePath: string | null = null
-
-                            if (tool.args) {
-                              // Try to extract file path from different tool types
-                              if (tool.tool === 'write_file' || tool.tool === 'read_file') {
-                                // Match patterns like: filePath: "src/..." or path: "src/..."
-                                const pathMatch = tool.args.match(/(?:filePath|path|target_file):\s*"([^"]+)"/)
-                                if (pathMatch) {
-                                  filePath = pathMatch[1]
-                                  displayText = tool.tool === 'write_file' ? '✍️ Writing' : '📖 Reading'
-                                }
-                              } else if (tool.tool === 'propose_change') {
-                                const fileMatch = tool.args.match(/file_path:\s*"([^"]+)"/)
-                                if (fileMatch) {
-                                  filePath = fileMatch[1]
-                                  displayText = '🔧 Editing'
-                                }
-                              }
-                            }
-
-                            return (
-                              <div key={tool.id} className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                                <span
-                                  className={`gba:w-2 gba:h-2 gba:rounded-full gba:flex-shrink-0 ${tool.status === 'complete' ? 'gba:bg-success' : 'gba:bg-warning gba:animate-pulse'}`}
-                                />
-                                <span className="gba:font-medium gba:text-muted-foreground">{displayText}</span>
-                                {filePath ? (
-                                  <span
-                                    className="gba:font-mono gba:text-xs gba:text-primary gba:truncate"
-                                    title={filePath}
-                                  >
-                                    {filePath}
-                                  </span>
-                                ) : (
-                                  tool.args && (
-                                    <span className="gba:text-muted-foreground gba:truncate gba:text-[10px]">
-                                      {tool.args}
-                                    </span>
-                                  )
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                {message.role === 'user' && (
-                  <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                    <User className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </>
-        )}
-      </div>
-
-      {/* Input */}
-      <div className="gba:border-t gba:bg-card gba:p-6">
-        <form onSubmit={handleSubmit} className="gba:space-y-3">
-          <div className="gba:relative">
-            <Textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSubmit(e as any)
-                }
-              }}
-              placeholder="Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)"
-              disabled={loading}
-              rows={3}
-              className="gba:resize-none gba:text-base gba:leading-relaxed gba:pr-24"
-              data-testid="ai-builder-input"
-            />
-            <div className="gba:absolute gba:bottom-3 gba:right-3">
-              <Button
-                type="submit"
-                disabled={loading || !input.trim()}
-                size="lg"
-                className="gba:gap-2 gba:shadow-lg"
-                data-testid="ai-builder-send-button"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="gba:w-5 gba:h-5 gba:animate-spin" />
-                    Building...
-                  </>
+                    </AlertDescription>
+                  </Alert>
                 ) : (
+                  <Alert>
+                    <AlertCircle className="gba:w-4 gba:h-4" />
+                    <AlertDescription className="gba:text-sm">
+                      <strong>Waiting for files...</strong>
+                      <p className="gba:text-xs gba:mt-1">
+                        Ask the AI to create a screen and paths will be detected automatically.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Manual inputs - only show if auto-detection failed */}
+                {!detectedScreenPath && (
                   <>
-                    <Send className="gba:w-5 gba:h-5" />
-                    Send
+                    {/* Screen Path */}
+                    <div className="gba:space-y-2">
+                      <Label htmlFor="screen-path">Screen Path *</Label>
+                      <Input
+                        id="screen-path"
+                        value={screenPath}
+                        onChange={e => setScreenPath(e.target.value)}
+                        placeholder="platform/examples/apps/my-screen"
+                      />
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        Format: module/sub-module/apps/screen-name (e.g., crm/customers/apps/lead-list)
+                      </p>
+                    </div>
+
+                    {/* Resource URL */}
+                    <div className="gba:space-y-2">
+                      <Label htmlFor="resource-url">Resource URL *</Label>
+                      <Input
+                        id="resource-url"
+                        value={resourceUrl}
+                        onChange={e => setResourceUrl(e.target.value)}
+                        placeholder="/my-screen"
+                      />
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        The URL path where the screen will be accessible (e.g., /lead-list)
+                      </p>
+                    </div>
                   </>
                 )}
-              </Button>
-            </div>
-          </div>
-          {loading && (
-            <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2">
-              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-              <span>AI is analyzing your request and exploring the codebase...</span>
-            </div>
-          )}
-          {!loading && input.trim() && (
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-              💡 Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"
-            </p>
-          )}
-        </form>
-      </div>
 
-      {/* Publish Dialog */}
-      {showPublishDialog && (
-        <div className="gba:fixed gba:inset-0 gba:bg-background/80 gba:backdrop-blur-sm gba:flex gba:items-center gba:justify-center gba:z-50 gba:p-4">
-          <Card className="gba:w-full gba:max-w-2xl">
-            <CardHeader>
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <CardTitle className="gba:flex gba:items-center gba:gap-2">
-                  <Upload className="gba:w-5 gba:h-5" />
-                  Publish to NEWWORK Platform
-                </CardTitle>
-                <button
-                  onClick={() => setShowPublishDialog(false)}
-                  className="gba:text-muted-foreground hover:gba:text-foreground"
-                >
-                  <X className="gba:w-5 gba:h-5" />
-                </button>
-              </div>
-            </CardHeader>
-
-            <CardContent className="gba:space-y-6">
-              {/* Files Summary */}
-              <div>
-                <h4 className="gba:text-sm gba:font-medium gba:mb-2">
-                  Files to Publish ({uniqueFileSummary?.totalUniqueFiles || 0})
-                </h4>
-                <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:space-y-2">
-                  <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                    {uniqueFileSummary && uniqueFileSummary.created > 0 && (
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
-                        {uniqueFileSummary.created} created
-                      </span>
-                    )}
-                    {uniqueFileSummary && uniqueFileSummary.modified > 0 && (
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
-                        {uniqueFileSummary.modified} modified
-                      </span>
-                    )}
-                    {uniqueFileSummary && uniqueFileSummary.deleted > 0 && (
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
-                        {uniqueFileSummary.deleted} deleted
-                      </span>
-                    )}
-                  </div>
-                  {/* File list */}
-                  {uniqueFileSummary && uniqueFileSummary.files.length > 0 && (
-                    <div className="gba:mt-2 gba:space-y-1 gba:max-h-32 gba:overflow-y-auto gba:text-xs">
-                      {uniqueFileSummary.files.map((file, index) => (
-                        <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:py-0.5">
-                          <span
-                            className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${
-                              file.type === 'create'
-                                ? 'gba:bg-success'
-                                : file.type === 'delete'
-                                  ? 'gba:bg-destructive'
-                                  : 'gba:bg-warning'
-                            }`}
-                          />
-                          <span className="gba:font-mono gba:text-muted-foreground gba:truncate" title={file.path}>
-                            {file.path}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Auto-Detected Screen Path */}
-              {detectedScreenPath ? (
-                <Alert className="gba:bg-success-secondary gba:border-success">
-                  <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-success" />
-                  <AlertDescription>
-                    <div className="gba:text-sm gba:space-y-2">
-                      <div>
-                        <strong className="gba:text-success">✅ Ready to publish!</strong>
-                        <p className="gba:text-xs gba:mt-1 gba:text-muted-foreground">
-                          Everything is configured automatically. Just click "Publish Screen" below!
-                        </p>
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                        <span className="gba:text-muted-foreground">Screen path:</span>
-                        <code className="gba:bg-background gba:px-2 gba:py-1 gba:rounded">{detectedScreenPath}</code>
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
-                        <span className="gba:text-muted-foreground">Resource URL:</span>
-                        <code className="gba:bg-background gba:px-2 gba:py-1 gba:rounded">{resourceUrl}</code>
-                      </div>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-              ) : (
+                {/* Info */}
                 <Alert>
                   <AlertCircle className="gba:w-4 gba:h-4" />
-                  <AlertDescription className="gba:text-sm">
-                    <strong>Waiting for files...</strong>
-                    <p className="gba:text-xs gba:mt-1">
-                      Ask the AI to create a screen and paths will be detected automatically.
-                    </p>
+                  <AlertDescription className="gba:text-xs">
+                    This will build the screen, upload to Azure, and automatically register it in the platform with the
+                    resource URL.
                   </AlertDescription>
                 </Alert>
-              )}
 
-              {/* Manual inputs - only show if auto-detection failed */}
-              {!detectedScreenPath && (
-                <>
-                  {/* Screen Path */}
-                  <div className="gba:space-y-2">
-                    <Label htmlFor="screen-path">Screen Path *</Label>
-                    <Input
-                      id="screen-path"
-                      value={screenPath}
-                      onChange={e => setScreenPath(e.target.value)}
-                      placeholder="platform/examples/apps/my-screen"
-                    />
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      Format: module/sub-module/apps/screen-name (e.g., crm/customers/apps/lead-list)
-                    </p>
-                  </div>
+                {/* Actions */}
+                <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t">
+                  <Button variant="outline" onClick={() => setShowPublishDialog(false)} disabled={isPublishing}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handlePublish}
+                    disabled={isPublishing || !screenPath || !resourceUrl}
+                    className="gba:gap-2"
+                  >
+                    {isPublishing ? (
+                      <>
+                        <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+                        Publishing...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="gba:w-4 gba:h-4" />
+                        Publish Screen
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
-                  {/* Resource URL */}
-                  <div className="gba:space-y-2">
-                    <Label htmlFor="resource-url">Resource URL *</Label>
-                    <Input
-                      id="resource-url"
-                      value={resourceUrl}
-                      onChange={e => setResourceUrl(e.target.value)}
-                      placeholder="/my-screen"
-                    />
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      The URL path where the screen will be accessible (e.g., /lead-list)
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {/* Info */}
-              <Alert>
-                <AlertCircle className="gba:w-4 gba:h-4" />
-                <AlertDescription className="gba:text-xs">
-                  This will build the screen, upload to Azure, and automatically register it in the platform with the
-                  resource URL.
-                </AlertDescription>
-              </Alert>
-
-              {/* Actions */}
-              <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-4 gba:border-t">
-                <Button variant="outline" onClick={() => setShowPublishDialog(false)} disabled={isPublishing}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handlePublish}
-                  disabled={isPublishing || !screenPath || !resourceUrl}
-                  className="gba:gap-2"
-                >
-                  {isPublishing ? (
-                    <>
-                      <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                      Publishing...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="gba:w-4 gba:h-4" />
-                      Publish Screen
-                    </>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        {/* File Preview Modal */}
+        {selectedFile && (
+          <FilePreview
+            filePath={selectedFile}
+            repoId={REPO_ID}
+            sessionId={sessionId}
+            onClose={() => setSelectedFile(null)}
+          />
+        )}
+      </div>
     </div>
   )
 }
