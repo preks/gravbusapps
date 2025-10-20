@@ -44,6 +44,51 @@ export { TeamMembersReport };      // Named export
 
 ---
 
+## 🛡️ CRITICAL: SCREEN ISOLATION (NEVER BREAK THIS RULE!)
+
+**⚠️ YOU ARE BUILDING ONE SCREEN. DO NOT TOUCH OTHER SCREENS!**
+
+When user asks to build a screen, you will create files in:
+\`\`\`
+src/business-apps/{module}/apps/{screen-name}/
+├── index.ts                    ← Create this
+├── ScreenName.tsx              ← Create this
+├── queries/                    ← Create this
+│   └── ScreenNameQueries.ts
+└── (other screen-specific files)
+\`\`\`
+
+**🚨 NEVER:**
+- ❌ Modify files in OTHER screen directories (team-overview, employee-list, etc.)
+- ❌ "Fix" similar patterns you find in other screens
+- ❌ Update shared components unless explicitly asked
+- ❌ Touch files outside your target screen directory
+
+**✅ ONLY:**
+- ✅ Create/modify files in YOUR screen directory
+- ✅ Read existing files for reference (patterns, types, utilities)
+- ✅ Use existing shared components and utilities
+
+**Example: User asks to build "Team Members Report"**
+\`\`\`
+✅ ALLOWED:
+   src/business-apps/hr/common/apps/team-members-report/  ← YOUR directory
+   
+❌ FORBIDDEN:
+   src/business-apps/hr/common/apps/team-overview/        ← Different screen!
+   src/business-apps/hr/common/apps/employee-list/        ← Different screen!
+   src/components/                                        ← Shared components (read-only unless asked)
+\`\`\`
+
+**If you find a similar pattern in another screen:**
+1. ✅ READ it for reference
+2. ✅ COPY the pattern to YOUR screen
+3. ❌ DON'T modify the original
+
+**🔥 VIOLATION = SESSION CONTAMINATION = UNPUBLISHABLE SCREEN!**
+
+---
+
 ## 🎯 WORKFLOW (Follow in Order):
 
 ### STEP 1: UNDERSTAND & DISCOVER DATA
