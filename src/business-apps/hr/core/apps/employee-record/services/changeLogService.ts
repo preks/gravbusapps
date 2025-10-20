@@ -1,6 +1,4 @@
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ChangeLogEntry, ChangeLogFilters } from '../components/tabs/ChangeLogTab'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { env } from '@/common/env/EnvUtils'
 import ChangeLogDataTransformer from './changeLogDataTransformer'
 import ChangeLogVisibilityRules from './changeLogVisibilityRules'
@@ -48,7 +46,8 @@ export class ChangeLogService {
       return await this.fetchFromVersionComparison(filters, limit, offset)
     } catch (error) {
       console.error('Error fetching change log entries:', error)
-      throw new Error('Failed to fetch change log data')
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      throw new Error(`Failed to fetch change log data: ${message}`)
     }
   }
 
@@ -56,9 +55,9 @@ export class ChangeLogService {
    * Fetch data from FLOW audit system
    */
   private async fetchFromFlowAudit(
-    filters?: ChangeLogFilters,
-    limit: number = 50,
-    offset: number = 0
+    _filters?: ChangeLogFilters,
+    _limit: number = 50,
+    _offset: number = 0
   ): Promise<ChangeLogApiResponse> {
     // FLOW audit system is not available in the current schema
     // Return empty data to trigger the fallback to version comparison
@@ -73,9 +72,9 @@ export class ChangeLogService {
    * Fetch data using version comparison approach
    */
   private async fetchFromVersionComparison(
-    filters?: ChangeLogFilters,
+    _filters?: ChangeLogFilters,
     limit: number = 50,
-    offset: number = 0
+    _offset: number = 0
   ): Promise<ChangeLogApiResponse> {
     try {
       // Use the predefined GraphQL query
@@ -88,6 +87,10 @@ export class ChangeLogService {
           employeeId: this.config.employeeId,
           limit
         })
+        // Validate response structure when using GraphQL client
+        if (!data || !Array.isArray(data.Employee)) {
+          throw new Error('Invalid GraphQL response: missing Employee array')
+        }
       } else {
         const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || '', {
           method: 'POST',
@@ -112,6 +115,11 @@ export class ChangeLogService {
         
         if (data.errors) {
           throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`)
+        }
+
+        // Validate response structure for raw fetch
+        if (!data || !data.data || !Array.isArray(data.data.Employee)) {
+          throw new Error('Invalid GraphQL response: missing data.Employee array')
         }
       }
 

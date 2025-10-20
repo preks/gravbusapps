@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { createChangeLogService } from '../services/changeLogService'
+import { createChangeLogService } from '../../services/changeLogService'
 import { format } from 'date-fns'
 import { Download, Filter, Search, User, Bot, Settings } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
@@ -238,53 +238,53 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
     const CategoryIcon = categoryInfo?.icon || User
 
     return (
-      <div key={entry.id} className="bg-white border border-gray-200 rounded-lg p-4 mb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <CategoryIcon className="h-5 w-5 text-blue-600" />
+      <div key={entry.id} className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4 gba:mb-4">
+        <div className="gba:flex gba:items-start gba:justify-between">
+          <div className="gba:flex gba:items-center gba:space-x-3">
+            <CategoryIcon className="gba:h-5 gba:w-5 gba:text-blue-600" />
             <div>
-              <h4 className="font-medium text-gray-900">{entry.fieldName}</h4>
-              <p className="text-sm text-gray-500">{categoryInfo?.label}</p>
+              <h4 className="gba:font-medium gba:text-gray-900">{entry.fieldName}</h4>
+              <p className="gba:text-sm gba:text-gray-500">{categoryInfo?.label}</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="gba:flex gba:items-center gba:space-x-2">
             {entry.changeOrigin.isAIGenerated && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                <Bot className="h-3 w-3 mr-1" />
+              <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-purple-100 gba:text-purple-800">
+                <Bot className="gba:h-3 gba:w-3 gba:mr-1" />
                 AI
               </span>
             )}
             {entry.changeOrigin.isSystemGenerated && (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                <Settings className="h-3 w-3 mr-1" />
+              <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-gray-100 gba:text-gray-800">
+                <Settings className="gba:h-3 gba:w-3 gba:mr-1" />
                 System
               </span>
             )}
           </div>
         </div>
         
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="gba:mt-4 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-700">Previous Value</label>
-            <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+            <label className="gba:text-sm gba:font-medium gba:text-gray-700">Previous Value</label>
+            <p className="gba:text-sm gba:text-gray-900 gba:bg-gray-50 gba:p-2 gba:rounded">
               {entry.isMasked ? 'Hidden for privacy' : (entry.previousValue || 'N/A')}
             </p>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-700">New Value</label>
-            <p className="text-sm text-gray-900 bg-green-50 p-2 rounded">
+            <label className="gba:text-sm gba:font-medium gba:text-gray-700">New Value</label>
+            <p className="gba:text-sm gba:text-gray-900 gba:bg-green-50 gba:p-2 gba:rounded">
               {entry.isMasked ? 'Hidden for privacy' : (entry.newValue || 'N/A')}
             </p>
           </div>
         </div>
         
-        <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
-          <div className="flex items-center space-x-4">
+        <div className="gba:mt-4 gba:flex gba:items-center gba:justify-between gba:text-sm gba:text-gray-500">
+          <div className="gba:flex gba:items-center gba:space-x-4">
             <span>Changed by: {entry.changedBy.userName}</span>
             <span>•</span>
             <span>{format(new Date(entry.timestamp), 'MMM dd, yyyy HH:mm')}</span>
           </div>
-          <span className="text-xs">FLOW: {entry.changeOrigin.flowName}</span>
+          <span className="gba:text-xs">FLOW: {entry.changeOrigin.flowName}</span>
         </div>
       </div>
     )
@@ -292,17 +292,17 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="text-center py-8">
-        <p className="text-red-600">{error}</p>
-        <Button onClick={fetchChangeLogData} className="mt-4">
+      <div className="gba:text-center gba:py-8">
+        <p className="gba:text-red-600">{error}</p>
+        <Button onClick={fetchChangeLogData} className="gba:mt-4">
           Retry
         </Button>
       </div>

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Spin, Alert, Table } from 'antd'
 import {
   CalendarOutlined,
   UserOutlined,
@@ -8,7 +7,21 @@ import {
   ExclamationCircleOutlined
 } from '@ant-design/icons'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
-import { Avatar } from '@newwork/gravity-ui-catalog'
+import {
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { format, addDays, isWithinInterval, parseISO, differenceInYears } from 'date-fns'
@@ -156,7 +169,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       setProbationEnds(upcomingProbationEnds)
       setTerminations(upcomingTerminations)
     } catch (err: any) {
-      setError(err.message || getTranslationFromI18nKeyAndLabel('hr.insights.failed_to_fetch', 'Failed to fetch insights data'))
+      setError(err.message || getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.failed_to_fetch', 'Failed to fetch insights data'))
       console.error('Error fetching insights data:', err)
     } finally {
       setLoading(false)
@@ -206,31 +219,31 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     {
       key: 'birthdays',
       icon: <CalendarOutlined />,
-      label: getTranslationFromI18nKeyAndLabel('hr.insights.birthdays', 'Birthdays'),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthdays', 'Birthdays'),
       count: birthdays.length
     },
     {
       key: 'anniversaries',
       icon: <UserOutlined />,
-      label: getTranslationFromI18nKeyAndLabel('hr.insights.anniversaries', 'Anniversaries'),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversaries', 'Anniversaries'),
       count: anniversaries.length
     },
     {
       key: 'new-hires',
       icon: <TeamOutlined />,
-      label: getTranslationFromI18nKeyAndLabel('hr.insights.new_hires', 'New Hires'),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.new_hires', 'New Hires'),
       count: newHires.length
     },
     {
       key: 'probation-ends',
       icon: <ClockCircleOutlined />,
-      label: getTranslationFromI18nKeyAndLabel('hr.insights.probation_ends', 'Probation Ends'),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_ends', 'Probation Ends'),
       count: probationEnds.length
     },
     {
       key: 'terminations',
       icon: <ExclamationCircleOutlined />,
-      label: getTranslationFromI18nKeyAndLabel('hr.insights.terminations', 'Terminations'),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.terminations', 'Terminations'),
       count: terminations.length
     }
   ]
@@ -244,83 +257,82 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   }, [])
 
   const renderEmployeeTable = (employees: EmployeeInsight[], dateField: string, dateLabel: string) => {
-
-    const columns = [
-      {
-        title: getTranslationFromI18nKeyAndLabel('hr.insights.employee', 'Employee'),
-        key: 'employee',
-        render: (record: EmployeeInsight) => (
-          <div className="gba:flex gba:items-center gba:space-x-3">
-            <Avatar
-              src={record.pictureThumbnail ? `data:image/gif;base64,${record.pictureThumbnail}` : undefined}
-              initials={`${record.firstName?.[0] || ''}${record.lastName?.[0] || ''}`}
-              alt={`${record.firstName} ${record.lastName}`}
-            />
-            <div>
-              <div 
-                className="gba:font-medium gba:cursor-pointer gba:hover:text-blue-600 gba:hover:underline"
-                onClick={() => handleNavigateToEmployee(record.id)}
-                title={getTranslationFromI18nKeyAndLabel('hr.insights.view_profile', 'View profile')}
-              >
-                {record.fullName}
-              </div>
-              <div className="gba:text-sm gba:text-gray-500">{record.jobPositionName}</div>
-            </div>
-          </div>
-        )
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('hr.insights.department', 'Department'),
-        dataIndex: 'organizationalUnitName',
-        key: 'department',
-        render: (text: string) => text || getTranslationFromI18nKeyAndLabel('hr.insights.not_available', 'N/A')
-      },
-      {
-        title: getTranslationFromI18nKeyAndLabel('hr.insights.role', 'Role'),
-        dataIndex: 'jobPositionName',
-        key: 'role',
-        render: (text: string) => text || getTranslationFromI18nKeyAndLabel('hr.insights.not_available', 'N/A')
-      },
-      {
-        title: dateLabel,
-        key: 'date',
-        render: (record: EmployeeInsight) => {
-          const dateValue = record[dateField as keyof EmployeeInsight] as string
-          if (!dateValue) return getTranslationFromI18nKeyAndLabel('hr.insights.not_available', 'N/A')
-          
-          if (dateField === 'birthDate') {
-            // For birthdays, show the date this year
-            const birthDate = parseISO(dateValue)
-            const thisYearBirthday = new Date(new Date().getFullYear(), birthDate.getMonth(), birthDate.getDate())
-            return format(thisYearBirthday, 'MMM dd, yyyy')
-          } else if (dateField === 'hireDate' && activeSubTab === 'anniversaries') {
-            // For anniversaries, show the anniversary date this year
-            const hireDate = parseISO(dateValue)
-            const thisYearAnniversary = new Date(new Date().getFullYear(), hireDate.getMonth(), hireDate.getDate())
-            const years = differenceInYears(new Date(), hireDate) + 1
-            return `${format(thisYearAnniversary, 'MMM dd, yyyy')} (${years} years)`
-          } else {
-            return format(parseISO(dateValue), 'MMM dd, yyyy')
-          }
-        }
-      }
-    ]
+    if (!employees || employees.length === 0) {
+      return (
+        <div className="gba:text-sm gba:text-gray-500">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.no_events', `No ${dateLabel.toLowerCase()} in the next 30 days.`)}
+        </div>
+      )
+    }
 
     return (
-      <Table
-        dataSource={employees}
-        columns={columns}
-        rowKey="id"
-        pagination={{ pageSize: 10 }}
-        locale={{ emptyText: getTranslationFromI18nKeyAndLabel('hr.insights.no_events', `No ${dateLabel.toLowerCase()} in the next 30 days.`) }}
-      />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.employee', 'Employee')}</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.department', 'Department')}</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.role', 'Role')}</TableHead>
+            <TableHead>{dateLabel}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {employees.map(record => {
+            const dateValue = record[dateField as keyof EmployeeInsight] as string | undefined
+            let renderedDate: string = getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')
+            if (dateValue) {
+              if (dateField === 'birthDate') {
+                const birthDate = parseISO(dateValue)
+                const thisYearBirthday = new Date(new Date().getFullYear(), birthDate.getMonth(), birthDate.getDate())
+                renderedDate = format(thisYearBirthday, 'MMM dd, yyyy')
+              } else if (dateField === 'hireDate' && activeSubTab === 'anniversaries') {
+                const hireDate = parseISO(dateValue)
+                const thisYearAnniversary = new Date(new Date().getFullYear(), hireDate.getMonth(), hireDate.getDate())
+                const years = differenceInYears(new Date(), hireDate) + 1
+                renderedDate = `${format(thisYearAnniversary, 'MMM dd, yyyy')} (${years} years)`
+              } else {
+                renderedDate = format(parseISO(dateValue), 'MMM dd, yyyy')
+              }
+            }
+
+            const initials = `${record.firstName?.[0] || ''}${record.lastName?.[0] || ''}`
+
+            return (
+              <TableRow key={record.id}>
+                <TableCell>
+                  <div className="gba:flex gba:items-center gba:space-x-3">
+                    <Avatar>
+                      {record.pictureThumbnail ? (
+                        <AvatarImage src={`data:image/gif;base64,${record.pictureThumbnail}`} alt={`${record.firstName} ${record.lastName}`} />
+                      ) : null}
+                      <AvatarFallback>{initials}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div
+                        className="gba:font-medium gba:cursor-pointer gba:hover:text-blue-600 gba:hover:underline"
+                        onClick={() => handleNavigateToEmployee(record.id)}
+                        title={getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.view_profile', 'View profile')}
+                      >
+                        {record.fullName}
+                      </div>
+                      <div className="gba:text-sm gba:text-gray-500">{record.jobPositionName}</div>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>{record.organizationalUnitName || getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')}</TableCell>
+                <TableCell>{record.jobPositionName || getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')}</TableCell>
+                <TableCell>{renderedDate}</TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
     )
   }
 
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:py-12">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -328,7 +340,10 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
   if (error) {
     return (
       <div className="gba:p-6">
-        <Alert message={getTranslationFromI18nKeyAndLabel('hr.insights.error_loading', 'Error loading insights')} description={error} type="error" showIcon />
+        <Alert variant="destructive">
+          <AlertTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.error_loading', 'Error loading insights')}</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       </div>
     )
   }
@@ -352,23 +367,23 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         </TabsList>
 
         <TabsContent value="birthdays" className="gba:mt-6">
-          {renderEmployeeTable(birthdays, 'birthDate', getTranslationFromI18nKeyAndLabel('hr.insights.birthday_date', 'Birthday'))}
+          {renderEmployeeTable(birthdays, 'birthDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday_date', 'Birthday'))}
         </TabsContent>
 
         <TabsContent value="anniversaries" className="gba:mt-6">
-          {renderEmployeeTable(anniversaries, 'hireDate', getTranslationFromI18nKeyAndLabel('hr.insights.anniversary_date', 'Anniversary'))}
+          {renderEmployeeTable(anniversaries, 'hireDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary'))}
         </TabsContent>
 
         <TabsContent value="new-hires" className="gba:mt-6">
-          {renderEmployeeTable(newHires, 'hireDate', getTranslationFromI18nKeyAndLabel('hr.insights.start_date', 'Start Date'))}
+          {renderEmployeeTable(newHires, 'hireDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.start_date', 'Start Date'))}
         </TabsContent>
 
         <TabsContent value="probation-ends" className="gba:mt-6">
-          {renderEmployeeTable(probationEnds, 'probationEnd', getTranslationFromI18nKeyAndLabel('hr.insights.probation_end_date', 'Probation End'))}
+          {renderEmployeeTable(probationEnds, 'probationEnd', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_end_date', 'Probation End'))}
         </TabsContent>
 
         <TabsContent value="terminations" className="gba:mt-6">
-          {renderEmployeeTable(terminations, 'exitDate', getTranslationFromI18nKeyAndLabel('hr.insights.termination_date', 'Termination Date'))}
+          {renderEmployeeTable(terminations, 'exitDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date'))}
         </TabsContent>
       </Tabs>
     </div>
