@@ -510,12 +510,12 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
   const getDocumentTypeIcon = (document: Document) => {
     // Check if it's an image
     if (isImageDocument(document)) {
-      return <FileImageOutlined className="gba:text-blue-500 gba:text-lg" />
+      return <FileImageOutlined className="gba:text-info gba:text-lg" />
     }
 
     // Check if it's a PDF
     if (isPdfDocument(document)) {
-      return <FilePdfOutlined className="gba:text-red-500 gba:text-lg" />
+      return <FilePdfOutlined className="gba:text-destructive gba:text-lg" />
     }
 
     // Check for Excel files
@@ -525,7 +525,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
       document.name?.toLowerCase().endsWith('.xlsx') ||
       document.name?.toLowerCase().endsWith('.xls')
     ) {
-      return <FileExcelOutlined className="gba:text-green-600 gba:text-lg" />
+      return <FileExcelOutlined className="gba:text-success gba:text-lg" />
     }
 
     // Check for Word files
@@ -535,11 +535,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
       document.name?.toLowerCase().endsWith('.docx') ||
       document.name?.toLowerCase().endsWith('.doc')
     ) {
-      return <FileWordOutlined className="gba:text-blue-700 gba:text-lg" />
+      return <FileWordOutlined className="gba:text-info gba:text-lg" />
     }
 
     // Default file icon for other types
-    return <FileOutlined className="gba:text-gray-500 gba:text-lg" />
+    return <FileOutlined className="gba:text-muted-foreground gba:text-lg" />
   }
 
   // Function to render a document list item
@@ -547,7 +547,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
     return (
       <List.Item
         key={document.id}
-        className="gba:px-4 gba:py-3 gba:border-b gba:border-gray-100 gba:hover:bg-gray-50 gba:cursor-pointer gba:transition-colors"
+        className="gba:px-4 gba:py-3 gba:border-b gba:border-border gba:hover:bg-muted gba:cursor-pointer gba:transition-colors"
         onClick={() => openDocumentViewer(document)}
         data-testid={`document-list-item-${document.id}`}
       >
@@ -557,15 +557,15 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
             <div className="gba:font-medium gba:text-sm gba:truncate" title={document.title}>
               {document.title}
             </div>
-            <div className="gba:text-xs gba:text-gray-500 gba:truncate" title={document.typeValue}>
+            <div className="gba:text-xs gba:text-muted-foreground gba:truncate" title={document.typeValue}>
               {document.typeValue}
             </div>
           </div>
-          <div className="gba:ml-4 gba:flex gba:flex-col gba:items-end gba:text-xs gba:text-gray-500 gba:gap-2">
+          <div className="gba:ml-4 gba:flex gba:flex-col gba:items-end gba:text-xs gba:text-muted-foreground gba:gap-2">
             <div>{formatDate(document.uploadDate)}</div>
             {document.validTo && (
               <div
-                className={`gba:px-2 gba:py-0.5 gba:rounded-md gba:text-xs gba:text-white gba:font-medium ${document.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-red-500' : 'gba:bg-green-500'}`}
+                className={`gba:px-2 gba:py-0.5 gba:rounded-md gba:text-xs gba:text-white gba:font-medium ${document.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-destructive' : 'gba:bg-success'}`}
                 title={document.validTo < dayjs().format('YYYY-MM-DD') ? 'Document has expired' : 'Document is valid'}
                 data-testid={`document-validity-indicator-${document.id}`}
               >
@@ -582,14 +582,14 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-blue-600"></div>
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-info"></div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="gba:text-center gba:text-red-600 gba:py-8">
+      <div className="gba:text-center gba:text-destructive gba:py-8">
         <p>{error}</p>
       </div>
     )
@@ -604,7 +604,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
             <div className="gba:font-bold gba:text-2xl" data-testid="documents-title">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.documents_overview', 'Documents Overview')}
             </div>
-            <div className="gba:text-gray-500 gba:text-lg" data-testid="documents-description">
+            <div className="gba:text-muted-foreground gba:text-lg" data-testid="documents-description">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:hr_documents.documents_description',
                 'View and manage employee documents'
@@ -646,7 +646,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
           <div className="gba:font-bold gba:text-2xl" data-testid="documents-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_documents.documents_overview', 'Documents Overview')}
           </div>
-          <div className="gba:text-gray-500 gba:text-lg" data-testid="documents-description">
+          <div className="gba:text-muted-foreground gba:text-lg" data-testid="documents-description">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:hr_documents.documents_description',
               'View and manage employee documents'
@@ -675,8 +675,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
       <div className="gba:flex gba:justify-start gba:items-center gba:mb-4">
         <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:md:w-auto">
           <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
-            <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-gray-200 gba:rounded-md gba:shadow-md gba:bg-white gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-blue-500 gba:focus-within:border-blue-500">
-              <div className="gba:flex gba:items-center gba:justify-center gba:pl-3 gba:w-10 gba:text-blue-500">
+            <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-border gba:rounded-md gba:shadow-md gba:bg-background gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-blue-500 gba:focus-within:border-blue-500">
+              <div className="gba:flex gba:items-center gba:justify-center gba:pl-3 gba:w-10 gba:text-info">
                 <SearchOutlined className="gba:text-lg" />
               </div>
               <DebouncedInput
@@ -710,7 +710,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
 
       {/* Search results info */}
       {searchQuery && (
-        <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+        <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">
           Found {filteredDocuments.length} {filteredDocuments.length === 1 ? 'document' : 'documents'}
           {searchField !== 'all' ? ` with ${searchField}` : ''} matching "{searchQuery}"
         </div>
@@ -721,7 +721,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
           <Spin size="large" />
         </div>
       ) : error ? (
-        <div className="gba:text-center gba:py-8 gba:text-red-500">{error}</div>
+        <div className="gba:text-center gba:py-8 gba:text-destructive">{error}</div>
       ) : searchQuery ? (
         filteredDocuments.length === 0 ? (
           <Empty description="No documents match your search" />
@@ -730,7 +730,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
             expandIcon={({ isActive }) => (
               <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />
             )}
-            className="gba:bg-white gba:border-0 gba:shadow-sm"
+            className="gba:bg-primary-foreground gba:border-0 gba:shadow-sm"
             defaultActiveKey={['Salary', 'Expenses', 'Development', 'Personal', 'Other']}
             data-testid="documents-accordion"
           >
@@ -743,21 +743,21 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
                   header={
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <span className="gba:font-medium">{group}</span>
-                      <span className="gba:text-sm gba:text-gray-500">
+                      <span className="gba:text-sm gba:text-muted-foreground">
                         {docs.length} {docs.length === 1 ? 'document' : 'documents'}
                       </span>
                     </div>
                   }
                   className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
                     group === 'Salary'
-                      ? 'gba:bg-blue-50'
+                      ? 'gba:bg-info-secondary'
                       : group === 'Expenses'
-                        ? 'gba:bg-green-50'
+                        ? 'gba:bg-success-secondary'
                         : group === 'Development'
-                          ? 'gba:bg-purple-50'
+                          ? 'gba:bg-info-secondary'
                           : group === 'Personal'
-                            ? 'gba:bg-orange-50'
-                            : 'gba:bg-indigo-50'
+                            ? 'gba:bg-warning-secondary'
+                            : 'gba:bg-decorative-secondary'
                   }`}
                   data-testid={`document-group-${group.toLowerCase()}`}
                 >
@@ -775,7 +775,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
       ) : (
         <Collapse
           expandIcon={({ isActive }) => <CaretRightOutlined rotate={isActive ? 90 : 0} className="gba:text-blue-600" />}
-          className="gba:bg-white gba:border-0 gba:shadow-sm"
+          className="gba:bg-primary-foreground gba:border-0 gba:shadow-sm"
           defaultActiveKey={['Salary', 'Expenses', 'Development', 'Personal', 'Other']}
           data-testid="documents-accordion"
         >
@@ -788,21 +788,21 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
                 header={
                   <div className="gba:flex gba:items-center gba:justify-between">
                     <span className="gba:font-medium">{group}</span>
-                    <span className="gba:text-sm gba:text-gray-500">
+                    <span className="gba:text-sm gba:text-muted-foreground">
                       {docs.length} {docs.length === 1 ? 'document' : 'documents'}
                     </span>
                   </div>
                 }
                 className={`gba:border-0 gba:mb-2 gba:rounded-md gba:overflow-hidden ${
                   group === 'Salary'
-                    ? 'gba:bg-blue-50'
+                    ? 'gba:bg-info-secondary'
                     : group === 'Expenses'
-                      ? 'gba:bg-green-50'
+                      ? 'gba:bg-success-secondary'
                       : group === 'Development'
-                        ? 'gba:bg-purple-50'
+                        ? 'gba:bg-info-secondary'
                         : group === 'Personal'
-                          ? 'gba:bg-orange-50'
-                          : 'gba:bg-indigo-50'
+                          ? 'gba:bg-warning-secondary'
+                          : 'gba:bg-decorative-secondary'
                 }`}
                 data-testid={`document-group-${group.toLowerCase()}`}
               >
@@ -848,7 +848,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
             </div>
           </div>
         ) : error ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
+          <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
             <p>{error}</p>
           </div>
         ) : documentUrl ? (
@@ -965,7 +965,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
                 </div>
               ) : isImageDocument(currentDocument) ? (
                 <>
-                  <div className="gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-md gba:shadow-sm gba:p-4 gba:w-full">
+                  <div className="gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-md gba:shadow-sm gba:p-4 gba:w-full">
                     <img
                       src={documentUrl}
                       alt={currentDocument?.title || 'Document'}
@@ -1013,11 +1013,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
                 </>
               ) : (
                 <>
-                  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-gray-50 gba:rounded-md gba:shadow-sm gba:min-h-[300px] gba:w-full">
+                  <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:rounded-md gba:shadow-sm gba:min-h-[300px] gba:w-full">
                     <div className="gba:mb-6">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className="gba:h-24 gba:w-24 gba:text-gray-300"
+                        className="gba:h-24 gba:w-24 gba:text-muted-foreground"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -1035,7 +1035,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
                         <path d="M17 7h5"></path>
                       </svg>
                     </div>
-                    <p className="gba:mb-4 gba:text-center gba:text-gray-500 gba:text-base">
+                    <p className="gba:mb-4 gba:text-center gba:text-muted-foreground gba:text-base">
                       This document type cannot be previewed directly.
                     </p>
                   </div>
@@ -1077,27 +1077,27 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
             </div>
 
             {/* Document details - bottom */}
-            <div className="gba:w-full gba:p-6 gba:bg-gray-50 gba:border-t gba:border-gray-200 gba:mt-2">
+            <div className="gba:w-full gba:p-6 gba:bg-muted gba:border-t gba:border-border gba:mt-2">
               {/* Details section */}
 
               <div className="gba:grid gba:grid-cols-2 gba:gap-x-4 gba:gap-y-5">
                 <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-gray-500">Document Name</div>
+                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Name</div>
                   <div className="gba:mt-1 gba:text-sm">{currentDocument?.title || 'N/A'}</div>
                 </div>
 
                 <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-gray-500">Document Group</div>
+                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Group</div>
                   <div className="gba:mt-1 gba:text-sm">{currentDocument?.documentGroup || 'N/A'}</div>
                 </div>
 
                 <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-gray-500">Document Type</div>
+                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Document Type</div>
                   <div className="gba:mt-1 gba:text-sm">{currentDocument?.type || 'N/A'}</div>
                 </div>
 
                 <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-gray-500">Upload Date</div>
+                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Upload Date</div>
                   <div className="gba:mt-1 gba:text-sm">
                     {currentDocument?.createdAt
                       ? dayjs(currentDocument.createdAt).format('MMM D, YYYY')
@@ -1108,16 +1108,16 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
                 </div>
 
                 <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-gray-500">Uploaded By</div>
+                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Uploaded By</div>
                   <div className="gba:mt-1 gba:text-sm">{currentDocument?.createdBy || 'N/A'}</div>
                 </div>
 
                 <div>
-                  <div className="gba:font-medium gba:text-sm gba:text-gray-500">Expiration Date</div>
+                  <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Expiration Date</div>
                   <div className="gba:mt-1 gba:text-sm">
                     {currentDocument?.validTo ? (
                       <span
-                        className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-yellow-100 gba:text-yellow-800' : 'gba:bg-green-100 gba:text-green-800'}`}
+                        className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-green-100 gba:text-success'}`}
                       >
                         {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
                       </span>
@@ -1129,8 +1129,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
               </div>
 
               <div className="gba:mt-6">
-                <div className="gba:font-medium gba:text-sm gba:text-gray-500">Description</div>
-                <div className="gba:mt-1 gba:text-sm gba:bg-white gba:p-3 gba:rounded gba:border gba:border-gray-200">
+                <div className="gba:font-medium gba:text-sm gba:text-muted-foreground">Description</div>
+                <div className="gba:mt-1 gba:text-sm gba:bg-primary-foreground gba:p-3 gba:rounded gba:border gba:border-border">
                   {currentDocument?.description || 'No description provided'}
                 </div>
               </div>

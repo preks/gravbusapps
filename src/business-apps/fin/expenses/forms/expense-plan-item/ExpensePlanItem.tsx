@@ -70,7 +70,6 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
         onClose(false)
       }
     }
-
     const handleSubmitWithCallback = async () => {
       try {
         await handleSubmit()

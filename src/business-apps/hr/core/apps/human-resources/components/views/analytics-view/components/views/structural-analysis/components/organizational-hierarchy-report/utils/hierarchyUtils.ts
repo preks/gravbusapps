@@ -2,8 +2,6 @@ import {
   OrganizationalUnitRelationship,
   OrganizationalNode,
   EmployeeWithCountry,
-  EmployeeWithCompany,
-  EmployeeWithCostCenter,
   SunburstNode,
   HierarchyStatistics,
   HierarchyTableData,
@@ -392,7 +390,7 @@ export const generateCountryColorMap = (countries: Set<string>): CountryColorMap
   const colorMap: CountryColorMap = {}
   const countryArray = Array.from(countries).sort() // Sort for consistency
 
-  countryArray.forEach((country, index) => {
+  countryArray.forEach(country => {
     // Use hash for consistent color assignment regardless of order
     const countryHash = country.split('').reduce((hash, char) => {
       return char.charCodeAt(0) + ((hash << 5) - hash)
@@ -410,26 +408,19 @@ export const generateCompanyColorMap = (companies: Set<string>): CompanyColorMap
   const colorMap: CompanyColorMap = {}
   const companyArray = Array.from(companies).sort() // Sort for consistency
 
-  // Use different colors for companies - avoiding green and red
+  // Use different colors for companies - using design system tokens
   const COMPANY_COLORS = [
-    '#3B82F6', // Blue
-    '#8B5CF6', // Purple
-    '#06B6D4', // Cyan
-    '#F59E0B', // Amber
-    '#6366F1', // Indigo
-    '#14B8A6', // Teal
-    '#F97316', // Orange
-    '#EC4899', // Pink
-    '#64748B', // Slate
-    '#7C3AED', // Violet
-    '#0EA5E9', // Sky
-    '#D97706', // Yellow
-    '#8B5A2B', // Brown
-    '#475569', // Gray
-    '#DDA0DD' // Light Purple
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
   ]
 
-  companyArray.forEach((company, index) => {
+  companyArray.forEach(company => {
     // Use hash for consistent color assignment regardless of order
     const companyHash = company.split('').reduce((hash, char) => {
       return char.charCodeAt(0) + ((hash << 5) - hash)
@@ -447,26 +438,19 @@ export const generateCostCenterColorMap = (costCenters: Set<string>): CostCenter
   const colorMap: CostCenterColorMap = {}
   const costCenterArray = Array.from(costCenters).sort() // Sort for consistency
 
-  // Use different colors for cost centers - avoiding green and red
+  // Use different colors for cost centers - using design system tokens
   const COST_CENTER_COLORS = [
-    '#8884D8', // Light Purple
-    '#FFC658', // Golden Yellow
-    '#8DD1E1', // Light Cyan
-    '#D084D0', // Light Pink
-    '#FFBC42', // Orange-Yellow
-    '#6B5B95', // Dark Purple
-    '#FFB74D', // Light Orange
-    '#64B5F6', // Light Blue
-    '#F06292', // Pink
-    '#FFD54F', // Yellow
-    '#3B82F6', // Blue
-    '#8B5CF6', // Purple
-    '#06B6D4', // Cyan
-    '#F59E0B', // Amber
-    '#6366F1' // Indigo
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
   ]
 
-  costCenterArray.forEach((costCenter, index) => {
+  costCenterArray.forEach(costCenter => {
     // Use hash for consistent color assignment regardless of order
     const costCenterHash = costCenter.split('').reduce((hash, char) => {
       return char.charCodeAt(0) + ((hash << 5) - hash)

@@ -1,13 +1,11 @@
 import React, { useMemo } from 'react'
-import { Button, Card, Separator, Spinner } from '@newwork/nw-design-system'
+import { Button, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { useEmployeeDetails } from '../feedback-form/hooks/useEmployeeDetails'
 import dayjs from 'dayjs'
-
-interface FeedbackApprovalScreenProps extends BusinessAppContextProps {}
 
 type AnyObject = Record<string, any>
 
@@ -18,7 +16,7 @@ const prefixDataTestId = 'FeedbackApprovalScreen'
  * The component reads feedback data from additionalData (supports multiple shapes) and
  * uses dispatchProcessContinueEvent to continue the running process.
  */
-const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({ accessToken, userInfo, additionalData }) => {
+const FeedbackApprovalScreen: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
   // Extract feedback data from the actual structure
   const feedbackData = useMemo(() => {
     const psiTaskPayload = (additionalData as AnyObject)?.psi_taskPayload
@@ -89,7 +87,7 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({ accessT
         data-testid={formatDataTestId(prefixDataTestId, 'Error')}
       >
         <div className="gba:bg-white gba:max-w-md gba:w-full gba:p-6 gba:text-center">
-          <div className="gba:text-red-500 gba:text-lg gba:font-medium">
+          <div className="gba:text-destructive gba:text-lg gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('feedback.approval.noData', 'No feedback data available')}
           </div>
         </div>
@@ -106,7 +104,7 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({ accessT
         {/* Modal Header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:p-4">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <h2 className="gba:text-lg gba:font-semibold gba:text-gray-900">
+            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('feedback.approval.title', 'Received feedback')}
             </h2>
           </div>
@@ -117,12 +115,12 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({ accessT
           {/* From Section */}
           <div className="gba:space-y-2">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <strong className="gba:text-sm gba:text-gray-600">
+              <strong className="gba:text-sm gba:text-muted-foreground">
                 {getTranslationFromI18nKeyAndLabel('feedback.approval.from', 'From')}:
               </strong>
               <span
                 data-testid={formatDataTestId(prefixDataTestId, 'FromValue')}
-                className="gba:text-sm gba:text-gray-900"
+                className="gba:text-sm gba:text-foreground"
               >
                 {senderLoading ? (
                   <Spinner size="sm" />
@@ -138,14 +136,14 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({ accessT
           <div data-testid={formatDataTestId(prefixDataTestId, 'Card')}>
             <div
               data-testid={formatDataTestId(prefixDataTestId, 'Meta')}
-              className="gba:text-xs gba:text-gray-500 gba:mb-2"
+              className="gba:text-xs gba:text-muted-foreground gba:mb-2"
             >
               {getTranslationFromI18nKeyAndLabel('feedback.approval.feedbackPrefix', 'Date')}:
               {formattedDate ? ` ${formattedDate}` : ''}
             </div>
             <div
               data-testid={formatDataTestId(prefixDataTestId, 'Message')}
-              className="gba:text-sm gba:text-gray-700 gba:whitespace-pre-wrap"
+              className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap"
             >
               {feedbackData.text}
             </div>
@@ -153,14 +151,17 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({ accessT
 
           {/* Error Display */}
           {!feedbackData && (
-            <div data-testid={formatDataTestId(prefixDataTestId, 'Error')} className="gba:text-center gba:text-red-500">
+            <div
+              data-testid={formatDataTestId(prefixDataTestId, 'Error')}
+              className="gba:text-center gba:text-destructive"
+            >
               {getTranslationFromI18nKeyAndLabel('feedback.approval.noData', 'No feedback data available')}
             </div>
           )}
         </div>
 
         {/* Action Buttons - Fixed at bottom */}
-        <div className="gba:p-4 gba:border-t gba:border-gray-200 gba:flex gba:gap-2 gba:justify-end">
+        <div className="gba:p-4 gba:border-t gba:border-border gba:flex gba:gap-2 gba:justify-end">
           <Button
             variant="secondary"
             onClick={handleCancel}
@@ -180,7 +181,7 @@ const FeedbackApprovalScreen: React.FC<FeedbackApprovalScreenProps> = ({ accessT
           <Button
             onClick={handleAccept}
             data-testid={formatDataTestId(prefixDataTestId, 'AcceptButton')}
-            className="gba:bg-black hover:gba:bg-gray-800 gba:text-white gba:px-6 gba:py-2 gba:rounded-lg"
+            className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground gba:px-6 gba:py-2 gba:rounded-lg"
           >
             {getTranslationFromI18nKeyAndLabel('feedback.approval.accept', 'Accept')}
           </Button>

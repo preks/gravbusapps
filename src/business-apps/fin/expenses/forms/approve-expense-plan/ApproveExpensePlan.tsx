@@ -161,10 +161,8 @@ const ApproveExpensePlanContent: React.FC<BusinessAppContextProps> = ({ accessTo
   const currencyCode = expensePlan.currency?.code || 'EUR'
   const totalAmount = Number(expensePlan.totalAmount ?? 0)
   const reimbursableAmount = Number(expensePlan.reimbursableAmount ?? 0)
-  const nonReimbursableAmount = Number(expensePlan.nonReimbursableAmount ?? 0)  
-  const advancePaymentAmount = Number(
-    expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount ?? 0
-  )
+  const nonReimbursableAmount = Number(expensePlan.nonReimbursableAmount ?? 0)
+  const advancePaymentAmount = Number(expensePlan?.advancePaymentAggregate?.aggregate?.sum?.amount ?? 0)
   const { expenseAllowances: allowanceItems, expenseItems } = splitExpenseItems(expensePlan.expensePlanItem)
 
   // Derived destination data for Destination section

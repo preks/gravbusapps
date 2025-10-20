@@ -19,6 +19,7 @@ import {
   MEASUREMENT_UNIT_VERSION
 } from '../hooks/useInvestmentCatalogs'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useGetInvestmentContacts } from '@/common/data/investment'
 
 // Interface for raw GraphQL Investment data with nested specializations
 // This represents the actual structure returned by the GraphQL API before mapping
@@ -135,6 +136,12 @@ interface InvestmentOpportunityFormContextValue {
   dependentInvestmentTypesLoading: boolean
   dependentInvestmentTypesError: string | null
 
+  // Contact selection
+  contacts: SelectOption[]
+  contactsLoading: boolean
+  contactsError: string | null
+  searchContacts: (search: string) => void
+
   // Business app context for child components
   businessAppContext: BusinessAppContextProps
 }
@@ -206,6 +213,7 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
       // Relationship Information
       account: '',
       accountId: '',
+      contactIds: [], // Multiple contacts can be associated
 
       // Additional Information
       notesSummary: '',
@@ -362,6 +370,19 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
     loadMore: loadMoreEmployeePositions
   } = useEmployeePositions({
     accessToken: businessAppContext.accessToken
+  })
+
+  // Contact selection hook
+  const {
+    options: contacts,
+    loading: contactsLoading,
+    error: contactsError,
+    search: searchContacts
+  } = useGetInvestmentContacts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
   })
 
   // Convert employee position data to SelectOption format (following lead form pattern)
@@ -786,8 +807,8 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
       investmentStakeTypesHook.initialize()
       measurementUnitsHook.initialize()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [businessAppContext.accessToken]) // Only depend on accessToken, not the hook objects to avoid infinite loop
+    // Only depend on accessToken, not the hook objects to avoid infinite loop
+  }, [businessAppContext.accessToken])
 
   // Clear investment type when investment group changes (but NOT during initial data load)
   useEffect(() => {
@@ -911,6 +932,12 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
       dependentInvestmentTypesLoading: dependentInvestmentTypesHook.loadingInvestmentTypes,
       dependentInvestmentTypesError: dependentInvestmentTypesHook.errorInvestmentTypes,
 
+      // Contact selection
+      contacts,
+      contactsLoading,
+      contactsError,
+      searchContacts,
+
       // Business app context
       businessAppContext
     }),
@@ -966,6 +993,10 @@ export const OpportunityFormProvider: React.FC<InvestmentOpportunityFormProvider
       dependentInvestmentTypesHook.investmentTypes,
       dependentInvestmentTypesHook.loadingInvestmentTypes,
       dependentInvestmentTypesHook.errorInvestmentTypes,
+      contacts,
+      contactsLoading,
+      contactsError,
+      searchContacts,
       businessAppContext
     ]
   )

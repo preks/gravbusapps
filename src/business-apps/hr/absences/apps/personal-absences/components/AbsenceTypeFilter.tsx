@@ -12,27 +12,27 @@ const AbsenceTypeFilter: React.FC<AbsenceTypeFilterProps> = ({ filterOptions, ac
     <style>
       {`
         .gba\\:filter-active[data-active="true"] {
-          background-color: #000000 !important;
-          border-color: #000000 !important;
-          color: white !important;
+          background-color: var(--nw-foreground) !important;
+          border-color: var(--nw-foreground) !important;
+          color: var(--nw-background) !important;
           font-weight: 500 !important;
         }
         
         .gba\\:filter-active[data-active="true"]:hover {
-          background-color: #333333 !important;
-          border-color: #333333 !important;
-          color: white !important;
+          background-color: var(--nw-muted-foreground) !important;
+          border-color: var(--nw-muted-foreground) !important;
+          color: var(--nw-background) !important;
         }
         
         .gba\\:filter-inactive[data-active="false"] {
-          background-color: white !important;
-          border-color: #d1d5db !important;
-          color: #374151 !important;
+          background-color: var(--nw-background) !important;
+          border-color: var(--nw-border) !important;
+          color: var(--nw-foreground) !important;
         }
         
         .gba\\:filter-inactive[data-active="false"]:hover {
-          background-color: #f9fafb !important;
-          border-color: #9ca3af !important;
+          background-color: var(--nw-muted) !important;
+          border-color: var(--nw-muted-foreground) !important;
         }
       `}
     </style>

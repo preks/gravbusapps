@@ -219,7 +219,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     <div>
       <PageLayout
         variant="default"
-        headerIcon={<CalendarOutlined className="gba:text-blue-600 gba:text-3xl" />}
+        headerIcon={<CalendarOutlined className="gba:text-info gba:text-3xl" />}
         headerLabel={'My Team'}
         contentHeader={
           <Row gutter={[16, 16]} className="gba:pb-6">

@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -33,7 +34,7 @@ export interface ContactActivityResponse {
   SalesActivity: ContactActivityData[]
 }
 
-export const GET_CONTACT_ACTIVITIES = (variables: ContactActivityQueryVariables): string => {
+export const GET_CONTACT_ACTIVITIES = (): string => {
   return `
     query GetContactActivities($contactId: uuid!) {
       SalesActivity(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {
@@ -66,16 +67,19 @@ export const GET_CONTACT_ACTIVITIES = (variables: ContactActivityQueryVariables)
 export const useGetContactActivities = (context: BusinessAppContextProps) => {
   const graphQLClient = useGraphQLClient(context.accessToken)
 
-  const fetchContactActivities = async (variables: ContactActivityQueryVariables) => {
-    const query = GET_CONTACT_ACTIVITIES(variables)
-    try {
-      const result = await graphQLClient.request<ContactActivityResponse>(query, variables)
-      return result
-    } catch (error) {
-      console.error('Error fetching contact activities:', error)
-      throw error
-    }
-  }
+  const fetchContactActivities = useCallback(
+    async (variables: ContactActivityQueryVariables) => {
+      const query = GET_CONTACT_ACTIVITIES()
+      try {
+        const result = await graphQLClient.request<ContactActivityResponse>(query, variables)
+        return result
+      } catch (error) {
+        console.error('Error fetching contact activities:', error)
+        throw error
+      }
+    },
+    [graphQLClient]
+  )
 
   return { fetchContactActivities }
 }

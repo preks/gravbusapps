@@ -49,7 +49,7 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
       className="gba:flex gba:flex-col gba:gap-4 gba:mb-6 gba:sm:flex-row gba:sm:items-center gba:sm:justify-between"
     >
       <div className="gba:w-full gba:sm:w-64 gba:relative">
-        <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:text-gray-400">
+        <div className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:pointer-events-none gba:text-muted-foreground">
           <SearchOutlined />
         </div>
         <DebouncedInput
@@ -57,7 +57,7 @@ const SalarySearch: React.FC<SalarySearchProps> = ({ onSearch, onFilterChange, o
           placeholder={getTranslationFromI18nKeyAndLabel('salary.search.placeholder', 'Search salaries...')}
           onChange={handleSearchChange}
           data-testid="salary-search-input"
-          className={`gba:pl-10 gba:pr-4 gba:py-2 gba:w-full gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500 gba:focus:border-transparent ${loading ? 'gba:opacity-50 gba:cursor-not-allowed' : ''}`}
+          className={`gba:pl-10 gba:pr-4 gba:py-2 gba:w-full gba:border gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-focus gba:focus:border-transparent ${loading ? 'gba:opacity-50 gba:cursor-not-allowed' : ''}`}
         />
       </div>
 
