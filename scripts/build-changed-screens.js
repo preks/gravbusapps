@@ -11,7 +11,6 @@ import path, { dirname } from 'path'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
 import dotenv from '@dotenvx/dotenvx'
-import { glob } from 'glob'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)

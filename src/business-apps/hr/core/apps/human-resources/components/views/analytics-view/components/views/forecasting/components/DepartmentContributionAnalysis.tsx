@@ -4,9 +4,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDepartmentMonthlySalaryStack } from '../../../../hooks/useDepartmentMonthlySalaryStack'
 
-interface DepartmentContributionAnalysisProps extends BusinessAppContextProps {}
-
-const DepartmentContributionAnalysis: React.FC<DepartmentContributionAnalysisProps> = props => {
+const DepartmentContributionAnalysis: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data, loading } = useDepartmentMonthlySalaryStack(props, year)
   if (loading) {
@@ -30,7 +28,7 @@ const DepartmentContributionAnalysis: React.FC<DepartmentContributionAnalysisPro
       <div className="gba:flex gba:flex-row gba:gap-16 gba:w-full gba:py-2">
         {/* Current Month Breakdown */}
         <div className="gba:w-1/2">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-2">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">
             {getTranslationFromI18nKeyAndLabel('current_month_breakdown', 'Current Month Breakdown')}
           </div>
           {sorted.map(dep => (
@@ -43,15 +41,17 @@ const DepartmentContributionAnalysis: React.FC<DepartmentContributionAnalysisPro
                 className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
                 style={{ background: dep.color }}
               ></span>
-              <span className="gba:w-32 gba:text-xs gba:text-gray-800">{dep.name}</span>
+              <span className="gba:w-32 gba:text-xs gba:text-foreground">{dep.name}</span>
               <span className="gba:w-20 gba:text-right gba:font-medium">${(dep.salary / 1e3).toFixed(0)}K</span>
-              <span className="gba:w-12 gba:text-xs gba:text-gray-500 gba:text-right">{dep.percent.toFixed(1)}%</span>
+              <span className="gba:w-12 gba:text-xs gba:text-muted-foreground gba:text-right">
+                {dep.percent.toFixed(1)}%
+              </span>
             </div>
           ))}
         </div>
         {/* Growth Trends */}
         <div className="gba:w-1/2">
-          <div className="gba:text-xs gba:text-gray-500 gba:mb-2">
+          <div className="gba:text-xs gba:text-muted-foreground gba:mb-2">
             {getTranslationFromI18nKeyAndLabel('growth_trends', 'Growth Trends')}
           </div>
           {sorted.map(dep => {
@@ -67,14 +67,14 @@ const DepartmentContributionAnalysis: React.FC<DepartmentContributionAnalysisPro
                   className="gba:inline-block gba:w-3 gba:h-3 gba:rounded-full gba:mr-2"
                   style={{ background: dep.color }}
                 ></span>
-                <span className="gba:w-32 gba:text-xs gba:text-gray-800">{dep.name}</span>
+                <span className="gba:w-32 gba:text-xs gba:text-foreground">{dep.name}</span>
                 <span
-                  className={`gba:w-20 gba:text-right gba:font-semibold ${growth >= 0 ? 'gba:text-green-600' : 'gba:text-red-600'}`}
+                  className={`gba:w-20 gba:text-right gba:font-semibold ${growth >= 0 ? 'gba:text-success' : 'gba:text-destructive'}`}
                 >
                   {growth >= 0 ? '+' : ''}
                   {growth.toFixed(1)}%
                 </span>
-                <span className="gba:text-xs gba:text-gray-500 gba:ml-2">
+                <span className="gba:text-xs gba:text-muted-foreground gba:ml-2">
                   YTD {getTranslationFromI18nKeyAndLabel('growth', 'growth')}
                 </span>
               </div>

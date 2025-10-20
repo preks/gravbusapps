@@ -1,30 +1,6 @@
 import React, { useState, useCallback } from 'react'
-import {
-  Row,
-  Col,
-  Card,
-  Table,
-  Statistic,
-  Tag,
-  Space,
-  Typography,
-  Alert,
-  Input,
-  Select,
-  Button,
-  Tooltip,
-  Modal
-} from 'antd'
-import {
-  PiPackage,
-  PiShoppingCart,
-  PiTag,
-  PiCurrencyEur,
-  PiMagnifyingGlass,
-  PiArrowUp,
-  PiArrowDown,
-  PiMinus
-} from 'react-icons/pi'
+import { Row, Col, Card, Table, Statistic, Tag, Space, Typography, Alert, Select, Button, Tooltip, Modal } from 'antd'
+import { PiPackage, PiShoppingCart, PiTag, PiCurrencyEur, PiArrowUp, PiArrowDown, PiMinus } from 'react-icons/pi'
 import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'

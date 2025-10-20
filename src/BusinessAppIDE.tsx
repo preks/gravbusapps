@@ -91,18 +91,23 @@ for (const path in modulePatterns) {
       continue
     }
 
-    // Only include paths that are actual apps (typically in "apps", "forms", or "popups" directories)
-    const hasAppsFormsOrPopups = pathParts.some(part => part === 'apps' || part === 'forms' || part === 'popups')
-    if (!hasAppsFormsOrPopups) {
+    // Only include paths that are actual apps (typically in "apps", "forms", "popups", or "records" directories)
+    const hasAppsFormsPopupsOrRecords = pathParts.some(
+      part => part === 'apps' || part === 'forms' || part === 'popups' || part === 'records'
+    )
+    if (!hasAppsFormsPopupsOrRecords) {
       continue
     }
 
     // Determine the type based on the parent directory
+    // Records are treated as apps (full-screen, not dialogs)
     let componentType: 'app' | 'form' | 'popup' = 'app'
     if (pathParts.includes('forms')) {
       componentType = 'form'
     } else if (pathParts.includes('popups')) {
       componentType = 'popup'
+    } else if (pathParts.includes('records')) {
+      componentType = 'app' // Records display as full-screen apps
     }
 
     let subModule = ''
@@ -475,7 +480,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     try {
       JSON.parse(value)
       setUserInfoError('')
-    } catch (e: any) {
+    } catch {
       setUserInfoError('Invalid JSON format')
     }
   }
@@ -489,7 +494,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
     try {
       JSON.parse(value)
       setAdditionalDataError('')
-    } catch (e: any) {
+    } catch {
       setAdditionalDataError('Invalid JSON format')
     }
   }

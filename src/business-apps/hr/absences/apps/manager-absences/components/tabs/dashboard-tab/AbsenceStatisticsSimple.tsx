@@ -22,7 +22,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.teamMembersAway,
       prefix: <PiUsers />,
-      color: '#722ed1',
+      color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.employees_away_today',
@@ -51,7 +51,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.pendingRequests,
       prefix: <PiClock />,
-      color: '#faad14',
+      color: 'var(--nw-warning)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.requests_awaiting_approval',
@@ -80,7 +80,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.sickAbsencesByMonth.count,
       prefix: <PiFirstAid />,
-      color: '#ff4d4f',
+      color: 'var(--nw-destructive)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.most_requests_month',
@@ -118,7 +118,7 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
       ),
       value: statistics.upcomingAbsences,
       prefix: <PiCalendar />,
-      color: '#1677ff',
+      color: 'var(--nw-info)',
       span: { xs: 24, sm: 12, lg: 6 },
       description: getTranslationFromI18nKeyAndLabel(
         'lowcoder:absence_management_hub_manager.dashboard.future_scheduled_absences',

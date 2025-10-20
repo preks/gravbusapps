@@ -1,7 +1,6 @@
 import { useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { JobProfile } from '../types'
 
 export interface QueryVariablesJobProfile {
   jobProfileId?: string

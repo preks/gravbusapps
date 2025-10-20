@@ -255,11 +255,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
       {data.map(item => (
         <div
           key={`${item.label}-${item.value}`}
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-gray-50 gba:rounded-md gba:transition-colors"
+          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors"
           data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-gray-500 gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-gray-800">{item.value || '-'}</span>
+          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
+          <span className="gba:font-medium gba:text-foreground">{item.value || '-'}</span>
         </div>
       ))}
     </div>
@@ -272,7 +272,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         <div className="gba:font-bold gba:text-2xl" data-testid="employment-title">
           {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.employment_overview', 'Employment Data')}
         </div>
-        <div className="gba:text-gray-500 gba:text-lg gba:mb-4" data-testid="employment-description">
+        <div className="gba:text-muted-foreground gba:text-lg gba:mb-4" data-testid="employment-description">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:hr_employee.employment_description',
             'View employment information and working conditions'
@@ -284,11 +284,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         {/* Employment Profile Card */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-profile"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Employment Profile</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Employment Profile</h3>
           </div>
           {renderDataItems(organizationalData)}
         </Card>
@@ -296,11 +296,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         {/* Working Conditions Card */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-conditions"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Conditions</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Conditions</h3>
             {isSelfView && (
               <AppActionMenu
                 data-testid="employee-working-conditions-edit-button"
@@ -322,11 +322,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         {/* Working Hours Card */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-hours"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Working Hours</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Working Hours</h3>
             {isSelfView && (
               <AppActionMenu
                 data-testid="employee-working-hours-edit-button"
@@ -348,11 +348,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         {/* Payroll Card */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-payroll"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Payroll</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Payroll</h3>
           </div>
           {renderDataItems(payrollData)}
         </Card>
@@ -360,11 +360,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken, is
         {/* Tax Information Card */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="employment-section-tax"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Tax Information</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Tax Information</h3>
           </div>
           {renderDataItems(taxInformationData)}
         </Card>

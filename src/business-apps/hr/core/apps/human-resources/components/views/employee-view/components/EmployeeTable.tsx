@@ -207,10 +207,10 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
             className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:text-center"
             data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'error-state')}
           >
-            <div className="gba:text-red-500 gba:text-lg gba:font-medium gba:mb-2">
+            <div className="gba:text-destructive gba:text-lg gba:font-medium gba:mb-2">
               {t('employee.error.title', 'Error Loading Employees')}
             </div>
-            <div className="gba:text-gray-600 gba:mb-4">{error.message}</div>
+            <div className="gba:text-muted-foreground gba:mb-4">{error.message}</div>
             <Button
               variant="default"
               onClick={retry}
@@ -231,9 +231,9 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'table')}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
+              <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[30%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[30%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('name')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'name-header')}
                 >
@@ -243,7 +243,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('jobTitle')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'job-title-header')}
                 >
@@ -253,7 +253,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('organizationalUnit')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'organizational-unit-header')}
                 >
@@ -263,7 +263,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('employmentType')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'employment-type-header')}
                 >
@@ -273,7 +273,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => handleSort('contractType')}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'contract-type-header')}
                 >
@@ -283,7 +283,7 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[5%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6"
+                  className="gba:w-[5%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6"
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, 'actions-header')}
                 >
                   ACTIONS
@@ -296,8 +296,8 @@ export const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   key={employee.id}
                   onClick={() => handleRowClick(employee)}
                   data-testid={formatDataTestId(DATA_TEST_ID_PREFIX, `row-${employee.id}`)}
-                  className={`gba:cursor-pointer hover:gba:bg-gray-50 ${
-                    selectedEmployeeId === employee.id ? 'gba:bg-gray-100' : ''
+                  className={`gba:cursor-pointer hover:gba:bg-muted ${
+                    selectedEmployeeId === employee.id ? 'gba:bg-muted' : ''
                   }`}
                 >
                   {/* Employee Name with Avatar */}

@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getMonthlyAggregates } from '../../../utils/getMonthlyAggregates'
+import { useStatisticsData } from './StatisticsDataProvider'
 
 interface OrgWorkPatternsPanelProps {
   absences: any[]
@@ -43,30 +42,10 @@ const getDayLabel = (index: number): string => {
   return getTranslationFromI18nKeyAndLabel(dayKeys[index], dayNames[index])
 }
 
-export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ absences, accessToken }) => {
+export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ absences }) => {
   const currentYear = dayjs().year()
-  const graphQLClient = useGraphQLClient(accessToken as any)
-  const [monthlyServer, setMonthlyServer] = useState<number[] | null>(null)
-
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        if (!accessToken) return
-        const { byMonthCount } = await getMonthlyAggregates(graphQLClient, currentYear)
-        if (mounted) {
-          setMonthlyServer(byMonthCount)
-        }
-      } catch (e) {
-        if (mounted) {
-          setMonthlyServer(null)
-        }
-      }
-    })()
-    return () => {
-      mounted = false
-    }
-  }, [graphQLClient, accessToken, currentYear])
+  const { data } = useStatisticsData()
+  const monthlyServer = data?.monthlyCounts || null
 
   const { dayCounts, dayPercents, monthlyCounts, monthlyPercents, peakMonth, lowMonth } = useMemo(() => {
     const approved = (absences || []).filter((a: any) => String(a.status || '').toUpperCase() === 'APPROVED')
@@ -109,8 +88,10 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
 
   const renderBar = (value: number, percent: number) => (
     <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
-      <div className="gba:flex-1 gba:bg-gray-200 gba:rounded">
-        <div style={{ width: `${Math.min(100, percent)}%`, background: '#3b82f6', height: 10, borderRadius: 6 }} />
+      <div className="gba:flex-1 gba:bg-muted gba:rounded">
+        <div
+          style={{ width: `${Math.min(100, percent)}%`, background: 'var(--nw-chart-4)', height: 10, borderRadius: 6 }}
+        />
       </div>
       <div className="gba:w-10 gba:text-right gba:text-sm">{value}</div>
       <div className="gba:w-10 gba:text-right gba:text-sm">{percent}%</div>
@@ -137,14 +118,17 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
             <div className="gba:space-y-2.5">
               {Array.from({ length: 7 }, (_, i) => (
                 <div key={i} className="gba:flex gba:items-center gba:gap-3" data-testid={`work-patterns-dow-${i}`}>
-                  <div className="gba:w-10 gba:text-sm gba:text-gray-700" data-testid={`work-patterns-dow-label-${i}`}>
+                  <div
+                    className="gba:w-10 gba:text-sm gba:text-foreground"
+                    data-testid={`work-patterns-dow-label-${i}`}
+                  >
                     {getDayLabel(i)}
                   </div>
                   {renderBar(dayCounts[i], dayPercents[i])}
                 </div>
               ))}
             </div>
-            <div className="gba:text-xs gba:text-gray-500 gba:mt-2">{`${getTranslationFromI18nKeyAndLabel(
+            <div className="gba:text-xs gba:text-muted-foreground gba:mt-2">{`${getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_manager.most_common',
               'Most common'
             )}: ${getDayLabel(dayPercents.indexOf(Math.max(...dayPercents)))} (${Math.max(...dayPercents)}% ${getTranslationFromI18nKeyAndLabel(
@@ -165,7 +149,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
               {Array.from({ length: 12 }, (_, i) => (
                 <div key={i} className="gba:flex gba:items-center gba:gap-3" data-testid={`work-patterns-month-${i}`}>
                   <div
-                    className="gba:w-10 gba:text-sm gba:text-gray-700"
+                    className="gba:w-10 gba:text-sm gba:text-foreground"
                     data-testid={`work-patterns-month-label-${i}`}
                   >
                     {getMonthLabel(i)}
@@ -174,7 +158,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
                 </div>
               ))}
             </div>
-            <div className="gba:text-xs gba:text-gray-500 gba:mt-2">{`${getTranslationFromI18nKeyAndLabel(
+            <div className="gba:text-xs gba:text-muted-foreground gba:mt-2">{`${getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_hub.work_patterns_peak_season',
               'Peak season'
             )}: ${peakMonth.label} (${peakMonth.percent}% ${getTranslationFromI18nKeyAndLabel(
@@ -190,7 +174,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
           </div>
         </div>
         <div
-          className="gba:mt-4 gba:text-xs gba:bg-blue-50 gba:border gba:border-blue-100 gba:rounded gba:p-3"
+          className="gba:mt-4 gba:text-xs gba:bg-info-secondary gba:border gba:border-info gba:rounded gba:p-3"
           data-testid="work-patterns-seasonal-insight"
         >
           {`${getTranslationFromI18nKeyAndLabel(
@@ -213,7 +197,7 @@ export const OrgWorkPatternsPanel: React.FC<OrgWorkPatternsPanelProps> = ({ abse
             'Consider staffing adjustments during peak periods.'
           )}`}
         </div>
-        <div className="gba:mt-2 gba:text-xs gba:text-gray-600" data-testid="work-patterns-status-note">
+        <div className="gba:mt-2 gba:text-xs gba:text-muted-foreground" data-testid="work-patterns-status-note">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_hub.statuses_considered_approved_counts',
             'Statuses considered: Approved; values represent request counts.'

@@ -260,7 +260,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
 
   const handleViewExpenseRequestDetails = useCallback((item: (typeof items)[0]) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: item.id
+      expenseRequestId: item.id,
+      referrer: '/platform/fin/expenses/personal-expenses?tab=expense-requests'
     })
     navigateTo(url)
   }, [])
@@ -720,6 +721,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
   return (
     <>
       <DataContainer
+        sidebarScrollable={false}
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',

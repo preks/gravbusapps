@@ -1,4 +1,5 @@
 import { EnhancedAbsence, EmployeeAbsence } from '../types'
+import { getAbsenceStatusBadgeVariant as getCentralizedStatusBadgeVariant } from '../../../utils/absenceStatusUtils'
 
 /**
  * Get employee display name from absence data
@@ -18,23 +19,12 @@ export const getAbsenceGroup = (absence: EnhancedAbsence): string => {
 }
 
 /**
- * Get status badge variant for consistent styling
+ * Get status badge variant for consistent styling - now using centralized utility
  */
 export const getStatusBadgeVariant = (
   status: string
 ): 'success' | 'warning' | 'destructive' | 'secondary' | 'default' => {
-  switch (status) {
-    case 'APPROVED':
-      return 'success'
-    case 'PENDING':
-      return 'warning'
-    case 'REJECTED':
-      return 'destructive'
-    case 'CANCELLED':
-      return 'secondary'
-    default:
-      return 'default'
-  }
+  return getCentralizedStatusBadgeVariant(status) as 'success' | 'warning' | 'destructive' | 'secondary' | 'default'
 }
 
 /**

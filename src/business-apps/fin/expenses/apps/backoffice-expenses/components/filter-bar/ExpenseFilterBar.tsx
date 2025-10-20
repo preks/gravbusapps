@@ -1,17 +1,8 @@
-import React, { useState, useEffect } from 'react'
-import {
-  Input,
-  Label,
-  Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@newwork/nw-design-system'
+import React, { useState } from 'react'
+import { Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFilterData } from '../../hooks/useFilterData'
+import { useFilterData, type OrganizationalUnit, type Currency } from '../../hooks/useFilterData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface FilterOptions {
@@ -21,9 +12,19 @@ export interface FilterOptions {
   additionalFilters?: Record<string, any>
 }
 
+interface FilterData {
+  organizationalUnits: OrganizationalUnit[]
+  currencies: Currency[]
+  mostUsedCurrency: string | null
+  loading: boolean
+  error: Error | null
+  refetch: () => Promise<void>
+}
+
 interface ExpenseFilterBarProps extends Pick<BusinessAppContextProps, 'accessToken'> {
   onFiltersChange: (filters: FilterOptions) => void
   currentFilters?: FilterOptions // Add controlled filters prop
+  filterData?: FilterData // ⚡ PERFORMANCE: Accept shared filter data from parent
   'data-testid'?: string
 }
 
@@ -31,16 +32,14 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
   accessToken,
   onFiltersChange,
   currentFilters,
+  filterData: propsFilterData,
   'data-testid': dataTestId = 'expense-filter-bar'
 }) => {
-  // Fetch real organizational units and currencies
-  const {
-    organizationalUnits,
-    currencies,
-    mostUsedCurrency,
-    loading: filterDataLoading,
-    error
-  } = useFilterData({ accessToken })
+  // ⚡ PERFORMANCE: Use filter data from parent if provided, otherwise fetch locally
+  // Parent (Dashboard) now ensures this component only renders with valid accessToken
+  const localFilterData = useFilterData({ accessToken })
+  const filterData = propsFilterData || localFilterData
+  const { organizationalUnits, currencies, loading: filterDataLoading } = filterData
 
   // Use controlled filters from parent, or fallback to internal state
   const [internalFilters, setInternalFilters] = useState<FilterOptions>({
@@ -105,34 +104,8 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
     onFiltersChange(filtersForParent)
   }
 
-  const clearAllFilters = () => {
-    const clearedFilters: FilterOptions = {
-      department: 'all',
-      currency: '', // Reset to empty, let dashboard handle default
-      period: 'monthly' as const, // Reset to default
-      additionalFilters: {}
-    }
-
-    // Update internal state if not controlled by parent
-    if (!currentFilters) {
-      setInternalFilters(clearedFilters)
-    }
-
-    // Send cleared state to parent
-    const clearedFiltersForParent = {
-      department: '',
-      currency: '', // Let dashboard handle default
-      period: 'monthly' as const,
-      additionalFilters: {}
-    }
-    onFiltersChange(clearedFiltersForParent)
-  }
-
   return (
-    <div
-      className="gba:flex gba:items-center gba:gap-4 gba:py-4 gba:px-6 gba:bg-gray-50 gba:border-b gba:border-gray-200"
-      data-testid={dataTestId}
-    >
+    <div className="gba:flex gba:items-center gba:gap-4 gba:py-2" data-testid={dataTestId}>
       {/* Filters - Horizontal Layout */}
       <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1">
         {/* Department Filter */}
@@ -143,7 +116,7 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
             disabled={filterDataLoading}
             data-testid="department-filter-select"
           >
-            <SelectTrigger className="gba:w-[180px] gba:border-gray-300">
+            <SelectTrigger className="gba:w-[180px] gba:border-border">
               <SelectValue
                 placeholder={
                   filterDataLoading
@@ -156,9 +129,14 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
               />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
+              <SelectItem value="all" data-testid="department-filter-option-all">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_request_list.expense_request_filter.all_departments',
+                  'All Departments'
+                )}
+              </SelectItem>
               {organizationalUnits.map(orgUnit => (
-                <SelectItem key={orgUnit.id} value={orgUnit.id}>
+                <SelectItem key={orgUnit.id} value={orgUnit.id} data-testid={`department-filter-option-${orgUnit.id}`}>
                   {orgUnit.displayName || orgUnit.name}
                 </SelectItem>
               ))}
@@ -185,18 +163,31 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
             disabled={filterDataLoading}
             data-testid="currency-filter-select"
           >
-            <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
-              <SelectValue placeholder={filterDataLoading ? 'Loading...' : 'Filter by currency'} />
+            <SelectTrigger className="gba:w-[140px] gba:border-border">
+              <SelectValue
+                placeholder={
+                  filterDataLoading
+                    ? 'Loading...'
+                    : getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:expense_request_list.expense_request_filter.filter_by_currency',
+                        'Filter by Currency'
+                      )
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               {currencies.map(currency => (
-                <SelectItem key={currency.currencyRef} value={currency.currencyRef}>
+                <SelectItem
+                  key={currency.currencyRef}
+                  value={currency.currencyRef}
+                  data-testid={`currency-filter-option-${currency.currencyRef}`}
+                >
                   {currency.code}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {filters.currency && filters.currency !== mostUsedCurrency && (
+          {filters.currency && filters.currency !== '' && (
             <Button
               variant="ghost"
               size="sm"
@@ -217,17 +208,17 @@ const ExpenseFilterBar: React.FC<ExpenseFilterBarProps> = ({
             disabled={filterDataLoading}
             data-testid="period-filter-select"
           >
-            <SelectTrigger className="gba:w-[140px] gba:border-gray-300">
+            <SelectTrigger className="gba:w-[140px] gba:border-border">
               <SelectValue placeholder={filterDataLoading ? 'Loading...' : 'Filter by period'} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="monthly">
+              <SelectItem value="monthly" data-testid="period-filter-option-monthly">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:cards.monthly', 'Monthly')}
               </SelectItem>
-              <SelectItem value="quarterly">
+              <SelectItem value="quarterly" data-testid="period-filter-option-quarterly">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:cards.quartely', 'Quarterly')}
               </SelectItem>
-              <SelectItem value="yearly">
+              <SelectItem value="yearly" data-testid="period-filter-option-yearly">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:expense_calculation_rule_details.mileage_rule_list.mileage_expense_module.rule_period_yearly',
                   'Yearly'

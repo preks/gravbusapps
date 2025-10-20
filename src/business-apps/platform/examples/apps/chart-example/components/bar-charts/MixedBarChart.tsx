@@ -13,7 +13,7 @@ import {
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
-import { BarChart, Bar, Line, ComposedChart, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { Bar, Line, ComposedChart, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { ChartBarIcon } from '@phosphor-icons/react'
 import barChartData from '../../data/barChartData.json'
 

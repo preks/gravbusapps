@@ -21,6 +21,7 @@ export const GET_EXPENSE_REQUESTS = `
       status
       title
       totalAmount
+      totalRemainingAmount
       startDate
       endDate
       employeeId

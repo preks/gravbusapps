@@ -77,7 +77,6 @@ export const useDashboardData = ({
         }
       })
 
-      // Get absence types catalog to find AbsenceType:v1:A001
       const absenceTypesData = await catalogClient.getCatalogEntriesList(
         { catalogIdentifier: 'AbsenceType', version: 'v1' },
         {
@@ -89,7 +88,6 @@ export const useDashboardData = ({
         }
       )
 
-      // Use specific AbsenceType:v1:A001 for vacation entitlements
       const vacationType = absenceTypesData.data.find((type: any) => type.id === 'AbsenceType:v1:A001')
       const vacationGroupId = vacationType?.id
 

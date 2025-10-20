@@ -48,7 +48,6 @@ export const buildCustomerOpportunityWhereCondition = (variables: CustomerOpport
       { ownerEmployee: { displayName: { _ilike: "%${q}%" } } },
       { salesPipelineStage: { value: { _ilike: "%${q}%" } } },
       { salesPipeline: { value: { _ilike: "%${q}%" } } },
-      { pipeline: { value: { _ilike: "%${q}%" } } },
       { opportunityStatus: { value: { _ilike: "%${q}%" } } }
       ${isNumber ? `, { estimatedAmount: { _eq: ${Number(q)} } }, { winningChance: { _eq: ${Number(q)} } }` : ''}
     ]`
@@ -61,7 +60,7 @@ export const buildCustomerOpportunityWhereCondition = (variables: CustomerOpport
   if (variables.stageValues?.length)
     whereClause += `, _or: [ { stage: { _in: [${variables.stageValues.map(v => `"${v}"`).join(', ')}] } }, { salesPipelineStage: { value: { _in: [${variables.stageValues.map(v => `"${v}"`).join(', ')}] } } } ]`
   if (variables.pipelineIds?.length)
-    whereClause += `, _or: [ { salesPipeline: { id: { _in: [${variables.pipelineIds.map(id => `"${id}"`).join(', ')}] } } }, { pipeline: { id: { _in: [${variables.pipelineIds.map(id => `"${id}"`).join(', ')}] } } } ]`
+    whereClause += `, salesPipeline: { id: { _in: [${variables.pipelineIds.map(id => `"${id}"`).join(', ')}] } }`
   if (variables.statusIds?.length)
     whereClause += `, opportunityStatus: { id: { _in: [${variables.statusIds.map(id => `"${id}"`).join(', ')}] } }`
   if (variables.currencyIds?.length)

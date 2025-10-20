@@ -9,23 +9,23 @@ import { SpendingOverview, ActionFeed, QuickActionCards, PersonalExpenseFilterBa
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../utils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { PERIOD_TYPE } from '../../../constants/periodTypes'
 
-interface ExpenseDashboardTabProps extends BusinessAppContextProps {}
-
-const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
+const ExpenseDashboardTab: React.FC<BusinessAppContextProps> = props => {
   const [filters, setFilters] = useState<{ currency?: string; period: 'monthly' | 'quarterly' | 'yearly' }>({
     currency: undefined,
-    period: 'monthly'
+    period: 'quarterly'
   })
   const { stats, isLoading, error } = useGetExpenseDashboard(props, filters)
+  const [hoveredWidgetKey, setHoveredWidgetKey] = useState<string | null>(null)
   const chartView = useMemo(() => {
     switch (filters.period) {
-      case 'yearly':
-        return 'Yearly'
-      case 'quarterly':
-        return 'Quarterly'
+      case PERIOD_TYPE.YEARLY:
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.yearly', 'Yearly')
+      case PERIOD_TYPE.QUARTERLY:
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.quarterly', 'Quarterly')
       default:
-        return 'Monthly'
+        return getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.monthly', 'Monthly')
     }
   }, [filters.period])
 
@@ -40,7 +40,9 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
       try {
         // Persist filter for items tab to pick up
         sessionStorage.setItem('expenseItemsFilter', 'created')
-      } catch {}
+      } catch (err) {
+        console.warn('Failed to persist expenseItemsFilter to sessionStorage', err)
+      }
       const url = buildPlatformUrl('/platform/fin/expenses/unallocated-expense-items', {
         status: 'CREATED'
       })
@@ -131,10 +133,20 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
         description: getTranslationFromI18nKeyAndLabel(
           'lowcoder:personal_expenses.unlinked_items',
           'Expense items not linked to a request'
-        )
+        ),
+        onClick: () => handleWidgetClick('unallocated-expenses')
       }
     ]
   }, [stats])
+
+  // Declaratively toggle pointer when hovering the Unallocated Expenses card
+  const handleMouseOver = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement
+    const cardEl = target.closest('[data-widget-key]') as HTMLElement | null
+    const key = cardEl?.getAttribute('data-widget-key') || null
+    setHoveredWidgetKey(key)
+  }
+  const handleMouseLeave = () => setHoveredWidgetKey(null)
 
   return (
     <div className="gba:space-y-6 gba:w-full" data-testid="expense-dashboard-content">
@@ -145,7 +157,12 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
         currentFilters={filters}
         data-testid="personal-expense-dashboard-filter-bar"
       />
-      <div data-testid="dashboard-statistics-section">
+      <div
+        data-testid="dashboard-statistics-section"
+        className={hoveredWidgetKey === 'unallocated-expenses' ? 'gba:cursor-pointer' : ''}
+        onMouseOver={handleMouseOver}
+        onMouseLeave={handleMouseLeave}
+      >
         <WidgetGroup
           widgets={dashboardWidgets}
           isLoading={isLoading}

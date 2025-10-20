@@ -6,7 +6,6 @@ import UploadComponent from '../components/UploadComponent'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
 import { useForm } from 'react-hook-form'
-import { Separator, Button } from '@newwork/nw-design-system'
 import type { PersonalDataFormValues, CatalogEntry } from './types'
 import NamesGroup from './components/NamesGroup'
 import BirthAndGenderGroup from './components/BirthAndGenderGroup'
@@ -15,14 +14,10 @@ import QualificationFields from './components/QualificationFields'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-// import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState';
-import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-
-export interface ChangePersonalDataFormProps extends BusinessAppContextProps {}
 
 // form values type moved to types.ts
 
-const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ accessToken, additionalData }) => {
+const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
   const [fileList, setFileList] = useState<any[]>([])
   const { data } = useChangePersonalData()
 
@@ -174,10 +169,10 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="flw_changePersonalData_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6"/>
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0 gba:[&>div[data-testid='change-personal-data']]:!px-0"
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0"
         data-testid="change-personal-data-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -187,11 +182,13 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
           form={form as any}
           formData={normalizedDefaults}
           submitEventType="pse_submit"
-          onCancel={() => {
-            form.reset(normalizedDefaults)
-            initialRef.current = normalizedDefaults
-          }}
-          customFormLayout
+          cancelEventType="pse_abort"
+          cancelButtonText={getTranslationFromI18nKeyAndLabel(
+            'lowcoder:create_expense_request.initiate_cancel_button',
+            'Cancel'
+          )}
+          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
+          isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
           handlePreSubmit={async values => {
             let uploadedEmployeeDocumentId: string | undefined
             try {
@@ -247,7 +244,7 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
                     uploadedEmployeeDocumentId = undefined
                   })
               }
-            } catch (e) {
+            } catch {
               uploadedEmployeeDocumentId = undefined
             }
 
@@ -305,7 +302,6 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
             return payload
           }}
           data-testid="change-personal-data"
-          submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
         >
           <div className="gba:flex-1 gba:space-y-4" data-testid="change-personal-data-groups">
             {/* Group 1: Names */}
@@ -342,56 +338,13 @@ const ChangePersonalDataContent: React.FC<ChangePersonalDataFormProps> = ({ acce
               )}
             />
           </div>
-
-          <div className="gba:flex-grow" data-testid="change-personal-data-spacer" />
-
-          <Separator className="gba:mt-4 gba:mb-4" data-testid="change-personal-data-divider" />
-
-          <div
-            className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mt-auto gba:pt-4"
-            data-testid="change-personal-data-actions-wrapper"
-          >
-            <div className="gba:flex gba:gap-2" data-testid="change-personal-data-actions-left">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  dispatchProcessContinueEvent('pse_abort', {
-                    event: 'pse_abort',
-                    pso_exitStrategy: 'abort',
-                    pso_completeNotification: {
-                      type: 'error',
-                      messageKey: getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:absence_module.toast_notification_cancel_create_absence',
-                        'The action has been canceled.'
-                      )
-                    }
-                  })
-                  form.reset(defaultValues)
-                }}
-                data-testid="flw_changePersonalData_btnCancel"
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_cancel_button', 'Cancel')}
-              </Button>
-            </div>
-            <div className="gba:flex gba:gap-2" data-testid="change-personal-data-actions-right">
-              <Button
-                type="submit"
-                variant="default"
-                disabled={!form.formState.isValid || isUnchangedNow}
-                data-testid="flw_changePersonalData_btnSubmit"
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
-              </Button>
-            </div>
-          </div>
         </AppActionForm>
       </div>
     </div>
   )
 }
 
-export const ChangePersonalData: React.FC<ChangePersonalDataFormProps> = context => {
+export const ChangePersonalData: React.FC<BusinessAppContextProps> = context => {
   return (
     <>
       <ChangePersonalDataProvider {...context}>

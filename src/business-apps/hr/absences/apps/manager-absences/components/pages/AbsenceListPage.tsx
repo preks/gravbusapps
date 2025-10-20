@@ -171,7 +171,11 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = props => {
 
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
       setCurrentPage(1)
     },
     [addFilter, removeFilter]
@@ -314,9 +318,9 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = props => {
   }
 
   return (
-    <div className="gba:min-h-screen gba:bg-gray-50" data-testid="absence-list-page">
+    <div className="gba:min-h-screen gba:bg-background" data-testid="absence-list-page">
       {/* Header */}
-      <div className="gba:bg-white gba:border-b gba:border-gray-200 gba:px-6 gba:py-4">
+      <div className="gba:bg-primary-foreground gba:border-b gba:border gba:px-6 gba:py-4">
         <div className="gba:space-y-4">
           {/* Back Button */}
           <Button
@@ -334,10 +338,10 @@ export const AbsenceListPage: React.FC<AbsenceListPageProps> = props => {
 
           {/* Title and Subtitle */}
           <div>
-            <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900" data-testid="absence-list-page-title">
+            <h1 className="gba:text-2xl gba:font-bold gba:text-foreground" data-testid="absence-list-page-title">
               {getPageTitle()}
             </h1>
-            <p className="gba:text-gray-600 gba:mt-1" data-testid="absence-list-page-subtitle">
+            <p className="gba:text-muted-foreground gba:mt-1" data-testid="absence-list-page-subtitle">
               {getPageDescription()}
             </p>
           </div>

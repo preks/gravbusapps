@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input, Typography } from 'antd'
-import { RiSettings4Fill, RiSearchLine } from '@remixicon/react'
+import { RiSearchLine } from '@remixicon/react'
 import { PiUsersThreeDuotone } from 'react-icons/pi'
 import { HrSettingsCard, HrSettingsCardProps } from './components/HrSettingsCard'
 import { useHrSettingsCards } from './hooks/useHrSettingsCards'
-import { cn } from '@/common/utils/cn'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface HrSettingsProps {
   className?: string
@@ -41,13 +41,13 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
 
   return (
     <PageLayout
-      headerIcon={<PiUsersThreeDuotone color="#254469" />}
-      headerLabel={t('hr.hr_settings')}
+      headerIcon={<PiUsersThreeDuotone color="var(--nw-decorative)" />}
+      headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
       className={className}
       pageHeaderRight={
         <Input
-          prefix={<RiSearchLine style={{ color: '#9ca3af' }} />}
-          placeholder={t('common.search_placeholder')}
+          prefix={<RiSearchLine className="gba:text-muted-foreground" />}
+          placeholder={getTranslationFromI18nKeyAndLabel('translation:actions.search', 'Search')}
           style={{ maxWidth: '320px' }}
           allowClear
           value={searchTerm}
@@ -59,7 +59,7 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
         <div
           data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}`}
           style={{
-            background: 'linear-gradient(to bottom, #f9fafb, #f3f4f6)',
+            background: 'var(--gradient-decorative-1)',
             minHeight: '100%',
             padding: '32px'
           }}
@@ -75,10 +75,10 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
                 textAlign: 'center'
               }}
             >
-              <Typography.Title level={4} style={{ color: '#6b7280', marginBottom: '8px' }}>
+              <Typography.Title level={4} className="gba:text-muted-foreground" style={{ marginBottom: '8px' }}>
                 {t('common.no_results_found')}
               </Typography.Title>
-              <Typography.Paragraph style={{ color: '#9ca3af', margin: 0 }}>
+              <Typography.Paragraph className="gba:text-muted-foreground" style={{ margin: 0 }}>
                 {t('common.try_different_search')}
               </Typography.Paragraph>
             </div>

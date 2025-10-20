@@ -368,3 +368,15 @@ export const getCurrencyForUser = `query MyQuery($activeUserLocale: String!)
       value
     }
   }}`
+
+export const getExpenseRequestTypeConfig = `query GetExpenseRequestTypeConfig($requestTypeRef: String!) {
+  CatalogEntry(where: {
+    catalog: {version: {_eq: "v1"}, identifier: {_eq: "ExpenseRequestType"}},
+    id: {_eq: $requestTypeRef}
+  }) {
+    id
+    code
+    value
+    objectValue
+  }
+}`

@@ -206,7 +206,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
               <div className="gba:flex gba:items-center gba:gap-2">
                 <PiBriefcase size={20} />
                 <span>{t('job_position.list_title', 'Job Positions')}</span>
-                <span className="gba:text-gray-500">({total})</span>
+                <span className="gba:text-muted-foreground">({total})</span>
               </div>
               <VacancyStatusToggle
                 value={vacancyFilter}
@@ -230,7 +230,7 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
                 <span className="gba:w-5 gba:h-5 gba:flex gba:items-center gba:justify-center gba:flex-none order-0 gba:grow-0">
                   <PlusSquareIcon />
                 </span>
-                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-black gba:flex-none order-1 gba:grow-0">
+                <span className="gba:h-4 gba:font-normal gba:text-sm gba:leading-4 gba:flex gba:items-center gba:text-foreground gba:flex-none order-1 gba:grow-0">
                   Add
                 </span>
               </button>

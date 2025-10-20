@@ -11,7 +11,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
+import { LineChart, Line, XAxis, CartesianGrid } from 'recharts'
 import { ChartLineIcon } from '@phosphor-icons/react'
 import lineChartData from '../../data/lineChartData.json'
 

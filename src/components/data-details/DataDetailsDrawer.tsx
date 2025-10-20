@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react'
-import { Drawer, Button } from 'antd'
+import { Drawer } from 'antd'
 
 /**
  * Navigation link item props

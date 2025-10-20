@@ -19,6 +19,12 @@ export class GraphQLClient {
   }
 
   async request<T = any>(query: string, variables?: Record<string, any>): Promise<T> {
+    if (!this.endpoint) {
+      throw new Error(
+        'GraphQL endpoint is not configured. Please check NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK environment variable.'
+      )
+    }
+
     const response = await fetch(this.endpoint, {
       method: 'POST',
       credentials: 'same-origin',
@@ -44,7 +50,7 @@ export class GraphQLClient {
         const errorText = await response.text()
         console.error('Error response body:', errorText)
         throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}\nResponse: ${errorText}`)
-      } catch (e) {
+      } catch {
         throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`)
       }
     }

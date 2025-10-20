@@ -1,20 +1,5 @@
 import React, { useState, useCallback } from 'react'
-import {
-  Row,
-  Col,
-  Card,
-  Table,
-  Statistic,
-  Tag,
-  Space,
-  Typography,
-  Alert,
-  Input,
-  Select,
-  Button,
-  Tooltip,
-  Modal
-} from 'antd'
+import { Row, Col, Card, Table, Statistic, Tag, Space, Typography, Select, Button } from 'antd'
 import {
   PiCube,
   PiStack,
@@ -36,7 +21,7 @@ import localeData from 'dayjs/plugin/localeData'
 
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { useBomData } from './hooks/useBomData'
-import { BillOfMaterials, BomFilters } from './types'
+import { BillOfMaterials } from './types'
 import { generateDemoBoms, generateDemoBomKPIData } from './hooks/demoData'
 import BomDetailView from '../bom-detail-view/BomDetailView'
 
