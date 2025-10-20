@@ -129,6 +129,38 @@ export const CHANGE_LOG_QUERIES = {
           createdAt
           createdBy
         }
+
+        # Relationship changes
+        relationship {
+          id
+          version
+          birthDate
+          email
+          employeeId
+          firstName
+          isEmergencyContact
+          phoneNumber
+          lastName
+          relationshipDocumentId
+          typeRef
+          notes
+          updatedAt
+          updatedBy
+          createdAt
+          createdBy
+        }
+
+        # Skills changes
+        skills(where: {isDeleted: {_eq: false}}, limit: $limit) {
+          id
+          level
+          isDeleted
+          synchronizedAt
+          skill {
+            id
+            name
+          }
+        }
       }
     }
   `,

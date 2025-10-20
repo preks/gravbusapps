@@ -79,6 +79,8 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
       })
       
       const response = await changeLogService.fetchChangeLogEntries(filters, 50, 0)
+
+      console.log(response.entries,' entries')
       
       setChangeLogEntries(response.entries)
       setFilteredEntries(response.entries)
@@ -211,6 +213,8 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
       </div>
     )
   }
+
+  console.log('yeah')
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-6">

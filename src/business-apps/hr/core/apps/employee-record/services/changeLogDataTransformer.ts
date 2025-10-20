@@ -67,6 +67,60 @@ export class ChangeLogDataTransformer {
       })
     }
 
+    // Transform relationship
+    if (employee.relationship) {
+      const rel = employee.relationship
+      entries.push({
+        id: `relationship-${rel.id || 'current'}`,
+        fieldName: 'Relationship',
+        fieldCategory: 'personal',
+        previousValue: null,
+        newValue: this.formatRelationshipValue(rel),
+        timestamp: rel.updatedAt || rel.createdAt || new Date().toISOString(),
+        changedBy: {
+          userId: rel.updatedBy || rel.createdBy || 'system',
+          userName: rel.updatedBy || rel.createdBy || 'System',
+          userRole: 'System'
+        },
+        changeOrigin: {
+          flowId: `relationship-${rel.id || 'current'}`,
+          flowName: 'Employee Relationship Update',
+          isSystemGenerated: true,
+          isAIGenerated: false
+        },
+        isVisible: true,
+        isMasked: false
+      })
+    }
+
+    // Transform skills
+    if (employee.skills && Array.isArray(employee.skills)) {
+      employee.skills.forEach((skillItem: any) => {
+        const skillName = skillItem?.skill?.name || 'Skill'
+        entries.push({
+          id: `skill-${skillItem.id || skillName}`,
+          fieldName: 'Skill',
+          fieldCategory: 'skills',
+          previousValue: null,
+          newValue: `${skillName}${skillItem.level ? ` (Level ${skillItem.level})` : ''}`,
+          timestamp: skillItem.synchronizedAt || new Date().toISOString(),
+          changedBy: {
+            userId: 'system',
+            userName: 'System',
+            userRole: 'System'
+          },
+          changeOrigin: {
+            flowId: `skill-${skillItem.id || skillName}`,
+            flowName: 'Employee Skill Update',
+            isSystemGenerated: true,
+            isAIGenerated: false
+          },
+          isVisible: true,
+          isMasked: false
+        })
+      })
+    }
+
     return entries.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
   }
 
@@ -89,6 +143,19 @@ export class ChangeLogDataTransformer {
   private static formatCommunicationValue(comm: any): string {
     if (!comm) return 'N/A'
     return comm.value || 'N/A'
+  }
+
+  private static formatRelationshipValue(rel: any): string {
+    if (!rel) return 'N/A'
+    const parts: string[] = []
+    const fullName = [rel.firstName, rel.lastName].filter(Boolean).join(' ')
+    if (fullName) parts.push(fullName)
+    if (rel.typeRef) parts.push(`Type: ${rel.typeRef}`)
+    if (rel.isEmergencyContact) parts.push('Emergency Contact')
+    if (rel.phoneNumber) parts.push(`Phone: ${rel.phoneNumber}`)
+    if (rel.email) parts.push(`Email: ${rel.email}`)
+    if (rel.birthDate) parts.push(`Birth: ${rel.birthDate}`)
+    return parts.join(' | ') || 'N/A'
   }
 
   /**

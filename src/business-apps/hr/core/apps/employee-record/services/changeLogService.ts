@@ -1,6 +1,6 @@
 import { ChangeLogEntry, ChangeLogFilters } from '../components/tabs/ChangeLogTab'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { env } from '@/utils/env-vars.utils'
+import { env } from '@/common/env/EnvUtils'
 import ChangeLogDataTransformer from './changeLogDataTransformer'
 import ChangeLogVisibilityRules from './changeLogVisibilityRules'
 import { CHANGE_LOG_QUERIES } from './changeLogQueries'
