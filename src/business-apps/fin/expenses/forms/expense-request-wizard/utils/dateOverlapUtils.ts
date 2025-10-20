@@ -73,7 +73,7 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslationFromI18nKeyAndLabel(
       'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_plan_info_message',
-      `There is an existing plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
+      `There is an existing plan {{planName}} from {{fromDate}} to {{toDate}} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
       {
         planName: expensePlan.title,
         fromDate: expensePlanTimeStampStart,
