@@ -6,6 +6,7 @@ import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment'
 import { formatCompactNumber } from '@/common/utils/numberFormatter'
 
+
 interface RealEstateAnalyticsChartsProps {
   chartData: {
     occupancyData: any[]

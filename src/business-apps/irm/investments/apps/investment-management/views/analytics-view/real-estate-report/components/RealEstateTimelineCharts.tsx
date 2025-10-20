@@ -6,6 +6,20 @@ import { ChartLineUpIcon, TrendUpIcon, CalendarIcon } from '@phosphor-icons/reac
 import { formatCurrency } from '@/common/data/investment'
 import { formatCompactNumber } from '@/common/utils/numberFormatter'
 
+// Format large numbers with B/M suffixes for chart axes
+const formatAxisNumber = (value: number): string => {
+  if (value >= 1000000000) {
+    return `${(value / 1000000000).toFixed(1)}B`
+  }
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`
+  }
+  return value.toString()
+}
+
 interface RealEstateTimelineChartsProps {
   chartData: {
     timelineData: any[]

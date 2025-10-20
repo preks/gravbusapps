@@ -23,6 +23,20 @@ import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { LiquidFundInvestmentSummary } from '../../shared/types'
 import dayjs from 'dayjs'
 
+// Format large numbers with B/M suffixes for chart axes
+const formatAxisNumber = (value: number): string => {
+  if (value >= 1000000000) {
+    return `${(value / 1000000000).toFixed(1)}B`
+  }
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`
+  }
+  return value.toString()
+}
+
 interface LiquidFundTimelineChartsProps {
   chartData: any
   rawLiquidFunds: LiquidFundInvestmentSummary[]
