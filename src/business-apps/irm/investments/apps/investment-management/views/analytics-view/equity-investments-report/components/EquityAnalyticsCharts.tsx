@@ -43,6 +43,20 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
     setConcentrationCurrency(masterCurrency)
   }, [masterCurrency])
 
+  // Format large numbers with B/M/K suffixes
+  const formatAxisNumber = (value: number): string => {
+    if (value >= 1000000000) {
+      return `${(value / 1000000000).toFixed(1)}B`
+    }
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`
+    }
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`
+    }
+    return value.toString()
+  }
+
   // Helper function for consistent currency formatting
   const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
     return new Intl.NumberFormat('en-US', {
@@ -354,7 +368,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
             <ComposedChart data={concentrationByRoleData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="role" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} tickFormatter={formatAxisNumber} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {

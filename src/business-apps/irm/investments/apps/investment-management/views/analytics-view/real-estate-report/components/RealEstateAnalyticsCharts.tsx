@@ -5,6 +5,20 @@ import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'rechart
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment'
 
+// Format large numbers with B/M suffixes for chart axes
+const formatAxisNumber = (value: number): string => {
+  if (value >= 1000000000) {
+    return `${(value / 1000000000).toFixed(1)}B`
+  }
+  if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`
+  }
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}K`
+  }
+  return value.toString()
+}
+
 interface RealEstateAnalyticsChartsProps {
   chartData: {
     occupancyData: any[]
@@ -52,7 +66,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
             <ComposedChart data={occupancyData}>
               <XAxis dataKey="range" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={formatAxisNumber} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -111,8 +125,8 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
           {expensesValueData && expensesValueData.length > 0 ? (
             <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
               <ScatterChart data={expensesValueData}>
-                <XAxis dataKey="propertyValue" name="Property Value" type="number" />
-                <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
+                <XAxis dataKey="propertyValue" name="Property Value" type="number" tickFormatter={formatAxisNumber} />
+                <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" tickFormatter={formatAxisNumber} />
                 <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {

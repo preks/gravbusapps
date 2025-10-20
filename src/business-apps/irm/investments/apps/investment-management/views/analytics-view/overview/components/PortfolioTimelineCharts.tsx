@@ -26,6 +26,20 @@ interface PortfolioTimelineChartsProps {
 }
 
 export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = ({ rawInvestments }) => {
+  // Format large numbers with B/M/K suffixes
+  const formatAxisNumber = (value: number): string => {
+    if (value >= 1000000000) {
+      return `${(value / 1000000000).toFixed(1)}B`
+    }
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`
+    }
+    if (value >= 1000) {
+      return `${(value / 1000).toFixed(1)}K`
+    }
+    return value.toString()
+  }
+
   // Get available currencies from the data
   const availableCurrencies = useMemo(() => {
     const currencies = [...new Set(rawInvestments.map(inv => inv.currencyCode || 'EUR'))]
@@ -159,7 +173,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
             <ComposedChart data={filteredPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} tickFormatter={formatAxisNumber} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -266,10 +280,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
           >
             <AreaChart data={filteredValueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => formatCurrency(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
-              />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={formatAxisNumber} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
