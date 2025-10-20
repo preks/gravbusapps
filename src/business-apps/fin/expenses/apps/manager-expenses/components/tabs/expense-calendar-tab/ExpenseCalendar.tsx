@@ -12,10 +12,13 @@ const { Text } = Typography
 
 interface TeamEmployee {
   id: string
+  userId?: string
   firstName: string
   lastName: string
   fullName?: string
   displayName?: string
+  department?: string
+  jobTitle?: string
   employeePosition?: {
     organizationalUnit?: {
       name: string
@@ -140,7 +143,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
         employeesMap.set(member.id, {
           id: member.id,
           name: member.fullName || member.displayName || `${member.firstName} ${member.lastName}` || getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
-          detail: member.employeePosition?.organizationalUnit?.name || ''
+          detail: member.employeePosition?.organizationalUnit?.name || member.department || ''
         })
       }
     }
