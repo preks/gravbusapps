@@ -14,7 +14,8 @@ import {
   PiChartBar,
   PiChatCircle,
   PiCalendar,
-  PiGraduationCap
+  PiGraduationCap,
+  PiClockCounterClockwise
 } from 'react-icons/pi'
 
 // Tab components
@@ -26,6 +27,7 @@ import PerformanceTab from './components/tabs/PerformanceTab'
 import FeedbackTab from './components/tabs/FeedbackTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
+import ChangeLogTab from './components/tabs/ChangeLogTabSimple'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
@@ -42,7 +44,8 @@ const TAB_KEYS = {
   performance: 'performance',
   feedback: 'feedback',
   absences: 'absences',
-  skills: 'skills'
+  skills: 'skills',
+  changeLog: 'changeLog'
 }
 
 // Helper to read URL parameters
@@ -396,6 +399,25 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             isSelfView={isSelfView}
           />
         )
+      },
+      {
+        key: TAB_KEYS.changeLog,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiClockCounterClockwise style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Change Log</span>
+          </div>
+        ),
+        children: (
+          <ChangeLogTab
+            employeeId={employeeIdToShow}
+            employeeName={employee?.fullName || 'Employee'}
+            userRole={userInfo?.role || 'employee'}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
+          />
+        )
       }
     ]
     // ONLY when not viewing own profile
@@ -407,8 +429,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      // If not viewing own profile and tab is employment, documents, or absences, check permissions
-      if (tabKey === TAB_KEYS.employment || tabKey === TAB_KEYS.documents || tabKey === TAB_KEYS.absences) {
+      // If not viewing own profile and tab is employment, documents, absences, or changeLog, check permissions
+      if (tabKey === TAB_KEYS.employment || tabKey === TAB_KEYS.documents || tabKey === TAB_KEYS.absences || tabKey === TAB_KEYS.changeLog) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true
       }
