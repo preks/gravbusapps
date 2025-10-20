@@ -1,5 +1,6 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { EmployeeTerminationProvider } from './context/EmployeeTerminationContext'
 import { EmployeeTerminationForm } from './components/EmployeeTerminationForm'
 
@@ -17,7 +18,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = props => {
   if (!accessToken) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-        <div className="gba:text-muted-foreground">Access token required</div>
+        <div className="gba:text-muted-foreground">{getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.access_token_error_text', 'Access token required')}</div>
       </div>
     )
   }
@@ -25,7 +26,7 @@ export const EmployeeTermination: React.FC<BusinessAppContextProps> = props => {
   if (!employeeId) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-        <div className="gba:text-muted-foreground">Employee ID required</div>
+        <div className="gba:text-muted-foreground">{getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.employee_id_error_text', 'Employee ID required')}</div>
       </div>
     )
   }

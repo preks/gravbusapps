@@ -466,7 +466,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
               >
                 <InputField
                   label={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_amount_label',
+                    'lowcoder:create_expense_item.change_expense_item_container.current_amount_label',
                     'Amount'
                   )}
                   name="amount"
@@ -479,7 +479,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
          gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
          gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_amount_placeholder',
+                    'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
                     'Enter Amount'
                   )}
                   data-testid="payment-amount-input"
@@ -527,12 +527,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                 <SelectField
                   allowClear={!isCurrencyDisabled}
                   label={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_currency_label',
+                    'lowcoder:create_expense_item.change_expense_item_container.current_currency_label',
                     'Currency'
                   )}
                   name="currency"
                   placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_type_item.current_currency_placeholder',
+                    'lowcoder:change_expense_item_container.current_currency_placeholder',
                     'Select Currency'
                   )}
                   data-testid="payment-currency-select"
