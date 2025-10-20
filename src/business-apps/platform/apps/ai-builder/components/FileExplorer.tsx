@@ -30,7 +30,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           toolName: 'get_repository_explorer',
-          args: { path: '.', max_depth: 5 },
+          args: { path: '.', max_depth: 15 },
           repoId,
           sessionId
         })
