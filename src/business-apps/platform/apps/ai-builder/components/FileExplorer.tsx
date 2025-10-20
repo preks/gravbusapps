@@ -25,7 +25,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
   const loadTree = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/forge/execute-tool', {
+      const response = await fetch('https://forge-api-production-db58.up.railway.app/api/forge/execute-tool', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
