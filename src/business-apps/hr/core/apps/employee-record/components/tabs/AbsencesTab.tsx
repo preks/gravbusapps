@@ -44,7 +44,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
   const [selectedEndDate, setSelectedEndDate] = useState<dayjs.Dayjs | null>(null)
 
   // Use custom hook for data fetching
-  const { absenceList, entitlements, loading, error } = useAbsenceData(
+  const { absenceList, entitlements, loading, error, refetch } = useAbsenceData(
     employee?.id,
     accessToken,
     employeeAbsenceEntitlement
@@ -73,6 +73,49 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
       setActiveTab(shownTab)
     }
   }, [shownTab])
+
+  // Refresh absence data (and thus charts) after process completion events
+  useEffect(() => {
+    const lastRefetchAt = { current: 0 } as { current: number }
+
+    const handler = (event: any) => {
+      try {
+        const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
+        const isSuccess = resolution === 'success'
+        const hasAbsencePayload = !!(
+          event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence
+        )
+        if (isSuccess || hasAbsencePayload) {
+          const now = Date.now()
+          if (now - lastRefetchAt.current < 2000) {
+            return
+          }
+          lastRefetchAt.current = now
+          refetch?.()
+        }
+      } catch {
+        // no-op
+      }
+    }
+
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ]
+
+    eventNames.forEach(name => window.addEventListener(name, handler))
+    return () => {
+      eventNames.forEach(name => window.removeEventListener(name, handler))
+    }
+  }, [refetch])
 
   const tabsItems = [
     {

@@ -18,30 +18,40 @@ export const useAbsenceData = (
 
   const client = useGraphqlClient(accessToken)
 
-  useEffect(() => {
-    if (!employeeId) return
+  const fetchData = async () => {
+    if (!employeeId) {
+      setAbsenceList([])
+      setEntitlements(transformEntitlementsData(employeeAbsenceEntitlement))
+      return
+    }
 
     setLoading(true)
     setError(null)
 
-    client
-      .request(GET_EMPLOYEE_ABSENCES, {
+    try {
+      const absenceRes = await client.request(GET_EMPLOYEE_ABSENCES, {
         employeeId,
         activeUserLocale: getCurrentActiveUserLocale()
       })
-      .then(absenceRes => {
-        const absences = absenceRes?.EmployeeAbsence || []
-        setAbsenceList(transformAbsenceData(absences))
-        setEntitlements(transformEntitlementsData(employeeAbsenceEntitlement))
-      })
-      .catch(() => setError('Failed to load absence data.'))
-      .finally(() => setLoading(false))
+      const absences = absenceRes?.EmployeeAbsence || []
+      setAbsenceList(transformAbsenceData(absences))
+      setEntitlements(transformEntitlementsData(employeeAbsenceEntitlement))
+    } catch {
+      setError('Failed to load absence data.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchData()
   }, [employeeId, accessToken, employeeAbsenceEntitlement, client])
 
   return {
     absenceList,
     entitlements,
     loading,
-    error
+    error,
+    refetch: fetchData
   }
 }
