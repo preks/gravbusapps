@@ -59,7 +59,7 @@ const ContactFormComponent: React.FC = () => {
         businessKey: toStringOrUndefined(formValues.businessKey),
 
         academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
-        // languageRef: toStringOrUndefined(formValues.languageRef),
+        languageRef: toStringOrUndefined(formValues.languageRef),
 
         additionalProperties: formValues.additionalProperties || {}
       }

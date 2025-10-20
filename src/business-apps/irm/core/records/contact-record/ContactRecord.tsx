@@ -17,7 +17,7 @@ import { useContactData } from './hooks/useContactData'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { getContactTypeDisplayValue, getLanguageDisplayValue, getContactFullName } from './utils'
+import { getContactTypeDisplayValue, getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { Bot } from 'lucide-react'
 import {
@@ -256,15 +256,14 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
-            value: getLanguageDisplayValue(contactData, contact),
+            value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
-            value:
-              contactData?.ownerEmployee?.displayName ||
-              contact?.ownerEmployee?.displayName ||
-              getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+            value: contactData?.ownerEmployee
+              ? `${contactData.ownerEmployee.firstName} ${contactData.ownerEmployee.lastName}`.trim()
+              : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
             icon: User
           }
         ]
