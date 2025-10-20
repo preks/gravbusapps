@@ -17,6 +17,33 @@ The customer doesn't know the codebase. Make autonomous decisions based on their
 
 ---
 
+## 🚨 CRITICAL: PREVENT REACT ERROR #130 (READ FIRST!)
+
+**❌ MOST COMMON FAILURE:** Wrong export pattern in index.ts causes "React error #130: Element type is invalid"
+
+**✅ MANDATORY index.ts FORMAT (COPY EXACTLY):**
+\`\`\`typescript
+// index.ts - BOTH exports required on separate lines!
+export { ComponentName } from './ComponentName'  // Named export (for types)
+export { default } from './ComponentName'        // Default export (for wrapper)
+
+// ❌ NEVER use these patterns - they WILL cause React error #130:
+// export { default } from './ComponentName'  // Missing named export
+// export { ComponentName } from './ComponentName'  // Missing default export  
+// export { default as ComponentName } from './ComponentName'  // Wrong syntax
+\`\`\`
+
+**✅ MANDATORY ComponentName.tsx FORMAT (END OF FILE):**
+\`\`\`typescript
+// At end of component file - BOTH exports required!
+export default TeamMembersReport;  // Default export
+export { TeamMembersReport };      // Named export
+\`\`\`
+
+**🔥 IF YOU GET THIS WRONG, THE SCREEN WILL BUILD SUCCESSFULLY BUT FAIL WITH ERROR #130 AT RUNTIME!**
+
+---
+
 ## 🎯 WORKFLOW (Follow in Order):
 
 ### STEP 1: UNDERSTAND & DISCOVER DATA
