@@ -1,20 +1,14 @@
-/**
- * Shared server-side monthly/date-range aggregation util
- * Uses overlap logic and sums effectiveDays only.
- */
-
 export interface OverlapAggregateInput {
   startIso: string
   endIso: string
   departmentId?: string | null
-  departmentName?: string | null // fallback only
-  status?: string | null // single status (backwards compatible)
-  // Enhanced filters (optional)
-  departmentIds?: string[] // multiple departments by ID
-  includeNoDepartment?: boolean // include employees with no department
-  statuses?: string[] // multiple statuses
-  employeeIds?: string[] // specific employees
-  groupIds?: string[] // absence group parentEntryIds
+  departmentName?: string | null
+  status?: string | null
+  departmentIds?: string[]
+  includeNoDepartment?: boolean
+  statuses?: string[]
+  employeeIds?: string[]
+  groupIds?: string[]
 }
 
 export interface OverlapAggregateResult {
@@ -50,7 +44,6 @@ export const getOverlapAggregates = async (
     _and: [{ isDeleted: { _eq: false } }, { startDate: { _lte: endIso } }, { endDate: { _gte: startIso } }]
   }
 
-  // Department filtering (single legacy fields)
   if (departmentId) {
     where._and.push({ employee: { employeePosition: { organizationalUnit: { id: { _eq: departmentId } } } } })
   } else if (departmentName === 'NO_DEPARTMENT_SPECIAL') {
@@ -59,7 +52,6 @@ export const getOverlapAggregates = async (
     where._and.push({ employee: { employeePosition: { organizationalUnit: { name: { _eq: departmentName } } } } })
   }
 
-  // Department filtering (enhanced multi-select)
   if ((departmentIds && departmentIds.length > 0) || includeNoDepartment) {
     const deptOr: any[] = []
     if (departmentIds && departmentIds.length > 0) {
@@ -80,7 +72,6 @@ export const getOverlapAggregates = async (
     where._and.push({ status: { _in: statuses } })
   }
 
-  // Employee filtering
   if (employeeIds && employeeIds.length > 0) {
     if (where.employee) {
       where.employee = { ...where.employee, id: { _in: employeeIds } }
@@ -89,7 +80,6 @@ export const getOverlapAggregates = async (
     }
   }
 
-  // Group filtering (type.parentEntryId)
   if (groupIds && groupIds.length > 0) {
     where._and.push({ type: { parentEntryId: { _in: groupIds } } })
   }

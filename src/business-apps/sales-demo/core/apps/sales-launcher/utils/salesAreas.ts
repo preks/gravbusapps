@@ -1,16 +1,5 @@
 import { SalesArea, SalesQuickAction } from '../types'
-import {
-  ShoppingCart,
-  Package,
-  ChartBar,
-  ListDashes,
-  TreeStructure,
-  Cube,
-  FileText,
-  Plus,
-  TrendUp,
-  FunnelSimple
-} from '@phosphor-icons/react'
+import { ShoppingCart, Package, ChartBar, TreeStructure, Plus, TrendUp, FunnelSimple } from '@phosphor-icons/react'
 
 export const salesAreas: SalesArea[] = [
   {

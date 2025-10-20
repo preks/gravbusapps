@@ -25,7 +25,6 @@ import {
 import { Plus, Edit, Trash2, GripVertical, Clock, CheckSquare } from 'lucide-react'
 import {
   DndContext,
-  closestCenter,
   closestCorners,
   DragEndEvent,
   DragOverlay,

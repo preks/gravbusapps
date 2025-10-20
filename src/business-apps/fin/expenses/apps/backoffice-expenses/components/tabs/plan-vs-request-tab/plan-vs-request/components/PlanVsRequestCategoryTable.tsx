@@ -40,11 +40,11 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
   return (
     <Card data-testid="details-list">
       <CardHeader>
-        <CardTitle>{getTranslationFromI18nKeyAndLabel('expense.categoryBreakdown', 'Category Breakdown')}</CardTitle>
+        <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.category_breakdown', '')}</CardTitle>
         <div className="gba:text-sm gba:text-muted-foreground gba:mt-2" data-testid="category-totals">
-          {getTranslationFromI18nKeyAndLabel('expense.previousTotal', 'Previous Total')}:{' '}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.previous_total', '')}:{' '}
           {formatCurrency(breakdownTotals.prev)} {' | '}
-          {getTranslationFromI18nKeyAndLabel('expense.currentTotal', 'Current Total')}:{' '}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.current_total', '')}:{' '}
           {formatCurrency(breakdownTotals.curr)} {' | '}
           Δ%:{' '}
           {breakdownTotals.prev > 0
@@ -65,7 +65,7 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
                 {getTranslationFromI18nKeyAndLabel('expense.current', 'Current')}
               </TableHead>
               <TableHead className="gba:text-right">
-                {getTranslationFromI18nKeyAndLabel('expense.variance', 'Variance')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.variance', '')}
               </TableHead>
             </TableRow>
           </TableHeader>

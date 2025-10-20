@@ -1,26 +1,14 @@
 import { useState, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
-  getQuotes,
   getCustomersForCreation,
   getProducts,
-  getQuoteDetails,
   createSalesOrder,
   createSalesOrderItems,
   getNextSalesOrderNumber,
-  validateCustomer,
-  validateProduct,
   convertQuoteToSalesOrder
 } from '../queries/salesOrderCreationQueries'
-import {
-  Quote,
-  Customer,
-  Product,
-  SalesOrderFormData,
-  AIGenerationRequest,
-  AIGenerationResponse,
-  FormError
-} from '../types'
+import { Quote, Customer, Product, SalesOrderFormData, AIGenerationRequest, AIGenerationResponse } from '../types'
 
 interface UseSalesOrderCreationProps {
   accessToken: string

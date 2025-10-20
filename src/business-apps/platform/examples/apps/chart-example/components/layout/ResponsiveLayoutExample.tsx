@@ -11,7 +11,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts'
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts'
 import { TrendUpIcon } from '@phosphor-icons/react'
 
 interface ResponsiveLayoutExampleProps {

@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Product, ProductKPIData, ProductFilters, PaginationParams } from '../types'
-import dayjs from 'dayjs'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getProducts, getProductKPIs, searchProducts } from '../queries/productQuery'
+import { getProducts, getProductKPIs } from '../queries/productQuery'
 import { generateDemoProducts, generateDemoProductKPIData } from './demoData'
 
 // Helper function to calculate trend percentage

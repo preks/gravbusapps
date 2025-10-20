@@ -23,7 +23,7 @@ The MCP server automatically detects and enforces design system compliance and m
 1. **Import from @newwork/nw-design-system**: Any component import triggers design token enforcement
 2. **Mention component names**: LauncherLayout, Button, Card, Header, Layout, Page, Modal, Form, Input, Select
 3. **Work with .tsx/.ts files**: All React component files in gravity-business-apps
-4. **Use hardcoded values**: Detects and prevents #colors, px values, Tailwind classes
+4. **Use hardcoded values**: Detects and prevents #colors, hardcoded Tailwind colors, unprefixed classes, inline styles
 5. **Reference design system**: Any mention of nw-design-system triggers token suggestions
 
 ### Expected AI Behavior with MCP:
@@ -32,32 +32,33 @@ The MCP server automatically detects and enforces design system compliance and m
 👤 "Add a Button component from nw-design-system"
 🤖 Auto-detects: @newwork/nw-design-system usage
     Auto-triggers: project-get-design-tokens
-    Auto-warns: "🎨 IMPORTANT: Use design tokens for styling!"
-    Provides: style={{ backgroundColor: 'var(--nw-color-primary-500)' }}
+    Auto-warns: "🎨 IMPORTANT: Use design tokens with gba: prefix!"
+    Provides: className="gba:bg-primary gba:text-primary-foreground"
 
 // ❌ INCORRECT: AI agent without MCP server
 👤 "Add a Button component from nw-design-system"  
 🤖 Suggests: className="bg-blue-500 text-white px-4 py-2"
-    Result: VIOLATES DESIGN SYSTEM - hardcoded Tailwind classes
+    Result: VIOLATES DESIGN SYSTEM - hardcoded Tailwind color classes
 ```
 
 ### Mandatory Anti-Pattern Prevention:
 **The MCP server MUST prevent these violations:**
-- ❌ Hardcoded colors: `#3b82f6`, `rgb(59,130,246)`, `background-color: blue`
-- ❌ Tailwind color classes: `bg-blue-500`, `text-red-600`, `border-gray-400`
-- ❌ Hardcoded spacing: `16px`, `24px`, `margin: 8px`
-- ❌ Tailwind spacing classes: `p-4`, `m-6`, `px-2`, `gap-8`
+- ❌ Hardcoded colors: `#3b82f6`, `rgb(59,130,246)`, inline `style={{ backgroundColor: 'blue' }}`
+- ❌ Hardcoded Tailwind color classes: `bg-blue-500`, `text-red-600`, `border-gray-400`
+- ❌ Hardcoded spacing: `16px`, `24px`, inline `style={{ margin: '8px' }}`
+- ❌ Unprefixed Tailwind classes: `p-4`, `m-6`, `flex`, `bg-primary` (missing `gba:` prefix)
 - ❌ Hardcoded shadows: `box-shadow: 0 1px 3px rgba(0,0,0,0.12)`
-- ❌ Tailwind shadow classes: `shadow-lg`, `shadow-xl`, `drop-shadow-md`
+- ❌ Arbitrary Tailwind values: `bg-[#fff]`, `text-[#000]`, `p-[16px]`
 
 ### Enforced Best Practices:
 **The MCP server MUST enforce these patterns:**
-- ✅ Design token colors: `var(--nw-color-primary-500)`, `var(--nw-color-surface-primary)`
-- ✅ Design token spacing: `var(--nw-spacing-sm)`, `var(--nw-spacing-md)`, `var(--nw-spacing-lg)`
-- ✅ Design token effects: `var(--nw-shadow-sm)`, `var(--nw-border-radius-md)`
-- ✅ CSS-in-JS with tokens: `style={{ backgroundColor: 'var(--nw-color-primary-500)' }}`
+- ✅ Design system tokens with gba: prefix: `gba:bg-primary`, `gba:text-primary-foreground`
+- ✅ Semantic tokens: `gba:bg-success`, `gba:bg-destructive`, `gba:bg-warning`, `gba:bg-info`
+- ✅ Combined tokens: `gba:bg-primary gba:text-primary-foreground`
+- ✅ Variant modifiers: `gba:hover:bg-accent`, `gba:md:flex`, `gba:focus:ring-primary`
+- ✅ Layout utilities: `gba:flex`, `gba:gap-4`, `gba:p-6`, `gba:rounded-lg`
 
-**🔥 RULE ENFORCEMENT**: If the AI agent suggests any hardcoded values or Tailwind utility classes when working with design system components, the MCP server configuration is incorrect or inactive!
+**🔥 RULE ENFORCEMENT**: If the AI agent suggests hardcoded values, unprefixed Tailwind classes, or inline styles when working with design system components, the MCP server configuration is incorrect or inactive!
 
 ### @newwork/gravity-ui-catalog (v7.10.4) - 🔄 MIGRATING AWAY
 - **Source Repository**: `../gravity-ui-catalog/` (relative to workspace root)
@@ -100,11 +101,12 @@ The MCP server automatically detects and enforces design system compliance and m
 - **REQUIRED**: Inspect component source code and APIs  
 - **REQUIRED**: Get design tokens before any styling
 - **REQUIRED**: Use token recommendations instead of hardcoded values
-- **REQUIRED**: Prevent Tailwind utility class usage
+- **REQUIRED**: Enforce gba: prefix for all Tailwind utilities
+- **REQUIRED**: Prevent hardcoded colors, unprefixed classes, and inline styles
 - Find usage examples across the codebase
 - Understand component props and interfaces
 
-**⚠️ VIOLATION DETECTION**: If you see suggestions for `className="bg-blue-500"` or `style={{ color: '#3b82f6' }}` when working with design system components, the MCP server is not being used correctly!
+**⚠️ VIOLATION DETECTION**: If you see suggestions for `className="bg-blue-500"` (unprefixed), `bg-primary` (missing gba:), or `style={{ color: '#3b82f6' }}` when working with design system components, the MCP server is not being used correctly!
 
 ### Component Selection Hierarchy (Migration Strategy)
 When adding or updating UI components, follow this hierarchy:
@@ -124,7 +126,7 @@ import { cn } from '@newwork/nw-design-system'; // Utility for className merging
 
 const MyForm: React.FC = () => {
   return (
-    <Card className={cn("p-6", "shadow-lg")}>
+    <Card className={cn("gba:p-6")}>
       <Form>
         <Input placeholder="Enter text..." />
         <Button variant="primary">Submit</Button>
@@ -241,7 +243,7 @@ module.exports = {
 **🔥 REQUIRED - NO ALTERNATIVES**: Use newwork-project-mcp server tools to:
 1. **MANDATORY**: Get design tokens before any styling (`project-get-design-tokens`)
 2. **MANDATORY**: Get token recommendations (`project-get-token-recommendations`) 
-3. **MANDATORY**: Prevent hardcoded values and Tailwind classes
+3. **MANDATORY**: Enforce gba: prefix and prevent hardcoded values
 4. Inspect component implementations and APIs (`project-get-source`)
 5. Find component usage patterns across projects (`project-search-by-import`)
 6. Understand component props and interfaces
@@ -249,8 +251,9 @@ module.exports = {
 
 **⚠️ NO FALLBACK ALLOWED**: Direct file system access is NOT permitted for design system components because it bypasses design token enforcement. The MCP server MUST be used to ensure:
 - No hardcoded colors (like `#3b82f6`, `rgb(59,130,246)`)
-- No Tailwind utility classes (like `bg-blue-500`, `p-4`, `shadow-lg`)
-- Proper design token usage (like `var(--nw-color-primary-500)`, `var(--nw-spacing-md)`)
+- No unprefixed Tailwind classes (like `bg-blue-500`, `p-4`, `shadow-lg`)
+- No missing gba: prefix (must use `gba:bg-primary`, not `bg-primary`)
+- Proper design token usage with gba: prefix (like `gba:bg-primary`, `gba:text-primary-foreground`)
 - Design system compliance enforcement
 
 **🚨 RULE**: If MCP server is unavailable, DO NOT proceed with design system component work until it's configured!
@@ -332,7 +335,7 @@ import { Card, Button, Input, Form } from '@newwork/nw-design-system';
 import { cn } from '@newwork/nw-design-system';
 
 const RebuiltComponent = () => (
-  <Card className={cn("p-4", "border", "rounded-lg")}>
+  <Card className={cn("gba:p-4", "gba:border", "gba:rounded-lg")}>
     <Form>
       <Input placeholder="Enter value" />
       <Button type="submit">Submit</Button>
@@ -366,17 +369,20 @@ The target architecture simplifies to a single UI dependency with clear design s
 
 ### 🚨 MCP Server Issues (CRITICAL):
 1. **AI suggests hardcoded colors/values**: MCP server is not configured or not being used - this is a VIOLATION
-2. **AI suggests Tailwind classes**: MCP server design token enforcement is not active - this is a VIOLATION  
-3. **No design token suggestions**: MCP server context detection is not working - check configuration
-4. **MCP server not responding**: Verify `newwork-project-mcp` is configured in AI agent settings
-5. **Design tokens not found**: Check MCP server paths to nw-design-system styling files
-6. **Anti-pattern warnings missing**: MCP server tools are not being triggered automatically
+2. **AI suggests unprefixed Tailwind classes**: MCP server design token enforcement is not active - this is a VIOLATION  
+3. **AI suggests inline styles**: MCP server is not preventing inline styles - this is a VIOLATION
+4. **No design token suggestions**: MCP server context detection is not working - check configuration
+5. **MCP server not responding**: Verify `newwork-project-mcp` is configured in AI agent settings
+6. **Design tokens not found**: Check MCP server paths to nw-design-system styling files
+7. **Anti-pattern warnings missing**: MCP server tools are not being triggered automatically
 
 ### ⚠️ Violation Indicators:
 **If you see ANY of these, the MCP server is not working correctly:**
-- Suggestions for `className="bg-blue-500"`
-- Suggestions for `style={{ color: '#3b82f6' }}`
-- Suggestions for hardcoded `padding: 16px`
+- Suggestions for `className="bg-blue-500"` (hardcoded Tailwind color)
+- Suggestions for `className="bg-primary"` (missing gba: prefix)
+- Suggestions for `className="p-4 m-6"` (unprefixed utilities)
+- Suggestions for `style={{ color: '#3b82f6' }}` (inline styles)
+- Suggestions for `style={{ padding: '16px' }}` (hardcoded spacing)
 - Missing design token warnings when working with design system components
 - No automatic MCP tool usage when mentioning LauncherLayout, Button, etc.
 

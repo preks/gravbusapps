@@ -11,7 +11,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
-import { PieChart, Pie, Cell, LabelList } from 'recharts'
+import { PieChart, Pie, Cell } from 'recharts'
 import { ChartPieSliceIcon } from '@phosphor-icons/react'
 import pieChartData from '../../data/pieChartData.json'
 

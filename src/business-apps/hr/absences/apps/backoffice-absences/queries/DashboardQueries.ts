@@ -1,9 +1,3 @@
-/**
- * Dashboard GraphQL Queries for Backoffice Absences
- * Contains all GraphQL query logic for the dashboard data fetching
- */
-
-// Helper function to get date filters based on timeFilter (EXACT WORKING VERSION)
 export const getDateFilters = (timeFilter: string) => {
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -12,7 +6,6 @@ export const getDateFilters = (timeFilter: string) => {
 
   switch (timeFilter) {
     case 'current-year':
-      // Use UTC boundaries to avoid timezone drift vs AbsenceDetails/AbsenceList
       return {
         startDate: new Date(Date.UTC(currentYear, 0, 1, 0, 0, 0, 0)).toISOString(),
         endDate: new Date(Date.UTC(currentYear, 11, 31, 23, 59, 59, 999)).toISOString()
