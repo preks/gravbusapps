@@ -17,11 +17,6 @@ export const useChangeLogVisibility = (userRole: string) => {
           break
           
         case 'org':
-          // Organizational data visible to HR and managers
-          isVisible = ['admin', 'hr_manager', 'manager'].includes(userRole)
-          isMasked = !isVisible
-          break
-          
         case 'working':
           // Working conditions visible to HR and managers
           isVisible = ['admin', 'hr_manager', 'manager'].includes(userRole)
@@ -34,11 +29,6 @@ export const useChangeLogVisibility = (userRole: string) => {
         case 'performance':
         case 'absence':
         case 'emergency':
-          // These are generally visible to the employee
-          isVisible = true
-          isMasked = false
-          break
-          
         default:
           // Default to visible for unknown categories
           isVisible = true

@@ -265,13 +265,13 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
         
         <div className="gba:mt-4 gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
           <div>
-            <label className="gba:text-sm gba:font-medium gba:text-gray-700">Previous Value</label>
+            <div className="gba:text-sm gba:font-medium gba:text-gray-700">Previous Value</div>
             <p className="gba:text-sm gba:text-gray-900 gba:bg-gray-50 gba:p-2 gba:rounded">
               {entry.isMasked ? 'Hidden for privacy' : (entry.previousValue || 'N/A')}
             </p>
           </div>
           <div>
-            <label className="gba:text-sm gba:font-medium gba:text-gray-700">New Value</label>
+            <div className="gba:text-sm gba:font-medium gba:text-gray-700">New Value</div>
             <p className="gba:text-sm gba:text-gray-900 gba:bg-green-50 gba:p-2 gba:rounded">
               {entry.isMasked ? 'Hidden for privacy' : (entry.newValue || 'N/A')}
             </p>

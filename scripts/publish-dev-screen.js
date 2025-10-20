@@ -373,7 +373,7 @@ async function main() {
     SINGLE_SCREEN_CSS: 'true'
   }
 
-  const viteExecutable = `vite build`
+  const viteBuildCommand  = `vite build`
 
   console.log(`   Executing: ${viteBuildCommand} with environment variables`)
   try {

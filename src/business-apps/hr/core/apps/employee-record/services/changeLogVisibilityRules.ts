@@ -37,7 +37,6 @@ export class ChangeLogVisibilityRules {
    * Apply masking rules for sensitive data
    */
   static applyMaskingRules(fieldChange: any, audit: any, userRole: string): boolean {
-    const fieldCategory = fieldChange.fieldCategory
     const isVisible = this.applyVisibilityRules(fieldChange, audit, userRole)
     
     // If not visible, mask the data
