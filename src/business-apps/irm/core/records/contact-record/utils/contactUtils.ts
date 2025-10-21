@@ -20,9 +20,9 @@ export const getContactTypeDisplayValue = (contactData: any, contact: any): stri
  * @returns Human-readable language string
  */
 export const getLanguageDisplayValue = (contactData: any, contact: any): string => {
-  // Try enhanced data first (with languageLabel), then raw data
+  // Try to get language from contactData (raw GraphQL), then transformed contact
   return (
-    contactData?.languageLabel ||
+    contactData?.language?.value ||
     contact?.language?.value ||
     getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set')
   )

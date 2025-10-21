@@ -68,12 +68,16 @@ export const getOverlapWarningMessage = (
   // Priority 3: Check for overlapping expense plans (medium priority, warning)
   if (data.ExpensePlan && data.ExpensePlan.length > 0 && data.ExpensePlan[0].id !== currentPlanId) {
     const expensePlan = data.ExpensePlan[0]
+    const expensePlanTimeStampStart = dayjs(expensePlan.startDate).format(getDateFormat('date-long'))
+    const expensePlanTimeStampEnd = dayjs(expensePlan.endDate).format(getDateFormat('date-long'))
 
     const message = getTranslationFromI18nKeyAndLabel(
       'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_plan_info_message',
-      `There is an existing plan ${expensePlan.title} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
+      `There is an existing plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
       {
         planName: expensePlan.title,
+        planTimeStampStart: expensePlanTimeStampStart,
+        planTimeStampEnd: expensePlanTimeStampEnd,
         interpolation: {
           escapeValue: false
         }

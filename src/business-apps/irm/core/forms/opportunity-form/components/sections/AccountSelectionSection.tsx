@@ -38,7 +38,11 @@ const AccountSelectionSection: React.FC = () => {
       {/* Related Account */}
       <AccountSelect
         value={formValues.account}
-        onChange={value => handleInputChange('account', value)}
+        onChange={value => {
+          // Extract ID from object if needed (for single-select compatibility)
+          const accountId = typeof value === 'object' && value?.id ? value.id : value
+          handleInputChange('account', accountId as string)
+        }}
         accounts={simpleAccounts}
         accountsLoading={simpleAccountsLoading}
         accountsError={simpleAccountsError}
@@ -46,6 +50,7 @@ const AccountSelectionSection: React.FC = () => {
         label="Related Investment Account"
         dataTestId={formatDataTestId(prefixDataTestId, 'account')}
         error={null}
+        multiple={false} // ✅ Single account selection for opportunities
       />
     </div>
   )
