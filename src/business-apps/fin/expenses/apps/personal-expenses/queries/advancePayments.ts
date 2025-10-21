@@ -379,6 +379,67 @@ export const GET_ADVANCE_PAYMENT_STATISTICS = `
   }
 `
 
+// Consolidated statistics in a single request
+export const GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED = `
+  query GetAdvancePaymentStatisticsConsolidated(
+    $employeeId: uuid!,
+    $currentStart: timestamptz!,
+    $currentEnd: timestamptz!,
+    $previousStart: timestamptz!,
+    $previousEnd: timestamptz!,
+    $currencyRef: String!
+  ) {
+    Current: AdvancePaymentAggregate(
+      where: {
+        expensePlan: { employeeId: { _eq: $employeeId } },
+        isDeleted: { _eq: false },
+        createdAt: { _gte: $currentStart, _lte: $currentEnd },
+        status: { _in: ["APPROVED", "PAID", "BOOKED"] },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate {
+        count
+        sum { amount }
+      }
+    }
+    Previous: AdvancePaymentAggregate(
+      where: {
+        expensePlan: { employeeId: { _eq: $employeeId } },
+        isDeleted: { _eq: false },
+        createdAt: { _gte: $previousStart, _lte: $previousEnd },
+        status: { _in: ["APPROVED", "PAID", "BOOKED"] },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate {
+        count
+        sum { amount }
+      }
+    }
+    PendingAdvancePayments: AdvancePaymentAggregate(
+      where: {
+        expensePlan: { employeeId: { _eq: $employeeId } },
+        isDeleted: { _eq: false },
+        status: { _in: ["PENDING", "PREPARED"] },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate { count }
+    }
+    ApprovedAdvancePayments: AdvancePaymentAggregate(
+      where: {
+        expensePlan: { employeeId: { _eq: $employeeId } },
+        isDeleted: { _eq: false },
+        status: { _in: ["APPROVED", "PAID", "BOOKED"] },
+        currencyRef: { _eq: $currencyRef }
+      }
+    ) {
+      aggregate { count }
+    }
+  }
+`
+
 // Distinct currencies used by the employee in advance payments
 export const GET_USED_ADVANCE_PAYMENT_CURRENCIES = `
   query GetUsedAdvancePaymentCurrencies($employeeId: uuid!, $limit: Int = 2000) {

@@ -4,6 +4,8 @@ import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent, IconAvat
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
+
 
 interface RealEstateAnalyticsChartsProps {
   chartData: {
@@ -52,7 +54,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
             <ComposedChart data={occupancyData}>
               <XAxis dataKey="range" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -111,8 +113,8 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
           {expensesValueData && expensesValueData.length > 0 ? (
             <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
               <ScatterChart data={expensesValueData}>
-                <XAxis dataKey="propertyValue" name="Property Value" type="number" />
-                <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
+                <XAxis dataKey="propertyValue" name="Property Value" type="number" tickFormatter={(value) => formatCompactNumber(value, 1)} />
+                <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" tickFormatter={(value) => formatCompactNumber(value, 1)} />
                 <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {

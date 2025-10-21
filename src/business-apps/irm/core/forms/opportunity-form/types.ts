@@ -65,9 +65,17 @@ export interface InvestmentOpportunityFormValues {
   measurementUnit: string
 
   // Relationship Information
-  account: string
+  account: string | { id: string; name: string } // ✅ Single account selection - accepts both formats like contact form
   accountId: string
-  contactIds: Array<string | { id: string; name: string }> // Multiple contacts can be associated
+  contactIds: Array<
+    | string
+    | {
+        id: string
+        name: string
+        associationId?: string // Association object ID for tracking opportunity-contact relationships
+        associationVersion?: number // Association version for optimistic locking
+      }
+  > // Multiple contacts can be associated with association metadata
 
   // Additional Information
   notesSummary: string // Will use additionalProperties or express fields
