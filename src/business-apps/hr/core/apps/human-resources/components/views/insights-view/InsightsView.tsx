@@ -294,10 +294,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     if (!employees || employees.length === 0) {
       return (
         <div className="gba:text-sm gba:text-gray-500">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:hr_insights.no_events',
-            `No ${dateLabel.toLowerCase()} in the next 30 days.`
-          )}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.no_events', 'No events in the next 30 days.')}
         </div>
       )
     }
