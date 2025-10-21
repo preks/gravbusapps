@@ -202,6 +202,15 @@ export interface BaseCustomerTask extends BaseEntity {
   contact?: CustomerContactRef
   lead?: CustomerLeadRef
   opportunity?: CustomerOpportunityRef
+
+  // Documents
+  documents?: Array<{
+    id: string
+    name?: string
+    file?: string
+    mimeType?: string
+    fileSize?: number
+  }>
 }
 
 // sales_activity table
@@ -235,6 +244,15 @@ export interface BaseCustomerActivity extends BaseEntity {
   contact?: CustomerContactRef
   lead?: CustomerLeadRef
   opportunity?: CustomerOpportunityRef
+
+  // Documents
+  documents?: Array<{
+    id: string
+    name?: string
+    file?: string
+    mimeType?: string
+    fileSize?: number
+  }>
 }
 
 // crm_note table

@@ -219,7 +219,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   assigneeEmployee: task.assignedEmployee,
                   taskTiming,
                   startDate: task.createdAt,
-                  creatorEmployee: task.creatorEmployee
+                  creatorEmployee: task.creatorEmployee,
+                  documents: task.documents
                 }
               }),
               taskActionProps: {
@@ -270,7 +271,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   assigneeEmployee: task.assignedEmployee,
                   taskTiming,
                   startDate: task.createdAt,
-                  creatorEmployee: task.creatorEmployee
+                  creatorEmployee: task.creatorEmployee,
+                  documents: task.documents
                 }
               }),
               taskActionProps: {
@@ -305,7 +307,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 noteTitle: note.noteTitle,
                 noteText: note.noteText,
                 createdAt: note.createdAt,
-                createdBy: note.createdBy
+                createdBy: note.createdBy,
+                documents: note.documents
               })),
               noteActionProps: {
                 ...noteActionProps,

@@ -191,6 +191,16 @@ export const CUSTOMER_TASK = `
       code
       name
     }
+    
+    # Documents
+    documents(where: { isDeleted: { _eq: false } }) {
+      id
+      name
+      file
+      fileInfo
+      mimeType
+      fileSize
+    }
 `
 
 export const CUSTOMER_SALES_ACTIVITY = `
@@ -209,6 +219,16 @@ export const CUSTOMER_SALES_ACTIVITY = `
     # Employee references
     ownerEmployee {
       ${EMPLOYEE_REF}
+    }
+    
+    # Documents
+    documents(where: { isDeleted: { _eq: false } }) {
+      id
+      name
+      file
+      fileInfo
+      mimeType
+      fileSize
     }
 `
 
