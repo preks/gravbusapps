@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ChangeLogFilters as ChangeLogFiltersType } from '../../ChangeLogTab'
+import { FIELD_CATEGORIES } from './constants'
 import { useDebounce } from '@/common/hooks/useDebounce'
 
 interface ChangeLogFiltersProps {
@@ -13,41 +14,7 @@ interface ChangeLogFiltersProps {
   actorNames?: string[]
 }
 
-const FIELD_CATEGORIES = [
-  {
-    value: 'personal',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.personal', 'Personal Info')
-  },
-  {
-    value: 'address',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.address', 'Address & Contact')
-  },
-  { value: 'org', label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.org', 'Org Assignment') },
-  {
-    value: 'working',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.working', 'Working Conditions')
-  },
-  {
-    value: 'financial',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.financial', 'Financial')
-  },
-  {
-    value: 'skills',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.skills', 'Skills & Capabilities')
-  },
-  {
-    value: 'performance',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.performance', 'Performance & Goals')
-  },
-  {
-    value: 'absence',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.absence', 'Absence Entitlements')
-  },
-  {
-    value: 'emergency',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.emergency', 'Emergency Contacts')
-  }
-]
+// FIELD_CATEGORIES imported from constants
 
 // Dynamic actor options provided by parent; we always include System
 

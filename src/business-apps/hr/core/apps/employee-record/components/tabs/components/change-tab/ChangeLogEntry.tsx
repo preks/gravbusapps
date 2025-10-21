@@ -1,50 +1,13 @@
 import React from 'react'
-import { format } from 'date-fns'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
+import { FIELD_CATEGORIES } from './constants'
 
 interface ChangeLogEntryProps {
   entry: ChangeLogEntryType
-  accessToken: string
-  currentUserId?: string
-  currentEmployeeId?: string
 }
 
-const FIELD_CATEGORIES = [
-  {
-    value: 'personal',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.personal', 'Personal Info')
-  },
-  {
-    value: 'address',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.address', 'Address & Contact')
-  },
-  { value: 'org', label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.org', 'Org Assignment') },
-  {
-    value: 'working',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.working', 'Working Conditions')
-  },
-  {
-    value: 'financial',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.financial', 'Financial')
-  },
-  {
-    value: 'skills',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.skills', 'Skills & Capabilities')
-  },
-  {
-    value: 'performance',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.performance', 'Performance & Goals')
-  },
-  {
-    value: 'absence',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.absence', 'Absence Entitlements')
-  },
-  {
-    value: 'emergency',
-    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.emergency', 'Emergency Contacts')
-  }
-]
+// FIELD_CATEGORIES imported from constants
 
 export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
   if (!entry.isVisible) return null
@@ -75,7 +38,7 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
                 </span>
               )}
               <span className="gba:text-sm gba:text-muted-foreground">
-                {format(new Date(entry.timestamp), 'MMM dd, yyyy HH:mm')}
+                {formatDate(new Date(entry.timestamp), 'date.short')}
               </span>
             </div>
           </div>

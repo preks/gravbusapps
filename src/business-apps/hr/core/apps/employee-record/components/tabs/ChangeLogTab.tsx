@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { createChangeLogService } from '../../services/changeLogService'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import ChangeLogFilters from './components/change-tab/ChangeLogFilters'
 import ChangeLogEntry from './components/change-tab/ChangeLogEntry'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { format } from 'date-fns'
 
 // Types for Change Log
 export interface ChangeLogEntry {
@@ -48,13 +47,7 @@ export interface ChangeLogTabProps extends BusinessAppContextProps {
   accessToken: string
 }
 
-export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
-  employeeId,
-  employeeName,
-  userRole,
-  accessToken,
-  userInfo
-}) => {
+export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employeeName, userRole, accessToken }) => {
   const [changeLogEntries, setChangeLogEntries] = useState<ChangeLogEntry[]>([])
   const [filteredEntries, setFilteredEntries] = useState<ChangeLogEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -117,8 +110,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
           if (name) idToNameMap[id] = name
         })
       }
-
-      console.log(idToNameMap, 'idToNameMap')
 
       const withNames = (response.entries || []).map(e => ({
         ...e,
@@ -347,18 +338,12 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
             {sortedKeys.map(dateKey => (
               <div key={dateKey} className="gba:flex gba:flex-col gba:gap-4">
                 <div className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:border-b gba:border-border">
-                  <div className="gba:text-lg gba:font-semibold">{format(new Date(dateKey), 'MMM dd, yyyy')}</div>
+                  <div className="gba:text-lg gba:font-semibold">{formatDate(new Date(dateKey), 'date.short')}</div>
                   <div className="gba:text-sm gba:text-muted-foreground">{groups[dateKey].length} changes</div>
                 </div>
                 <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
                   {groups[dateKey].map(entry => (
-                    <ChangeLogEntry
-                      key={entry.id}
-                      entry={entry}
-                      accessToken={accessToken}
-                      currentUserId={userInfo?.id || userInfo?.employeeDetails?.employeeId}
-                      currentEmployeeId={userInfo?.employeeDetails?.employeeId}
-                    />
+                    <ChangeLogEntry key={entry.id} entry={entry} />
                   ))}
                 </div>
               </div>
