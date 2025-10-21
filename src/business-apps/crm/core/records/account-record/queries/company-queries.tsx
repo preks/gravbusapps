@@ -23,6 +23,20 @@ export interface CompanyData {
     email: string
     phone: string
   }[]
+  accountContact?: Array<{
+    contact?: {
+      id: string
+      firstName: string
+      lastName: string
+      email?: string
+      phone?: string
+      jobPosition?: string
+      department?: string
+      linkedinUrl?: string
+      xingUrl?: string
+      bio?: string
+    }
+  }>
   addresses: {
     city: string
     countryRef: string
@@ -163,6 +177,36 @@ export const GET_COMPANY_BY_ID = `
       annualRevenue {
         id
         value
+      }
+      accountContact(where: { isDeleted: { _eq: false } }) {
+        contact {
+          id
+          firstName
+          lastName
+          email
+          phone
+          jobPosition
+          department
+          linkedinUrl
+          xingUrl
+          bio
+        }
+      }
+      addresses {
+        city
+        country {
+          id
+          value
+          code
+        }
+        region {
+          id
+          value
+          code
+        }
+        postalCode
+        addressLine
+        addressType
       }
     }
   }

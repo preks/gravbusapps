@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
-import { UsersThreeIcon, BriefcaseIcon, ChartPieIcon } from '@phosphor-icons/react'
+import { UsersThreeIcon, BriefcaseIcon, ChartPieIcon, LightbulbIcon } from '@phosphor-icons/react'
 
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeList } from './components/views/employee-view/EmployeeList'
 import { JobPositionList } from './components/views/job-position-view/JobPositionList'
 import { HrAnalyticsView } from './components/views/analytics-view/HrAnalyticsView'
+import { InsightsView } from './components/views/insights-view/InsightsView'
 import { MODULE_COLORS } from '@/common/constants/ui'
 
 const moduleColor = MODULE_COLORS.HR
@@ -37,6 +38,14 @@ export const HumanResources: React.FC<HumanResourcesProps> = context => {
       title: 'HR Analytics & Insights',
       description:
         'Comprehensive workforce insights, analytics, and metrics to drive HR decisions and organizational strategy.'
+    },
+    {
+      key: 'insights',
+      icon: <LightbulbIcon />,
+      label: 'Insights',
+      title: 'HR Insights',
+      description:
+        'Next 30 days Key employee events and milestones including birthdays, anniversaries, new hires, probation periods, and terminations.'
     }
   ]
 
@@ -136,6 +145,12 @@ export const HumanResources: React.FC<HumanResourcesProps> = context => {
         return (
           <div data-testid="analytics-tab-content">
             <HrAnalyticsView {...context} />
+          </div>
+        )
+      case 'insights':
+        return (
+          <div data-testid="insights-tab-content">
+            <InsightsView {...context} />
           </div>
         )
       default:

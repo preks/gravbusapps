@@ -49,7 +49,7 @@ export const mapInvestmentContactToFormValues = (
     ownerEmployeeId: contact.ownerEmployeeId || '',
     owner: contact.ownerEmployeeId || '', // Map to owner field for form
 
-    // Account Information
+    // Account Information - ✅ UPDATED: Include association metadata
     accountIds: Array.from(
       new Set(
         (contact.investmentAccountContact ?? [])
@@ -57,10 +57,21 @@ export const mapInvestmentContactToFormValues = (
             if (!rel.account?.id) return null
             return {
               id: rel.account.id,
-              name: rel.account.name || 'Unnamed Account'
+              name: rel.account.name || 'Unnamed Account',
+              associationId: rel.id, // ✅ NEW: Capture association ID
+              associationVersion: rel.version // ✅ NEW: Capture association version
             }
           })
-          .filter((account): account is { id: string; name: string } => Boolean(account))
+          .filter(
+            (
+              account
+            ): account is {
+              id: string
+              name: string
+              associationId?: string
+              associationVersion?: number
+            } => Boolean(account)
+          )
       )
     ),
 
