@@ -73,7 +73,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
   const [employees, setEmployees] = useState<Employee[]>([])
 
-  // Use the hook for absence types
   const { absenceTypes: types } = useAbsenceTypesByGroup(props, absenceType)
 
   const initialFormValues: CreateNewAbsenceFormValues = {
@@ -84,14 +83,12 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     comment: ''
   }
 
-  // Initialize react-hook-form
   const form = useForm<CreateNewAbsenceFormValues>({
     defaultValues: initialFormValues
   })
 
   const formValuesState = form.watch()
 
-  // Add validation hook
   const {
     isValidating,
     hasValidationErrors,
@@ -111,7 +108,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     context: props
   })
 
-  // Keep end date in sync to allow same-day selection and prevent end < start
   useEffect(() => {
     const start = formValuesState.startDate
     const end = formValuesState.endDate
@@ -121,11 +117,9 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     }
   }, [formValuesState.startDate, formValuesState.endDate, form])
 
-  // State for sick leave update/create mode
   const [isUpdateMode, setIsUpdateMode] = useState(false)
   const [showSickLeaveOptions, setShowSickLeaveOptions] = useState(false)
 
-  // State for file upload
   const [fileList, setFileList] = useState<UploadFile[]>([])
   const fileClient = useFileClient({ accessToken })
 
@@ -141,16 +135,13 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       })
   }, [accessToken, userInfo?.id, structureId, client])
 
-  // Auto-select if only one type is available
   useEffect(() => {
     if (types.length === 1 && !formValuesState.selectedType) {
       form.setValue('selectedType', types[0].id)
     }
   }, [types, formValuesState.selectedType, form])
 
-  // Show sick leave options immediately when existing sick leave is found AND we're in health group
   useEffect(() => {
-    // Only show options if there's an existing sick leave for today AND we're in the health absence group
     const isHealthGroup = absenceType === 'AbsenceGroup:v1:HEALTH'
 
     if (hasExistingSickLeave && existingSickLeave && isHealthGroup) {
@@ -166,7 +157,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   }, [formValuesState.selectedType, formValuesState.startDate, formValuesState.endDate])
 
   const isFormValid = useMemo(() => {
-    // In update mode, be more lenient - allow updates as long as basic fields exist and no validation errors
     if (isUpdateMode) {
       const updateModeValid =
         formValuesState.selectedType &&
@@ -178,7 +168,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       return updateModeValid
     }
 
-    // In create mode, use strict validation
     const createModeValid = isMandatoryFieldsCompleted && !hasValidationErrors && !isValidating
 
     return createModeValid
@@ -192,14 +181,12 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     formValuesState.endDate
   ])
 
-  // Handle update existing sick leave
   const handleUpdateExisting = useCallback(() => {
     if (!existingSickLeave) return
 
     setIsUpdateMode(true)
     setShowSickLeaveOptions(false)
 
-    // Pre-fill form with existing data
     form.reset({
       selectedType: existingSickLeave.typeRef,
       startDate: new Date(existingSickLeave.startDate),
@@ -209,22 +196,17 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     })
   }, [existingSickLeave, form])
 
-  // Handle create new absence
   const handleCreateNew = useCallback(() => {
     setIsUpdateMode(false)
     setShowSickLeaveOptions(false)
-    // Keep current form values as they are
   }, [])
 
-  // File upload handlers - following DocumentUploadForm pattern
   const handleFileChange = useCallback(({ fileList: newFileList }: { fileList: UploadFile[] }) => {
-    // Limit to 5 files
     const limitedFileList = newFileList.slice(-5)
     setFileList(limitedFileList)
   }, [])
 
   const beforeUpload = useCallback((file: File) => {
-    // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
     const isValidType = allowedTypes.includes(file.type)
 
@@ -232,20 +214,17 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
       return false
     }
 
-    // Validate file size (max 10MB)
     const isValidSize = file.size / 1024 / 1024 < 10
 
     if (!isValidSize) {
       return false
     }
 
-    return false // Prevent auto upload - upload during form submission
+    return false
   }, [])
 
-  // Main submission handler for AppActionForm
   const handleFormSubmit = useCallback(
     async (formData: CreateNewAbsenceFormValues) => {
-      // Build base absence data
       const baseAbsenceData = {
         employeeId: userInfo?.employeeDetails.employeeId,
         typeRef: formData.selectedType,
@@ -256,13 +235,11 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
         status: 'PENDING'
       }
 
-      // Upload files and create employeeDocument records
       const employeeDocuments = []
 
       for (const fileItem of fileList) {
         if (fileItem.originFileObj) {
           try {
-            // Upload file using fileClient - following DocumentUploadForm pattern
             const pathParams = { accessScope: 'public' }
             const queryParams = {
               appName: 'employee-profile',
@@ -271,7 +248,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
 
             const uploadResponse = await fileClient.uploadFile(fileItem.originFileObj, pathParams, queryParams)
 
-            // Create employeeDocument record
             const employeeDocument = {
               employeeId: userInfo?.employeeDetails?.employeeId,
               documentGroup: 'DocumentGroup:v1:PERSONAL',
@@ -286,9 +262,7 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
             }
 
             employeeDocuments.push(employeeDocument)
-          } catch {
-            // Continue with other files even if one fails
-          }
+          } catch {}
         }
       }
 
@@ -312,7 +286,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     [userInfo?.employeeDetails.employeeId, fileList, isUpdateMode, existingSickLeave, fileClient]
   )
 
-  // Validation function for AppActionForm
   const validateForm = useCallback(
     (formData: CreateNewAbsenceFormValues): string[] | null => {
       const errors: string[] = []
@@ -330,7 +303,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
         errors.push('End date must be after start date')
       }
 
-      // Add validation errors from the validation hook
       if (hasValidationErrors) {
         generalErrors.forEach(error => errors.push(error.message))
         overlapErrors.forEach(error => errors.push(error.message))
@@ -378,7 +350,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
           data-testid="create-new-absence-form"
         >
           <div className="gba:p-6 gba:bg-white gba:w-full gba:max-w-md" data-testid="create-new-absence-form-content">
-            {/* Sick Leave Options - Show First When Existing Sick Leave Found */}
             {showSickLeaveOptions && existingSickLeave && (
               <div
                 className="gba:mb-4 gba:p-4 gba:border gba:border-warning gba:bg-warning-secondary gba:rounded"
@@ -421,7 +392,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
               </div>
             )}
 
-            {/* Main Form - Hidden When Showing Sick Leave Options */}
             {!showSickLeaveOptions && (
               <>
                 <div className="gba:mb-4 gba:w-full">
@@ -571,7 +541,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   />
                 </div>
 
-                {/* Update Mode Indicator */}
                 {isUpdateMode && existingSickLeave && (
                   <div
                     className="gba:mb-4 gba:p-3 gba:border gba:border-info gba:bg-info-secondary gba:rounded"
@@ -586,7 +555,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
                   </div>
                 )}
 
-                {/* Validation Errors/Warnings Display */}
                 {(hasValidationErrors || validationWarnings.length > 0) && (
                   <div className="gba:mb-4" data-testid="validation-errors-container">
                     {generalErrors.map((error, index) => (

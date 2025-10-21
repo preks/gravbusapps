@@ -9,7 +9,6 @@ import weekOfYear from 'dayjs/plugin/weekOfYear'
 import customParseFormat from 'dayjs/plugin/customParseFormat'
 import updateLocale from 'dayjs/plugin/updateLocale'
 
-// Register dayjs plugins
 dayjs.extend(isBetween)
 dayjs.extend(weekday)
 dayjs.extend(weekOfYear)
@@ -20,7 +19,6 @@ import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@
 import { AppActionMenu } from '@/components/app-action-menu'
 import { PiPencilSimple } from 'react-icons/pi'
 
-// Import extracted components and utilities
 import { AbsencesTabProps } from '../../queries/types'
 import { useAbsenceData } from '../../hooks/useAbsenceData'
 import AbsenceCalendar from './components/AbsenceCalendar'
@@ -28,29 +26,22 @@ import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
 
-/**
- * Absences Tab Component
- * Displays absence entitlements, history, and calendar for the employee
- */
 const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEntitlement, accessToken, shownTab }) => {
   const [activeTab, setActiveTab] = useState<string>(shownTab ?? 'calendar')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
 
-  // Calendar state
   const [currentDate, setCurrentDate] = useState(dayjs())
   const [selectedStartDate, setSelectedStartDate] = useState<dayjs.Dayjs | null>(null)
   const [selectedEndDate, setSelectedEndDate] = useState<dayjs.Dayjs | null>(null)
 
-  // Use custom hook for data fetching
   const { absenceList, entitlements, loading, error, refetch } = useAbsenceData(
     employee?.id,
     accessToken,
     employeeAbsenceEntitlement
   )
 
-  // Check for locale changes periodically
   useEffect(() => {
     const checkLocale = () => {
       const newLocale = getCurrentActiveUserLocale()
@@ -59,11 +50,10 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
       }
     }
 
-    const interval = setInterval(checkLocale, 1000) // Check every second
+    const interval = setInterval(checkLocale, 1000)
     return () => clearInterval(interval)
   }, [currentLocale])
 
-  // Handle tab change
   const onTabChange = (key: string) => {
     setActiveTab(key)
   }
@@ -74,7 +64,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
     }
   }, [shownTab])
 
-  // Refresh absence data (and thus charts) after process completion events
   useEffect(() => {
     const lastRefetchAt = { current: 0 } as { current: number }
 
@@ -93,9 +82,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
           lastRefetchAt.current = now
           refetch?.()
         }
-      } catch {
-        // no-op
-      }
+      } catch {}
     }
 
     const eventNames = [
@@ -180,13 +167,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
     }
   ].filter(item => (shownTab ? item.key === shownTab : true))
 
-  // tabsItems prepared above based on shownTab
-
-  // shownTab provided -> render only content of that tab
-
   return (
     <div className="gba:absences-tab gba:space-y-8">
-      {/* Absence Overview Headline with Action Button */}
       {!shownTab && (
         <div className="gba:flex gba:justify-between gba:items-start" data-testid="absencehub-header">
           <div className="gba:absence-header">
@@ -201,7 +183,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
             </div>
           </div>
 
-          {/* Request Absence Button */}
           <div>
             <AppActionMenu
               data-testid="employee-absence-request-button"
@@ -225,7 +206,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
         </div>
       )}
 
-      {/* Absence Charts Section */}
       <AbsenceCharts
         key={`absence-charts-${currentLocale}`}
         entitlements={entitlements}
@@ -257,7 +237,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
         </div>
       )}
 
-      {/* Absence Hub Integration */}
       <div className="gba:absence-hub-integration" data-testid="absence-hub-integration">
         {shownTab ? (
           <div className="gba:tabsContainer" data-testid="absencehub-tabs-container">

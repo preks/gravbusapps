@@ -36,6 +36,7 @@ export interface EmployeeAbsence {
   type?: {
     id: string
     parentEntryId: string
+    objectValue?: any
     translations: { value: string; localeCode: string }[]
   }
 }
@@ -79,16 +80,12 @@ export const useAbsenceValidation = ({
   const [todayAbsences, setTodayAbsences] = useState<EmployeeAbsence[]>([])
   const [existingSickLeave, setExistingSickLeave] = useState<EmployeeAbsence | null>(null)
 
-  // Get absence type details to check checkEntitlement flag
   const { details: absenceTypeDetails } = useAbsenceTypeDetails(context, selectedType)
 
-  // Helper function to check if an absence type is a sick leave
   const isSickLeaveType = useCallback((absence: EmployeeAbsence): boolean => {
-    // Check if the absence type has the HEALTH parent entry ID
     return absence.type?.parentEntryId === 'AbsenceGroup:v1:HEALTH'
   }, [])
 
-  // Fetch today's absences when employee changes
   useEffect(() => {
     if (!accessToken || !employeeId) {
       setTodayAbsences([])
@@ -98,7 +95,6 @@ export const useAbsenceValidation = ({
 
     const fetchTodayAbsences = async () => {
       try {
-        // Get today's date in YYYY-MM-DD format for proper comparison
         const today = dayjs().format('YYYY-MM-DD')
 
         const response = await client.request(getTodayAbsences, {
@@ -110,12 +106,6 @@ export const useAbsenceValidation = ({
 
         setTodayAbsences(absences)
 
-        // Find existing sick leave for today
-
-        absences.forEach((absence: EmployeeAbsence, index: number) => {
-          const isMainlySickType = isSickLeaveType(absence)
-        })
-
         const sickLeave = absences.find(
           (absence: EmployeeAbsence) =>
             isSickLeaveType(absence) && (absence.status === 'PENDING' || absence.status === 'APPROVED')
@@ -126,8 +116,7 @@ export const useAbsenceValidation = ({
         } else {
           setExistingSickLeave(null)
         }
-      } catch (error) {
-        console.error("❌ Error fetching today's absences:", error)
+      } catch {
         setTodayAbsences([])
         setExistingSickLeave(null)
       }
@@ -136,7 +125,6 @@ export const useAbsenceValidation = ({
     fetchTodayAbsences()
   }, [accessToken, employeeId, client, isSickLeaveType])
 
-  // Fetch existing absences when employee or dates change
   useEffect(() => {
     if (!accessToken || !employeeId || !startDate || !endDate) {
       setExistingAbsences([])
@@ -156,8 +144,7 @@ export const useAbsenceValidation = ({
         const absences = response?.EmployeeAbsence || []
 
         setExistingAbsences(absences)
-      } catch (error) {
-        console.error('❌ Error fetching existing absences:', error)
+      } catch {
         setExistingAbsences([])
       }
     }
@@ -165,14 +152,12 @@ export const useAbsenceValidation = ({
     fetchExistingAbsences()
   }, [accessToken, employeeId, startDate, endDate, client])
 
-  // Fetch balance when absence type changes - only if checkEntitlement is true
   useEffect(() => {
     if (!accessToken || !employeeId || !selectedType) {
       setAbsenceBalance(null)
       return
     }
 
-    // Check if this absence type requires entitlement checking
     const shouldCheckEntitlement = absenceTypeDetails?.objectValue?.checkEntitlement === true
 
     if (!shouldCheckEntitlement) {
@@ -188,7 +173,6 @@ export const useAbsenceValidation = ({
         })
         const balances = response?.EmployeeAbsenceBalance || []
 
-        // Get the most recent valid balance
         const validBalance = balances.find((balance: EmployeeAbsenceBalance) => {
           const now = dayjs()
           const validFrom = dayjs(balance.validFrom)
@@ -199,8 +183,7 @@ export const useAbsenceValidation = ({
         })
 
         setAbsenceBalance(validBalance || null)
-      } catch (error) {
-        console.error('❌ Error fetching absence balance:', error)
+      } catch {
         setAbsenceBalance(null)
       }
     }
@@ -219,13 +202,14 @@ export const useAbsenceValidation = ({
       const newStart = dayjs(newStartDate)
       const newEnd = dayjs(newEndDate)
 
+      const newAbsencePriority = absenceTypeDetails?.objectValue?.priority
+      const newPriority = newAbsencePriority !== undefined ? newAbsencePriority : 999
+
       for (const absence of existingAbsences) {
-        // Skip cancelled or rejected absences
         if (absence.status === 'CANCELLED' || absence.status === 'REJECTED') {
           continue
         }
 
-        // Skip the current sick leave being updated (exclude from overlap check)
         if (existingSickLeave && absence.id === existingSickLeave.id) {
           continue
         }
@@ -233,39 +217,46 @@ export const useAbsenceValidation = ({
         const existingStart = dayjs(absence.startDate)
         const existingEnd = dayjs(absence.endDate)
 
-        // Check for overlap
         const hasOverlap = newStart.isSameOrBefore(existingEnd) && newEnd.isSameOrAfter(existingStart)
         if (hasOverlap) {
-          // Get the absence type name from translations using the correct locale
-          let absenceTypeName = absence.typeRef // fallback to typeRef
+          let absenceTypeName = absence.typeRef
 
           if (absence.type?.translations && absence.type.translations.length > 0) {
-            // Try to find translation for the current locale
             const localeTranslation = absence.type.translations.find(t => t.localeCode === locale)
-            // Use locale-specific translation if found, otherwise use first available
             absenceTypeName = localeTranslation?.value || absence.type.translations[0].value
           }
 
-          errors.push({
-            type: 'overlap',
-            message: `There is already a ${absenceTypeName} absence scheduled from ${existingStart.format(
-              getDateFormat('date-long')
-            )} to ${existingEnd.format(getDateFormat('date-long'))}. Please select different dates.`,
-            details: {
-              conflictingAbsence: absence,
-              conflictingDates: {
-                start: absence.startDate,
-                end: absence.endDate
-              },
-              absenceType: absenceTypeName
-            }
-          })
+          const existingAbsencePriority = absence.type?.objectValue?.priority
+          const existingPriority = existingAbsencePriority !== undefined ? existingAbsencePriority : 999
+          if (newPriority > existingPriority) {
+            errors.push({
+              type: 'overlap',
+              message: `There is already a ${absenceTypeName} absence scheduled from ${existingStart.format(
+                getDateFormat('date-long')
+              )} to ${existingEnd.format(getDateFormat('date-long'))}.`,
+              details: {
+                conflictingAbsence: absence,
+                conflictingDates: {
+                  start: absence.startDate,
+                  end: absence.endDate
+                },
+                absenceType: absenceTypeName,
+                existingPriority,
+                newPriority,
+                priorityComparison: {
+                  existing: existingPriority,
+                  new: newPriority,
+                  canOverride: newPriority <= existingPriority
+                }
+              }
+            })
+          }
         }
       }
 
       return errors
     },
-    [existingAbsences]
+    [existingAbsences, absenceTypeDetails, locale, existingSickLeave]
   )
 
   type BalanceValidationResult = {
@@ -278,16 +269,13 @@ export const useAbsenceValidation = ({
       const warnings: AbsenceValidationError[] = []
       const errors: AbsenceValidationError[] = []
 
-      // Check if this absence type requires entitlement checking
       const shouldCheckEntitlement = absenceTypeDetails?.objectValue?.checkEntitlement === true
 
-      // If checkEntitlement is false or undefined, skip balance validation
       if (!shouldCheckEntitlement) {
         return { errors, warnings }
       }
 
       if (!absenceBalance) {
-        // Only show warning if checkEntitlement is true AND no balance data
         warnings.push({
           type: 'balance',
           message: 'Unable to verify absence balance. Please check manually.',
@@ -296,16 +284,12 @@ export const useAbsenceValidation = ({
         return { errors, warnings }
       }
 
-      // Calculate requested days based on measurement type
       const measurement = absenceTypeDetails?.objectValue?.measurement
       let requestedDays: number
 
       if (measurement === 'WorkingDays') {
-        // For vacation types with WorkingDays measurement, use calendar days for validation
-        // (backend expects calendar days even for WorkingDays measurement)
         requestedDays = dayjs(newEndDate).diff(dayjs(newStartDate), 'day') + 1
       } else {
-        // Default to calendar days
         requestedDays = dayjs(newEndDate).diff(dayjs(newStartDate), 'day') + 1
       }
 
@@ -332,13 +316,11 @@ export const useAbsenceValidation = ({
       const validationStartDate = validateStartDate || startDate
       const validationEndDate = validateEndDate || endDate
 
-      // Only validate if we have both dates
       if (!validationStartDate || !validationEndDate) {
         setValidationErrors([])
         return []
       }
 
-      // Ensure end date is not before start date
       if (dayjs(validationEndDate).isBefore(dayjs(validationStartDate).subtract(1, 'day'))) {
         const dateOrderError: AbsenceValidationError = {
           type: 'general',
@@ -349,7 +331,7 @@ export const useAbsenceValidation = ({
       }
 
       setIsValidating(true)
-      // Reset warnings before each validation run
+
       setValidationWarnings([])
 
       try {
@@ -380,7 +362,6 @@ export const useAbsenceValidation = ({
     [startDate, endDate, checkOverlapValidation, checkBalanceValidation]
   )
 
-  // Auto-validate when dates change
   useEffect(() => {
     if (startDate && endDate) {
       validateAbsence()
@@ -400,7 +381,6 @@ export const useAbsenceValidation = ({
     generalErrors: validationErrors.filter(error => error.type === 'general'),
     existingAbsences,
     absenceBalance,
-    // Sick leave specific functionality
     todayAbsences,
     existingSickLeave,
     isSickLeaveType,
