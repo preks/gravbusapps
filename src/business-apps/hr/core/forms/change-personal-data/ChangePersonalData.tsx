@@ -268,7 +268,6 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
             return { ...(values as any), employeeDocumentId: uploadedEmployeeDocumentId } as PersonalDataFormValues
           }}
           onSubmit={async (values: PersonalDataFormValues) => {
-            console.log('submitted')
             const uploadedEmployeeDocumentId = values.employeeDocumentId || ''
             const payload = {
               event: 'pse_submit',
