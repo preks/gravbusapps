@@ -76,8 +76,8 @@ export const getOverlapWarningMessage = (
       `There is an existing plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
       {
         planName: expensePlan.title,
-        planTimeStampStart: expensePlanTimeStampStart,
-        planTimeStampEnd: expensePlanTimeStampEnd,
+        fromDate: expensePlanTimeStampStart,
+        toDate: expensePlanTimeStampEnd,
         interpolation: {
           escapeValue: false
         }

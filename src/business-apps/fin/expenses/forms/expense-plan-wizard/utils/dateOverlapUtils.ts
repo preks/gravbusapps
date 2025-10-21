@@ -129,8 +129,8 @@ export const getOverlapWarningMessage = (
         `The selected date overlaps with a planned event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please review before submitting if adjustments are needed.`,
         {
           planTitle: expensePlan.title,
-          planTimeStampStart: expensePlanTimeStampStart,
-          planTimeStampEnd: expensePlanTimeStampEnd,
+          fromDate: expensePlanTimeStampStart,
+          toDate: expensePlanTimeStampEnd,
           interpolation: {
             escapeValue: false
           }
