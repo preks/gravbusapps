@@ -25,11 +25,7 @@ import flowSmall from '@/assets/icons/flowSmall.svg'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getAllEmployees } from './queries/getAllEmployees'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
-import {
-  getCurrentActiveUserLocale,
-  getCurrentActiveStructureId,
-  getTranslationFromI18nKeyAndLabel
-} from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAbsenceValidation } from './hooks/useAbsenceValidation'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { useAbsenceTypesByGroup } from './hooks/useAbsenceTypesByGroup'
@@ -53,7 +49,6 @@ type CreateNewAbsenceFormValues = {
 export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const { accessToken, userInfo, additionalData } = props
   const client = useGraphQLClient(accessToken)
-  const locale = getCurrentActiveUserLocale()
   const structureId = getCurrentActiveStructureId()
 
   const propStartDate = additionalData?.psi_taskPayload?.psi_initialParameters?.startDate
@@ -66,7 +61,8 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
   const processToParentAbsenceTypeMap: Record<string, string> = {
     createEmployeeVacation: 'AbsenceType:v1:A001',
     createEmployeeSickLeave: 'AbsenceType:v1:A021',
-    createEmployeeSpecialLeave: 'AbsenceType:v1:A050'
+    createEmployeeSpecialLeave: 'AbsenceType:v1:A050',
+    createEmployeeWorkLeave: 'AbsenceType:v1:A170'
   }
   const mappedParentType = processName && processToParentAbsenceTypeMap[processName]
   const absenceType = mappedParentType || ''
@@ -104,7 +100,6 @@ export const CreateNewAbsence: React.FC<BusinessAppContextProps> = props => {
     selectedType: formValuesState.selectedType || '',
     startDate: formValuesState.startDate,
     endDate: formValuesState.endDate,
-    locale,
     context: props
   })
 

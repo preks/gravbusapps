@@ -199,7 +199,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                 <PiPencilSimple className="gba:h-5 gba:w-5" />
-                Request Absence
+                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
               </div>
             </AppActionMenu>
           </div>

@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getDateFormat } from '@/common/utils/windowUtils'
+import { getDateFormat, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useAbsenceTypeDetails } from './useAbsenceTypeDetails'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -58,7 +58,6 @@ export interface UseAbsenceValidationProps {
   selectedType: string
   startDate?: Date
   endDate?: Date
-  locale?: string
   context: BusinessAppContextProps
 }
 
@@ -68,7 +67,6 @@ export const useAbsenceValidation = ({
   selectedType,
   startDate,
   endDate,
-  locale = 'en',
   context
 }: UseAbsenceValidationProps) => {
   const client = useGraphQLClient(accessToken)
@@ -222,7 +220,8 @@ export const useAbsenceValidation = ({
           let absenceTypeName = absence.typeRef
 
           if (absence.type?.translations && absence.type.translations.length > 0) {
-            const localeTranslation = absence.type.translations.find(t => t.localeCode === locale)
+            const currentLocale = getCurrentActiveUserLocale()
+            const localeTranslation = absence.type.translations.find(t => t.localeCode === currentLocale)
             absenceTypeName = localeTranslation?.value || absence.type.translations[0].value
           }
 
@@ -256,7 +255,7 @@ export const useAbsenceValidation = ({
 
       return errors
     },
-    [existingAbsences, absenceTypeDetails, locale, existingSickLeave]
+    [existingAbsences, absenceTypeDetails, existingSickLeave]
   )
 
   type BalanceValidationResult = {
