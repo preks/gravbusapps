@@ -179,7 +179,11 @@ Based on user request, choose ONE:
 **When:** "list", "report", "table", "view all", "manage"
 **Why:** 70% less code, built-in toolbar with search/filters/sorting/columns/bulk actions
 \`\`\`tsx
-<PageLayout headerIcon={ListIcon} headerLabel="Sales Activities">
+<PageLayout 
+  headerIcon={ListIcon} 
+  headerTitle="Sales Activities"
+  headerDescription="Manage and track all sales activities"
+>
   <DataDisplay
     // Search
     searchValue={search}
@@ -601,7 +605,11 @@ const ScreenName: React.FC<BusinessAppContextProps> = (context) => {
   ];
   
   return (
-    <PageLayout headerIcon={ChartLine} headerLabel="Sales Activities">
+    <PageLayout 
+      headerIcon={ChartLine} 
+      headerTitle="Sales Activities"
+      headerDescription="Manage and track all sales activities"
+    >
       <DataDisplay
         searchValue={search}
         searchPlaceholder="Search activities..."
