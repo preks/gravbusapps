@@ -176,7 +176,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpenseRequestItems expenseRequestItems={expenseRequest?.expenseRequestItem || []} />
+      children: <ExpenseRequestItems expenseRequestItems={expenseRequest?.expenseRequestItem || []} currencyCode={expenseRequest?.currency?.code} />
     },
 
     // Allowances tab - only show if there are allowances
