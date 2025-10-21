@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { createChangeLogService } from '../../services/changeLogService'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import ChangeLogFilters from './ChangeLogFilters'
-import ChangeLogEntry from './ChangeLogEntry'
+import ChangeLogFilters from './components/change-tab/ChangeLogFilters'
+import ChangeLogEntry from './components/change-tab/ChangeLogEntry'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { format } from 'date-fns'
 
@@ -135,7 +135,9 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
       const actorNames = Array.from(new Set(Object.values(idToNameMap).filter(Boolean))) as string[]
       setAvailableActors(actorNames)
     } catch (err) {
-      setError(getTranslationFromI18nKeyAndLabel('changelog.error.load_failed', 'Failed to load change log data'))
+      setError(
+        getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.error.load_failed', 'Failed to load change log data')
+      )
       console.error('Error fetching change log:', err)
     } finally {
       setLoading(false)
@@ -244,7 +246,12 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Error exporting change log:', err)
-      setError(getTranslationFromI18nKeyAndLabel('changelog.error.export_failed', 'Failed to export change log data'))
+      setError(
+        getTranslationFromI18nKeyAndLabel(
+          'lowcoder:changelog_tab.error.export_failed',
+          'Failed to export change log data'
+        )
+      )
     }
   }
 
@@ -264,7 +271,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
           onClick={fetchChangeLogData}
           className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:border-none gba:rounded gba:cursor-pointer gba:hover:bg-blue-600"
         >
-          {getTranslationFromI18nKeyAndLabel('changelog.actions.retry', 'Retry')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actions.retry', 'Retry')}
         </button>
       </div>
     )
@@ -278,12 +285,16 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
           <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
-            {getTranslationFromI18nKeyAndLabel('changelog.title', 'Change Log')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.title', 'Change Log')}
           </h2>
           <p className="gba:text-gray-600 gba:mt-1">
-            {getTranslationFromI18nKeyAndLabel('changelog.subtitle', "Track all changes to {employeeName}'s profile", {
-              employeeName
-            }).replace('{employeeName}', employeeName)}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:changelog_tab.subtitle',
+              "Track all changes to {employeeName}'s profile",
+              {
+                employeeName
+              }
+            ).replace('{employeeName}', employeeName)}
           </p>
         </div>
         {(userRole === 'admin' || userRole === 'hr_manager') && (
@@ -291,7 +302,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
             onClick={handleExport}
             className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:bg-white gba:cursor-pointer gba:flex gba:items-center gba:gap-2 gba:hover:bg-gray-50"
           >
-            {getTranslationFromI18nKeyAndLabel('changelog.actions.export', 'Export')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actions.export', 'Export')}
           </button>
         )}
       </div>
@@ -313,7 +324,10 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({
           return (
             <div className="gba:bg-card gba:text-card-foreground gba:border gba:border-border gba:rounded-lg gba:p-8 gba:text-center">
               <p className="gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('changelog.no_results', 'No changes found matching your filters.')}
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:changelog_tab.no_results',
+                  'No changes found matching your filters.'
+                )}
               </p>
             </div>
           )

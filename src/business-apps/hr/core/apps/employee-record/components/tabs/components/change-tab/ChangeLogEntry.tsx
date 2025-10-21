@@ -1,7 +1,7 @@
 import React from 'react'
 import { format } from 'date-fns'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ChangeLogEntry as ChangeLogEntryType } from './ChangeLogTabSimple'
+import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
 
 interface ChangeLogEntryProps {
   entry: ChangeLogEntryType
@@ -11,23 +11,38 @@ interface ChangeLogEntryProps {
 }
 
 const FIELD_CATEGORIES = [
-  { value: 'personal', label: getTranslationFromI18nKeyAndLabel('changelog.categories.personal', 'Personal Info') },
-  { value: 'address', label: getTranslationFromI18nKeyAndLabel('changelog.categories.address', 'Address & Contact') },
-  { value: 'org', label: getTranslationFromI18nKeyAndLabel('changelog.categories.org', 'Org Assignment') },
-  { value: 'working', label: getTranslationFromI18nKeyAndLabel('changelog.categories.working', 'Working Conditions') },
-  { value: 'financial', label: getTranslationFromI18nKeyAndLabel('changelog.categories.financial', 'Financial') },
-  { value: 'skills', label: getTranslationFromI18nKeyAndLabel('changelog.categories.skills', 'Skills & Capabilities') },
+  {
+    value: 'personal',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.personal', 'Personal Info')
+  },
+  {
+    value: 'address',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.address', 'Address & Contact')
+  },
+  { value: 'org', label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.org', 'Org Assignment') },
+  {
+    value: 'working',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.working', 'Working Conditions')
+  },
+  {
+    value: 'financial',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.financial', 'Financial')
+  },
+  {
+    value: 'skills',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.skills', 'Skills & Capabilities')
+  },
   {
     value: 'performance',
-    label: getTranslationFromI18nKeyAndLabel('changelog.categories.performance', 'Performance & Goals')
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.performance', 'Performance & Goals')
   },
   {
     value: 'absence',
-    label: getTranslationFromI18nKeyAndLabel('changelog.categories.absence', 'Absence Entitlements')
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.absence', 'Absence Entitlements')
   },
   {
     value: 'emergency',
-    label: getTranslationFromI18nKeyAndLabel('changelog.categories.emergency', 'Emergency Contacts')
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.emergency', 'Emergency Contacts')
   }
 ]
 
@@ -69,22 +84,24 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
             <div>
               <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('changelog.labels.previous_value', 'Previous Value')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.previous_value', 'Previous Value')}
               </div>
               <div className="gba:mt-1 gba:text-sm gba:bg-muted gba:text-muted-foreground gba:p-3 gba:rounded">
                 {entry.isMasked
-                  ? getTranslationFromI18nKeyAndLabel('changelog.privacy.hidden', 'Hidden for privacy')
-                  : entry.previousValue || getTranslationFromI18nKeyAndLabel('changelog.common.not_available', 'N/A')}
+                  ? getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.hidden', 'Hidden for privacy')
+                  : entry.previousValue ||
+                    getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.common.not_available', 'N/A')}
               </div>
             </div>
             <div>
               <div className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('changelog.labels.new_value', 'New Value')}
+                {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.labels.new_value', 'New Value')}
               </div>
               <div className="gba:mt-1 gba:text-sm gba:bg-success-secondary gba:text-success-secondary-foreground gba:p-3 gba:rounded">
                 {entry.isMasked
-                  ? getTranslationFromI18nKeyAndLabel('changelog.privacy.hidden', 'Hidden for privacy')
-                  : entry.newValue || getTranslationFromI18nKeyAndLabel('changelog.common.not_available', 'N/A')}
+                  ? getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.hidden', 'Hidden for privacy')
+                  : entry.newValue ||
+                    getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.common.not_available', 'N/A')}
               </div>
             </div>
           </div>

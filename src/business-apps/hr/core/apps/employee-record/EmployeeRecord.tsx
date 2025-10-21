@@ -27,7 +27,7 @@ import PerformanceTab from './components/tabs/PerformanceTab'
 import FeedbackTab from './components/tabs/FeedbackTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
-import ChangeLogTab from './components/tabs/ChangeLogTabSimple'
+import ChangeLogTab from './components/tabs/ChangeLogTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
@@ -266,7 +266,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             accessToken={accessToken}
             currentUserEmployeeId={currentUserEmployeeId}
             userInfo={userInfo}
-            isSelfView={isSelfView}
           />
         )
       },
@@ -359,7 +358,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             userInfo={userInfo}
             isSelfView={isSelfView}
             employeeFeedback={feedback ?? []}
-            businessAppContext={{ accessToken, userInfo, additionalData }}
           />
         )
       },
@@ -411,8 +409,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         children: (
           <ChangeLogTab
             employeeId={employeeIdToShow}
-            employeeName={employee?.fullName || 'Employee'}
-            userRole={userInfo?.role || 'employee'}
+            employeeName={employee?.displayName || 'Employee'}
+            userRole={'employee'}
             accessToken={accessToken}
             userInfo={userInfo}
             additionalData={additionalData}
@@ -430,7 +428,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
 
       // If not viewing own profile and tab is employment, documents, absences, or changeLog, check permissions
-      if (tabKey === TAB_KEYS.employment || tabKey === TAB_KEYS.documents || tabKey === TAB_KEYS.absences || tabKey === TAB_KEYS.changeLog) {
+      if (
+        tabKey === TAB_KEYS.employment ||
+        tabKey === TAB_KEYS.documents ||
+        tabKey === TAB_KEYS.absences ||
+        tabKey === TAB_KEYS.changeLog
+      ) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true
       }

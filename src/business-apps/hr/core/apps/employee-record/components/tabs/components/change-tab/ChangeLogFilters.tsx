@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { ChangeLogFilters as ChangeLogFiltersType } from './ChangeLogTabSimple'
+import { ChangeLogFilters as ChangeLogFiltersType } from '../../ChangeLogTab'
 import { useDebounce } from '@/common/hooks/useDebounce'
 
 interface ChangeLogFiltersProps {
@@ -14,23 +14,38 @@ interface ChangeLogFiltersProps {
 }
 
 const FIELD_CATEGORIES = [
-  { value: 'personal', label: getTranslationFromI18nKeyAndLabel('changelog.categories.personal', 'Personal Info') },
-  { value: 'address', label: getTranslationFromI18nKeyAndLabel('changelog.categories.address', 'Address & Contact') },
-  { value: 'org', label: getTranslationFromI18nKeyAndLabel('changelog.categories.org', 'Org Assignment') },
-  { value: 'working', label: getTranslationFromI18nKeyAndLabel('changelog.categories.working', 'Working Conditions') },
-  { value: 'financial', label: getTranslationFromI18nKeyAndLabel('changelog.categories.financial', 'Financial') },
-  { value: 'skills', label: getTranslationFromI18nKeyAndLabel('changelog.categories.skills', 'Skills & Capabilities') },
+  {
+    value: 'personal',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.personal', 'Personal Info')
+  },
+  {
+    value: 'address',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.address', 'Address & Contact')
+  },
+  { value: 'org', label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.org', 'Org Assignment') },
+  {
+    value: 'working',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.working', 'Working Conditions')
+  },
+  {
+    value: 'financial',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.financial', 'Financial')
+  },
+  {
+    value: 'skills',
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.skills', 'Skills & Capabilities')
+  },
   {
     value: 'performance',
-    label: getTranslationFromI18nKeyAndLabel('changelog.categories.performance', 'Performance & Goals')
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.performance', 'Performance & Goals')
   },
   {
     value: 'absence',
-    label: getTranslationFromI18nKeyAndLabel('changelog.categories.absence', 'Absence Entitlements')
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.absence', 'Absence Entitlements')
   },
   {
     value: 'emergency',
-    label: getTranslationFromI18nKeyAndLabel('changelog.categories.emergency', 'Emergency Contacts')
+    label: getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.categories.emergency', 'Emergency Contacts')
   }
 ]
 
@@ -89,18 +104,21 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
     <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:p-4">
       <div className="gba:flex gba:items-center gba:mb-4">
         <h3 className="gba:text-lg gba:font-medium gba:m-0">
-          {getTranslationFromI18nKeyAndLabel('changelog.filters.title', 'Filters')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.title', 'Filters')}
         </h3>
       </div>
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-4 gba:gap-4">
         {/* Search */}
         <div className="gba:space-y-2">
           <label className="gba:text-sm gba:font-medium gba:block">
-            {getTranslationFromI18nKeyAndLabel('changelog.filters.search', 'Search')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.search', 'Search')}
           </label>
           <input
             type="text"
-            placeholder={getTranslationFromI18nKeyAndLabel('changelog.filters.search_placeholder', 'Search changes...')}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:changelog_tab.filters.search_placeholder',
+              'Search changes...'
+            )}
             value={searchLocal}
             onChange={e => setSearchLocal(e.target.value)}
             className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
@@ -110,7 +128,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
         {/* Field Category */}
         <div className="gba:space-y-2">
           <label className="gba:text-sm gba:font-medium gba:block">
-            {getTranslationFromI18nKeyAndLabel('changelog.filters.field_category', 'Field Category')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.field_category', 'Field Category')}
           </label>
           <select
             value={filters.fieldCategory[0] || ''}
@@ -118,7 +136,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
             className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
           >
             <option value="">
-              {getTranslationFromI18nKeyAndLabel('changelog.filters.all_categories', 'All categories')}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.all_categories', 'All categories')}
             </option>
             {filteredFieldCategories.map(category => (
               <option key={category.value} value={category.value}>
@@ -131,16 +149,20 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
         {/* Change Actor */}
         <div className="gba:space-y-2">
           <label className="gba:text-sm gba:font-medium gba:block">
-            {getTranslationFromI18nKeyAndLabel('changelog.filters.change_actor', 'Change Actor')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.change_actor', 'Change Actor')}
           </label>
           <select
             value={filters.changeActor[0] || ''}
             onChange={e => onFilterChange('changeActor', e.target.value ? [e.target.value] : [])}
             className="gba:w-full gba:px-3 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:focus:outline-none gba:focus:ring-2 gba:focus:ring-blue-500"
           >
-            <option value="">{getTranslationFromI18nKeyAndLabel('changelog.filters.all_actors', 'All actors')}</option>
+            <option value="">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.all_actors', 'All actors')}
+            </option>
             {/* Single System option */}
-            <option value="system">{getTranslationFromI18nKeyAndLabel('changelog.actors.system', 'System')}</option>
+            <option value="system">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actors.system', 'System')}
+            </option>
             {/* Dynamic actor names */}
             {(propsActorNames || []).map((name: string) => (
               <option key={name} value={name}>
@@ -153,7 +175,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
         {/* Date Range */}
         <div className="gba:space-y-2">
           <label className="gba:text-sm gba:font-medium gba:block">
-            {getTranslationFromI18nKeyAndLabel('changelog.filters.date_range', 'Date Range')}
+            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.filters.date_range', 'Date Range')}
           </label>
           <div className="gba:flex gba:gap-2">
             <input
@@ -187,7 +209,7 @@ export const ChangeLogFilters: React.FC<ChangeLogFiltersProps> = ({
           onClick={onClearFilters}
           className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:bg-white gba:cursor-pointer gba:hover:bg-gray-50"
         >
-          {getTranslationFromI18nKeyAndLabel('changelog.actions.clear_filters', 'Clear Filters')}
+          {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actions.clear_filters', 'Clear Filters')}
         </button>
         <div className="gba:flex gba:items-center gba:gap-2">
           <span className="gba:text-sm gba:text-gray-500">
