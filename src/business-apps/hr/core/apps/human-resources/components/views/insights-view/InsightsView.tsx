@@ -43,29 +43,30 @@ interface EmployeeInsight {
 }
 
 const GET_EMPLOYEE_INSIGHTS = `
-  query GetEmployeeInsights {
-    Employee(where: { isDeleted: { _eq: false } }) {
-      id
-      firstName
-      lastName
-      fullName
-      birthDate
-      pictureThumbnail
-      workingCondition(limit: 1, orderBy: { createdAt: DESC }) {
-        hireDate
-        probationEnd
-        exitDate
+query GetEmployeeInsights {
+  Employee(where: {isDeleted: {_eq: false}}) {
+    id
+    firstName
+    lastName
+    fullName
+    birthDate
+    pictureThumbnail
+    workingCondition(limit: 1, orderBy: {createdAt: DESC}) {
+      hireDate
+      probationEnd
+      exitDate
+      contractStatus
+    }
+    employeePosition {
+      organizationalUnit {
+        name
       }
-      employeePosition {
-        organizationalUnit {
-          name
-        }
-        jobPosition {
-          name
-        }
+      jobPosition {
+        name
       }
     }
   }
+}
 `
 
 export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
@@ -90,6 +91,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         lastName: emp.lastName,
         fullName: emp.fullName,
         birthDate: emp.birthDate,
+        contract_status: emp.workingCondition?.[0]?.contractStatus,
         pictureThumbnail: emp.pictureThumbnail,
         hireDate: emp.workingCondition?.[0]?.hireDate,
         probationEnd: emp.workingCondition?.[0]?.probationEnd,
@@ -97,9 +99,12 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         jobPositionName: emp.employeePosition?.jobPosition?.name,
         organizationalUnitName: emp.employeePosition?.organizationalUnit?.name
       }))
+        // As additional safety, filter out records where both criteria are met
+        .filter((emp: any) => !(emp.exitDate && String(emp.contract_status || '').toUpperCase() === 'INACTIVE'))
 
       const today = new Date()
-      const next30Days = addDays(today, 30)
+      const startWindow = addDays(today, -30)
+      const endWindow = addDays(today, 30)
 
       const upcomingBirthdays: EmployeeInsight[] = []
       const upcomingAnniversaries: EmployeeInsight[] = []
@@ -108,40 +113,28 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       const upcomingTerminations: EmployeeInsight[] = []
 
       employees.forEach((emp: EmployeeInsight) => {
-        // Birthdays
+        // Birthdays (future 30 only)
         if (emp.birthDate) {
           const birthDate = parseISO(emp.birthDate)
-          let currentYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
-          if (currentYearBirthday < today) {
-            currentYearBirthday = new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate())
-          }
-          if (isWithinInterval(currentYearBirthday, { start: today, end: next30Days })) {
-            upcomingBirthdays.push(emp)
-          }
+          const nextOcc = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
+          const next =
+            nextOcc < today ? new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate()) : nextOcc
+          if (isWithinInterval(next, { start: today, end: endWindow })) upcomingBirthdays.push(emp)
         }
 
-        // Anniversaries
+        // Anniversaries (future 30 only)
         if (emp.hireDate) {
           const hireDate = parseISO(emp.hireDate)
-          let yearsSinceHire = today.getFullYear() - hireDate.getFullYear()
-          let anniversaryDate = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate())
-
-          // If this year's anniversary has passed, check next year's
-          if (anniversaryDate < today) {
-            yearsSinceHire++
-            anniversaryDate = new Date(today.getFullYear() + 1, hireDate.getMonth(), hireDate.getDate())
-          }
-
-          // Check if the anniversary falls within the next 30 days
-          if (isWithinInterval(anniversaryDate, { start: today, end: next30Days })) {
-            upcomingAnniversaries.push(emp)
-          }
+          const nextOcc = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate())
+          const next =
+            nextOcc < today ? new Date(today.getFullYear() + 1, hireDate.getMonth(), hireDate.getDate()) : nextOcc
+          if (isWithinInterval(next, { start: today, end: endWindow })) upcomingAnniversaries.push(emp)
         }
 
         // New Hires (start date in next 30 days)
         if (emp.hireDate) {
           const hireDate = parseISO(emp.hireDate)
-          if (isWithinInterval(hireDate, { start: today, end: next30Days })) {
+          if (isWithinInterval(hireDate, { start: startWindow, end: endWindow })) {
             upcomingNewHires.push(emp)
           }
         }
@@ -149,7 +142,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         // Probation Ends (probationEnd in next 30 days)
         if (emp.probationEnd) {
           const probationEndDate = parseISO(emp.probationEnd)
-          if (isWithinInterval(probationEndDate, { start: today, end: next30Days })) {
+          if (isWithinInterval(probationEndDate, { start: startWindow, end: endWindow })) {
             upcomingProbationEnds.push(emp)
           }
         }
@@ -157,10 +150,48 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         // Terminations (exitDate in next 30 days)
         if (emp.exitDate) {
           const exitDate = parseISO(emp.exitDate)
-          if (isWithinInterval(exitDate, { start: today, end: next30Days })) {
+          if (isWithinInterval(exitDate, { start: startWindow, end: endWindow })) {
             upcomingTerminations.push(emp)
           }
         }
+      })
+
+      // Sort helpers
+      const getBirthdayDateForSort = (dateStr: string): Date => {
+        const birthDate = parseISO(dateStr)
+        const nextOcc = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate())
+        return nextOcc < today ? new Date(today.getFullYear() + 1, birthDate.getMonth(), birthDate.getDate()) : nextOcc
+      }
+
+      const getAnniversaryDateForSort = (dateStr: string): Date => {
+        const hireDate = parseISO(dateStr)
+        const nextOcc = new Date(today.getFullYear(), hireDate.getMonth(), hireDate.getDate())
+        return nextOcc < today ? new Date(today.getFullYear() + 1, hireDate.getMonth(), hireDate.getDate()) : nextOcc
+      }
+
+      upcomingBirthdays.sort((a, b) => {
+        if (!a.birthDate || !b.birthDate) return 0
+        return getBirthdayDateForSort(a.birthDate).getTime() - getBirthdayDateForSort(b.birthDate).getTime()
+      })
+
+      upcomingAnniversaries.sort((a, b) => {
+        if (!a.hireDate || !b.hireDate) return 0
+        return getAnniversaryDateForSort(a.hireDate).getTime() - getAnniversaryDateForSort(b.hireDate).getTime()
+      })
+
+      upcomingNewHires.sort((a, b) => {
+        if (!a.hireDate || !b.hireDate) return 0
+        return parseISO(a.hireDate).getTime() - parseISO(b.hireDate).getTime()
+      })
+
+      upcomingProbationEnds.sort((a, b) => {
+        if (!a.probationEnd || !b.probationEnd) return 0
+        return parseISO(a.probationEnd).getTime() - parseISO(b.probationEnd).getTime()
+      })
+
+      upcomingTerminations.sort((a, b) => {
+        if (!a.exitDate || !b.exitDate) return 0
+        return parseISO(a.exitDate).getTime() - parseISO(b.exitDate).getTime()
       })
 
       setBirthdays(upcomingBirthdays)
@@ -169,7 +200,10 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
       setProbationEnds(upcomingProbationEnds)
       setTerminations(upcomingTerminations)
     } catch (err: any) {
-      setError(err.message || getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.failed_to_fetch', 'Failed to fetch insights data'))
+      setError(
+        err.message ||
+          getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.failed_to_fetch', 'Failed to fetch insights data')
+      )
       console.error('Error fetching insights data:', err)
     } finally {
       setLoading(false)
@@ -185,7 +219,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     const urlParams = new URLSearchParams(window.location.search)
     const tabFromUrl = urlParams.get('insightsTab')
     const validTabs = ['birthdays', 'anniversaries', 'new-hires', 'probation-ends', 'terminations']
-    
+
     if (tabFromUrl && validTabs.includes(tabFromUrl)) {
       return tabFromUrl
     }
@@ -196,7 +230,7 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
 
   const handleSubTabChange = (value: string) => {
     setActiveSubTab(value)
-    
+
     // Update URL to reflect the current tab
     const urlParams = new URLSearchParams(window.location.search)
     urlParams.set('insightsTab', value)
@@ -260,7 +294,10 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     if (!employees || employees.length === 0) {
       return (
         <div className="gba:text-sm gba:text-gray-500">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.no_events', `No ${dateLabel.toLowerCase()} in the next 30 days.`)}
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_insights.no_events',
+            `No ${dateLabel.toLowerCase()} in the next 30 days.`
+          )}
         </div>
       )
     }
@@ -271,7 +308,6 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
           <TableRow>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.employee', 'Employee')}</TableHead>
             <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.department', 'Department')}</TableHead>
-            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.role', 'Role')}</TableHead>
             <TableHead>{dateLabel}</TableHead>
           </TableRow>
         </TableHeader>
@@ -283,12 +319,17 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
               if (dateField === 'birthDate') {
                 const birthDate = parseISO(dateValue)
                 const thisYearBirthday = new Date(new Date().getFullYear(), birthDate.getMonth(), birthDate.getDate())
-                renderedDate = format(thisYearBirthday, 'MMM dd, yyyy')
+                // For birthdays, show only day and month
+                renderedDate = format(thisYearBirthday, 'MMM dd')
               } else if (dateField === 'hireDate' && activeSubTab === 'anniversaries') {
                 const hireDate = parseISO(dateValue)
                 const thisYearAnniversary = new Date(new Date().getFullYear(), hireDate.getMonth(), hireDate.getDate())
                 const years = differenceInYears(new Date(), hireDate) + 1
-                renderedDate = `${format(thisYearAnniversary, 'MMM dd, yyyy')} (${years} years)`
+                const yearsLabel =
+                  years === 1
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.year', 'year')
+                    : getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.years', 'years')
+                renderedDate = `${format(thisYearAnniversary, 'MMM dd, yyyy')} (${years} ${yearsLabel})`
               } else {
                 renderedDate = format(parseISO(dateValue), 'MMM dd, yyyy')
               }
@@ -302,7 +343,10 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
                   <div className="gba:flex gba:items-center gba:space-x-3">
                     <Avatar>
                       {record.pictureThumbnail ? (
-                        <AvatarImage src={`data:image/gif;base64,${record.pictureThumbnail}`} alt={`${record.firstName} ${record.lastName}`} />
+                        <AvatarImage
+                          src={`data:image/gif;base64,${record.pictureThumbnail}`}
+                          alt={`${record.firstName} ${record.lastName}`}
+                        />
                       ) : null}
                       <AvatarFallback>{initials}</AvatarFallback>
                     </Avatar>
@@ -318,8 +362,10 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>{record.organizationalUnitName || getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')}</TableCell>
-                <TableCell>{record.jobPositionName || getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')}</TableCell>
+                <TableCell>
+                  {record.organizationalUnitName ||
+                    getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.not_available', 'N/A')}
+                </TableCell>
                 <TableCell>{renderedDate}</TableCell>
               </TableRow>
             )
@@ -341,7 +387,9 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
     return (
       <div className="gba:p-6">
         <Alert variant="destructive">
-          <AlertTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.error_loading', 'Error loading insights')}</AlertTitle>
+          <AlertTitle>
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.error_loading', 'Error loading insights')}
+          </AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       </div>
@@ -350,11 +398,14 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
 
   return (
     <div className="gba:p-6">
-
       <Tabs value={activeSubTab} onValueChange={handleSubTabChange} className="gba:w-full">
         <TabsList className="gba:grid gba:w-full gba:grid-cols-5">
           {viewOptions.map(option => (
-            <TabsTrigger key={option.key} value={option.key} className="gba:flex gba:flex-col gba:items-center gba:space-y-1">
+            <TabsTrigger
+              key={option.key}
+              value={option.key}
+              className="gba:flex gba:flex-col gba:items-center gba:space-y-1"
+            >
               <div className="gba:flex gba:items-center gba:space-x-2">
                 {option.icon}
                 <span>{option.label}</span>
@@ -367,23 +418,43 @@ export const InsightsView: React.FC<BusinessAppContextProps> = ({ accessToken })
         </TabsList>
 
         <TabsContent value="birthdays" className="gba:mt-6">
-          {renderEmployeeTable(birthdays, 'birthDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday_date', 'Birthday'))}
+          {renderEmployeeTable(
+            birthdays,
+            'birthDate',
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.birthday_date', 'Birthday')
+          )}
         </TabsContent>
 
         <TabsContent value="anniversaries" className="gba:mt-6">
-          {renderEmployeeTable(anniversaries, 'hireDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary'))}
+          {renderEmployeeTable(
+            anniversaries,
+            'hireDate',
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.anniversary_date', 'Anniversary')
+          )}
         </TabsContent>
 
         <TabsContent value="new-hires" className="gba:mt-6">
-          {renderEmployeeTable(newHires, 'hireDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.start_date', 'Start Date'))}
+          {renderEmployeeTable(
+            newHires,
+            'hireDate',
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.start_date', 'Start Date')
+          )}
         </TabsContent>
 
         <TabsContent value="probation-ends" className="gba:mt-6">
-          {renderEmployeeTable(probationEnds, 'probationEnd', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_end_date', 'Probation End'))}
+          {renderEmployeeTable(
+            probationEnds,
+            'probationEnd',
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.probation_end_date', 'Probation End')
+          )}
         </TabsContent>
 
         <TabsContent value="terminations" className="gba:mt-6">
-          {renderEmployeeTable(terminations, 'exitDate', getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date'))}
+          {renderEmployeeTable(
+            terminations,
+            'exitDate',
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.termination_date', 'Termination Date')
+          )}
         </TabsContent>
       </Tabs>
     </div>
