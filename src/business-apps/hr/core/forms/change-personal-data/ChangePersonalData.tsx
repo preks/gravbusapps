@@ -104,17 +104,6 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
     setTimeout(() => setFileList(mapped), 0)
   }, [])
 
-  // Prevent inner buttons of FileUpload from submitting the form
-  // const preventFormSubmitFromUpload = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-  //   const target = e.target as HTMLElement
-  //   if (typeof target.closest === 'function') {
-  //     const button = target.closest('button')
-  //     if (button) {
-  //       e.preventDefault()
-  //     }
-  //   }
-  // }, [])
-
   // Normalize default values to match Select option value types (string ids)
   const normalizedDefaults: PersonalDataFormValues = useMemo(() => {
     const toIdString = (val: any) => (val === null || val === undefined || val === '' ? null : String(val))
@@ -355,7 +344,7 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
               catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }}
             />
 
-            {/* Upload (nw-design-system)  onClickCapture={preventFormSubmitFromUpload} */}
+            {/* Upload (nw-design-system)  */}
             <FormField
               name={'fileUpload'}
               render={() => (
