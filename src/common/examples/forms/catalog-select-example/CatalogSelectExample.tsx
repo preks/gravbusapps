@@ -19,7 +19,12 @@ import {
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { CatalogSelect, CatalogSelectProvider, useCatalogValidation } from '@/components/catalog-select'
+import {
+  CatalogSelect,
+  CatalogSelectProvider,
+  CatalogSelectContext,
+  useCatalogValidation
+} from '@/components/catalog-select'
 
 /**
  * CatalogSelect Example Form
@@ -59,6 +64,7 @@ const PIPELINE_STAGE_EXTERNAL_FILTERS = [{ externalKey: 'pipelineType', field: '
 
 const FormContent: React.FC<BusinessAppContextProps> = context => {
   const { shouldValidateField } = useCatalogValidation()
+  const catalogContext = React.useContext(CatalogSelectContext)
 
   const schema = z
     .object({
@@ -128,6 +134,13 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
     },
     mode: 'onSubmit'
   })
+
+  // Register form with provider
+  React.useEffect(() => {
+    if (catalogContext?.registerForm) {
+      catalogContext.registerForm(form)
+    }
+  }, [catalogContext, form])
 
   // Form handlers
   const handleSubmit = React.useCallback(async (data: FormValues) => {
@@ -254,14 +267,12 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
             <FormLabel data-testid="language-label">Language (Catalog)</FormLabel>
             <FormControl>
               <CatalogSelect
-                catalogInstanceId="language"
                 catalogIdentifier="Language:v1"
                 prefetch={true}
                 pageSize={25}
                 value={field.value || ''}
                 onValueChange={v => field.onChange(v)}
                 data-testid="language-combobox"
-                {...context}
               />
             </FormControl>
             <FormMessage />
@@ -281,7 +292,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
               <FormLabel data-testid="birth-country-label">Birth Country</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="birthCountry"
                   catalogIdentifier="Country:v1"
                   prefetch={true}
                   pageSize={25}
@@ -289,7 +299,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="birth-country-combobox"
-                  {...context}
                 />
               </FormControl>
               <FormMessage />
@@ -304,7 +313,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
               <FormLabel data-testid="birth-region-label">Birth Region</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="birthRegion"
                   catalogIdentifier="CountryRegion:v1"
                   prefetch={true}
                   pageSize={25}
@@ -312,7 +320,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="birth-region-combobox"
-                  {...context}
                 />
               </FormControl>
               <FormMessage />
@@ -334,7 +341,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
               <FormLabel data-testid="residence-country-label">Residence Country</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="residenceCountry"
                   catalogIdentifier="Country:v1"
                   prefetch={true}
                   pageSize={25}
@@ -342,7 +348,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="residence-country-combobox"
-                  {...context}
                 />
               </FormControl>
               <FormMessage />
@@ -357,7 +362,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
               <FormLabel data-testid="residence-region-label">Residence Region</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="residenceRegion"
                   catalogIdentifier="CountryRegion:v1"
                   prefetch={true}
                   pageSize={25}
@@ -365,7 +369,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="residence-region-combobox"
-                  {...context}
                 />
               </FormControl>
               <FormMessage />
@@ -387,14 +390,12 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
               <FormLabel data-testid="investment-group-label">InvestmentGroup</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="investmentGroup"
                   catalogIdentifier="InvestmentGroup:v1"
                   prefetch={true}
                   pageSize={25}
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="investment-group-combobox"
-                  {...context}
                 />
               </FormControl>
               <FormMessage />
@@ -409,7 +410,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
               <FormLabel data-testid="investment-type-label">InvestmentType</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="investmentType"
                   catalogIdentifier="InvestmentType:v1"
                   prefetch={true}
                   pageSize={25}
@@ -419,7 +419,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="investment-type-combobox"
-                  {...context}
                 />
               </FormControl>
               <FormMessage />
@@ -439,27 +438,27 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
           render={({ field }) => (
             <FormItem className="gba:w-full" data-testid="pipeline-type-field">
               <FormLabel data-testid="pipeline-type-label">Pipeline Type</FormLabel>
-              <FormControl>
-                <Select value={field.value || ''} onValueChange={v => field.onChange(v)}>
+              <Select value={field.value || ''} onValueChange={v => field.onChange(v)}>
+                <FormControl>
                   <SelectTrigger className="gba:w-full" data-testid="pipeline-type-select">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DISCOVERY" data-testid="selectitem-DISCOVERY">
-                      Discovery
-                    </SelectItem>
-                    <SelectItem value="QUALIFICATION" data-testid="selectitem-QUALIFICATION">
-                      Qualification
-                    </SelectItem>
-                    <SelectItem value="NEGOTIATION" data-testid="selectitem-NEGOTIATION">
-                      Negotiation
-                    </SelectItem>
-                    <SelectItem value="CLOSED_WON" data-testid="selectitem-CLOSED_WON">
-                      Closed Won
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="DISCOVERY" data-testid="selectitem-DISCOVERY">
+                    Discovery
+                  </SelectItem>
+                  <SelectItem value="QUALIFICATION" data-testid="selectitem-QUALIFICATION">
+                    Qualification
+                  </SelectItem>
+                  <SelectItem value="NEGOTIATION" data-testid="selectitem-NEGOTIATION">
+                    Negotiation
+                  </SelectItem>
+                  <SelectItem value="CLOSED_WON" data-testid="selectitem-CLOSED_WON">
+                    Closed Won
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -472,7 +471,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
               <FormLabel data-testid="pipeline-stage-label">Pipeline Stage</FormLabel>
               <FormControl>
                 <CatalogSelect
-                  catalogInstanceId="pipelineStage"
                   catalogIdentifier="InvestmentOpportunityPipelineStage:v1"
                   prefetch={true}
                   pageSize={25}
@@ -481,7 +479,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                   value={field.value || ''}
                   onValueChange={v => field.onChange(v)}
                   data-testid="pipeline-stage-combobox"
-                  {...context}
                 />
               </FormControl>
               <FormMessage />
@@ -498,7 +495,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
             <FormLabel data-testid="contentType-label">Content Type</FormLabel>
             <FormControl>
               <CatalogSelect
-                catalogInstanceId="contentType"
                 catalogIdentifier="content_type:v1"
                 prefetch={true}
                 pageSize={25}
@@ -506,7 +502,6 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
                 value={field.value || ''}
                 onValueChange={v => field.onChange(v)}
                 data-testid="content-type-combobox"
-                {...context}
               />
             </FormControl>
             <FormMessage />
@@ -518,7 +513,7 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
 }
 
 // Outer component - wraps with Provider (with type-safe form integration)
-const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = context => {
+const CatalogSelectExample: React.FC<BusinessAppContextProps> = context => {
   return (
     <CatalogSelectProvider<FormValues> {...context}>
       <FormContent {...context} />
@@ -526,4 +521,4 @@ const ExampleCatalogSelectForm: React.FC<BusinessAppContextProps> = context => {
   )
 }
 
-export default ExampleCatalogSelectForm
+export default CatalogSelectExample

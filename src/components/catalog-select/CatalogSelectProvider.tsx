@@ -28,6 +28,7 @@ export interface CatalogSelectContextValue {
   controllers: Record<string, CatalogSelectController>
   registerCatalog: (config: CatalogSelectConfig) => void
   finalizeRegistration: () => void
+  registerForm?: <TFormValues extends FieldValues>(form: UseFormReturn<TFormValues>) => void
 }
 
 export const CatalogSelectContext = createContext<CatalogSelectContextValue | null>(null)
@@ -35,17 +36,37 @@ export const CatalogSelectContext = createContext<CatalogSelectContextValue | nu
 interface CatalogSelectProviderProps<TFormValues extends FieldValues = FieldValues> extends BusinessAppContextProps {
   children: React.ReactNode
   form?: UseFormReturn<TFormValues>
+  onFormReady?: (form: UseFormReturn<TFormValues>) => void
 }
 
 export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldValues>({
   children,
   form,
+  onFormReady,
   ...context
 }: CatalogSelectProviderProps<TFormValues>) => {
   // Registration tracking
   const [registeredConfigs, setRegisteredConfigs] = useState<CatalogSelectConfig[]>([])
   const [isRegistrationComplete, setIsRegistrationComplete] = useState(false)
   const registrationMapRef = React.useRef(new Map<string, CatalogSelectConfig>())
+
+  // Track form internally if passed via onFormReady
+  const [internalForm, setInternalForm] = useState<UseFormReturn<TFormValues> | undefined>(form)
+
+  // Callback for children to register their form
+  const registerForm = useCallback(<TF extends FieldValues>(f: UseFormReturn<TF>) => {
+    setInternalForm(f as any)
+  }, [])
+
+  // Expose setInternalForm via onFormReady callback
+  React.useEffect(() => {
+    if (onFormReady && internalForm) {
+      onFormReady(internalForm)
+    }
+  }, [onFormReady, internalForm])
+
+  // Use either passed form or internal form
+  const activeForm = form || internalForm
 
   // All configs come from self-registration
   const allConfigs = useMemo(() => registeredConfigs, [registeredConfigs])
@@ -62,16 +83,39 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   }, [allConfigs])
 
   // Auto-watch form fields if form is provided (type-safe via TFormValues generic)
-  const watchedValues = (form?.watch as any)?.(externalKeys) || []
-  const externalValues = useMemo(() => {
-    if (!form || externalKeys.length === 0) return undefined
+  // Note: form.watch with array is not reactive, so we need to subscribe manually
+  const [externalValues, setExternalValues] = useState<Record<string, string | null> | undefined>(undefined)
 
-    const values: Record<string, string | null> = {}
-    externalKeys.forEach((key, index) => {
-      values[key] = (watchedValues[index] as string) || null
+  useEffect(() => {
+    if (!activeForm || externalKeys.length === 0) {
+      console.log('[CatalogSelectProvider] No form or no external keys', { form: !!activeForm, externalKeys })
+      setExternalValues(undefined)
+      return
+    }
+
+    console.log('[CatalogSelectProvider] Setting up subscription for external keys:', externalKeys)
+
+    // Subscribe to form changes for external keys
+    const subscription = activeForm.watch(values => {
+      const newValues: Record<string, string | null> = {}
+      externalKeys.forEach(key => {
+        newValues[key] = ((values as any)[key] as string) || null
+      })
+      console.log('[CatalogSelectProvider] Form values changed:', newValues)
+      setExternalValues(newValues)
     })
-    return values
-  }, [form, externalKeys, watchedValues])
+
+    // Initialize with current values
+    const currentValues = activeForm.getValues()
+    const initialValues: Record<string, string | null> = {}
+    externalKeys.forEach(key => {
+      initialValues[key] = ((currentValues as any)[key] as string) || null
+    })
+    console.log('[CatalogSelectProvider] Initial values:', initialValues)
+    setExternalValues(initialValues)
+
+    return () => subscription.unsubscribe()
+  }, [activeForm, externalKeys])
 
   // Registration API - handles both initial and late registrations
   const registerCatalog = useCallback(
@@ -124,8 +168,8 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   }, [isRegistrationComplete, allConfigs.length, preload])
 
   const value = useMemo(
-    () => ({ controllers, registerCatalog, finalizeRegistration }),
-    [controllers, registerCatalog, finalizeRegistration]
+    () => ({ controllers, registerCatalog, finalizeRegistration, registerForm }),
+    [controllers, registerCatalog, finalizeRegistration, registerForm]
   )
 
   return <CatalogSelectContext.Provider value={value}>{children}</CatalogSelectContext.Provider>

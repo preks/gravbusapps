@@ -345,6 +345,17 @@ export const useCatalogSelect = (
       const hasExternalFilterValue = Boolean(
         cfg.externalEqualsFilters?.some(m => Boolean(externalValues?.[m.externalKey]))
       )
+
+      if (id === 'pipelineStage') {
+        console.log('[useCatalogSelect] Pipeline Stage disabled logic:', {
+          id,
+          hasExternalFilterValue,
+          externalValues,
+          externalEqualsFilters: cfg.externalEqualsFilters,
+          requireSourceForEnable: cfg.requireSourceForEnable
+        })
+      }
+
       const disabledRequire = Boolean(
         cfg.requireSourceForEnable &&
           ((cfg.parentConfigId && !hasParentSelected) || (cfg.externalEqualsFilters && !hasExternalFilterValue))
@@ -359,6 +370,16 @@ export const useCatalogSelect = (
         hasAnyFilterActive && !current?.loading && (current?.options?.length || 0) === 0
       )
       const disabled = disabledRequire || disabledWhileLoading || disabledNoOptions
+
+      if (id === 'pipelineStage') {
+        console.log('[useCatalogSelect] Pipeline Stage disabled result:', {
+          disabled,
+          disabledRequire,
+          disabledWhileLoading,
+          disabledNoOptions,
+          hasAnyFilterActive
+        })
+      }
 
       // ✅ hasOptions logic for validation:
       // - Strict dependencies (requireSourceForEnable: true): only valid when parent is selected

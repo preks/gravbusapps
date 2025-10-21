@@ -1,13 +1,18 @@
 import React from 'react'
-import { Combobox, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import {
+  Combobox,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useFormField
+} from '@newwork/nw-design-system'
+import { useFormContext } from 'react-hook-form'
 
 type Variant = 'combobox' | 'select'
 
-export interface CatalogSelectProps extends Partial<BusinessAppContextProps> {
-  // Required
-  catalogInstanceId: string // unique instance id (e.g. "birthCountry", "residenceCountry")
-
+export interface CatalogSelectProps {
   // Self-registration config props (optional - if provided, registers automatically)
   catalogIdentifier?: string // e.g. "Country:v1" - triggers auto-registration
   prefetch?: boolean // include in batch prefetch
@@ -27,7 +32,6 @@ export interface CatalogSelectProps extends Partial<BusinessAppContextProps> {
 import { useCatalogSelectController, CatalogSelectContext } from './CatalogSelectProvider'
 
 const CatalogSelect: React.FC<CatalogSelectProps> = ({
-  catalogInstanceId,
   // Self-registration config props
   catalogIdentifier,
   prefetch,
@@ -40,17 +44,35 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   variant,
   value,
   onValueChange,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  ...props
 }) => {
   // Get registration API from context
   const context = React.useContext(CatalogSelectContext)
 
+  // Try to get form context for validation trigger (optional)
+  const formContext = useFormContext()
+  const formState = formContext?.formState
+
+  // Auto-detect field name from FormField context
+  let fieldName: string | undefined
+  try {
+    const fieldContext = useFormField()
+    fieldName = fieldContext?.name
+  } catch {
+    // Not inside a FormField, that's ok
+  }
+
+  if (!fieldName) {
+    console.warn('[CatalogSelect] Could not auto-detect field name. Must be used inside a FormField component.')
+  }
+
   // ✅ Self-registration: Register ONCE on mount
   const registeredRef = React.useRef(false)
   React.useLayoutEffect(() => {
-    if (!registeredRef.current && catalogIdentifier && context?.registerCatalog) {
+    if (!registeredRef.current && catalogIdentifier && context?.registerCatalog && fieldName) {
       context.registerCatalog({
-        id: catalogInstanceId,
+        id: fieldName,
         catalogIdentifier,
         prefetch,
         pageSize,
@@ -62,7 +84,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       registeredRef.current = true
     }
   }, [
-    catalogInstanceId,
+    fieldName,
     catalogIdentifier,
     prefetch,
     pageSize,
@@ -74,7 +96,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   ])
 
   // Wire up via provider
-  const controller = useCatalogSelectController(catalogInstanceId)
+  const controller = useCatalogSelectController(fieldName || '')
   const wiredVariant = variant ?? controller?.variant ?? 'combobox'
   const wiredOptions = controller?.options ?? []
   const wiredLoading = controller?.loading ?? false
@@ -103,7 +125,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       onValueChange(normalizedCtrl)
     }
   }, [isControlled, onValueChange, wiredControllerValue, value])
-  const testId = dataTestId || `catalog-select-${catalogInstanceId}-${wiredVariant}`
+  const testId = dataTestId || `catalog-select-${fieldName}-${wiredVariant}`
 
   // Do not force a no-op search; rely on prefetched options and sentinel observer
   const observerRef = React.useRef<IntersectionObserver | null>(null)
@@ -150,7 +172,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   }, [wiredOptions])
 
   // Use a more stable key that doesn't change during search
-  const stableKey = `${catalogInstanceId}-${wiredVariant}-${wiredDisabled ? 'd' : 'e'}`
+  const stableKey = `${fieldName}-${wiredVariant}-${wiredDisabled ? 'd' : 'e'}`
 
   // Stable handlers for internal Combobox
   const handleLoadMore = React.useCallback(() => {
@@ -183,6 +205,17 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     }
   }, [wiredDisabled, effectiveValue, handleExternalValueChange])
 
+  // Trigger validation when field becomes disabled (if form context available)
+  React.useEffect(() => {
+    if (wiredDisabled && fieldName && formContext && formState?.isSubmitted) {
+      // Trigger validation after a tick to allow value to clear first
+      const timer = setTimeout(() => {
+        formContext.trigger(fieldName)
+      }, 0)
+      return () => clearTimeout(timer)
+    }
+  }, [wiredDisabled, fieldName, formContext, formState?.isSubmitted])
+
   if (wiredVariant === 'combobox') {
     return (
       <Combobox
@@ -202,6 +235,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         data-testid={testId}
         align="start"
         disabled={wiredDisabled}
+        {...props}
       />
     )
   }
@@ -213,7 +247,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
       onValueChange={v => handleExternalValueChange(v)}
       disabled={wiredDisabled}
     >
-      <SelectTrigger className="gba:w-full" data-testid={testId}>
+      <SelectTrigger className="gba:w-full" data-testid={testId} {...props}>
         <SelectValue placeholder="Select..." />
       </SelectTrigger>
       <SelectContent className="gba:max-h-[300px] gba:overflow-y-auto">

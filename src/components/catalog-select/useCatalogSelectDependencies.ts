@@ -75,8 +75,23 @@ export const useCatalogSelectDependencies = ({
         externalEqualsFilters.forEach(filter => {
           const externalValue = externalValues?.[filter.externalKey] || null
           const lastExternalValue = lastParentValuesRef.current.get(`${id}_external_${filter.externalKey}`)
+
+          if (id === 'pipelineStage') {
+            console.log('[useCatalogSelectDependencies] Pipeline Stage external filter check:', {
+              id,
+              externalKey: filter.externalKey,
+              externalValue,
+              lastExternalValue,
+              changed: lastExternalValue !== externalValue
+            })
+          }
+
           if (lastExternalValue !== externalValue) {
             lastParentValuesRef.current.set(`${id}_external_${filter.externalKey}`, externalValue)
+
+            if (id === 'pipelineStage') {
+              console.log('[useCatalogSelectDependencies] Pipeline Stage external filter changed, fetching...')
+            }
 
             // Clear child when external filter changes
             const childState = stateById[id]
@@ -96,10 +111,22 @@ export const useCatalogSelectDependencies = ({
 
               const fetchWithExternalFilter = async () => {
                 try {
+                  console.log('[useCatalogSelectDependencies] Fetching with external filter:', {
+                    id,
+                    filter: filter.field,
+                    value: externalValue
+                  })
+
                   const res = await fetchCatalogEntriesByIdentifier(id, {
                     limit: config.pageSize ?? defaultPageSize,
                     offset: 0,
                     [filter.field === 'type' ? 'typeEquals' : filter.field]: externalValue
+                  })
+
+                  console.log('[useCatalogSelectDependencies] Fetch result:', {
+                    id,
+                    entries: res.entries.length,
+                    totalCount: res.totalCount
                   })
 
                   setFor(id, prev => ({
