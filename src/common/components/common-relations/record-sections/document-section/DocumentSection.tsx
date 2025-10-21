@@ -1329,6 +1329,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
   // Handle three-dots click to open custom menu
   const handleActionsButtonClick = (document: DocumentItem, event: React.MouseEvent) => {
+    event.stopPropagation()
     setSelectedDocument(document)
 
     // Create menu mount point relative to the clicked button
@@ -1428,6 +1429,57 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
     return actions
   }, [selectedDocument, downloadActionProps, customActions, accessToken, apiConfig])
+
+  // Close menu when clicking outside or pressing Escape
+  useEffect(() => {
+    if (!menuOpen) return
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+
+      // Check if click is on the menu content or trigger button
+      const isMenuClick = menuMountEl && menuMountEl.contains(target)
+      const isTriggerClick = target.closest('[data-testid*="-actions-"]')
+
+      if (!isMenuClick && !isTriggerClick) {
+        setMenuOpen(false)
+      }
+    }
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+      }
+    }
+
+    // Add listeners after a brief delay to avoid immediate closure
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside, true)
+      document.addEventListener('keydown', handleEscapeKey)
+    }, 100)
+
+    return () => {
+      clearTimeout(timeoutId)
+      document.removeEventListener('click', handleClickOutside, true)
+      document.removeEventListener('keydown', handleEscapeKey)
+    }
+  }, [menuOpen, menuMountEl])
+
+  // Cleanup mount element when menu closes
+  useEffect(() => {
+    if (!menuOpen && menuMountEl) {
+      // Clean up the mount element after a short delay to allow animations
+      const cleanupTimer = setTimeout(() => {
+        if (menuMountEl.parentElement) {
+          menuMountEl.parentElement.removeChild(menuMountEl)
+        }
+        setMenuMountEl(null)
+        setSelectedDocument(null)
+      }, 150)
+
+      return () => clearTimeout(cleanupTimer)
+    }
+  }, [menuOpen, menuMountEl])
 
   if (isLoading) {
     return (
@@ -1677,13 +1729,19 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         {/* Custom three dots menu portal */}
         {selectedDocument &&
           menuMountEl &&
+          menuOpen &&
           createPortal(
             <AppActionMenu
               accessToken={accessToken}
               staticFlowData={customMenuActions as any}
               emptyStateBehavior="enable"
               open={menuOpen}
-              onOpenChange={open => setMenuOpen(open)}
+              onOpenChange={open => {
+                setMenuOpen(open)
+                if (!open) {
+                  setSelectedDocument(null)
+                }
+              }}
               prefixDataTestId="document-section"
               data-testid="document-section-action-menu"
             >
