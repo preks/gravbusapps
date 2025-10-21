@@ -12,7 +12,8 @@ export class ChangeLogDataTransformer {
     // Transform addresses
     if (employee.addresses) {
       employee.addresses.forEach((address: any, index: number) => {
-        if (index > 0) { // Only show changes, not the first record
+        if (index > 0) {
+          // Only show changes, not the first record
           entries.push({
             id: `address-${address.id}`,
             fieldName: 'Address',
@@ -21,8 +22,8 @@ export class ChangeLogDataTransformer {
             newValue: this.formatAddressValue(address),
             timestamp: address.updatedAt || address.createdAt,
             changedBy: {
-              userId: address.updatedBy || address.createdBy || 'system',
-              userName: address.updatedBy || address.createdBy || 'System',
+              userId: address.createdBy || 'system',
+              userName: address.createdBy || 'System',
               userRole: 'System'
             },
             changeOrigin: {
@@ -50,8 +51,8 @@ export class ChangeLogDataTransformer {
             newValue: this.formatCommunicationValue(comm),
             timestamp: comm.updatedAt || comm.createdAt,
             changedBy: {
-              userId: comm.updatedBy || comm.createdBy || 'system',
-              userName: comm.updatedBy || comm.createdBy || 'System',
+              userId: comm.createdBy || 'system',
+              userName: comm.createdBy || 'System',
               userRole: 'System'
             },
             changeOrigin: {
@@ -78,8 +79,8 @@ export class ChangeLogDataTransformer {
         newValue: this.formatRelationshipValue(rel),
         timestamp: rel.updatedAt || rel.createdAt || new Date().toISOString(),
         changedBy: {
-          userId: rel.updatedBy || rel.createdBy || 'system',
-          userName: rel.updatedBy || rel.createdBy || 'System',
+          userId: rel.createdBy || 'system',
+          userName: rel.createdBy || 'System',
           userRole: 'System'
         },
         changeOrigin: {
