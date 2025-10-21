@@ -62,11 +62,13 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                 })
               : undefined
 
-            const used = annualLeaveEntitlement?.used || 0
+            const approved = annualLeaveEntitlement?.used || 0
+            const pending = annualLeaveEntitlement?.pending || 0
+            const used = approved + pending
             const total = annualLeaveEntitlement?.total || 0
             const remaining = total - used
 
-            const chartColors = ['var(--nw-chart-1)', 'var(--nw-chart-4)']
+            const chartColors = ['var(--nw-success)', 'var(--nw-warning)']
 
             const data = [
               {
@@ -250,11 +252,11 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               absenceByStatus[translatedStatus] += duration
             })
             const chartColors = [
-              'var(--nw-chart-1)',
-              'var(--nw-chart-2)',
-              'var(--nw-chart-3)',
-              'var(--nw-chart-4)',
-              'var(--nw-chart-5)'
+              'var(--nw-success)',
+              'var(--nw-warning)',
+              'var(--nw-destructive)',
+              'var(--nw-muted)',
+              'var(--nw-info)'
             ]
             const getStatusColorIndex = (originalStatus: string): number => {
               const statusUpper = originalStatus.toUpperCase()

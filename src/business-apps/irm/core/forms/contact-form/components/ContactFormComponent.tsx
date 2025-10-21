@@ -59,7 +59,7 @@ const ContactFormComponent: React.FC = () => {
         businessKey: toStringOrUndefined(formValues.businessKey),
 
         academicTitleRef: toStringOrUndefined(formValues.academicTitleRef),
-        // languageRef: toStringOrUndefined(formValues.languageRef),
+        languageRef: toStringOrUndefined(formValues.languageRef),
 
         additionalProperties: formValues.additionalProperties || {}
       }
@@ -110,16 +110,44 @@ const ContactFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
-      // ✅ FIXED: Extract account IDs from accountIds (handle both string[] and object[] formats)
-      const extractedAccountIds = (formValues.accountIds || []).map(account =>
-        typeof account === 'object' ? account.id : account
-      )
+      // ✅ NEW: Build accountContacts array with full association objects
+      const accountContacts = (formValues.accountIds || []).map(account => {
+        if (typeof account === 'object' && account.id) {
+          // Existing association - include association metadata if available
+          const accountContact: any = {
+            contactType: null, // Set contact type if needed
+            account: account.id,
+            contact: formValues.id // Current contact ID
+          }
 
-      // ✅ FIXED: Create clean payload structure to prevent context field pollution
+          // Include association ID and version if it exists (for updates)
+          if (account.associationId) {
+            accountContact.id = account.associationId
+            if (account.associationVersion !== undefined) {
+              accountContact.version = account.associationVersion
+            }
+          }
+
+          return accountContact
+        }
+
+        // New association - simple format
+        return {
+          contactType: null,
+          account: account,
+          contact: formValues.id
+        }
+      })
+
+      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, accountIds for CREATE
       const cleanPayload = {
-        investmentContact: investmentContactPayload,
+        investmentContact: {
+          ...investmentContactPayload,
+          accountContacts: isUpdate ? accountContacts : undefined, // Only for updates
+          opportunityContacts: isUpdate ? [] : undefined // Include empty array for updates
+        },
         changeMode: changeMode,
-        accountIds: extractedAccountIds // ✅ UPDATED: Array of account IDs (extracted from objects if needed)
+        accountIds: isUpdate ? undefined : accountContacts.map(ac => ac.account) // For CREATE mode only
       }
 
       const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload))

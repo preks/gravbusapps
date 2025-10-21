@@ -77,32 +77,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
             component: AccountSection,
             props: {
               ...props,
-              account: contact?.account
-                ? {
-                    id: contact.account.id,
-                    name: contact.account.name,
-                    email: undefined,
-                    phone: undefined,
-                    website: undefined,
-                    legalForm: undefined,
-                    industry: undefined,
-                    size: undefined,
-                    revenue: undefined,
-                    numberOfEmployees: undefined,
-                    annualRevenue: undefined
-                  }
-                : undefined,
+              accounts:
+                contact?.accountContacts
+                  ?.map(ac => ({
+                    id: ac.account?.id,
+                    name: ac.account?.name,
+                    email: ac.account?.email,
+                    phone: ac.account?.phone,
+                    website: ac.account?.website,
+                    legalForm: ac.account?.legalForm?.value,
+                    industry: ac.account?.industry?.value,
+                    size: ac.account?.numberOfEmployees?.value,
+                    revenue: ac.account?.annualRevenue?.value,
+                    numberOfEmployees: ac.account?.numberOfEmployees,
+                    annualRevenue: ac.account?.annualRevenue,
+                    addresses: ac.account?.addresses
+                  }))
+                  .filter(Boolean) || [],
               address: undefined,
-              recordUrl: contact?.account?.id
+              recordUrl: contact?.accountContacts?.[0]?.account?.id
                 ? buildPlatformUrl('/platform/crm/account-record', {
-                    accountId: contact.account.id,
+                    accountId: contact.accountContacts[0].account.id,
                     source: 'customer-relations'
                   })
                 : undefined,
               actionButtonProps: {
                 contextsArray: [FlowContextName.customerAccountEntity],
                 externalContextData: {
-                  accountId: contact?.account?.id
+                  accountId: contact?.accountContacts?.[0]?.account?.id
                 },
                 prefixDataTestId: 'contact-account'
               }
