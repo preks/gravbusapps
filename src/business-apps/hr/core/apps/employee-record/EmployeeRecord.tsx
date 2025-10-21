@@ -10,6 +10,7 @@ import {
   PiUser,
   PiIdentificationCard,
   PiBriefcase,
+  PiCurrencyEur,
   PiFiles,
   PiChartBar,
   PiChatCircle,
@@ -21,6 +22,7 @@ import {
 import SummaryTab from './components/tabs/SummaryTab'
 import DetailsTab from './components/tabs/DetailsTab'
 import EmploymentTab from './components/tabs/EmploymentTab'
+import CompensationTab from './components/tabs/CompensationTab'
 import DocumentsTab from './components/tabs/DocumentsTab'
 import PerformanceTab from './components/tabs/PerformanceTab'
 import FeedbackTab from './components/tabs/FeedbackTab'
@@ -38,6 +40,7 @@ const TAB_KEYS = {
   summary: 'summary',
   details: 'details',
   employment: 'employment',
+  compensation: 'compensation',
   documents: 'documents',
   performance: 'performance',
   feedback: 'feedback',
@@ -304,6 +307,24 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         )
       },
       {
+        key: TAB_KEYS.compensation,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiCurrencyEur style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Compensation</span>
+          </div>
+        ),
+        children: (
+          <CompensationTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      {
         key: TAB_KEYS.documents,
         label: (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -407,8 +428,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      // If not viewing own profile and tab is employment, documents, or absences, check permissions
-      if (tabKey === TAB_KEYS.employment || tabKey === TAB_KEYS.documents || tabKey === TAB_KEYS.absences) {
+      // If not viewing own profile and tab is employment, compensation, documents, or absences, check permissions
+      if (
+        tabKey === TAB_KEYS.employment ||
+        tabKey === TAB_KEYS.compensation ||
+        tabKey === TAB_KEYS.documents ||
+        tabKey === TAB_KEYS.absences
+      ) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true
       }
