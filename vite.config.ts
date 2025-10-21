@@ -383,10 +383,33 @@ if (globalThis.__APP_BUILD_INFO__) {
         code += '      console.log(`[Dynamic Screen Loader] Loading screen: ${screenKey} from ${importPath}`);\n'
         code += '      \n'
         code += '      const module = await import(/* @vite-ignore */ importPath);\n'
+        code += '      \n'
+        code += '      // 🔍 DEBUG: Inspect the imported module\n'
+        code += '      console.log(`🔍 [Dynamic Screen Loader] Module loaded for ${screenKey}:`, {\n'
+        code += '        hasDefault: "default" in module,\n'
+        code += '        defaultType: typeof module.default,\n'
+        code += '        defaultValue: module.default,\n'
+        code += '        moduleKeys: Object.keys(module),\n'
+        code += '        isFunction: typeof module.default === "function",\n'
+        code += '        isObject: typeof module.default === "object",\n'
+        code += '        displayName: module.default?.displayName || module.default?.name || "Unknown"\n'
+        code += '      });\n'
+        code += '      \n'
         code += '      const component = module.default;\n'
         code += '      \n'
         code += '      if (!component) {\n'
+        code += '        console.error(`❌ [Dynamic Screen Loader] No default export found for ${screenKey}`);\n'
+        code += '        console.error(`Available exports:`, Object.keys(module));\n'
         code += '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n'
+        code += '      }\n'
+        code += '      \n'
+        code +=
+          '      if (typeof component !== "function" && !(typeof component === "object" && component !== null)) {\n'
+        code +=
+          '        console.error(`❌ [Dynamic Screen Loader] Invalid component type for ${screenKey}: ${typeof component}`);\n'
+        code += '        console.error(`Component value:`, component);\n'
+        code +=
+          '        throw new Error(`Screen "${screenKey}" default export is not a valid React component (got ${typeof component})`);\n'
         code += '      }\n'
         code += '      \n'
         code += '      // Wrap with UI catalog\n'
@@ -615,6 +638,8 @@ export default wrapWithUiCatalog(OriginalComponent);
 
         // Only keep React-related packages as external
         // All other imports will be bundled into the main file
+        // Note: clsx, tailwind-merge, class-variance-authority removed from externals
+        // to ensure their dependencies (like @emotion/is-prop-valid) are bundled
         external: [
           'react',
           'react-dom',
@@ -628,12 +653,7 @@ export default wrapWithUiCatalog(OriginalComponent);
           'zustand',
           'react-i18next',
           'react-icons',
-          'clsx',
-          'tailwind-merge',
-          '@newwork/gravity-ui-catalog',
           '@remixicon/react',
-          'class-variance-authority',
-          'lucide-react',
           'react-router-dom'
         ],
         output: {
@@ -645,16 +665,11 @@ export default wrapWithUiCatalog(OriginalComponent);
             'react-i18next': 'reactI18next',
             'react-icons': 'reactIcons',
             'react-icons/pi': 'reactIconsPi',
-            clsx: 'clsx',
-            'tailwind-merge': 'tailwindMerge',
             '@dnd-kit/core': 'DNDKitCore',
             '@dnd-kit/sortable': 'DNDKitSortable',
             '@dnd-kit/utilities': 'DNDKitUtilities',
             zustand: 'zustand',
-            '@newwork/gravity-ui-catalog': 'GravityUICatalog',
             '@remixicon/react': 'remixIconReact',
-            'class-variance-authority': 'classVarianceAuthority',
-            'lucide-react': 'lucideReact',
             'react-router-dom': 'reactRouterDom'
           },
           // entryFileNames will now always output a predictable name;
@@ -670,7 +685,7 @@ export default wrapWithUiCatalog(OriginalComponent);
           // For non-entry chunks and assets, use Vite's hashing only for deployment builds.
           chunkFileNames: shouldHashFilesForDeployment ? `_chunks/[name]-[hash].js` : `_chunks/[name].js`,
           assetFileNames: shouldHashFilesForDeployment ? `assets/[name]-[hash][extname]` : `assets/[name][extname]`,
-          exports: 'named' // Address mixed export warnings
+          exports: 'auto' // Allow both default and named exports - required for component registration
         }
       }
     },
