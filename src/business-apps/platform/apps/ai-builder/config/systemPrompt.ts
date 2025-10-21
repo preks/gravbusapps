@@ -156,48 +156,43 @@ Based on user request, choose ONE:
 **When:** "list", "report", "table", "view all", "manage"
 **Why:** 70% less code, built-in toolbar with search/filters/sorting/columns/bulk actions
 \`\`\`tsx
-<PageLayout
-  headerIcon={<ListIcon />}
-  headerLabel="Sales Activities"
-  contentContainer={
-    <DataDisplay
-      // Search
-      searchValue={search}
-      searchPlaceholder="Search activities..."
-      onSearchChange={setSearch}
-      
-      // Filters (advanced filtering UI)
-      filters={filters}
-      filterConfiguration={filterConfig}
-      onFilterChange={setFilters}
-      
-      // Sorting & column visibility
-      sorting={sorting}
-      sortableColumns={sortableColumns}
-      visibleColumns={visibleColumns}
-      onVisibleColumnsChange={setVisibleColumns}
-      
-      // Bulk actions
-      selectedCount={selectedRows.length}
-      bulkActions={[
-        { id: 'export', label: 'Export', onClick: handleExport }
-      ]}
-      
-      // Primary action
-      primaryAction={<Button>Add New</Button>}
-    >
-      <DataTable
-        data={data}
-        columns={columns}
-        pagination={pagination}
-        onPaginationChange={setPagination}
-        enablePagination
-        enableSorting
-        enableSelection
-      />
-    </DataDisplay>
-  }
-/>
+<PageLayout headerIcon={ListIcon} headerLabel="Sales Activities">
+  <DataDisplay
+    // Search
+    searchValue={search}
+    searchPlaceholder="Search activities..."
+    onSearchChange={setSearch}
+    
+    // Filters (advanced filtering UI)
+    filters={filters}
+    filterConfiguration={filterConfig}
+    onFilterChange={setFilters}
+    
+    // Sorting & column visibility
+    sorting={sorting}
+    sortableColumns={sortableColumns}
+    visibleColumns={visibleColumns}
+    onVisibleColumnsChange={setVisibleColumns}
+    
+    // Bulk actions
+    selectedCount={selectedRows.length}
+    bulkActions={[
+      { id: 'export', label: 'Export', onClick: handleExport }
+    ]}
+    
+    // Primary action
+    primaryAction={<Button>Add New</Button>}
+  >
+    <DataTable
+      data={data}
+      columns={columns}
+      pagination={pagination}
+      onPaginationChange={setPagination}
+      enablePagination
+      enableSorting
+      enableSelection
+    />
+  </DataDisplay>
 \`\`\`
 
 **DataDisplay Features:**
@@ -527,37 +522,33 @@ const ScreenName: React.FC<BusinessAppContextProps> = (context) => {
   ];
   
   return (
-    <PageLayout
-      headerIcon={<ChartLine />}
-      headerLabel="Sales Activities"
-      contentContainer={
-        <DataDisplay
-          searchValue={search}
-          searchPlaceholder="Search activities..."
-          onSearchChange={setSearch}
-          filters={filters}
-          onFilterChange={setFilters}
+    <PageLayout headerIcon={ChartLine} headerLabel="Sales Activities">
+      <DataDisplay
+        searchValue={search}
+        searchPlaceholder="Search activities..."
+        onSearchChange={setSearch}
+        filters={filters}
+        onFilterChange={setFilters}
+        sorting={sorting}
+        sortableColumns={columns}
+        visibleColumns={visibleColumns}
+        onVisibleColumnsChange={setVisibleColumns}
+        primaryAction={<Button>Add Activity</Button>}
+      >
+        <DataTable
+          data={data}
+          columns={columns.filter(col => visibleColumns.includes(col.id))}
+          loading={loading}
+          error={error}
+          pagination={pagination}
+          onPaginationChange={setPagination}
           sorting={sorting}
-          sortableColumns={columns}
-          visibleColumns={visibleColumns}
-          onVisibleColumnsChange={setVisibleColumns}
-          primaryAction={<Button>Add Activity</Button>}
-        >
-          <DataTable
-            data={data}
-            columns={columns.filter(col => visibleColumns.includes(col.id))}
-            loading={loading}
-            error={error}
-            pagination={pagination}
-            onPaginationChange={setPagination}
-            sorting={sorting}
-            onSortingChange={setSorting}
-            enablePagination
-            enableSorting
-          />
-        </DataDisplay>
-      }
-    />
+          onSortingChange={setSorting}
+          enablePagination
+          enableSorting
+        />
+      </DataDisplay>
+    </PageLayout>
   );
 };
 
