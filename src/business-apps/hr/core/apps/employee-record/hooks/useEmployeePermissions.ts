@@ -9,7 +9,8 @@ export const TAB_KEYS = {
   performance: 'performance',
   feedback: 'feedback',
   absences: 'absences',
-  skills: 'skills'
+  skills: 'skills',
+  compensation: 'compensation'
 }
 
 // Section key constants for the employee record app
@@ -110,6 +111,16 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
         permission: 'read'
       }
     }
+  },
+  [TAB_KEYS.compensation]: {
+    domain: 'employee',
+    resource: 'working_conditions', // ✅ Using existing working_conditions resource since it contains salary data
+    permission: 'read'
+    // TODO: If separate permissions are needed for bonuses/benefits, add sections here:
+    // sections: {
+    //   bonuses: { domain: 'employee', resource: 'employee_bonus', permission: 'read' },
+    //   benefits: { domain: 'employee', resource: 'employee_benefit', permission: 'read' }
+    // }
   },
   [TAB_KEYS.documents]: {
     domain: 'employee',
