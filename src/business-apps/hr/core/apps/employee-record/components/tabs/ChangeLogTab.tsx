@@ -77,8 +77,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
 
       const response = await changeLogService.fetchChangeLogEntries(filters, 50, 0)
 
-      console.log(response.entries, ' entries')
-
       // 1) Collect createdBy ids
       const createdByIds = Array.from(
         new Set((response.entries || []).map(e => e.changedBy?.userId).filter(Boolean))
@@ -183,8 +181,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
       )
     }
 
-    console.log(filtered, 'filtered')
-
     setFilteredEntries(filtered)
   }, [changeLogEntries, filters])
 
@@ -267,8 +263,6 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
       </div>
     )
   }
-
-  console.log('yeah')
 
   return (
     <div className="gba:flex gba:flex-col gba:gap-6">
