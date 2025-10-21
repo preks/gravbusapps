@@ -50,7 +50,7 @@ export const usePortfolioCurrencyAmountDistribution = (
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+  }, [context.accessToken])
 
   return {
     data,

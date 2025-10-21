@@ -53,7 +53,7 @@ export const usePortfolioGroupAmountDistribution = (
 
   useEffect(() => {
     loadData()
-  }, [currency, loadData])
+  }, [context.accessToken, currency])
 
   return {
     data,

@@ -57,7 +57,7 @@ export const usePortfolioTopAccounts = (
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+  }, [accessToken, currency, limit])
 
   return {
     accounts,

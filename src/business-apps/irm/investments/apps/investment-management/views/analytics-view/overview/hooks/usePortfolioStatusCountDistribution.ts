@@ -51,7 +51,7 @@ export const usePortfolioStatusCountDistribution = (
 
   useEffect(() => {
     loadData()
-  }, [currency, loadData])
+  }, [context.accessToken, currency])
 
   return {
     data,

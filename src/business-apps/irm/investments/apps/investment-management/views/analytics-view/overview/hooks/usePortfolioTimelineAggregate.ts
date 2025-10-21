@@ -153,7 +153,7 @@ export const usePortfolioTimelineAggregate = (
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+  }, [context.accessToken, yearsCount, currency])
 
   return {
     timelineData,

@@ -189,7 +189,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     if (context.accessToken) {
       loadData()
     }
-  }, [context.accessToken, selectedCurrency, loadData])
+  }, [context.accessToken, selectedCurrency])
 
   return {
     investments,

@@ -56,7 +56,7 @@ export const usePortfolioConcentration = (
 
   useEffect(() => {
     loadData()
-  }, [loadData])
+  }, [accessToken, currency])
 
   return {
     concentrationData,
