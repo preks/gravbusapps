@@ -17,30 +17,49 @@ The customer doesn't know the codebase. Make autonomous decisions based on their
 
 ---
 
-## 🚨 CRITICAL: PREVENT REACT ERROR #130 (READ FIRST!)
+## 🚨 CRITICAL: PREVENT COMPONENT REGISTRATION FAILURE (READ FIRST!)
 
-**❌ MOST COMMON FAILURE:** Wrong export pattern in index.ts causes "React error #130: Element type is invalid"
+**❌ MOST COMMON FAILURE:** Wrong export pattern causes "Component not registered" error
 
-**✅ MANDATORY index.ts FORMAT (COPY EXACTLY):**
+**✅ MANDATORY index.ts FORMAT (COPY EXACTLY - NO EXCEPTIONS!):**
 \`\`\`typescript
 // index.ts - BOTH exports required on separate lines!
-export { ComponentName } from './ComponentName'  // Named export (for types)
-export { default } from './ComponentName'        // Default export (for wrapper)
+export { ComponentName } from './ComponentName'  // Named export FIRST
+export { default } from './ComponentName'        // Default export SECOND
 
-// ❌ NEVER use these patterns - they WILL cause React error #130:
+// ❌ NEVER use these patterns - they WILL cause registration failure:
 // export { default } from './ComponentName'  // Missing named export
 // export { ComponentName } from './ComponentName'  // Missing default export  
 // export { default as ComponentName } from './ComponentName'  // Wrong syntax
+// export default from './ComponentName'  // Wrong syntax
 \`\`\`
 
-**✅ MANDATORY ComponentName.tsx FORMAT (END OF FILE):**
+**✅ MANDATORY ComponentName.tsx FORMAT (AT END OF FILE):**
 \`\`\`typescript
-// At end of component file - BOTH exports required!
+// At end of component file - BOTH exports required in this order!
+export default ComponentName;  // Default export FIRST
+export { ComponentName };      // Named export SECOND
+
+// Example from working screens:
 export default TeamMembersReport;  // Default export
 export { TeamMembersReport };      // Named export
 \`\`\`
 
-**🔥 IF YOU GET THIS WRONG, THE SCREEN WILL BUILD SUCCESSFULLY BUT FAIL WITH ERROR #130 AT RUNTIME!**
+**🔥 IF YOU GET THIS WRONG:**
+- Build will succeed ✅
+- Upload will succeed ✅  
+- Screen will be white ❌
+- Console error: "Component not registered via standard exports pattern" ❌
+- Console error: "Failed to find a suitable component to register" ❌
+
+**✅ NOTE:** The Forge API now automatically handles wrapped entry exports correctly (as of 2025-01-21). However, your component files MUST still follow the export pattern above for the wrapped entry to work.
+
+**💡 VALIDATION CHECKLIST BEFORE PUBLISHING:**
+1. ✅ Component file ends with: \`export default ComponentName;\` then \`export { ComponentName };\`
+2. ✅ index.ts has: \`export { ComponentName } from './ComponentName'\` on line 1
+3. ✅ index.ts has: \`export { default } from './ComponentName'\` on line 2
+4. ✅ Both exports use the SAME component name
+5. ✅ No other exports in index.ts (no README exports, etc.)
 
 ---
 
@@ -255,43 +274,41 @@ src/business-apps/{module}/apps/{screen-name}/
       └── useScreenData.ts    (data fetching)
 \`\`\`
 
-#### **index.ts Format (CRITICAL - PREVENTS REACT ERROR #130!):**
-**🚨 ALWAYS use this EXACT pattern - NO EXCEPTIONS:**
+#### **index.ts Format (CRITICAL - PREVENTS COMPONENT REGISTRATION FAILURE!):**
+**🚨 ALWAYS use this EXACT pattern - NO EXCEPTIONS - TWO SEPARATE LINES:**
 \`\`\`typescript
-// ✅ CORRECT - Single line with both default and named export
-export { default, TeamOverview } from './TeamOverview'
+// ✅ CORRECT - Two separate lines (SAFEST PATTERN)
+export { TeamOverview } from './TeamOverview'  // Named export FIRST
+export { default } from './TeamOverview'        // Default export SECOND
 \`\`\`
 
-**Alternative (also correct):**
+**❌ WRONG patterns (CAUSE "Component not registered" ERROR):**
 \`\`\`typescript
-// ✅ CORRECT - Two separate lines
-export { TeamOverview } from './TeamOverview'
-export { default } from './TeamOverview'
-\`\`\`
-
-**❌ WRONG patterns (CAUSE REACT ERROR #130 - "Element type is invalid"):**
-\`\`\`typescript
-// ❌ WRONG - Missing named export
+// ❌ WRONG - Missing named export (causes registration failure)
 export { default } from './TeamOverview'
 
-// ❌ WRONG - Missing default export
+// ❌ WRONG - Missing default export (causes registration failure)
 export { TeamOverview } from './TeamOverview'
 
 // ❌ WRONG - Import style (causes issues with wrapper)
 import TeamOverview from './TeamOverview'
 export default TeamOverview
 
-// ❌ WRONG - Using 'as' syntax
+// ❌ WRONG - Using 'as' syntax (causes registration failure)
 export { default as TeamOverview } from './TeamOverview'
 
-// ❌ WRONG - Wildcard export
+// ❌ WRONG - Wildcard export (doesn't export default)
 export * from './TeamOverview'
+
+// ❌ WRONG - Single line (can cause issues in some cases)
+export { default, TeamOverview } from './TeamOverview'
 \`\`\`
 
 **WHY THIS MATTERS:**
 - Platform wrapper expects: \`import OriginalComponent from './index'\` (needs default export)
-- TypeScript needs: \`export type { TeamOverviewProps } from './index'\` (needs named export)
-- Missing either causes React error #130: "Element type is invalid"
+- Component registration needs: named export to validate component type
+- Missing either causes "Component not registered via standard exports pattern" error
+- Screen will be white with no error until you check console
 
 **Module Selection:**
 - CRM data (customers, accounts, leads) → \`crm/common/apps/\`
@@ -552,16 +569,18 @@ const ScreenName: React.FC<BusinessAppContextProps> = (context) => {
   );
 };
 
-// 🚨 CRITICAL - Component Export (PREVENTS REACT ERROR #130!)
-export { ScreenName };
-export default ScreenName;
+// 🚨 CRITICAL - Component Export (PREVENTS REGISTRATION FAILURE!)
+// These MUST be at the END of the component file, in this EXACT order:
+export default ScreenName;  // Default export FIRST
+export { ScreenName };      // Named export SECOND
 \`\`\`
 
 **MANDATORY Component Export Pattern:**
-1. **Named export**: \`export { ScreenName }\` (after component definition)
-2. **Default export**: \`export default ScreenName\` (immediately after)
-3. **Both are required** - missing either causes React error #130!
+1. **Default export FIRST**: \`export default ScreenName;\`
+2. **Named export SECOND**: \`export { ScreenName };\`
+3. **Both are required** - missing either causes "Component not registered" error!
 4. **Must appear at END of component file** - not in index.ts
+5. **Must use exact same name** in both exports and match component name
 
 **Key Points:**
 - DataDisplay handles toolbar UI automatically
@@ -625,16 +644,16 @@ import { Card } from '@newwork/gravity-ui-catalog'
 </DataDisplay>
 
 // ✅ CORRECT - Modern pattern
-<PageLayout contentContainer={
+<PageLayout>
   <DataDisplay searchValue={search} onSearchChange={setSearch}>
     <DataTable data={data} columns={columns} />
   </DataDisplay>
-}>
+</PageLayout>
 
 // ✅ ALSO CORRECT - Simple pattern
-<PageLayout contentContainer={
+<PageLayout>
   <DataContainer dataBody={<Table>...</Table>} />
-}>
+</PageLayout>
 \`\`\`
 
 ---
@@ -669,9 +688,34 @@ Screen is ready when:
 4. ✅ Loading/error states handled
 5. ✅ Real data displayed (not hardcoded)
 6. ✅ Responsive and styled with design tokens
+7. ✅ **CRITICAL: Component exports validated** (see checklist below)
+
+**🚨 BEFORE PUBLISHING - VALIDATE EXPORTS (MANDATORY!):**
+
+Review the files you created and verify:
+
+**Component File (ScreenName.tsx):**
+- [ ] Component is defined as: \`const ScreenName: React.FC<BusinessAppContextProps> = (context) => { ... }\`
+- [ ] Component returns JSX (not an object)
+- [ ] **Last two lines** are:
+  \\\`\\\`\\\`typescript
+  export default ScreenName;  // Default export FIRST
+  export { ScreenName };      // Named export SECOND
+  \\\`\\\`\\\`
+
+**Index File (index.ts):**
+- [ ] **Exactly 2 lines:**
+  \\\`\\\`\\\`typescript
+  export { ScreenName } from './ScreenName'  // Line 1: Named export
+  export { default } from './ScreenName'     // Line 2: Default export
+  \\\`\\\`\\\`
+- [ ] Component name matches in both files
+- [ ] No other exports (no README exports, etc.)
+
+**If ANY checkbox is ❌, DO NOT PUBLISH! Fix the exports first!**
 
 **Then tell user:** 
-"✅ Screen built successfully! The \`{screen-name}\` screen is ready. You can publish it to make it live."
+"✅ Screen built successfully! The \`{screen-name}\` screen is ready with validated exports. You can publish it to make it live."
 
 ---
 
