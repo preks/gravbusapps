@@ -107,12 +107,12 @@ export const getOverlapWarningMessage = (
     if (!allowedStatuses.includes(expensePlan.status)) {
       // Block for all other statuses (PENDING, APPROVED, VERIFIED, BOOKED, TRANSFERRED, PAID, etc.)
       const message = getTranslationFromI18nKeyAndLabel(
-        'lowcoder:add_items_to_plan.add_trip_info_to_plan.periods_overlapping_error_message_expense_plan',
+        'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_existing_event_expense_plan',
         `The selected date overlaps with an existing event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please adjust the date.`,
         {
           planTitle: expensePlan.title,
-          fromDate: expensePlanTimeStampStart,
-          toDate: expensePlanTimeStampEnd,
+          planTimeStampStart: expensePlanTimeStampStart,
+          planTimeStampEnd: expensePlanTimeStampEnd,
           interpolation: {
             escapeValue: false
           }

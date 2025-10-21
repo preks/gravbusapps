@@ -84,8 +84,7 @@ export const useAbsenceTypesByGroup = (
       } else {
         return []
       }
-    } catch (err) {
-      console.error('Error loading absence types:', err)
+    } catch {
       return []
     }
   }, [catalogClient, context.accessToken, userLocale, parentEntryId])
@@ -103,9 +102,8 @@ export const useAbsenceTypesByGroup = (
     try {
       const types = await loadAbsenceTypes()
       setAbsenceTypes(types)
-    } catch (err) {
+    } catch {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load absence types'
-      console.error('Error loading absence types:', err)
       setError(errorMessage)
     } finally {
       setIsLoading(false)

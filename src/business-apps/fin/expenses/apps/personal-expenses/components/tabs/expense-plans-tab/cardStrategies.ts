@@ -85,10 +85,18 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
   },
   'pending-approval': {
     apply: () => {
+      // Clear all date ranges for a pure status filter
       ctx.setStartDateRange(null)
       ctx.setEndDateRange(null)
-      const statuses = [
+      if (ctx.setEffectiveDateRange) {
+        ctx.setEffectiveDateRange(null)
+      }
+      ctx.setPlanDateRange(null)
+
+      // Generalized: clear all known statuses then select only PENDING
+      const allStatuses = [
         ExpenseStatus.PREPARED,
+        ExpenseStatus.CREATED,
         ExpenseStatus.ASSIGNED,
         ExpenseStatus.PENDING,
         ExpenseStatus.APPROVED,
@@ -96,9 +104,10 @@ export const getPlanCardStrategies = (ctx: PlanCardContext): Record<string, Card
         ExpenseStatus.VERIFIED,
         ExpenseStatus.BOOKED,
         ExpenseStatus.CLOSED,
+        ExpenseStatus.PAID,
         ExpenseStatus.TRANSFERRED
       ]
-      statuses.forEach(s => ctx.handleFilterChange(s, false))
+      allStatuses.forEach(s => ctx.handleFilterChange(s, false))
       ctx.handleFilterChange(ExpenseStatus.PENDING, true)
     },
     remove: () => {
