@@ -603,7 +603,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                       >
                         <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                           <PiCalendarX className="gba:h-4 gba:w-4" />
-                          <span className="gba:text-xs gba:md:text-sm gba:truncate">Request Absence</span>
+                          <span className="gba:text-xs gba:md:text-sm gba:truncate">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:absence_hub.request_absence',
+                              'Request Absence'
+                            )}
+                          </span>
                         </div>
                       </AppActionMenu>
                     </div>
