@@ -60,6 +60,10 @@ export { TeamMembersReport };      // Named export
 3. ✅ index.ts has: \`export { default } from './ComponentName'\` on line 2
 4. ✅ Both exports use the SAME component name
 5. ✅ No other exports in index.ts (no README exports, etc.)
+6. ✅ If using DataTable, every row object has a unique 'id' property
+7. ✅ If using dayjs functions (isBetween, weekday, etc.), plugin is imported and extended
+8. ✅ All Tailwind classes have 'gba:' prefix
+9. ✅ Only verified icons from @phosphor-icons/react are used
 
 ---
 
@@ -450,6 +454,64 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient';
   </TableBody>
 </Table>
 \`\`\`
+
+#### **🚨 PREVENT COMMON RUNTIME ERRORS:**
+
+**1. DataTable Row IDs (CRITICAL!):**
+\`\`\`typescript
+// ❌ WRONG - Will crash with "Table row must have a stable unique id"
+const data = [
+  { name: 'John', role: 'Engineer' },
+  { name: 'Jane', role: 'Designer' }
+];
+<DataTable data={data} columns={columns} />
+
+// ✅ CORRECT - Every row MUST have unique 'id' property
+const data = [
+  { id: '1', name: 'John', role: 'Engineer' },
+  { id: '2', name: 'Jane', role: 'Designer' }
+];
+<DataTable data={data} columns={columns} />
+
+// ✅ ALSO CORRECT - Add IDs to data without them
+const dataWithIds = rawData.map((item, index) => ({
+  ...item,
+  id: item.employeeId || item.customerId || \`row-\${index}\`
+}));
+<DataTable data={dataWithIds} columns={columns} />
+\`\`\`
+
+**2. dayjs Plugins (CRITICAL!):**
+\`\`\`typescript
+// ❌ WRONG - Will crash with "isBetween is not a function"
+import dayjs from 'dayjs';
+const isInRange = dayjs(date).isBetween(start, end);
+
+// ✅ CORRECT - Import and extend plugin FIRST
+import dayjs from 'dayjs';
+import isBetween from 'dayjs/plugin/isBetween';
+
+dayjs.extend(isBetween);  // Must extend before use!
+
+const isInRange = dayjs(date).isBetween(start, end);  // Now works!
+\`\`\`
+
+**Common dayjs plugins you might need:**
+\`\`\`typescript
+import isBetween from 'dayjs/plugin/isBetween';
+import weekday from 'dayjs/plugin/weekday';
+import localeData from 'dayjs/plugin/localeData';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(isBetween);
+dayjs.extend(weekday);
+dayjs.extend(localeData);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+\`\`\`
+
+**Rule:** If you use ANY dayjs function beyond basic formatting (.format(), .add(), .subtract()), you MUST import and extend the plugin first!
 
 #### **GraphQL Query Pattern:**
 \`\`\`typescript
