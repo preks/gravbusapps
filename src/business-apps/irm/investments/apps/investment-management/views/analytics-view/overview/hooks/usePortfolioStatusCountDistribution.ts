@@ -1,0 +1,62 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGetStatusCountDistribution } from '../queries/PortfolioStatusDistributionQuery'
+
+interface StatusCountData {
+  status: string
+  count: number
+}
+
+interface UsePortfolioStatusCountDistributionResult {
+  data: StatusCountData[]
+  isLoading: boolean
+  error: string | null
+  refetch: () => Promise<void>
+}
+
+export const usePortfolioStatusCountDistribution = (
+  context: BusinessAppContextProps,
+  currency: string = 'All Currencies'
+): UsePortfolioStatusCountDistributionResult => {
+  const { fetchData } = useGetStatusCountDistribution(context, currency)
+  const [data, setData] = useState<StatusCountData[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Prevent duplicate queries (React Strict Mode calls effects twice)
+  const isLoadingRef = useRef(false)
+
+  const loadData = useCallback(async () => {
+    if (!context.accessToken || isLoadingRef.current) {
+      return
+    }
+
+    console.log('🔄 Loading status count distribution data...', { currency })
+    isLoadingRef.current = true
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const result = await fetchData()
+      console.log('✅ Status count distribution data loaded successfully', { statuses: result.length })
+      setData(result)
+    } catch (err) {
+      console.error('❌ Error loading status count distribution data:', err)
+      setError(err instanceof Error ? err.message : 'Unknown error occurred')
+    } finally {
+      setIsLoading(false)
+      isLoadingRef.current = false
+    }
+  }, [context.accessToken, currency, fetchData])
+
+  useEffect(() => {
+    loadData()
+  }, [currency, loadData])
+
+  return {
+    data,
+    isLoading,
+    error,
+    refetch: loadData
+  }
+}

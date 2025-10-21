@@ -13,11 +13,9 @@ import {
 } from '@newwork/nw-design-system'
 import { ComposedChart, ScatterChart, Scatter, Bar, Line, XAxis, YAxis, LabelList, ZAxis } from 'recharts'
 import { ChartLineUpIcon, TrendUpIcon, ChartScatterIcon } from '@phosphor-icons/react'
-import type { EquityInvestmentSummary } from '../../shared/types'
-import dayjs from 'dayjs'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
-import { useEquityTimelineAggregate, useEquityTopCompanies } from '../hooks'
+import { useEquityTimelineAggregate, useEquityTopCompanies, useEquityPortfolioMatrix } from '../hooks'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 const CHART_COLORS = [
@@ -34,13 +32,12 @@ const CHART_COLORS = [
 ]
 
 interface EquityTimelineChartsProps extends BusinessAppContextProps {
-  rawInvestments: EquityInvestmentSummary[]
   masterCurrency: string
   availableCurrencies: string[]
 }
 
 export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props => {
-  const { rawInvestments, masterCurrency, availableCurrencies } = props
+  const { masterCurrency, availableCurrencies } = props
 
   // Currency sync hooks - automatically sync with master currency
   const [timelineCurrency, setTimelineCurrency] = useCurrencySync(masterCurrency)
@@ -62,6 +59,13 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
     error: topCompaniesError
   } = useEquityTopCompanies(props, topCompaniesCurrency, 10)
 
+  // Use optimized server-side query for portfolio matrix (bubble chart)
+  const {
+    portfolioMatrixData,
+    isLoading: portfolioMatrixLoading,
+    error: portfolioMatrixError
+  } = useEquityPortfolioMatrix(props, portfolioMatrixCurrency)
+
   // Helper function for consistent currency formatting
   const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
     return new Intl.NumberFormat('en-US', {
@@ -74,42 +78,10 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
     }).format(amount)
   }
 
-  // Portfolio Matrix Data: Size (investment amount), Duration (years invested), MOIC (multiple)
-  const portfolioMatrixData = useMemo(() => {
-    return rawInvestments
-      .filter(equity => equity.currencyCode === portfolioMatrixCurrency)
-      .filter(equity => {
-        const hasAcquisitionDate = equity.investment.acquisitionDate
-        const hasTotalInvestment =
-          equity.investment.totalInvestmentAmount && equity.investment.totalInvestmentAmount > 0
-        const hasMarketValue = equity.investment.investmentMarketValue
-        return hasAcquisitionDate && hasTotalInvestment && hasMarketValue
-      })
-      .map(equity => {
-        // Calculate duration in years
-        const acquisitionDate = dayjs(equity.investment.acquisitionDate)
-        const today = dayjs()
-        const durationYears = today.diff(acquisitionDate, 'year', true)
-
-        // Calculate MOIC
-        const moic = equity.investment.investmentMarketValue! / equity.investment.totalInvestmentAmount!
-
-        // Investment amount for bubble size
-        const investmentAmount = equity.investment.totalInvestmentAmount!
-
-        return {
-          company: equity.displayName || 'Unknown',
-          duration: Number(durationYears.toFixed(1)),
-          moic: Number(moic.toFixed(2)),
-          investmentAmount,
-          // Size for bubble - normalized (use sqrt for better visual scaling)
-          size: Math.sqrt(investmentAmount / 1000000) * 100 // Scale down for visualization
-        }
-      })
-  }, [rawInvestments, portfolioMatrixCurrency])
-
-  // Timeline data and top companies are now fetched server-side!
-  // No more client-side filtering, sorting, or calculations needed!
+  // All data now fetched server-side with optimized queries!
+  // Timeline data: useEquityTimelineAggregate
+  // Top companies: useEquityTopCompanies
+  // Portfolio matrix: useEquityPortfolioMatrix
 
   // Create dynamic chart config for all investment types plus trendline
   const chartConfig = useMemo(() => {
@@ -285,73 +257,95 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
           </div>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={portfolioMatrixChartConfig} className="gba:h-[450px] gba:w-full">
-            <ScatterChart data={portfolioMatrixData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-              <XAxis
-                type="number"
-                dataKey="duration"
-                name="Years Invested"
-                tick={{ fontSize: 12 }}
-                label={{ value: 'Years invested', position: 'insideBottom', offset: -10 }}
-                domain={[0, 'auto']}
-              />
-              <YAxis
-                type="number"
-                dataKey="moic"
-                name="MOIC"
-                tick={{ fontSize: 12 }}
-                label={{ value: 'MOIC', angle: -90, position: 'insideLeft' }}
-                domain={[0, 'auto']}
-              />
-              <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
-              <ChartTooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload
+          {portfolioMatrixLoading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
+              <div className="gba:text-center">
+                <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
+                <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading portfolio matrix data...</p>
+              </div>
+            </div>
+          ) : portfolioMatrixError ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
+              <div className="gba:text-center gba:text-destructive">
+                <p className="gba:font-medium">Error loading portfolio matrix</p>
+                <p className="gba:text-sm gba:mt-2">{portfolioMatrixError}</p>
+              </div>
+            </div>
+          ) : portfolioMatrixData.length === 0 ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
+              <p className="gba:text-muted-foreground">
+                No portfolio matrix data available for {portfolioMatrixCurrency}
+              </p>
+            </div>
+          ) : (
+            <ChartContainer config={portfolioMatrixChartConfig} className="gba:h-[450px] gba:w-full">
+              <ScatterChart data={portfolioMatrixData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <XAxis
+                  type="number"
+                  dataKey="duration"
+                  name="Years Invested"
+                  tick={{ fontSize: 12 }}
+                  label={{ value: 'Years invested', position: 'insideBottom', offset: -10 }}
+                  domain={[0, 'auto']}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="moic"
+                  name="MOIC"
+                  tick={{ fontSize: 12 }}
+                  label={{ value: 'MOIC', angle: -90, position: 'insideLeft' }}
+                  domain={[0, 'auto']}
+                />
+                <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload
 
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.company}</div>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                          <div
-                            className="gba:w-3 gba:h-3 gba:rounded-full"
-                            style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                          />
-                          <span className="gba:font-medium">Investment Amount:</span>
-                          <span className="gba:font-semibold">
-                            {formatCurrency(data.investmentAmount, portfolioMatrixCurrency)}
-                          </span>
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.company}</div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                            />
+                            <span className="gba:font-medium">Investment Amount:</span>
+                            <span className="gba:font-semibold">
+                              {formatCurrency(data.investmentAmount, portfolioMatrixCurrency)}
+                            </span>
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                            />
+                            <span className="gba:font-medium">Years Invested:</span>
+                            <span className="gba:font-semibold">{data.duration} years</span>
+                          </div>
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                            />
+                            <span className="gba:font-medium">MOIC:</span>
+                            <span className="gba:font-semibold">{data.moic}x</span>
+                          </div>
                         </div>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                          <div
-                            className="gba:w-3 gba:h-3 gba:rounded-full"
-                            style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                          />
-                          <span className="gba:font-medium">Years Invested:</span>
-                          <span className="gba:font-semibold">{data.duration} years</span>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <div
-                            className="gba:w-3 gba:h-3 gba:rounded-full"
-                            style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                          />
-                          <span className="gba:font-medium">MOIC:</span>
-                          <span className="gba:font-semibold">{data.moic}x</span>
-                        </div>
-                      </div>
-                    )
-                  }
-                  return null
-                }}
-              />
-              <Scatter
-                name="portfoliomatrix"
-                data={portfolioMatrixData}
-                fill="var(--color-portfoliomatrix)"
-                opacity={0.6}
-              />
-            </ScatterChart>
-          </ChartContainer>
+                      )
+                    }
+                    return null
+                  }}
+                />
+                <Scatter
+                  name="portfoliomatrix"
+                  data={portfolioMatrixData}
+                  fill="var(--color-portfoliomatrix)"
+                  opacity={0.6}
+                />
+              </ScatterChart>
+            </ChartContainer>
+          )}
         </CardContent>
       </Card>
 

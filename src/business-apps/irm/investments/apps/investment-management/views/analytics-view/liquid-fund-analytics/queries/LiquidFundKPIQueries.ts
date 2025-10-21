@@ -15,7 +15,10 @@ export interface LiquidFundKPIComparison {
   previous: LiquidFundKPIData
 }
 
-export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string): string => {
+export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
+  // Currency filter condition
+  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
+
   return `
     query GetLiquidFundKPIsWithComparison {
       # Current data (all liquid fund investments)
@@ -24,6 +27,7 @@ export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string): st
           _and: [
             { isDeleted: { _eq: false } }
             { liquidFundInvestment: {} }
+            ${currencyCondition}
           ]
         }
       ) {
@@ -43,6 +47,7 @@ export const GET_LIQUID_FUND_KPIS_WITH_COMPARISON = (comparisonDate: string): st
             { isDeleted: { _eq: false } }
             { createdAt: { _lt: "${comparisonDate}" } }
             { liquidFundInvestment: {} }
+            ${currencyCondition}
           ]
         }
       ) {
@@ -79,7 +84,7 @@ export interface LiquidFundKPIResponse {
   }
 }
 
-export const useGetLiquidFundKPIs = (context: BusinessAppContextProps) => {
+export const useGetLiquidFundKPIs = (context: BusinessAppContextProps, currency?: string) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchLiquidFundKPIs = useCallback(async (): Promise<LiquidFundKPIComparison> => {
@@ -88,7 +93,7 @@ export const useGetLiquidFundKPIs = (context: BusinessAppContextProps) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const comparisonDate = sevenDaysAgo.toISOString()
 
-    const query = GET_LIQUID_FUND_KPIS_WITH_COMPARISON(comparisonDate)
+    const query = GET_LIQUID_FUND_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
       const result = await graphqlClient.request<LiquidFundKPIResponse>(query)
 
@@ -152,7 +157,7 @@ export const useGetLiquidFundKPIs = (context: BusinessAppContextProps) => {
       console.error('Error fetching liquid fund KPIs:', error)
       throw error
     }
-  }, [graphqlClient])
+  }, [graphqlClient, currency])
 
   return { fetchLiquidFundKPIs }
 }

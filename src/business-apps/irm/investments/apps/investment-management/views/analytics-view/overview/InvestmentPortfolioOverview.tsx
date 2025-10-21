@@ -22,7 +22,7 @@ import { WidgetGroup } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useInvestmentPortfolioIntegration, usePortfolioChartData } from './hooks'
+import { useInvestmentPortfolioIntegration } from './hooks'
 import { PortfolioTimelineCharts } from './components/PortfolioTimelineCharts'
 import { PortfolioAnalyticsCharts } from './components/PortfolioAnalyticsCharts'
 import { PortfolioDistributionCharts } from './components/PortfolioDistributionCharts'
@@ -51,7 +51,6 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
     props,
     selectedCurrency
   )
-  const chartData = usePortfolioChartData(investments)
 
   // Extract unique currencies from investments
   const availableCurrencies = useMemo(() => {
@@ -246,10 +245,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             data-testid={formatDataTestId(prefixDataTestId, 'DistributionContent')}
           >
             <PortfolioDistributionCharts
-              investmentGroupData={chartData.investmentGroupData}
-              statusData={chartData.statusData}
-              currencyData={chartData.currencyData}
-              rawInvestments={investments}
+              {...props}
               masterCurrency={selectedCurrency}
               availableCurrencies={availableCurrencies}
             />
@@ -261,7 +257,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
             data-testid={formatDataTestId(prefixDataTestId, 'TimelineContent')}
           >
             <PortfolioTimelineCharts
-              rawInvestments={investments}
+              {...props}
               masterCurrency={selectedCurrency}
               availableCurrencies={availableCurrencies}
             />
@@ -274,9 +270,9 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
           >
             <div className="gba:grid gba:grid-cols-1 gba:lg:gba:grid-cols-2 gba:gap-6">
               <PortfolioAnalyticsCharts
-                rawInvestments={investments}
                 masterCurrency={selectedCurrency}
                 availableCurrencies={availableCurrencies}
+                accessToken={props.accessToken}
               />
             </div>
           </TabsContent>

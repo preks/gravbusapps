@@ -58,9 +58,11 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('Currency:v1:EUR') // Store full ID
 
-  const [equityInvestments, setEquityInvestments] = useState<EquityInvestmentSummary[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
+
+  // Prevent duplicate queries (React Strict Mode calls effects twice)
+  const isLoadingRef = React.useRef(false)
 
   // Extract currency code from ID for KPI hook (it expects "EUR", not "Currency:v1:EUR")
   const selectedCurrencyCode = selectedCurrency.split(':').pop() || 'EUR'
@@ -135,28 +137,31 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
 
   // Load equity investment data for chart display with currency filter
   const loadData = useCallback(async () => {
-    if (!props.accessToken) {
-      setDataError('Access token not available')
-      setDataLoading(false)
+    if (!props.accessToken || isLoadingRef.current) {
       return
     }
 
+    isLoadingRef.current = true
     setDataLoading(true)
     setDataError(null)
 
     try {
+      console.log('📊 Loading equity investments data...', { currency: selectedCurrency })
       // Always fetch filtered by selected currency (server-side filtering)
       // selectedCurrency is already in full ID format: "Currency:v1:EUR"
       const currencyIds = selectedCurrency ? [selectedCurrency] : undefined
       const result = await fetchInvestments({
         currencyIds: currencyIds
       })
-      const enhancedEquityInvestments = transformEquityData(result.Investment as InvestmentWithSpecializations[])
-      setEquityInvestments(enhancedEquityInvestments)
+      // Data is transformed and used by server-side queries in EquityDistributionCharts
+      transformEquityData(result.Investment as InvestmentWithSpecializations[])
+      console.log('✅ Equity investments data loaded successfully')
     } catch (err) {
+      console.error('❌ Error loading equity investments:', err)
       setDataError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setDataLoading(false)
+      isLoadingRef.current = false
     }
   }, [props.accessToken, fetchInvestments, transformEquityData, selectedCurrency])
 
@@ -337,7 +342,6 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
             <div className="gba:space-y-6 gba:w-full">
               <EquityDistributionCharts
                 {...props}
-                rawInvestments={equityInvestments}
                 masterCurrency={selectedCurrencyCode}
                 availableCurrencies={availableCurrencies.map(c => c.code)}
               />
@@ -348,7 +352,6 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
             <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:w-full">
               <EquityTimelineCharts
                 {...props}
-                rawInvestments={equityInvestments}
                 masterCurrency={selectedCurrencyCode}
                 availableCurrencies={availableCurrencies.map(c => c.code)}
               />

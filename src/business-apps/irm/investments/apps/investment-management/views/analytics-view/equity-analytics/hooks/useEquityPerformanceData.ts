@@ -17,11 +17,13 @@ export interface EquityPerformanceDataIntegration {
 }
 
 /**
- * Hook to fetch and manage equity performance analysis data
+ * Hook to fetch and manage equity performance analysis data with independent currency filters
  */
 export const useEquityPerformanceData = (
   context: BusinessAppContextProps,
-  currency: string
+  stakeAmountCurrency: string,
+  roleAmountCurrency: string,
+  concentrationCurrency: string
 ): EquityPerformanceDataIntegration => {
   const { fetchPerformanceData } = useGetEquityPerformanceData(context)
   const [stakeVsAmountData, setStakeVsAmountData] = useState<StakeVsAmountData[]>([])
@@ -43,16 +45,26 @@ export const useEquityPerformanceData = (
       return
     }
 
-    console.log('🚀 Performance data hook: Starting data load...', { currency })
+    console.log('🚀 Performance data hook: Starting data load...', {
+      stakeAmountCurrency,
+      roleAmountCurrency,
+      concentrationCurrency
+    })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
-      const result = await fetchPerformanceData(currency)
-      setStakeVsAmountData(result.stakeVsAmountData)
-      setRoleVsAmountData(result.roleVsAmountData)
-      setConcentrationData(result.concentrationData)
+      // Fetch all three charts independently with their own currencies
+      const [stakeResult, roleResult, concentrationResult] = await Promise.all([
+        fetchPerformanceData(stakeAmountCurrency),
+        fetchPerformanceData(roleAmountCurrency),
+        fetchPerformanceData(concentrationCurrency)
+      ])
+
+      setStakeVsAmountData(stakeResult.stakeVsAmountData)
+      setRoleVsAmountData(roleResult.roleVsAmountData)
+      setConcentrationData(concentrationResult.concentrationData)
       console.log('✅ Performance data hook: Data set successfully')
     } catch (err) {
       console.error('❌ Performance data hook: Error loading data:', err)
@@ -62,7 +74,7 @@ export const useEquityPerformanceData = (
       isLoadingRef.current = false
       console.log('🏁 Performance data hook: Load completed')
     }
-  }, [context.accessToken, currency, fetchPerformanceData])
+  }, [context.accessToken, stakeAmountCurrency, roleAmountCurrency, concentrationCurrency, fetchPerformanceData])
 
   useEffect(() => {
     loadData()

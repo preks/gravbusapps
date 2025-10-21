@@ -15,7 +15,6 @@ import { Line, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import dayjs from 'dayjs'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useLiquidFundTimelineAggregate } from '../hooks'
@@ -79,7 +78,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
               <div>
                 <CardTitle>Performance Timeline ({performanceCurrency})</CardTitle>
                 <CardDescription>
-                  Investment count, total invested amount, and cumulative investments over time
+                  Investment count, total invested amount, and cumulative investments by year (last 5 years)
                 </CardDescription>
               </div>
             </div>
@@ -113,7 +112,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           ) : (
             <ChartContainer config={performanceChartConfig} className="gba:h-[350px] gba:w-full">
               <ComposedChart data={investmentPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                 <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                 <ChartTooltip
@@ -121,7 +120,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                     if (active && payload && payload.length) {
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
                           {payload.map((entry, index) => {
                             let formattedValue = ''
                             let properLabel = ''
@@ -197,7 +196,9 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
               <IconAvatar icon={TrendUpIcon} variant="success" size="md" decorative />
               <div>
                 <CardTitle>Value Trends Over Time ({valueTrendsCurrency})</CardTitle>
-                <CardDescription>Comparison of total invested amount vs. market value over time</CardDescription>
+                <CardDescription>
+                  Comparison of total invested amount vs. market value by year (last 5 years)
+                </CardDescription>
               </div>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
@@ -230,7 +231,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           ) : (
             <ChartContainer config={valueTrendsChartConfig} className="gba:h-[350px] gba:w-full">
               <ComposedChart data={valueTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={value => dayjs(value).format('MMM YY')} />
+                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                 <YAxis
                   tick={{ fontSize: 12 }}
                   tickFormatter={value => formatCurrencyCompact(value, valueTrendsCurrency)}
@@ -240,9 +241,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                     if (active && payload && payload.length) {
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                            {dayjs(label).format('MMMM YYYY')}
-                          </div>
+                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
                           {payload.map((entry, index) => {
                             let properLabel = ''
                             let dotColor = ''

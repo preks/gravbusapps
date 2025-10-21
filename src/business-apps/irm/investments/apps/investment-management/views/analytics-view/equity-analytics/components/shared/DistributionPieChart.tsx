@@ -71,13 +71,6 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
     }))
   }, [data, valueType])
 
-  // Calculate total for percentage
-  const total = useMemo(() => {
-    return data.reduce((sum: number, item: any) => {
-      return sum + (valueType === 'count' ? item.count : item.totalAmount)
-    }, 0)
-  }, [data, valueType])
-
   return (
     <Card>
       <CardHeader>
@@ -118,7 +111,6 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
               fill="var(--color-default)"
               dataKey="value"
               nameKey="name"
-              label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
             >
               {data.map((entry: any, index: number) => {
                 const key = entry.type.toLowerCase().replace(/\s+/g, '')
@@ -129,7 +121,6 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const dataPoint = payload[0]
-                  const percentage = total > 0 ? ((dataPoint.value as number) / total) * 100 : 0
 
                   return (
                     <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -146,9 +137,6 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
                           : formatCurrency && currency
                             ? formatCurrency(dataPoint.value as number, currency)
                             : dataPoint.value}
-                      </div>
-                      <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-                        {percentage.toFixed(1)}% of total
                       </div>
                     </div>
                   )

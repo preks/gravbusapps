@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import {
   Card,
   CardHeader,
@@ -8,7 +8,6 @@ import {
   IconAvatar,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
@@ -19,27 +18,54 @@ import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 
 interface RealEstateDistributionChartsProps {
-  chartData: {
-    typeData: any[]
-    statusData: any[]
-    currencyData: any[]
-  }
   rawInvestments: any[] // Raw investment data for filtering
   masterCurrency: string
   availableCurrencies: string[]
 }
 
 export const RealEstateDistributionCharts: React.FC<RealEstateDistributionChartsProps> = ({
-  chartData,
   rawInvestments,
   masterCurrency,
   availableCurrencies
 }) => {
-  const { typeData, statusData } = chartData
+  // Currency state for count-based charts - start with "All Currencies", then sync with master
+  const [typeCountCurrency, setTypeCountCurrency] = useState<string>('All Currencies')
+  const [statusCountCurrency, setStatusCountCurrency] = useState<string>('All Currencies')
 
-  // Currency sync hooks - initialize with master currency from parent
+  const prevMasterCurrencyForCount = useRef<string>(masterCurrency)
+
+  // Currency sync hooks for amount-based charts (synced with master currency)
   const [typeCurrencyFilter, setTypeCurrencyFilter] = useCurrencySync(masterCurrency)
   const [statusCurrencyFilter, setStatusCurrencyFilter] = useCurrencySync(masterCurrency)
+
+  // Sync count currencies with master currency when it actually changes
+  useEffect(() => {
+    // Only sync if the master currency has actually changed
+    if (prevMasterCurrencyForCount.current !== masterCurrency) {
+      setTypeCountCurrency(masterCurrency)
+      setStatusCountCurrency(masterCurrency)
+    }
+    prevMasterCurrencyForCount.current = masterCurrency
+  }, [masterCurrency])
+
+  // Enhanced currency options with "All Currencies" option for count charts
+  const currencyOptionsWithAll = ['All Currencies', ...availableCurrencies]
+
+  // Filter data for Type Count chart (can show all currencies or specific currency)
+  const filteredTypeCountData = useMemo(() => {
+    return rawInvestments
+      .filter(inv => typeCountCurrency === 'All Currencies' || (inv.currencyCode || 'EUR') === typeCountCurrency)
+      .reduce((acc, investment) => {
+        const type = investment.investment?.investmentType?.value || 'Unknown Type'
+        const existing = acc.find((item: any) => item.type === type)
+        if (existing) {
+          existing.count += 1
+        } else {
+          acc.push({ type, count: 1 })
+        }
+        return acc
+      }, [] as any[])
+  }, [rawInvestments, typeCountCurrency])
 
   // Filter data based on selected currency for Type Total Amount chart
   const filteredTypeData = useMemo(() => {
@@ -58,6 +84,22 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
         return acc
       }, [] as any[])
   }, [rawInvestments, typeCurrencyFilter])
+
+  // Filter data for Status Count chart (can show all currencies or specific currency)
+  const filteredStatusCountData = useMemo(() => {
+    return rawInvestments
+      .filter(inv => statusCountCurrency === 'All Currencies' || (inv.currencyCode || 'EUR') === statusCountCurrency)
+      .reduce((acc, investment) => {
+        const status = investment.investment?.investmentStatus?.value || 'Unknown Status'
+        const existing = acc.find((item: any) => item.status === status)
+        if (existing) {
+          existing.count += 1
+        } else {
+          acc.push({ status, count: 1 })
+        }
+        return acc
+      }, [] as any[])
+  }, [rawInvestments, statusCountCurrency])
 
   // Filter data based on selected currency for Status Total Amount chart
   const filteredStatusData = useMemo(() => {
@@ -87,43 +129,51 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Type Distribution by Count</CardTitle>
+                  <CardTitle>
+                    Type Distribution by Count ({typeCountCurrency === 'All Currencies' ? 'All' : typeCountCurrency})
+                  </CardTitle>
                   <CardDescription>Number of properties per type</CardDescription>
                 </div>
               </div>
-              <div className="gba:w-24 gba:h-8"></div> {/* Placeholder to match filter area */}
+              <CurrencyFilter
+                value={typeCountCurrency}
+                onChange={setTypeCountCurrency}
+                currencies={currencyOptionsWithAll}
+                showLabel={false}
+                dataTestId="type-count-currency-filter"
+              />
             </div>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
-                typeData.forEach((item: any) => {
+                filteredTypeCountData.forEach((item: any) => {
                   const key = item.type.toLowerCase().replace(/\s+/g, '')
                   config[key] = { label: item.type }
                 })
                 return config
-              }, [typeData])}
+              }, [filteredTypeCountData])}
               className="gba:h-[300px] gba:w-full"
             >
               <PieChart>
                 <Pie
-                  data={typeData.map((item: any) => {
+                  data={filteredTypeCountData.map((item: any) => {
                     const key = item.type.toLowerCase().replace(/\s+/g, '')
                     return {
                       ...item,
-                      name: item.type,
-                      fill: `var(--color-${key})`
+                      name: key,
+                      value: item.count
                     }
                   })}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  dataKey="count"
+                  fill="var(--color-default)"
+                  dataKey="value"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                 >
-                  {typeData.map((entry: any, index: number) => {
+                  {filteredTypeCountData.map((entry: any, index: number) => {
                     const key = entry.type.toLowerCase().replace(/\s+/g, '')
                     return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
@@ -132,17 +182,21 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0]
-                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '')
+                      const total = filteredTypeCountData.reduce((sum: number, item: any) => sum + item.count, 0)
+                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                             <div
                               className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${typeKey})` }}
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
                             />
-                            <span className="gba:font-medium">{data.payload.type}</span>
+                            <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} properties</div>
+                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} properties</div>
+                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+                            {percentage.toFixed(1)}% of total
+                          </div>
                         </div>
                       )
                     }
@@ -195,16 +249,16 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     const key = item.type.toLowerCase().replace(/\s+/g, '')
                     return {
                       ...item,
-                      name: item.type,
-                      fill: `var(--color-${key})`
+                      name: key,
+                      value: item.totalAmount
                     }
                   })}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  dataKey="totalAmount"
+                  fill="var(--color-default)"
+                  dataKey="value"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                 >
                   {filteredTypeData.map((entry: any, index: number) => {
                     const key = entry.type.toLowerCase().replace(/\s+/g, '')
@@ -215,18 +269,22 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0]
-                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '')
+                      const total = filteredTypeData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
+                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                             <div
                               className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${typeKey})` }}
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
                             />
-                            <span className="gba:font-medium">{data.payload.name}</span>
+                            <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
                             {formatCurrencyCompact(data.value as number, typeCurrencyFilter)}
+                          </div>
+                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+                            {percentage.toFixed(1)}% of total
                           </div>
                         </div>
                       )
@@ -249,48 +307,81 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <IconAvatar icon={HouseIcon} variant="success" size="md" decorative />
                 <div>
-                  <CardTitle>Status Distribution by Count</CardTitle>
+                  <CardTitle>
+                    Status Distribution by Count (
+                    {statusCountCurrency === 'All Currencies' ? 'All' : statusCountCurrency})
+                  </CardTitle>
                   <CardDescription>Number of properties per status</CardDescription>
                 </div>
               </div>
-              <div className="gba:w-24 gba:h-8"></div> {/* Placeholder to match filter area */}
+              <CurrencyFilter
+                value={statusCountCurrency}
+                onChange={setStatusCountCurrency}
+                currencies={currencyOptionsWithAll}
+                showLabel={false}
+                dataTestId="status-count-currency-filter"
+              />
             </div>
           </CardHeader>
           <CardContent>
             <ChartContainer
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
-                statusData.forEach((item: any) => {
+                filteredStatusCountData.forEach((item: any) => {
                   const key = item.status.toLowerCase().replace(/\s+/g, '')
                   config[key] = { label: item.status }
                 })
                 return config
-              }, [statusData])}
+              }, [filteredStatusCountData])}
               className="gba:h-[300px] gba:w-full"
             >
               <PieChart>
                 <Pie
-                  data={statusData.map((item: any) => {
+                  data={filteredStatusCountData.map((item: any) => {
                     const key = item.status.toLowerCase().replace(/\s+/g, '')
                     return {
                       ...item,
-                      name: item.status,
-                      fill: `var(--color-${key})`
+                      name: key,
+                      value: item.count
                     }
                   })}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  dataKey="count"
+                  fill="var(--color-default)"
+                  dataKey="value"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                 >
-                  {statusData.map((entry: any, index: number) => {
+                  {filteredStatusCountData.map((entry: any, index: number) => {
                     const key = entry.status.toLowerCase().replace(/\s+/g, '')
                     return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip content={<ChartTooltipContent />} />
+                <ChartTooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0]
+                      const total = filteredStatusCountData.reduce((sum: number, item: any) => sum + item.count, 0)
+                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
+                      return (
+                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                            <div
+                              className="gba:w-3 gba:h-3 gba:rounded-full"
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+                            />
+                            <span className="gba:font-medium gba:text-gray-700">{data.payload.status}</span>
+                          </div>
+                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} properties</div>
+                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+                            {percentage.toFixed(1)}% of total
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  }}
+                />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -337,16 +428,16 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     const key = item.status.toLowerCase().replace(/\s+/g, '')
                     return {
                       ...item,
-                      name: item.status,
-                      fill: `var(--color-${key})`
+                      name: key,
+                      value: item.totalAmount
                     }
                   })}
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  dataKey="totalAmount"
+                  fill="var(--color-default)"
+                  dataKey="value"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                 >
                   {filteredStatusData.map((entry: any, index: number) => {
                     const key = entry.status.toLowerCase().replace(/\s+/g, '')
@@ -357,18 +448,22 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0]
-                      const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '')
+                      const total = filteredStatusData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
+                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
                             <div
                               className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${statusKey})` }}
+                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
                             />
-                            <span className="gba:font-medium">{data.payload.name}</span>
+                            <span className="gba:font-medium gba:text-gray-700">{data.payload.status}</span>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
                             {formatCurrencyCompact(data.value as number, statusCurrencyFilter)}
+                          </div>
+                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
+                            {percentage.toFixed(1)}% of total
                           </div>
                         </div>
                       )

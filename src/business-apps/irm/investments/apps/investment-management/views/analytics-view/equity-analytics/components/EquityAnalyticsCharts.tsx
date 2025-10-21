@@ -16,7 +16,7 @@ import { ChartScatterIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { formatCurrencyCompact } from '../../../../utils/currencyUtils'
 import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
-import { useEquityPerformanceData } from '../hooks'
+import { useEquityStakeVsAmount, useEquityRoleVsAmount, useEquityConcentrationByRole } from '../hooks'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface EquityAnalyticsChartsProps extends BusinessAppContextProps {
@@ -27,17 +27,29 @@ interface EquityAnalyticsChartsProps extends BusinessAppContextProps {
 export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props => {
   const { masterCurrency, availableCurrencies } = props
 
-  // Use single master currency for all performance charts
-  const [performanceCurrency, setPerformanceCurrency] = useCurrencySync(masterCurrency)
+  // Separate currency for each performance chart for independent filtering
+  const [stakeAmountCurrency, setStakeAmountCurrency] = useCurrencySync(masterCurrency)
+  const [roleAmountCurrency, setRoleAmountCurrency] = useCurrencySync(masterCurrency)
+  const [concentrationCurrency, setConcentrationCurrency] = useCurrencySync(masterCurrency)
 
-  // Fetch optimized performance data from server
+  // Fetch optimized performance data from server - each chart independently
   const {
     stakeVsAmountData: stakeVsInvestmentAmountData,
+    isLoading: stakeLoading,
+    error: stakeError
+  } = useEquityStakeVsAmount(props, stakeAmountCurrency)
+
+  const {
     roleVsAmountData: roleInvestmentAmountData,
+    isLoading: roleLoading,
+    error: roleError
+  } = useEquityRoleVsAmount(props, roleAmountCurrency)
+
+  const {
     concentrationData: concentrationByRoleData,
-    isLoading: performanceLoading,
-    error: performanceError
-  } = useEquityPerformanceData(props, performanceCurrency)
+    isLoading: concentrationLoading,
+    error: concentrationError
+  } = useEquityConcentrationByRole(props, concentrationCurrency)
 
   // Chart configs - must be at top level
   const stakeVsAmountChartConfig = useMemo(
@@ -71,33 +83,33 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartScatterIcon} variant="default" size="md" decorative />
               <div>
-                <CardTitle>Stake vs Amount Correlation ({performanceCurrency})</CardTitle>
+                <CardTitle>Stake vs Amount Correlation ({stakeAmountCurrency})</CardTitle>
                 <CardDescription>Relationship between stake percentage and total investment amount</CardDescription>
               </div>
             </div>
             <CurrencyFilter
-              value={performanceCurrency}
-              onChange={setPerformanceCurrency}
+              value={stakeAmountCurrency}
+              onChange={setStakeAmountCurrency}
               currencies={availableCurrencies}
               showLabel={false}
-              dataTestId="performance-currency-filter"
+              dataTestId="stake-amount-currency-filter"
             />
           </div>
         </CardHeader>
         <CardContent>
-          {performanceLoading ? (
+          {stakeLoading ? (
             <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-gray-500 gba:text-lg">Loading performance data...</div>
+              <div className="gba:text-gray-500 gba:text-lg">Loading stake correlation data...</div>
             </div>
-          ) : performanceError ? (
+          ) : stakeError ? (
             <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
               <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
-              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{performanceError}</div>
+              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{stakeError}</div>
             </div>
           ) : stakeVsInvestmentAmountData.length === 0 ? (
             <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
               <div className="gba:text-gray-500 gba:text-lg">
-                No stake vs amount data available for {performanceCurrency}
+                No stake vs amount data available for {stakeAmountCurrency}
               </div>
             </div>
           ) : (
@@ -115,7 +127,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                   dataKey="investmentAmount"
                   name="Investment Amount"
                   tick={{ fontSize: 12 }}
-                  tickFormatter={value => formatCurrencyCompact(value, performanceCurrency)}
+                  tickFormatter={value => formatCurrencyCompact(value, stakeAmountCurrency)}
                 />
                 <ChartTooltip
                   content={({ active, payload }) => {
@@ -142,7 +154,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                             />
                             <span className="gba:font-medium">Investment Amount:</span>
                             <span className="gba:font-semibold">
-                              {formatCurrencyCompact(data.investmentAmount, performanceCurrency)}
+                              {formatCurrencyCompact(data.investmentAmount, stakeAmountCurrency)}
                             </span>
                           </div>
                         </div>
@@ -169,26 +181,33 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartScatterIcon} variant="secondary" size="md" decorative />
               <div>
-                <CardTitle>Role vs Amount ({performanceCurrency})</CardTitle>
+                <CardTitle>Role vs Amount ({roleAmountCurrency})</CardTitle>
                 <CardDescription>Comparison of investment amounts across different investment roles</CardDescription>
               </div>
             </div>
+            <CurrencyFilter
+              value={roleAmountCurrency}
+              onChange={setRoleAmountCurrency}
+              currencies={availableCurrencies}
+              showLabel={false}
+              dataTestId="role-amount-currency-filter"
+            />
           </div>
         </CardHeader>
         <CardContent>
-          {performanceLoading ? (
+          {roleLoading ? (
             <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-gray-500 gba:text-lg">Loading performance data...</div>
+              <div className="gba:text-gray-500 gba:text-lg">Loading role correlation data...</div>
             </div>
-          ) : performanceError ? (
+          ) : roleError ? (
             <div className="gba:h-[350px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
               <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
-              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{performanceError}</div>
+              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{roleError}</div>
             </div>
           ) : roleInvestmentAmountData.length === 0 ? (
             <div className="gba:h-[350px] gba:w-full gba:flex gba:items-center gba:justify-center">
               <div className="gba:text-gray-500 gba:text-lg">
-                No role vs amount data available for {performanceCurrency}
+                No role vs amount data available for {roleAmountCurrency}
               </div>
             </div>
           ) : (
@@ -196,7 +215,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
               <ScatterChart data={roleInvestmentAmountData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                 <XAxis
                   type="number"
-                  dataKey="role"
+                  dataKey="roleScore"
                   name="Investment Role"
                   domain={[0, 4]}
                   ticks={[1, 2, 3]}
@@ -208,14 +227,21 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                   dataKey="investmentAmount"
                   name="Investment Amount"
                   tick={{ fontSize: 12 }}
-                  tickFormatter={value => formatCurrencyCompact(value, performanceCurrency)}
+                  tickFormatter={value => formatCurrencyCompact(value, roleAmountCurrency)}
                 />
                 <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const data = payload[0].payload // Get the actual data point
-                      const roleValue = data.role
-                      const roleLabel = roleValue === 1 ? 'Follow-on' : roleValue === 2 ? 'Co-Investor' : 'Lead'
+                      const roleScore = data.roleScore
+                      const roleLabel =
+                        roleScore === 1
+                          ? 'Follow-on'
+                          : roleScore === 2
+                            ? 'Co-Investor'
+                            : roleScore === 3
+                              ? 'Lead'
+                              : data.role
 
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -237,7 +263,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                             />
                             <span className="gba:font-medium">Investment Amount:</span>
                             <span className="gba:font-semibold">
-                              {formatCurrencyCompact(data.investmentAmount, performanceCurrency)}
+                              {formatCurrencyCompact(data.investmentAmount, roleAmountCurrency)}
                             </span>
                           </div>
                         </div>
@@ -260,26 +286,33 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
             <div className="gba:flex gba:items-center gba:gap-3">
               <IconAvatar icon={ChartBarIcon} variant="success" size="md" decorative />
               <div>
-                <CardTitle>Portfolio Concentration by Role ({performanceCurrency})</CardTitle>
+                <CardTitle>Portfolio Concentration by Role ({concentrationCurrency})</CardTitle>
                 <CardDescription>Investment distribution and valuation metrics by role</CardDescription>
               </div>
             </div>
+            <CurrencyFilter
+              value={concentrationCurrency}
+              onChange={setConcentrationCurrency}
+              currencies={availableCurrencies}
+              showLabel={false}
+              dataTestId="concentration-currency-filter"
+            />
           </div>
         </CardHeader>
         <CardContent>
-          {performanceLoading ? (
+          {concentrationLoading ? (
             <div className="gba:h-[300px] gba:w-full gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-gray-500 gba:text-lg">Loading performance data...</div>
+              <div className="gba:text-gray-500 gba:text-lg">Loading concentration data...</div>
             </div>
-          ) : performanceError ? (
+          ) : concentrationError ? (
             <div className="gba:h-[300px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
               <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading data</div>
-              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{performanceError}</div>
+              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{concentrationError}</div>
             </div>
           ) : concentrationByRoleData.length === 0 ? (
             <div className="gba:h-[300px] gba:w-full gba:flex gba:items-center gba:justify-center">
               <div className="gba:text-gray-500 gba:text-lg">
-                No concentration data available for {performanceCurrency}
+                No concentration data available for {concentrationCurrency}
               </div>
             </div>
           ) : (
@@ -304,11 +337,11 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                               properLabel = 'Investment Count'
                               dotColor = 'var(--color-investmentcount)'
                             } else if (entry.dataKey === 'totalValuation') {
-                              formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrency)
+                              formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
                               properLabel = 'Total Valuation'
                               dotColor = 'var(--color-totalvaluation)'
                             } else if (entry.dataKey === 'averageValuation') {
-                              formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrency)
+                              formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
                               properLabel = 'Average Valuation'
                               dotColor = 'var(--color-averagevaluation)'
                             }

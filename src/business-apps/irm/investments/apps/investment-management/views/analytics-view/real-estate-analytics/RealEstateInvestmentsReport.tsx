@@ -24,7 +24,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useGetInvestments } from '@/common/data/investment'
 import type { Investment } from '@/common/data/investment'
-import { useRealEstateChartData, useRealEstateKPIIntegration } from './hooks'
+import { useRealEstateKPIIntegration } from './hooks'
 import { RealEstateDistributionCharts, RealEstateTimelineCharts, RealEstateAnalyticsCharts } from './components'
 import {
   calculateChange,
@@ -151,7 +151,6 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
   const refetch = useCallback(async () => {
     await Promise.all([loadData(), refetchKpis()])
   }, [loadData, refetchKpis])
-  const chartData = useRealEstateChartData(realEstateInvestments)
 
   if (isLoading) {
     return (
@@ -308,7 +307,6 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
 
           <TabsContent value="distribution" className="gba:mt-6">
             <RealEstateDistributionCharts
-              chartData={chartData}
               rawInvestments={realEstateInvestments}
               masterCurrency={selectedCurrency}
               availableCurrencies={availableCurrencies}
@@ -317,6 +315,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
 
           <TabsContent value="timeline" className="gba:mt-6">
             <RealEstateTimelineCharts
+              {...props}
               rawInvestments={realEstateInvestments}
               masterCurrency={selectedCurrency}
               availableCurrencies={availableCurrencies}
@@ -325,7 +324,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
 
           <TabsContent value="analytics" className="gba:mt-6">
             <RealEstateAnalyticsCharts
-              rawInvestments={realEstateInvestments}
+              {...props}
               masterCurrency={selectedCurrency}
               availableCurrencies={availableCurrencies}
             />

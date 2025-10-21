@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import {
   Card,
   CardHeader,
@@ -27,10 +27,14 @@ interface LiquidFundDistributionChartsProps extends BusinessAppContextProps {
 export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionChartsProps> = props => {
   const { masterCurrency, availableCurrencies } = props
 
-  // Currency sync hooks - count charts can select "All Currencies" or specific currency
-  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useCurrencySync(masterCurrency)
+  // Currency state for count-based charts - start with "All Currencies", then sync with master
+  const [investmentTypeCountCurrency, setInvestmentTypeCountCurrency] = useState<string>('All Currencies')
+  const [liquidFundTypeCountCurrency, setLiquidFundTypeCountCurrency] = useState<string>('All Currencies')
+
+  const prevMasterCurrencyForCount = useRef<string>(masterCurrency)
+
+  // Currency sync hooks for amount-based charts (synced with master currency)
   const [investmentTypeAmountCurrency, setInvestmentTypeAmountCurrency] = useCurrencySync(masterCurrency)
-  const [liquidFundTypeCountCurrency, setLiquidFundTypeCountCurrency] = useCurrencySync(masterCurrency)
   const [liquidFundTypeAmountCurrency, setLiquidFundTypeAmountCurrency] = useCurrencySync(masterCurrency)
 
   // Fetch Investment Type distribution data
@@ -68,6 +72,19 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     isLoading: liquidFundTypeAmountLoading,
     error: liquidFundTypeAmountError
   } = useLiquidFundTypeDistribution(props, liquidFundTypeAmountCurrency)
+
+  // Sync count currencies with master currency when it actually changes
+  useEffect(() => {
+    // Only sync if the master currency has actually changed
+    if (prevMasterCurrencyForCount.current !== masterCurrency) {
+      setInvestmentTypeCountCurrency(masterCurrency)
+      setLiquidFundTypeCountCurrency(masterCurrency)
+    }
+    prevMasterCurrencyForCount.current = masterCurrency
+  }, [masterCurrency])
+
+  // Enhanced currency options with "All Currencies" option for count charts
+  const currencyOptionsWithAll = ['All Currencies', ...availableCurrencies]
 
   // Transform Investment Type count data for charts
   const investmentTypeCountData = useMemo(() => {
@@ -148,14 +165,17 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartPieSliceIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Type Distribution by Count ({investmentTypeCountCurrency})</CardTitle>
+                  <CardTitle>
+                    Type Distribution by Count (
+                    {investmentTypeCountCurrency === 'All Currencies' ? 'All' : investmentTypeCountCurrency})
+                  </CardTitle>
                   <CardDescription>Number per type</CardDescription>
                 </div>
               </div>
               <CurrencyFilter
                 value={investmentTypeCountCurrency}
                 onChange={setInvestmentTypeCountCurrency}
-                currencies={['All Currencies', ...availableCurrencies]}
+                currencies={currencyOptionsWithAll}
                 showLabel={false}
                 dataTestId="investment-type-count-currency-filter"
               />
@@ -313,14 +333,17 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
               <div className="gba:flex gba:items-center gba:gap-3">
                 <IconAvatar icon={ChartDonutIcon} variant="default" size="md" decorative />
                 <div>
-                  <CardTitle>Liquid Fund Type Distribution by Count ({liquidFundTypeCountCurrency})</CardTitle>
+                  <CardTitle>
+                    Liquid Fund Type Distribution by Count (
+                    {liquidFundTypeCountCurrency === 'All Currencies' ? 'All' : liquidFundTypeCountCurrency})
+                  </CardTitle>
                   <CardDescription>Number per type</CardDescription>
                 </div>
               </div>
               <CurrencyFilter
                 value={liquidFundTypeCountCurrency}
                 onChange={setLiquidFundTypeCountCurrency}
-                currencies={['All Currencies', ...availableCurrencies]}
+                currencies={currencyOptionsWithAll}
                 showLabel={false}
                 dataTestId="liquid-fund-type-count-currency-filter"
               />

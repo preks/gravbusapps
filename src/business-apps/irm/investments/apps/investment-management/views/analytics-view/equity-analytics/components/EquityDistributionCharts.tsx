@@ -1,26 +1,29 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { ChartPieSliceIcon, ChartDonutIcon, PercentIcon, CurrencyCircleDollarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { EquityInvestmentSummary } from '../../shared/types'
 import { DistributionPieChart } from './shared/DistributionPieChart'
 import { InvestmentSizeChart, InvestmentDurationChart } from './shared/InvestmentSizeDurationCharts'
-import { calculateInvestmentSizeRanges, calculateInvestmentDurationRanges } from './shared/distributionUtils'
 import { useCurrencySync } from '../../shared/hooks'
 import {
-  useEquityRoleDistributionCombined,
-  useEquityStatusDistributionCombined,
-  useEquityStakeTypeDistributionCombined,
-  useEquityInvestmentTypeDistributionCombined
+  useEquityRoleCountDistribution,
+  useEquityRoleAmountDistribution,
+  useEquityStatusCountDistribution,
+  useEquityStatusAmountDistribution,
+  useEquityStakeTypeCountDistribution,
+  useEquityStakeTypeAmountDistribution,
+  useEquityInvestmentTypeCountDistribution,
+  useEquityInvestmentTypeAmountDistribution,
+  useEquityInvestmentSize,
+  useEquityInvestmentDuration
 } from '../hooks'
 
 interface EquityDistributionChartsProps extends BusinessAppContextProps {
-  rawInvestments: EquityInvestmentSummary[]
   masterCurrency: string
   availableCurrencies: string[]
 }
 
 export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> = context => {
-  const { rawInvestments, masterCurrency, availableCurrencies } = context
+  const { masterCurrency, availableCurrencies } = context
 
   // Currency state for count-based charts - start with "All Currencies", then sync with master
   const [roleCountCurrency, setRoleCountCurrency] = useState<string>('All Currencies')
@@ -36,38 +39,77 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
   const [stakeTypeAmountCurrency, setStakeTypeAmountCurrency] = useCurrencySync(masterCurrency)
   const [investmentTypeAmountCurrency, setInvestmentTypeAmountCurrency] = useCurrencySync(masterCurrency)
   const [investmentSizeCurrency, setInvestmentSizeCurrency] = useCurrencySync(masterCurrency)
+  const [investmentDurationCurrency, setInvestmentDurationCurrency] = useCurrencySync(masterCurrency)
 
-  // Fetch BOTH role count and amount distribution (combined - avoids duplicate GetDistinctRoles)
+  // Fetch role count distribution independently (uses cached distinct roles)
   const {
     roleCountDistribution: roleDistributionData,
-    roleAmountDistribution: roleAmountDistributionData,
-    isLoading: roleDistributionLoading,
-    error: roleDistributionError
-  } = useEquityRoleDistributionCombined(context, roleCountCurrency, roleAmountCurrency)
+    isLoading: roleCountLoading,
+    error: roleCountError
+  } = useEquityRoleCountDistribution(context, roleCountCurrency)
 
-  // Fetch BOTH status count and amount distribution (combined - avoids duplicate GetDistinctStatuses)
+  // Fetch role amount distribution independently (uses cached distinct roles)
+  const {
+    roleAmountDistribution: roleAmountDistributionData,
+    isLoading: roleAmountLoading,
+    error: roleAmountError
+  } = useEquityRoleAmountDistribution(context, roleAmountCurrency)
+
+  // Fetch status count distribution independently (uses cached distinct statuses)
   const {
     statusCountDistribution: statusDistributionData,
-    statusAmountDistribution: statusAmountDistributionData,
-    isLoading: statusDistributionLoading,
-    error: statusDistributionError
-  } = useEquityStatusDistributionCombined(context, statusCountCurrency, statusAmountCurrency)
+    isLoading: statusCountLoading,
+    error: statusCountError
+  } = useEquityStatusCountDistribution(context, statusCountCurrency)
 
-  // Fetch BOTH stake type count and amount distribution (combined - avoids duplicate GetDistinctStakeTypes)
+  // Fetch status amount distribution independently (uses cached distinct statuses)
+  const {
+    statusAmountDistribution: statusAmountDistributionData,
+    isLoading: statusAmountLoading,
+    error: statusAmountError
+  } = useEquityStatusAmountDistribution(context, statusAmountCurrency)
+
+  // Fetch stake type count distribution independently (uses cached distinct stake types)
   const {
     stakeTypeCountDistribution: stakeTypeDistributionData,
-    stakeTypeAmountDistribution: stakeTypeAmountDistributionData,
-    isLoading: stakeTypeDistributionLoading,
-    error: stakeTypeDistributionError
-  } = useEquityStakeTypeDistributionCombined(context, stakeTypeCountCurrency, stakeTypeAmountCurrency)
+    isLoading: stakeTypeCountLoading,
+    error: stakeTypeCountError
+  } = useEquityStakeTypeCountDistribution(context, stakeTypeCountCurrency)
 
-  // Fetch BOTH investment type count and amount distribution (combined - avoids duplicate GetDistinctInvestmentTypes)
+  // Fetch stake type amount distribution independently (uses cached distinct stake types)
   const {
-    investmentTypeCountDistribution: investmentTypeDistributionData,
-    investmentTypeAmountDistribution: investmentTypeAmountDistributionData,
-    isLoading: investmentTypeDistributionLoading,
-    error: investmentTypeDistributionError
-  } = useEquityInvestmentTypeDistributionCombined(context, investmentTypeCountCurrency, investmentTypeAmountCurrency)
+    stakeTypeAmountDistribution: stakeTypeAmountDistributionData,
+    isLoading: stakeTypeAmountLoading,
+    error: stakeTypeAmountError
+  } = useEquityStakeTypeAmountDistribution(context, stakeTypeAmountCurrency)
+
+  // Fetch investment type count distribution independently (uses cached distinct investment types)
+  const {
+    investmentTypesCount: investmentTypeDistributionData,
+    isLoading: investmentTypeCountLoading,
+    error: investmentTypeCountError
+  } = useEquityInvestmentTypeCountDistribution(context, investmentTypeCountCurrency)
+
+  // Fetch investment type amount distribution independently (uses cached distinct investment types)
+  const {
+    investmentTypesAmount: investmentTypeAmountDistributionData,
+    isLoading: investmentTypeAmountLoading,
+    error: investmentTypeAmountError
+  } = useEquityInvestmentTypeAmountDistribution(context, investmentTypeAmountCurrency)
+
+  // Fetch investment size distribution using server-side aggregates
+  const {
+    investmentSizeData,
+    isLoading: investmentSizeLoading,
+    error: investmentSizeError
+  } = useEquityInvestmentSize(context, investmentSizeCurrency)
+
+  // Fetch investment duration distribution using server-side aggregates
+  const {
+    investmentDurationData: investmentDurationRawData,
+    isLoading: investmentDurationLoading,
+    error: investmentDurationError
+  } = useEquityInvestmentDuration(context, investmentDurationCurrency)
 
   // Sync count currencies with master currency when it actually changes
   useEffect(() => {
@@ -95,9 +137,9 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       maximumFractionDigits: 1
     }).format(amount)
   }
-  // Transform data for pie charts - Role (using aggregate query)
+  // Transform data for pie charts - Role (using independent queries with shared cached roles)
   const roleCountData = useMemo(() => {
-    if (roleDistributionLoading || roleDistributionError) {
+    if (roleCountLoading || roleCountError) {
       return []
     }
 
@@ -106,11 +148,11 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       type: role.roleValue || 'Unknown',
       count: role.count
     }))
-  }, [roleDistributionData, roleDistributionLoading, roleDistributionError])
+  }, [roleDistributionData, roleCountLoading, roleCountError])
 
-  // Transform role amount data from combined aggregate query
+  // Transform role amount data from independent query with shared cached roles
   const roleAmountData = useMemo(() => {
-    if (roleDistributionLoading || roleDistributionError) {
+    if (roleAmountLoading || roleAmountError) {
       return []
     }
 
@@ -120,11 +162,11 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       count: 0, // Not used for amount charts
       totalAmount: role.totalAmount
     }))
-  }, [roleAmountDistributionData, roleDistributionLoading, roleDistributionError])
+  }, [roleAmountDistributionData, roleAmountLoading, roleAmountError])
 
-  // Transform status count data from aggregate query
+  // Transform status count data from independent query with shared cached statuses
   const statusCountData = useMemo(() => {
-    if (statusDistributionLoading || statusDistributionError) {
+    if (statusCountLoading || statusCountError) {
       return []
     }
 
@@ -132,11 +174,11 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       type: status.statusValue || 'Unknown',
       count: status.count
     }))
-  }, [statusDistributionData, statusDistributionLoading, statusDistributionError])
+  }, [statusDistributionData, statusCountLoading, statusCountError])
 
-  // Transform status amount data from combined aggregate query
+  // Transform status amount data from independent query with shared cached statuses
   const statusAmountData = useMemo(() => {
-    if (statusDistributionLoading || statusDistributionError) {
+    if (statusAmountLoading || statusAmountError) {
       return []
     }
 
@@ -145,11 +187,11 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       count: 0, // Not used for amount charts
       totalAmount: status.totalAmount
     }))
-  }, [statusAmountDistributionData, statusDistributionLoading, statusDistributionError])
+  }, [statusAmountDistributionData, statusAmountLoading, statusAmountError])
 
-  // Transform stake type count data from combined aggregate query
+  // Transform stake type count data from independent query with shared cached stake types
   const stakeTypeCountData = useMemo(() => {
-    if (stakeTypeDistributionLoading || stakeTypeDistributionError) {
+    if (stakeTypeCountLoading || stakeTypeCountError) {
       return []
     }
 
@@ -157,11 +199,11 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       type: stakeType.stakeTypeValue || 'Unknown',
       count: stakeType.count
     }))
-  }, [stakeTypeDistributionData, stakeTypeDistributionLoading, stakeTypeDistributionError])
+  }, [stakeTypeDistributionData, stakeTypeCountLoading, stakeTypeCountError])
 
-  // Transform stake type amount data from combined aggregate query
+  // Transform stake type amount data from independent query with shared cached stake types
   const stakeTypeAmountData = useMemo(() => {
-    if (stakeTypeDistributionLoading || stakeTypeDistributionError) {
+    if (stakeTypeAmountLoading || stakeTypeAmountError) {
       return []
     }
 
@@ -170,11 +212,11 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       count: 0, // Not used for amount charts
       totalAmount: stakeType.totalAmount
     }))
-  }, [stakeTypeAmountDistributionData, stakeTypeDistributionLoading, stakeTypeDistributionError])
+  }, [stakeTypeAmountDistributionData, stakeTypeAmountLoading, stakeTypeAmountError])
 
-  // Transform investment type count data from combined aggregate query
+  // Transform investment type count data from independent query with shared cached investment types
   const investmentTypeCountData = useMemo(() => {
-    if (investmentTypeDistributionLoading || investmentTypeDistributionError) {
+    if (investmentTypeCountLoading || investmentTypeCountError) {
       return []
     }
 
@@ -182,11 +224,11 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       type: investmentType.investmentTypeValue || 'Unknown',
       count: investmentType.count
     }))
-  }, [investmentTypeDistributionData, investmentTypeDistributionLoading, investmentTypeDistributionError])
+  }, [investmentTypeDistributionData, investmentTypeCountLoading, investmentTypeCountError])
 
-  // Transform investment type amount data from combined aggregate query
+  // Transform investment type amount data from independent query with shared cached investment types
   const investmentTypeAmountData = useMemo(() => {
-    if (investmentTypeDistributionLoading || investmentTypeDistributionError) {
+    if (investmentTypeAmountLoading || investmentTypeAmountError) {
       return []
     }
 
@@ -195,15 +237,39 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       count: 0, // Not used for amount charts
       totalAmount: investmentType.totalAmount
     }))
-  }, [investmentTypeAmountDistributionData, investmentTypeDistributionLoading, investmentTypeDistributionError])
+  }, [investmentTypeAmountDistributionData, investmentTypeAmountLoading, investmentTypeAmountError])
 
-  // Calculate investment size and duration ranges
-  const investmentSizeData = useMemo(
-    () => calculateInvestmentSizeRanges(rawInvestments, investmentSizeCurrency),
-    [rawInvestments, investmentSizeCurrency]
-  )
+  // Transform investment size data from server-side aggregates to chart format
+  const transformedInvestmentSizeData = useMemo(() => {
+    if (investmentSizeLoading || investmentSizeError) {
+      return []
+    }
 
-  const investmentDurationData = useMemo(() => calculateInvestmentDurationRanges(rawInvestments), [rawInvestments])
+    return investmentSizeData.map(range => ({
+      type: range.range,
+      count: range.count,
+      percentage: range.percentage || 0,
+      minValue: range.minValue,
+      maxValue: range.maxValue || Infinity,
+      sortOrder: investmentSizeData.indexOf(range)
+    }))
+  }, [investmentSizeData, investmentSizeLoading, investmentSizeError])
+
+  // Transform investment duration data from server-side aggregates to chart format
+  const investmentDurationData = useMemo(() => {
+    if (investmentDurationLoading || investmentDurationError) {
+      return []
+    }
+
+    return investmentDurationRawData.map(range => ({
+      type: range.range,
+      count: range.count,
+      percentage: range.percentage || 0,
+      minValue: range.minYears,
+      maxValue: range.maxYears || Infinity,
+      sortOrder: investmentDurationRawData.indexOf(range)
+    }))
+  }, [investmentDurationRawData, investmentDurationLoading, investmentDurationError])
 
   return (
     <>
@@ -318,12 +384,21 @@ export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> =
       {/* Investment Size & Duration Distribution - Side by Side */}
       <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <InvestmentSizeChart
-          data={investmentSizeData}
+          data={transformedInvestmentSizeData}
           currency={investmentSizeCurrency}
           onCurrencyChange={setInvestmentSizeCurrency}
           availableCurrencies={availableCurrencies}
+          isLoading={investmentSizeLoading}
+          error={investmentSizeError}
         />
-        <InvestmentDurationChart data={investmentDurationData} />
+        <InvestmentDurationChart
+          data={investmentDurationData}
+          currency={investmentDurationCurrency}
+          onCurrencyChange={setInvestmentDurationCurrency}
+          availableCurrencies={availableCurrencies}
+          isLoading={investmentDurationLoading}
+          error={investmentDurationError}
+        />
       </div>
     </>
   )

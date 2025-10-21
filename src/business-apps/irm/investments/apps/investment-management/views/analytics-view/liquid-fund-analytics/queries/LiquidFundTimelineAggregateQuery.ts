@@ -1,10 +1,9 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import dayjs from 'dayjs'
 
-export interface MonthlyPerformanceData {
-  month: string
+export interface YearlyPerformanceData {
+  year: string
   investmentCount: number
   totalInvestmentAmount: number
   totalMarketValue: number
@@ -12,10 +11,22 @@ export interface MonthlyPerformanceData {
   cumulativeTotalInvested: number
 }
 
-export interface MonthlyValueData {
-  date: string
+export interface YearlyValueData {
+  year: string
   totalInvestmentAmount: number
   totalMarketValue: number
+}
+
+/**
+ * Get the last N years including current year
+ */
+const getLastNYears = (n: number): string[] => {
+  const currentYear = new Date().getFullYear()
+  const years: string[] = []
+  for (let i = n - 1; i >= 0; i--) {
+    years.push((currentYear - i).toString())
+  }
+  return years
 }
 
 /**
@@ -26,24 +37,21 @@ export interface MonthlyValueData {
  * @param queryName - Query name for identification
  */
 const BUILD_PERFORMANCE_TIMELINE_QUERY = (currency: string, years: string[], queryName: string): string => {
-  // Create aliases for each year-month combination
-  const monthAliases = years
-    .flatMap(year =>
-      Array.from({ length: 12 }, (_, i) => {
-        const month = String(i + 1).padStart(2, '0')
-        const yearMonth = `${year}-${month}`
-        const alias = `month_${year}_${month}`
-        const startDate = `${yearMonth}-01`
-        const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD')
+  // Create aliases for each year
+  const yearAliases = years
+    .map(year => {
+      const alias = `year_${year}`
+      const startDate = `${year}-01-01`
+      const endDate = `${parseInt(year) + 1}-01-01`
 
-        return `
+      return `
       ${alias}: InvestmentAggregate(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
             { investmentGroup: { id: { _eq: "InvestmentGroup:v1:LIQUID_FUND" } } }
             { currency: { code: { _eq: "${currency}" } } }
-            { acquisitionDate: { _gte: "${startDate}", _lte: "${endDate}" } }
+            { acquisitionDate: { _gte: "${startDate}", _lt: "${endDate}" } }
           ]
         }
       ) {
@@ -54,13 +62,12 @@ const BUILD_PERFORMANCE_TIMELINE_QUERY = (currency: string, years: string[], que
           }
         }
       }`
-      })
-    )
+    })
     .join('\n')
 
   return `
     query ${queryName} {
-      ${monthAliases}
+      ${yearAliases}
     }
   `
 }
@@ -73,24 +80,21 @@ const BUILD_PERFORMANCE_TIMELINE_QUERY = (currency: string, years: string[], que
  * @param queryName - Query name for identification
  */
 const BUILD_VALUE_TRENDS_QUERY = (currency: string, years: string[], queryName: string): string => {
-  // Create aliases for each year-month combination
-  const monthAliases = years
-    .flatMap(year =>
-      Array.from({ length: 12 }, (_, i) => {
-        const month = String(i + 1).padStart(2, '0')
-        const yearMonth = `${year}-${month}`
-        const alias = `month_${year}_${month}`
-        const startDate = `${yearMonth}-01`
-        const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD')
+  // Create aliases for each year
+  const yearAliases = years
+    .map(year => {
+      const alias = `year_${year}`
+      const startDate = `${year}-01-01`
+      const endDate = `${parseInt(year) + 1}-01-01`
 
-        return `
+      return `
       ${alias}: InvestmentAggregate(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
             { investmentGroup: { id: { _eq: "InvestmentGroup:v1:LIQUID_FUND" } } }
             { currency: { code: { _eq: "${currency}" } } }
-            { acquisitionDate: { _gte: "${startDate}", _lte: "${endDate}" } }
+            { acquisitionDate: { _gte: "${startDate}", _lt: "${endDate}" } }
           ]
         }
       ) {
@@ -101,13 +105,12 @@ const BUILD_VALUE_TRENDS_QUERY = (currency: string, years: string[], queryName: 
           }
         }
       }`
-      })
-    )
+    })
     .join('\n')
 
   return `
     query ${queryName} {
-      ${monthAliases}
+      ${yearAliases}
     }
   `
 }
@@ -115,86 +118,66 @@ const BUILD_VALUE_TRENDS_QUERY = (currency: string, years: string[], queryName: 
 /**
  * Parse aggregate response for Performance Timeline (with count)
  */
-const parsePerformanceAggregateResponse = (data: any): MonthlyPerformanceData[] => {
-  const monthlyData: MonthlyPerformanceData[] = []
+const parsePerformanceAggregateResponse = (data: any, years: string[]): YearlyPerformanceData[] => {
+  const yearlyData: YearlyPerformanceData[] = []
 
-  // Extract data from aliases
-  Object.keys(data).forEach(key => {
-    if (key.startsWith('month_')) {
-      const parts = key.split('_')
-      const year = parts[1]
-      const month = parts[2]
-      const yearMonth = `${year}-${month}`
-
+  // Extract data from aliases in chronological order
+  years.forEach(year => {
+    const key = `year_${year}`
+    if (data[key]) {
       const aggregate = data[key].aggregate
       const count = aggregate.count || 0
       const totalInvestmentAmount = aggregate.sum?.totalInvestmentAmount || 0
 
-      // Only include months with data
-      if (count > 0 || totalInvestmentAmount > 0) {
-        monthlyData.push({
-          month: yearMonth,
-          investmentCount: count,
-          totalInvestmentAmount,
-          totalMarketValue: 0, // Not fetched (optimization)
-          cumulativeInvestments: 0, // Will calculate after
-          cumulativeTotalInvested: 0 // Will calculate after
-        })
-      }
+      yearlyData.push({
+        year,
+        investmentCount: count,
+        totalInvestmentAmount,
+        totalMarketValue: 0, // Not fetched (optimization)
+        cumulativeInvestments: 0, // Will calculate after
+        cumulativeTotalInvested: 0 // Will calculate after
+      })
     }
   })
-
-  // Sort by month
-  monthlyData.sort((a, b) => a.month.localeCompare(b.month))
 
   // Calculate cumulative values
   let cumulativeCount = 0
   let cumulativeAmount = 0
-  monthlyData.forEach(item => {
+  yearlyData.forEach(item => {
     cumulativeCount += item.investmentCount
     cumulativeAmount += item.totalInvestmentAmount
     item.cumulativeInvestments = cumulativeCount
     item.cumulativeTotalInvested = cumulativeAmount
   })
 
-  console.log('📈 Parsed performance data:', { months: monthlyData.length })
-  return monthlyData
+  console.log('📈 Parsed performance data:', { years: yearlyData.length })
+  return yearlyData
 }
 
 /**
  * Parse aggregate response for Value Trends (with both sum fields, no count)
  */
-const parseValueTrendsAggregateResponse = (data: any): MonthlyValueData[] => {
-  const monthlyData: MonthlyValueData[] = []
+const parseValueTrendsAggregateResponse = (data: any, years: string[]): YearlyValueData[] => {
+  const yearlyData: YearlyValueData[] = []
 
-  // Extract data from aliases
-  Object.keys(data).forEach(key => {
-    if (key.startsWith('month_')) {
-      const parts = key.split('_')
-      const year = parts[1]
-      const month = parts[2]
-      const yearMonth = `${year}-${month}`
-
+  // Extract data from aliases in chronological order
+  years.forEach(year => {
+    const key = `year_${year}`
+    if (data[key]) {
       const aggregate = data[key].aggregate
       const totalInvestmentAmount = aggregate.sum?.totalInvestmentAmount || 0
       const totalMarketValue = aggregate.sum?.investmentMarketValue || 0
 
-      // Only include months with data
-      if (totalInvestmentAmount > 0 || totalMarketValue > 0) {
-        monthlyData.push({
-          date: yearMonth,
-          totalInvestmentAmount,
-          totalMarketValue
-        })
-      }
+      yearlyData.push({
+        year,
+        totalInvestmentAmount,
+        totalMarketValue
+      })
     }
   })
 
-  // Sort by date
-  monthlyData.sort((a, b) => a.date.localeCompare(b.date))
-
-  console.log('📈 Parsed value trends data:', { months: monthlyData.length })
-  return monthlyData
+  console.log('📈 Parsed value trends data:', { years: yearlyData.length })
+  return yearlyData
 }
 
 /**
@@ -206,12 +189,12 @@ export const fetchLiquidFundTimelineData = async (
   currency: string,
   queryName: string,
   isPerformanceChart: boolean
-): Promise<{ performanceData: MonthlyPerformanceData[]; valueTrendsData: MonthlyValueData[] }> => {
+): Promise<{ performanceData: YearlyPerformanceData[]; valueTrendsData: YearlyValueData[] }> => {
   console.log('🚀 Fetching liquid fund timeline data...', { currency, queryName, isPerformanceChart })
 
-  // Get last 5 years
-  const currentYear = dayjs().year()
-  const years = Array.from({ length: 5 }, (_, i) => String(currentYear - 4 + i))
+  // Get last 5 years including current year
+  const years = getLastNYears(5)
+  console.log('📅 Years to fetch:', years)
 
   try {
     if (isPerformanceChart) {
@@ -222,9 +205,9 @@ export const fetchLiquidFundTimelineData = async (
       const result = await graphqlClient.request(query)
       console.log('✅ Performance timeline data received')
 
-      const performanceData = parsePerformanceAggregateResponse(result)
+      const performanceData = parsePerformanceAggregateResponse(result, years)
       // For performance chart, we don't need value trends data
-      const valueTrendsData: MonthlyValueData[] = []
+      const valueTrendsData: YearlyValueData[] = []
 
       return { performanceData, valueTrendsData }
     } else {
@@ -235,9 +218,9 @@ export const fetchLiquidFundTimelineData = async (
       const result = await graphqlClient.request(query)
       console.log('✅ Value trends data received')
 
-      const valueTrendsData = parseValueTrendsAggregateResponse(result)
+      const valueTrendsData = parseValueTrendsAggregateResponse(result, years)
       // For value trends chart, we don't need performance data
-      const performanceData: MonthlyPerformanceData[] = []
+      const performanceData: YearlyPerformanceData[] = []
 
       return { performanceData, valueTrendsData }
     }

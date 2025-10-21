@@ -2,20 +2,20 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   useGetLiquidFundTimelineAggregate,
-  type MonthlyPerformanceData,
-  type MonthlyValueData
+  type YearlyPerformanceData,
+  type YearlyValueData
 } from '../queries/LiquidFundTimelineAggregateQuery'
 
 export interface LiquidFundTimelineAggregateIntegration {
-  performanceData: MonthlyPerformanceData[]
-  valueTrendsData: MonthlyValueData[]
+  performanceData: YearlyPerformanceData[]
+  valueTrendsData: YearlyValueData[]
   isLoading: boolean
   error: string | null
   refetch: () => void
 }
 
 /**
- * Hook that fetches Liquid Fund timeline data using server-side aggregates
+ * Hook that fetches Liquid Fund timeline data using server-side aggregates (yearly data)
  * Optimized to execute only when the Timeline Analysis tab is active
  *
  * @param context - Business app context with access token
@@ -29,8 +29,8 @@ export const useLiquidFundTimelineAggregate = (
   chartType: 'performance' | 'valueTrends' = 'performance'
 ): LiquidFundTimelineAggregateIntegration => {
   const { fetchTimelineData } = useGetLiquidFundTimelineAggregate(context)
-  const [performanceData, setPerformanceData] = useState<MonthlyPerformanceData[]>([])
-  const [valueTrendsData, setValueTrendsData] = useState<MonthlyValueData[]>([])
+  const [performanceData, setPerformanceData] = useState<YearlyPerformanceData[]>([])
+  const [valueTrendsData, setValueTrendsData] = useState<YearlyValueData[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -54,8 +54,8 @@ export const useLiquidFundTimelineAggregate = (
       const { performanceData: perf, valueTrendsData: trends } = await fetchTimelineData(currency, queryName)
 
       console.log('✅ Timeline data loaded successfully', {
-        performanceMonths: perf.length,
-        valueTrendsMonths: trends.length
+        performanceYears: perf.length,
+        valueTrendsYears: trends.length
       })
 
       setPerformanceData(perf)

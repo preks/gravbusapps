@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { InvestmentPortfolioKPIs, InvestmentQueryVariables } from '../types'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
@@ -59,6 +59,9 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Prevent duplicate queries (React Strict Mode calls effects twice)
+  const isLoadingRef = useRef(false)
 
   const { fetchInvestments } = useGetInvestments(context)
   const { fetchPortfolioKPIs } = useGetPortfolioKPIs(context)
@@ -137,16 +140,16 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
 
   const loadData = useCallback(
     async (variables: InvestmentQueryVariables = {}) => {
-      if (!context.accessToken) {
-        setError('Access token not available')
-        setIsLoading(false)
+      if (!context.accessToken || isLoadingRef.current) {
         return
       }
 
+      isLoadingRef.current = true
       setIsLoading(true)
       setError(null)
 
       try {
+        console.log('📊 Loading portfolio investments and KPIs...', { currency: selectedCurrency })
         // Fetch both investment data and KPIs with real historical comparison in parallel
         const [investmentResult, kpiResult] = await Promise.all([
           fetchInvestments({
@@ -170,10 +173,13 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
         setInvestments(enhancedInvestments)
         setKPIs(kpiResult.current)
         setPreviousKPIs(kpiResult.previous)
+        console.log('✅ Portfolio investments and KPIs loaded successfully')
       } catch (err) {
+        console.error('❌ Error loading portfolio data:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setIsLoading(false)
+        isLoadingRef.current = false
       }
     },
     [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData, selectedCurrency]
@@ -183,7 +189,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     if (context.accessToken) {
       loadData()
     }
-  }, [context.accessToken, selectedCurrency])
+  }, [context.accessToken, selectedCurrency, loadData])
 
   return {
     investments,

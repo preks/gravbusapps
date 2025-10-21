@@ -14,7 +14,10 @@ export interface RealEstateKPIComparison {
   previous: RealEstateKPIData
 }
 
-const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string): string => {
+const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
+  // Currency filter condition
+  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
+
   return `
     query GetRealEstateKPIsWithComparison {
       # Current data (real estate investments only)
@@ -23,6 +26,7 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string): string =>
           _and: [
             { isDeleted: { _eq: false } }
             { realEstateInvestment: {} }
+            ${currencyCondition}
           ]
         }
       ) {
@@ -60,6 +64,7 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string): string =>
             { isDeleted: { _eq: false } }
             { createdAt: { _lt: "${comparisonDate}" } }
             { realEstateInvestment: {} }
+            ${currencyCondition}
           ]
         }
       ) {
@@ -131,7 +136,7 @@ export interface RealEstateKPIResponse {
   }
 }
 
-export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
+export const useGetRealEstateKPIs = (context: BusinessAppContextProps, currency?: string) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchRealEstateKPIs = useCallback(async (): Promise<RealEstateKPIComparison> => {
@@ -140,7 +145,7 @@ export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
     const comparisonDate = sevenDaysAgo.toISOString()
 
-    const query = GET_REAL_ESTATE_KPIS_WITH_COMPARISON(comparisonDate)
+    const query = GET_REAL_ESTATE_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
       const result = await graphqlClient.request<RealEstateKPIResponse>(query)
 
@@ -205,7 +210,7 @@ export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
       console.error('Error fetching real estate KPIs:', error)
       throw error
     }
-  }, [graphqlClient])
+  }, [graphqlClient, currency])
 
   return { fetchRealEstateKPIs }
 }
