@@ -288,7 +288,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-          console.log('ExpensePlansTab: Refreshing data after successful process completion')
 
           // Refresh overview (items + statistics)
           if (

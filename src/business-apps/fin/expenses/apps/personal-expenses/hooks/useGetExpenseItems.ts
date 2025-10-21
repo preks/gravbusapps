@@ -250,10 +250,6 @@ export const useGetExpenseItems = (
         // Build query variables with helper function
         const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter, sortField, sortOrder)
 
-        // Debug the filter for no receipt items
-        if (filter?.noReceipt) {
-          console.log('No Receipt filter is active!')
-        }
 
         const result = await graphqlClient.request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables)
         const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
@@ -269,10 +265,6 @@ export const useGetExpenseItems = (
 
         // Apply client-side filtering for items with no receipts
         if (filter?.noReceipt) {
-          console.log('Applying client-side filtering for items without receipts')
-
-          // Detailed inspection of the first few items
-          console.log('DATA INSPECTION:')
 
           // Apply the filter with stronger type checking
           mappedItems = mappedItems.filter(item => {
