@@ -262,6 +262,9 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables)
+        if (lastAbsenceCheckKeyRef.current !== dedupeKey) {
+          return
+        }
         const overlapWarning = getOverlapWarningMessage(response, expenseId)
         if (isEndLocation) {
           setEndLocationOverlap(overlapWarning)
@@ -432,7 +435,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   const [destinations, setDestinations] = useState<LocationData[]>([defaultDestination])
 
   useEffect(() => {
-    if (accessToken && userInfo?.employeeId && expensePlanData) {
+    if (accessToken && userInfo?.employeeDetails?.employeeId && expensePlanData) {
       //  Clear overlaps whenever dates change (before deduplication check)
       // This ensures stale warnings don't persist when user changes dates
       setStartLocationOverlap(null)
@@ -704,6 +707,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 dateTimeLimits={startLimits}
                 travelRegions={getFilteredTravelRegions(startLocation.isAbroad)}
                 overlapWarning={endLocation.departureDate ? null : startLocationOverlap}
+                showFutureWarning={false}
                 showPastWarning={true}
                 errorMessage={employeeRuleError || ruleConflictError}
                 locationFormLabels={{
@@ -892,5 +896,3 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
 }
 
 export default PlanTripScreen
-
-
