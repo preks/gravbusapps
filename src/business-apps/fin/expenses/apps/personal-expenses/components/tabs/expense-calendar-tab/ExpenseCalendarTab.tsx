@@ -45,7 +45,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
     isLoading: isLoadingExpenses,
     error: fetchExpensesErrorHook,
     fetchItems: fetchExpenseHookItems
-  } = useGetExpenseItems(props)
+  } = useGetExpenseItems(props, { autoFetch: false })
   const [calendarItems, setCalendarItems] = useState<CalendarExpenseItem[]>([])
   const [expensesError, setExpensesError] = useState<string | null>(null)
 

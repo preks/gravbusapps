@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_USED_ADVANCE_PAYMENT_CURRENCIES } from '../queries/advancePayments'
 import { DEFAULT_CURRENCY_REF } from '../utils/currencyUtils'
-import { fetchEmployeeCurrencyStats } from '../utils/currencyDataService'
+import { aggregateCurrencyStats, CurrencyLikeRow } from '../utils/currencyUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface CurrencyStat {
   ref: string
@@ -17,6 +18,7 @@ export const useAdvancePaymentCurrencies = (
 ) => {
   const [currencyStats, setCurrencyStats] = useState<CurrencyStat[]>([])
   const hasPreselectedCurrencyRef = useRef<boolean>(false)
+  const graphqlClient = useGraphQLClient(context?.accessToken || '')
 
   const selectedCurrencyRef = useMemo(() => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
@@ -38,27 +40,25 @@ export const useAdvancePaymentCurrencies = (
 
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId
-    const accessToken = context?.accessToken
-    if (!employeeId || !accessToken) return
+    if (!employeeId || !context?.accessToken) return
     ;(async () => {
       try {
-        const stats = await fetchEmployeeCurrencyStats({
-          accessToken,
-          query: GET_USED_ADVANCE_PAYMENT_CURRENCIES,
-          variables: { employeeId, limit: 2000 },
-          dataPath: ['AdvancePayment'],
-          mapRow: (r: any) => ({
-            currencyRef: r.currencyRef || DEFAULT_CURRENCY_REF,
-            currency: { code: r.currency?.code || 'EUR' }
-          })
+        const data = await graphqlClient.request<any>(GET_USED_ADVANCE_PAYMENT_CURRENCIES, {
+          employeeId,
+          limit: 2000
         })
+        const rows: CurrencyLikeRow[] = (data?.AdvancePayment || []).map((r: any) => ({
+          currencyRef: r?.currencyRef || DEFAULT_CURRENCY_REF,
+          currency: { code: r?.currency?.code || 'EUR' }
+        }))
+        const stats = aggregateCurrencyStats(rows, { fallbackRef: DEFAULT_CURRENCY_REF, fallbackCode: 'EUR' })
         setCurrencyStats(stats as CurrencyStat[])
         preselectMostUsedOnce(stats as CurrencyStat[])
       } catch (_e) {
         // ignore
       }
     })()
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce])
+  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce, graphqlClient])
 
   return {
     currencyStats,

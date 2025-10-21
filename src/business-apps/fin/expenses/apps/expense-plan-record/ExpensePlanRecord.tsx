@@ -184,9 +184,9 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} />
+      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} currencyCode={expensePlan?.currency?.code} />
     },
-
+    
     // Allowances tab - only show if there are allowances
     ...(expensePlan?.expenseAllowance && expensePlan.expenseAllowance.length > 0
       ? [
