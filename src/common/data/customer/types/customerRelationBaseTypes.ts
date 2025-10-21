@@ -49,6 +49,15 @@ export interface CustomerLeadRef {
   email?: string
 }
 
+export interface CustomerDocumentRef {
+  id: string
+  name?: string
+  file?: string
+  fileInfo?: any // JSONB field containing file metadata
+  mimeType?: string
+  fileSize?: number
+}
+
 // =====================================================
 // CUSTOMER RELATIONS ENTITIES (from DBML)
 // =====================================================
@@ -204,13 +213,7 @@ export interface BaseCustomerTask extends BaseEntity {
   opportunity?: CustomerOpportunityRef
 
   // Documents
-  documents?: Array<{
-    id: string
-    name?: string
-    file?: string
-    mimeType?: string
-    fileSize?: number
-  }>
+  documents?: CustomerDocumentRef[]
 }
 
 // sales_activity table
@@ -246,13 +249,7 @@ export interface BaseCustomerActivity extends BaseEntity {
   opportunity?: CustomerOpportunityRef
 
   // Documents
-  documents?: Array<{
-    id: string
-    name?: string
-    file?: string
-    mimeType?: string
-    fileSize?: number
-  }>
+  documents?: CustomerDocumentRef[]
 }
 
 // crm_note table
@@ -272,6 +269,9 @@ export interface BaseCustomerNote extends BaseEntity {
   contact?: CustomerContactRef
   lead?: CustomerLeadRef
   opportunity?: CustomerOpportunityRef
+
+  // Documents
+  documents?: CustomerDocumentRef[]
 }
 
 // crm_document table

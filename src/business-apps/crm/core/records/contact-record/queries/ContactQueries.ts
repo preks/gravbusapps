@@ -26,25 +26,6 @@ export interface ContactData {
     name?: string
     id?: string
   }
-  accountContacts?: Array<{
-    contactType?: string
-    account?: {
-      id: string
-      name: string
-      email?: string
-      phone?: string
-      website?: string
-      legalForm?: { id: string; value: string }
-      industry?: { id: string; value: string }
-      numberOfEmployees?: { id: string; value: string }
-      annualRevenue?: { id: string; value: string }
-      addresses?: Array<{
-        city?: string
-        country?: { id: string; value: string }
-        region?: { id: string; value: string }
-      }>
-    }
-  }>
   ownerEmployee?: {
     id: string
     firstName: string
@@ -90,43 +71,39 @@ export const GET_CONTACT_BY_ID = `
       createdAt
       accountId
       account {
-        name
         id
-      }
-      accountContacts(where: { isDeleted: { _eq: false } }) {
-        contactType
-        account {
+        name
+        email
+        phone
+        website
+        legalForm {
           id
-          name
-          email
-          phone
-          website
-          legalForm {
+          value
+        }
+        industry {
+          id
+          value
+        }
+        numberOfEmployees {
+          id
+          value
+        }
+        annualRevenue {
+          id
+          value
+        }
+        addresses {
+          addressType
+          addressLine
+          postalCode
+          city
+          country {
             id
             value
           }
-          industry {
+          region {
             id
             value
-          }
-          numberOfEmployees {
-            id
-            value
-          }
-          annualRevenue {
-            id
-            value
-          }
-          addresses {
-            city
-            country {
-              id
-              value
-            }
-            region {
-              id
-              value
-            }
           }
         }
       }
