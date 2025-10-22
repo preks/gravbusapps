@@ -250,7 +250,6 @@ export const useGetExpenseItems = (
         // Build query variables with helper function
         const variables = buildQueryVariables(employeeId, searchTerm, page, pageSize, filter, sortField, sortOrder)
 
-
         const result = await graphqlClient.request<any>(GET_EXPENSE_ITEMS_BY_EMPLOYEE_WHERE, variables)
         const count = result?.ExpenseItemAggregate?.aggregate?.count ?? 0
         setTotalCount(count)
@@ -265,7 +264,6 @@ export const useGetExpenseItems = (
 
         // Apply client-side filtering for items with no receipts
         if (filter?.noReceipt) {
-
           // Apply the filter with stronger type checking
           mappedItems = mappedItems.filter(item => {
             // More robust check for no attachments
@@ -288,7 +286,13 @@ export const useGetExpenseItems = (
         setIsLoading(false)
       }
     },
-    [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, buildQueryVariables, mapResponseToItems, graphqlClient]
+    [
+      context?.userInfo?.employeeDetails?.employeeId,
+      context?.accessToken,
+      buildQueryVariables,
+      mapResponseToItems,
+      graphqlClient
+    ]
   )
 
   // Initial fetch on component mount (configurable)

@@ -40,7 +40,7 @@ export const formatCurrencyDisplay = (
     } else {
       formattedAmount = new Intl.NumberFormat(userLocale).format(Number(amount))
     }
-  } catch (_err) {
+  } catch {
     formattedAmount = String(amount)
   }
 

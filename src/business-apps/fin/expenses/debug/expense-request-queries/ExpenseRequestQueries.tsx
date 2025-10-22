@@ -8,7 +8,7 @@ import { useEmployeeExpenseRule } from '../../../../../common/network/expense-re
 import { BusinessAppContextProps } from '@/business-apps/types'
 
 // Define the component props
-interface ExpenseRequestQueriesProps extends BusinessAppContextProps {}
+type ExpenseRequestQueriesProps = BusinessAppContextProps
 const currentDate = dayjs().format(`YYYY-MM-DDTHH:mm:ss.SSSZZ`)
 
 const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessToken, userInfo }) => {

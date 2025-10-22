@@ -44,7 +44,7 @@ interface ExpenseTimelineEvent {
   eventType: 'Plan' | 'Request'
 }
 
-export interface ExpenseCalendarProps extends BusinessAppContextProps {}
+export type ExpenseCalendarProps = BusinessAppContextProps
 
 export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const { userInfo, accessToken } = props
@@ -67,17 +67,13 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
       setTeamMembersError(null)
 
       try {
-        const result = await graphqlClient.request<{ Employee: TeamEmployee[] }>(
-          GET_TEAM_MEMBERS_BY_MANAGER,
-          { managerId }
-        )
+        const result = await graphqlClient.request<{ Employee: TeamEmployee[] }>(GET_TEAM_MEMBERS_BY_MANAGER, {
+          managerId
+        })
         setAllTeamMembers(result.Employee || [])
       } catch (error) {
         console.error('Error fetching team members:', error)
-        setTeamMembersError(getTranslationFromI18nKeyAndLabel(
-          'lowcoder:common.error',
-          'Error loading team members'
-        ))
+        setTeamMembersError(getTranslationFromI18nKeyAndLabel('lowcoder:common.error', 'Error loading team members'))
       } finally {
         setLoadingTeamMembers(false)
       }
@@ -142,7 +138,11 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
       if (member.id) {
         employeesMap.set(member.id, {
           id: member.id,
-          name: member.fullName || member.displayName || `${member.firstName} ${member.lastName}` || getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+          name:
+            member.fullName ||
+            member.displayName ||
+            `${member.firstName} ${member.lastName}` ||
+            getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
           detail: member.employeePosition?.organizationalUnit?.name || member.department || ''
         })
       }
@@ -154,7 +154,10 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
       if (emp?.id && !employeesMap.has(emp.id)) {
         employeesMap.set(emp.id, {
           id: emp.id,
-          name: emp.fullName ?? emp.displayName ?? getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+          name:
+            emp.fullName ??
+            emp.displayName ??
+            getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
           detail: emp.employeePosition?.organizationalUnit?.name ?? ''
         })
       }
@@ -165,7 +168,10 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
       if (emp?.id && !employeesMap.has(emp.id)) {
         employeesMap.set(emp.id, {
           id: emp.id,
-          name: emp.fullName ?? emp.displayName ?? getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
+          name:
+            emp.fullName ??
+            emp.displayName ??
+            getTranslationFromI18nKeyAndLabel('lowcoder:common.unknown_employee', 'Unknown Employee'),
           detail: emp.employeePosition?.organizationalUnit?.name ?? ''
         })
       }

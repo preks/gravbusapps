@@ -7,7 +7,6 @@ import {
   DropdownMenuItem
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel as t } from '@/common/utils/windowUtils'
-import { env } from '@/common/env/EnvUtils'
 import { LightningIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -28,8 +27,6 @@ interface FlowActionsButtonProps {
 }
 
 const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction, dataTestId }) => {
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-
   const visibleActions = React.useMemo(() => actions.filter(a => !a.hidden), [actions])
 
   const [open, setOpen] = React.useState(false)
@@ -65,7 +62,6 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
         <div className="gba:py-1">
           {visibleActions.map((action, idx) => {
             const label = t(action.nameKey, action.nameFallback)
-            const iconUrl = action.iconRelative ? `${baseUrl}${action.iconRelative}` : ''
             return (
               <DropdownMenuItem
                 key={`${label}-${idx}`}

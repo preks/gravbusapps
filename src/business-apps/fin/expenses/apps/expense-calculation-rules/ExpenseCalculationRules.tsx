@@ -53,7 +53,7 @@ import DeleteRuleDialog from './components/DeleteRuleDialog'
 import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
-interface ExpenseCalculationRulesProps extends BusinessAppContextProps {}
+type ExpenseCalculationRulesProps = BusinessAppContextProps
 
 const PREFIX = 'expense-calculation-rules'
 
@@ -84,7 +84,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
   } = useExpenseCalculationRules(props)
 
   const handleEnhancedTableChange = useCallback(
-    (pagination: { current: number; pageSize: number }, _filters?: any, _sorter?: any) => {
+    (pagination: { current: number; pageSize: number }) => {
       setPage(pagination.current)
       setPageSize(pagination.pageSize)
     },
@@ -155,7 +155,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
         const flagIds = (res?.ExpenseRuleFlag || []).map((f: any) => f?.expenseRuleId)
         const url = buildRuleDetailsUrl({ ...row, ruleFlagId: flagIds })
         window.location.href = url
-      } catch (_e) {
+      } catch {
         const url = buildRuleDetailsUrl({ ...row, ruleFlagId: [] })
         window.location.href = url
       }

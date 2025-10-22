@@ -22,7 +22,6 @@ import * as RemixIcons from '@remixicon/react'
 import {
   User,
   Gear,
-  ChartBar,
   ChartLine,
   Users,
   ChartPie,

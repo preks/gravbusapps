@@ -1,5 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useEffect } from 'react'
 
 interface Employee {
   id: string

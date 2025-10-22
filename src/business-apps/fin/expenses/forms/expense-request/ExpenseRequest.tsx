@@ -12,14 +12,7 @@ import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/pla
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { formatDateToISO } from '@/common/utils/windowUtils'
 import { showToast } from '../../utils/notificationUtils'
-import {
-  FORM_STEPS,
-  REQUEST_TYPES,
-  REQUEST_STATUS,
-  DISABLED_FLAG,
-  PLAN_TYPE_ENUM,
-  SUBMIT_SUCCESS_RESET_TIMEOUT
-} from './constants/constants'
+import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS, DISABLED_FLAG, PLAN_TYPE_ENUM } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
 
 const { Title } = Typography
@@ -128,7 +121,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         if (typeof additionalProps === 'string') {
           try {
             additionalProps = JSON.parse(additionalProps)
-          } catch (error) {
+          } catch {
             additionalProps = {}
           }
         }
@@ -139,7 +132,9 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       }
       form.setFieldsValue(formValues)
       const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-      setFormIsValid && setFormIsValid(isFormValidValue)
+      if (setFormIsValid) {
+        setFormIsValid(isFormValidValue)
+      }
     }
   }
 
@@ -166,7 +161,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           )
         }
       })
-    } catch (processError) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
       form.resetFields()
       setSelectedPlan(null)
@@ -238,12 +233,9 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
         event: EVENTS.SUBMIT
       }
 
-      let operationSuccessful = false
-
       try {
         dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
-        operationSuccessful = true
-      } catch (processError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
       }
 
@@ -254,7 +246,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       //   setStep(FORM_STEPS.START);
       //   }, SUBMIT_SUCCESS_RESET_TIMEOUT)
       // }
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_request.error_fields_validation', 'Please check all required fields'),
         'error'
@@ -341,14 +333,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 <>
                   <div style={{ marginBottom: '0px' }} data-testid="selected-plan-section">
                     <Typography.Text
-                      style={{
-                        padding: '0 16px',
-                        display: 'block',
-                        fontSize: '16px',
-                        fontWeight: 500,
-                        marginBottom: '0',
-                        color: '#333'
-                      }}
+                      className="gba:block gba:px-4 gba:text-base gba:font-medium gba:mb-0 gba:text-foreground"
                       data-testid="selected-plan-label"
                     >
                       {t(
@@ -468,14 +453,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 {!isExpenseDisabled && (
                   <Button
                     variant="ghost"
-                    style={{
-                      height: '96px',
-                      width: '100%',
-                      marginBottom: '16px',
-                      backgroundColor: '#F7F7F7',
-                      padding: '0 24px',
-                      borderRadius: '4px'
-                    }}
+                    className="gba:h-24 gba:w-full gba:mb-4 gba:bg-muted gba:px-6 gba:rounded"
                     data-testid="expense-request-expense-button"
                     onClick={handleExpenseClick}
                   >
@@ -515,14 +493,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 {!isTripDisabled && (
                   <Button
                     variant="ghost"
-                    style={{
-                      height: '96px',
-                      width: '100%',
-                      marginBottom: '16px',
-                      backgroundColor: '#F7F7F7',
-                      padding: '0 24px',
-                      borderRadius: '4px'
-                    }}
+                    className="gba:h-24 gba:w-full gba:mb-4 gba:bg-muted gba:px-6 gba:rounded"
                     data-testid="expense-request-trip-button"
                     onClick={handleTripClick}
                   >
@@ -582,14 +553,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                     {/* Plan Button */}
                     <Button
                       variant="ghost"
-                      style={{
-                        height: '96px',
-                        width: '100%',
-                        marginBottom: '16px',
-                        backgroundColor: '#F7F7F7',
-                        padding: '0 24px',
-                        borderRadius: '4px'
-                      }}
+                      className="gba:h-24 gba:w-full gba:mb-4 gba:bg-muted gba:px-6 gba:rounded"
                       data-testid="expense-request-plan-button"
                       onClick={handlePlanClick}
                     >
