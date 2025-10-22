@@ -16,10 +16,11 @@ const bookletServerSchema = z.object({
 })
 
 // UI schema extends server response for AiSummaryButton rendering
-type BookletSchema = z.infer<typeof bookletServerSchema> & {
-  summary: string
-  keyInsights: string[]
-}
+const bookletSchema = bookletServerSchema.extend({
+  summary: z.string().describe('A concise status summary for display'),
+  keyInsights: z.array(z.string()).describe('Details and context for display')
+})
+type BookletSchema = z.infer<typeof bookletSchema>
 
 const bookletStatusSchema = z.object({
   job_id: z.string().describe('Identifier of the async booklet generation job'),
@@ -150,7 +151,13 @@ export function useGenerateAIBooklet(
         job_id: status.job_id
       }
 
-      return bookletSchema.parse(result)
+      const parsed = bookletSchema.safeParse(result)
+      if (!parsed.success) {
+        console.error('Failed to validate booklet status summary', parsed.error)
+        return result
+      }
+
+      return parsed.data
     },
     [formatTimestamp, lastOutputFileName, options?.maxQuestions]
   )
@@ -216,7 +223,7 @@ export function useGenerateAIBooklet(
       'M&A booklet generation requested successfully.'
     )
 
-    const processedFiles = serverResp?.processed_files ?? []
+    const processedFiles = Array.isArray(serverResp?.processed_files) ? serverResp.processed_files : []
     const answeredQuestions = typeof serverResp?.answered_questions === 'number' ? serverResp.answered_questions : 0
     const outputFileLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.output_file', 'Generate output file')
     const jobIdLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.job_id', 'Job ID')
@@ -244,7 +251,7 @@ export function useGenerateAIBooklet(
       job_id: newJobId ?? undefined
     }
 
-    setState({ type: 'success', content: bookletSchema.parse(result) })
+    setState({ type: 'success', content: { ...result, summary: result.summary ?? requestedMessage } })
   }, [accountId, accessToken, options?.maxQuestions, options?.outputFileName, restClient])
 
   const checkExistingJobStatus = useCallback(
@@ -265,7 +272,13 @@ export function useGenerateAIBooklet(
 
         if (normalizedState === 'completed' || normalizedState === 'failed') {
           setJobId(null)
-          setState({ type: 'success', content: result })
+          setState({
+            type: 'success',
+            content: {
+              ...result,
+              job_id: undefined
+            }
+          })
           return
         }
 
