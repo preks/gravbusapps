@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent, Toaster } from '@newwork/nw-design-system'
@@ -32,7 +31,6 @@ const getInitialTab = (): TimeAttendanceTabs => {
 }
 
 const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, prefixDataTestId, ...contextProps }) => {
-  const { t } = useTranslation()
   const [selectedTab, setSelectedTab] = useState<TimeAttendanceTabs>(getInitialTab)
 
   useEffect(() => {
@@ -64,7 +62,7 @@ const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, pref
   const tabItems = [
     {
       key: TimeAttendanceTabs.TIME_TYPES,
-      label: t('hr.time_types', 'Time Types'),
+      label: getTranslationFromI18nKeyAndLabel('hr.time_types', 'Time Types'),
       children: <TimeTypesTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
     }
   ]

@@ -21,7 +21,6 @@ import {
 } from '@newwork/nw-design-system'
 import {
   MagnifyingGlassIcon,
-  CircleIcon,
   PlusIcon,
   EyeSlashIcon,
   TrashIcon,
@@ -151,23 +150,6 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
         cell: ({ getValue }) => {
           const visibility = getValue()
           return visibility ? <EyeIcon size={16} /> : <EyeSlashIcon size={16} />
-        }
-      },
-      {
-        accessorKey: 'access',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            Access
-          </Button>
-        ),
-        enableSorting: false,
-        cell: ({ getValue }) => {
-          const access = getValue()
-          return <CircleIcon className={access ? 'gba:text-success' : 'gba:text-warning'} weight="fill" size={16} />
         }
       },
       {

@@ -11,7 +11,6 @@ const GET_TIME_TYPES_QUERY = `
       visible
       type
       code
-      access
       version
     }
   }
@@ -35,7 +34,6 @@ export interface TimeTypeResponse {
     visible: boolean
     type: string
     code: string
-    access: boolean
     version: number
   }>
 }
@@ -47,7 +45,6 @@ interface SystemTimeTypeResponse {
       code: string
       value: string
       visible?: boolean
-      access?: boolean
     }>
   }>
 }
@@ -58,7 +55,6 @@ export interface TransformedTimeType {
   visible: boolean
   type: 'System' | 'Custom' | 'Unkown'
   code: string
-  access: boolean
   version: number
 }
 
@@ -67,7 +63,6 @@ export interface TransformedSystemTimeType {
   value: string
   code: string
   visible: boolean
-  access: boolean
 }
 // Hook interface
 export interface UseTimeTypesDataReturn {
@@ -103,7 +98,6 @@ export const useTimeTypesData = (context: BusinessAppContextProps): UseTimeTypes
         visible: item.visible,
         type: type,
         code: item.code,
-        access: item.access,
         version: item.version
       }
     })
@@ -122,11 +116,11 @@ export const useTimeTypesData = (context: BusinessAppContextProps): UseTimeTypes
     try {
       const result = await graphqlClient.request<SystemTimeTypeResponse>(GET_SYSTEM_TIME_TYPES, {})
       const transformedData = result.Catalog[0].catalogEntries.map(item => ({
-        label: item.value,
+        // label: item.value,
+        label: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
         value: item.code,
         code: item.code,
-        visible: item?.visible ?? true,
-        access: item?.access ?? true
+        visible: item?.visible ?? true
       }))
       setSystemTimeTypes(transformedData)
     } catch (err) {

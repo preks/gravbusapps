@@ -33,9 +33,6 @@ const timeTypeSchema = z.object({
   }),
   visible: z.boolean({
     message: 'Please select visibility'
-  }),
-  access: z.boolean({
-    message: 'Please select access level'
   })
 })
 
@@ -126,7 +123,6 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
           name: values.name,
           type: type,
           visible: values.visible,
-          access: values.access,
           ...(timeType ? { version: timeType.version, id: timeType.id } : {})
         }
       }
@@ -149,8 +145,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
       code: timeType?.code || '',
       name: timeType?.name || '',
       type: timeType?.type || 'Custom',
-      visible: timeType?.visible ?? true,
-      access: timeType?.access ?? true
+      visible: timeType?.visible ?? true
     }
     return values
   }, [timeType])
@@ -161,8 +156,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
       code: selectedTimeTypeOption?.code || '',
       name: selectedTimeTypeOption?.label || '',
       type: 'System',
-      visible: selectedTimeTypeOption?.visible ?? true,
-      access: selectedTimeTypeOption?.access ?? true
+      visible: selectedTimeTypeOption?.visible ?? true
     }
 
     if (isSystemTimeType) {
@@ -205,7 +199,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
 
                     // Reset form fields when changing type
                     setSelectedTimeTypeOption(null)
-                    setFieldsToReset(['code', 'name', 'visible', 'access'])
+                    setFieldsToReset(['code', 'name', 'visible'])
                   }}
                   defaultValue={field.value}
                   disabled={!!timeType}
@@ -227,6 +221,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
           <div className="nw:space-y-2">
             <Label>Time Type Options</Label>
             <Combobox
+              className="gba:w-[230px] gba:truncate"
               emptyText="No time type options found."
               onValueChange={value => {
                 const selectedOption = systemTimeTypes.find(option => option.value === value)
@@ -247,7 +242,6 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
 
       <FormField
         name="code"
-        // rules={{ required: 'Code is required' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>
@@ -272,7 +266,6 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
 
       <FormField
         name="name"
-        // rules={{ required: 'Please enter name' }}
         render={({ field }) => (
           <FormItem>
             <FormLabel>
@@ -294,67 +287,36 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
           </FormItem>
         )}
       />
-      <div className="gba:flex gba:items-center gba:gap-6">
-        <FormField
-          name="visible"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {t('forms.timeType.fields.visibility.label', {
-                  defaultValue: 'Visibility'
-                })}
-              </FormLabel>
-              <FormControl>
-                <Select
-                  {...field}
-                  value={field.value ? 'true' : 'false'}
-                  disabled={isSystemTimeType}
-                  onValueChange={value => field.onChange(value === 'true')}
-                >
-                  <SelectTrigger data-testid={`${dataTestId}-visibility-select`}>
-                    <SelectValue placeholder="Select visibility" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Visible</SelectItem>
-                    <SelectItem value="false">Hidden</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
-        <FormField
-          name="access"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {t('forms.timeType.fields.access.label', {
-                  defaultValue: 'Access Level'
-                })}
-              </FormLabel>
-              <FormControl>
-                <Select
-                  {...field}
-                  value={field.value ? 'true' : 'false'}
-                  disabled={isSystemTimeType}
-                  onValueChange={value => field.onChange(value === 'true')}
-                >
-                  <SelectTrigger data-testid={`${dataTestId}-access-select`}>
-                    <SelectValue placeholder="Select access level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Yes</SelectItem>
-                    <SelectItem value="false">No</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      </div>
+      <FormField
+        name="visible"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              {t('forms.timeType.fields.visibility.label', {
+                defaultValue: 'Visibility'
+              })}
+            </FormLabel>
+            <FormControl>
+              <Select
+                {...field}
+                value={field.value ? 'true' : 'false'}
+                disabled={isSystemTimeType}
+                onValueChange={value => field.onChange(value === 'true')}
+              >
+                <SelectTrigger data-testid={`${dataTestId}-visibility-select`}>
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="true">Visible</SelectItem>
+                  <SelectItem value="false">Hidden</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
     </FormWrapperModal>
   )
 }
