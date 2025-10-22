@@ -415,106 +415,12 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
       planDate
       startDate
       endDate
-      decisionDate
       totalAmount
       reimbursableAmount
       advancePaymentPaidAmount
-      advancePaymentInTransitAmount
       currencyRef
-      description
-      requestTypeRef
-      createdAt
-      employeeDocumentId
-      currency {
-        type
-        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-          localeCode
-          value
-        }
-        catalog {
-          defaultLocale
-        }
-        value
-        id
-        code
-      }
-      requestType {
-        value
-        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-          localeCode
-          value
-        }
-        catalog {
-          defaultLocale
-        }
-      }
-      employee {
-        id
-        code
-        firstName
-        lastName
-        fullName
-        employeePosition {
-          supervisor {
-            fullName
-          }
-          siteLocation {
-            name
-          }
-          organizationalUnit {
-            name
-          }
-        }
-      }
-      costCenter {
-        id
-        name
-      }
-      project {
-        id
-        name
-      }
-      expenseRequest {
-        id
-        code
-        status
-      }
-      employeeDocument {
-        file
-        fileSize
-        id
-        description
-        mimeType
-        name
-        type
-        employee {
-          id
-        }
-      }
-      expensePlanItem {
-        title
-        status
-        totalAmount
-        expenseDate
-      }
-      advancePayment {
-        id
-        amount
-        status
-        currency {
-          code
-          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
-            localeCode
-            value
-          }
-          catalog {
-            defaultLocale
-          }
-        }
-      }
-      expenseRequestTrip {
-        tripDateTime
-      }
+      currency { code }
+      requestType { value }
     }
 
     currentMonthTotal: ExpensePlanAggregate(
