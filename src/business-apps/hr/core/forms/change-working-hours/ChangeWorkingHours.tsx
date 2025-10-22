@@ -76,6 +76,7 @@ export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = context => 
   } | null>(null)
   const [employees, setEmployees] = useState<Array<{ id: string; firstName: string; lastName: string }>>([])
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('')
+  const [employeeSelectTouched, setEmployeeSelectTouched] = useState<boolean>(false)
 
   const form = useForm<WorkingHoursFormValues>({
     defaultValues: {
@@ -225,9 +226,14 @@ export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = context => 
           )}
           <div className="gba:font-semibold gba:mb-2">
             {getTranslationFromI18nKeyAndLabel('lowcoder:working_hours_form.employee_label', 'Employee')}
+            <span className="gba:text-destructive"> *</span>
           </div>
           <Select value={selectedEmployeeId} onValueChange={v => setSelectedEmployeeId(v)}>
-            <SelectTrigger className="gba:w-full" data-testid="working-hours-employee-select">
+            <SelectTrigger
+              className="gba:w-full"
+              data-testid="working-hours-employee-select"
+              onBlur={() => setEmployeeSelectTouched(true)}
+            >
               <SelectValue
                 placeholder={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:working_hours_form.employee_placeholder',
@@ -241,6 +247,14 @@ export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = context => 
               ))}
             </SelectContent>
           </Select>
+          {isEmployeeSelectionMissing && employeeSelectTouched && (
+            <div className="gba:mt-2 gba:text-destructive" data-testid="working-hours-employee-select-error">
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:working_hours_form.employee_validation_message',
+                'The Employee field is required. Please select an employee.'
+              )}
+            </div>
+          )}
         </div>
       )
     }
@@ -327,6 +341,7 @@ export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = context => 
 
   const exceedsWeeklyLimit = (weeklySum ?? 0) > 48
   const exceedsWorkingDaysLimit = (workingDays ?? 0) > 6
+  const isEmployeeSelectionMissing = !isFixedEmployeeId && !selectedEmployeeId
 
   return (
     <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0 gba:[&>div[data-testid='change-working-hours-form']]:!pt-0">
@@ -343,7 +358,13 @@ export const ChangeWorkingHours: React.FC<BusinessAppContextProps> = context => 
           'lowcoder:create_expense_request.initiate_cancel_button',
           'Cancel'
         )}
-        isSubmitDisabled={!form.formState.isValid || !areAllDaysValid || exceedsWeeklyLimit || exceedsWorkingDaysLimit}
+        isSubmitDisabled={
+          !form.formState.isValid ||
+          !areAllDaysValid ||
+          exceedsWeeklyLimit ||
+          exceedsWorkingDaysLimit ||
+          isEmployeeSelectionMissing
+        }
         data-testid="change-working-hours-form"
         onSubmit={async (values: WorkingHoursFormValues) => {
           const idForSubmit = activeEmployeeId
