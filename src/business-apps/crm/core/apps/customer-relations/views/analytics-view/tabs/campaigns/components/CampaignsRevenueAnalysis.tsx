@@ -80,7 +80,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
   const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4', '#84CC16', '#F97316']
 
   // Custom tooltips for different chart types
-  const RevenueBarTooltip = ({ active, payload, label }: any) => {
+  const RevenueBarTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
@@ -129,7 +129,6 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
   // Radar chart data - normalize values for better visualization
   const radarData = revenueData.slice(0, 6).map(campaign => {
     const maxRevenue = Math.max(...revenueData.map(c => c.revenue))
-    const maxWinRate = 100
     const maxRevenuePerOpp = Math.max(...revenueData.map(c => c.revenuePerOpportunity))
     const maxRevenuePerLead = Math.max(...revenueData.map(c => c.revenuePerLead))
 

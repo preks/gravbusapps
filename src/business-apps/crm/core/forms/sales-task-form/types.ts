@@ -19,8 +19,16 @@ export interface SalesTaskFormValues {
   relatedEntityId: string
   relatedEntityType: string
 
-  // File upload
+  // File upload (legacy - kept for compatibility)
   files: any[]
+
+  // Document management
+  documents?: Array<{
+    id: string
+    name?: string
+    version?: number
+  }>
+  _pendingFiles?: File[] // Files pending upload (not sent to backend)
 
   // System fields
   id?: string
@@ -106,5 +114,14 @@ export interface SalesTaskSubmissionPayload {
     contact?: string
     account?: string
     opportunity?: string
+    // Documents - array of document objects
+    // For existing documents: include id and version
+    // For new documents: include name and fileInfo (full JSON response from file server)
+    documents?: Array<{
+      id?: string // Present for existing documents
+      version?: number // Present for existing documents
+      name?: string // Present for new documents
+      fileInfo?: any // Full fileInfo JSON from file upload (for new documents)
+    }>
   }
 }

@@ -46,11 +46,8 @@ const timeFilterOptions = [
 export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
   data,
   selectedTimeFilter,
-  onTimeFilterChange,
-  moduleColor = 'default'
+  onTimeFilterChange
 }) => {
-  // Remove unused variable warning
-  const _ = moduleColor
   const [visibleLines, setVisibleLines] = useState({
     totalContacts: true,
     accountLinked: true

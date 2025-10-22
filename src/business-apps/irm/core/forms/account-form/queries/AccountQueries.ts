@@ -77,6 +77,7 @@ export interface InvestmentAccountDataResponse {
     // Contact relationships
     investmentAccountContact?: Array<{
       id: string
+      version?: number // ✅ Association version for optimistic locking
       contact: {
         id: string
         firstName?: string
@@ -172,6 +173,7 @@ export const GET_INVESTMENT_ACCOUNT_BY_ID = `
       # Contact relationships
       investmentAccountContact(where: { isDeleted: { _eq: false } }) {
         id
+        version
         contact {
           id
           firstName

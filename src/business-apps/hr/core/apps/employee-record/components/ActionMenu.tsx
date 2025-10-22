@@ -294,7 +294,7 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ employee, isLoggedUser }) => {
       <div>
         <button
           type="button"
-          className="gba:inline-flex gba:justify-center gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-white gba:bg-blue-600 gba:rounded-md gba:hover:bg-blue-700 gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-white/75"
+          className="gba:inline-flex gba:justify-center gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-primary-foreground gba:bg-info gba:rounded-md gba:hover:bg-info-secondary gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-white/75"
           onClick={toggleDropdown}
         >
           Actions
@@ -317,20 +317,20 @@ const ActionMenu: React.FC<ActionMenuProps> = ({ employee, isLoggedUser }) => {
       {isOpen && (
         <>
           <div className="gba:fixed gba:inset-0 gba:z-10" onClick={closeDropdown}></div>
-          <div className="gba:absolute gba:right-0 gba:mt-2 gba:w-56 gba:rounded-md gba:shadow-lg gba:bg-white gba:ring-1 gba:ring-black/50 gba:z-20 gba:max-h-96 gba:overflow-y-auto">
+          <div className="gba:absolute gba:right-0 gba:mt-2 gba:w-56 gba:rounded-md gba:shadow-lg gba:bg-primary-foreground gba:ring-1 gba:ring-border gba:z-20 gba:max-h-96 gba:overflow-y-auto">
             <div className="gba:py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
               {actions.map(action =>
                 action.isHeader ? (
                   <div
                     key={action.id}
-                    className="gba:px-4 gba:py-2 gba:text-xs gba:font-bold gba:text-gray-500 gba:uppercase gba:tracking-wider gba:bg-gray-50"
+                    className="gba:px-4 gba:py-2 gba:text-xs gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:bg-muted"
                   >
                     {action.label}
                   </div>
                 ) : (
                   <button
                     key={action.id}
-                    className="gba:block gba:w-full gba:text-left gba:px-4 gba:py-2 gba:text-sm gba:text-gray-700 gba:hover:bg-gray-100 gba:hover:text-gray-900"
+                    className="gba:block gba:w-full gba:text-left gba:px-4 gba:py-2 gba:text-sm gba:text-foreground gba:hover:bg-muted gba:hover:text-foreground"
                     role="menuitem"
                     onClick={() => handleAction(action.id)}
                   >

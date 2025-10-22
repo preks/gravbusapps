@@ -9,7 +9,7 @@ interface DebugFormProps {
 }
 
 export const DebugForm: React.FC<DebugFormProps> = props => {
-  const { componentName, ...restProps } = props
+  const { componentName } = props
 
   // Get build info if available
   const buildInfo =

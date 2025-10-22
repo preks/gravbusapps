@@ -17,7 +17,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
 
   if (error) {
     return (
-      <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
+      <div className="gba:error gba:text-destructive gba:py-8 gba:text-center">
         {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.error_loading', 'Failed to load absence data.')}
       </div>
     )
@@ -28,13 +28,13 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
           data-testid="annual-leave-chart"
         >
           <div className="gba:text-lg gba:font-medium gba:mb-2">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.annual_leave', 'Annual Leave')}
           </div>
-          <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_hub.annual_leave_description',
               'Used vs. Total Annual Leave'
@@ -62,11 +62,13 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                 })
               : undefined
 
-            const used = annualLeaveEntitlement?.used || 0
+            const approved = annualLeaveEntitlement?.used || 0
+            const pending = annualLeaveEntitlement?.pending || 0
+            const used = approved + pending
             const total = annualLeaveEntitlement?.total || 0
             const remaining = total - used
 
-            const chartColors = ['#22c55e', '#f97316']
+            const chartColors = ['var(--nw-success)', 'var(--nw-warning)']
 
             const data = [
               {
@@ -83,7 +85,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
 
             return (
               <>
-                <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                <div className="gba:h-[180px] gba:border gba:border-border gba:rounded-md">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -94,7 +96,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                         cy="50%"
                         innerRadius={50}
                         outerRadius={70}
-                        fill="#8884d8"
+                        fill="var(--nw-color-chart-1)"
                       >
                         {data.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
@@ -111,13 +113,13 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                 </div>
                 <div className="gba:flex gba:justify-center gba:items-center gba:gap-2 gba:mt-2">
                   <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#22c55e]"></div>
+                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-success"></div>
                     <span className="gba:text-sm">
                       {remaining} {getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.remaining', 'Remaining')}
                     </span>
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-[#f97316]"></div>
+                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning"></div>
                     <span className="gba:text-sm">
                       {used} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')}
                     </span>
@@ -130,7 +132,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
 
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
           data-testid="absence-distribution-chart"
         >
           <div className="gba:text-lg gba:font-medium gba:mb-2">
@@ -139,7 +141,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               'Absence Distribution'
             )}
           </div>
-          <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.by_type', 'By Type')}
           </div>
           {(() => {
@@ -160,20 +162,20 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                   absenceByTypeId[typeId] = {
                     count: 0,
                     translatedName: translatedName,
-                    color: '#6b7280'
+                    color: 'var(--nw-color-chart-3)'
                   }
                 }
                 const durationMatch = absence.duration?.match(/(\d+)/)
                 const duration = durationMatch ? parseInt(durationMatch[1]) : 0
                 absenceByTypeId[typeId].count += duration
 
-                let color = absence.typeColor || '#6b7280'
+                let color = absence.typeColor || 'var(--nw-color-chart-3)'
                 if (color && typeof color === 'string') {
                   if (!color.startsWith('#') && /^([0-9A-Fa-f]{6})$/.test(color)) {
                     color = `#${color}`
                   }
                 } else {
-                  color = '#6b7280'
+                  color = 'var(--nw-color-chart-3)'
                 }
                 absenceByTypeId[typeId].color = color
               }
@@ -187,7 +189,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
 
             return (
               <>
-                <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                <div className="gba:h-[180px] gba:border gba:border-border gba:rounded-md">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -198,7 +200,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                         cy="50%"
                         innerRadius={50}
                         outerRadius={70}
-                        fill="#8884d8"
+                        fill="var(--nw-color-chart-1)"
                       >
                         {data.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -228,13 +230,13 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
 
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
           data-testid="absences-by-status-chart"
         >
           <div className="gba:text-lg gba:font-medium gba:mb-2">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_status', 'Absence Status')}
           </div>
-          <div className="gba:text-sm gba:text-gray-500 gba:mb-4">
+          <div className="gba:text-sm gba:text-muted-foreground gba:mb-4">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.status_distribution', 'Status Distribution')}
           </div>
           {(() => {
@@ -250,11 +252,11 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               absenceByStatus[translatedStatus] += duration
             })
             const chartColors = [
-              'rgba(13, 188, 123, 1)',
-              'rgba(255, 158, 2, 1)',
-              'rgba(222, 29, 73, 1)',
-              'rgba(141, 145, 153, 1)',
-              '#94a3b8'
+              'var(--nw-success)',
+              'var(--nw-warning)',
+              'var(--nw-destructive)',
+              'var(--nw-muted)',
+              'var(--nw-info)'
             ]
             const getStatusColorIndex = (originalStatus: string): number => {
               const statusUpper = originalStatus.toUpperCase()
@@ -303,7 +305,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
 
             return (
               <>
-                <div className="gba:h-[180px] gba:border gba:border-gray-200 gba:rounded-md">
+                <div className="gba:h-[180px] gba:border gba:border-border gba:rounded-md">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -314,7 +316,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                         cy="50%"
                         innerRadius={50}
                         outerRadius={70}
-                        fill="#8884d8"
+                        fill="var(--nw-color-chart-1)"
                       >
                         {data.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />

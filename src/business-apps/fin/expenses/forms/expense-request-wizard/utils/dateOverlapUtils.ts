@@ -32,8 +32,8 @@ export const getOverlapWarningMessage = (
       `The selected date overlaps with an existing event: ${absenceType} from ${absenceRequestTimeStampStart} to ${absenceRequestTimeStampEnd}. Please adjust the date.`,
       {
         absenceType,
-        fromDate: absenceRequestTimeStampStart,
-        toDate: absenceRequestTimeStampEnd,
+        timeStampStart: absenceRequestTimeStampStart,
+        timeStampEnd: absenceRequestTimeStampEnd,
         interpolation: {
           escapeValue: false
         }
@@ -54,8 +54,8 @@ export const getOverlapWarningMessage = (
       `The selected date overlaps with an existing event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please adjust the date.`,
       {
         expenseRequestTitle: expenseRequest.title,
-        fromDate: expenseRequestTimeStampStart,
-        toDate: expenseRequestTimeStampEnd,
+        timeStampStart: expenseRequestTimeStampStart,
+        timeStampEnd: expenseRequestTimeStampEnd,
         interpolation: {
           escapeValue: false
         }
@@ -68,12 +68,16 @@ export const getOverlapWarningMessage = (
   // Priority 3: Check for overlapping expense plans (medium priority, warning)
   if (data.ExpensePlan && data.ExpensePlan.length > 0 && data.ExpensePlan[0].id !== currentPlanId) {
     const expensePlan = data.ExpensePlan[0]
+    const expensePlanTimeStampStart = dayjs(expensePlan.startDate).format(getDateFormat('date-long'))
+    const expensePlanTimeStampEnd = dayjs(expensePlan.endDate).format(getDateFormat('date-long'))
 
     const message = getTranslationFromI18nKeyAndLabel(
       'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_plan_info_message',
-      `There is an existing plan ${expensePlan.title} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
+      `There is an existing plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
       {
         planName: expensePlan.title,
+        timeStampStart: expensePlanTimeStampStart,
+        timeStampEnd: expensePlanTimeStampEnd,
         interpolation: {
           escapeValue: false
         }

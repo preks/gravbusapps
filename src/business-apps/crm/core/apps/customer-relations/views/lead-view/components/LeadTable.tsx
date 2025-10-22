@@ -74,9 +74,7 @@ export const LeadTable: React.FC<LeadTableProps> = ({
   leads,
   loading,
   error,
-  hasMore: _hasMore,
-  loadMore: _loadMore,
-  loadPage: _loadPage,
+
   retry,
   total,
   currentPage,

@@ -100,7 +100,7 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({ absences }) => 
                   height: 64,
                   display: 'flex',
                   alignItems: 'flex-end',
-                  background: '#f3f4f6',
+                  background: 'var(--nw-muted)',
                   borderRadius: 6,
                   width: '100%'
                 }}
@@ -110,7 +110,7 @@ const UsageTrendsSection: React.FC<UsageTrendsSectionProps> = ({ absences }) => 
                   style={{
                     width: '100%',
                     height: `${val > 0 ? val * 10 + 8 : 4}px`,
-                    background: '#3390ff',
+                    background: 'var(--nw-chart-4)',
                     borderRadius: 6,
                     transition: 'height 0.18s'
                   }}

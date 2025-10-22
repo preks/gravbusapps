@@ -6,33 +6,34 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
  * @returns Translated display name
  */
 export const getExpenseGroupDisplayName = (expenseGroupCode: string): string => {
-  const code = expenseGroupCode?.toUpperCase()
+  // Strip the ExpenseGroup:v1: prefix if present
+  const code = expenseGroupCode?.replace(/^ExpenseGroup:v1:/i, '').toUpperCase()
 
   switch (code) {
     case 'ACCOMMODATION':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.accommodation', 'ACCOMMODATION')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.accommodation', 'ACCOMMODATION')
 
     case 'ALLOWANCE':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.allowance', 'ALLOWANCE')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.allowance', 'ALLOWANCE')
 
     case 'EQUIPMENT':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.equipment', 'EQUIPMENT')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.equipment', 'EQUIPMENT')
 
     case 'MEAL':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.meal', 'MEAL')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.meal', 'MEAL')
 
     case 'TRANSPORT':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.transport', 'TRANSPORT')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.transport', 'TRANSPORT')
 
     case 'MILEAGE':
     case 'MILEAGE_CAPS':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.mileage_caps', 'MILEAGE')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.mileage_caps', 'MILEAGE')
 
     case 'OTHER_TRANSPORT':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.other_transport', 'OTHER_TRANSPORT')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.other_transport', 'OTHER_TRANSPORT')
 
     case 'OTHER':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.other', 'OTHER')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.other', 'OTHER')
 
     default:
       // Return the code itself if no translation is found
@@ -46,36 +47,39 @@ export const getExpenseGroupDisplayName = (expenseGroupCode: string): string => 
  * @returns Translated plural display name
  */
 export const getExpenseGroupPluralName = (expenseGroupCode: string): string => {
-  const code = expenseGroupCode?.toUpperCase()
+  // Strip the ExpenseGroup:v1: prefix if present
+  const code = expenseGroupCode?.replace(/^ExpenseGroup:v1:/i, '').toUpperCase()
 
   switch (code) {
     case 'ACCOMMODATION':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.accommodations', 'Accommodations')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.accommodations', 'Accommodations')
 
     case 'ALLOWANCE':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.allowances', 'Allowances')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.allowances', 'Allowances')
 
     case 'EQUIPMENT':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.equipments', 'Equipments')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.equipments', 'Equipments')
 
     case 'MEAL':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.meals', 'Meals')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.meals', 'Meals')
 
     case 'TRANSPORT':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.means_of_transport', 'Means of Transport')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.means_of_transport', 'Means of Transport')
 
     case 'MILEAGE':
     case 'MILEAGE_CAPS':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.mileage', 'Mileage')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.mileage', 'Mileage')
 
     case 'OTHER_TRANSPORT':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.other_transport_costs', 'Other Transport Costs')
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:cards.other_transport_costs',
+        'Other Transport Costs'
+      )
 
     case 'OTHER':
-      return getTranslationFromI18nKeyAndLabel('lowcoder:expense_categories.others', 'Others')
+      return getTranslationFromI18nKeyAndLabel('lowcoder:cards.others', 'Others')
 
     default:
       return code
   }
 }
-

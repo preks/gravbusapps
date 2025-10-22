@@ -34,17 +34,17 @@ const JobLevelDrawerContent: React.FC<JobLevelDrawerContentProps> = ({ employee,
   return (
     <div className="gba:space-y-6" data-testid="job-level-drawer-content">
       <div>
-        <h4 className="gba:font-medium gba:mb-3 gba:text-gray-700">Usage</h4>
+        <h4 className="gba:font-medium gba:mb-3 gba:text-foreground">Usage</h4>
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           <div
-            className="gba:bg-blue-50 gba:p-4 gba:rounded-md gba:border gba:bg-gray-50"
+            className="gba:bg-info-secondary gba:p-4 gba:rounded-md gba:border gba:border-border"
             data-testid="job-level-employee-count"
           >
-            <div className="gba:text-sm gba:text-gray-500">Employees</div>
+            <div className="gba:text-sm gba:text-muted-foreground">Employees</div>
             {loadingEmployeeCount ? (
               <Spinner size="sm" data-testid="job-level-employee-count-loading" />
             ) : employeeCountError ? (
-              <div className="gba:text-red-500 gba:text-sm" data-testid="job-level-employee-count-error">
+              <div className="gba:text-destructive gba:text-sm" data-testid="job-level-employee-count-error">
                 Error
               </div>
             ) : (

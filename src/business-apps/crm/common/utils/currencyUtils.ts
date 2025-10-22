@@ -1,4 +1,4 @@
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { formatNumberFunction } from '@/common/utils/windowUtils'
 
 /**
  * Extracts currency code from API format (e.g., "Currency:v1:EUR" -> "EUR")
@@ -15,8 +15,6 @@ export const extractCurrencyCode = (currencyId: string): string => {
  * @returns Formatted string like "1,234.56 EUR"
  */
 export const formatCurrency = (amount: number | undefined | null, currencyId: string = 'EUR'): string => {
-  const locale = getCurrentActiveUserLocale()
-
   if (amount === undefined || amount === null || isNaN(amount)) {
     const currencyCode = extractCurrencyCode(currencyId)
     return `0 ${currencyCode}`
@@ -24,11 +22,8 @@ export const formatCurrency = (amount: number | undefined | null, currencyId: st
 
   const currencyCode = extractCurrencyCode(currencyId)
 
-  // Format the number with locale-specific number formatting
-  const formattedNumber = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  }).format(amount)
+  // Format the number with locale-specific number formatting using windowUtils
+  const formattedNumber = formatNumberFunction(amount, '0,0.00')
 
   return `${formattedNumber} ${currencyCode}`
 }
@@ -45,8 +40,6 @@ export const formatCurrencyWithDecimals = (
   currencyId: string = 'EUR',
   decimalPlaces: number = 2
 ): string => {
-  const locale = getCurrentActiveUserLocale()
-
   if (amount === undefined || amount === null || isNaN(amount)) {
     const currencyCode = extractCurrencyCode(currencyId)
     return `0 ${currencyCode}`
@@ -54,11 +47,9 @@ export const formatCurrencyWithDecimals = (
 
   const currencyCode = extractCurrencyCode(currencyId)
 
-  // Format the number with specific decimal places
-  const formattedNumber = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: decimalPlaces,
-    maximumFractionDigits: decimalPlaces
-  }).format(amount)
+  // Build format string with specified decimal places
+  const formatString = decimalPlaces > 0 ? `0,0.${'0'.repeat(decimalPlaces)}` : '0,0'
+  const formattedNumber = formatNumberFunction(amount, formatString)
 
   return `${formattedNumber} ${currencyCode}`
 }
@@ -68,7 +59,7 @@ export const formatCurrencyWithDecimals = (
  * Used for large amounts where M/B suffixes are helpful
  * @param amount - The amount to format
  * @param currencyCode - Currency code (e.g., "EUR", "USD")
- * @returns Formatted string like "€1.2M" or "€5.3B"
+ * @returns Formatted string like "1.2M EUR" or "5.3B EUR"
  */
 export const formatCurrencyLarge = (amount: number | undefined, currencyCode: string = 'EUR'): string => {
   if (amount === undefined || amount === null || !isFinite(amount)) return '-'
@@ -78,31 +69,19 @@ export const formatCurrencyLarge = (amount: number | undefined, currencyCode: st
 
   if (abs >= 1_000_000_000) {
     // Billions
-    const formatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      maximumFractionDigits: 1,
-      minimumFractionDigits: 0
-    }).format(abs / 1_000_000_000)
-    return `${sign}${formatted}B`
+    const value = abs / 1_000_000_000
+    const formatted = formatNumberFunction(value, '0,0.0')
+    return `${sign}${formatted}B ${currencyCode}`
   }
 
   if (abs >= 1_000_000) {
     // Millions
-    const formatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
-      style: 'currency',
-      currency: currencyCode,
-      maximumFractionDigits: 1,
-      minimumFractionDigits: 0
-    }).format(abs / 1_000_000)
-    return `${sign}${formatted}M`
+    const value = abs / 1_000_000
+    const formatted = formatNumberFunction(value, '0,0.0')
+    return `${sign}${formatted}M ${currencyCode}`
   }
 
   // Thousands and below - show as normal currency
-  return new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
-    style: 'currency',
-    currency: currencyCode,
-    maximumFractionDigits: 0,
-    minimumFractionDigits: 0
-  }).format(amount)
+  const formatted = formatNumberFunction(amount, '0,0')
+  return `${formatted} ${currencyCode}`
 }

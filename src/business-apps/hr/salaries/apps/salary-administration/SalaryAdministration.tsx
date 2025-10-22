@@ -15,14 +15,7 @@ import useSalaryData from '../../hooks/useSalaryData'
  * SalaryAdministration component for managing employee salaries
  * Provides functionality for viewing and managing employee compensation
  */
-export interface SalaryAdministrationProps extends BusinessAppContextProps {
-  // Extending BusinessAppContextProps provides:
-  // accessToken: string
-  // userInfo?: UserInfoProps
-  // additionalData?: { [k: string]: any }
-}
-
-const SalaryAdministration: React.FC<SalaryAdministrationProps> = ({ accessToken, userInfo }) => {
+const SalaryAdministration: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   // Use employeeId from userInfo if available
   const employeeId = userInfo?.employeeDetails?.employeeId
   // Tab state management
@@ -99,7 +92,7 @@ const SalaryAdministration: React.FC<SalaryAdministrationProps> = ({ accessToken
           <h1 className="gba:text-2xl gba:font-semibold gba:mb-1">
             {getTranslationFromI18nKeyAndLabel('salary.administration.title', 'Salary Administration')}
           </h1>
-          <p className="gba:text-gray-500">
+          <p className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'salary.administration.description',
               'Manage employee compensation and wages'

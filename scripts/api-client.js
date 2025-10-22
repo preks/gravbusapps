@@ -247,7 +247,7 @@ async function addAppResourceUrl(
         }
       })
       console.log(`✅ Resource URL added successfully: ${payload.url}`)
-    } catch (error) {
+    } catch {
       if (addIfExistsResponse) {
         console.log(`ℹ️ Possible Error. Or Resource URL already exists for: ${payload.url}`)
       }
@@ -294,7 +294,7 @@ async function addCustomResourceUrl(customUrlPath, apiEndpoint = null, oauthConf
       })
       console.log(`✅ Custom resource URL added successfully: ${payload.url}`)
       return true
-    } catch (error) {
+    } catch {
       console.log(`ℹ️ Possible Error. Or Custom resource URL migth already exist for: ${payload.url}`)
       return true
     }
@@ -363,7 +363,7 @@ async function addScreenConfigToScreenManagement(
       })
       console.log(`✅ Screen config added successfully for ${customUrlPath}`)
       return { success: true, id: generatedId }
-    } catch (error) {
+    } catch {
       console.log(`ℹ️ Possible Error. Or Screen config already exists for ${customUrlPath}`)
       return { success: false, id: generatedId }
     }
@@ -557,7 +557,7 @@ async function addFormAsLandingScreen(
 
     try {
       // Similar pattern to existing API calls
-      const response = await axios.post(`${screenManagementApi}/screen`, payload, {
+      await axios.post(`${screenManagementApi}/screen`, payload, {
         headers: {
           accept: 'application/json',
           'Content-Type': 'application/json',
@@ -631,7 +631,7 @@ async function addFormAsUserTaskScreen(processName, taskName, azureDestinationPa
 
     try {
       // Similar pattern to existing API calls
-      const response = await axios.post(`${apiEndpoint}/screen`, payload, {
+      await axios.post(`${apiEndpoint}/screen`, payload, {
         headers: {
           accept: 'application/json',
           'Content-Type': 'application/json',

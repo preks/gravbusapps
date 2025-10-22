@@ -146,7 +146,7 @@ export interface GetCrmDashboardStatsVariables {
 export const useGetCrmDashboardStats = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchCrmDashboardStats = async (variables: GetCrmDashboardStatsVariables = {}) => {
+  const fetchCrmDashboardStats = async () => {
     const query = GET_CRM_DASHBOARD_STATS()
 
     try {

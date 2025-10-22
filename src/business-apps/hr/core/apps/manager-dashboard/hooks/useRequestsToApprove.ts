@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ExpenseRequest, ExpensePlan, LeaveRequest, ApprovalResponse, Translation } from '../types/employee.types'
+import { ExpenseRequest, ExpensePlan, LeaveRequest, Translation } from '../types/employee.types'
 
 // Define the ApprovalRequest interface based on expense manager structure
 export interface ApprovalRequest {

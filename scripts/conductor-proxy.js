@@ -2,12 +2,6 @@ import express from 'express'
 import cors from 'cors'
 import { createProxyMiddleware } from 'http-proxy-middleware'
 import dotenv from 'dotenv'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
-
-// Get current file path and directory in ESM context
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 // Load environment variables from project root
 dotenv.config({ path: new URL('../.env', import.meta.url).pathname })
@@ -62,7 +56,7 @@ const conductorProxy = createProxyMiddleware({
   // Increase header size limit in proxy
   proxyTimeout: 60000,
   // Handle headers
-  onProxyReq: (proxyReq, req, res) => {
+  onProxyReq: (proxyReq, req) => {
     // Log and then remove the authorization header
     const authHeader = req.headers.authorization
     if (authHeader) {
@@ -73,7 +67,7 @@ const conductorProxy = createProxyMiddleware({
   },
   // Increase header buffer size
   headerBufferSize: 64 * 1024, // 64KB
-  onProxyRes: (proxyRes, req, res) => {
+  onProxyRes: (proxyRes, req) => {
     // Add CORS headers to response
     proxyRes.headers['Access-Control-Allow-Origin'] = '*'
     proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'

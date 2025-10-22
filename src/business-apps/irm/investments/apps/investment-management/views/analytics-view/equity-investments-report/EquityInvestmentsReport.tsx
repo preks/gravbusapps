@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { Spinner } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { TrendingUp, BarChart, PieChart } from 'lucide-react'
 import { WidgetGroup } from '@/components/widget-group'
-import { DollarCircleOutlined, BankOutlined, RiseOutlined, TeamOutlined } from '@ant-design/icons'
+import { DollarCircleOutlined, CalendarOutlined, LineChartOutlined, TeamOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -30,7 +30,6 @@ interface InvestmentWithSpecializations extends Investment {
 import { useEquityChartData, useEquityKPIIntegration } from './hooks'
 import {
   calculateChange,
-  formatCurrency,
   extractCurrencyCode,
   getInvestmentStatusColor,
   getRiskLevelColor,
@@ -48,17 +47,46 @@ export interface EquityInvestmentKPIs {
 }
 
 // Helper function to safely extract currency code from CatalogEntry or string
-const safeCurrencyExtraction = (currency: any): string => {
-  if (!currency) return 'EUR'
+const safeCurrencyExtraction = (currency: any): string | null => {
+  if (!currency) return null
 
   if (typeof currency === 'object') {
     // Handle CatalogEntry: try code first, then value
     const currencyStr = currency.code || currency.value
-    return extractCurrencyCode(currencyStr || 'EUR')
+    if (!currencyStr) return null
+    return extractCurrencyCode(currencyStr)
   }
 
   // Handle string values
   return extractCurrencyCode(currency)
+}
+
+// Helper function to format duration in days to a readable format (abbreviated)
+const formatDuration = (days: number): string => {
+  if (days === 0) return '0y'
+
+  const years = Math.floor(days / 365)
+  const months = Math.floor((days % 365) / 30)
+  const remainingDays = Math.floor((days % 365) % 30)
+
+  const parts: string[] = []
+
+  // Always show years if present
+  if (years > 0) {
+    parts.push(`${years}y`)
+  }
+
+  // Show months if present
+  if (months > 0) {
+    parts.push(`${months}m`)
+  }
+
+  // Only show days if less than a year
+  if (remainingDays > 0 && years === 0) {
+    parts.push(`${remainingDays}d`)
+  }
+
+  return parts.length > 0 ? parts.join(' ') : '0y'
 }
 
 interface EquityInvestmentsReportProps extends BusinessAppContextProps {
@@ -68,10 +96,22 @@ interface EquityInvestmentsReportProps extends BusinessAppContextProps {
 const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport'
   const [activeTab, setActiveTab] = useState('distribution')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
   const [equityInvestments, setEquityInvestments] = useState<EquityInvestmentSummary[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState<string | null>(null)
+
+  // Extract unique currencies from investments
+  const availableCurrencies = useMemo(() => {
+    const currencies = new Set<string>()
+    equityInvestments.forEach(inv => {
+      if (inv.currencyCode) {
+        currencies.add(inv.currencyCode)
+      }
+    })
+    return Array.from(currencies).sort()
+  }, [equityInvestments])
 
   // Use the new KPI integration hook for real GraphQL aggregate queries
   const {
@@ -80,7 +120,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useEquityKPIIntegration(props)
+  } = useEquityKPIIntegration(props, selectedCurrency)
 
   const { fetchInvestments } = useGetInvestments(props)
 
@@ -167,6 +207,8 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
   const refetch = useCallback(async () => {
     await Promise.all([loadData(), refetchKpis()])
   }, [loadData, refetchKpis])
+
+  // Chart data for Distribution and Timeline tabs (charts will handle their own currency filtering)
   const chartData = useEquityChartData(equityInvestments)
 
   if (isLoading) {
@@ -200,17 +242,11 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
   }
 
   const {
-    // Original chart data
+    // Distribution tab data
     roleData,
     statusData,
     stakeTypeData,
-    investmentTypeData,
-    // Enhanced chart data
-    equityTimelineData,
-    stakeVsInvestmentAmountData,
-    roleInvestmentAmountData,
-    concentrationByRoleData,
-    topCompaniesByValuationData
+    investmentTypeData
   } = chartData
 
   return (
@@ -229,6 +265,26 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
             {getTranslationFromI18nKeyAndLabel('equity.investments.items', 'equity investments')}
           </Badge>
         </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span className="gba:text-sm gba:font-medium gba:text-gray-700">
+            {getTranslationFromI18nKeyAndLabel('currency.filter', 'Currency:')}
+          </span>
+          <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+            <SelectTrigger
+              className="gba:w-24 gba:h-8"
+              data-testid={formatDataTestId(prefixDataTestId, 'CurrencyFilter')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {availableCurrencies.map(currency => (
+                <SelectItem key={currency} value={currency}>
+                  {currency}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -246,52 +302,59 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
-              key: 'total-amount-invested',
-              title: getTranslationFromI18nKeyAndLabel('kpi.totalAmountInvested', 'Total Amount Invested'),
-              value: formatCurrency(kpis.totalAmountInvested),
+              key: 'assets-under-management',
+              title: getTranslationFromI18nKeyAndLabel('kpi.assetsUnderManagement', 'Assets Under Management'),
+              value: new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: selectedCurrency,
+                notation: 'compact',
+                compactDisplay: 'short',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 1
+              }).format(kpis.totalAmountInvested),
               prefix: <DollarCircleOutlined />,
               color: 'var(--nw-color-success-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Sum of all equity investment amounts',
+              description: 'Total assets under management',
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
-              key: 'total-market-value',
-              title: getTranslationFromI18nKeyAndLabel('kpi.totalMarketValue', 'Total Market Value'),
-              value: formatCurrency(kpis.totalMarketValue),
-              prefix: <RiseOutlined />,
+              key: 'portfolio-moic',
+              title: getTranslationFromI18nKeyAndLabel('kpi.portfolioMoic', 'Portfolio MOIC'),
+              value: `${kpis.portfolioMoic.toFixed(1)}x`,
+              prefix: <LineChartOutlined />,
               color: 'var(--nw-color-warning-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Current total market value of equity positions',
+              description: 'Average multiple on invested capital',
               trend: {
-                value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
-                positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-                description: 'vs 7 days ago'
+                value: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).value,
+                positive: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).positive,
+                description: 'vs 30 days ago'
               }
             },
             {
-              key: 'average-company-valuation',
-              title: getTranslationFromI18nKeyAndLabel('kpi.averageCompanyValuation', 'Average Company Valuation'),
-              value: formatCurrency(kpis.averageCompanyValuation),
-              prefix: <BankOutlined />,
+              key: 'average-duration',
+              title: getTranslationFromI18nKeyAndLabel('kpi.averageDuration', 'Average Duration'),
+              value: formatDuration(kpis.averageDuration),
+              prefix: <CalendarOutlined />,
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,
               span: { xs: 24, sm: 12, lg: 6 },
-              description: 'Average valuation across all companies',
+              description: 'Average holding period since acquisition',
               trend: {
-                value: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).value,
-                positive: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).positive,
-                description: 'vs 7 days ago'
+                value: calculateChange(kpis.averageDuration, previousKpis.averageDuration).value,
+                positive: calculateChange(kpis.averageDuration, previousKpis.averageDuration).positive,
+                description: 'vs 30 days ago'
               }
             }
           ]}
@@ -329,6 +392,8 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
                 stakeTypeData={stakeTypeData}
                 investmentTypeData={investmentTypeData}
                 rawInvestments={equityInvestments}
+                masterCurrency={selectedCurrency}
+                availableCurrencies={availableCurrencies}
               />
             </div>
           </TabsContent>
@@ -336,8 +401,9 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
           <TabsContent value="timeline" className="gba:mt-6">
             <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:w-full">
               <EquityTimelineCharts
-                equityTimelineData={equityTimelineData}
-                topCompaniesByValuationData={topCompaniesByValuationData}
+                rawInvestments={equityInvestments}
+                masterCurrency={selectedCurrency}
+                availableCurrencies={availableCurrencies}
               />
             </div>
           </TabsContent>
@@ -345,9 +411,9 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
           <TabsContent value="analytics" className="gba:mt-6">
             <div className="gba:space-y-6">
               <EquityAnalyticsCharts
-                stakeVsInvestmentAmountData={stakeVsInvestmentAmountData}
-                roleInvestmentAmountData={roleInvestmentAmountData}
-                concentrationByRoleData={concentrationByRoleData}
+                rawInvestments={equityInvestments}
+                masterCurrency={selectedCurrency}
+                availableCurrencies={availableCurrencies}
               />
             </div>
           </TabsContent>

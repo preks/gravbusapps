@@ -59,42 +59,42 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_headcount', 'Current Headcount'),
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#722ed1'
+          iconColor: 'var(--nw-chart-1)'
         },
         {
           id: 'ytd-hires',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_hires', 'YTD Hires'),
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#52c41a'
+          iconColor: 'var(--nw-chart-2)'
         },
         {
           id: 'ytd-departures',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_departures', 'YTD Departures'),
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#ff4d4f'
+          iconColor: 'var(--nw-chart-3)'
         },
         {
           id: 'net-change',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_net_change', 'Net Change (YTD)'),
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#1890ff'
+          iconColor: 'var(--nw-chart-4)'
         },
         {
           id: 'turnover-rate',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_turnover_rate', 'Turnover Rate'),
           value: 'Loading...',
           icon: 'calendar',
-          iconColor: '#fa8c16'
+          iconColor: 'var(--nw-chart-5)'
         },
         {
           id: 'growth-rate',
           title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_growth_rate', 'Growth Rate'),
           value: 'Loading...',
           icon: 'calendar',
-          iconColor: '#13c2c2'
+          iconColor: 'var(--nw-chart-6)'
         }
       ]
     }
@@ -124,7 +124,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_headcount', 'Current Headcount'),
         value: headcount,
         icon: 'users',
-        iconColor: '#722ed1',
+        iconColor: 'var(--nw-chart-1)',
         footer: 'Active employees (authoritative count)'
       },
       {
@@ -132,7 +132,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_hires', 'YTD Hires'),
         value: `+${ytdHires}`,
         icon: 'users',
-        iconColor: '#52c41a',
+        iconColor: 'var(--nw-chart-2)',
         footer: 'Year-to-date new hires'
       },
       {
@@ -140,7 +140,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_ytd_departures', 'YTD Departures'),
         value: `-${ytdDepartures}`,
         icon: 'users',
-        iconColor: '#ff4d4f',
+        iconColor: 'var(--nw-chart-3)',
         footer: 'Year-to-date departures'
       },
       {
@@ -148,7 +148,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_net_change', 'Net Change (YTD)'),
         value: netChange > 0 ? `+${netChange}` : netChange.toString(),
         icon: 'users',
-        iconColor: netChange >= 0 ? '#52c41a' : '#ff4d4f',
+        iconColor: netChange >= 0 ? 'var(--nw-chart-2)' : 'var(--nw-chart-3)',
         footer: 'Net headcount change'
       },
       {
@@ -156,7 +156,8 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_turnover_rate', 'Turnover Rate'),
         value: `${turnoverRate.toFixed(1)}%`,
         icon: 'calendar',
-        iconColor: turnoverRate > 15 ? '#ff4d4f' : turnoverRate > 10 ? '#fa8c16' : '#52c41a',
+        iconColor:
+          turnoverRate > 15 ? 'var(--nw-chart-3)' : turnoverRate > 10 ? 'var(--nw-chart-5)' : 'var(--nw-chart-2)',
         footer: 'Year-to-date turnover'
       },
       {
@@ -164,7 +165,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
         title: getTranslationFromI18nKeyAndLabel('forecasting_kpi_growth_rate', 'Growth Rate'),
         value: `${growthRate > 0 ? '+' : ''}${growthRate.toFixed(1)}%`,
         icon: 'calendar',
-        iconColor: growthRate >= 0 ? '#52c41a' : '#ff4d4f',
+        iconColor: growthRate >= 0 ? 'var(--nw-chart-2)' : 'var(--nw-chart-3)',
         footer: 'Year-to-date growth'
       }
     ]
@@ -175,10 +176,10 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <Title level={4} className="gba:m-0 gba:text-gray-800">
+          <Title level={4} className="gba:m-0 gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_workforce_forecasting', 'Workforce Forecasting')}
           </Title>
-          <Text className="gba:text-gray-600">
+          <Text className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'hr_analytics_workforce_forecasting_description',
               'Headcount trends, hiring projections, and workforce analytics'

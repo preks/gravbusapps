@@ -128,7 +128,7 @@ function calculateTenure(startDate: string | undefined, exitDate: string | null 
  * @param accessToken The access token for authentication.
  * @returns All employees, loading state, error, and a retry function.
  */
-interface UseGetEmployeesReportProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
+type UseGetEmployeesReportProps = Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'>
 
 export function useGetEmployeesReport({ accessToken, userInfo }: UseGetEmployeesReportProps) {
   const ALL_EMPLOYEES_LIMIT = 10000

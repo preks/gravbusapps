@@ -42,6 +42,27 @@ export const GET_INVESTMENT_ACTIVITY_BY_ID = (id: string): string => `
         firstName
         lastName
       }
+      
+      # Documents relationship
+      investmentDocument(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        name
+        description
+        file
+        fileSize
+        mimeType
+        documentGroup {
+          id
+          value
+          code
+        }
+        documentType {
+          id
+          value
+          code
+        }
+      }
     }
   }
 `

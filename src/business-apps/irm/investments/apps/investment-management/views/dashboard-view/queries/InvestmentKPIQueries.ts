@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -13,11 +14,22 @@ export interface InvestmentKPIComparison {
   previous: InvestmentKPIData
 }
 
-export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string): string => {
+export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
+  // Currency codes are stored as "Currency:v1:EUR" so we match the suffix pattern
+  // The _ilike pattern will naturally exclude null currency values
+  const currencyCondition = currencyFilter ? `{ currency: { code: { _ilike: "%${currencyFilter}%" } } }` : ''
+
   return `
     query GetInvestmentKPIsWithComparison {
-      # Current data (all investments)
-      currentAggregate: InvestmentAggregate {
+      # Current data (filtered by currency)
+      currentAggregate: InvestmentAggregate(
+        where: {
+          _and: [
+            { isDeleted: { _eq: false } }
+            ${currencyCondition}
+          ]
+        }
+      ) {
         aggregate {
           count
           sum {
@@ -30,10 +42,14 @@ export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string): str
         }
       }
       
-      # Previous period data (investments created before comparison date)
+      # Previous period data (investments created before comparison date, filtered by currency)
       previousAggregate: InvestmentAggregate(
         where: {
-          createdAt: { _lt: "${comparisonDate}" }
+          _and: [
+            { isDeleted: { _eq: false } }
+            { createdAt: { _lt: "${comparisonDate}" } }
+            ${currencyCondition}
+          ]
         }
       ) {
         aggregate {
@@ -51,7 +67,11 @@ export const GET_INVESTMENT_KPIS_WITH_COMPARISON = (comparisonDate: string): str
       # Get recent investments for additional context
       recentInvestments: Investment(
         where: {
-          createdAt: { _gte: "${comparisonDate}" }
+          _and: [
+            { isDeleted: { _eq: false } }
+            { createdAt: { _gte: "${comparisonDate}" } }
+            ${currencyCondition}
+          ]
         }
         limit: 10
       ) {
@@ -101,16 +121,16 @@ export interface InvestmentKPIResponse {
   }>
 }
 
-export const useGetInvestmentKPIs = (context: BusinessAppContextProps) => {
+export const useGetInvestmentKPIs = (context: BusinessAppContextProps, currency?: string) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchInvestmentKPIs = async (): Promise<InvestmentKPIComparison> => {
-    // Calculate date 7 days ago for comparison (stable within this call)
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const comparisonDate = sevenDaysAgo.toISOString()
+  const fetchInvestmentKPIs = useCallback(async (): Promise<InvestmentKPIComparison> => {
+    // Calculate date 30 days ago for comparison (stable within this call)
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const comparisonDate = thirtyDaysAgo.toISOString()
 
-    const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate)
+    const query = GET_INVESTMENT_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {
       const result = await graphqlClient.request<InvestmentKPIResponse>(query)
 
@@ -135,7 +155,7 @@ export const useGetInvestmentKPIs = (context: BusinessAppContextProps) => {
       console.error('Error fetching investment KPIs:', error)
       throw error
     }
-  }
+  }, [graphqlClient, currency])
 
   return { fetchInvestmentKPIs }
 }

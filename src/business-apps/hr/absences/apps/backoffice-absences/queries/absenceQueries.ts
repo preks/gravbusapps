@@ -97,8 +97,8 @@ export const GET_EMPLOYEE_ABSENCES = `
   }
 `
 
-export const GET_TEAM_EMPLOYEES = `
-  query GetTeamEmployees {
+export const GET_TEAM_EMPLOYEES_AND_ORG_UNITS = `
+  query GetTeamEmployeesAndOrgUnits {
     EmployeePosition {
       employee {
         id
@@ -106,23 +106,9 @@ export const GET_TEAM_EMPLOYEES = `
         lastName
         displayName
       }
-    }
-  }
-`
-
-export const GET_ORGANIZATIONAL_UNITS_FROM_EMPLOYEES = `
-  query GetOrganizationalUnitsFromEmployees {
-    Employee(
-      where: {
-        isDeleted: { _eq: false }
-      }
-      limit: 1000
-    ) {
-      employeePosition {
-        organizationalUnit {
-          id
-          name
-        }
+      organizationalUnit {
+        id
+        name
       }
     }
   }
@@ -175,14 +161,124 @@ export interface CalendarAbsenceResponse {
   }>
 }
 
-export const getGetAllAbsencesCurrentYearQuery = () => {
+export interface CalendarEmployeesWithAbsencesResponse {
+  employees: Array<{
+    employee: {
+      id: string
+      firstName: string
+      lastName: string
+      pictureThumbnail?: string
+      employeePosition: {
+        organizationalUnit: {
+          id: string
+          name: string
+        }
+      }
+    }
+    organizationalUnit: {
+      name: string
+    }
+  }>
+  absences: Array<{
+    id: string
+    startDate: string
+    endDate: string
+    status: string
+    employee: {
+      id: string
+      lastName: string
+      firstName: string
+      pictureThumbnail: string
+      employeePosition: {
+        organizationalUnit: {
+          id: string
+          name: string
+        }
+      }
+    }
+    type: {
+      objectValue: string
+      id: string
+      value: string
+      parentEntryId: string
+      translations: {
+        localeCode: string
+        value: string
+      }[]
+    }
+    calendarDays: number
+    effectiveDays: number
+  }>
+}
+
+export const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
+  query GetAllEmployeesFromPositions {
+    EmployeePosition(
+      where: {
+        _and: [
+          { employee: { isDeleted: { _eq: false } } },
+          { 
+            _or: [
+              { exitDate: { _isNull: true } },
+              { exitDate: { _gte: "${currentDate}" } }
+            ]
+          }
+        ]
+      }
+      limit: 1000
+    ) {
+      employee {
+        id
+        firstName
+        lastName
+        pictureThumbnail
+      }
+      organizationalUnit {
+        name
+      }
+    }
+  }
+`
+
+export const getGetAllEmployeesWithAbsencesQuery = (currentDate: string) => {
   const currentYear = new Date().getFullYear()
   const startOfYear = `${currentYear}-01-01T00:00:00.000Z`
   const endOfYear = `${currentYear}-12-31T23:59:59.999Z`
 
   return `
-  query GetAllAbsencesCurrentYear {
-    EmployeeAbsence(
+  query GetAllEmployeesWithAbsences {
+    employees: EmployeePosition(
+      where: {
+        _and: [
+          { employee: { isDeleted: { _eq: false } } },
+          { 
+            _or: [
+              { exitDate: { _isNull: true } },
+              { exitDate: { _gte: "${currentDate}" } }
+            ]
+          }
+        ]
+      }
+      limit: 1000
+      orderBy: { employee: { lastName: ASC } }
+    ) {
+      employee {
+        id
+        firstName
+        lastName
+        pictureThumbnail
+        employeePosition {
+          organizationalUnit {
+            id
+            name
+          }
+        }
+      }
+      organizationalUnit {
+        name
+      }
+    }
+    absences: EmployeeAbsence(
       where: {
         _and: [
           { isDeleted: { _eq: false } },
@@ -236,71 +332,15 @@ export const getGetAllAbsencesCurrentYearQuery = () => {
 `
 }
 
-export const getGetAllEmployeesFromPositionsQuery = (currentDate: string) => `
-  query GetAllEmployeesFromPositions {
-    EmployeePosition(
-      where: {
-        _and: [
-          { employee: { isDeleted: { _eq: false } } },
-          { 
-            _or: [
-              { exitDate: { _isNull: true } },
-              { exitDate: { _gte: "${currentDate}" } }
-            ]
-          }
-        ]
-      }
-      limit: 1000
-    ) {
-      employee {
-        id
-        firstName
-        lastName
-        pictureThumbnail
-      }
-      organizationalUnit {
-        name
-      }
-    }
-  }
-`
-
-export const getGetAllEmployeesFromPositionsForCalendarQuery = (currentDate: string) => `
-  query GetAllEmployeesFromPositions {
-    EmployeePosition(
-      where: {
-        _and: [
-          { employee: { isDeleted: { _eq: false } } },
-          { 
-            _or: [
-              { exitDate: { _isNull: true } },
-              { exitDate: { _gte: "${currentDate}" } }
-            ]
-          }
-        ]
-      }
-      limit: 1000
-      orderBy: { employee: { lastName: ASC } }
-    ) {
-      employee {
-        id
-        firstName
-        lastName
-        pictureThumbnail
-      }
-      organizationalUnit {
-        name
-      }
-    }
-  }
-`
-
-export const getGetEmployeesByDepartmentsQuery = (currentDate: string, departmentNames: string[]) => {
+export const getGetEmployeesWithAbsencesByDepartmentsQuery = (currentDate: string, departmentNames: string[]) => {
+  const currentYear = new Date().getFullYear()
+  const startOfYear = `${currentYear}-01-01T00:00:00.000Z`
+  const endOfYear = `${currentYear}-12-31T23:59:59.999Z`
   const departmentNamesString = departmentNames.map(dept => `"${dept}"`).join(', ')
 
   return `
-  query GetEmployeesByDepartments {
-    EmployeePosition(
+  query GetEmployeesWithAbsencesByDepartments {
+    employees: EmployeePosition(
       where: {
         _and: [
           { employee: { isDeleted: { _eq: false } } },
@@ -321,28 +361,21 @@ export const getGetEmployeesByDepartmentsQuery = (currentDate: string, departmen
         firstName
         lastName
         pictureThumbnail
+        employeePosition {
+          organizationalUnit {
+            id
+            name
+          }
+        }
       }
       organizationalUnit {
         name
       }
     }
-  }
-`
-}
-
-export const getGetAbsencesForEmployeesQuery = (employeeIds: string[]) => {
-  const currentYear = new Date().getFullYear()
-  const startOfYear = `${currentYear}-01-01T00:00:00.000Z`
-  const endOfYear = `${currentYear}-12-31T23:59:59.999Z`
-  const employeeIdsString = employeeIds.map(id => `"${id}"`).join(', ')
-
-  return `
-  query GetAbsencesForEmployees {
-    EmployeeAbsence(
+    absences: EmployeeAbsence(
       where: {
         _and: [
           { isDeleted: { _eq: false } },
-          { employee: { id: { _in: [${employeeIdsString}] } } },
           {
             _or: [
               { startDate: { _gte: "${startOfYear}", _lte: "${endOfYear}" } },

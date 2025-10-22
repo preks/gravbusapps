@@ -14,8 +14,6 @@ export const generateKpiCards = (allEmployees: Employee[], averageTenureFormatte
   const externalEmployees = allEmployees.filter(e => e.employmentType === 'External')
   const contractWorkers = allEmployees.filter(e => e.employmentType === 'Contract worker')
   const demoTestUsers = allEmployees.filter(e => e.employmentType === 'Demo' || e.employmentType === 'Test')
-  const activeEmployees = allEmployees.filter(e => !e.exitDate)
-  const inactiveEmployees = allEmployees.filter(e => e.exitDate)
   const fullTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('full time'))
   const partTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('part time'))
 

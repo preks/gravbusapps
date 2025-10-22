@@ -206,33 +206,6 @@ export const useOpportunityTrendData = (
               result.previousPeriodOpportunities.aggregate.count
             : 0
 
-        // Calculate average sales cycle (close date - created date in days)
-        const calculateAvgSalesCycle = (opportunities: any[]) => {
-          if (opportunities.length === 0) return 0
-
-          const validCycles = opportunities
-            .map(opp => {
-              const created = new Date(opp.createdAt)
-              const closed = new Date(opp.closeDate)
-
-              // Only validate that dates exist and closeDate is after createdAt
-              if (isNaN(created.getTime()) || isNaN(closed.getTime()) || closed <= created) {
-                return null // Invalid date or negative cycle
-              }
-
-              // Calculate days difference (close date - created date)
-              const daysDiff = Math.ceil((closed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24))
-
-              return daysDiff
-            })
-            .filter(days => days !== null && days > 0)
-
-          if (validCycles.length === 0) return 0
-
-          const totalDays = validCycles.reduce((sum: number, days: number) => sum + days, 0)
-          return Math.round(totalDays / validCycles.length)
-        }
-
         // Calculate period-based conversion rate (simplified)
         const currentPeriodConversionRate =
           result.currentPeriodLeads.aggregate.count > 0
@@ -273,7 +246,7 @@ export const useOpportunityTrendData = (
           currentPeriodPipelineValue: result.currentPeriodOpportunities.aggregate.sum?.estimatedAmount || 0,
           previousPeriodPipelineValue: result.previousPeriodOpportunities.aggregate.sum?.estimatedAmount || 0
         })
-      } catch (err) {
+      } catch {
         // console.error("Error fetching opportunity trend data:", err);
       } finally {
         setIsLoading(false)

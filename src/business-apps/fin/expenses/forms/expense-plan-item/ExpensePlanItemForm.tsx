@@ -148,10 +148,10 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t('lowcoder:create_expense_type_item.current_expense_group_label', 'Expense Group')}
+              label={t('lowcoder:create_expense_item.change_expense_item_container.current_expense_group_label', 'Expense Group')}
               name="expenseGroup"
               placeholder={t(
-                'lowcoder:create_expense_type_item.current_expense_group_placeholder',
+                'lowcoder:create_expense_item.change_expense_item_container.current_expense_group_placeholder',
                 'Select Expense Group'
               )}
               data-testid="expense-group-select"
@@ -190,10 +190,10 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t('lowcoder:create_expense_type_item.current_expense_type_label', 'Expense Type')}
+              label={t('lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label', 'Expense Type')}
               name="expenseType"
               placeholder={t(
-                'lowcoder:create_expense_type_item.current_expense_type_placeholder',
+                'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_placeholder',
                 'Select Expense Type'
               )}
               data-testid="expense-type-select"
@@ -264,7 +264,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
               style={{ marginBottom: 0 }}
             >
               <InputField
-                label={t('lowcoder:create_expense_type_item.current_amount_label', 'Amount')}
+                label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
                 name="amount"
                 type="number"
                 step="0.01"
@@ -274,7 +274,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
          gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
          gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
          gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
-                placeholder={t('lowcoder:created_expense_type_item.current_amount_placeholder', 'Enter Amount')}
+                placeholder={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder', 'Enter Amount')}
                 data-testid="amount-input"
                 onChange={field => {
                   let value = field.value as string
@@ -307,9 +307,9 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             >
               <SelectField
                 allowClear
-                label={t('lowcoder:create_expense_type_item.current_currency_label', 'Currency')}
+                label={t('lowcoder:create_expense_item.change_expense_item_container.current_currency_label', 'Currency')}
                 name="currency"
-                placeholder={t('lowcoder:create_expense_type_item.current_currency_placeholder', 'Select Currency')}
+                placeholder={t('lowcoder:create_expense_item.change_expense_item_container.current_currency_placeholder', 'Select Currency')}
                 disabled={!!form.getFieldValue('fixedCurrency')}
                 data-testid="currency-select"
                 isDataSorted={false}
@@ -338,7 +338,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
               {
                 required: true,
                 message: t(
-                  'lowcoder:create_expense_type_item.current_cost_center_custom_rule',
+                  'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
                   'Please select a cost center'
                 )
               }
@@ -347,9 +347,9 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           >
             <SelectField
               allowClear
-              label={t('lowcoder:create_expense_type_item.current_cost_center_label', 'Cost Center')}
+              label={t('lowcoder:create_expense_request.expense_request_container.current_cost_center_label', 'Cost Center')}
               name="costCenter"
-              placeholder={t('lowcoder:create_expense_type_item.current_cost_center_placeholder', 'Select Cost Center')}
+              placeholder={t('lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder', 'Select Cost Center')}
               data-testid="cost-center-select"
               data={costCenters.map(center => ({
                 id: center.id,

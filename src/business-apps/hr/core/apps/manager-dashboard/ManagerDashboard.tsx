@@ -1,9 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTeammates } from '@/common/hooks/useTeammates'
 import { useDirectReports } from './hooks/useDirectReports'
 import { useMatrixTeams } from './hooks/useMatrixTeams'
 import { useTeamBirthdays } from './hooks/useTeamBirthdays'
@@ -13,7 +11,6 @@ import {
   useRequestsToApprove,
   getPriorityVariant,
   getPriorityLabel,
-  getPriorityOrder,
   getTimeAgo,
   formatCurrency
 } from './hooks/useRequestsToApprove'
@@ -30,7 +27,6 @@ import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 // Removed dayjs and env imports as they're no longer needed
 import { TeamBirthday } from './hooks/useTeamBirthdays'
 import { TeamAnniversary } from './hooks/useTeamAnniversaries'
-import { UserInfo } from './types/employee.types'
 import {
   Card,
   CardHeader,
@@ -61,7 +57,6 @@ import {
 } from '@newwork/nw-design-system'
 import { EmployeeTable } from '@/business-apps/hr/core/apps/human-resources/components/views/employee-view/components/EmployeeTable'
 import { Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
-import { DirectReport } from './hooks/useDirectReports'
 import { notification } from 'antd'
 
 import {
@@ -71,7 +66,6 @@ import {
   PiCaretLeft,
   PiCheckCircle,
   PiCheckSquare,
-  PiFile as PiFileText,
   PiUsersThree,
   PiNetwork,
   PiClock,
@@ -88,7 +82,6 @@ import { ManagerAssistant } from './components/ManagerAssistant'
  */
 export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, accessToken }) => {
   const employeeId = userInfo?.employeeDetails?.employeeId
-  const { t } = useTranslation()
 
   // State for team tabs
   const [activeTeamTab, setActiveTeamTab] = useState<'my-team' | 'my-teams'>('my-team')
@@ -246,31 +239,19 @@ ${managerName}`
   })
 
   // Fetch upcoming birthdays for Team Insights
-  const {
-    upcomingBirthdays,
-    loading: loadingBirthdays,
-    error: birthdaysError
-  } = useTeamBirthdays({
+  const { upcomingBirthdays, loading: loadingBirthdays } = useTeamBirthdays({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
 
   // Fetch upcoming anniversaries for Team Insights
-  const {
-    upcomingAnniversaries,
-    loading: loadingAnniversaries,
-    error: anniversariesError
-  } = useTeamAnniversaries({
+  const { upcomingAnniversaries, loading: loadingAnniversaries } = useTeamAnniversaries({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
 
   // Fetch employees with missing job profiles for Team Insights
-  const {
-    employeesWithMissingProfiles,
-    loading: loadingMissingProfiles,
-    error: missingProfilesError
-  } = useMissingJobProfiles({
+  const { employeesWithMissingProfiles, loading: loadingMissingProfiles } = useMissingJobProfiles({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
@@ -279,17 +260,10 @@ ${managerName}`
   const {
     approvalTasks,
     totalCount,
-    expenseRequestCount,
-    expensePlanCount,
     expenseCount,
     absenceCount,
     loading: loadingApprovals,
-    error: approvalsError,
-    refetch: refetchApprovals,
-    approveRequest,
-    rejectRequest,
-    approving,
-    rejecting
+    error: approvalsError
   } = useRequestsToApprove({
     accessToken: accessToken || '',
     managerId: employeeId || '',
@@ -300,17 +274,11 @@ ${managerName}`
   const {
     approvalTasks: allApprovalTasks,
     totalCount: allTotalCount,
-    expenseRequestCount: allExpenseRequestCount,
-    expensePlanCount: allExpensePlanCount,
     expenseCount: allExpenseCount,
     absenceCount: allAbsenceCount,
     loading: loadingAllApprovals,
     error: allApprovalsError,
-    refetch: refetchAllApprovals,
-    approveRequest: approveAllRequest,
-    rejectRequest: rejectAllRequest,
-    approving: approvingAll,
-    rejecting: rejectingAll
+    refetch: refetchAllApprovals
   } = useRequestsToApprove({
     accessToken: accessToken || '',
     managerId: employeeId || '',
@@ -318,41 +286,23 @@ ${managerName}`
   })
 
   // Fetch personal data changes for dashboard
-  const {
-    personalChanges,
-    personalChangesCount,
-    loading: loadingPersonalChanges,
-    error: personalChangesError,
-    refetch: refetchPersonalChanges,
-    approveChange,
-    rejectChange,
-    approving: approvingChange,
-    rejecting: rejectingChange
-  } = usePersonalDataChanges({
+  const { personalChanges, personalChangesCount } = usePersonalDataChanges({
     accessToken: accessToken || '',
     managerId: employeeId || '',
     showAll: false // Dashboard shows limited changes
   })
 
   // Fetch all personal data changes for detailed view
-  const {
-    personalChanges: allPersonalChanges,
-    personalChangesCount: allPersonalChangesCount,
-    loading: loadingAllPersonalChanges,
-    error: allPersonalChangesError,
-    refetch: refetchAllPersonalChanges,
-    approveChange: approveAllChange,
-    rejectChange: rejectAllChange,
-    approving: approvingAllChange,
-    rejecting: rejectingAllChange
-  } = usePersonalDataChanges({
-    accessToken: accessToken || '',
-    managerId: employeeId || '',
-    showAll: true // Detailed view shows all changes
-  })
+  const { personalChanges: allPersonalChanges, personalChangesCount: allPersonalChangesCount } = usePersonalDataChanges(
+    {
+      accessToken: accessToken || '',
+      managerId: employeeId || '',
+      showAll: true // Detailed view shows all changes
+    }
+  )
 
   // Fetch current user profile to get profile picture
-  const { userProfile, loading: loadingUserProfile } = useCurrentUserProfile({
+  const { userProfile } = useCurrentUserProfile({
     accessToken: accessToken || '',
     employeeId: employeeId || ''
   })
@@ -384,7 +334,7 @@ ${managerName}`
               Welcome, {userInfo?.employeeDetails?.firstName || 'Manager'}!
             </h1>
             <div className="gba:flex gba:items-center">
-              <p className="gba:text-sm gba:text-neutral-500 gba:mr-2">
+              <p className="gba:text-sm gba:text-muted-foreground gba:mr-2">
                 {userInfo?.employeeDetails?.organizationalUnit?.name || 'Department'}
               </p>
             </div>
@@ -415,7 +365,7 @@ ${managerName}`
               <Button
                 variant="ghost"
                 size="sm"
-                className="gba:text-neutral-500 gba:hover:text-neutral-700"
+                className="gba:text-muted-foreground gba:hover:text-foreground"
                 data-testid="manager-dashboard-teammates-view-all-button"
                 onClick={handleNavigateToTeammates}
               >
@@ -448,7 +398,7 @@ ${managerName}`
                       className="gba:flex gba:justify-center gba:py-4"
                       data-testid="manager-dashboard-direct-reports-loading"
                     >
-                      <div className="gba:flex gba:items-center gba:text-neutral-500">
+                      <div className="gba:flex gba:items-center gba:text-muted-foreground">
                         <span className="gba:mr-2 gba:animate-spin">⏳</span> Loading direct reports...
                       </div>
                     </div>
@@ -456,7 +406,7 @@ ${managerName}`
 
                   {directReportsError && (
                     <div
-                      className="gba:p-4 gba:text-center gba:text-destructive-600"
+                      className="gba:p-4 gba:text-center gba:text-destructive"
                       data-testid="manager-dashboard-direct-reports-error"
                     >
                       Failed to load direct reports
@@ -465,7 +415,7 @@ ${managerName}`
 
                   {!loadingDirectReports && !directReportsError && directReports.length === 0 && (
                     <div
-                      className="gba:p-4 gba:text-center gba:text-neutral-500"
+                      className="gba:p-4 gba:text-center gba:text-muted-foreground"
                       data-testid="manager-dashboard-no-direct-reports"
                     >
                       No direct reports found
@@ -477,7 +427,7 @@ ${managerName}`
                       {directReports.map(report => (
                         <div
                           key={report.id}
-                          className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                          className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-muted/50 gba:rounded-lg gba:px-2 gba:transition-colors"
                           data-testid={`manager-dashboard-direct-report-${report.id}`}
                           onClick={() => handleNavigateToEmployee(report.id)}
                           title={`View ${report.fullName}'s profile`}
@@ -504,24 +454,26 @@ ${managerName}`
                             </div>
                             <div>
                               <div
-                                className="gba:font-medium gba:text-blue-600 gba:hover:underline"
+                                className="gba:font-medium gba:text-info gba:hover:underline"
                                 data-testid={`manager-dashboard-direct-report-name-${report.id}`}
                               >
                                 {report.fullName}
                               </div>
                               <div
-                                className="gba:text-sm gba:text-neutral-500"
+                                className="gba:text-sm gba:text-muted-foreground"
                                 data-testid={`manager-dashboard-direct-report-title-${report.id}`}
                               >
                                 {report.jobPositionName || 'Direct Report'}
                               </div>
                               {report.organizationalUnitName && (
-                                <div className="gba:text-xs gba:text-neutral-400">{report.organizationalUnitName}</div>
+                                <div className="gba:text-xs gba:text-muted-foreground">
+                                  {report.organizationalUnitName}
+                                </div>
                               )}
                               {/* Absence Information */}
                               {report.status === 'On Leave' && report.currentAbsence && (
                                 <div
-                                  className="gba:text-xs gba:text-orange-600 gba:mt-1"
+                                  className="gba:text-xs gba:text-warning gba:mt-1"
                                   data-testid={`manager-dashboard-current-absence-${report.id}`}
                                 >
                                   Until: {new Date(report.currentAbsence.endDate).toLocaleDateString()}
@@ -529,7 +481,7 @@ ${managerName}`
                               )}
                               {report.status === 'Available' && report.nextAbsence && (
                                 <div
-                                  className="gba:text-xs gba:text-blue-600 gba:mt-1"
+                                  className="gba:text-xs gba:text-info gba:mt-1"
                                   data-testid={`manager-dashboard-next-absence-${report.id}`}
                                 >
                                   On leave from: {new Date(report.nextAbsence.startDate).toLocaleDateString()}
@@ -566,7 +518,7 @@ ${managerName}`
                       className="gba:flex gba:justify-center gba:py-4"
                       data-testid="manager-dashboard-matrix-teams-loading"
                     >
-                      <div className="gba:flex gba:items-center gba:text-neutral-500">
+                      <div className="gba:flex gba:items-center gba:text-muted-foreground">
                         <span className="gba:mr-2 gba:animate-spin">⏳</span> Loading matrix teams...
                       </div>
                     </div>
@@ -574,7 +526,7 @@ ${managerName}`
 
                   {matrixTeamsError && (
                     <div
-                      className="gba:p-4 gba:text-center gba:text-destructive-600"
+                      className="gba:p-4 gba:text-center gba:text-destructive"
                       data-testid="manager-dashboard-matrix-teams-error"
                     >
                       Failed to load matrix teams
@@ -583,7 +535,7 @@ ${managerName}`
 
                   {!loadingMatrixTeams && !matrixTeamsError && matrixTeamMembers.length === 0 && (
                     <div
-                      className="gba:p-4 gba:text-center gba:text-neutral-500"
+                      className="gba:p-4 gba:text-center gba:text-muted-foreground"
                       data-testid="manager-dashboard-no-matrix-teams"
                     >
                       No matrix teams found
@@ -595,7 +547,7 @@ ${managerName}`
                       {matrixTeamMembers.map(member => (
                         <div
                           key={member.id}
-                          className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                          className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-muted gba:rounded-lg gba:px-2 gba:transition-colors"
                           data-testid={`manager-dashboard-matrix-member-${member.id}`}
                           onClick={() => handleNavigateToEmployee(member.id)}
                           title={`View ${member.fullName}'s profile`}
@@ -622,19 +574,21 @@ ${managerName}`
                             </div>
                             <div>
                               <div
-                                className="gba:font-medium gba:text-blue-600 gba:hover:underline"
+                                className="gba:font-medium gba:text-info gba:hover:underline"
                                 data-testid={`manager-dashboard-matrix-member-name-${member.id}`}
                               >
                                 {member.fullName}
                               </div>
                               <div
-                                className="gba:text-sm gba:text-neutral-500"
+                                className="gba:text-sm gba:text-muted-foreground"
                                 data-testid={`manager-dashboard-matrix-member-title-${member.id}`}
                               >
                                 {member.jobPositionName || 'Matrix Team Member'}
                               </div>
                               {member.matrixUnitName && (
-                                <div className="gba:text-xs gba:text-neutral-400">Team: {member.matrixUnitName}</div>
+                                <div className="gba:text-xs gba:text-muted-foreground">
+                                  Team: {member.matrixUnitName}
+                                </div>
                               )}
                             </div>
                           </div>
@@ -754,7 +708,7 @@ ${managerName}`
               <Button
                 variant="ghost"
                 size="sm"
-                className="gba:text-neutral-500 gba:hover:text-neutral-700"
+                className="gba:text-muted-foreground gba:hover:text-foreground"
                 data-testid="manager-dashboard-requests-view-all-button"
                 onClick={handleNavigateToApprovals}
               >
@@ -766,7 +720,7 @@ ${managerName}`
           <CardContent className="gba:flex-1 gba:min-h-0 gba:px-2">
             {loadingApprovals && (
               <div className="gba:flex gba:justify-center gba:py-4" data-testid="manager-dashboard-requests-loading">
-                <div className="gba:flex gba:items-center gba:text-neutral-500">
+                <div className="gba:flex gba:items-center gba:text-muted-foreground">
                   <span className="gba:mr-2 gba:animate-spin">⏳</span> Loading requests...
                 </div>
               </div>
@@ -784,8 +738,8 @@ ${managerName}`
             {!loadingApprovals && !approvalsError && approvalTasks.length === 0 && (
               <div className="gba:text-center gba:py-6" data-testid="manager-dashboard-no-requests">
                 <PiCheckCircle className="gba:h-12 gba:w-12 gba:text-success-300 gba:mx-auto gba:mb-3" />
-                <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-1">All caught up!</h3>
-                <p className="gba:text-neutral-500">There are no pending approval requests at the moment.</p>
+                <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-1">All caught up!</h3>
+                <p className="gba:text-muted-foreground">There are no pending approval requests at the moment.</p>
               </div>
             )}
 
@@ -825,7 +779,7 @@ ${managerName}`
                       .length === 0 ? (
                       <div className="gba:text-center gba:py-6">
                         <div className="gba:text-4xl gba:mb-3">💰</div>
-                        <p className="gba:text-neutral-500">No expense requests to approve</p>
+                        <p className="gba:text-muted-foreground">No expense requests to approve</p>
                       </div>
                     ) : (
                       <div className="gba:space-y-3" data-testid="manager-dashboard-expense-requests">
@@ -839,21 +793,21 @@ ${managerName}`
                             >
                               <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
                                 <div className="gba:flex-1">
-                                  <div className="gba:font-medium gba:text-neutral-900 gba:text-sm gba:mb-1">
+                                  <div className="gba:font-medium gba:text-foreground gba:text-sm gba:mb-1">
                                     {task.title}
                                   </div>
-                                  <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+                                  <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:mb-1">
                                     <PiUser className="gba:mr-1" size={12} />
                                     From: {task.employee.fullName}
                                   </div>
-                                  <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+                                  <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:mb-1">
                                     <PiClock className="gba:mr-1" size={12} />
                                     {getTimeAgo(task.createdAt)}
                                   </div>
-                                  <div className="gba:text-xs gba:font-medium gba:text-green-600">
+                                  <div className="gba:text-xs gba:font-medium gba:text-success">
                                     {formatCurrency(task.totalAmount)}
                                   </div>
-                                  <div className="gba:text-xs gba:text-neutral-400">
+                                  <div className="gba:text-xs gba:text-muted-foreground">
                                     {task.type === 'expense-request' ? '📋 Request' : '📝 Plan'}
                                   </div>
                                 </div>
@@ -909,7 +863,7 @@ ${managerName}`
                         {expenseCount >
                           approvalTasks.filter(task => task.type === 'expense-request' || task.type === 'expense-plan')
                             .length && (
-                          <div className="gba:text-xs gba:text-neutral-400 gba:text-center gba:pt-2">
+                          <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:pt-2">
                             +
                             {expenseCount -
                               approvalTasks.filter(
@@ -926,7 +880,7 @@ ${managerName}`
                     {approvalTasks.filter(task => task.type === 'leave').length === 0 ? (
                       <div className="gba:text-center gba:py-6">
                         <div className="gba:text-4xl gba:mb-3">🏖️</div>
-                        <p className="gba:text-neutral-500">No absence requests to approve</p>
+                        <p className="gba:text-muted-foreground">No absence requests to approve</p>
                       </div>
                     ) : (
                       <div className="gba:space-y-3" data-testid="manager-dashboard-absence-requests">
@@ -940,18 +894,18 @@ ${managerName}`
                             >
                               <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
                                 <div className="gba:flex-1">
-                                  <div className="gba:font-medium gba:text-neutral-900 gba:text-sm gba:mb-1">
+                                  <div className="gba:font-medium gba:text-foreground gba:text-sm gba:mb-1">
                                     {task.title}
                                   </div>
-                                  <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+                                  <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:mb-1">
                                     <PiUser className="gba:mr-1" size={12} />
                                     From: {task.employee.fullName}
                                   </div>
-                                  <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+                                  <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:mb-1">
                                     <PiClock className="gba:mr-1" size={12} />
                                     {getTimeAgo(task.createdAt)}
                                   </div>
-                                  <div className="gba:text-xs gba:font-medium gba:text-blue-600">
+                                  <div className="gba:text-xs gba:font-medium gba:text-info">
                                     {task.startDate && task.endDate
                                       ? `From ${new Date(task.startDate).toLocaleDateString()} to ${new Date(task.endDate).toLocaleDateString()}`
                                       : 'Date range not specified'}
@@ -1007,7 +961,7 @@ ${managerName}`
                             </div>
                           ))}
                         {absenceCount > approvalTasks.filter(task => task.type === 'leave').length && (
-                          <div className="gba:text-xs gba:text-neutral-400 gba:text-center gba:pt-2">
+                          <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:pt-2">
                             +{absenceCount - approvalTasks.filter(task => task.type === 'leave').length} more absence
                             requests
                           </div>
@@ -1020,7 +974,7 @@ ${managerName}`
                     {personalChanges.length === 0 ? (
                       <div className="gba:text-center gba:py-6">
                         <div className="gba:text-4xl gba:mb-3">👤</div>
-                        <p className="gba:text-neutral-500">No personal data changes to review</p>
+                        <p className="gba:text-muted-foreground">No personal data changes to review</p>
                       </div>
                     ) : (
                       <div className="gba:space-y-3" data-testid="manager-dashboard-personal-changes">
@@ -1053,17 +1007,17 @@ ${managerName}`
                                   </Avatar>
                                 </div>
                                 <div className="gba:flex gba:flex-col">
-                                  <div className="gba:font-medium gba:text-neutral-900 gba:text-sm gba:mb-1">
+                                  <div className="gba:font-medium gba:text-foreground gba:text-sm gba:mb-1">
                                     {change.employee?.fullName || 'Unknown Employee'}
                                   </div>
-                                  <div className="gba:text-xs gba:text-neutral-500 gba:flex gba:items-center gba:mb-1">
+                                  <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:mb-1">
                                     <PiClock className="gba:mr-1" size={12} />
                                     {getTimeAgo(change.created)}
                                   </div>
-                                  <div className="gba:text-xs gba:font-medium gba:text-blue-600">
+                                  <div className="gba:text-xs gba:font-medium gba:text-info">
                                     {formatChangeType(change.processDefinitionKey)}
                                   </div>
-                                  <div className="gba:text-xs gba:text-neutral-400">
+                                  <div className="gba:text-xs gba:text-muted-foreground">
                                     {change.description || change.name}
                                   </div>
                                 </div>
@@ -1112,7 +1066,7 @@ ${managerName}`
                           </div>
                         ))}
                         {personalChangesCount > personalChanges.length && (
-                          <div className="gba:text-xs gba:text-neutral-400 gba:text-center gba:pt-2">
+                          <div className="gba:text-xs gba:text-muted-foreground gba:text-center gba:pt-2">
                             +{personalChangesCount - personalChanges.length} more personal changes
                           </div>
                         )}
@@ -1161,26 +1115,26 @@ ${managerName}`
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
                   <div className="gba:bg-neutral-50 gba:rounded-lg gba:p-3">
                     {loadingBirthdays && (
-                      <div className="gba:text-center gba:text-neutral-500 gba:text-xs">
+                      <div className="gba:text-center gba:text-muted-foreground gba:text-xs">
                         <span className="gba:animate-spin">⏳</span> Loading birthdays...
                       </div>
                     )}
 
                     {!loadingBirthdays && upcomingBirthdays.length === 0 && (
-                      <div className="gba:text-center gba:text-neutral-500 gba:text-xs">
+                      <div className="gba:text-center gba:text-muted-foreground gba:text-xs">
                         No upcoming birthdays in the next 30 days
                       </div>
                     )}
 
                     {!loadingBirthdays && upcomingBirthdays.length > 0 && (
                       <div className="gba:space-y-3">
-                        <div className="gba:text-xs gba:font-medium gba:text-neutral-600 gba:mb-3">
+                        <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-3">
                           🎂 Next 30 days ({upcomingBirthdays.length} birthday{upcomingBirthdays.length > 1 ? 's' : ''})
                         </div>
                         {upcomingBirthdays.map(birthday => (
                           <div
                             key={birthday.id}
-                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-muted gba:rounded-lg gba:px-2 gba:transition-colors"
                             onClick={() => handleNavigateToEmployee(birthday.id)}
                             title={`View ${birthday.fullName}'s profile`}
                           >
@@ -1201,10 +1155,10 @@ ${managerName}`
                                 </Avatar>
                               </div>
                               <div>
-                                <div className="gba:font-medium gba:text-blue-600 gba:hover:underline">
+                                <div className="gba:font-medium gba:text-info gba:hover:underline">
                                   {birthday.fullName}
                                 </div>
-                                <div className="gba:text-sm gba:text-neutral-500">
+                                <div className="gba:text-sm gba:text-muted-foreground">
                                   {birthday.daysUntilBirthday === 0
                                     ? '🎉 Today!'
                                     : birthday.daysUntilBirthday === 1
@@ -1217,7 +1171,7 @@ ${managerName}`
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gba:h-8 gba:w-8 gba:p-0 gba:text-neutral-500 gba:hover:text-primary-600 gba:hover:bg-primary-50"
+                                className="gba:h-8 gba:w-8 gba:p-0 gba:text-muted-foreground gba:hover:text-primary-600 gba:hover:bg-primary-50"
                                 onClick={e => handleSendBirthdayEmail(birthday, e)}
                                 title={`Send birthday email to ${birthday.firstName}`}
                                 data-testid={`birthday-email-button-${birthday.id}`}
@@ -1237,27 +1191,27 @@ ${managerName}`
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
                   <div className="gba:bg-blue-50 gba:rounded-lg gba:p-3">
                     {loadingAnniversaries && (
-                      <div className="gba:text-center gba:text-neutral-500 gba:text-xs">
+                      <div className="gba:text-center gba:text-muted-foreground gba:text-xs">
                         <span className="gba:animate-spin">⏳</span> Loading anniversaries...
                       </div>
                     )}
 
                     {!loadingAnniversaries && upcomingAnniversaries.length === 0 && (
-                      <div className="gba:text-center gba:text-neutral-500 gba:text-xs">
+                      <div className="gba:text-center gba:text-muted-foreground gba:text-xs">
                         No upcoming anniversaries in the next 30 days
                       </div>
                     )}
 
                     {!loadingAnniversaries && upcomingAnniversaries.length > 0 && (
                       <div className="gba:space-y-3">
-                        <div className="gba:text-xs gba:font-medium gba:text-blue-700 gba:mb-3">
+                        <div className="gba:text-xs gba:font-medium gba:text-info gba:mb-3">
                           🏆 Next 30 days ({upcomingAnniversaries.length} anniversary
                           {upcomingAnniversaries.length > 1 ? 's' : ''})
                         </div>
                         {upcomingAnniversaries.map(anniversary => (
                           <div
                             key={anniversary.id}
-                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-muted gba:rounded-lg gba:px-2 gba:transition-colors"
                             onClick={() => handleNavigateToEmployee(anniversary.id)}
                             title={`View ${anniversary.fullName}'s profile`}
                           >
@@ -1278,10 +1232,10 @@ ${managerName}`
                                 </Avatar>
                               </div>
                               <div>
-                                <div className="gba:font-medium gba:text-blue-600 gba:hover:underline">
+                                <div className="gba:font-medium gba:text-info gba:hover:underline">
                                   {anniversary.fullName}
                                 </div>
-                                <div className="gba:text-sm gba:text-neutral-500">
+                                <div className="gba:text-sm gba:text-muted-foreground">
                                   {anniversary.yearsOfService} year{anniversary.yearsOfService !== 1 ? 's' : ''}
                                   {anniversary.daysUntilAnniversary === 0
                                     ? ' 🎉 today!'
@@ -1290,7 +1244,9 @@ ${managerName}`
                                       : ` 📅 in ${anniversary.daysUntilAnniversary} days`}
                                 </div>
                                 {anniversary.anniversaryDate && (
-                                  <div className="gba:text-sm gba:text-neutral-500">{anniversary.anniversaryDate}</div>
+                                  <div className="gba:text-sm gba:text-muted-foreground">
+                                    {anniversary.anniversaryDate}
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -1298,7 +1254,7 @@ ${managerName}`
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gba:h-8 gba:w-8 gba:p-0 gba:text-neutral-500 gba:hover:text-primary-600 gba:hover:bg-primary-50"
+                                className="gba:h-8 gba:w-8 gba:p-0 gba:text-muted-foreground gba:hover:text-primary-600 gba:hover:bg-primary-50"
                                 onClick={e => handleSendAnniversaryEmail(anniversary, e)}
                                 title={`Send anniversary email to ${anniversary.firstName}`}
                                 data-testid={`anniversary-email-button-${anniversary.id}`}
@@ -1318,13 +1274,13 @@ ${managerName}`
                 <div className="gba:h-full gba:overflow-y-auto gba:pr-2">
                   <div className="gba:bg-warning-50 gba:rounded-lg gba:p-3">
                     {loadingMissingProfiles && (
-                      <div className="gba:text-center gba:text-neutral-500 gba:text-xs">
+                      <div className="gba:text-center gba:text-muted-foreground gba:text-xs">
                         <span className="gba:animate-spin">⏳</span> Loading job profiles...
                       </div>
                     )}
 
                     {!loadingMissingProfiles && employeesWithMissingProfiles.length === 0 && (
-                      <div className="gba:text-center gba:text-green-600 gba:text-xs">
+                      <div className="gba:text-center gba:text-success gba:text-xs">
                         ✅ All team members have complete job profiles
                       </div>
                     )}
@@ -1338,7 +1294,7 @@ ${managerName}`
                         {employeesWithMissingProfiles.map(employee => (
                           <div
                             key={employee.id}
-                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-gray-50 gba:rounded-lg gba:px-2 gba:transition-colors"
+                            className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:cursor-pointer gba:hover:bg-muted gba:rounded-lg gba:px-2 gba:transition-colors"
                             onClick={() => handleNavigateToEmployee(employee.id)}
                             title={`View ${employee.fullName}'s profile`}
                           >
@@ -1359,10 +1315,10 @@ ${managerName}`
                                 </Avatar>
                               </div>
                               <div>
-                                <div className="gba:font-medium gba:text-blue-600 gba:hover:underline">
+                                <div className="gba:font-medium gba:text-info gba:hover:underline">
                                   {employee.fullName}
                                 </div>
-                                <div className="gba:text-sm gba:text-neutral-500">
+                                <div className="gba:text-sm gba:text-muted-foreground">
                                   {employee.missingProfileReason === 'no_job_position'
                                     ? '❌ No job position'
                                     : employee.missingProfileReason === 'incomplete_profile'
@@ -1389,7 +1345,6 @@ ${managerName}`
   if (currentView === 'teammates') {
     // Transform DirectReport data to Employee interface format with proper data mapping
     // Store status and statusWarning separately since Employee interface doesn't support them
-    const directReportsMap = new Map(directReports.map(report => [report.id, report]))
 
     const transformedEmployees: Employee[] = directReports.map(report => ({
       id: report.id,
@@ -1407,7 +1362,7 @@ ${managerName}`
     }))
 
     // Pagination handlers for the EmployeeTable
-    const handleLoadPage = (page: number, pageSize?: number) => {
+    const handleLoadPage = () => {
       // Since we have all direct reports already loaded, pagination is handled by DataTable
     }
 
@@ -1497,7 +1452,7 @@ ${managerName}`
         {/* Loading State */}
         {loadingAllApprovals && (
           <div className="gba:text-center gba:py-12">
-            <div className="gba:flex gba:items-center gba:justify-center gba:text-neutral-500">
+            <div className="gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
               <span className="gba:mr-2 gba:animate-spin">⏳</span> Loading approval requests...
             </div>
           </div>
@@ -1517,8 +1472,8 @@ ${managerName}`
         {expenseRequests.length === 0 && leaveRequests.length === 0 && !loadingAllApprovals && !allApprovalsError && (
           <div className="gba:text-center gba:py-12">
             <PiCheckCircle className="gba:h-12 gba:w-12 gba:text-success-300 gba:mx-auto gba:mb-4" />
-            <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">All caught up!</h3>
-            <p className="gba:text-neutral-500">There are no pending approval requests at the moment.</p>
+            <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">All caught up!</h3>
+            <p className="gba:text-muted-foreground">There are no pending approval requests at the moment.</p>
           </div>
         )}
 
@@ -1560,8 +1515,8 @@ ${managerName}`
                   {expenseRequests.length === 0 ? (
                     <div className="gba:text-center gba:py-12">
                       <div className="gba:text-4xl gba:mb-4">💰</div>
-                      <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">No expense requests</h3>
-                      <p className="gba:text-neutral-500">There are no pending expense requests to approve.</p>
+                      <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">No expense requests</h3>
+                      <p className="gba:text-muted-foreground">There are no pending expense requests to approve.</p>
                     </div>
                   ) : (
                     <div className="gba:border gba:rounded-lg gba:overflow-hidden">
@@ -1606,18 +1561,18 @@ ${managerName}`
                               <TableCell>
                                 <div>
                                   <div className="gba:font-medium">{request.title}</div>
-                                  <div className="gba:text-xs gba:text-neutral-400 gba:mt-1">
+                                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                                     {request.type === 'expense-request' ? '📋 Request' : '📝 Plan'}
                                   </div>
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <div className="gba:text-sm gba:text-neutral-600">
+                                <div className="gba:text-sm gba:text-muted-foreground">
                                   {request.description || 'No notes provided'}
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <span className="gba:font-medium gba:text-green-600">
+                                <span className="gba:font-medium gba:text-success">
                                   {formatCurrency(request.totalAmount)}
                                 </span>
                               </TableCell>
@@ -1627,7 +1582,9 @@ ${managerName}`
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="gba:text-sm gba:text-neutral-500">{getTimeAgo(request.createdAt)}</div>
+                                <div className="gba:text-sm gba:text-muted-foreground">
+                                  {getTimeAgo(request.createdAt)}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div className="gba:flex gba:space-x-2">
@@ -1678,8 +1635,8 @@ ${managerName}`
                   {leaveRequests.length === 0 ? (
                     <div className="gba:text-center gba:py-12">
                       <div className="gba:text-4xl gba:mb-4">🏖️</div>
-                      <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">No absence requests</h3>
-                      <p className="gba:text-neutral-500">There are no pending absence requests to approve.</p>
+                      <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">No absence requests</h3>
+                      <p className="gba:text-muted-foreground">There are no pending absence requests to approve.</p>
                     </div>
                   ) : (
                     <div className="gba:border gba:rounded-lg gba:overflow-hidden">
@@ -1745,7 +1702,9 @@ ${managerName}`
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <div className="gba:text-sm gba:text-neutral-500">{getTimeAgo(request.createdAt)}</div>
+                                <div className="gba:text-sm gba:text-muted-foreground">
+                                  {getTimeAgo(request.createdAt)}
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <div className="gba:flex gba:space-x-2">
@@ -1796,10 +1755,10 @@ ${managerName}`
                   {allPersonalChanges.length === 0 ? (
                     <div className="gba:text-center gba:py-12">
                       <div className="gba:text-4xl gba:mb-4">👤</div>
-                      <h3 className="gba:text-lg gba:font-medium gba:text-neutral-900 gba:mb-2">
+                      <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">
                         No personal data changes
                       </h3>
-                      <p className="gba:text-neutral-500">There are no pending personal data changes to review.</p>
+                      <p className="gba:text-muted-foreground">There are no pending personal data changes to review.</p>
                     </div>
                   ) : (
                     <div className="gba:border gba:rounded-lg gba:overflow-hidden">
@@ -1845,13 +1804,13 @@ ${managerName}`
                               <TableCell>
                                 <div>
                                   <div className="gba:font-medium">{formatChangeType(change.processDefinitionKey)}</div>
-                                  <div className="gba:text-xs gba:text-neutral-400 gba:mt-1">
+                                  <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
                                     {change.processDefinitionName}
                                   </div>
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <div className="gba:text-sm gba:text-neutral-600">
+                                <div className="gba:text-sm gba:text-muted-foreground">
                                   {change.description || change.name}
                                 </div>
                               </TableCell>

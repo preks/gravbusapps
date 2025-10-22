@@ -12,7 +12,9 @@ import {
   SelectContent,
   SelectItem,
   SelectValue,
-  Spinner
+  Spinner,
+  FileUpload,
+  type FileMetadata
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
@@ -41,7 +43,14 @@ export interface Activity {
   activityTypeRef: string
   occurredAt: string
   description: string
-  files: File[]
+  files: File[] // Legacy field - kept for backward compatibility
+  // Document management
+  documents?: Array<{
+    id: string
+    name?: string
+    version?: number
+  }>
+  _pendingFiles?: File[] // Files pending upload (not sent to backend)
   account?: { id: string }
   contact?: { id: string }
   opportunity?: { id: string }
@@ -95,6 +104,8 @@ export interface ActivitySegmentProps {
 
   // Callbacks
   onFilesChange?: (files: File[]) => void
+  existingDocuments?: Array<{ id: string; name?: string; version?: number }>
+  onDocumentRemove?: (documentId: string) => void
 
   // Render props for Ant Design compatibility
   renderTextField?: (props: {
@@ -157,6 +168,8 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   uploadFileLabel,
   entityLabel,
   onFilesChange,
+  existingDocuments = [],
+  onDocumentRemove,
   renderTextField,
   renderSelectField,
   renderDateField,
@@ -164,13 +177,8 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
   renderFileField,
   'data-testid': dataTestId = 'activity-segment'
 }) => {
-  // Try to get form context, but don't require it if using render props
-  let form: any = null
-  try {
-    form = useFormContext<any>()
-  } catch {
-    // Form context not available, using render props mode
-  }
+  // Always call hooks unconditionally at the top level (Rules of Hooks)
+  const form = useFormContext()
 
   // Check if we're in render props mode (Ant Design)
   const isRenderPropsMode = Boolean(
@@ -226,6 +234,56 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       onAssigneeSearch('')
     }
   }, [showOwnerSelection, onAssigneeSearch, assignees.length])
+
+  // Helper: Convert existing documents to FileMetadata format
+  const initialFiles = React.useMemo<FileMetadata[]>(
+    () =>
+      existingDocuments.map(doc => ({
+        id: doc.id,
+        name: doc.name || 'Unnamed Document',
+        size: 0,
+        type: '',
+        url: doc.id
+      })),
+    [existingDocuments]
+  )
+
+  // Helper: Create a stable key for FileUpload
+  const fileUploadKey = React.useMemo(() => existingDocuments.map(d => d.id).join(',') || 'empty', [existingDocuments])
+
+  // Helper: Extract File objects from FileWithPreview
+  const extractNewFiles = React.useCallback((files: any[]): File[] => {
+    return files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
+  }, [])
+
+  // Helper: Check if file ID is in set
+  const isFileIdInSet = React.useCallback((fileId: string, fileIds: Set<string>): boolean => {
+    return fileIds.has(fileId)
+  }, [])
+
+  // Handler: Process file changes
+  const handleFilesChange = React.useCallback(
+    (files: any[]) => {
+      if (!onFilesChange) return
+
+      // Add new files
+      const newFiles = extractNewFiles(files)
+      if (newFiles.length > 0) {
+        onFilesChange(newFiles)
+      }
+
+      // Handle file removal - check which initial files are missing
+      const currentFileIds = new Set(files.map(f => f.id))
+      const removedDocs = initialFiles.filter(initial => !isFileIdInSet(initial.id, currentFileIds))
+
+      if (removedDocs.length > 0 && onDocumentRemove) {
+        for (const doc of removedDocs) {
+          onDocumentRemove(doc.id)
+        }
+      }
+    },
+    [onFilesChange, onDocumentRemove, initialFiles, extractNewFiles, isFileIdInSet]
+  )
 
   // Render in Ant Design mode using render props
   if (isRenderPropsMode) {
@@ -284,7 +342,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
     <>
       {/* Title */}
       <FormField
-        control={form.control as any}
+        control={form.control}
         name="title"
         render={({ field }) => (
           <FormItem>
@@ -301,7 +359,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
 
       {/* Type */}
       <FormField
-        control={form.control as any}
+        control={form.control}
         name="activityTypeRef"
         render={({ field }) => (
           <FormItem>
@@ -330,7 +388,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
 
       {/* Occurred At */}
       <FormField
-        control={form.control as any}
+        control={form.control}
         name="occurredAt"
         render={({ field }) => (
           <FormItem>
@@ -353,7 +411,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       {/* Related Entity */}
       {showEntitySelection && (
         <FormField
-          control={form.control as any}
+          control={form.control}
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
@@ -396,7 +454,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
 
       {/* Description */}
       <FormField
-        control={form.control as any}
+        control={form.control}
         name="description"
         render={({ field }) => (
           <FormItem>
@@ -414,7 +472,7 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
       {/* Owner Employee */}
       {showOwnerSelection !== false && (
         <FormField
-          control={form.control as any}
+          control={form.control}
           name="ownerEmployeeId"
           render={({ field }) => (
             <FormItem>
@@ -441,8 +499,33 @@ const ActivitySegment: React.FC<ActivitySegmentProps> = ({
         />
       )}
 
-      {/* TODO: File upload field is intentionally hidden for now; review its necessity and integration. */}
-      {false && uploadFileLabel && onFilesChange && <div />}
+      {/* Attach Documents */}
+      {uploadFileLabel && onFilesChange && (
+        <FormField
+          control={form.control}
+          name="files"
+          render={() => (
+            <FormItem>
+              <FormLabel>{uploadFileLabel}</FormLabel>
+              <FormControl>
+                <FileUpload
+                  key={fileUploadKey}
+                  layout="list"
+                  preview="icon"
+                  maxFiles={10}
+                  maxSizeMB={10}
+                  multiple={true}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                  initialFiles={initialFiles}
+                  onFilesChange={handleFilesChange}
+                  data-testid={`${dataTestId}-file-upload`}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
     </>
   )
 }

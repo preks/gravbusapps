@@ -170,7 +170,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       }
 
       return true
-    } catch (error) {
+    } catch {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_item.missing_expense_rule_message',
         'There is no rule set for your user, please reach out to your administrator.'
@@ -349,13 +349,17 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       lastAbsenceCheckKeyRef.current = dedupeKey
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables)
+        // Prevent stale responses from overwriting newer state
+        if (lastAbsenceCheckKeyRef.current !== dedupeKey) {
+          return
+        }
         const overlapWarning = getOverlapWarningMessage(response, expensePlanId)
         if (isEndLocation) {
           setEndLocationOverlap(overlapWarning)
         } else {
           setStartLocationOverlap(overlapWarning)
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -364,7 +368,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           'error'
         )
       }
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -557,7 +561,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       } else {
         setLocalitiesDefault(expenseRequestData, setStartLocation, setEndLocation, setLocationsAreSynced)
       }
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_load_trip_data',
@@ -693,7 +697,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         setExpenseRulesData(rulesResponse)
 
         await loadInitialTripData()
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetching_expense_data',

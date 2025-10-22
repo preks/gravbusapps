@@ -83,7 +83,7 @@ const AddCampaignModal: React.FC<AddCampaignModalProps> = ({ isOpen, onClose, on
     try {
       await onSubmit(data)
       form.reset()
-    } catch (error) {
+    } catch {
       // console.error('Error submitting campaign:', error);
     }
   }

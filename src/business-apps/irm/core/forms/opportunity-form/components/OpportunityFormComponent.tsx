@@ -91,7 +91,9 @@ const OpportunityFormComponent: React.FC = () => {
 
         // Relationships
         ownerEmployee: toStringOrUndefined(formValues.owner),
-        account: toStringOrUndefined(formValues.account),
+        account: toStringOrUndefined(
+          typeof formValues.account === 'object' && formValues.account?.id ? formValues.account.id : formValues.account
+        ), // ✅ Extract ID from object if needed
 
         // Additional properties (empty object as per API)
         additionalProperties: {}
@@ -99,6 +101,7 @@ const OpportunityFormComponent: React.FC = () => {
 
       // Determine change mode based on whether we have an ID
       const changeMode = formValues.id ? 'UPDATE' : 'INSERT'
+      const isUpdate = changeMode === 'UPDATE'
 
       // Include ID and version for updates
       if (formValues.id) {
@@ -109,9 +112,43 @@ const OpportunityFormComponent: React.FC = () => {
         investmentOpportunityPayload.opportunityStatusRef = 'InvestmentOpportunityStatus:v1:OPEN'
       }
 
+      // ✅ NEW: Build opportunityContacts array with full association objects
+      const opportunityContacts = (formValues.contactIds || []).map(contact => {
+        if (typeof contact === 'object' && contact.id) {
+          // Existing association - include association metadata if available
+          const opportunityContact: any = {
+            contactType: null,
+            opportunity: formValues.id, // Current opportunity ID
+            contact: contact.id
+          }
+
+          // Include association ID and version if it exists (for updates)
+          if (contact.associationId) {
+            opportunityContact.id = contact.associationId
+            if (contact.associationVersion !== undefined) {
+              opportunityContact.version = contact.associationVersion
+            }
+          }
+
+          return opportunityContact
+        }
+
+        // New association - simple format
+        return {
+          contactType: null,
+          opportunity: formValues.id,
+          contact: contact
+        }
+      })
+
+      // ✅ UPDATED: Create payload structure with opportunityContacts for UPDATE, contactIds for CREATE
       const payload = {
-        investmentOpportunity: investmentOpportunityPayload,
-        changeMode: changeMode
+        investmentOpportunity: {
+          ...investmentOpportunityPayload,
+          opportunityContacts: isUpdate ? opportunityContacts : undefined // Only for updates
+        },
+        changeMode: changeMode,
+        contactIds: isUpdate ? undefined : opportunityContacts.map(oc => oc.contact) // For CREATE mode only
       }
 
       // Dispatch process continue event FIRST (like account form)

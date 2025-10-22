@@ -39,12 +39,12 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   const getBackUrl = (): string => {
     const urlParams = new URLSearchParams(window.location.search)
     const referrerParam = urlParams.get('referrer')
-    
+
     // If a referrer is explicitly provided in the URL
     if (referrerParam) {
       return referrerParam
     }
-    
+
     // Check document referrer
     if (document.referrer) {
       const referrerUrl = new URL(document.referrer)
@@ -59,7 +59,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
         return '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
       }
     }
-    
+
     // Default fallback to expenses launcher
     return '/platform/fin/expenses/expenses-launcher'
   }
@@ -176,7 +176,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpenseRequestItems expenseRequestItems={expenseRequest?.expenseRequestItem || []} />
+      children: <ExpenseRequestItems expenseRequestItems={expenseRequest?.expenseRequestItem || []} currencyCode={expenseRequest?.currency?.code} />
     },
 
     // Allowances tab - only show if there are allowances

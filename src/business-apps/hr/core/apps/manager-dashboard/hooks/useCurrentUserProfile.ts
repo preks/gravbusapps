@@ -70,12 +70,10 @@ export const useCurrentUserProfile = ({
           // If pictureThumbnail is null but picture exists, try to extract from picture JSON
           if (!actualPictureThumbnail && employee.picture) {
             try {
-              // If picture is a JSON string, it's metadata - we can't extract the actual image
-              const pictureData = JSON.parse(employee.picture)
               // The actual image would need to be fetched from the file service using pictureData.fileId
               // For now, we'll set it to null since we can't get the actual image data
               actualPictureThumbnail = null
-            } catch (e) {
+            } catch {
               // If picture is not JSON, it might be actual base64 data
               actualPictureThumbnail = employee.picture
             }

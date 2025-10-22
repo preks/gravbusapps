@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { Spin, Alert, Button } from 'antd'
 import {
   DashboardOutlined,
-  CalendarOutlined,
   UserOutlined,
   TeamOutlined,
   ApartmentOutlined,
@@ -18,9 +17,7 @@ import StructuralAnalysisReport from './components/views/structural-analysis/Str
 import Compensation from './components/views/compensation'
 import Forecasting from './components/views/forecasting'
 
-export interface HrAnalyticsViewProps extends BusinessAppContextProps {}
-
-export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
+export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',
@@ -69,7 +66,7 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
 
   const [activeSubTab, setActiveSubTab] = useState<string>(getInitialTab())
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isLoading] = useState<boolean>(false)
 
   const handleSubTabChange = (value: string) => {
     setActiveSubTab(value)
@@ -129,7 +126,7 @@ export const HrAnalyticsView: React.FC<HrAnalyticsViewProps> = context => {
         <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
           <div className="gba:text-center">
             <Spin size="large" />
-            <div className="gba:mt-4 gba:text-gray-600 gba:text-lg">Loading {viewName}...</div>
+            <div className="gba:mt-4 gba:text-muted-foreground gba:text-lg">Loading {viewName}...</div>
           </div>
         </div>
       )
