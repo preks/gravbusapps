@@ -421,6 +421,11 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
       currencyRef
       currency { code }
       requestType { value }
+      expenseRequest {
+        id
+        code
+        status
+      }
       employeeDocument {
         file
         fileSize
