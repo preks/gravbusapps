@@ -28,12 +28,12 @@ export const getOverlapWarningMessage = (
     const absenceType = getCatalogValue(employeeAbsence.type) || 'Absence'
 
     const message = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_error_message_absences',
+      'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_existing_event_no_title',
       `The selected date overlaps with an existing event: ${absenceType} from ${absenceRequestTimeStampStart} to ${absenceRequestTimeStampEnd}. Please adjust the date.`,
       {
-        absenceType,
-        timeStampStart: absenceRequestTimeStampStart,
-        timeStampEnd: absenceRequestTimeStampEnd,
+        employeeAbsence: absenceType,
+        absenceRequestTimeStampStart,
+        absenceRequestTimeStampEnd,
         interpolation: {
           escapeValue: false
         }
@@ -50,12 +50,12 @@ export const getOverlapWarningMessage = (
     const expenseRequestTimeStampEnd = dayjs(expenseRequest.endDate).format(getDateFormat('date-long'))
 
     const message = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_error_message_expense_request',
+      'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_existing_event_expense_request',
       `The selected date overlaps with an existing event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please adjust the date.`,
       {
-        expenseRequestTitle: expenseRequest.title,
-        timeStampStart: expenseRequestTimeStampStart,
-        timeStampEnd: expenseRequestTimeStampEnd,
+        requestTitle: expenseRequest.title,
+        requestTimeStampStart: expenseRequestTimeStampStart,
+        requestTimeStampEnd: expenseRequestTimeStampEnd,
         interpolation: {
           escapeValue: false
         }
@@ -72,12 +72,12 @@ export const getOverlapWarningMessage = (
     const expensePlanTimeStampEnd = dayjs(expensePlan.endDate).format(getDateFormat('date-long'))
 
     const message = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_plan_info_message',
+      'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_planned_event_plan',
       `There is an existing plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
       {
-        planName: expensePlan.title,
-        timeStampStart: expensePlanTimeStampStart,
-        timeStampEnd: expensePlanTimeStampEnd,
+        planTitle: expensePlan.title,
+        planTimeStampStart: expensePlanTimeStampStart,
+        planTimeStampEnd: expensePlanTimeStampEnd,
         interpolation: {
           escapeValue: false
         }
