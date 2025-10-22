@@ -104,6 +104,15 @@ export interface InvestmentRoleRef {
   version?: number
 }
 
+export interface InvestmentDocumentRef {
+  id: string
+  name?: string
+  file?: string
+  fileInfo?: any // JSONB field containing file metadata
+  mimeType?: string
+  fileSize?: number
+}
+
 // =====================================================
 // INVESTMENT RELATIONS ENTITIES (from DBML)
 // =====================================================
@@ -433,6 +442,9 @@ export interface BaseInvestmentNote extends BaseEntity {
   contact?: InvestmentContactRef
   opportunity?: InvestmentOpportunityRef
   lead?: InvestmentLeadRef
+
+  // Documents
+  documents?: InvestmentDocumentRef[]
 }
 
 // investment_document table
@@ -493,6 +505,9 @@ export interface BaseInvestmentActivity extends BaseEntity {
   contact?: InvestmentContactRef
   opportunity?: InvestmentOpportunityRef
   lead?: InvestmentLeadRef
+
+  // Documents
+  documents?: InvestmentDocumentRef[]
 }
 
 // investment_task_template table (missing from our current types)
@@ -555,6 +570,9 @@ export interface BaseInvestmentTask extends BaseEntity {
   contact?: InvestmentContactRef
   lead?: InvestmentLeadRef
   opportunity?: InvestmentOpportunityRef
+
+  // Documents
+  documents?: InvestmentDocumentRef[]
 }
 
 // investment_opportunity_stage_condition table

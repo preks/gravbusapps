@@ -28,7 +28,7 @@ interface UseEmployeeTerminationDataProps {
 export function useEmployeeTerminationData({ employeeId, accessToken }: UseEmployeeTerminationDataProps) {
   const graphqlClient = useGraphqlClient(accessToken)
   const [employee, setEmployee] = useState<EmployeeTerminationData | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const fetchEmployeeData = useCallback(async () => {

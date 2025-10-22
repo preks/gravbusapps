@@ -7,6 +7,17 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { FileInfo } from '@/common/types/FileTypes'
+
+export type NoteDocument = {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  file?: string
+  fileInfo?: FileInfo
+}
 
 export type NoteItem = {
   id: string
@@ -17,6 +28,7 @@ export type NoteItem = {
   authorEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
   assigneeEmployee?: { id?: string; displayName?: string; firstName?: string; lastName?: string }
   reminderAt?: string | null
+  documents?: NoteDocument[]
 }
 
 export interface NoteSectionProps extends BusinessAppContextProps {
@@ -31,6 +43,22 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
   const { accessToken, notes: notesProp, noteEntityActionProps } = props
 
   const notes = notesProp || []
+
+  // Handle document download
+  const handleDocumentClick = (document: NoteDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
 
   const getAuthorName = (authorEmployee: any) => {
     if (!authorEmployee) return null
@@ -124,6 +152,25 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
                   </span>
                 )}
               </div>
+              {note.documents && note.documents.length > 0 && (
+                <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-3" data-testid={`note-documents-${note.id}`}>
+                  {note.documents.map(doc => {
+                    const FileIcon = getFileIcon(doc.mimeType)
+                    return (
+                      <button
+                        key={doc.id}
+                        onClick={e => handleDocumentClick(doc, e)}
+                        className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                        data-testid={`note-document-${note.id}-${doc.id}`}
+                        title={doc.name}
+                      >
+                        <FileIcon size={14} weight="bold" />
+                        <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}{' '}
             </CardContent>
           </Card>
         ))

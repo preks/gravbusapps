@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { message, Upload } from 'antd'
+import { message } from 'antd'
 import {
   Button,
   Spinner,
@@ -18,16 +18,14 @@ import {
   Textarea
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
-import { Calendar, User, FileText, Clock, Upload as UploadIcon } from 'lucide-react'
+import { Calendar, User, FileText, Clock } from 'lucide-react'
 import { useSalesTaskFormContext } from '../context/SalesTaskFormContext'
 import { SalesTaskFormValues } from '../types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
-import { useFileClient } from '@/common/network/files/useFileClient'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
+import FileUploadSection from './FileUploadSection'
 
 const prefixDataTestId = 'SalesTaskForm'
 
@@ -39,7 +37,6 @@ const SalesTaskFormComponent: React.FC = () => {
     isLoading,
     error,
     isUpdateMode,
-    fileList,
     businessAppContext,
     taskTypes,
     priorities,
@@ -48,15 +45,13 @@ const SalesTaskFormComponent: React.FC = () => {
     entities,
     selectedEntity,
     showEntitySearch,
+    uploadFiles,
     searchEntities,
     setSelectedEntity,
     searchEmployees
   } = useSalesTaskFormContext()
 
   const { accessToken, additionalData } = businessAppContext
-
-  const fileClient = useFileClient({ accessToken } as any)
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Check if this is an approval request (when Task Type should be hidden)
   // This can be set explicitly OR detected from pre-filled approval type
@@ -80,9 +75,6 @@ const SalesTaskFormComponent: React.FC = () => {
   const [employeeSearchTerm, setEmployeeSearchTerm] = useState('')
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null)
-
-  // Document upload state
-  const [documentFileList, setDocumentFileList] = useState<any[]>([])
 
   // Initialize react-hook-form
   const form = useForm<SalesTaskFormValues>({
@@ -299,54 +291,7 @@ const SalesTaskFormComponent: React.FC = () => {
         const salesTask = response?.salesTask
         if (!salesTask) return
 
-        // Handle document uploads if there are files
-        if (documentFileList && documentFileList.length > 0) {
-          // Upload each document
-          for (const uploadFile of documentFileList) {
-            if (uploadFile && uploadFile.originFileObj) {
-              try {
-                const file = uploadFile.originFileObj
-                const pathParams = { accessScope: 'public' }
-                const queryParams = {
-                  appName: 'crm',
-                  folderPath: `/sales-tasks/${salesTask.id}/documents`
-                }
-
-                const uploadResponse = await fileClient.uploadFile(file, pathParams, queryParams)
-
-                const crmDocumentPayload = {
-                  employeeId: additionalData?.employeeId,
-                  managerId: additionalData?.managerId,
-                  structureId: additionalData?.structureId,
-                  locationId: additionalData?.locationId,
-                  organizationalUnitId: additionalData?.organizationalUnitId,
-                  crmDocument: {
-                    name: file.name,
-                    description: `Document for sales task: ${salesTask.name}`,
-                    file: uploadResponse.fileInfo.fileId,
-                    fileSize: file.size,
-                    mimeType: file.type,
-                    verified: true,
-                    verificationDate: new Date().toISOString(),
-                    salesTask: salesTask.id,
-                    version: 0
-                  },
-                  changeMode: 'INSERT'
-                }
-
-                await restClient.post('/customer-relations/saveCrmDocument', crmDocumentPayload, {
-                  headers: { Authorization: `Bearer ${accessToken}` }
-                })
-
-                console.log(`Document uploaded successfully: ${file.name}`)
-              } catch (docError) {
-                console.error(`Failed to upload document ${uploadFile.name}:`, docError)
-                message.error(`Failed to upload document: ${uploadFile.name}`)
-              }
-            }
-          }
-        }
-
+        // Documents are now handled in handleSubmit before payload submission
         message.success(isUpdateMode ? 'Task updated successfully' : 'Task created successfully')
       } catch (err: any) {
         console.error('Error in process completion:', err)
@@ -359,78 +304,134 @@ const SalesTaskFormComponent: React.FC = () => {
     return () => {
       window.removeEventListener('com.newwork.process.taskCompletion', handler as EventListener)
     }
-  }, [accessToken, documentFileList, isUpdateMode, additionalData])
+  }, [accessToken, isUpdateMode, additionalData])
+
+  // Helper: Build documents array from existing and pending files
+  const buildDocumentsArray = async (
+    values: SalesTaskFormValues
+  ): Promise<Array<{ name?: string; fileInfo?: any; id?: string; version?: number }>> => {
+    // Upload pending files if any
+    let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
+    if (values._pendingFiles && values._pendingFiles.length > 0) {
+      const tempId = values.id || 'temp-' + Date.now()
+      uploadedDocuments = await uploadFiles(values._pendingFiles, tempId)
+    }
+
+    // Combine existing documents (as objects with ID) and newly uploaded documents
+    const existingDocumentsAsObjects = (values.documents || [])
+      .filter(doc => doc.id)
+      .map(doc => ({
+        id: doc.id,
+        version: doc.version
+      }))
+
+    return [...existingDocumentsAsObjects, ...uploadedDocuments]
+  }
+
+  // Helper: Build date fields object
+  const buildDateFields = (values: SalesTaskFormValues) => {
+    const dateFields: Record<string, string> = {}
+
+    if (values.deadline) {
+      dateFields.dueDate = dayjs(values.deadline).toISOString()
+    }
+    if (values.templateStartDate) {
+      dateFields.templateStartDate = dayjs(values.templateStartDate).toISOString()
+    }
+    if (values.startDate) {
+      dateFields.startDate = dayjs(values.startDate).toISOString()
+    }
+    if (values.endDate) {
+      dateFields.endDate = dayjs(values.endDate).toISOString()
+    }
+
+    return dateFields
+  }
+
+  // Helper: Build system fields for update mode
+  const buildSystemFields = (values: SalesTaskFormValues) => {
+    if (!isUpdateMode) return {}
+
+    const systemFields: Record<string, any> = {}
+
+    if (additionalData?.taskId) {
+      systemFields.id = additionalData.taskId
+    }
+    systemFields.version = values.version || 0
+    if (values.additionalProperties) {
+      systemFields.additionalProperties = values.additionalProperties
+    }
+    if (values.code) {
+      systemFields.code = values.code
+    }
+
+    return systemFields
+  }
+
+  // Helper: Build entity relationships
+  const buildEntityRelationships = (values: SalesTaskFormValues) => {
+    const relationships: Record<string, string> = {}
+
+    // Entity from additionalData (higher priority)
+    if (additionalData?.leadId) {
+      relationships.lead = additionalData.leadId
+    }
+    if (additionalData?.opportunityId) {
+      relationships.opportunity = additionalData.opportunityId
+    }
+    if (additionalData?.contactId) {
+      relationships.contact = additionalData.contactId
+    }
+    if (additionalData?.accountId) {
+      relationships.account = additionalData.accountId
+    }
+
+    // Entity from form values (fallback)
+    if (values.relatedEntityType && values.relatedEntityId) {
+      relationships[values.relatedEntityType] = values.relatedEntityId
+    }
+
+    return relationships
+  }
 
   // Handle form submission
   const handleSubmit = async (values: SalesTaskFormValues) => {
     try {
       await onSubmit(values)
 
-      // Resolve assigned employee to ensure we always send it when present
+      // Build documents array
+      const allDocuments = await buildDocumentsArray(values)
+
+      // Resolve assigned employee
       const normalizedSearch = (employeeSearchTerm || '').trim().toLowerCase()
       const fallbackMatched = employees.find(e => (e.label || '').trim().toLowerCase() === normalizedSearch)
       const assignedEmployeeIdToUse = values.assignedEmployeeId || selectedEmployee?.id || fallbackMatched?.id || ''
 
-      // Build clean payload with only required model input fields
+      // Build payload sections
+      const systemFields = buildSystemFields(values)
+      const dateFields = buildDateFields(values)
+      const entityRelationships = buildEntityRelationships(values)
+
+      // Build clean payload
       const payload = {
         salesTask: {
-          // System fields (only for updates)
-          ...(isUpdateMode && additionalData?.taskId && { id: additionalData.taskId }),
-          ...(isUpdateMode && { version: values.version || 0 }),
-          ...(isUpdateMode &&
-            values.additionalProperties && {
-              additionalProperties: values.additionalProperties
-            }),
-          ...(isUpdateMode && values.code && { code: values.code }),
-
-          // Core required fields
+          ...systemFields,
           name: values.title,
           ...(values.description && { description: values.description }),
           typeRef: values.taskTypeRef || '',
           priorityRef: values.priorityRef,
           statusRef: values.statusRef,
           timingType: values.timingType,
-
-          // Date fields (only include if they have values)
-          ...(values.deadline && {
-            dueDate: dayjs(values.deadline).toISOString()
-          }),
-          ...(values.templateStartDate && {
-            templateStartDate: dayjs(values.templateStartDate).toISOString()
-          }),
-          ...(values.startDate && {
-            startDate: dayjs(values.startDate).toISOString()
-          }),
-          ...(values.endDate && {
-            endDate: dayjs(values.endDate).toISOString()
-          }),
-
-          // Assignment (only if assigned)
-          ...(assignedEmployeeIdToUse && {
-            assignedEmployee: assignedEmployeeIdToUse
-          }),
-
-          // Entity relationships (only one will be present)
-          ...(additionalData?.leadId && { lead: additionalData.leadId }),
-          ...(additionalData?.opportunityId && {
-            opportunity: additionalData.opportunityId
-          }),
-          ...(additionalData?.contactId && {
-            contact: additionalData.contactId
-          }),
-          ...(additionalData?.accountId && {
-            account: additionalData.accountId
-          }),
-          ...(values.relatedEntityType === 'lead' && values.relatedEntityId && { lead: values.relatedEntityId }),
-          ...(values.relatedEntityType === 'contact' && values.relatedEntityId && { contact: values.relatedEntityId }),
-          ...(values.relatedEntityType === 'account' && values.relatedEntityId && { account: values.relatedEntityId }),
-          ...(values.relatedEntityType === 'opportunity' &&
-            values.relatedEntityId && { opportunity: values.relatedEntityId })
+          ...dateFields,
+          ...(assignedEmployeeIdToUse && { assignedEmployee: assignedEmployeeIdToUse }),
+          documents: allDocuments,
+          ...entityRelationships
         }
       }
 
       // Log the payload for debugging
-      console.log(`${isUpdateMode ? 'Updating' : 'Creating'} sales task with payload:`, payload)
+      const action = isUpdateMode ? 'Updating' : 'Creating'
+      console.log(`${action} sales task with payload:`, payload)
       console.log(
         'Form values - relatedEntityType:',
         values.relatedEntityType,
@@ -446,8 +447,9 @@ const SalesTaskFormComponent: React.FC = () => {
       message.success(`Sales task ${isUpdateMode ? 'updated' : 'created'} successfully`)
       onCancel()
     } catch (error) {
-      console.error(`Error ${isUpdateMode ? 'updating' : 'creating'} sales task:`, error)
-      message.error(`Failed to ${isUpdateMode ? 'update' : 'create'} sales task. Please try again.`)
+      const action = isUpdateMode ? 'updating' : 'creating'
+      console.error(`Error ${action} sales task:`, error)
+      message.error(`Failed to ${action} sales task. Please try again.`)
     }
   }
 
@@ -672,7 +674,7 @@ const SalesTaskFormComponent: React.FC = () => {
             <FormField
               control={form.control}
               name="assignedEmployeeId"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
                   <FormLabel className="gba:flex gba:items-center gba:gap-2">
                     <User className="gba:h-4 gba:w-4" />
@@ -781,7 +783,7 @@ const SalesTaskFormComponent: React.FC = () => {
                     )
                   }
                 }}
-                render={({ field }) => (
+                render={() => (
                   <FormItem>
                     <FormLabel>
                       {getTranslationFromI18nKeyAndLabel('crm:salesTask.entity', 'Related Entity')} *
@@ -877,40 +879,7 @@ const SalesTaskFormComponent: React.FC = () => {
             />
 
             {/* Document Upload */}
-            <FormItem>
-              <FormLabel className="gba:flex gba:items-center gba:gap-2">
-                <UploadIcon className="gba:h-4 gba:w-4" />
-                {getTranslationFromI18nKeyAndLabel('crm:salesTask.documents', 'Attach Documents')}
-              </FormLabel>
-              <FormControl>
-                <Upload.Dragger
-                  fileList={documentFileList}
-                  onChange={({ fileList }) => setDocumentFileList(fileList)}
-                  beforeUpload={() => false} // Prevent automatic upload
-                  multiple={true}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.txt"
-                  data-testid={formatDataTestId(prefixDataTestId, 'DocumentUpload')}
-                  className="gba:w-full"
-                  style={{ backgroundColor: '#fafafa' }}
-                >
-                  <div className="gba:p-4 gba:text-center">
-                    <UploadIcon className="gba:h-8 gba:w-8 gba:mx-auto gba:mb-2 gba:text-gray-400" />
-                    <p className="gba:text-sm gba:font-medium gba:text-gray-700">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'crm:salesTask.documents.dragDrop',
-                        'Click or drag files to this area to upload'
-                      )}
-                    </p>
-                    <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'crm:salesTask.documents.supportedFormats',
-                        'Support for PDF, Office documents, images, and text files'
-                      )}
-                    </p>
-                  </div>
-                </Upload.Dragger>
-              </FormControl>
-            </FormItem>
+            <FileUploadSection />
 
             {/* Error Display */}
             {error && (

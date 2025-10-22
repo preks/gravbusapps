@@ -255,7 +255,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   note.authorEmployee?.displayName ||
                   getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
                 authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate
+                reminderAt: note.reminderDate,
+                documents: note.documents
               })),
               noteActionProps: {
                 ...noteActionProps,

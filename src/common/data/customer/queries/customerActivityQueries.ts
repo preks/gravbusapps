@@ -116,6 +116,44 @@ export const GET_CUSTOMER_ACTIVITIES = (variables: CustomerActivityQueryVariable
   `
 }
 
+// Get Customer Activity by ID
+export const GET_CUSTOMER_ACTIVITY_BY_ID = (id: string): string => {
+  return `
+    query GetCustomerActivityById {
+      SalesActivity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
+        ${CUSTOMER_SALES_ACTIVITY}
+        
+        # Entity references
+        account { ${CUSTOMER_ACCOUNT_REF} }
+        contact { id code firstName lastName email }
+        lead { ${CUSTOMER_LEAD_REF} }
+        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
+        
+        # Documents relationship
+        customerDocument(where: { isDeleted: { _eq: false } }) {
+          id
+          version
+          name
+          description
+          file
+          fileSize
+          mimeType
+          documentGroup {
+            id
+            value
+            code
+          }
+          documentType {
+            id
+            value
+            code
+          }
+        }
+      }
+    }
+  `
+}
+
 // Get Customer Activities by Account ID
 export const GET_CUSTOMER_ACTIVITIES_BY_ACCOUNT_ID = (accountId: string): string => {
   return `

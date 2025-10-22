@@ -7,6 +7,7 @@ import { useSalesTaskStatuses } from '../hooks/useSalesTaskStatuses'
 import { useSalesTaskEmployees } from '../hooks/useSalesTaskEmployees'
 import { useSalesTaskEntities } from '../hooks/useSalesTaskEntities'
 import { useCustomerTasks } from '@/common/data/customer/hooks/useCustomerTasks'
+import { useFileClient } from '@/common/network/files/useFileClient'
 import dayjs from 'dayjs'
 
 interface SalesTaskFormContextValue extends SalesTaskContextState {
@@ -34,6 +35,7 @@ interface SalesTaskFormContextValue extends SalesTaskContextState {
 
   // File management
   setFileList: (files: any[]) => void
+  uploadFiles: (files: File[], entityId: string) => Promise<Array<{ name: string; fileInfo: any }>>
 
   // Business app context
   businessAppContext: BusinessAppContextProps
@@ -59,6 +61,9 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
   taskData
 }) => {
   const { accessToken, additionalData } = businessAppContext
+
+  // File upload client
+  const fileClient = useFileClient(businessAppContext)
 
   // Check for update mode based on taskId in additional data
   const taskId = additionalData?.taskId
@@ -108,6 +113,8 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
     relatedEntityId: '',
     relatedEntityType: '',
     files: [],
+    documents: [],
+    _pendingFiles: [],
     additionalProperties: {},
     ...initialValues
   })
@@ -248,11 +255,12 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
     if (isUpdateMode && actualTaskData) {
       const assignedId = actualTaskData.assignedEmployeeId || actualTaskData.assignedEmployee?.id || ''
       // Robust deadline mapping: support multiple possible fields and validate date
+      const taskDataRecord = actualTaskData as Record<string, unknown>
       const rawDeadline =
         actualTaskData.dueDate ||
-        (actualTaskData as any).deadline ||
-        (actualTaskData as any).dueDateTime ||
-        (actualTaskData as any).scheduledAt ||
+        taskDataRecord.deadline ||
+        taskDataRecord.dueDateTime ||
+        taskDataRecord.scheduledAt ||
         null
       const formattedDeadline =
         rawDeadline && dayjs(rawDeadline).isValid() ? dayjs(rawDeadline).format('YYYY-MM-DDTHH:mm') : null
@@ -281,7 +289,13 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
         assignedEmployeeId: assignedId,
         id: actualTaskData.id,
         version: actualTaskData.version || 0,
-        additionalProperties: actualTaskData.additionalProperties || {}
+        additionalProperties: actualTaskData.additionalProperties || {},
+        documents:
+          actualTaskData.customerDocument?.map((doc: any) => ({
+            id: doc.id,
+            name: doc.name || '',
+            version: doc.version
+          })) || []
       }
 
       // Preserve existing entity relationship
@@ -332,49 +346,106 @@ export const SalesTaskFormProvider: React.FC<SalesTaskFormProviderProps> = ({
     setFormValuesState(prev => ({ ...prev, ...updates }))
   }, [])
 
-  const contextValue: SalesTaskFormContextValue = {
-    // State
-    formValues,
-    setFormValues,
-    onSubmit,
-    onCancel,
-    isLoading: fetchingTask,
-    error,
-    isUpdateMode,
+  // Upload files to storage and return document metadata
+  const uploadFiles = useCallback(
+    async (files: File[], entityId: string): Promise<Array<{ name: string; fileInfo: any }>> => {
+      if (!files || files.length === 0) return []
 
-    // Data
-    taskTypes: mappedTaskTypes,
-    priorities: mappedPriorities,
-    statuses,
-    employees: mappedEmployees,
-    entities,
-    selectedEntity,
-    fileList,
-    showEntitySearch,
+      const uploadPromises = files.map(async file => {
+        const folderPath = `/customerRelations/tasks/${entityId}/documents`
 
-    // Loading states
-    taskTypesLoading,
-    prioritiesLoading,
-    statusesLoading,
-    employeesLoading,
-    entitiesLoading,
+        const result = await fileClient.uploadFile(
+          file,
+          { accessScope: 'tenant' },
+          {
+            appName: 'customerRelations',
+            folderPath: folderPath,
+            mimeType: file.type
+          }
+        )
 
-    // Search functions
-    searchTaskTypes: setTypeSearch,
-    searchPriorities: setPrioritySearch,
-    searchStatuses: () => {}, // Statuses don't need search
-    searchEmployees: setEmployeeSearch,
-    searchEntities,
+        return {
+          name: file.name,
+          fileInfo: result.fileInfo // Pass entire fileInfo JSON
+        }
+      })
 
-    // Entity management
-    setSelectedEntity,
+      return await Promise.all(uploadPromises)
+    },
+    [fileClient]
+  )
 
-    // File management
-    setFileList,
+  const contextValue: SalesTaskFormContextValue = useMemo(
+    () => ({
+      // State
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      isLoading: fetchingTask,
+      error,
+      isUpdateMode,
 
-    // Context
-    businessAppContext
-  }
+      // Data
+      taskTypes: mappedTaskTypes,
+      priorities: mappedPriorities,
+      statuses,
+      employees: mappedEmployees,
+      entities,
+      selectedEntity,
+      fileList,
+      showEntitySearch,
+
+      // Loading states
+      taskTypesLoading,
+      prioritiesLoading,
+      statusesLoading,
+      employeesLoading,
+      entitiesLoading,
+
+      // Search functions
+      searchTaskTypes: setTypeSearch,
+      searchPriorities: setPrioritySearch,
+      searchStatuses: () => {}, // Statuses don't need search
+      searchEmployees: setEmployeeSearch,
+      searchEntities,
+
+      // Entity management
+      setSelectedEntity,
+
+      // File management
+      setFileList,
+      uploadFiles,
+
+      // Context
+      businessAppContext
+    }),
+    [
+      formValues,
+      setFormValues,
+      onSubmit,
+      onCancel,
+      fetchingTask,
+      error,
+      isUpdateMode,
+      mappedTaskTypes,
+      mappedPriorities,
+      statuses,
+      mappedEmployees,
+      entities,
+      selectedEntity,
+      fileList,
+      showEntitySearch,
+      taskTypesLoading,
+      prioritiesLoading,
+      statusesLoading,
+      employeesLoading,
+      entitiesLoading,
+      searchEntities,
+      uploadFiles,
+      businessAppContext
+    ]
+  )
 
   return <SalesTaskFormContext.Provider value={contextValue}>{children}</SalesTaskFormContext.Provider>
 }

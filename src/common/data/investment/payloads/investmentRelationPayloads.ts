@@ -94,6 +94,9 @@ export const buildActivityPayload = (
     ...getEntityRef()
   }
 
+  // Always pass documents array - empty array will delete all, IDs will keep existing, objects will create new
+  payloadBody.documents = (activity as any).documents || []
+
   if (options.isUpdate && activity.id) {
     payloadBody.id = activity.id
     payloadBody.version = activity.version
@@ -133,6 +136,18 @@ export interface InvestmentTaskFormData {
   contact?: { id: string }
   opportunity?: { id: string }
   lead?: { id: string }
+  // Documents - array of document objects
+  // For existing documents: include id and version
+  // For new documents: include name and fileInfo (full JSON response from file server)
+  documents?: Array<{
+    id?: string // Present for existing documents
+    version?: number // Present for existing documents
+    name?: string // Present for new documents
+    fileInfo?: any // Full fileInfo JSON from file upload (for new documents)
+    description?: string
+    documentGroupRef?: string
+    documentTypeRef?: string
+  }>
 }
 
 export const buildInvestmentTaskPayload = (
@@ -210,6 +225,9 @@ export const buildInvestmentTaskPayload = (
     payloadBody.id = task.id
     payloadBody.version = task.version
   }
+
+  // Always pass documents array - empty array will delete all, IDs will keep existing, objects will create new
+  payloadBody.documents = task.documents || []
 
   return {
     investmentTask: payloadBody
@@ -303,6 +321,9 @@ export const buildInvestmentNotePayload = (
     authorEmployee: getAuthorEmployee(),
     ...getEntityRef()
   }
+
+  // Always pass documents array - empty array will delete all, IDs will keep existing, objects will create new
+  payloadBody.documents = (note as any).documents || []
 
   // Add id and version for update mode
   if (options.isUpdate && (note as any).id) {

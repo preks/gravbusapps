@@ -10,11 +10,14 @@ import { useInvestmentEntities, useGetInvestmentNoteById } from '@/common/data/i
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { Spinner, Alert } from '@newwork/nw-design-system'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 const initialFormData: NoteSegmentSchema = {
   title: '',
   text: '',
-  reminderDate: undefined
+  reminderDate: undefined,
+  documents: [],
+  _pendingFiles: []
 }
 
 export interface NoteFormProps extends BusinessAppContextProps {
@@ -72,6 +75,38 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     hydrateEntityById
   } = useInvestmentEntities({ accessToken, additionalData })
 
+  // File upload client
+  const fileClient = useFileClient({ accessToken } as any)
+
+  // Upload files to file service and return file IDs with metadata
+  const uploadFiles = useCallback(
+    async (files: File[], entityId: string): Promise<Array<{ name: string; fileInfo: any }>> => {
+      if (!files || files.length === 0) return []
+
+      const uploadPromises = files.map(async file => {
+        const folderPath = `/investmentRelations/notes/${entityId}/documents`
+
+        const result = await fileClient.uploadFile(
+          file,
+          { accessScope: 'tenant' },
+          {
+            appName: 'investmentRelations',
+            folderPath: folderPath,
+            mimeType: file.type
+          }
+        )
+
+        return {
+          name: file.name,
+          fileInfo: result.fileInfo // Pass entire fileInfo JSON
+        }
+      })
+
+      return await Promise.all(uploadPromises)
+    },
+    [fileClient]
+  )
+
   // Load existing note if in update mode
   useEffect(() => {
     if (!isUpdateMode || !noteId) {
@@ -92,11 +127,18 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
         const note = result.note
 
         // Set form data
-        setFormData({
+        const newFormData = {
           id: note.id,
           title: note.title || '',
           text: note.text || '',
           reminderDate: note.reminderDate || undefined,
+          documents:
+            (note as any).documents?.map((doc: any) => ({
+              id: doc.id,
+              name: doc.name || '',
+              version: doc.version
+            })) || [],
+          _pendingFiles: [],
           account: note.account,
           contact: note.contact,
           opportunity: note.opportunity,
@@ -108,7 +150,12 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
           ...(note.contact?.id ? { relatedEntityId: note.contact.id } : {}),
           ...(note.opportunity?.id ? { relatedEntityId: note.opportunity.id } : {}),
           ...(note.lead?.id ? { relatedEntityId: note.lead.id } : {})
-        } as any)
+        } as any
+
+        setFormData(newFormData)
+
+        // CRITICAL: Also update the React Hook Form values
+        form.reset(newFormData)
 
         // Hydrate and pin related entity if present so combobox trigger keeps rich label
         const relId = note.account?.id || note.contact?.id || note.opportunity?.id || note.lead?.id
@@ -181,15 +228,34 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
   // Form submission handler - business logic only
   const handleSubmit = useCallback(
     async (data: NoteSegmentSchema) => {
-      // Merge form data with state to include id and version
-      const noteData = formData.id ? { ...data, id: formData.id, version: formData.version } : data
+      // Upload pending files if any
+      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
+      if (formData._pendingFiles && formData._pendingFiles.length > 0) {
+        const tempId = formData.id || 'temp-' + Date.now()
+        uploadedDocuments = await uploadFiles(formData._pendingFiles, tempId)
+      }
+
+      // Combine existing documents (as objects with ID) and newly uploaded documents
+      const existingDocumentsAsObjects = (formData.documents || [])
+        .filter(doc => doc.id)
+        .map(doc => ({
+          id: doc.id,
+          version: doc.version
+        }))
+
+      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
+
+      // Merge form data with state to include id, version, and documents
+      const noteData = formData.id
+        ? { ...data, id: formData.id, version: formData.version, documents: allDocuments }
+        : { ...data, documents: allDocuments }
 
       const payload = buildInvestmentNotePayload(noteData, { accessToken, userInfo, additionalData } as any, {
         isUpdate: isUpdateMode
       })
       return payload
     },
-    [accessToken, userInfo, additionalData, isUpdateMode, formData]
+    [accessToken, userInfo, additionalData, isUpdateMode, formData, uploadFiles]
   )
 
   // Success handler
@@ -205,10 +271,6 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
     defaultValues: formData,
     mode: 'onChange'
   })
-
-  useEffect(() => {
-    form.reset(formData as any)
-  }, [formData])
 
   // Check if form should be disabled
   const isFormDisabled =
@@ -260,6 +322,21 @@ const NoteForm: React.FC<NoteFormProps> = ({ accessToken, userInfo, additionalDa
             'crm:notes.reminderDatePlaceholder',
             'Select reminder date...'
           )}
+          uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:notes.uploadFile', 'Attach Documents')}
+          // File upload handlers
+          onFilesChange={(files: File[]) => {
+            setFormData(prev => ({
+              ...prev,
+              _pendingFiles: [...(prev._pendingFiles || []), ...files]
+            }))
+          }}
+          existingDocuments={formData.documents || []}
+          onDocumentRemove={(documentId: string) => {
+            setFormData(prev => ({
+              ...prev,
+              documents: prev.documents?.filter(doc => doc.id !== documentId) || []
+            }))
+          }}
           data-testid="note-segment"
         />
       )}

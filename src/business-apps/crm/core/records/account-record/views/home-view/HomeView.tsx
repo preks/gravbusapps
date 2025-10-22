@@ -212,7 +212,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                       ? {
                           addressLine: address.addressLine,
                           postalCode: address.postalCode,
-                          locality: address.locality,
+                          locality: address.city, // CRM uses 'city' field, map to 'locality' for AccountSection
                           country: typeof address.country === 'string' ? address.country : address.country?.value,
                           region: typeof address.region === 'string' ? address.region : address.region?.value
                         }
@@ -241,20 +241,13 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
             props: {
               ...props,
               contacts:
-                (accountData as any)?.accountContact
-                  ?.map((accountContact: any) => {
-                    const c = accountContact.contact
-                    return c ? { ...c, jobTitle: c.jobPosition } : null
-                  })
-                  .filter(Boolean) || [],
-              contact: (() => {
-                const c = (accountData as any)?.accountContact?.[0]?.contact
-                return c ? { ...c, jobTitle: c.jobPosition } : undefined
-              })(),
-              contactId: (accountData as any)?.accountContact?.[0]?.contact?.id || undefined,
-              recordUrl: (accountData as any)?.accountContact?.[0]?.contact?.id
+                accountData?.accountContacts?.map((accountContact: any) => accountContact.contact).filter(Boolean) ||
+                [],
+              contact: accountData?.accountContacts?.[0]?.contact || undefined,
+              contactId: accountData?.accountContacts?.[0]?.contact?.id || undefined,
+              recordUrl: accountData?.accountContacts?.[0]?.contact?.id
                 ? buildPlatformUrl('/platform/crm/contact-record', {
-                    contactId: (accountData as any).accountContact[0].contact.id,
+                    contactId: accountData.accountContacts[0].contact.id,
                     source: 'account-relations',
                     fromEntity: 'accounts'
                   })
@@ -320,13 +313,14 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 createdAt: task.createdAt,
                 due: task.dueDate,
                 assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                statusCode: task.taskStatus?.value?.toUpperCase() as any,
+                statusCode: task.taskStatus?.value?.toUpperCase(),
                 taskStatus: task.taskStatus,
                 taskPriority: task.taskPriority,
                 assigneeEmployee: task.assignedEmployee,
                 taskTiming: task.taskTiming,
                 startDate: task.startDate,
                 creatorEmployee: task.creatorEmployee,
+                documents: task.documents,
                 reference: task.lead
                   ? {
                       type: 'lead' as const,
@@ -386,13 +380,14 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 createdAt: approval.createdAt,
                 due: approval.dueDate,
                 assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
-                statusCode: approval.taskStatus?.value?.toUpperCase() as any,
+                statusCode: approval.taskStatus?.value?.toUpperCase(),
                 taskStatus: approval.taskStatus,
                 taskPriority: approval.taskPriority,
                 assigneeEmployee: approval.assignedEmployee,
                 taskTiming: approval.taskTiming,
                 startDate: approval.startDate,
                 creatorEmployee: approval.creatorEmployee,
+                documents: approval.documents,
                 reference: approval.lead
                   ? {
                       type: 'lead' as const,
