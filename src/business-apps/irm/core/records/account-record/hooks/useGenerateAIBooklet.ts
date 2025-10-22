@@ -4,6 +4,7 @@ import { InformationExtractionState, UseInformationExtractionReturn } from '@/co
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { ResponseType } from '@/common/network/rest/RestClient'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 // Server response schema (Pydantic BaseModel)
 const bookletServerSchema = z.object({
@@ -54,7 +55,7 @@ export function useGenerateAIBooklet(
     if (!value) return null
     const parsed = new Date(value)
     if (Number.isNaN(parsed.getTime())) return null
-    return parsed.toLocaleString()
+    return formatDate(parsed, 'dateTime.short') ?? parsed.toISOString()
   }, [])
 
   const buildBookletSummaryFromStatus = useCallback(
@@ -69,47 +70,91 @@ export function useGenerateAIBooklet(
       const normalizedState = status.state.toLowerCase()
 
       const statusMessageFallback = (() => {
-        if (normalizedState === 'completed') return 'M&A booklet generation completed.'
-        if (normalizedState === 'failed') return 'M&A booklet generation failed.'
-        if (normalizedState === 'running') return 'M&A booklet generation in progress.'
-        if (normalizedState === 'queued') return 'M&A booklet generation queued.'
-        return `M&A booklet status: ${status.state}.`
+        if (normalizedState === 'completed')
+          return getTranslationFromI18nKeyAndLabel('irm:booklet.status.completed', 'M&A booklet generation completed.')
+        if (normalizedState === 'failed')
+          return getTranslationFromI18nKeyAndLabel('irm:booklet.status.failed', 'M&A booklet generation failed.')
+        if (normalizedState === 'running')
+          return getTranslationFromI18nKeyAndLabel('irm:booklet.status.running', 'M&A booklet generation in progress.')
+        if (normalizedState === 'queued')
+          return getTranslationFromI18nKeyAndLabel('irm:booklet.status.queued', 'M&A booklet generation queued.')
+        return getTranslationFromI18nKeyAndLabel('irm:booklet.status.generic', 'M&A booklet status: {{state}}.', {
+          state: status.state
+        })
       })()
 
       const summaryMessage = status.error?.trim() || status.message?.trim() || statusMessageFallback
 
       const keyInsights: string[] = []
 
-      keyInsights.push(`Job ID: ${status.job_id}`)
+      keyInsights.push(
+        getTranslationFromI18nKeyAndLabel('irm:booklet.insight.job_id', 'Job ID: {{id}}', { id: status.job_id })
+      )
       if (lastOutputFileName) {
-        keyInsights.push(`Output file: ${lastOutputFileName}`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.output_file', 'Generate output file: {{fileName}}', {
+            fileName: lastOutputFileName
+          })
+        )
       }
 
       if (totalQuestions > 0) {
-        keyInsights.push(`Progress: ${processedQuestions} / ${totalQuestions} questions processed`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel(
+            'irm:booklet.insight.progress',
+            'Progress: {{processed}} / {{total}} questions processed',
+            { processed: processedQuestions, total: totalQuestions }
+          )
+        )
       } else {
-        keyInsights.push(`Processed questions: ${processedQuestions}`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel(
+            'irm:booklet.insight.processed_only',
+            'Processed questions: {{processed}}',
+            { processed: processedQuestions }
+          )
+        )
       }
 
       if (status.current_question) {
-        keyInsights.push(`Current focus: ${status.current_question}`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.current_question', 'Current focus: {{question}}', {
+            question: status.current_question
+          })
+        )
       }
 
       if (status.processed_files && status.processed_files.length > 0) {
-        keyInsights.push(`Processed files: ${status.processed_files.join(', ')}`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.processed_files', 'Processed files: {{files}}', {
+            files: status.processed_files.join(', ')
+          })
+        )
       }
 
       const formattedUpdatedAt = formatTimestamp(status.updated_at)
       if (formattedUpdatedAt) {
-        keyInsights.push(`Last update: ${formattedUpdatedAt}`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.last_update', 'Last update: {{dateTime}}', {
+            dateTime: formattedUpdatedAt
+          })
+        )
       }
 
       if (status.output_document_id) {
-        keyInsights.push(`Document ID: ${status.output_document_id}`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.document_id', 'Document ID: {{id}}', {
+            id: status.output_document_id
+          })
+        )
       }
 
       if (status.error) {
-        keyInsights.push(`Error: ${status.error}`)
+        keyInsights.push(
+          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.error', 'Error: {{message}}', {
+            message: status.error
+          })
+        )
       }
 
       const result: BookletSchema = {
@@ -161,8 +206,8 @@ export function useGenerateAIBooklet(
       })
       try {
         responseJson = JSON.parse(responseText as unknown as string)
-      } catch {
-        // ignore parse errors, treat as success without extra details
+      } catch (parseError) {
+        console.error('Failed to parse /flowbot/irm/generate_ma_booklet response JSON', parseError)
       }
     } catch {
       setState({ type: 'error' })
@@ -183,21 +228,41 @@ export function useGenerateAIBooklet(
     const newJobId = typeof responseJson?.job_id === 'string' ? responseJson.job_id : fallbackJobId
     setJobId(newJobId ?? null)
 
+    const requestedMessage = getTranslationFromI18nKeyAndLabel(
+      'irm:booklet.generation.requested',
+      'M&A booklet generation requested successfully.'
+    )
+
+    const processedFiles = serverResp?.processed_files ?? []
+    const answeredQuestions = typeof serverResp?.answered_questions === 'number' ? serverResp.answered_questions : 0
+
     const result: BookletSchema = {
       success: serverResp?.success ?? true,
-      message: serverResp?.message ?? 'M&A booklet generation requested successfully.',
-      processed_files: serverResp?.processed_files ?? [],
-      answered_questions: serverResp?.answered_questions ?? 0,
-      summary: serverResp?.message ?? `M&A booklet generation requested successfully.`,
+      message: serverResp?.message ?? requestedMessage,
+      processed_files: processedFiles,
+      answered_questions: answeredQuestions,
+      summary: serverResp?.message ?? requestedMessage,
       keyInsights: [
-        `Generate output file: ${outputName}`,
-        ...(newJobId ? [`Job ID: ${newJobId}`] : []),
-        ...(Array.isArray(serverResp?.processed_files) && serverResp.processed_files.length > 0
-          ? [`Processed files: ${serverResp.processed_files.join(', ')}`]
+        getTranslationFromI18nKeyAndLabel('irm:booklet.insight.output_file', 'Generate output file: {{fileName}}', {
+          fileName: outputName
+        }),
+        ...(newJobId
+          ? [
+              getTranslationFromI18nKeyAndLabel('irm:booklet.insight.job_id', 'Job ID: {{id}}', {
+                id: newJobId
+              })
+            ]
           : []),
-        ...(typeof serverResp?.answered_questions === 'number'
-          ? [`Answered questions: ${serverResp.answered_questions}`]
-          : [])
+        ...(processedFiles.length > 0
+          ? [
+              getTranslationFromI18nKeyAndLabel('irm:booklet.insight.processed_files', 'Processed files: {{files}}', {
+                files: processedFiles.join(', ')
+              })
+            ]
+          : []),
+        getTranslationFromI18nKeyAndLabel('irm:booklet.insight.answered_questions', 'Answered questions: {{count}}', {
+          count: answeredQuestions
+        })
       ],
       job_id: newJobId ?? undefined
     }
@@ -219,20 +284,21 @@ export function useGenerateAIBooklet(
         const parsedStatus = bookletStatusSchema.parse(statusResponse)
 
         const normalizedState = parsedStatus.state.toLowerCase()
+        const result = buildBookletSummaryFromStatus(parsedStatus)
+
         if (normalizedState === 'completed' || normalizedState === 'failed') {
           setJobId(null)
-          await startNewBookletJob()
+          setState({ type: 'success', content: result })
           return
         }
 
         setJobId(parsedStatus.job_id)
-        const result = buildBookletSummaryFromStatus(parsedStatus)
         setState({ type: 'success', content: result })
       } catch {
         setState({ type: 'error' })
       }
     },
-    [accessToken, buildBookletSummaryFromStatus, restClient, startNewBookletJob]
+    [accessToken, buildBookletSummaryFromStatus, restClient]
   )
 
   const generateSummary = useCallback(async () => {
