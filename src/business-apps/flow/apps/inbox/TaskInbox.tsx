@@ -6,8 +6,7 @@ import {
   FileTextOutlined,
   InfoCircleOutlined,
   OrderedListOutlined,
-  EyeOutlined,
-  WarningOutlined
+  EyeOutlined
 } from '@ant-design/icons'
 import {
   Button,
@@ -139,7 +138,7 @@ const formatDueDate = (dueDateISO?: string): string => {
     }
 
     return dateStr
-  } catch (error) {
+  } catch {
     return dueDateISO
   }
 }
@@ -170,7 +169,7 @@ const formatCompletionDate = (completionDateISO?: string): string => {
     }
 
     return dateStr
-  } catch (error) {
+  } catch {
     return completionDateISO
   }
 }
@@ -179,7 +178,7 @@ const isTaskOverdue = (dueDateISO?: string): boolean => {
   if (!dueDateISO) return false
   try {
     return new Date() > new Date(dueDateISO)
-  } catch (error) {
+  } catch {
     return false
   }
 }
@@ -205,53 +204,18 @@ const isJustClaimable = (task: Task): boolean => {
   )
 }
 
-const getDueDateTag = (task: Task): React.ReactNode => {
-  if (!task.dueDate) return null
-
-  const overdue = isTaskOverdue(task.dueDate)
-  const dueSoon = isTaskDueSoon(task.dueDate)
-
-  if (overdue) {
-    return (
-      <Badge
-        variant="destructive"
-        className="gba:flex gba:items-center gba:gap-1"
-        style={{ backgroundColor: 'var(--color-danger-500)', color: 'var(--color-on-danger)' }}
-      >
-        <WarningOutlined className="gba:w-3 gba:h-3" />
-        Overdue
-      </Badge>
-    )
-  } else if (dueSoon) {
-    return (
-      <Badge
-        variant="outline"
-        className="gba:flex gba:items-center gba:gap-1"
-        style={{ borderColor: 'var(--color-warning-500)', color: 'var(--color-warning-700)' }}
-      >
-        <ClockCircleOutlined className="gba:w-3 gba:h-3" />
-        Due Soon
-      </Badge>
-    )
-  } else {
-    return (
-      <Badge
-        variant="outline"
-        className="gba:flex gba:items-center gba:gap-1"
-        style={{ borderColor: 'var(--color-primary-500)', color: 'var(--color-primary-700)' }}
-      >
-        <ClockCircleOutlined className="gba:w-3 gba:h-3" />
-        {formatDueDate(task.dueDate)}
-      </Badge>
-    )
-  }
-}
-
 // Import mock users data
 import { mockUsers, type User as MockUser } from '../../data/mockUsers'
 
-const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', accessToken, ...context }) => {
-  const [selectedUserId, setSelectedUserId] = useState<string>('user-001')
+const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', accessToken, userInfo, ...context }) => {
+  // Get logged-in user's ID from userInfo
+  const loggedInUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || 'user-001'
+  const loggedInUserName =
+    userInfo?.givenName && userInfo?.familyName
+      ? `${userInfo.givenName} ${userInfo.familyName}`
+      : userInfo?.userName || 'Unknown User'
+
+  const [selectedUserId, setSelectedUserId] = useState<string>(loggedInUserId)
   const [tasks, setTasks] = useState<Task[]>([])
   const [taskStats, setTaskStats] = useState<TaskStats | null>(null)
   const [loading, setLoading] = useState(false)
@@ -521,21 +485,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }
 
-  const getTaskStatusColor = (status: string) => {
-    switch (status) {
-      case 'IN_PROGRESS':
-        return 'processing'
-      case 'SCHEDULED':
-        return 'default'
-      case 'COMPLETED':
-        return 'success'
-      case 'FAILED':
-        return 'error'
-      default:
-        return 'default'
-    }
-  }
-
+  /* eslint-disable newwork-local/no-hardcoded-colors */
   const getTaskTypeIcon = (task: Task) => {
     switch (task.type) {
       case 'APPROVAL':
@@ -550,36 +500,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
         return <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
     }
   }
-
-  const getStepTypeColor = (stepType: string) => {
-    switch (stepType) {
-      case 'APPROVAL':
-        return 'green'
-      case 'ACKNOWLEDGE':
-        return 'blue'
-      case 'TASK':
-        return 'purple'
-      case 'INFORMATION':
-        return 'orange'
-      default:
-        return 'default'
-    }
-  }
-
-  const getAssignmentStatusColor = (status: string) => {
-    switch (status) {
-      case 'assigned':
-        return 'blue'
-      case 'claimed':
-        return 'green'
-      case 'claimable':
-        return 'orange'
-      case 'completed':
-        return 'success'
-      default:
-        return 'default'
-    }
-  }
+  /* eslint-enable newwork-local/no-hardcoded-colors */
 
   const handleQuickClaim = async (e: React.MouseEvent, taskId: string) => {
     e.stopPropagation()
@@ -683,24 +604,45 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
                 <SelectValue placeholder="Select user" />
               </SelectTrigger>
               <SelectContent>
-                {mockUsers.map((user: MockUser) => (
-                  <SelectItem key={user.id} value={user.id}>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-500 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium">
-                        {user.name
-                          .split(' ')
-                          .map(n => n[0])
-                          .join('')}
-                      </div>
-                      <div>
-                        <div className="gba:font-medium">{user.name}</div>
-                        <div className="gba:text-xs gba:text-gray-500">
-                          {user.role} • {user.department}
-                        </div>
+                {/* Logged-in user first */}
+                <SelectItem key={loggedInUserId} value={loggedInUserId}>
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-green-500 gba:to-emerald-500 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium">
+                      {loggedInUserName
+                        .split(' ')
+                        .map(n => n[0])
+                        .join('')}
+                    </div>
+                    <div>
+                      <div className="gba:font-medium">{loggedInUserName} (You)</div>
+                      <div className="gba:text-xs gba:text-gray-500">
+                        {userInfo?.employeeDetails?.organizationalUnit?.name || 'Your Tasks'}
                       </div>
                     </div>
-                  </SelectItem>
-                ))}
+                  </div>
+                </SelectItem>
+
+                {/* Other mock users for testing */}
+                {mockUsers
+                  .filter(user => user.id !== loggedInUserId)
+                  .map((user: MockUser) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-500 gba:flex gba:items-center gba:justify-center gba:text-white gba:text-xs gba:font-medium">
+                          {user.name
+                            .split(' ')
+                            .map(n => n[0])
+                            .join('')}
+                        </div>
+                        <div>
+                          <div className="gba:font-medium">{user.name}</div>
+                          <div className="gba:text-xs gba:text-gray-500">
+                            {user.role} • {user.department}
+                          </div>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
@@ -1175,7 +1117,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
           style={{
             maxHeight: '90vh',
             overflow: 'auto',
-            backgroundColor: '#ffffff',
+            backgroundColor: '#ffffff', // eslint-disable-line newwork-local/no-hardcoded-colors
             border: '1px solid var(--color-border-default)',
             borderRadius: 'var(--border-radius-lg)',
             boxShadow: 'var(--shadow-lg)'
