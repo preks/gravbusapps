@@ -53,7 +53,7 @@ import DeleteRuleDialog from './components/DeleteRuleDialog'
 import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
-interface ExpenseCalculationRulesProps extends BusinessAppContextProps {}
+type ExpenseCalculationRulesProps = BusinessAppContextProps
 
 const PREFIX = 'expense-calculation-rules'
 
@@ -84,7 +84,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
   } = useExpenseCalculationRules(props)
 
   const handleEnhancedTableChange = useCallback(
-    (pagination: { current: number; pageSize: number }, _filters?: any, _sorter?: any) => {
+    (pagination: { current: number; pageSize: number }) => {
       setPage(pagination.current)
       setPageSize(pagination.pageSize)
     },
@@ -155,7 +155,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
         const flagIds = (res?.ExpenseRuleFlag || []).map((f: any) => f?.expenseRuleId)
         const url = buildRuleDetailsUrl({ ...row, ruleFlagId: flagIds })
         window.location.href = url
-      } catch (_e) {
+      } catch {
         const url = buildRuleDetailsUrl({ ...row, ruleFlagId: [] })
         window.location.href = url
       }
@@ -360,7 +360,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                               {col.key !== 'actions' && (
                                 <button
                                   type="button"
-                                  className={`gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 ${sortField === col.key ? 'gba:text-black' : 'gba:text-gray-400'} gba:cursor-pointer hover:gba:text-black`}
+                                  className={`gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 ${sortField === col.key ? 'gba:text-black' : 'gba:text-gray-400'} gba:cursor-pointer gba:hover:text-black`}
                                   onClick={() => handleHeaderSort(col.key)}
                                   data-testid={`${PREFIX}-sort-${col.key}`}
                                   title="Sort"
@@ -587,7 +587,9 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                                   <PaginationLink
                                     onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
                                     className={
-                                      page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'
+                                      page === currentPage
+                                        ? 'gba:bg-blue-500 gba:text-background'
+                                        : 'gba:cursor-pointer'
                                     }
                                     data-testid={`${PREFIX}-pagination-page-${page}`}
                                   >

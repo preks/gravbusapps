@@ -24,7 +24,7 @@ const CostCenterSelect: React.FC<CostCenterSelectProps> = ({
           'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
           'Cost Center'
         )}
-        <span className="gba:text-[#707070]"> *</span>
+        <span className="gba:text-muted-foreground"> *</span>
       </label>
       <Select
         value={value}

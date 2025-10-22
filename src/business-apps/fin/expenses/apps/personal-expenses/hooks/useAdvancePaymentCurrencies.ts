@@ -40,8 +40,11 @@ export const useAdvancePaymentCurrencies = (
 
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId
-    if (!employeeId || !context?.accessToken) return
-    ;(async () => {
+    if (!employeeId || !context?.accessToken) {
+      return
+    }
+
+    const fetchCurrencies = async () => {
       try {
         const data = await graphqlClient.request<any>(GET_USED_ADVANCE_PAYMENT_CURRENCIES, {
           employeeId,
@@ -54,10 +57,12 @@ export const useAdvancePaymentCurrencies = (
         const stats = aggregateCurrencyStats(rows, { fallbackRef: DEFAULT_CURRENCY_REF, fallbackCode: 'EUR' })
         setCurrencyStats(stats as CurrencyStat[])
         preselectMostUsedOnce(stats as CurrencyStat[])
-      } catch (_e) {
+      } catch {
         // ignore
       }
-    })()
+    }
+
+    fetchCurrencies()
   }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce, graphqlClient])
 
   return {

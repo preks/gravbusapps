@@ -127,7 +127,6 @@ export const useCurrencyData = (accessToken: string, managerId: string) => {
       setLocalMostUsedCurrency(storeMostUsedCurrency)
       setIsLoading(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, managerId, fetchCurrencyData, isInitialized])
 
   // Default to most used currency, fallback to primary currency from store

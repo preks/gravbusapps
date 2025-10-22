@@ -15,8 +15,7 @@ export function applyFilters(
   item: any,
   getEmployee: (item: any) => any,
   selectedLocationIds: string[],
-  selectedDepartmentIds: string[],
-  currencyFilter?: string | null
+  selectedDepartmentIds: string[]
 ): boolean {
   const employee = getEmployee(item)
   const locationId = employee?.employeePosition?.siteLocation?.id

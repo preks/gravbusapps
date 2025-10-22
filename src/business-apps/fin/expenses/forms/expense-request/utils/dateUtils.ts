@@ -45,7 +45,7 @@ export const formatDateToISOString = (date: Date | string | undefined): string =
 
   try {
     return new Date(date).toISOString().split('T')[0]
-  } catch (error) {
+  } catch {
     return getCurrentDateAsISOString()
   }
 }

@@ -18,7 +18,6 @@ const ApprovalTableActions: React.FC<ApprovalTableActionsProps> = ({
   validationError,
   approvalError,
   isApproving,
-  onClearSelection,
   onApproveClick,
   dataTestIdPrefix
 }) => {

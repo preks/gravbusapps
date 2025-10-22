@@ -10,14 +10,7 @@ import { FormFooter, ExpenseFormContent } from './components'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 
 import { showToast } from '../../utils/notificationUtils'
-import {
-  FORM_STEPS,
-  PLAN_TYPES,
-  PLAN_STATUS,
-  DISABLED_FLAG,
-  SUBMIT_SUCCESS_RESET_TIMEOUT,
-  ABORT_EXIT_STRATEGY
-} from './constants/constants'
+import { FORM_STEPS, PLAN_TYPES, PLAN_STATUS, DISABLED_FLAG, ABORT_EXIT_STRATEGY } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
 import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { getCatalogTypeTransformer } from '../expense-request/utils/planUtils'
@@ -96,7 +89,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
           )
         }
       })
-    } catch (processError) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
       form.resetFields()
       setStep(FORM_STEPS.START)
@@ -146,12 +139,9 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
         event: EVENTS.SUBMIT
       }
 
-      let operationSuccessful = false
-
       try {
         dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
-        operationSuccessful = true
-      } catch (processError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
       }
 
@@ -161,7 +151,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
       //   setStep(FORM_STEPS.START);
       //   }, SUBMIT_SUCCESS_RESET_TIMEOUT)
       // }
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_request.error_fields_validation', 'Please check all required fields'),
         'error'
@@ -316,7 +306,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                       height: '96px',
                       width: '100%',
                       marginBottom: '16px',
-                      backgroundColor: '#F7F7F7',
+                      backgroundColor: 'hsl(var(--muted))',
                       padding: '0 24px',
                       borderRadius: '4px'
                     }}
@@ -365,7 +355,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                       height: '96px',
                       width: '100%',
                       marginBottom: '16px',
-                      backgroundColor: '#F7F7F7',
+                      backgroundColor: 'hsl(var(--muted))',
                       padding: '0 24px',
                       borderRadius: '4px'
                     }}

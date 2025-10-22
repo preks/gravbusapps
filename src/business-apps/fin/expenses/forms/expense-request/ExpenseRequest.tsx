@@ -12,14 +12,7 @@ import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/pla
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { formatDateToISO } from '@/common/utils/windowUtils'
 import { showToast } from '../../utils/notificationUtils'
-import {
-  FORM_STEPS,
-  REQUEST_TYPES,
-  REQUEST_STATUS,
-  DISABLED_FLAG,
-  PLAN_TYPE_ENUM,
-  SUBMIT_SUCCESS_RESET_TIMEOUT
-} from './constants/constants'
+import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS, DISABLED_FLAG, PLAN_TYPE_ENUM } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
 
 const { Title } = Typography
@@ -104,43 +97,75 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
     setStep(FORM_STEPS.PLAN)
   }
 
+  /**
+   * Parses additional properties from string or object
+   */
+  const parseAdditionalProperties = (additionalProps: any): any => {
+    if (typeof additionalProps === 'string') {
+      try {
+        return JSON.parse(additionalProps)
+      } catch {
+        return {}
+      }
+    }
+    return additionalProps
+  }
+
+  /**
+   * Builds form values from plan data
+   */
+  const buildFormValuesFromPlan = (fullPlanData: any, plan: PlanData): Partial<ExpenseFormValues> => {
+    const formValues: Partial<ExpenseFormValues> = {}
+
+    if (fullPlanData.title) {
+      formValues.title = fullPlanData.title
+    }
+
+    if (fullPlanData.costCenter?.id) {
+      formValues.costCenter = fullPlanData.costCenter.id
+      setSelectedCostCenter(fullPlanData.costCenter.id)
+    }
+
+    if (fullPlanData.projectId) {
+      formValues.project = fullPlanData.projectId
+    }
+
+    if (fullPlanData.description) {
+      formValues.comment = fullPlanData.description
+    }
+
+    // Handle trip-specific fields
+    if (plan.planType === PLAN_TYPE_ENUM.TRIP) {
+      setShowTransportation(true)
+      const additionalProps = parseAdditionalProperties(fullPlanData.additionalProperties)
+
+      if (additionalProps?.transportationMeans) {
+        formValues.transportationMeans = additionalProps.transportationMeans
+      }
+    }
+
+    return formValues
+  }
+
+  /**
+   * Updates form validity state
+   */
+  const updateFormValidity = (): void => {
+    const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
+    if (setFormIsValid) {
+      setFormIsValid(isFormValidValue)
+    }
+  }
+
   const handlePlanSelect = (plan: PlanData) => {
     setSelectedPlan(plan)
     const fullPlanData = expenseCatalogueData?.ExpensePlan?.find((p: any) => p.id === plan.id)
-    if (fullPlanData) {
-      const formValues: Partial<ExpenseFormValues> = {}
-      if (fullPlanData.title) {
-        formValues.title = fullPlanData.title
-      }
-      if (fullPlanData.costCenter?.id) {
-        formValues.costCenter = fullPlanData.costCenter.id
-        setSelectedCostCenter(fullPlanData.costCenter.id)
-      }
-      if (fullPlanData.projectId) {
-        formValues.project = fullPlanData.projectId
-      }
-      if (fullPlanData.description) {
-        formValues.comment = fullPlanData.description
-      }
-      if (plan.planType === PLAN_TYPE_ENUM.TRIP) {
-        setShowTransportation(true)
-        let additionalProps = fullPlanData.additionalProperties
-        if (typeof additionalProps === 'string') {
-          try {
-            additionalProps = JSON.parse(additionalProps)
-          } catch (error) {
-            additionalProps = {}
-          }
-        }
 
-        if (additionalProps?.transportationMeans) {
-          formValues.transportationMeans = additionalProps.transportationMeans
-        }
-      }
-      form.setFieldsValue(formValues)
-      const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-      setFormIsValid && setFormIsValid(isFormValidValue)
-    }
+    if (!fullPlanData) return
+
+    const formValues = buildFormValuesFromPlan(fullPlanData, plan)
+    form.setFieldsValue(formValues)
+    updateFormValidity()
   }
 
   const backButtonClick = () => {
@@ -166,11 +191,73 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
           )
         }
       })
-    } catch (processError) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
       form.resetFields()
       setSelectedPlan(null)
       setStep(FORM_STEPS.START)
+    }
+  }
+
+  /**
+   * Determines the expense type reference based on plan type or step
+   */
+  const determineExpenseTypeRef = (isTrip: boolean): string => {
+    if (selectedPlan?.planType) {
+      if (selectedPlan.planType === PLAN_TYPE_ENUM.TRIP) {
+        return getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData)?.id || ''
+      }
+      return getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData)?.id || ''
+    }
+
+    return isTrip
+      ? getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData)?.id || ''
+      : getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData)?.id || ''
+  }
+
+  /**
+   * Gets the currency from selected plan
+   */
+  const getSelectedPlanCurrency = (): string => {
+    if (!selectedPlan?.id) return ''
+
+    const planData = expenseCatalogueData?.ExpensePlan?.find((plan: { id: string }) => plan.id === selectedPlan.id)
+    return planData?.currency?.id || ''
+  }
+
+  /**
+   * Creates the submit data payload
+   */
+  const createSubmitData = (
+    values: ExpenseFormValues,
+    employeeId: string,
+    isTrip: boolean,
+    expenseTypeRef: string,
+    selectedPlanCurrency: string
+  ): any => {
+    const baseRequest = {
+      requestTypeRef: expenseTypeRef,
+      title: values.title,
+      status: REQUEST_STATUS.CREATED,
+      costCenter: values.costCenter,
+      project: values.project || '',
+      employee: employeeId,
+      description: values.comment || '',
+      expensePlan: selectedPlan?.id || '',
+      requestDate: formatDateToISO(new Date()),
+      currencyRef: selectedPlanCurrency || ''
+    }
+
+    return {
+      expenseRequest: {
+        ...baseRequest,
+        ...(isTrip && values.transportationMeans
+          ? {
+              additionalProperties: { transportationMeans: values.transportationMeans }
+            }
+          : {})
+      },
+      event: EVENTS.SUBMIT
     }
   }
 
@@ -180,81 +267,29 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       await form.validateFields()
 
       const values = form.getFieldsValue() as ExpenseFormValues
-
       const employeeId = userInfo?.employeeDetails?.employeeId
+
+      // Validate required data
       if (!accessToken || !employeeId) {
         showToast(t('lowcoder:create_expense_request.error_missing_user_info', 'Missing user information'), 'error')
         setLoading(false)
         return
       }
 
+      // Determine request type and prepare data
       const isTrip = step === FORM_STEPS.TRIP || (selectedPlan && selectedPlan?.planType === PLAN_TYPE_ENUM.TRIP)
-      let expenseTypeRef = ''
-      if (selectedPlan && selectedPlan?.planType) {
-        if (selectedPlan?.planType === PLAN_TYPE_ENUM.TRIP) {
-          expenseTypeRef = getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData)?.id
-        } else {
-          expenseTypeRef = getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData)?.id
-        }
-      } else {
-        expenseTypeRef =
-          (isTrip
-            ? getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData)?.id
-            : getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData)?.id) || ''
-      }
+      const expenseTypeRef = determineExpenseTypeRef(isTrip)
+      const selectedPlanCurrency = getSelectedPlanCurrency()
 
-      let selectedPlanCurrency = ''
-      if (selectedPlan && selectedPlan.id) {
-        const planData = expenseCatalogueData?.ExpensePlan?.find((plan: { id: string }) => plan.id === selectedPlan.id)
-        if (planData && planData.currency && planData.currency.id) {
-          selectedPlanCurrency = planData.currency.id
-        }
-      }
-
-      // Create base request object
-      const baseRequest = {
-        requestTypeRef: expenseTypeRef,
-        title: values.title,
-        status: REQUEST_STATUS.CREATED,
-        costCenter: values.costCenter,
-        project: values.project || '',
-        employee: employeeId,
-        description: values.comment || '',
-        expensePlan: selectedPlan?.id || '',
-        requestDate: formatDateToISO(new Date()),
-        currencyRef: selectedPlanCurrency || ''
-      }
-
-      // Add transportation means for trip requests
-      const submitData = {
-        expenseRequest: {
-          ...baseRequest,
-          ...(isTrip && values.transportationMeans
-            ? {
-                additionalProperties: { transportationMeans: values.transportationMeans }
-              }
-            : {})
-        },
-        event: EVENTS.SUBMIT
-      }
-
-      let operationSuccessful = false
+      // Create and submit data
+      const submitData = createSubmitData(values, employeeId, isTrip, expenseTypeRef, selectedPlanCurrency)
 
       try {
         dispatchProcessContinueEventIfEnabled(EVENTS.SUBMIT, submitData)
-        operationSuccessful = true
-      } catch (processError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.error_flows_message', 'Error in flow process'), 'error')
       }
-
-      // if (operationSuccessful) {
-      //   setTimeout(()=>{
-      //     form.resetFields();
-      //   setSelectedPlan(null);
-      //   setStep(FORM_STEPS.START);
-      //   }, SUBMIT_SUCCESS_RESET_TIMEOUT)
-      // }
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_request.error_fields_validation', 'Please check all required fields'),
         'error'
@@ -341,14 +376,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 <>
                   <div style={{ marginBottom: '0px' }} data-testid="selected-plan-section">
                     <Typography.Text
-                      style={{
-                        padding: '0 16px',
-                        display: 'block',
-                        fontSize: '16px',
-                        fontWeight: 500,
-                        marginBottom: '0',
-                        color: '#333'
-                      }}
+                      className="gba:block gba:px-4 gba:text-base gba:font-medium gba:mb-0 gba:text-foreground"
                       data-testid="selected-plan-label"
                     >
                       {t(
@@ -468,14 +496,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 {!isExpenseDisabled && (
                   <Button
                     variant="ghost"
-                    style={{
-                      height: '96px',
-                      width: '100%',
-                      marginBottom: '16px',
-                      backgroundColor: '#F7F7F7',
-                      padding: '0 24px',
-                      borderRadius: '4px'
-                    }}
+                    className="gba:h-24 gba:w-full gba:mb-4 gba:bg-muted gba:px-6 gba:rounded"
                     data-testid="expense-request-expense-button"
                     onClick={handleExpenseClick}
                   >
@@ -515,14 +536,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 {!isTripDisabled && (
                   <Button
                     variant="ghost"
-                    style={{
-                      height: '96px',
-                      width: '100%',
-                      marginBottom: '16px',
-                      backgroundColor: '#F7F7F7',
-                      padding: '0 24px',
-                      borderRadius: '4px'
-                    }}
+                    className="gba:h-24 gba:w-full gba:mb-4 gba:bg-muted gba:px-6 gba:rounded"
                     data-testid="expense-request-trip-button"
                     onClick={handleTripClick}
                   >
@@ -582,14 +596,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                     {/* Plan Button */}
                     <Button
                       variant="ghost"
-                      style={{
-                        height: '96px',
-                        width: '100%',
-                        marginBottom: '16px',
-                        backgroundColor: '#F7F7F7',
-                        padding: '0 24px',
-                        borderRadius: '4px'
-                      }}
+                      className="gba:h-24 gba:w-full gba:mb-4 gba:bg-muted gba:px-6 gba:rounded"
                       data-testid="expense-request-plan-button"
                       onClick={handlePlanClick}
                     >

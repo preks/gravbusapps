@@ -72,8 +72,7 @@ export const useExpenseRequestFilters = ({
   const {
     mostUsedCurrency: detectedCurrency,
     availableCurrencies: fetchedCurrencies,
-    isLoading: currenciesLoading,
-    error: currenciesError
+    isLoading: currenciesLoading
   } = useExpenseRequestCurrencies(contextProps, managerId || '')
 
   const debouncedSearch = useDebounce(search, 300)

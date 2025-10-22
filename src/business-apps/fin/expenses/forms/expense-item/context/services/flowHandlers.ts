@@ -28,7 +28,7 @@ export const initiateFlow = async (
   try {
     flowClient.setAccessToken(accessToken)
     return await flowClient.initiateFlow(flowDomain, flowProcessName, { employeeId })
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
       'error'
@@ -62,7 +62,7 @@ export const getOpenedTaskFlow = async (
   try {
     flowClient.setAccessToken(accessToken)
     return await flowClient.getOpenedTaskFlow(flowDomain, flowProcessName, processInstanceId, userId)
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
       'error'
@@ -110,7 +110,7 @@ export const completeTaskFlow = async (
       userId,
       submitData
     )
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
       'error'

@@ -39,15 +39,19 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setEndDateRange,
     setPlanDateRange,
     // expose effective date setter from filters hook
-    // @ts-ignore - new field exists in hook state
+    // @ts-expect-error - new field exists in hook state
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
     removeFilter
   } = useExpensePlanFilters()
 
-  const { data: overview, isLoading: overviewLoading, error: overviewError, fetchOverview } =
-    useExpensePlansOverview(props)
+  const {
+    data: overview,
+    isLoading: overviewLoading,
+    error: overviewError,
+    fetchOverview
+  } = useExpensePlansOverview(props)
   const selectedCurrencyRef = useMemo(
     () => getSelectedCurrencyRef(selectedFilters, 'Currency:v1:EUR'),
     [selectedFilters]
@@ -90,7 +94,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
         setFilters([...nonCurrency, 'currency:Currency:v1:EUR'])
         sessionStorage.setItem(storageKey, 'Currency:v1:EUR')
       }
-    } catch (_e) {
+    } catch {
       // ignore storage errors
     }
   }, [
@@ -177,7 +181,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       } else {
         sessionStorage.removeItem(storageKey)
       }
-    } catch (_e) {
+    } catch {
       // ignore storage errors
     }
   }
@@ -288,7 +292,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     const handleProcessCompletion = (event: any) => {
       try {
         if (event.detail?.resolution === 'success') {
-
           // Refresh overview (items + statistics)
           if (
             props.accessToken &&

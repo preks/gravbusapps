@@ -49,7 +49,7 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
             messageKey: 'The approval process has been canceled.'
           }
         })
-      } catch (processError) {
+      } catch {
         console.error('Error canceling process:', processError)
       }
       event.preventDefault()
@@ -151,7 +151,7 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
           <button
             onClick={refetch}
             style={{ marginTop: 'var(--nw-spacing-2)' }}
-            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-white gba:rounded gba:text-sm"
+            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-background gba:rounded gba:text-sm"
           >
             Retry
           </button>

@@ -47,9 +47,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
     setFormSubmitted,
     setHasInteracted,
     setStandardValidationFailed,
-    shouldShowError,
-    getCurrentActiveUserLocale: _unusedLocale,
-    getDateFormat: _unusedDateFormat
+    shouldShowError
   } = useCreateCalculationRuleForm({ accessToken, navigationPayload })
 
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -118,9 +116,14 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
   const handleSubmitClick = useCallback(() => {
     setHasInteracted(true)
     setFormSubmitted(true)
-    if (hasErrors) return
-    if (isUpdate && noInitialValuesChanged) return
-    ;(async () => {
+    if (hasErrors) {
+      return
+    }
+    if (isUpdate && noInitialValuesChanged) {
+      return
+    }
+
+    const submitForm = async () => {
       try {
         // 1) Determine candidate id/version for update
         const candidateId = navigationPayload?.id || lastRuleId
@@ -220,10 +223,12 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
         })
 
         onCreate?.()
-      } catch (e) {
+      } catch {
         // keep minimal handling for now
       }
-    })()
+    }
+
+    submitForm()
   }, [
     hasErrors,
     isUpdate,
