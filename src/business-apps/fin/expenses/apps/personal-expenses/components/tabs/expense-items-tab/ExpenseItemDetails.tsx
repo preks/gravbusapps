@@ -342,7 +342,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
             return (
               <div
                 key={file.uid}
-                className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-white gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
+                className="gba:flex gba:flex-col gba:items-center gba:p-2 gba:bg-background gba:rounded-lg gba:shadow-md gba:w-[104px] gba:min-h-[130px] gba:max-h-[150px]"
                 data-testid={`expense-file-card-${idx}`}
               >
                 {renderPreview()}
@@ -355,7 +355,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
                         style={{
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          backgroundSpace: 'nowrap',
                           maxWidth: '100%',
                           lineHeight: '1.2',
                           wordBreak: 'break-all'

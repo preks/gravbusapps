@@ -111,7 +111,7 @@ export const handleSubmit = async (
             }
           }
         }
-      } catch (flowError) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
           'error'
@@ -165,7 +165,7 @@ export const handleSubmit = async (
           FLOW_PROCESS_NAME
         )
         operationSuccessful = true
-      } catch (completeError) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
           'error'
@@ -184,7 +184,7 @@ export const handleSubmit = async (
           dispatchProcessContinueEvent(EVENTS.SUBMIT, submitData)
           operationSuccessful = true
         }
-      } catch (processError) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_type_item.error_flows',
@@ -209,7 +209,7 @@ export const handleSubmit = async (
         setIsEditMode(false)
       }
     }
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'),
       'error'
@@ -262,7 +262,7 @@ export const handleExpenseGroupChange = async (
     const types = await fetchExpenseTypes(value)
     setExpenseTypes({ [value]: types })
     setCustomFields({})
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_expense_types',
@@ -294,7 +294,7 @@ export const handleExpenseTypeChange = async (
   try {
     const fields = await fetchCustomFields([value])
     setCustomFields({ [value]: fields })
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_expense_custom_groups',
@@ -313,7 +313,7 @@ export const handleExpenseTypeChange = async (
 export const handleCurrencyChange = async (currencyId: string, form: any) => {
   try {
     form.setFieldsValue({ currency: currencyId })
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_type_item.process_error_data_fetch',

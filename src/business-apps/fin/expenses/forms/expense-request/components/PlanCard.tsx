@@ -47,7 +47,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
     <div
       className="gba:flex gba:flex-col"
       style={{
-        backgroundColor: '#ffffff',
+        backgroundColor: 'background',
         padding: '16px',
         width: '100%',
         cursor: selectable ? 'pointer' : 'default',
@@ -76,7 +76,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
         >
           <img src={`${iconPath}`} alt={iconTitle} width="20" height="20" data-testid="plan-card-icon-image" />
         </div>
-        <span style={{ fontSize: '14px', fontWeight: 500, color: '#333333' }} data-testid="plan-card-type">
+        <span style={{ fontSize: '14px', fontWeight: 500, color: 'foreground333' }} data-testid="plan-card-type">
           {iconTitle}
         </span>
       </div>
@@ -91,7 +91,10 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
             {title || t('lowcoder:expense_item_request_card.no_title', 'No Title')}
           </span>
           {tripInterval && (
-            <span style={{ fontSize: '14px', fontWeight: 400, color: '#666666' }} data-testid="plan-card-interval">
+            <span
+              style={{ fontSize: '14px', fontWeight: 400, color: 'muted-foreground' }}
+              data-testid="plan-card-interval"
+            >
               {tripInterval}
             </span>
           )}
@@ -129,7 +132,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
                 />
               </div>
               <span
-                style={{ fontSize: '14px', fontWeight: 'normal', color: '#A2519A' }}
+                style={{ fontSize: '14px', fontWeight: 'normal', color: 'primary' }}
                 data-testid="plan-card-payment-amount"
               >
                 {paymentAmount} {paymentCurrency}

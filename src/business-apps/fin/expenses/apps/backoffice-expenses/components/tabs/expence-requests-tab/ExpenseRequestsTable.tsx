@@ -1267,7 +1267,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       }
 
       return allExpenses
-    } catch (error) {
+    } catch {
       console.error('[EXPORT] Error fetching all expense requests:', error)
       throw error
     }
@@ -1361,7 +1361,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         toast.success('Export Successful', {
           description: `Exported ${formattedData.length} expense requests to CSV`
         })
-      } catch (error) {
+      } catch {
         console.error('[EXPORT CSV] Error during export:', error)
         toast.error('Export Failed', {
           description: 'Failed to export CSV: ' + (error instanceof Error ? error.message : String(error))
@@ -1410,7 +1410,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         toast.success('Export Successful', {
           description: `Exported ${formattedData.length} expense requests to Excel`
         })
-      } catch (error) {
+      } catch {
         console.error('[EXPORT EXCEL] Error during export:', error)
         toast.error('Export Failed', {
           description: 'Failed to export Excel: ' + (error instanceof Error ? error.message : String(error))
@@ -1466,7 +1466,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       )}
 
       <DataContainer
-        contentBackground="white"
+        contentBackground="background"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',

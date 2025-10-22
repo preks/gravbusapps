@@ -68,8 +68,8 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
         transition: 'width 0.3s, padding 0.3s, background-color 0.3s',
         cursor: 'pointer',
         width: expanded ? '300px' : '44px',
-        border: '2px solid #EBEBEB',
-        background: expanded ? '#F7F7F7' : '#EBEBEB',
+        border: '2px solid border',
+        background: expanded ? 'muted' : 'border',
         position: 'relative',
         overflow: 'hidden',
         height: '32px',
@@ -93,7 +93,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
           transition: 'opacity 0.3s, width 0.3s',
           backgroundColor: 'transparent',
           paddingLeft: '30px',
-          color: '#333'
+          color: 'foreground'
         }}
         data-testid="plan-search-input"
       />

@@ -356,7 +356,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                             data-testid={`${PREFIX}-header-${col.key}`}
                           >
                             <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:whitespace-nowrap">{col.title}</span>
+                              <span className="gba:backgroundspace-nowrap">{col.title}</span>
                               {col.key !== 'actions' && (
                                 <button
                                   type="button"
@@ -587,7 +587,9 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                                   <PaginationLink
                                     onClick={() => handleEnhancedTableChange({ current: page, pageSize }, {}, {})}
                                     className={
-                                      page === currentPage ? 'gba:bg-blue-500 gba:text-white' : 'gba:cursor-pointer'
+                                      page === currentPage
+                                        ? 'gba:bg-blue-500 gba:text-background'
+                                        : 'gba:cursor-pointer'
                                     }
                                     data-testid={`${PREFIX}-pagination-page-${page}`}
                                   >

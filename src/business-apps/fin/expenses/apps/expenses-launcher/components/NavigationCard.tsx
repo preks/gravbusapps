@@ -205,7 +205,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
         iconBg: 'gba:bg-blue-50',
         iconColor: 'gba:text-blue-500',
         statsBg: '#3B82F6',
-        statsText: 'gba:text-white'
+        statsText: 'gba:text-background'
       }
     }
 
@@ -215,7 +215,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
         iconBg: 'gba:bg-green-50',
         iconColor: 'gba:text-green-500',
         statsBg: '#10B981',
-        statsText: 'gba:text-white'
+        statsText: 'gba:text-background'
       }
     }
 
@@ -225,7 +225,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
         iconBg: 'gba:bg-sky-50',
         iconColor: 'gba:text-sky-500',
         statsBg: '#0EA5E9',
-        statsText: 'gba:text-white'
+        statsText: 'gba:text-background'
       }
     }
 
@@ -235,7 +235,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
         iconBg: 'gba:bg-green-50',
         iconColor: 'gba:text-green-500',
         statsBg: '#10B981',
-        statsText: 'gba:text-white'
+        statsText: 'gba:text-background'
       }
     }
 
@@ -245,7 +245,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
         iconBg: 'gba:bg-green-50',
         iconColor: 'gba:text-green-500',
         statsBg: '#10B981',
-        statsText: 'gba:text-white'
+        statsText: 'gba:text-background'
       }
     }
 
@@ -255,35 +255,35 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
           iconBg: 'gba:bg-blue-50',
           iconColor: 'gba:text-blue-500',
           statsBg: '#3B82F6',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-background'
         }
       case 'planning':
         return {
           iconBg: 'gba:bg-green-50',
           iconColor: 'gba:text-green-500',
           statsBg: '#10B981',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-background'
         }
       case 'reporting':
         return {
           iconBg: 'gba:bg-purple-50',
           iconColor: 'gba:text-purple-500',
           statsBg: '#8B5CF6',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-background'
         }
       case 'manager':
         return {
           iconBg: 'gba:bg-blue-50',
           iconColor: 'gba:text-blue-500',
           statsBg: '#3B82F6',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-background'
         }
       default:
         return {
           iconBg: 'gba:bg-gray-50',
           iconColor: 'gba:text-gray-600',
           statsBg: '#6B7280',
-          statsText: 'gba:text-white'
+          statsText: 'gba:text-background'
         }
     }
   }
@@ -417,7 +417,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
 
   return (
     <Card
-      className="gba:group gba:transition-all gba:duration-300 gba:h-full gba:bg-white/95 gba:backdrop-blur-md gba:border gba:border-white/20 gba:hover:shadow-xl gba:hover:shadow-black/10 gba:hover:border-white/40 gba:hover:bg-white gba:rounded-xl gba:overflow-hidden"
+      className="gba:group gba:transition-all gba:duration-300 gba:h-full gba:bg-background/95 gba:backdrop-blur-md gba:border gba:border-background/20 gba:hover:shadow-xl gba:hover:shadow-black/10 gba:hover:border-background/40 gba:hover:bg-background gba:rounded-xl gba:overflow-hidden"
       data-testid={`navigation-card-${area.id}`}
     >
       <CardHeader className="gba:pb-4 gba:px-6 gba:pt-6">

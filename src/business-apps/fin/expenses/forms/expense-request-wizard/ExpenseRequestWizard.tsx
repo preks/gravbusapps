@@ -4,11 +4,9 @@ import { Button } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
-import { showToast } from '../../utils/notificationUtils'
 import { EVENTS } from '../../utils/constants'
 import { ICONS } from '../../utils/icons'
 import { useExpenseRequestDateValidation } from './utils/dateValidationUtils'
-import dayjs from 'dayjs'
 
 import { ExpenseRequestWizardProvider, useExpenseRequestWizardContext } from './context/ExpenseRequestWizardContext'
 import { SCREEN_NAMES_ENUM } from './constants/constants'
@@ -185,26 +183,6 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   useEffect(() => {
     setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
   }, [expenseRequestData, isTrip, loading, additionalData])
-
-  const navigateToNextScreen = () => {
-    switch (currentScreen) {
-      case SCREEN_NAMES_ENUM.ITEMS_TAB:
-        if (!isTrip) setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB)
-        else setCurrentScreen(SCREEN_NAMES_ENUM.ALLOWANCE_TAB)
-        break
-      case SCREEN_NAMES_ENUM.CREATE_ITEM_TAB:
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB)
-        break
-      case SCREEN_NAMES_ENUM.TRIPS_TAB:
-        setCurrentScreen(SCREEN_NAMES_ENUM.ITEMS_TAB)
-        break
-      case SCREEN_NAMES_ENUM.ALLOWANCE_TAB:
-        setCurrentScreen(SCREEN_NAMES_ENUM.SUMMARY_TAB)
-        break
-      default:
-        break
-    }
-  }
 
   const navigateToPreviousScreen = () => {
     try {
@@ -528,11 +506,16 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
           </div>
         ) : expenseRuleError ? (
           <div
-            style={{ backgroundColor: '#f8d8e4', padding: '16px 24px', borderRadius: '4px', marginBottom: '32px' }}
+            style={{
+              backgroundColor: 'destructive-secondary',
+              padding: '16px 24px',
+              borderRadius: '4px',
+              marginBottom: '32px'
+            }}
             data-testid="expense-request-wizard-error-container"
           >
             <h3
-              style={{ fontSize: '14px', fontWeight: 700, color: '#ff0000', marginBottom: '8px' }}
+              style={{ fontSize: '14px', fontWeight: 700, color: 'destructive', marginBottom: '8px' }}
               data-testid="expense-request-wizard-error-title"
             >
               {getTranslationFromI18nKeyAndLabel(
@@ -541,7 +524,7 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
               )}
             </h3>
             <p
-              style={{ fontSize: '14px', color: '#595959', margin: 0 }}
+              style={{ fontSize: '14px', color: 'foreground', margin: 0 }}
               data-testid="expense-request-wizard-error-message"
             >
               {expenseRuleError}
@@ -729,7 +712,6 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
  */
 const ExpenseRequestWizard: React.FC<BusinessAppContextProps> = props => {
   const { accessToken, userInfo, additionalData } = props
-  const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
 
   return (
     <ExpenseRequestWizardProvider accessToken={accessToken} userInfo={userInfo} additionalData={additionalData}>

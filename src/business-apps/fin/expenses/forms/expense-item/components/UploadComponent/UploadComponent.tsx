@@ -386,7 +386,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
         >
           <div style={{ padding: '16px 0', fontFamily: 'Roboto, sans-serif' }} data-testid="modal-content">
             <p
-              style={{ marginBottom: '24px', fontSize: '16px', color: '#333', textAlign: 'center' }}
+              style={{ marginBottom: '24px', fontSize: '16px', color: 'foreground', textAlign: 'center' }}
               data-testid="modal-message"
             >
               {fileList.length > 1

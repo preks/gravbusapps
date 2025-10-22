@@ -311,8 +311,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
             <Button
               variant="secondary"
               icon={<img src={ICONS.FOCUS} alt="Create" className="gba:w-4 gba:h-4" />}
-              className="gba:flex gba:items-center gba:gap-1"
-              style={{ backgroundColor: 'border', borderRadius: '9999px', fontWeight: 600 }}
+              className="gba:flex gba:items-center gba:gap-1 gba:bg-border gba:rounded-full gba:font-semibold"
               data-testid="create-item-button"
               onClick={e => {
                 e.stopPropagation()

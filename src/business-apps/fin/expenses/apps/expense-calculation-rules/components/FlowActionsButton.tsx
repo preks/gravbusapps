@@ -46,7 +46,7 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
             alt="flows"
             className="gba:w-4 gba:h-4"
           /> */}
-          <LightningIcon color={open ? '#6c7fee' : '#000000'} weight={open ? 'fill' : 'regular'}></LightningIcon>
+          <LightningIcon color={open ? '#6c7fee' : 'foreground'} weight={open ? 'fill' : 'regular'}></LightningIcon>
           <span className="gba:font-bold gba:text-xs">
             {t('lowcoder:employee_list.flows_button.actions', 'Actions')}
           </span>
@@ -67,7 +67,7 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
                 key={`${label}-${idx}`}
                 className={`gba:flex gba:items-center gba:gap-2 ${
                   action.disabled
-                    ? 'gba:cursor-default gba:hover:bg-white gba:focus:bg-white gba:data-[highlighted]:bg-white gba:text-black'
+                    ? 'gba:cursor-default gba:hover:bg-background gba:focus:bg-background gba:data-[highlighted]:bg-background gba:text-black'
                     : 'gba:cursor-pointer'
                 }`}
                 tabIndex={action.disabled ? -1 : 0}

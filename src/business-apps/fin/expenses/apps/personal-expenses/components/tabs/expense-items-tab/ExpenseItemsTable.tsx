@@ -524,7 +524,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           }, [currencyStats, filterGroups, allSelectedFilters]),
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
-        contentBackground="white"
+        contentBackground="background"
         dataBody={
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>

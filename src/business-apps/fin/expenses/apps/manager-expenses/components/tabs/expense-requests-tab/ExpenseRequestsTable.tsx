@@ -500,11 +500,11 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                       </div>
                     </TableCell>
                     <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[13%]">
-                      <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                      <div className="gba:font-medium gba:text-sm gba:backgroundspace-nowrap gba:truncate">
                         {record.title ??
                           getTranslationFromI18nKeyAndLabel('lowcoder:common.untitled_request', 'Untitled Request')}
                       </div>
-                      <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                      <div className="gba:text-xs gba:text-muted-foreground gba:backgroundspace-nowrap gba:truncate">
                         {record.code ?? getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                       </div>
                     </TableCell>
@@ -566,7 +566,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                     </TableCell>
                     <TableCell className="gba:pr-6 gba:w-[20%]">
                       <span
-                        className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                        className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:backgroundspace-nowrap ${
                           pillTypeClassMap[String(type).toLowerCase() as keyof typeof pillTypeClassMap] ||
                           pillTypeClassMap.draft
                         }`}
@@ -788,7 +788,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           onFilterChange: handleDataFilterChange
         }}
         dataBody={renderDataBody()}
-        contentBackground="white"
+        contentBackground="background"
         data-testid="expense-requests-container"
       />
 

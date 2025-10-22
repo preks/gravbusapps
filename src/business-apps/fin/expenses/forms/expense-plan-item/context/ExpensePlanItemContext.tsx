@@ -98,7 +98,6 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null)
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null)
 
-  const [userCostCenter, setUserCostCenter] = useState<string>('')
   const [currentSelectedDate, setCurrentSelectedDate] = useState<Date | null>(null)
 
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
@@ -126,7 +125,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       const matchingItems = expenseGroups.filter((item: any) => uniqueExpenseGroupRefs.includes(item.id))
 
       setExpenseGroups(matchingItems)
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
         'error'
@@ -185,7 +184,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
           currency: defaultCurrency.id
         })
       }
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
   }
@@ -220,7 +219,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
             )
           )
         }
-      } catch (ruleError) {
+      } catch {
         setExpenseRuleError(
           t(
             'lowcoder:create_expense_item.missing_expense_rule_message',
@@ -246,7 +245,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
           }
         })
         setGeneralDataResponse(generalData)
-      } catch (generalDataError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
       }
 
@@ -263,7 +262,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
             }
           })
           setCatalogueDataResponse(catalogueData)
-        } catch (catalogueError) {
+        } catch {
           showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
         }
 
@@ -297,7 +296,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
                 setUserCostCenter(defaultCostCenter)
               }
             }
-          } catch (costCenterError) {
+          } catch {
             setCostCenters([])
           }
 
@@ -309,14 +308,14 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
             } else {
               setCurrencies([])
             }
-          } catch (currencyError) {
+          } catch {
             setCurrencies([])
           }
           setFirstRunVariable(true)
         }
       }
       setRerunRule(false)
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
   }
@@ -398,7 +397,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
                         }
                       })
                     }
-                  } catch (error) {
+                  } catch {
                     showToast(
                       getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_type_item.process_error_data_fetch',
@@ -411,7 +410,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
               }, 300) // Wait for custom fields to be loaded
             }
           }, 500) // Wait 500ms for expense types to load
-        } catch (error) {
+        } catch {
           showToast(
             t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
             'error'
@@ -419,7 +418,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         }
       }
       form.validateFields()
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.error_loading_item', 'Error loading expense plan item'), 'error')
     }
   }

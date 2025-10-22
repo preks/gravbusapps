@@ -779,7 +779,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         dataFilterProps={dataFilterProps}
         hideFilter={false}
         dataBody={renderDataBody()}
-        contentBackground="white"
+        contentBackground="background"
         addLeftPaddingWhenNoFilter={true}
       />
 

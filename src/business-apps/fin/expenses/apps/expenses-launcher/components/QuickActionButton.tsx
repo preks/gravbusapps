@@ -16,7 +16,7 @@ const QuickActionButton: React.FC<QuickActionButtonProps> = ({ action, onClick }
 
   return (
     <Card
-      className="gba:group gba:cursor-pointer gba:transition-all gba:duration-300 gba:bg-white/95 gba:backdrop-blur-md gba:border gba:border-white/20 hover:gba:shadow-xl hover:gba:shadow-black/10 hover:gba:border-white/40 hover:gba:bg-white hover:gba:scale-105 gba:rounded-xl gba:h-full"
+      className="gba:group gba:cursor-pointer gba:transition-all gba:duration-300 gba:bg-background/95 gba:backdrop-blur-md gba:border gba:border-background/20 hover:gba:shadow-xl hover:gba:shadow-black/10 hover:gba:border-background/40 hover:gba:bg-background hover:gba:scale-105 gba:rounded-xl gba:h-full"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       tabIndex={0}

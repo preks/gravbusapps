@@ -51,7 +51,7 @@ export const useExpenseRequestFilters = ({
         try {
           const results = await searchEmployees(debouncedEmployeeSearchText)
           setEmployeeSearchResults(results)
-        } catch (error) {
+        } catch {
           console.error('Error searching employees:', error)
           setEmployeeSearchResults([])
         } finally {

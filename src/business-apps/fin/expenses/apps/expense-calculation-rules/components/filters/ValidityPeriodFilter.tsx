@@ -30,7 +30,7 @@ const ValidityPeriodFilter: React.FC<ValidityPeriodFilterProps> = ({
           <Button
             variant="outline"
             data-testid={(dataTestId || 'validity-period-filter') + '-trigger'}
-            className="gba:whitespace-normal gba:p-5"
+            className="gba:backgroundspace-normal gba:p-5"
           >
             {from || to
               ? `${formatDate(from || '', 'date.long')} → ${formatDate(to || '', 'date.long')}`

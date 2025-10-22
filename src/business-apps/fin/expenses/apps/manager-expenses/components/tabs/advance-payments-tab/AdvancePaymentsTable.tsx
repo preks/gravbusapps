@@ -137,7 +137,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
           <Table data-testid="advance-payments-table" className="gba:w-full">
-            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-background gba:z-10 gba:border-b gba:border-border">
               <TableRow>
                 <TableHead
                   className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:bg-muted gba:font-semibold"
@@ -320,11 +320,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                     </div>
                   </TableCell>
                   <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[18%]">
-                    <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
+                    <div className="gba:font-medium gba:text-sm gba:backgroundspace-nowrap gba:truncate">
                       {record.expensePlan?.title ??
                         getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                     </div>
-                    <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
+                    <div className="gba:text-xs gba:text-muted-foreground gba:backgroundspace-nowrap gba:truncate">
                       {record.expensePlan?.code ??
                         getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
                     </div>
@@ -380,7 +380,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                       const status = getAdvancePaymentStatusDisplay(record.status)
                       return (
                         <span
-                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:whitespace-nowrap ${
+                          className={`gba:inline-block gba:rounded-full gba:px-3 gba:py-1 gba:text-xs gba:font-medium gba:backgroundspace-nowrap ${
                             ADV_STATUS_CLASSES[String(status.type).toLowerCase()] || ADV_STATUS_CLASSES.draft
                           }`}
                           data-testid={`status-pill-${String(status.type).toLowerCase()}`}

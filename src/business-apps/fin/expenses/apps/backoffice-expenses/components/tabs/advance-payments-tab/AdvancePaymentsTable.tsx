@@ -110,7 +110,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       try {
         const results = await searchReporters(debouncedReporterSearchText)
         setReporterSearchResults(results)
-      } catch (error) {
+      } catch {
         console.error(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:advance_payment_table.error_searching_reporters',
@@ -159,7 +159,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       try {
         const statuses = await searchStatuses()
         setAvailableStatuses(statuses)
-      } catch (error) {
+      } catch {
         console.error('Error loading available statuses:', error)
       }
     }
@@ -602,7 +602,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
           {/* Dropdown with search results */}
           {showReporterDropdown && reporterSearchText.trim() && (
-            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
               {renderReporterDropdownContent()}
             </div>
           )}
@@ -734,7 +734,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   return (
     <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
       <DataContainer
-        contentBackground="white"
+        contentBackground="background"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:backoffice_expense_landing_page.advance_title',

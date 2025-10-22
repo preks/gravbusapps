@@ -85,7 +85,7 @@ export const useExpensePlanCurrencies = (
         })
         setCurrencyStats(stats as PlanCurrencyStat[])
         preselectMostUsedOnce(stats as PlanCurrencyStat[])
-      } catch (_e) {
+      } catch {
         // ignore
       } finally {
         setInitialized(true)

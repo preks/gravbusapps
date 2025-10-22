@@ -62,7 +62,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[22%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.employee || ''}
           data-testid={`expense-request-employee-${record.id}`}
         >
@@ -71,7 +71,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[16%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.employeeCode || ''}
           data-testid={`expense-request-employee-code-${record.id}`}
         >
@@ -80,7 +80,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[16%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.sapNumber || ''}
           data-testid={`expense-request-sap-number-${record.id}`}
         >
@@ -89,7 +89,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[16%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.code || ''}
           data-testid={`expense-request-code-${record.id}`}
         >
@@ -98,7 +98,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell>
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.title || ''}
           data-testid={`expense-request-title-${record.id}`}
         >
@@ -107,7 +107,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[14%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.startDate || ''}
           data-testid={`expense-request-start-date-${record.id}`}
         >
@@ -116,7 +116,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[14%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.endDate || ''}
           data-testid={`expense-request-end-date-${record.id}`}
         >
@@ -125,7 +125,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[14%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap"
           title={record.creationDate || ''}
           data-testid={`expense-request-creation-date-${record.id}`}
         >
@@ -134,7 +134,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
       </TableCell>
       <TableCell className="gba:w-[22%]">
         <div
-          className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap gba:w-full gba:flex gba:justify-center"
+          className="gba:overflow-hidden gba:text-ellipsis gba:backgroundspace-nowrap gba:w-full gba:flex gba:justify-center"
           data-testid={`expense-request-status-${record.id}`}
         >
           <Badge variant={getExpenseRequestStatusDisplay(record.status).badgeVariant || 'outline'}>
