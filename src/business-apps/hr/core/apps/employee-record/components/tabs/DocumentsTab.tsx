@@ -422,14 +422,14 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, isSe
           } else {
             throw new Error('Failed to retrieve document content or empty response')
           }
-        } catch (fileClientErr) {
+        } catch {
           try {
             if (document.file) {
               window.open(document.file, '_blank')
             } else {
               throw new Error('No document file ID available')
             }
-          } catch (fallbackErr) {
+          } catch {
             setError('Unable to display the document. Please try again later.')
           }
         }
