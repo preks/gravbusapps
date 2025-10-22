@@ -39,7 +39,7 @@ const PLAN_STATUS_CLASSES: Record<string, string> = {
   error: 'gba:bg-destructive gba:text-destructive-foreground',
   preparing: 'gba:bg-muted gba:text-muted-foreground'
 }
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -663,7 +663,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
           )
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedItem?.title ||

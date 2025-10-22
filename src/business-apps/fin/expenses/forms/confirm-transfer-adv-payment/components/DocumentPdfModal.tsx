@@ -118,23 +118,23 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
 
           {/* Zoom Controls */}
           <div className="gba:flex gba:items-center gba:gap-1 gba:border-l gba:border-gray-600 gba:pl-3">
-            <button className="gba:text-gray-300 hover:gba:text-white gba:p-1">-</button>
+            <button className="gba:text-gray-300 gba:hover:text-white gba:p-1">-</button>
             <span className="gba:text-sm gba:px-2">100%</span>
-            <button className="gba:text-gray-300 hover:gba:text-white gba:p-1">+</button>
+            <button className="gba:text-gray-300 gba:hover:text-white gba:p-1">+</button>
           </div>
 
           {/* Action Buttons */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:border-l gba:border-gray-600 gba:pl-3">
-            <button className="gba:text-gray-300 hover:gba:text-white gba:p-2" title="Full Screen">
+            <button className="gba:text-gray-300 gba:hover:text-white gba:p-2" title="Full Screen">
               <FullscreenOutlined />
             </button>
-            <button className="gba:text-gray-300 hover:gba:text-white gba:p-2" title="Download">
+            <button className="gba:text-gray-300 gba:hover:text-white gba:p-2" title="Download">
               <DownloadOutlined />
             </button>
-            <button className="gba:text-gray-300 hover:gba:text-white gba:p-2" title="Print">
+            <button className="gba:text-gray-300 gba:hover:text-white gba:p-2" title="Print">
               <PrinterOutlined />
             </button>
-            <button className="gba:text-gray-300 hover:gba:text-white gba:p-2" title="More Options">
+            <button className="gba:text-gray-300 gba:hover:text-white gba:p-2" title="More Options">
               <MoreOutlined />
             </button>
           </div>

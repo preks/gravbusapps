@@ -12,7 +12,7 @@ const DEFAULT_KPI_VALUES = {
   DEFAULT_ANALYTICS_INSIGHTS: 27
 } as const
 
-const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, showManagerView, showFinanceView }) => {
+const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManagerView, showFinanceView }) => {
   // Get the icon component dynamically
   const IconComponent = (RemixIcons as any)[area.icon] || RemixIcons.RiQuestionLine
 
@@ -417,7 +417,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
 
   return (
     <Card
-      className="gba:group gba:transition-all gba:duration-300 gba:h-full gba:bg-white/95 gba:backdrop-blur-md gba:border gba:border-white/20 hover:gba:shadow-xl hover:gba:shadow-black/10 hover:gba:border-white/40 hover:gba:bg-white gba:rounded-xl gba:overflow-hidden"
+      className="gba:group gba:transition-all gba:duration-300 gba:h-full gba:bg-white/95 gba:backdrop-blur-md gba:border gba:border-white/20 gba:hover:shadow-xl gba:hover:shadow-black/10 gba:hover:border-white/40 gba:hover:bg-white gba:rounded-xl gba:overflow-hidden"
       data-testid={`navigation-card-${area.id}`}
     >
       <CardHeader className="gba:pb-4 gba:px-6 gba:pt-6">
@@ -452,7 +452,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
             area.links.map((link, index) => (
               <div
                 key={index}
-                className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                 onClick={e => handleLinkClick(link.action, e)}
                 data-testid={`navigation-link-${link.action}`}
               >
@@ -466,7 +466,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
               {area.id === 'expense-items' && (
                 <>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('assigned-items', 'Assigned', e)}
                     data-testid="quick-link-assigned-items"
                   >
@@ -474,7 +474,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
                     <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
                   </div>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('unassigned-items', 'Draft', e)}
                     data-testid="quick-link-unassigned-items"
                   >
@@ -487,7 +487,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
               {area.id === 'plans' && (
                 <>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('pending-plans', 'inApproval', e)}
                     data-testid="quick-link-pending-plans"
                   >
@@ -495,7 +495,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
                     <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
                   </div>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('approved-plans', 'Approved', e)}
                     data-testid="quick-link-approved-plans"
                   >
@@ -508,7 +508,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
               {area.id === 'advance-payments' && (
                 <>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('pending-advances', 'Prepared', e)}
                     data-testid="quick-link-pending-advances"
                   >
@@ -516,7 +516,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
                     <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
                   </div>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('approved-advances', 'inTransit', e)}
                     data-testid="quick-link-approved-advances"
                   >
@@ -529,7 +529,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
               {area.id === 'requests' && (
                 <>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('pending-approval', 'inApproval', e)}
                     data-testid="quick-link-pending-approval"
                   >
@@ -537,7 +537,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
                     <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
                   </div>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('draft-requests', 'Draft', e)}
                     data-testid="quick-link-draft-requests"
                   >
@@ -550,7 +550,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
               {area.id === 'analytics' && (
                 <>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('spending-trends', 'Trends', e)}
                     data-testid="quick-link-spending-trends"
                   >
@@ -558,7 +558,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
                     <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
                   </div>
                   <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer hover:gba:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                     onClick={e => handleQuickLinkClick('budget-analysis', 'Budget', e)}
                     data-testid="quick-link-budget-analysis"
                   >
@@ -573,7 +573,7 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, onClick, stats, s
 
         {/* Primary Action Button */}
         <button
-          className={`gba:w-full gba:py-3 gba:px-4 ${styles.statsText} gba:text-sm gba:font-semibold gba:rounded-lg hover:gba:opacity-90 gba:transition-all gba:duration-200 hover:gba:scale-[1.02] gba:shadow-sm`}
+          className={`gba:w-full gba:py-3 gba:px-4 ${styles.statsText} gba:text-sm gba:font-semibold gba:rounded-lg gba:hover:opacity-90 gba:transition-all gba:duration-200 gba:hover:scale-[1.02] gba:shadow-sm`}
           style={{ backgroundColor: buttonColor }}
           onClick={handleButtonClick}
           data-testid={`navigation-button-${area.id}`}

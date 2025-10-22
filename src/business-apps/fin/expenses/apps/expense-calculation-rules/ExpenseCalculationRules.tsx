@@ -360,7 +360,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                               {col.key !== 'actions' && (
                                 <button
                                   type="button"
-                                  className={`gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 ${sortField === col.key ? 'gba:text-black' : 'gba:text-gray-400'} gba:cursor-pointer hover:gba:text-black`}
+                                  className={`gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 ${sortField === col.key ? 'gba:text-black' : 'gba:text-gray-400'} gba:cursor-pointer gba:hover:text-black`}
                                   onClick={() => handleHeaderSort(col.key)}
                                   data-testid={`${PREFIX}-sort-${col.key}`}
                                   title="Sort"

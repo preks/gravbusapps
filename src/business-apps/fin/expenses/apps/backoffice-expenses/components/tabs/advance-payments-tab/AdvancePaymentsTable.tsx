@@ -770,7 +770,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           )
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedItem?.title ||
