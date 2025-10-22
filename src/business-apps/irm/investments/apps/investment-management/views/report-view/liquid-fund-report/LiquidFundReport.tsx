@@ -23,7 +23,7 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<string>('tab1')
 
   // Fetch catalog to get columns for each liquid fund type
-  const { catalogData, isLoading: catalogLoading } = useInvestmentLiquidFundReportCatalog({ accessToken, userInfo })
+  const { catalogData } = useInvestmentLiquidFundReportCatalog({ accessToken, userInfo })
 
   // Map tab IDs to liquid fund type codes
   const tabToLiquidFundTypeCode: Record<string, string> = {

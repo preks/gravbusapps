@@ -104,9 +104,9 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
 
   return (
     <div
-      className="gba:lead-details-container"
+      className="gba:lead-details-container gba:bg-background"
       data-testid="lead-opportunity-investment-detail"
-      style={{ backgroundColor: 'white', padding: '16px' }}
+      style={{ padding: '16px' }}
     >
       {/* Back navigation */}
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
@@ -145,7 +145,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       {/* Main content with tabs */}
       <div className="gba:lead-details-content" data-testid="lead-details-content">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
+          <TabsList className="gba:bg-hsl(var(--background)) gba:border gba:mb-6">
             <TabsTrigger value="overview" data-testid="overview-tab">
               <UserOutlined className="gba:mr-2" />
               Overview

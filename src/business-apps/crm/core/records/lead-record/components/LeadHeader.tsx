@@ -15,20 +15,12 @@ interface LeadHeaderProps {
   onStatusUpdate?: () => void
 }
 
-export const LeadHeader: React.FC<LeadHeaderProps> = ({
-  lead,
-  leadData,
-  leadId,
-  additionalData,
-  accessToken,
-  onStatusUpdate
-}) => {
+export const LeadHeader: React.FC<LeadHeaderProps> = ({ lead, leadData, leadId, accessToken }) => {
   return (
     <div
-      className="gba:lead-header"
+      className="gba:lead-header gba:bg-background"
       style={{
         marginBottom: '24px',
-        backgroundColor: 'white',
         borderRadius: '8px',
         padding: '20px'
       }}
@@ -72,8 +64,8 @@ export const LeadHeader: React.FC<LeadHeaderProps> = ({
 
             {/* Lead-specific fields */}
             <div
+              className="gba:text-muted-foreground"
               style={{
-                color: '#8c8c8c',
                 fontSize: '14px',
                 marginBottom: '8px'
               }}

@@ -16,11 +16,10 @@ const bookletServerSchema = z.object({
 })
 
 // UI schema extends server response for AiSummaryButton rendering
-const bookletSchema = bookletServerSchema.extend({
-  summary: z.string().describe('A concise status summary for display'),
-  keyInsights: z.array(z.string()).describe('Details and context for display')
-})
-type BookletSchema = z.infer<typeof bookletSchema>
+type BookletSchema = z.infer<typeof bookletServerSchema> & {
+  summary: string
+  keyInsights: string[]
+}
 
 const bookletStatusSchema = z.object({
   job_id: z.string().describe('Identifier of the async booklet generation job'),

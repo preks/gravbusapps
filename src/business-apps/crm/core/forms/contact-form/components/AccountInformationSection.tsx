@@ -115,9 +115,8 @@ const AccountInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-accent-secondary gba:to-accent"
         style={{
-          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -128,12 +127,6 @@ const AccountInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #c4b5fd, #a78bfa)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #ddd6fe, #c4b5fd)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'AccountInfoToggle')}
       >
@@ -152,7 +145,7 @@ const AccountInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -181,7 +174,7 @@ const AccountInformationSection: React.FC = () => {
                 onFocus={() => setIsDropdownOpen(true)}
                 placeholder="Please Enter or Select..."
                 required
-                className="gba:border-gray-300 gba:bg-white gba:pr-14"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:pr-14"
                 data-testid={formatDataTestId(prefixDataTestId, 'CompanyNameInput')}
               />
               <div className="gba:absolute gba:inset-y-0 gba:right-0 gba:flex gba:items-center gba:pr-4">
@@ -204,7 +197,7 @@ const AccountInformationSection: React.FC = () => {
               {isDropdownOpen && (
                 <div
                   ref={suggestionsScrollRef}
-                  className="gba:absolute gba:z-10 gba:w-full gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:max-h-60 gba:overflow-y-auto"
+                  className="gba:absolute gba:z-10 gba:w-full gba:bg-hsl(var(--background)) gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:max-h-60 gba:overflow-y-auto"
                   style={{ maxHeight: '200px', overflowY: 'auto' }}
                   onScroll={handleSuggestionsScroll}
                 >
@@ -238,7 +231,7 @@ const AccountInformationSection: React.FC = () => {
               value={formValues.ownerOrganizationId}
               onChange={e => setFormValues({ ownerOrganizationId: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'OwnerOrganizationIdInput')}
             />
           </div>

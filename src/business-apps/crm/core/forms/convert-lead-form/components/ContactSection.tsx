@@ -116,7 +116,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
   const [contacts, setContacts] = useState<any[]>([])
   const [contactsLoading, setContactsLoading] = useState(false)
   const [contactsHasMore, setContactsHasMore] = useState(true)
-  const [contactsTotal, setContactsTotal] = useState(0)
+  const [, setContactsTotal] = useState(0)
   const [contactsOffset, setContactsOffset] = useState(0)
   const [currentContactSearch, setCurrentContactSearch] = useState('')
   const [contactSearchTerm, setContactSearchTerm] = useState('')
@@ -585,14 +585,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
           {contactOption === 'new' && (
             <div className="gba:space-y-1">
               {/* Basic Information Section */}
-              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+              <div className="gba:bg-hsl(var(--background)) gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
                 <h4
                   className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
                   style={{
                     fontWeight: '700 !important',
-                    fontSize: '18px',
-                    color: '#111827'
+                    fontSize: '18px'
                   }}
+                  className="gba:text-foreground"
                 >
                   {getTranslationFromI18nKeyAndLabel('crm:contact.basicInformation', 'Basic Information')}
                 </h4>
@@ -722,7 +722,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                         }}
                         data-testid="contact-source-app-select"
                       >
-                        <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                        <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                           <SelectValue
                             placeholder={getTranslationFromI18nKeyAndLabel(
                               'crm:contact.selectSourceApp',
@@ -732,7 +732,7 @@ const ContactSection: React.FC<ContactSectionProps> = ({
                         </SelectTrigger>
                         <SelectContent
                           position="popper"
-                          className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:z-50"
+                          className="gba:bg-hsl(var(--background)) gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:z-50"
                         >
                           {/* CRM should be first/default option */}
                           <SelectItem value="CRM">CRM</SelectItem>
@@ -745,14 +745,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
 
               {/* Company Information Section */}
-              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+              <div className="gba:bg-hsl(var(--background)) gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
                 <h4
                   className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
                   style={{
                     fontWeight: '700 !important',
-                    fontSize: '18px',
-                    color: '#111827'
+                    fontSize: '18px'
                   }}
+                  className="gba:text-foreground"
                 >
                   {getTranslationFromI18nKeyAndLabel('crm:contact.companyInformation', 'Company Information')}
                 </h4>
@@ -831,14 +831,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
 
               {/* Contact Information Section */}
-              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+              <div className="gba:bg-hsl(var(--background)) gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
                 <h4
                   className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
                   style={{
                     fontWeight: '700 !important',
-                    fontSize: '18px',
-                    color: '#111827'
+                    fontSize: '18px'
                   }}
+                  className="gba:text-foreground"
                 >
                   {getTranslationFromI18nKeyAndLabel('crm:contact.contactInformation', 'Contact Information')}
                 </h4>
@@ -921,14 +921,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
 
               {/* Contact Relationship Section */}
-              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+              <div className="gba:bg-hsl(var(--background)) gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
                 <h4
                   className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
                   style={{
                     fontWeight: '700 !important',
-                    fontSize: '18px',
-                    color: '#111827'
+                    fontSize: '18px'
                   }}
+                  className="gba:text-foreground"
                 >
                   {getTranslationFromI18nKeyAndLabel('crm:contact.contactRelationship', 'Contact Relationship')}
                 </h4>
@@ -958,14 +958,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
 
               {/* Address Information Section */}
-              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+              <div className="gba:bg-hsl(var(--background)) gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
                 <h4
                   className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
                   style={{
                     fontWeight: '700 !important',
-                    fontSize: '18px',
-                    color: '#111827'
+                    fontSize: '18px'
                   }}
+                  className="gba:text-foreground"
                 >
                   {getTranslationFromI18nKeyAndLabel('crm:contact.addressInformation', 'Address Information')}
                 </h4>
@@ -976,14 +976,14 @@ const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
 
               {/* Owner Information Section */}
-              <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
+              <div className="gba:bg-hsl(var(--background)) gba:p-4 gba:rounded-lg gba:border gba:border-gray-200">
                 <h4
                   className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
                   style={{
                     fontWeight: '700 !important',
-                    fontSize: '18px',
-                    color: '#111827'
+                    fontSize: '18px'
                   }}
+                  className="gba:text-foreground"
                 >
                   {getTranslationFromI18nKeyAndLabel('crm:contact.ownerInformation', 'Owner Information')}
                 </h4>

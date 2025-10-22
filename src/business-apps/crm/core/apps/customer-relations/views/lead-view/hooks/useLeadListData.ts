@@ -111,7 +111,6 @@ export const useLeadListData = ({
     async (
       targetPage: number,
       newPageSize: number = pageSize,
-      additionalFilters: any = {},
       overrideSortField?: string,
       overrideSortOrder?: 'ASC' | 'DESC' | '',
       showLoading: boolean = true

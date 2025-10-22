@@ -28,7 +28,7 @@ export const useCurrenciesGraphQL = ({ accessToken, pageSize = 20 }: CurrenciesH
 
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const buildCurrenciesQuery = (search: string = '', offset: number = 0, limit: number = 20) =>
+  const buildCurrenciesQuery = (search: string = '') =>
     search.trim()
       ? `
         query GetCurrencies($limit: Int, $offset: Int, $search: String) {

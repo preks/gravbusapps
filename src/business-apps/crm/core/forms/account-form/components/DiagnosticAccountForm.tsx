@@ -7,7 +7,6 @@ import { env } from '@/common/env/EnvUtils'
 const DiagnosticAccountForm: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const [testResults, setTestResults] = useState<string[]>([])
   const [selectedStaticValue, setSelectedStaticValue] = useState('')
-  const [selectedApiValue, setSelectedApiValue] = useState('')
 
   const graphqlClient = useGraphQLClient(accessToken)
 
@@ -90,7 +89,7 @@ const DiagnosticAccountForm: React.FC<BusinessAppContextProps> = ({ accessToken,
       <h1 className="gba:text-2xl gba:font-bold gba:text-gray-900">Account Form Diagnostics</h1>
 
       {/* Static Select Test */}
-      <div className="gba:bg-white gba:border gba:rounded-lg gba:p-4">
+      <div className="gba:bg-hsl(var(--background)) gba:border gba:rounded-lg gba:p-4">
         <h2 className="gba:text-lg gba:font-semibold gba:mb-4">Static Select Test</h2>
         <Select value={selectedStaticValue} onValueChange={setSelectedStaticValue}>
           <SelectTrigger className="gba:w-full gba:mb-2">
@@ -111,7 +110,7 @@ const DiagnosticAccountForm: React.FC<BusinessAppContextProps> = ({ accessToken,
       </div>
 
       {/* API Connection Tests */}
-      <div className="gba:bg-white gba:border gba:rounded-lg gba:p-4">
+      <div className="gba:bg-hsl(var(--background)) gba:border gba:rounded-lg gba:p-4">
         <h2 className="gba:text-lg gba:font-semibold gba:mb-4">API Connection Tests</h2>
         <div className="gba:space-x-2">
           <Button onClick={testApiConnection}>Test API Connection</Button>
@@ -139,7 +138,7 @@ const DiagnosticAccountForm: React.FC<BusinessAppContextProps> = ({ accessToken,
       </div>
 
       {/* Test Results */}
-      <div className="gba:bg-white gba:border gba:rounded-lg gba:p-4">
+      <div className="gba:bg-hsl(var(--background)) gba:border gba:rounded-lg gba:p-4">
         <h2 className="gba:text-lg gba:font-semibold gba:mb-4">Test Results</h2>
         <div className="gba:bg-gray-50 gba:rounded gba:p-3 gba:max-h-60 gba:overflow-y-auto">
           {testResults.length === 0 ? (

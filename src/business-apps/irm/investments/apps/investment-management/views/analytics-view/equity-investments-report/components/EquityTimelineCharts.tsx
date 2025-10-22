@@ -225,7 +225,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
           <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
             <ComposedChart data={filteredEquityTimelineData.data} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -455,7 +455,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                   return value.length > 15 ? `${value.substring(0, 15)}...` : value
                 }}
               />
-              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {

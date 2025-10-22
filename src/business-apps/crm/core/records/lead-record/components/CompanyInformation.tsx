@@ -7,7 +7,7 @@ interface CompanyInformationProps {
   leadData: any
 }
 
-export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, leadData }) => {
+export const CompanyInformation: React.FC<CompanyInformationProps> = ({ leadData }) => {
   return (
     <Card title="Company Information" style={{ width: '100%', height: '100%' }}>
       <div>
@@ -17,52 +17,58 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
             {/* Left Column */}
             <div>
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Name</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {leadData?.companyName || '-'}
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Name
                 </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">{leadData?.companyName || '-'}</div>
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Legal Form</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Legal Form
+                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
                   {leadData?.legalForm?.value || '-'}
                 </div>
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Country</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {leadData?.country?.value || '-'}
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Country
                 </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">{leadData?.country?.value || '-'}</div>
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Industry</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Industry
+                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
                   {leadData?.industry?.value || '-'}
                 </div>
               </div>
 
               <div>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Address</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
-                  {leadData?.addressLine || '-'}
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Address
                 </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">{leadData?.addressLine || '-'}</div>
               </div>
             </div>
 
             {/* Right Column */}
             <div>
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Website</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Website
+                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
                   {leadData?.companyWebsite ? (
                     <a
                       href={leadData.companyWebsite}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ color: '#3b82f6', textDecoration: 'none' }}
+                      className="gba:text-primary gba:no-underline"
                     >
                       {leadData.companyWebsite}
                     </a>
@@ -73,10 +79,12 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>E-Mail</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  E-Mail
+                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
                   {leadData?.companyEmail ? (
-                    <a href={`mailto:${leadData.companyEmail}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>
+                    <a href={`mailto:${leadData.companyEmail}`} className="gba:text-primary gba:no-underline">
                       {leadData.companyEmail}
                     </a>
                   ) : (
@@ -86,10 +94,12 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Phone</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Phone
+                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
                   {leadData?.companyPhone ? (
-                    <a href={`tel:${leadData.companyPhone}`} style={{ color: '#3b82f6', textDecoration: 'none' }}>
+                    <a href={`tel:${leadData.companyPhone}`} className="gba:text-primary gba:no-underline">
                       {leadData.companyPhone}
                     </a>
                   ) : (
@@ -99,15 +109,19 @@ export const CompanyInformation: React.FC<CompanyInformationProps> = ({ lead, le
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Employees</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Employees
+                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
                   {leadData?.numberOfEmployees?.value || '-'}
                 </div>
               </div>
 
               <div>
-                <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '4px' }}>Revenue</div>
-                <div style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>
+                <div className="gba:text-sm gba:text-muted-foreground" style={{ marginBottom: '4px' }}>
+                  Revenue
+                </div>
+                <div className="gba:text-sm gba:font-medium gba:text-foreground">
                   {leadData?.annualRevenue?.value || '-'}
                 </div>
               </div>

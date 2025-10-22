@@ -57,11 +57,11 @@ export const ReportList: React.FC<ReportListProps> = ({ reports, onEdit, prefixD
   if (reports.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-        <FileText size={48} style={{ color: '#9ca3af', marginBottom: '16px' }} />
+        <FileText size={48} className="gba:text-muted-foreground gba:mb-4" />
         <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600' }}>
           {getTranslationFromI18nKeyAndLabel('report.list.empty.title', 'No Reports Found')}
         </h3>
-        <p style={{ margin: 0, color: '#6b7280' }}>
+        <p className="gba:m-0 gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel(
             'report.list.empty.description',
             'No investment reports match your current filters.'
@@ -101,21 +101,21 @@ export const ReportList: React.FC<ReportListProps> = ({ reports, onEdit, prefixD
             <TableRow key={report.id} data-testid={formatDataTestId(prefixDataTestId, `ReportRow-${report.id}`)}>
               <TableCell>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileText size={16} style={{ color: '#6b7280' }} />
+                  <FileText size={16} className="gba:text-muted-foreground" />
                   <div>
                     <div style={{ fontWeight: '500' }}>
                       {report.investment?.name ||
                         getTranslationFromI18nKeyAndLabel('report.list.unknown.investment', 'Unknown Investment')}
                     </div>
                     {report.investment?.code && (
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>{report.investment.code}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground">{report.investment.code}</div>
                     )}
                   </div>
                 </div>
               </TableCell>
               <TableCell>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Calendar size={14} style={{ color: '#6b7280' }} />
+                  <Calendar size={14} className="gba:text-muted-foreground" />
                   {formatDate(report.date)}
                 </div>
               </TableCell>
@@ -126,7 +126,7 @@ export const ReportList: React.FC<ReportListProps> = ({ reports, onEdit, prefixD
               <TableCell>
                 {report.investmentMarketValue ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <CurrencyDollar size={14} style={{ color: '#6b7280' }} />
+                    <CurrencyDollar size={14} className="gba:text-muted-foreground" />
                     {new Intl.NumberFormat('en-US', {
                       style: 'currency',
                       currency: 'USD',
@@ -135,7 +135,7 @@ export const ReportList: React.FC<ReportListProps> = ({ reports, onEdit, prefixD
                     }).format(report.investmentMarketValue)}
                   </div>
                 ) : (
-                  <span style={{ color: '#9ca3af' }}>-</span>
+                  <span className="gba:text-muted-foreground">-</span>
                 )}
               </TableCell>
               <TableCell>
@@ -200,7 +200,7 @@ export const ReportList: React.FC<ReportListProps> = ({ reports, onEdit, prefixD
             {getTranslationFromI18nKeyAndLabel('pagination.previous', 'Previous')}
           </Button>
 
-          <span style={{ fontSize: '14px', color: '#6b7280' }}>
+          <span className="gba:text-sm gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel('pagination.pageInfo', 'Page {current} of {total}', {
               current: currentPage,
               total: totalPages

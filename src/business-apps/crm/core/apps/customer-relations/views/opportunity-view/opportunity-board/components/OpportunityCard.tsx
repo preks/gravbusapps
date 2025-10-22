@@ -70,7 +70,7 @@ export function OpportunityCard({ opportunity, onCardClick }: OpportunityCardPro
       {...listeners}
       style={style}
       onClick={handleClick}
-      className={`gba:bg-white gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col gba:cursor-pointer ${
+      className={`gba:bg-hsl(var(--background)) gba:dark:bg-gray-800 gba:rounded-md gba:shadow-sm gba:border gba:border-gray-200 gba:dark:border-gray-700 gba:flex gba:flex-col gba:cursor-pointer ${
         isDragging ? 'gba:opacity-50' : ''
       }`}
     >

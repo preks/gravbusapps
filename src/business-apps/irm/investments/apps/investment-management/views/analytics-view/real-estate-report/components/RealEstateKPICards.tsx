@@ -33,11 +33,10 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
+            className="gba:bg-warning gba:text-warning-foreground"
             style={{
-              backgroundColor: '#fa8c16',
               borderRadius: '8px',
-              padding: '12px',
-              color: 'white'
+              padding: '12px'
             }}
           >
             <HomeOutlined style={{ fontSize: '24px' }} />
@@ -46,7 +45,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
             <Text type="secondary" style={{ fontSize: '14px' }}>
               {getTranslationFromI18nKeyAndLabel('kpi.totalPropertyValue', 'Total Property Value')}
             </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+            <div className="gba:text-foreground" style={{ fontSize: '24px', fontWeight: 'bold' }}>
               {formatCurrency(kpis.totalPropertyValue)}
             </div>
           </div>
@@ -59,11 +58,10 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
+            className="gba:bg-success gba:text-success-foreground"
             style={{
-              backgroundColor: '#52c41a',
               borderRadius: '8px',
-              padding: '12px',
-              color: 'white'
+              padding: '12px'
             }}
           >
             <BarChartOutlined style={{ fontSize: '24px' }} />
@@ -72,7 +70,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
             <Text type="secondary" style={{ fontSize: '14px' }}>
               {getTranslationFromI18nKeyAndLabel('kpi.averageOccupancyRate', 'Average Occupancy Rate')}
             </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+            <div className="gba:text-foreground" style={{ fontSize: '24px', fontWeight: 'bold' }}>
               {formatPercentage(kpis.averageOccupancyRate)}
             </div>
           </div>
@@ -82,11 +80,10 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       <Card data-testid={formatDataTestId(prefixDataTestId, 'KPICard-TotalUnits')} style={{ borderRadius: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
+            className="gba:bg-primary gba:text-primary-foreground"
             style={{
-              backgroundColor: '#1890ff',
               borderRadius: '8px',
-              padding: '12px',
-              color: 'white'
+              padding: '12px'
             }}
           >
             <BuildOutlined style={{ fontSize: '24px' }} />
@@ -95,7 +92,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
             <Text type="secondary" style={{ fontSize: '14px' }}>
               {getTranslationFromI18nKeyAndLabel('kpi.totalUnits', 'Total Units')}
             </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+            <div className="gba:text-foreground" style={{ fontSize: '24px', fontWeight: 'bold' }}>
               {formatNumber(kpis.totalUnits)}
             </div>
           </div>
@@ -108,11 +105,10 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
+            className="gba:bg-accent gba:text-accent-foreground"
             style={{
-              backgroundColor: '#722ed1',
               borderRadius: '8px',
-              padding: '12px',
-              color: 'white'
+              padding: '12px'
             }}
           >
             <DollarOutlined style={{ fontSize: '24px' }} />
@@ -121,7 +117,7 @@ export const RealEstateKPICards: React.FC<RealEstateKPICardsProps> = ({ kpis, pr
             <Text type="secondary" style={{ fontSize: '14px' }}>
               {getTranslationFromI18nKeyAndLabel('kpi.totalAnnualExpenses', 'Total Annual Expenses')}
             </Text>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+            <div className="gba:text-foreground" style={{ fontSize: '24px', fontWeight: 'bold' }}>
               {formatCurrency(kpis.totalAnnualExpenses)}
             </div>
           </div>

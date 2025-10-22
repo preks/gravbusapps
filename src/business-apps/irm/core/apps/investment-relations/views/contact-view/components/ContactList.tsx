@@ -38,7 +38,6 @@ export interface ContactListProps extends BusinessAppContextProps {
 
 export const ContactList: React.FC<ContactListProps> = ({
   contacts,
-  isLoading = false,
   totalCount,
   currentPage,
   pageSize,

@@ -23,7 +23,7 @@ export interface ContactDocumentResponse {
   CrmDocument: ContactDocumentData[]
 }
 
-export const GET_CONTACT_DOCUMENTS = (variables: ContactDocumentQueryVariables): string => {
+export const GET_CONTACT_DOCUMENTS = (): string => {
   return `
     query GetContactDocuments($contactId: uuid!) {
       CrmDocument(where: {contact: {id: {_eq: $contactId}}, isDeleted: {_eq: false}}) {

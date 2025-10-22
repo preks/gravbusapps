@@ -19,7 +19,6 @@ import { translateMultipleTexts } from '../utils/translationService'
 import { useAiSummary } from '../hooks/useAiSummary'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { CheckCircleOutlined } from '@ant-design/icons'
-import { useSalesManagerEmployees } from '../../opportunity-record/hooks/useSalesManagerEmployees'
 
 const { Text } = Typography
 
@@ -62,7 +61,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   const { fetchSalesTasks } = useGetSalesTasks(context)
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const graphqlClient = useGraphQLClient(context.accessToken)
-  const { salesManagers } = useSalesManagerEmployees(context.accessToken)
   const { generateSummary, state: aiSummaryState } = useAiSummary(leadId || '', context.accessToken)
 
   // Listen for process completion to refetch approval tasks
@@ -400,24 +398,6 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     }
   }, [leadId])
 
-  const handleAddActivity = () => {
-    if (leadId) {
-      // Store current tab to preserve state
-      const currentUrl = new URL(window.location.href)
-      currentUrl.searchParams.set('tab', 'activities')
-
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesActivity',
-        payload: {
-          leadId,
-          returnUrl: currentUrl.toString()
-        },
-        builderType: 'NATIVE_SCREEN'
-      })
-    }
-  }
-
   const handleDeleteActivity = (activity: SalesActivityData) => {
     setDeletePopup({ open: true, activity })
   }
@@ -494,37 +474,23 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
   // Helper function to get timing type icon
   const getTimingTypeIcon = (timingType?: string) => {
     if (!timingType) {
-      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
+      return <Clock className="gba:text-sm gba:text-muted-foreground" />
     }
 
     switch (timingType.toUpperCase()) {
       case 'DEADLINE':
-        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />
+        return <Clock className="gba:text-sm gba:text-destructive" />
       case 'SCHEDULED':
-        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />
+        return <Calendar className="gba:text-sm gba:text-info" />
       default:
-        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
-    }
-  }
-
-  const handleRequestApproval = () => {
-    if (leadId) {
-      startProcess({
-        domain: 'customer-relations',
-        processName: 'saveSalesTask',
-        payload: {
-          leadId,
-          typeRef: 'SalesTaskType:v1:APPROVAL' // Correct catalog format
-        },
-        builderType: 'NATIVE_SCREEN'
-      })
+        return <Clock className="gba:text-sm gba:text-muted-foreground" />
     }
   }
 
   return (
     <div
+      className="gba:bg-background"
       style={{
-        backgroundColor: 'white',
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
@@ -533,9 +499,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
     >
       {/* Tab Navigation */}
       <div
+        className="gba:bg-muted"
         style={{
-          borderBottom: '1px solid #f0f0f0',
-          backgroundColor: '#fafafa'
+          borderBottom: '1px solid #f0f0f0'
         }}
       >
         <div style={{ display: 'flex' }}>
@@ -546,7 +512,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               padding: '12px 24px',
               fontWeight: '500',
               color: activeTab === 'activities' ? '#1890ff' : '#8c8c8c',
-              backgroundColor: activeTab === 'activities' ? 'white' : 'transparent',
+              backgroundColor: activeTab === 'activities' ? 'hsl(var(--background))' : 'transparent',
               flex: 1,
               textAlign: 'center',
               cursor: 'pointer'
@@ -562,7 +528,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               padding: '12px 24px',
               fontWeight: '500',
               color: activeTab === 'notes' ? '#1890ff' : '#8c8c8c',
-              backgroundColor: activeTab === 'notes' ? 'white' : 'transparent',
+              backgroundColor: activeTab === 'notes' ? 'hsl(var(--background))' : 'transparent',
               flex: 1,
               textAlign: 'center',
               cursor: 'pointer'
@@ -578,7 +544,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               padding: '12px 24px',
               fontWeight: '500',
               color: activeTab === 'approvals' ? '#1890ff' : '#8c8c8c',
-              backgroundColor: activeTab === 'approvals' ? 'white' : 'transparent',
+              backgroundColor: activeTab === 'approvals' ? 'hsl(var(--background))' : 'transparent',
               flex: 1,
               textAlign: 'center',
               cursor: 'pointer'
@@ -594,7 +560,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
               padding: '12px 24px',
               fontWeight: '500',
               color: activeTab === 'ai-summary' ? '#1890ff' : '#8c8c8c',
-              backgroundColor: activeTab === 'ai-summary' ? 'white' : 'transparent',
+              backgroundColor: activeTab === 'ai-summary' ? 'hsl(var(--background))' : 'transparent',
               flex: 1,
               textAlign: 'center',
               cursor: 'pointer'
@@ -662,14 +628,14 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
             {!activitiesLoading && !activitiesError && activities.length === 0 && (
               <Empty description="No activities yet" style={{ padding: '40px 0' }} data-testid="empty-activities">
-                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>Start by adding your first activity</div>
+                <div className="gba:text-sm gba:text-muted-foreground">Start by adding your first activity</div>
               </Empty>
             )}
 
             {!activitiesLoading && !activitiesError && activities.length > 0 && (
               <Timeline>
                 {activities.map((activity, index) => (
-                  <Timeline.Item key={activity.id || index} color="blue">
+                  <Timeline.Item key={activity.id || index}>
                     <div style={{ position: 'relative' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <Text strong>{activity.translatedTitle || activity.title}</Text>
@@ -685,9 +651,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                       {getActivityTypeValue(activity.activityType) && (
                         <div style={{ marginTop: '4px', marginBottom: '4px' }}>
                           <span
+                            className="gba:bg-muted gba:text-foreground"
                             style={{
-                              backgroundColor: '#f0f0f0',
-                              color: '#333',
                               padding: '2px 8px',
                               borderRadius: '4px',
                               fontSize: '12px',
@@ -762,7 +727,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             {approvalTasksLoading && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <Spin size="large" />
-                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>Loading approval tasks...</div>
+                <div className="gba:text-muted-foreground" style={{ marginTop: '16px' }}>
+                  Loading approval tasks...
+                </div>
               </div>
             )}
 
@@ -783,7 +750,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
 
             {!approvalTasksLoading && !approvalTasksError && approvalTasks.length === 0 && (
               <Empty description="No approval tasks" style={{ padding: '40px 0' }} data-testid="empty-approval-tasks">
-                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                <div className="gba:text-sm gba:text-muted-foreground">
                   No approval tasks have been created for this lead yet.
                 </div>
               </Empty>
@@ -794,7 +761,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 {approvalTasks.map(task => (
                   <Timeline.Item
                     key={task.id}
-                    dot={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                    dot={<CheckCircleOutlined className="gba:text-success" />}
                     style={{ position: 'relative' }}
                   >
                     <div style={{ paddingRight: '40px' }}>
@@ -807,9 +774,8 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         </div>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <span
+                            className="gba:bg-info-secondary gba:text-info"
                             style={{
-                              background: '#e6f7ff',
-                              color: '#1890ff',
                               padding: '2px 6px',
                               borderRadius: '4px',
                               fontSize: '12px',
@@ -822,7 +788,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                             style={{
                               background:
                                 task.priority?.value === 'High'
-                                  ? '#fff2e8'
+                                  ? 'hsl(var(--background))2e8'
                                   : task.priority?.value === 'Medium'
                                     ? '#f6ffed'
                                     : '#f0f0f0',
@@ -845,9 +811,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                               background: task.statusRef?.includes('COMPLETED')
                                 ? '#f6ffed'
                                 : task.statusRef?.includes('IN_PROGRESS')
-                                  ? '#fff7e6'
+                                  ? 'hsl(var(--background))7e6'
                                   : task.statusRef?.includes('OVERDUE')
-                                    ? '#fff2f0'
+                                    ? 'hsl(var(--background))2f0'
                                     : '#f0f0f0',
                               color: task.statusRef?.includes('COMPLETED')
                                 ? '#52c41a'
@@ -956,7 +922,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
             {aiSummaryState?.type === 'loading' && (
               <div style={{ textAlign: 'center', padding: '40px 0' }}>
                 <Spin size="large" />
-                <div style={{ marginTop: '16px', color: '#8c8c8c' }}>Generating AI summary...</div>
+                <div className="gba:text-muted-foreground" style={{ marginTop: '16px' }}>
+                  Generating AI summary...
+                </div>
               </div>
             )}
 
@@ -981,7 +949,7 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 style={{ padding: '40px 0' }}
                 data-testid="empty-ai-summary"
               >
-                <div style={{ fontSize: '14px', color: '#8c8c8c' }}>
+                <div className="gba:text-sm gba:text-muted-foreground">
                   Click "Generate Summary" to create an AI-powered summary of this lead
                 </div>
               </Empty>
@@ -992,21 +960,17 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 {/* Executive Summary */}
                 <div style={{ marginBottom: '24px' }}>
                   <div
+                    className="gba:text-base gba:font-medium gba:text-foreground"
                     style={{
-                      fontSize: '16px',
-                      fontWeight: '500',
-                      marginBottom: '12px',
-                      color: '#262626'
+                      marginBottom: '12px'
                     }}
                   >
                     Executive Summary
                   </div>
                   <div
+                    className="gba:text-sm gba:text-muted-foreground gba:bg-muted"
                     style={{
-                      fontSize: '14px',
                       lineHeight: '1.6',
-                      color: '#595959',
-                      backgroundColor: '#fafafa',
                       padding: '16px',
                       borderRadius: '6px',
                       border: '1px solid #f0f0f0'
@@ -1020,11 +984,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                 {aiSummaryState.content.keyInsights && aiSummaryState.content.keyInsights.length > 0 && (
                   <div>
                     <div
+                      className="gba:text-base gba:font-medium gba:text-foreground"
                       style={{
-                        fontSize: '16px',
-                        fontWeight: '500',
-                        marginBottom: '12px',
-                        color: '#262626'
+                        marginBottom: '12px'
                       }}
                     >
                       Key Insights & Next Steps
@@ -1035,11 +997,10 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                         <List.Item style={{ padding: '8px 0', border: 'none' }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                             <div
+                              className="gba:bg-primary gba:text-primary-foreground"
                               style={{
                                 minWidth: '20px',
                                 height: '20px',
-                                backgroundColor: '#1890ff',
-                                color: 'white',
                                 borderRadius: '50%',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1052,10 +1013,9 @@ export const ActivityTimeline: React.FC<ActivityTimelineProps> = ({ leadId, cont
                               {index + 1}
                             </div>
                             <div
+                              className="gba:text-sm gba:text-muted-foreground"
                               style={{
-                                fontSize: '14px',
-                                lineHeight: '1.5',
-                                color: '#595959'
+                                lineHeight: '1.5'
                               }}
                             >
                               {String(insight)}

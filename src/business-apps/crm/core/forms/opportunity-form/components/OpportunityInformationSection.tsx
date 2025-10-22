@@ -177,7 +177,7 @@ const OpportunityInformationSection: React.FC = () => {
             onChange={e => setFormValues({ name: e.target.value })}
             placeholder="Please Enter..."
             required
-            className="gba:border-gray-300 gba:bg-white"
+            className="gba:border-gray-300 gba:bg-hsl(var(--background))"
             data-testid={formatDataTestId(prefixDataTestId, 'NameInput')}
           />
         </div>
@@ -220,7 +220,7 @@ const OpportunityInformationSection: React.FC = () => {
               onValueChange={value => setFormValues({ pipeline: value })}
               data-testid={formatDataTestId(prefixDataTestId, 'PipelineSelect')}
             >
-              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent
@@ -250,7 +250,7 @@ const OpportunityInformationSection: React.FC = () => {
               }}
               data-testid={formatDataTestId(prefixDataTestId, 'SalesPipelineStageSelect')}
             >
-              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                 <SelectValue
                   placeholder={
                     !formValues.pipeline
@@ -289,7 +289,7 @@ const OpportunityInformationSection: React.FC = () => {
             onValueChange={value => setFormValues({ opportunityStatus: value })}
             data-testid={formatDataTestId(prefixDataTestId, 'StatusSelect')}
           >
-            <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+            <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
               <SelectValue placeholder="Please Select..." />
             </SelectTrigger>
             <SelectContent
@@ -320,7 +320,7 @@ const OpportunityInformationSection: React.FC = () => {
               onChange={e => setFormValues({ estimatedAmount: e.target.value })}
               placeholder="0.00"
               required
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'EstimatedAmountInput')}
             />
           </div>

@@ -147,7 +147,6 @@ export const useEmployeePositions = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
-  const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
   const [currentSearch, setCurrentSearch] = useState<string | undefined>(search)
   const [initialized, setInitialized] = useState(false)
@@ -186,7 +185,6 @@ export const useEmployeePositions = ({
       // Append new data for infinite scroll
       setEmployeePositions(prev => (offset === 0 ? validEmployees : [...prev, ...validEmployees]))
 
-      setTotal(totalCount)
       setOffset(prev => prev + EMPLOYEES_PER_PAGE)
 
       // Set hasMore to false if we got fewer items than requested OR if we've loaded all items
@@ -215,7 +213,6 @@ export const useEmployeePositions = ({
         setEmployeePositions([])
         setOffset(0)
         setHasMore(true)
-        setTotal(0)
         setError(null)
         setInitialized(false)
       }

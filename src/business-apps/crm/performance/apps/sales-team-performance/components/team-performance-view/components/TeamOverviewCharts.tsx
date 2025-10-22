@@ -28,14 +28,22 @@ interface TeamOverviewChartsProps extends BusinessAppContextProps {
   teamMembers: SalesTeamMember[]
 }
 
-// Chart color palette
-const CHART_COLORS = ['#1677ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96', '#13c2c2', '#fadb14']
+// Chart color palette using design tokens
+const CHART_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--success))',
+  'hsl(var(--warning))',
+  'hsl(var(--accent))',
+  'hsl(var(--destructive))',
+  'hsl(var(--info))',
+  'hsl(var(--muted))'
+]
 const ACTIVITY_TYPE_COLORS = {
-  Call: '#52c41a', // Green
-  Email: '#1677ff', // Blue
-  Meeting: '#fa8c16', // Orange
-  Task: '#722ed1', // Purple
-  Other: '#8c8c8c' // Gray
+  Call: 'hsl(var(--success))',
+  Email: 'hsl(var(--primary))',
+  Meeting: 'hsl(var(--warning))',
+  Task: 'hsl(var(--accent))',
+  Other: 'hsl(var(--muted-foreground))'
 }
 
 export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMembers, accessToken, userInfo }) => {
@@ -277,7 +285,7 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMemb
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip formatter={value => [value, 'Activities']} />
-                <Bar dataKey="activities" fill="#1677ff" />
+                <Bar dataKey="activities" fill="hsl(var(--primary))" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -305,14 +313,14 @@ export const TeamOverviewCharts: React.FC<TeamOverviewChartsProps> = ({ teamMemb
                 <Area
                   type="monotone"
                   dataKey="activities"
-                  fill="#1677ff"
+                  fill="hsl(var(--primary))"
                   fillOpacity={0.3}
-                  stroke="#1677ff"
+                  stroke="hsl(var(--primary))"
                   name="Total Activities"
                 />
-                <Line type="monotone" dataKey="calls" stroke="#52c41a" name="Calls" strokeWidth={2} />
-                <Line type="monotone" dataKey="emails" stroke="#1677ff" name="Emails" strokeWidth={2} />
-                <Line type="monotone" dataKey="meetings" stroke="#fa8c16" name="Meetings" strokeWidth={2} />
+                <Line type="monotone" dataKey="calls" stroke="hsl(var(--success))" name="Calls" strokeWidth={2} />
+                <Line type="monotone" dataKey="emails" stroke="hsl(var(--primary))" name="Emails" strokeWidth={2} />
+                <Line type="monotone" dataKey="meetings" stroke="hsl(var(--warning))" name="Meetings" strokeWidth={2} />
               </ComposedChart>
             </ResponsiveContainer>
           </CardContent>
