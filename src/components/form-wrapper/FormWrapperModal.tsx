@@ -41,6 +41,8 @@ interface FormWrapperModalProps {
   validateForm?: (_formData: FieldValues) => string[] | null
   isSubmitDisabled?: boolean
   preventDuplicateSubmission?: boolean
+  updateValues?: FieldValues
+  resetFields?: string[]
 
   // Error handling
   showErrorMessage?: boolean
@@ -85,6 +87,8 @@ const FormWrapperModal = ({
   validateForm,
   isSubmitDisabled = false,
   preventDuplicateSubmission = true,
+  updateValues,
+  resetFields,
 
   // Error handling
   showErrorMessage = false,
@@ -128,6 +132,27 @@ const FormWrapperModal = ({
       setMessage({ type: 'error', message: errorMessage })
     }
   }, [errorMessage])
+
+  // Update form values when updateValues prop changes
+  useEffect(() => {
+    if (updateValues && Object.keys(updateValues).length > 0) {
+      // Generic approach: iterate through all fields in updateValues
+      Object.entries(updateValues).forEach(([fieldName, value]) => {
+        form.setValue(fieldName, value, { shouldDirty: true, shouldValidate: true })
+      })
+    }
+  }, [updateValues, form])
+
+  // Reset specific fields when resetFields prop changes
+  useEffect(() => {
+    if (resetFields && resetFields.length > 0) {
+      resetFields.forEach(fieldName => {
+        form.setValue(fieldName, '', { shouldDirty: true, shouldValidate: false })
+      })
+      // Clear errors for reset fields
+      form.clearErrors(resetFields)
+    }
+  }, [resetFields, form])
 
   const handleSubmit = useCallback(
     async (values?: FieldValues) => {
