@@ -191,6 +191,16 @@ export const CUSTOMER_TASK = `
       code
       name
     }
+    
+    # Documents
+    documents(where: { isDeleted: { _eq: false } }) {
+      id
+      name
+      file
+      fileInfo
+      mimeType
+      fileSize
+    }
 `
 
 export const CUSTOMER_SALES_ACTIVITY = `
@@ -210,18 +220,15 @@ export const CUSTOMER_SALES_ACTIVITY = `
     ownerEmployee {
       ${EMPLOYEE_REF}
     }
-`
-
-export const CUSTOMER_CRM_NOTE = `
-    id
-    title
-    text
-    reminderDate
-    ${AUDIT_FIELDS}
     
-    # Employee references
-    authorEmployee {
-      ${EMPLOYEE_REF}
+    # Documents
+    documents(where: { isDeleted: { _eq: false } }) {
+      id
+      name
+      file
+      fileInfo
+      mimeType
+      fileSize
     }
 `
 
@@ -246,5 +253,23 @@ export const CUSTOMER_CRM_DOCUMENT = `
     }
     documentType {
       ${CATALOG_ENTRY}
+    }
+`
+
+export const CUSTOMER_CRM_NOTE = `
+    id
+    title
+    text
+    reminderDate
+    ${AUDIT_FIELDS}
+    
+    # Employee references
+    authorEmployee {
+      ${EMPLOYEE_REF}
+    }
+    
+    # Documents relationship
+    documents(where: { isDeleted: { _eq: false } }) {
+      ${CUSTOMER_CRM_DOCUMENT}
     }
 `

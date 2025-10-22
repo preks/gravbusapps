@@ -12,16 +12,17 @@ import ContactSection from '@/common/components/common-relations/record-sections
 import InvestmentSection from '@/common/components/common-relations/record-sections/investment-section/InvestmentSection'
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
+import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import ConditionSection from '@/common/components/common-relations/record-sections/condition-section/ConditionSection'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { FileText, Users, Building } from '@phosphor-icons/react'
+import { FileTextIcon, UsersIcon, BuildingIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const mockAccountData = {
   name: 'Acme Corporation',
   legalForm: { value: 'GmbH' },
   industry: { value: 'Technology' },
-  addressLine: { lines: ['Main Street 123', 'Building 5'] },
+  addressLine: { lines: ['Main Street 123', 'BuildingIcon 5'] },
   locality: 'Berlin',
   postalCode: '10115',
   region: { value: 'Berlin' },
@@ -88,7 +89,7 @@ const mockAccounts = [
     name: 'GlobalTech Solutions',
     legalForm: { value: 'AG' },
     industry: { value: 'Consulting' },
-    addressLine: { lines: ['Business Park 456', 'Building A, Floor 3'] },
+    addressLine: { lines: ['Business Park 456', 'BuildingIcon A, Floor 3'] },
     locality: 'Berlin',
     postalCode: '10119',
     region: { value: 'Berlin' },
@@ -462,12 +463,12 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.type', 'Type'),
             value: 'Record Example',
-            icon: Building
+            icon: BuildingIcon
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.status', 'Status'),
             value: 'Demo Mode',
-            icon: Users
+            icon: UsersIcon
           }
         ]
       }
@@ -483,7 +484,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
         {
           value: 'overview',
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
-          icon: <Users className="gba:mr-2" />,
+          icon: <UsersIcon className="gba:mr-2" />,
           content: (
             <>
               {/* Account Section - 1/3 width */}
@@ -573,7 +574,21 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                             displayName: 'Daniel Vorberg',
                             firstName: 'Daniel',
                             lastName: 'Vorberg'
-                          }
+                          },
+                          documents: [
+                            {
+                              id: 'doc_activity_1',
+                              name: 'Call Notes.pdf',
+                              mimeType: 'application/pdf',
+                              file: 'https://example.com/call-notes.pdf'
+                            },
+                            {
+                              id: 'doc_activity_2',
+                              name: 'Meeting Agenda.docx',
+                              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                              file: 'https://example.com/agenda.docx'
+                            }
+                          ]
                         },
                         {
                           id: 'a2',
@@ -587,7 +602,15 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                             displayName: 'Current User',
                             firstName: 'Current',
                             lastName: 'User'
-                          }
+                          },
+                          documents: [
+                            {
+                              id: 'doc_activity_3',
+                              name: 'Follow-up Email.txt',
+                              mimeType: 'text/plain',
+                              file: 'https://example.com/followup.txt'
+                            }
+                          ]
                         }
                       ],
                       activitiesLoading: false,
@@ -620,6 +643,53 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                     component: NoteSection,
                     props: {
                       ...context,
+                      notes: [
+                        {
+                          id: 'note_1',
+                          noteTitle: 'Client Requirements',
+                          noteText:
+                            'Client needs integration with their existing CRM system. Priority features: automated reporting and real-time data sync.',
+                          createdAt: new Date().toISOString(),
+                          createdBy: 'Daniel Vorberg',
+                          authorEmployee: {
+                            id: 'emp_daniel_vorberg',
+                            displayName: 'Daniel Vorberg',
+                            firstName: 'Daniel',
+                            lastName: 'Vorberg'
+                          },
+                          documents: [
+                            {
+                              id: 'doc_note_1',
+                              name: 'Requirements.pdf',
+                              mimeType: 'application/pdf',
+                              file: 'https://example.com/requirements.pdf'
+                            },
+                            {
+                              id: 'doc_note_2',
+                              name: 'Integration Specs.xlsx',
+                              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                              file: 'https://example.com/specs.xlsx'
+                            }
+                          ]
+                        },
+                        {
+                          id: 'note_2',
+                          noteTitle: 'Follow-up Action Items',
+                          noteText:
+                            'Schedule technical demo for next week. Prepare cost estimate and timeline proposal.',
+                          createdAt: new Date(Date.now() - 86400000).toISOString(),
+                          createdBy: 'Current User',
+                          reminderAt: new Date(Date.now() + 3 * 86400000).toISOString(),
+                          documents: [
+                            {
+                              id: 'doc_note_3',
+                              name: 'Demo Preparation.docx',
+                              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                              file: 'https://example.com/demo-prep.docx'
+                            }
+                          ]
+                        }
+                      ],
                       noteActionProps: {
                         contextsArray: [FlowContextName.investmentNoteEntity],
                         externalContextData: { ...entityIds },
@@ -636,6 +706,124 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                   }
                 ]}
                 data-testid="record-example-note-section-wrapper"
+              />
+
+              {/* Tasks Section - full width */}
+              <SectionWrapper
+                className="gba:col-span-12 gba:row-span-1"
+                sections={[
+                  {
+                    id: 'task-section',
+                    component: TaskSection,
+                    props: {
+                      ...context,
+                      tasks: [
+                        {
+                          id: 'task_1',
+                          title: 'Prepare Technical Proposal',
+                          description:
+                            'Create comprehensive technical proposal including architecture diagrams and cost estimates',
+                          createdAt: new Date().toISOString(),
+                          due: new Date(Date.now() + 7 * 86400000).toISOString(),
+                          statusCode: 'IN_PROGRESS' as const,
+                          taskStatus: { code: 'IN_PROGRESS', value: 'In Progress' },
+                          taskPriority: { code: 'HIGH', value: 'High', type: 'HIGH' },
+                          taskTiming: 'DEADLINE' as const,
+                          assigneeEmployee: {
+                            id: 'emp_daniel_vorberg',
+                            displayName: 'Daniel Vorberg',
+                            firstName: 'Daniel',
+                            lastName: 'Vorberg'
+                          },
+                          documents: [
+                            {
+                              id: 'doc_task_1',
+                              name: 'Architecture Diagram.png',
+                              mimeType: 'image/png',
+                              file: 'https://example.com/architecture.png'
+                            },
+                            {
+                              id: 'doc_task_2',
+                              name: 'Cost Estimate Template.xlsx',
+                              mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                              file: 'https://example.com/cost-template.xlsx'
+                            }
+                          ]
+                        },
+                        {
+                          id: 'task_2',
+                          title: 'Schedule Client Demo',
+                          description: 'Coordinate with client stakeholders for product demo next week',
+                          createdAt: new Date(Date.now() - 86400000).toISOString(),
+                          due: new Date(Date.now() + 3 * 86400000).toISOString(),
+                          statusCode: 'PENDING' as const,
+                          taskStatus: { code: 'PENDING', value: 'Pending' },
+                          taskPriority: { code: 'MEDIUM', value: 'Medium', type: 'MEDIUM' },
+                          taskTiming: 'SCHEDULED' as const,
+                          startDate: new Date(Date.now() + 3 * 86400000).toISOString(),
+                          assigneeEmployee: {
+                            id: context.userInfo?.employeeDetails.employeeId || 'emp_current_user',
+                            displayName: 'Current User',
+                            firstName: 'Current',
+                            lastName: 'User'
+                          },
+                          documents: [
+                            {
+                              id: 'doc_task_3',
+                              name: 'Demo Script.docx',
+                              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                              file: 'https://example.com/demo-script.docx'
+                            }
+                          ]
+                        },
+                        {
+                          id: 'task_3',
+                          title: 'Review Contract Terms',
+                          description: 'Legal review of proposed contract terms',
+                          createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+                          due: new Date(Date.now() - 1 * 86400000).toISOString(),
+                          statusCode: 'COMPLETED' as const,
+                          taskStatus: { code: 'COMPLETED', value: 'Completed' },
+                          taskPriority: { code: 'HIGH', value: 'High', type: 'HIGH' },
+                          taskTiming: 'DEADLINE' as const,
+                          assigneeEmployee: {
+                            id: 'emp_legal_team',
+                            displayName: 'Legal Team',
+                            firstName: 'Legal',
+                            lastName: 'Team'
+                          },
+                          documents: [
+                            {
+                              id: 'doc_task_4',
+                              name: 'Contract Review.pdf',
+                              mimeType: 'application/pdf',
+                              file: 'https://example.com/contract-review.pdf'
+                            },
+                            {
+                              id: 'doc_task_5',
+                              name: 'Legal Comments.docx',
+                              mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                              file: 'https://example.com/legal-comments.docx'
+                            }
+                          ]
+                        }
+                      ],
+                      taskActionProps: {
+                        contextsArray: [FlowContextName.investmentTaskCreate],
+                        externalContextData: { ...entityIds },
+                        prefixDataTestId: 'record-example-tasks',
+                        emptyStateBehavior: 'enable'
+                      },
+                      taskEntityActionProps: {
+                        contextsArray: [FlowContextName.investmentTaskEntity],
+                        externalContextData: { ...entityIds },
+                        prefixDataTestId: 'record-example-task-entity',
+                        emptyStateBehavior: 'enable'
+                      }
+                    }
+                  }
+                ]}
+                data-testid="record-example-task-section-wrapper"
               />
 
               {/* Summary Section - full width */}
@@ -839,7 +1027,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
         {
           value: 'documents',
           label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
-          icon: <FileText className="gba:mr-2" />,
+          icon: <FileTextIcon className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
               <div className="gba:space-y-4">
@@ -912,7 +1100,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
     <div data-testid="record-example">
       <RecordLayout
         headerOrientation="horizontal"
-        headerIcon={Building}
+        headerIcon={BuildingIcon}
         headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.example', 'EXAMPLE')}
         headerTitle="Record Example"
         headerDetailGroups={headerDetailGroups}

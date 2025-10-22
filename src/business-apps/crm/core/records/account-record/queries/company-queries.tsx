@@ -23,20 +23,6 @@ export interface CompanyData {
     email: string
     phone: string
   }[]
-  accountContact?: Array<{
-    contact?: {
-      id: string
-      firstName: string
-      lastName: string
-      email?: string
-      phone?: string
-      jobPosition?: string
-      department?: string
-      linkedinUrl?: string
-      xingUrl?: string
-      bio?: string
-    }
-  }>
   addresses: {
     city: string
     countryRef: string
@@ -178,18 +164,22 @@ export const GET_COMPANY_BY_ID = `
         id
         value
       }
-      accountContact(where: { isDeleted: { _eq: false } }) {
+      accountContacts(where: { isDeleted: { _eq: false } }) {
+        contactType
         contact {
           id
           firstName
           lastName
           email
           phone
-          jobPosition
+          jobTitle
           department
           linkedinUrl
           xingUrl
-          bio
+          academicTitle {
+            id
+            value
+          }
         }
       }
       addresses {
