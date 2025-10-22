@@ -66,7 +66,7 @@ const DocumentPdfModal: React.FC<DocumentPdfModalProps> = ({
 
       const objectUrl = URL.createObjectURL(blob)
       setDocumentUrl(objectUrl)
-    } catch {
+    } catch (error) {
       console.error('Error fetching document:', error)
       setDocumentError(error instanceof Error ? error.message : 'Failed to load document')
     } finally {
