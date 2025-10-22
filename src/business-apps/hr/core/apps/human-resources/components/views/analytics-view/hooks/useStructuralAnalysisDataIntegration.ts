@@ -69,7 +69,6 @@ export const useStructuralAnalysisDataIntegration = (context: BusinessAppContext
       const structuralStatistics = calculateStructuralStatistics(
         organizationalNodes,
         spanOfControlData,
-        depthAnalysisData,
         reportingChainSummary
       )
 

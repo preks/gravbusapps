@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { Employee, EmployeeResponse, PersonalDataChangeTaskRaw } from '../types/employee.types'
+import { Employee, PersonalDataChangeTaskRaw } from '../types/employee.types'
 
 // Types for personal data change tasks from flow-metrics API
 interface PersonalDataChangeTask {
@@ -48,19 +48,6 @@ interface UsePersonalDataChangesResult {
   approving: boolean
   rejecting: boolean
 }
-
-// Personal data change process definitions to filter for
-const personalDataProcesses = [
-  'changePersonalInformation',
-  'changeEmployeeAddress',
-  'changeEmployeeCommunication',
-  'changeEmployeePicture',
-  'changeEmployeeSkills',
-  'changeEmployeeEducation',
-  'changeEmployeeEmergencyContact',
-  'changeEmployeeBankDetails',
-  'changeEmployeePreferences'
-]
 
 // GraphQL query to fetch employees by userIds for picture enrichment
 const GET_EMPLOYEES_BY_USER_IDS = `
@@ -208,14 +195,14 @@ export const usePersonalDataChanges = ({
 
           // Enrich the mapped changes with employee pictures
           enrichedChanges = mappedChanges.map(change => {
-            const employeeData = employeeMap.get(change.employee?.userId)
+            const employeeData = employeeMap.get(change.employee?.userId) as Employee | undefined
             if (employeeData) {
               return {
                 ...change,
                 employee: {
                   ...change.employee,
-                  id: employeeData.id,
-                  fullName: employeeData.fullName || change.employee?.fullName,
+                  id: employeeData.id || '',
+                  fullName: employeeData.fullName || change.employee?.fullName || '',
                   firstName: employeeData.firstName || change.employee?.firstName,
                   lastName: employeeData.lastName || change.employee?.lastName,
                   pictureThumbnail: employeeData.pictureThumbnail
@@ -333,7 +320,7 @@ export const usePersonalDataChanges = ({
 }
 
 // Helper function to get human-readable labels for change types
-const getChangeTypeLabel = (processKey: string): string => {
+const getChangeTypeLabel = (processKey?: string): string => {
   const labels: Record<string, string> = {
     changePersonalInformation: 'Personal Info',
     changeEmployeeAddress: 'Address',
@@ -345,7 +332,7 @@ const getChangeTypeLabel = (processKey: string): string => {
     changeEmployeeBankDetails: 'Bank Details',
     changeEmployeePreferences: 'Preferences'
   }
-  return labels[processKey] || processKey
+  return labels[processKey || ''] || processKey || ''
 }
 
 // Helper function to get priority variant for badges

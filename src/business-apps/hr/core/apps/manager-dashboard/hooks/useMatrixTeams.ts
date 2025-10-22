@@ -143,7 +143,7 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
         if (!matrixUnitMap.has(member.employeeId)) {
           matrixUnitMap.set(member.employeeId, [])
         }
-        matrixUnitMap.get(member.employeeId).push({
+        matrixUnitMap.get(member.employeeId || '')?.push({
           matrixUnitId: member.matrixUnitId,
           matrixUnitName: member.matrixUnit?.name || 'Matrix Team',
           role: member.role,
@@ -160,19 +160,17 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
         // If pictureThumbnail is null but picture exists, try to extract from picture JSON
         if (!actualPictureThumbnail && employee.picture) {
           try {
-            // If picture is a JSON string, it's metadata - we can't extract the actual image
-            const pictureData = JSON.parse(employee.picture)
             // The actual image would need to be fetched from the file service using pictureData.fileId
             // For now, we'll set it to null since we can't get the actual image data
-            actualPictureThumbnail = null
-          } catch (e) {
+            actualPictureThumbnail = undefined
+          } catch {
             // If picture is not JSON, it might be actual base64 data
             actualPictureThumbnail = employee.picture
           }
         }
 
         // Get matrix unit info for this employee
-        const matrixUnits = matrixUnitMap.get(employee.id) || []
+        const matrixUnits = matrixUnitMap.get(employee.id || '') || []
         const primaryMatrixUnit = matrixUnits[0] // Use the first one as primary
 
         return {
@@ -181,7 +179,7 @@ export const useMatrixTeams = ({ accessToken, employeeId, structureId }: UseMatr
           lastName: employee.lastName,
           fullName: `${employee.firstName} ${employee.lastName}`,
           pictureThumbnail: actualPictureThumbnail,
-          jobPositionName: employee.employeePosition?.jobPosition?.name || 'Team Member',
+          jobPositionName: employee.employeePosition?.[0]?.jobPosition?.name || 'Team Member',
           matrixUnitName: primaryMatrixUnit?.matrixUnitName || 'Matrix Team',
           status: 'Available' // Default status - could be enhanced later
         }

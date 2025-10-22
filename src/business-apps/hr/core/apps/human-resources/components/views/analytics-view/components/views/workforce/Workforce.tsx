@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger, Button, Spinner, Card, CardContent } from '@newwork/nw-design-system'
 import { PiTrendUp, PiArrowClockwise, PiUsers, PiChartBar, PiBriefcase } from 'react-icons/pi'
-import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountTrends from './components/tabs/HeadcountTrends'
 import TurnoverRetention from './components/tabs/TurnoverRetention'
 import Performance from './components/tabs/Performance'
 import Employment from './components/tabs/Employment'
 import { useHeadcountTrendsData } from '../../../hooks/useHeadcountTrendsData'
 
-interface WorkforceProps extends BusinessAppContextProps {}
-
-const Workforce: React.FC<WorkforceProps> = context => {
+const Workforce: React.FC<BusinessAppContextProps> = context => {
   // Define valid tabs
   const validTabs = ['headcount-trends', 'turnover-retention', 'employment', 'performance']
   const defaultTab = 'headcount-trends'

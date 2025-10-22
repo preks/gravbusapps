@@ -35,52 +35,65 @@ export const useChangeLogDataTransformer = () => {
   }, [])
 
   // Generate change log from version comparison
-  const generateChangeLogFromVersions = useCallback((employee: any, userRole: string, applyVisibilityRules: (entries: ChangeLogEntry[]) => ChangeLogEntry[]): ChangeLogEntry[] => {
-    const entries: ChangeLogEntry[] = []
+  const generateChangeLogFromVersions = useCallback(
+    (
+      employee: any,
+      userRole: string,
+      applyVisibilityRules: (entries: ChangeLogEntry[]) => ChangeLogEntry[]
+    ): ChangeLogEntry[] => {
+      const entries: ChangeLogEntry[] = []
 
-    // Compare personal data versions
-    if (employee.personalDataVersions?.length > 1) {
-      for (let i = 0; i < employee.personalDataVersions.length - 1; i++) {
-        const current = employee.personalDataVersions[i]
-        const previous = employee.personalDataVersions[i + 1]
+      // Compare personal data versions
+      if (employee.personalDataVersions?.length > 1) {
+        for (let i = 0; i < employee.personalDataVersions.length - 1; i++) {
+          const current = employee.personalDataVersions[i]
+          const previous = employee.personalDataVersions[i + 1]
 
-        // Compare each field
-        const fieldsToCompare = [
-          'firstName', 'lastName', 'displayName', 'preferredName', 
-          'birthDate', 'salutation', 'maritalStatus', 'gender'
-        ]
+          // Compare each field
+          const fieldsToCompare = [
+            'firstName',
+            'lastName',
+            'displayName',
+            'preferredName',
+            'birthDate',
+            'salutation',
+            'maritalStatus',
+            'gender'
+          ]
 
-        fieldsToCompare.forEach(field => {
-          if (current[field] !== previous[field]) {
-            entries.push({
-              id: `personal-${field}-${current.version}`,
-              fieldName: formatFieldName(field),
-              fieldCategory: 'personal',
-              previousValue: previous[field],
-              newValue: current[field],
-              timestamp: current.updatedAt,
-              changedBy: {
-                userId: current.updatedBy || 'system',
-                userName: current.updatedBy || 'System',
-                userRole: 'System'
-              },
-              changeOrigin: {
-                flowId: `version-${current.version}`,
-                flowName: 'Employee Data Update',
-                isSystemGenerated: true,
-                isAIGenerated: false
-              },
-              isVisible: true,
-              isMasked: false
-            })
-          }
-        })
+          fieldsToCompare.forEach(field => {
+            if (current[field] !== previous[field]) {
+              entries.push({
+                id: `personal-${field}-${current.version}`,
+                fieldName: formatFieldName(field),
+                fieldCategory: 'personal',
+                previousValue: previous[field],
+                newValue: current[field],
+                timestamp: current.updatedAt,
+                changedBy: {
+                  userId: current.updatedBy || 'system',
+                  userName: current.updatedBy || 'System',
+                  userRole: 'System'
+                },
+                changeOrigin: {
+                  flowId: `version-${current.version}`,
+                  flowName: 'Employee Data Update',
+                  isSystemGenerated: true,
+                  isAIGenerated: false
+                },
+                isVisible: true,
+                isMasked: false
+              })
+            }
+          })
+        }
       }
-    }
 
-    // Apply visibility rules
-    return applyVisibilityRules(entries)
-  }, [])
+      // Apply visibility rules
+      return applyVisibilityRules(entries)
+    },
+    []
+  )
 
   // Format field names for display
   const formatFieldName = useCallback((fieldName: string): string => {

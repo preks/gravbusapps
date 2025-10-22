@@ -21,7 +21,6 @@ import {
 import { populateFormFromRecord, buildDeletePayloadFromRecord, restoreSelectionFromId } from './helpers'
 import { uploadEmployeeDocumentIfAny } from './uploadHelpers'
 
-
 interface AddressFormValues {
   selectedAddressId?: string | null // null means Add Address
   countryId?: string | null
@@ -173,11 +172,19 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
         form.setValue('city', first?.locality || '', { shouldDirty: false } as any)
         form.setValue('regionId', first?.region?.id || null, { shouldDirty: false, shouldValidate: true } as any)
         try {
-          ;(form as any).trigger && (form as any).trigger('countryId')
-        } catch {}
+          if ((form as any).trigger) {
+            ;(form as any).trigger('countryId')
+          }
+        } catch {
+          // Ignore trigger errors
+        }
         try {
-          ;(form as any).trigger && (form as any).trigger('regionId')
-        } catch {}
+          if ((form as any).trigger) {
+            ;(form as any).trigger('regionId')
+          }
+        } catch {
+          // Ignore trigger errors
+        }
         let lastNonEmpty = -1
         for (let i = 0; i < 4; i++) {
           if ((normalized[i] || '').trim() !== '') lastNonEmpty = i
@@ -201,7 +208,6 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
         defaultSelectAppliedFor.current = key
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.address?.EmployeeAddress, data?.catalogs?.countries])
 
   const initialRef = useRef<AddressFormValues>(normalizedDefaults)
@@ -214,7 +220,7 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="change-employee-address-form-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6"/>
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
 
       <div
         className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-employee-address']]:!pt-0"
@@ -333,8 +339,12 @@ const ChangeEmployeeAddressContent: React.FC<BusinessAppContextProps> = ({ acces
                           form.setValue('postalCode', '', { shouldDirty: false } as any)
                           form.setValue('city', '', { shouldDirty: false } as any)
                           try {
-                            ;(form as any).clearErrors && (form as any).clearErrors(['countryId', 'regionId'])
-                          } catch {}
+                            if ((form as any).clearErrors) {
+                              ;(form as any).clearErrors(['countryId', 'regionId'])
+                            }
+                          } catch {
+                            // Ignore clearErrors errors
+                          }
                           setAddressLineCount(1)
                           setAddressLinesError(null)
                           setIsDeleteMode(false)
