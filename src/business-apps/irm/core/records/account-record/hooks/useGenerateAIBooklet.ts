@@ -87,74 +87,58 @@ export function useGenerateAIBooklet(
 
       const keyInsights: string[] = []
 
-      keyInsights.push(
-        getTranslationFromI18nKeyAndLabel('irm:booklet.insight.job_id', 'Job ID: {{id}}', { id: status.job_id })
-      )
+      const jobIdLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.job_id', 'Job ID')
+      keyInsights.push(`${jobIdLabel}: ${status.job_id}`)
       if (lastOutputFileName) {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.output_file', 'Generate output file: {{fileName}}', {
-            fileName: lastOutputFileName
-          })
+        const outputFileLabel = getTranslationFromI18nKeyAndLabel(
+          'irm:booklet.label.output_file',
+          'Generate output file'
         )
+        keyInsights.push(`${outputFileLabel}: ${lastOutputFileName}`)
       }
 
       if (totalQuestions > 0) {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel(
-            'irm:booklet.insight.progress',
-            'Progress: {{processed}} / {{total}} questions processed',
-            { processed: processedQuestions, total: totalQuestions }
-          )
+        const progressLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.progress', 'Progress')
+        const questionsProcessedLabel = getTranslationFromI18nKeyAndLabel(
+          'irm:booklet.label.questions_processed',
+          'questions processed'
         )
+        keyInsights.push(`${progressLabel}: ${processedQuestions} / ${totalQuestions} ${questionsProcessedLabel}`)
       } else {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel(
-            'irm:booklet.insight.processed_only',
-            'Processed questions: {{processed}}',
-            { processed: processedQuestions }
-          )
+        const processedLabel = getTranslationFromI18nKeyAndLabel(
+          'irm:booklet.label.processed_questions',
+          'Processed questions'
         )
+        keyInsights.push(`${processedLabel}: ${processedQuestions}`)
       }
 
       if (status.current_question) {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.current_question', 'Current focus: {{question}}', {
-            question: status.current_question
-          })
-        )
+        const currentFocusLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.current_focus', 'Current focus')
+        keyInsights.push(`${currentFocusLabel}: ${status.current_question}`)
       }
 
       if (status.processed_files && status.processed_files.length > 0) {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.processed_files', 'Processed files: {{files}}', {
-            files: status.processed_files.join(', ')
-          })
+        const processedFilesLabel = getTranslationFromI18nKeyAndLabel(
+          'irm:booklet.label.processed_files',
+          'Processed files'
         )
+        keyInsights.push(`${processedFilesLabel}: ${status.processed_files.join(', ')}`)
       }
 
       const formattedUpdatedAt = formatTimestamp(status.updated_at)
       if (formattedUpdatedAt) {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.last_update', 'Last update: {{dateTime}}', {
-            dateTime: formattedUpdatedAt
-          })
-        )
+        const lastUpdateLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.last_update', 'Last update')
+        keyInsights.push(`${lastUpdateLabel}: ${formattedUpdatedAt}`)
       }
 
       if (status.output_document_id) {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.document_id', 'Document ID: {{id}}', {
-            id: status.output_document_id
-          })
-        )
+        const documentIdLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.document_id', 'Document ID')
+        keyInsights.push(`${documentIdLabel}: ${status.output_document_id}`)
       }
 
       if (status.error) {
-        keyInsights.push(
-          getTranslationFromI18nKeyAndLabel('irm:booklet.insight.error', 'Error: {{message}}', {
-            message: status.error
-          })
-        )
+        const errorLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.error', 'Error')
+        keyInsights.push(`${errorLabel}: ${status.error}`)
       }
 
       const result: BookletSchema = {
@@ -235,6 +219,16 @@ export function useGenerateAIBooklet(
 
     const processedFiles = serverResp?.processed_files ?? []
     const answeredQuestions = typeof serverResp?.answered_questions === 'number' ? serverResp.answered_questions : 0
+    const outputFileLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.output_file', 'Generate output file')
+    const jobIdLabel = getTranslationFromI18nKeyAndLabel('irm:booklet.label.job_id', 'Job ID')
+    const processedFilesLabel = getTranslationFromI18nKeyAndLabel(
+      'irm:booklet.label.processed_files',
+      'Processed files'
+    )
+    const answeredQuestionsLabel = getTranslationFromI18nKeyAndLabel(
+      'irm:booklet.label.answered_questions',
+      'Answered questions'
+    )
 
     const result: BookletSchema = {
       success: serverResp?.success ?? true,
@@ -243,26 +237,10 @@ export function useGenerateAIBooklet(
       answered_questions: answeredQuestions,
       summary: serverResp?.message ?? requestedMessage,
       keyInsights: [
-        getTranslationFromI18nKeyAndLabel('irm:booklet.insight.output_file', 'Generate output file: {{fileName}}', {
-          fileName: outputName
-        }),
-        ...(newJobId
-          ? [
-              getTranslationFromI18nKeyAndLabel('irm:booklet.insight.job_id', 'Job ID: {{id}}', {
-                id: newJobId
-              })
-            ]
-          : []),
-        ...(processedFiles.length > 0
-          ? [
-              getTranslationFromI18nKeyAndLabel('irm:booklet.insight.processed_files', 'Processed files: {{files}}', {
-                files: processedFiles.join(', ')
-              })
-            ]
-          : []),
-        getTranslationFromI18nKeyAndLabel('irm:booklet.insight.answered_questions', 'Answered questions: {{count}}', {
-          count: answeredQuestions
-        })
+        `${outputFileLabel}: ${outputName}`,
+        ...(newJobId ? [`${jobIdLabel}: ${newJobId}`] : []),
+        ...(processedFiles.length > 0 ? [`${processedFilesLabel}: ${processedFiles.join(', ')}`] : []),
+        `${answeredQuestionsLabel}: ${answeredQuestions}`
       ],
       job_id: newJobId ?? undefined
     }
@@ -304,9 +282,12 @@ export function useGenerateAIBooklet(
   const generateSummary = useCallback(async () => {
     setState({ type: 'loading' })
 
+    const derivedJobId =
+      jobId ?? (state?.type === 'success' && state.content?.job_id ? String(state.content.job_id) : null)
+
     try {
-      if (jobId) {
-        await checkExistingJobStatus(jobId)
+      if (derivedJobId) {
+        await checkExistingJobStatus(derivedJobId)
         return
       }
 
@@ -314,7 +295,7 @@ export function useGenerateAIBooklet(
     } catch {
       setState({ type: 'error' })
     }
-  }, [checkExistingJobStatus, jobId, startNewBookletJob])
+  }, [checkExistingJobStatus, jobId, startNewBookletJob, state])
 
   return { state, generateSummary }
 }
