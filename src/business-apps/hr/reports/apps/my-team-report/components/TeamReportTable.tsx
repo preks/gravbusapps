@@ -79,7 +79,6 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     return formatDate(date, 'date.short') || '-'
   }
 
-  // Helper function to format year string with proper pluralization
   const formatYearString = (years: number) => {
     if (years <= 0) return ''
     const yearLabel =
@@ -89,7 +88,6 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     return `${years} ${yearLabel}`
   }
 
-  // Helper function to format month string with proper pluralization
   const formatMonthString = (months: number) => {
     if (months <= 0) return ''
     const monthLabel =

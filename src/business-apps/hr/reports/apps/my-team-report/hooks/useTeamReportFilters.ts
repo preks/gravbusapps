@@ -59,41 +59,48 @@ export const useTeamReportFilters = (
       label: '10+ ' + getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')
     }
   ]
-  const TENURE_OPTION_IDS = TENURE_OPTIONS.map(o => o.id)
-  const EXIT_STATUS_OPTIONS = ['activeOnly', 'inactiveOnly']
+  const TENURE_OPTION_IDS = new Set(TENURE_OPTIONS.map(o => o.id))
+  const EXIT_STATUS_OPTIONS = new Set(['activeOnly', 'inactiveOnly'])
 
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
     const SEARCH_THRESHOLD = 10
     const groups: DataFilterGroup[] = []
 
-    const createSearchHandler = (prefix: string, allItems: string[]) => (search: string) => {
-      const selectedForGroup = selectedFilters
-        .filter(f => f.startsWith(`${prefix}:`))
-        .map(f => f.replace(`${prefix}:`, ''))
+    const getSelectedForGroup = (prefix: string) => {
+      return selectedFilters.filter(f => f.startsWith(`${prefix}:`)).map(f => f.replace(`${prefix}:`, ''))
+    }
 
-      if (!search) {
-        if (selectedForGroup.length > 0) {
-          const filters = selectedForGroup.map(item => ({
-            id: `${prefix}:${item}`,
-            label: item,
-            selected: true
-          }))
-          return { filters, loading: false, error: null }
-        }
-        return { filters: [], loading: true, error: null }
-      }
-
-      const matchingItems = allItems.filter(item => item.toLowerCase().includes(search.toLowerCase()))
-
-      const allItemsToShow = [...new Set([...selectedForGroup, ...matchingItems])]
-
-      const filters = allItemsToShow.map(item => ({
+    const createFilterObjects = (items: string[], prefix: string, selectedForGroup: string[]) => {
+      return items.map(item => ({
         id: `${prefix}:${item}`,
         label: item,
-        selected: selectedFilters.includes(`${prefix}:${item}`)
+        selected: selectedForGroup.includes(item) || selectedFilters.includes(`${prefix}:${item}`)
       }))
+    }
 
+    const handleNoSearch = (prefix: string, selectedForGroup: string[]) => {
+      if (selectedForGroup.length > 0) {
+        const filters = createFilterObjects(selectedForGroup, prefix, selectedForGroup)
+        return { filters, loading: false, error: null }
+      }
+      return { filters: [], loading: true, error: null }
+    }
+
+    const handleWithSearch = (prefix: string, allItems: string[], search: string, selectedForGroup: string[]) => {
+      const matchingItems = allItems.filter(item => item.toLowerCase().includes(search.toLowerCase()))
+      const allItemsToShow = [...new Set([...selectedForGroup, ...matchingItems])]
+      const filters = createFilterObjects(allItemsToShow, prefix, selectedForGroup)
       return { filters, loading: false, error: null }
+    }
+
+    const createSearchHandler = (prefix: string, allItems: string[]) => (search: string) => {
+      const selectedForGroup = getSelectedForGroup(prefix)
+
+      if (!search) {
+        return handleNoSearch(prefix, selectedForGroup)
+      }
+
+      return handleWithSearch(prefix, allItems, search, selectedForGroup)
     }
 
     if (uniquePositions.length > SEARCH_THRESHOLD) {
@@ -265,8 +272,8 @@ export const useTeamReportFilters = (
 
   const addFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => {
-      if (EXIT_STATUS_OPTIONS.includes(filterId)) {
-        const withoutExitStatus = prev.filter(f => !EXIT_STATUS_OPTIONS.includes(f))
+      if (EXIT_STATUS_OPTIONS.has(filterId)) {
+        const withoutExitStatus = prev.filter(f => !EXIT_STATUS_OPTIONS.has(f))
         return [...withoutExitStatus, filterId]
       }
 
@@ -302,9 +309,9 @@ export const useTeamReportFilters = (
       .filter(f => f.startsWith('contractType:'))
       .map(f => f.replace('contractType:', ''))
 
-    const tenurePeriods = selectedFilters.filter(f => TENURE_OPTION_IDS.includes(f))
+    const tenurePeriods = selectedFilters.filter(f => TENURE_OPTION_IDS.has(f))
 
-    const exitStatus = selectedFilters.find(f => EXIT_STATUS_OPTIONS.includes(f))
+    const exitStatus = selectedFilters.find(f => EXIT_STATUS_OPTIONS.has(f))
 
     if (positionFilters.length > 0) {
       filter.position = positionFilters
