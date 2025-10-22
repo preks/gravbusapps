@@ -47,9 +47,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
     setFormSubmitted,
     setHasInteracted,
     setStandardValidationFailed,
-    shouldShowError,
-    getCurrentActiveUserLocale: _unusedLocale,
-    getDateFormat: _unusedDateFormat
+    shouldShowError
   } = useCreateCalculationRuleForm({ accessToken, navigationPayload })
 
   const [showConfirmModal, setShowConfirmModal] = useState(false)
@@ -220,7 +218,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
         })
 
         onCreate?.()
-      } catch (e) {
+      } catch {
         // keep minimal handling for now
       }
     })()
