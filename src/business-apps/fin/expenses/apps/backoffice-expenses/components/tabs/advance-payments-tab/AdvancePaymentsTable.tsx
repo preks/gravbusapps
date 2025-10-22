@@ -110,7 +110,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       try {
         const results = await searchReporters(debouncedReporterSearchText)
         setReporterSearchResults(results)
-      } catch {
+      } catch (error) {
         console.error(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:advance_payment_table.error_searching_reporters',
@@ -159,7 +159,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       try {
         const statuses = await searchStatuses()
         setAvailableStatuses(statuses)
-      } catch {
+      } catch (error) {
         console.error('Error loading available statuses:', error)
       }
     }
