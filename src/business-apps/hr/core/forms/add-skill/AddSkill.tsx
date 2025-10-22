@@ -203,14 +203,14 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
       data-testid="flw_addSkills_addSkillsContainer"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6"/>
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='add-skill-form']]:!p-0 gba:[&>div[data-testid='add-skill-form']>form]:!max-w-[100%]"
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='add-skill-form']]:!py-0"
         data-testid="add-skill-form-content"
       >
         {/* Header showing current employee name */}
-        <div className="gba:text-muted-foreground gba:font-bold gba:mb-2" data-testid="flw_addSkills_employeeText">
+        <div className="gba:text-muted-foreground gba:font-bold gba:mb-2 gba:px-6" data-testid="flw_addSkills_employeeText">
           {employeeFullName}
         </div>
 

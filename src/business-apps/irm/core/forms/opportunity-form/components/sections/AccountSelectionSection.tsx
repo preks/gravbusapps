@@ -1,10 +1,9 @@
 import React from 'react'
-import { Label } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useOpportunityFormContext } from '../../context/OpportunityFormContext'
 import { useOpportunityFormFieldClearing } from '../../hooks/useOpportunityFormFieldClearing'
-import { useAccountsGraphQL } from '../../hooks/useAccountsGraphQL'
-import SearchableSelect from '../SearchableSelect'
+import { useGetInvestmentAccounts } from '@/common/data/investment'
+import AccountSelect from '@/common/components/common-relations/selects/account-select/AccountSelect'
 
 const prefixDataTestId = 'InvestmentOpportunityForm'
 
@@ -21,11 +20,12 @@ const AccountSelectionSection: React.FC = () => {
     options: simpleAccounts,
     loading: simpleAccountsLoading,
     error: simpleAccountsError,
-    hasMore: simpleAccountsHasMore,
-    search: searchSimpleAccounts,
-    loadMore: loadMoreSimpleAccounts
-  } = useAccountsGraphQL({
-    accessToken: businessAppContext.accessToken
+    search: searchSimpleAccounts
+  } = useGetInvestmentAccounts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 20,
+    mapToSelectOptions: true
   })
 
   // Hide account selection when creating opportunity from lead conversion
@@ -36,22 +36,22 @@ const AccountSelectionSection: React.FC = () => {
   return (
     <div className="gba:space-y-6">
       {/* Related Account */}
-      <div className="gba:space-y-2">
-        <Label className="gba:block gba:text-sm gba:font-medium gba:text-gray-900">Related Investment Account</Label>
-        <SearchableSelect
-          name="account"
-          value={formValues.account}
-          onChange={value => handleInputChange('account', value)}
-          options={simpleAccounts}
-          loading={simpleAccountsLoading}
-          error={simpleAccountsError}
-          hasMore={simpleAccountsHasMore}
-          onSearch={searchSimpleAccounts}
-          onLoadMore={loadMoreSimpleAccounts}
-          placeholder="Please select investment account..."
-          data-testid={formatDataTestId(prefixDataTestId, 'account')}
-        />
-      </div>
+      <AccountSelect
+        value={formValues.account}
+        onChange={value => {
+          // Extract ID from object if needed (for single-select compatibility)
+          const accountId = typeof value === 'object' && value?.id ? value.id : value
+          handleInputChange('account', accountId as string)
+        }}
+        accounts={simpleAccounts}
+        accountsLoading={simpleAccountsLoading}
+        accountsError={simpleAccountsError}
+        searchAccounts={searchSimpleAccounts}
+        label="Related Investment Account"
+        dataTestId={formatDataTestId(prefixDataTestId, 'account')}
+        error={null}
+        multiple={false} // ✅ Single account selection for opportunities
+      />
     </div>
   )
 }

@@ -298,6 +298,62 @@ export const GET_EXPENSE_ITEM_STATISTICS = `
   }
 `
 
+// Combined statistics for current and previous month in a single request
+export const GET_EXPENSE_ITEM_STATS_OVERVIEW = `
+  query GetExpenseItemStatsOverview(
+    $employeeId: uuid!,
+    $currencyRef: String!,
+    $currentStart: timestamp!,
+    $currentEnd: timestamp!,
+    $previousStart: timestamp!,
+    $previousEnd: timestamp!
+  ) {
+    currentMonthTotals: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _in: ["PAID", "CLOSED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $currentStart, _lte: $currentEnd }
+      }
+    ) { aggregate { sum { totalAmount } } }
+
+    previousMonthTotals: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _in: ["PAID", "CLOSED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $previousStart, _lte: $previousEnd }
+      }
+    ) { aggregate { sum { totalAmount } } }
+
+    currentMonthPending: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _eq: "PENDING", _nin: ["DISCARDED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $currentStart, _lte: $currentEnd }
+      }
+    ) { aggregate { sum { reimbursableAmount } count } }
+
+    previousMonthPending: ExpenseItemAggregate(
+      where: {
+        employeeId: { _eq: $employeeId },
+        isDeleted: { _eq: false },
+        expenseClass: { _not: { code: { _eq: "ALLOWANCE" } } },
+        status: { _eq: "PENDING", _nin: ["DISCARDED"] },
+        currencyRef: { _eq: $currencyRef },
+        expenseDate: { _gte: $previousStart, _lte: $previousEnd }
+      }
+    ) { aggregate { sum { reimbursableAmount } count } }
+  }
+`
+
 export const GET_USED_CURRENCIES_BY_EMPLOYEE = `
   query GetUsedCurrenciesByEmployee($employeeId: uuid!, $limit: Int = 1000) {
     ExpenseItem(

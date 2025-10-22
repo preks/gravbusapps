@@ -49,18 +49,18 @@ const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({
   return (
     <div className="gba:space-y-6" data-testid="job-function-drawer-content">
       <div>
-        <h4 className="gba:font-medium gba:mb-3 gba:text-gray-700">Usage</h4>
+        <h4 className="gba:font-medium gba:mb-3 gba:text-foreground">Usage</h4>
         <div className="gba:grid gba:grid-cols-2 gba:gap-4">
           {/* First box - always Employees */}
           <div
-            className="gba:bg-blue-50 gba:p-4 gba:rounded-md gba:border gba:bg-gray-50"
+            className="gba:bg-info-secondary gba:p-4 gba:rounded-md gba:border"
             data-testid="job-function-employee-count"
           >
-            <div className="gba:text-sm gba:text-gray-500">Employees</div>
+            <div className="gba:text-sm gba:text-muted-foreground">Employees</div>
             {loadingEmployeeCount ? (
               <Spinner size="sm" data-testid="job-function-employee-count-loading" />
             ) : employeeCountError ? (
-              <div className="gba:text-red-500 gba:text-sm" data-testid="job-function-employee-count-error">
+              <div className="gba:text-destructive gba:text-sm" data-testid="job-function-employee-count-error">
                 Error
               </div>
             ) : (
@@ -72,16 +72,16 @@ const JobFunctionDrawerContent: React.FC<JobFunctionDrawerContentProps> = ({
 
           {/* Second box - Job Profiles */}
           <div
-            className="gba:bg-blue-50 gba:p-4 gba:rounded-md gba:border gba:bg-gray-50"
+            className="gba:bg-info-secondary gba:p-4 gba:rounded-md gba:border"
             data-testid="job-function-profiles-count"
           >
             <div className="gba:flex gba:items-center gba:gap-2">
-              <div className="gba:text-sm gba:text-gray-500">Job Profiles</div>
+              <div className="gba:text-sm gba:text-muted-foreground">Job Profiles</div>
             </div>
             {loadingProfilesCount ? (
               <Spinner size="sm" data-testid="job-function-profiles-count-loading" />
             ) : profilesCountError ? (
-              <div className="gba:text-red-500 gba:text-sm" data-testid="job-function-profiles-count-error">
+              <div className="gba:text-destructive gba:text-sm" data-testid="job-function-profiles-count-error">
                 Error
               </div>
             ) : (

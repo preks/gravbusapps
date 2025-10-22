@@ -5,6 +5,7 @@ export interface FeedbackFormValues {
   targetLanguage?: string
   employeeId?: string
   employeeName?: string
+  feedbackPublic?: boolean
 }
 
 export interface TextTransformationRequest {

@@ -266,15 +266,15 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
       {data.map(item => (
         <div
           key={`${item.label}-${item.value}`}
-          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-gray-50 gba:rounded-md gba:transition-colors"
+          className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors"
           data-testid={`details-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-gray-500 gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-gray-800">
+          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
+          <span className="gba:font-medium gba:text-foreground">
             {item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : item.value || '-'}
           </span>
           {item.secondary ? (
-            <span className="gba:font-medium gba:text-gray-800 gba:mt-1">
+            <span className="gba:font-medium gba:text-foreground gba:mt-1">
               {item.sectionKey ? getMaskedValue(item.secondary, item.sectionKey) : item.secondary}
             </span>
           ) : null}
@@ -290,7 +290,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         <div className="gba:font-bold gba:text-2xl" data-testid="details-title">
           {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.details_overview', 'Employee Details')}
         </div>
-        <div className="gba:text-gray-500 gba:text-lg gba:mb-4" data-testid="details-description">
+        <div className="gba:text-muted-foreground gba:text-lg gba:mb-4" data-testid="details-description">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:hr_employee.details_description',
             'View employee personal information'
@@ -302,11 +302,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Personal Data Card - Public info is always visible, private info requires permission */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-personal"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Personal Data</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Personal Data</h3>
             {isSelfView && (
               <AppActionMenu
                 data-testid="personal-data-action-button"
@@ -329,11 +329,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Address Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-address"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Address</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Address</h3>
             {isSelfView && (
               <AppActionMenu
                 data-testid="employee-address-action-button"
@@ -355,11 +355,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Bank Account Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-bank"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Bank Account</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Bank Account</h3>
             {isSelfView && (
               <AppActionMenu
                 data-testid="bank-account-action-button"
@@ -381,11 +381,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Private Communication Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-communication"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Private Communication</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Private Communication</h3>
             {isSelfView && (
               <AppActionMenu
                 data-testid="private-communication-action-button"
@@ -409,11 +409,11 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
         {/* Emergency Contact Card - Always visible but values may be masked */}
         <Card
           variant="outlined"
-          className="gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all"
           data-testid="details-section-emergency"
         >
-          <div className="gba:mb-6 gba:border-b gba:border-gray-200 gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold gba:text-blue-700">Emergency Contact</h3>
+          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+            <h3 className="gba:text-xl gba:font-semibold gba:text-info">Emergency Contact</h3>
           </div>
           {renderDataItems(
             emergencyContactData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships }))

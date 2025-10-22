@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Button,
   Input,
   Label,
   Switch,
@@ -9,7 +8,8 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-  Spinner
+  DateInput,
+  FileUpload
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -18,9 +18,7 @@ import flowSmall from '@/assets/icons/flowSmall.svg'
 import AppActionForm from '@/components/app-action-form/AppActionForm'
 import dayjs from 'dayjs'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { Upload } from 'antd'
-import type { UploadFile } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
+
 import { useRelationshipTypes } from './hooks/useRelationshipTypes'
 import { env } from '@/common/env/EnvUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -36,8 +34,8 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
   const [phoneNumber, setPhoneNumber] = useState('')
   const [isEmergencyContact, setIsEmergencyContact] = useState(false)
   const [selectedRelationshipId, setSelectedRelationshipId] = useState<string>('new')
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [isUploading, setIsUploading] = useState(false)
+  const [fileList, setFileList] = useState<any[]>([])
+  const [, setIsUploading] = useState(false)
 
   const { options: relationshipTypeOptions, relationships } = useRelationshipTypes({
     accessToken,
@@ -308,8 +306,7 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
               style={{ filter: 'brightness(0)' }}
             />
             <h2
-              className="gba:text-xl gba:font-semibold"
-              style={{ color: 'var(--nw-color-text-primary)' }}
+              className="gba:text-xl gba:font-semibold gba:text-foreground"
               data-testid={formatDataTestId(prefixDataTestId, 'Title')}
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.title', 'Change Relationship Data')}
@@ -318,10 +315,10 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
         </div>
 
         {/* Divider */}
-        <div className="gba:border-t gba:border-gray-200" />
+        <div className="gba:border-t gba:border-border" />
 
         {/* Content */}
-        <div className="gba:px-0 gba:py-6 gba:flex gba:flex-col gba:gap-4 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
+        <div className="gba:px-0 gba:py-6 gba:flex gba:flex-col gba:gap-4">
           {/* Relationship selector (Add New or choose existing) */}
           <div>
             <Label>
@@ -414,16 +411,18 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
           <div>
             <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.birth_date', 'Birth Date')}</Label>
             <div className="gba:mt-2">
-              <Input
-                type="date"
-                value={birthDate || ''}
-                onChange={e => setBirthDate(e.target.value)}
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:relationship_form.birth_date_placeholder',
-                  'YYYY-MM-DD'
-                )}
-                data-testid="flw_changeRelationship_currentBirthDate"
-              />
+              <div data-testid="flw_changeRelationship_currentBirthDate">
+                <DateInput
+                  type="date"
+                  value={birthDate || ''}
+                  onChange={(v?: string) => setBirthDate(v || '')}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:relationship_form.birth_date_placeholder',
+                    'YYYY-MM-DD'
+                  )}
+                  className="gba:w-full"
+                />
+              </div>
             </div>
           </div>
 
@@ -463,27 +462,24 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
             <Label>
               {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.upload_document', 'Upload Document')}
             </Label>
-            <div className="gba:mt-2">
-              <Upload
-                fileList={fileList}
-                onChange={({ fileList: list }) => setFileList(list)}
-                beforeUpload={() => false}
-                maxCount={1}
-                data-testid={formatDataTestId(prefixDataTestId, 'UploadDocument')}
-              >
-                <Button
-                  variant="secondary"
-                  type="button"
-                  disabled={isUploading}
-                  data-testid="flw_changeRelationship_fileAddDocument"
-                >
-                  {isUploading ? <Spinner size="sm" className="gba:mr-2" /> : null}
-                  <UploadOutlined />
-                  <span className="gba:ml-2">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:relationship_form.upload', 'Upload Document')}
-                  </span>
-                </Button>
-              </Upload>
+            <div className="gba:mt-2" data-testid={formatDataTestId(prefixDataTestId, 'UploadDocument')}>
+              <FileUpload
+                multiple={false}
+                maxFiles={1}
+                accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
+                layout="list"
+                preview="icon"
+                onFilesChange={(files: any[]) => {
+                  const mapped = (files || []).map((f: any) => ({
+                    uid: f.id,
+                    name: f.file?.name || 'file',
+                    status: 'done',
+                    originFileObj: f.file as File,
+                    type: (f.file as File)?.type
+                  }))
+                  setFileList(mapped)
+                }}
+              />
             </div>
           </div>
         </div>

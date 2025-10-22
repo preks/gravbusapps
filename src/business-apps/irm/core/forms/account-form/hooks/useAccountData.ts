@@ -93,12 +93,14 @@ export const mapInvestmentAccountToFormValues = (
     tickerSymbol: account.code || '', // ✅ UPDATED: Use code as ticker symbol
     // ✅ REMOVED: sicCode mapping - sicCode field removed from form
 
-    // Contact Information
+    // Contact Information - ✅ UPDATED: Include association metadata
     contactIds:
       account.investmentAccountContact?.map(rel => ({
         id: rel.contact.id,
-        name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim()
-      })) || [], // ✅ UPDATED: Store full contact objects with id and name for proper display
+        name: rel.contact.fullName || `${rel.contact.firstName || ''} ${rel.contact.lastName || ''}`.trim(),
+        associationId: rel.id, // ✅ NEW: Capture association ID
+        associationVersion: rel.version // ✅ NEW: Capture association version
+      })) || [], // ✅ UPDATED: Store full contact objects with id, name, and association metadata
 
     // Legacy fields
     address: '',

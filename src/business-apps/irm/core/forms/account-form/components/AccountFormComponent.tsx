@@ -6,12 +6,23 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import AccountInformationSection from './AccountInformationSection'
 import AddressInformationSection from './AddressInformationSection'
 import FinancialInformationSection from './FinancialInformationSection'
-import ContactSelector from './ContactSelector'
+import ContactSelect from '@/common/components/common-relations/selects/contact-select/ContactSelect'
 
 const prefixDataTestId = 'AccountForm'
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, hideActions, setFormValues } = useAccountFormContext()
+  const {
+    formValues,
+    onCancel,
+    isLoading,
+    error,
+    hideActions,
+    setFormValues,
+    contacts,
+    contactsLoading,
+    contactsError,
+    searchContacts
+  } = useAccountFormContext()
 
   // Local loading state for submission
   const [isSubmitting, setIsSubmitting] = React.useState(false)
@@ -113,16 +124,43 @@ const AccountFormComponent: React.FC = () => {
       // Determine change mode based on whether we have an ID
       const changeMode = isUpdate ? 'UPDATE' : 'INSERT'
 
-      // ✅ FIXED: Extract contact IDs from contactIds (handle both string[] and object[] formats)
-      const extractedContactIds = (formValues.contactIds || []).map(contact =>
-        typeof contact === 'object' ? contact.id : contact
-      )
+      // ✅ NEW: Build accountContacts array with full association objects
+      const accountContacts = (formValues.contactIds || []).map(contact => {
+        if (typeof contact === 'object' && contact.id) {
+          // Existing association - include association metadata if available
+          const accountContact: any = {
+            contactType: null,
+            account: formValues.id, // Current account ID
+            contact: contact.id
+          }
 
-      // ✅ FIXED: Create clean payload structure to prevent context field pollution
+          // Include association ID and version if it exists (for updates)
+          if (contact.associationId) {
+            accountContact.id = contact.associationId
+            if (contact.associationVersion !== undefined) {
+              accountContact.version = contact.associationVersion
+            }
+          }
+
+          return accountContact
+        }
+
+        // New association - simple format
+        return {
+          contactType: null,
+          account: formValues.id,
+          contact: contact
+        }
+      })
+
+      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, contactIds for CREATE
       const cleanPayload = {
-        investmentAccount: investmentAccountPayload,
+        investmentAccount: {
+          ...investmentAccountPayload,
+          accountContacts: isUpdate ? accountContacts : undefined // Only for updates
+        },
         changeMode: changeMode,
-        contactIds: extractedContactIds // ✅ UPDATED: Array of contact IDs (extracted from objects if needed)
+        contactIds: isUpdate ? undefined : accountContacts.map(ac => ac.contact) // For CREATE mode only
       }
 
       // ✅ FIXED: Create completely isolated payload to prevent context field pollution
@@ -182,13 +220,17 @@ const AccountFormComponent: React.FC = () => {
           {/* Account Information Section */}
           <AccountInformationSection />
 
-          {/* Related Contact Selection - positioned right after Account Information */}
+          {/* Related Contacts Selection - Multiple contacts can be associated */}
           <div className="gba:space-y-2">
-            <ContactSelector
+            <ContactSelect
               value={formValues.contactIds}
               onChange={contactIds => setFormValues({ contactIds })}
               dataTestId={formatDataTestId(prefixDataTestId, 'contact-selector')}
               error={null}
+              contacts={contacts}
+              contactsLoading={contactsLoading}
+              contactsError={contactsError}
+              searchContacts={searchContacts}
             />
           </div>
 

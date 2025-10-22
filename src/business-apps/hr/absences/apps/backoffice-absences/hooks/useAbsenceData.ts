@@ -84,12 +84,12 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
 
   const extractColorFromObjectValue = (objectValue: any): string => {
     if (!objectValue || typeof objectValue !== 'object') {
-      return '#6b7280'
+      return 'var(--nw-muted-foreground)'
     }
 
     const color = objectValue.color
     if (!color) {
-      return '#6b7280'
+      return 'var(--nw-muted-foreground)'
     }
 
     return color.startsWith('#') ? color : `#${color}`

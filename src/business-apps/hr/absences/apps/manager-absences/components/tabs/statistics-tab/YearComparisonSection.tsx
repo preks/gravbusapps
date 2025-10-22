@@ -31,8 +31,8 @@ export const YearComparisonSection: React.FC<YearComparisonSectionProps> = ({ da
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Bar dataKey={previousYear.toString()} fill="#8884d8" />
-              <Bar dataKey={currentYear.toString()} fill="#82ca9d" />
+              <Bar dataKey={previousYear.toString()} fill="var(--nw-chart-4)" />
+              <Bar dataKey={currentYear.toString()} fill="var(--nw-chart-3)" />
             </BarChart>
           </ResponsiveContainer>
         </div>

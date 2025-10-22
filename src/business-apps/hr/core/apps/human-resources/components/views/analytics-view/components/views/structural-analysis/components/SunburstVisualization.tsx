@@ -26,18 +26,10 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
     const companyName = data.companyName
 
     return (
-      <div
-        style={{
-          backgroundColor: 'white',
-          border: '1px solid #ccc',
-          borderRadius: '4px',
-          padding: '8px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-        }}
-      >
-        <p style={{ margin: 0, fontWeight: 'bold' }}>{displayName}</p>
-        <p style={{ margin: 0, color: '#666' }}>Employees: {value}</p>
-        {companyName && <p style={{ margin: 0, color: '#666' }}>Company: {companyName}</p>}
+      <div className="gba:bg-card gba:border gba:border-border gba:rounded gba:p-2 gba:shadow-sm">
+        <p className="gba:m-0 gba:font-bold gba:text-foreground">{displayName}</p>
+        <p className="gba:m-0 gba:text-muted-foreground">Employees: {value}</p>
+        {companyName && <p className="gba:m-0 gba:text-muted-foreground">Company: {companyName}</p>}
       </div>
     )
   }
@@ -87,12 +79,12 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
   const sunburstData = hasValidData ? transformToSunburstFormat(data) : createFallbackData()
 
   return (
-    <Card data-testid={`${prefixDataTestId}-SunburstVisualization`} style={{ height: '600px' }}>
+    <Card data-testid={`${prefixDataTestId}-SunburstVisualization`} className="gba:h-[600px]">
       <div className="gba:p-4 gba:border-b">
-        <Title level={4} className="gba:m-0 gba:text-gray-800">
+        <Title level={4} className="gba:m-0 gba:text-foreground">
           Organizational Hierarchy Sunburst
         </Title>
-        <Text className="gba:text-gray-600 gba:text-sm gba:mt-1">
+        <Text className="gba:text-muted-foreground gba:text-sm gba:mt-1">
           Interactive hierarchical visualization showing organizational depth and structure distribution across
           different levels
         </Text>
@@ -105,10 +97,10 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
               data={sunburstData}
               startAngle={0}
               endAngle={360}
-              fill="#8884d8"
+              fill="var(--nw-color-chart-1)"
               innerRadius={10}
               ringPadding={1}
-              stroke="#fff"
+              stroke="var(--nw-color-primary-foreground)"
               textOptions={{}}
               dataKey="value"
             >
@@ -116,12 +108,12 @@ export const SunburstVisualization: React.FC<SunburstVisualizationProps> = ({
             </SunburstChart>
           </ResponsiveContainer>
         ) : (
-          <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:text-gray-500">
-            <div className="gba:text-4xl gba:mb-4 gba:text-gray-400">📊</div>
-            <div className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-gray-700">
+          <div className="gba:flex gba:flex-col gba:justify-center gba:items-center gba:h-96 gba:text-muted-foreground">
+            <div className="gba:text-4xl gba:mb-4 gba:text-muted">📊</div>
+            <div className="gba:text-lg gba:font-semibold gba:mb-2 gba:text-foreground">
               No Organizational Hierarchy Data
             </div>
-            <div className="gba:text-sm gba:text-center gba:leading-6 gba:text-gray-600">
+            <div className="gba:text-sm gba:text-center gba:leading-6 gba:text-muted-foreground">
               The organizational hierarchy data is either empty or still loading.
               <br />
               Please ensure your structure has organizational units with relationships.

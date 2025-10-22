@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { GET_EXPENSE_PLAN_STATISTICS, GET_CLOSED_PLANS_STATISTICS } from '../queries/expensePlans'
-import { env } from '@/common/env/EnvUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface ExpensePlanStatisticsData {
   currentMonthTotal: number
@@ -29,6 +29,7 @@ export const useGetExpensePlanStatistics = (
 ): ExpensePlanStatisticsDataView => {
   const accessToken = context?.accessToken
   const employeeId = context?.userInfo?.employeeDetails?.employeeId
+  const graphqlClient = useGraphQLClient(accessToken)
   const [statistics, setStatistics] = useState<ExpensePlanStatisticsData>({
     currentMonthTotal: 0,
     previousMonthTotal: 0,
@@ -61,30 +62,17 @@ export const useGetExpensePlanStatistics = (
 
       const fetchCount = async (startDate: string, endDate: string) => {
         const activeUserLocale = getCurrentActiveUserLocale()
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_EXPENSE_PLAN_STATISTICS,
-            variables: {
-              employeeId,
-              startDate,
-              endDate,
-              activeUserLocale,
-              currencyRef
-            }
-          })
+        const result = await graphqlClient.request<any>(GET_EXPENSE_PLAN_STATISTICS, {
+          employeeId,
+          startDate,
+          endDate,
+          activeUserLocale,
+          currencyRef
         })
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-        const result = await response.json()
-        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        const count = result.data?.ExpensePlanAggregate?.aggregate?.count ?? 0
-        const totalEstimated = result.data?.TotalEstimated?.aggregate?.sum?.totalAmount ?? 0
-        const pendingApproval = result.data?.PendingApproval?.aggregate?.count ?? 0
-        const destinationPlans = result.data?.Destinations ?? []
+        const count = result?.ExpensePlanAggregate?.aggregate?.count ?? 0
+        const totalEstimated = result?.TotalEstimated?.aggregate?.sum?.totalAmount ?? 0
+        const pendingApproval = result?.PendingApproval?.aggregate?.count ?? 0
+        const destinationPlans = result?.Destinations ?? []
         const allRegions = destinationPlans
           .flatMap((plan: any) =>
             plan.expenseRequestTrip.map((trip: any) => {
@@ -107,25 +95,12 @@ export const useGetExpensePlanStatistics = (
       }
 
       const fetchClosedPlansCount = async (startDate: string, endDate: string) => {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_CLOSED_PLANS_STATISTICS,
-            variables: {
-              employeeId,
-              startDate,
-              endDate
-            }
-          })
+        const result = await graphqlClient.request<any>(GET_CLOSED_PLANS_STATISTICS, {
+          employeeId,
+          startDate,
+          endDate
         })
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-        const result = await response.json()
-        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '))
-        return result.data?.ClosedPlans?.aggregate?.count ?? 0
+        return result?.ClosedPlans?.aggregate?.count ?? 0
       }
 
       // Fetch all statistics in parallel
