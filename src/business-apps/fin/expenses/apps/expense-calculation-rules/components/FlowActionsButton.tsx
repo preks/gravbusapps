@@ -67,7 +67,7 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
                 key={`${label}-${idx}`}
                 className={`gba:flex gba:items-center gba:gap-2 ${
                   action.disabled
-                    ? 'gba:cursor-default hover:gba:bg-white focus:gba:bg-white data-[highlighted]:gba:bg-white gba:text-black'
+                    ? 'gba:cursor-default gba:hover:bg-white gba:focus:bg-white gba:data-[highlighted]:bg-white gba:text-black'
                     : 'gba:cursor-pointer'
                 }`}
                 tabIndex={action.disabled ? -1 : 0}
