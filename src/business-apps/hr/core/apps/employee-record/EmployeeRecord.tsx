@@ -164,9 +164,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
   const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
 
-  console.log('feedbackTabFeatureFlag', feedbackTabFeatureFlag)
-  console.log('changeLogTabFeatureFlag', changeLogTabFeatureFlag)
-
   // Update URL when active tab changes
   useEffect(() => {
     if (typeof window === 'undefined') return
