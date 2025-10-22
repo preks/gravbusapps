@@ -356,7 +356,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = props =>
                             data-testid={`${PREFIX}-header-${col.key}`}
                           >
                             <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:backgroundspace-nowrap">{col.title}</span>
+                              <span className="gba:whitespace-nowrap">{col.title}</span>
                               {col.key !== 'actions' && (
                                 <button
                                   type="button"

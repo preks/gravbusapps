@@ -94,7 +94,7 @@ const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessTok
           <div className="gba-border gba-p-3 gba-rounded" data-testid="employee-data-results">
             <h2 className="gba-text-lg gba-font-semibold gba-mb-2">Employee Data:</h2>
             <div className="gba-overflow-auto gba-max-h-64">
-              <pre className="gba-backgroundspace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
+              <pre className="gba-whitespace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
                 {JSON.stringify(employeeData, null, 2)}
               </pre>
             </div>
@@ -104,7 +104,7 @@ const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessTok
           <div className="gba-border gba-p-3 gba-rounded" data-testid="cost-centers-results">
             <h2 className="gba-text-lg gba-font-semibold gba-mb-2">Cost Centers:</h2>
             <div className="gba-overflow-auto gba-max-h-64">
-              <pre className="gba-backgroundspace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
+              <pre className="gba-whitespace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
                 {JSON.stringify(costCenters, null, 2)}
               </pre>
             </div>
@@ -114,7 +114,7 @@ const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessTok
           <div className="gba-border gba-p-3 gba-rounded" data-testid="projects-results">
             <h2 className="gba-text-lg gba-font-semibold gba-mb-2">Projects:</h2>
             <div className="gba-overflow-auto gba-max-h-64">
-              <pre className="gba-backgroundspace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
+              <pre className="gba-whitespace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
                 {JSON.stringify(projects, null, 2)}
               </pre>
             </div>
@@ -124,7 +124,7 @@ const ExpenseRequestQueries: React.FC<ExpenseRequestQueriesProps> = ({ accessTok
           <div className="gba-border gba-p-3 gba-rounded" data-testid="employee-rule-results">
             <h2 className="gba-text-lg gba-font-semibold gba-mb-2">Employee Rule:</h2>
             <div className="gba-overflow-auto gba-max-h-64">
-              <pre className="gba-backgroundspace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
+              <pre className="gba-whitespace-pre-wrap gba-text-sm gba-bg-gray-50 gba-p-2">
                 {JSON.stringify(employeeRule, null, 2)}
               </pre>
             </div>

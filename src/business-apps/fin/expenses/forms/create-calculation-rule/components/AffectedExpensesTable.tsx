@@ -112,16 +112,16 @@ const AffectedExpensesTable: React.FC<AffectedExpensesTableProps> = ({
             ) : (
               data.map((row, idx) => (
                 <TableRow key={`${idx}`} data-testid={`${dataTestId}-row-${idx}`}>
-                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:backgroundspace-nowrap gba:overflow-hidden gba:text-ellipsis">
+                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:whitespace-nowrap gba:overflow-hidden gba:text-ellipsis">
                     {formatDate(row.createdAt || '', 'date.long')}
                   </TableCell>
-                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:backgroundspace-nowrap gba:overflow-hidden gba:text-ellipsis">
+                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:whitespace-nowrap gba:overflow-hidden gba:text-ellipsis">
                     {row.title || '-'}
                   </TableCell>
-                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:backgroundspace-nowrap gba:overflow-hidden gba:text-ellipsis">
+                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:whitespace-nowrap gba:overflow-hidden gba:text-ellipsis">
                     {row.requestType || '-'}
                   </TableCell>
-                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:backgroundspace-nowrap gba:overflow-hidden gba:text-ellipsis">
+                  <TableCell className="gba:py-3 gba:px-4 gba:max-w-[15vw] gba:whitespace-nowrap gba:overflow-hidden gba:text-ellipsis">
                     {row.type}
                   </TableCell>
                 </TableRow>
