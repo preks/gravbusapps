@@ -18,9 +18,7 @@ import StructuralAnalysisReport from './components/views/structural-analysis/Str
 import Compensation from './components/views/compensation'
 import Forecasting from './components/views/forecasting'
 
-export interface HrAnalyticsProps extends BusinessAppContextProps {}
-
-export const HrAnalytics: React.FC<HrAnalyticsProps> = context => {
+export const HrAnalytics: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'dashboard',

@@ -66,7 +66,7 @@ export const HrAnalyticsView: React.FC<BusinessAppContextProps> = context => {
 
   const [activeSubTab, setActiveSubTab] = useState<string>(getInitialTab())
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isLoading] = useState<boolean>(false)
 
   const handleSubTabChange = (value: string) => {
     setActiveSubTab(value)

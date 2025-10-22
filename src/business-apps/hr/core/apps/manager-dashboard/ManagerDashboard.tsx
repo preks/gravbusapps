@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDirectReports } from './hooks/useDirectReports'
 import { useMatrixTeams } from './hooks/useMatrixTeams'
@@ -67,7 +66,6 @@ import {
   PiCaretLeft,
   PiCheckCircle,
   PiCheckSquare,
-  PiFile as PiFileText,
   PiUsersThree,
   PiNetwork,
   PiClock,
@@ -84,7 +82,6 @@ import { ManagerAssistant } from './components/ManagerAssistant'
  */
 export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, accessToken }) => {
   const employeeId = userInfo?.employeeDetails?.employeeId
-  const { t } = useTranslation()
 
   // State for team tabs
   const [activeTeamTab, setActiveTeamTab] = useState<'my-team' | 'my-teams'>('my-team')
@@ -242,31 +239,19 @@ ${managerName}`
   })
 
   // Fetch upcoming birthdays for Team Insights
-  const {
-    upcomingBirthdays,
-    loading: loadingBirthdays,
-    error: birthdaysError
-  } = useTeamBirthdays({
+  const { upcomingBirthdays, loading: loadingBirthdays } = useTeamBirthdays({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
 
   // Fetch upcoming anniversaries for Team Insights
-  const {
-    upcomingAnniversaries,
-    loading: loadingAnniversaries,
-    error: anniversariesError
-  } = useTeamAnniversaries({
+  const { upcomingAnniversaries, loading: loadingAnniversaries } = useTeamAnniversaries({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
 
   // Fetch employees with missing job profiles for Team Insights
-  const {
-    employeesWithMissingProfiles,
-    loading: loadingMissingProfiles,
-    error: missingProfilesError
-  } = useMissingJobProfiles({
+  const { employeesWithMissingProfiles, loading: loadingMissingProfiles } = useMissingJobProfiles({
     accessToken: accessToken || '',
     managerId: employeeId || ''
   })
@@ -275,17 +260,10 @@ ${managerName}`
   const {
     approvalTasks,
     totalCount,
-    expenseRequestCount,
-    expensePlanCount,
     expenseCount,
     absenceCount,
     loading: loadingApprovals,
-    error: approvalsError,
-    refetch: refetchApprovals,
-    approveRequest,
-    rejectRequest,
-    approving,
-    rejecting
+    error: approvalsError
   } = useRequestsToApprove({
     accessToken: accessToken || '',
     managerId: employeeId || '',
@@ -296,17 +274,11 @@ ${managerName}`
   const {
     approvalTasks: allApprovalTasks,
     totalCount: allTotalCount,
-    expenseRequestCount: allExpenseRequestCount,
-    expensePlanCount: allExpensePlanCount,
     expenseCount: allExpenseCount,
     absenceCount: allAbsenceCount,
     loading: loadingAllApprovals,
     error: allApprovalsError,
-    refetch: refetchAllApprovals,
-    approveRequest: approveAllRequest,
-    rejectRequest: rejectAllRequest,
-    approving: approvingAll,
-    rejecting: rejectingAll
+    refetch: refetchAllApprovals
   } = useRequestsToApprove({
     accessToken: accessToken || '',
     managerId: employeeId || '',
@@ -314,41 +286,23 @@ ${managerName}`
   })
 
   // Fetch personal data changes for dashboard
-  const {
-    personalChanges,
-    personalChangesCount,
-    loading: loadingPersonalChanges,
-    error: personalChangesError,
-    refetch: refetchPersonalChanges,
-    approveChange,
-    rejectChange,
-    approving: approvingChange,
-    rejecting: rejectingChange
-  } = usePersonalDataChanges({
+  const { personalChanges, personalChangesCount } = usePersonalDataChanges({
     accessToken: accessToken || '',
     managerId: employeeId || '',
     showAll: false // Dashboard shows limited changes
   })
 
   // Fetch all personal data changes for detailed view
-  const {
-    personalChanges: allPersonalChanges,
-    personalChangesCount: allPersonalChangesCount,
-    loading: loadingAllPersonalChanges,
-    error: allPersonalChangesError,
-    refetch: refetchAllPersonalChanges,
-    approveChange: approveAllChange,
-    rejectChange: rejectAllChange,
-    approving: approvingAllChange,
-    rejecting: rejectingAllChange
-  } = usePersonalDataChanges({
-    accessToken: accessToken || '',
-    managerId: employeeId || '',
-    showAll: true // Detailed view shows all changes
-  })
+  const { personalChanges: allPersonalChanges, personalChangesCount: allPersonalChangesCount } = usePersonalDataChanges(
+    {
+      accessToken: accessToken || '',
+      managerId: employeeId || '',
+      showAll: true // Detailed view shows all changes
+    }
+  )
 
   // Fetch current user profile to get profile picture
-  const { userProfile, loading: loadingUserProfile } = useCurrentUserProfile({
+  const { userProfile } = useCurrentUserProfile({
     accessToken: accessToken || '',
     employeeId: employeeId || ''
   })
@@ -1391,7 +1345,6 @@ ${managerName}`
   if (currentView === 'teammates') {
     // Transform DirectReport data to Employee interface format with proper data mapping
     // Store status and statusWarning separately since Employee interface doesn't support them
-    const directReportsMap = new Map(directReports.map(report => [report.id, report]))
 
     const transformedEmployees: Employee[] = directReports.map(report => ({
       id: report.id,
@@ -1409,7 +1362,7 @@ ${managerName}`
     }))
 
     // Pagination handlers for the EmployeeTable
-    const handleLoadPage = (page: number, pageSize?: number) => {
+    const handleLoadPage = () => {
       // Since we have all direct reports already loaded, pagination is handled by DataTable
     }
 

@@ -3,7 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { HierarchyQueryVariables, OrganizationalUnitRelationshipResponse } from '../types/hierarchyTypes'
 
-export const GET_HIERARCHY_DATA = (variables: HierarchyQueryVariables): string => {
+export const GET_HIERARCHY_DATA = (): string => {
   return `
     query GetHierarchyData($structureId: uuid!) {
       OrganizationalUnitRelationship(
@@ -130,7 +130,7 @@ export const useGetHierarchyData = (context: BusinessAppContextProps) => {
 
   const fetchHierarchyData = useCallback(
     async (variables: HierarchyQueryVariables) => {
-      const query = GET_HIERARCHY_DATA(variables)
+      const query = GET_HIERARCHY_DATA()
 
       try {
         const result = await graphqlClient.request<OrganizationalUnitRelationshipResponse>(query, variables)

@@ -74,4 +74,4 @@ export type PersonalDataFormValues = {
   employeeDocumentId?: string
 }
 
-export interface TypedControl extends Control<PersonalDataFormValues> {}
+export type TypedControl = Control<PersonalDataFormValues>

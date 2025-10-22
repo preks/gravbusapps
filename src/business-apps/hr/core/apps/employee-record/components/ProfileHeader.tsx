@@ -21,10 +21,8 @@ import { Employee } from '../hooks/useEmployeeData'
 import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useFeature } from '@/common/hooks/useFeature'
-import { Feature } from '@/common/types/constants/FeatureHub'
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
-import { useEmployeeWorkCommunications, WorkCommunication } from '../hooks/useEmployeeWorkCommunications'
+import { useEmployeeWorkCommunications } from '../hooks/useEmployeeWorkCommunications'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { notification } from 'antd'
 import { StarIcon } from 'lucide-react'
@@ -150,7 +148,6 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
   // Translation helper
   const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key)
   const [isHovering, setIsHovering] = useState(false)
-  const [workCommunications, setWorkCommunications] = useState<WorkCommunication[]>([])
   const [employeeEmail, setEmployeeEmail] = useState<string | undefined>()
 
   // Use the openChat hook for direct Teams integration
@@ -244,43 +241,9 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
 
   // We don't need to manage the profile picture state anymore as EmployeeAvatar handles it
 
-  const getBusinessEmail = () => {
-    // First try to get from the GraphQL work communications
-    const emailComm = workCommunications.find(
-      c => c.channel?.value?.toLowerCase().includes('e-mail') || c.channel?.value?.toLowerCase().includes('email')
-    )
-
-    if (emailComm?.value) {
-      return emailComm.value
-    }
-
-    // Fallback to the original method
-    const email = employee.communication?.find(c => c.channel?.code === 'EMAIL')?.value
-    return email ?? ''
-  }
-
-  const getBusinessPhone = () => {
-    // First try to get from the GraphQL work communications
-    const phoneComm = workCommunications.find(
-      c => c.channel?.value?.toLowerCase().includes('phone') || c.channel?.value?.toLowerCase().includes('mobile')
-    )
-
-    if (phoneComm?.value) {
-      return formatPhoneNumber(phoneComm.value)
-    }
-
-    // Fallback to the original method
-    const phone = employee.communication?.find(c => c.channel?.code === 'PHONE')?.value
-    return phone ? formatPhoneNumber(phone) : ''
-  }
-
   // Update work communications when employee data is loaded
   useEffect(() => {
     if (employeeWithComms) {
-      if (employeeWithComms.workCommunications) {
-        setWorkCommunications(employeeWithComms.workCommunications)
-      }
-
       // Set the email directly from the enhanced employee data
       if (employeeWithComms.email) {
         setEmployeeEmail(employeeWithComms.email)
@@ -335,10 +298,6 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
     }
   }, [])
 
-  const coreCollaborationMode = useFeature(Feature.Core.Collaboration.Key)
-  const isAudioCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full
-  const isVideoCallEnabled = coreCollaborationMode === Feature.Core.Collaboration.Values.Full
-
   return (
     <div className="gba:w-full gba:relative gba:overflow-hidden">
       <div className="gba:relative gba:pb-4 gba:mt-4 gba:flex gba:flex-col gba:md:flex-row gba:md:items-end">
@@ -353,13 +312,13 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
                       src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
                       initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
                       alt={`${employee.firstName} ${employee.lastName}`}
-                      // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
                       contentType={employee.pictureThumbnail ? 'image' : 'initials'}
-                      // @ts-ignore - Type issue in gravity-ui-catalog for size
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for size
                       size="xl"
-                      // @ts-ignore - Type issue in gravity-ui-catalog for shape
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for shape
                       shape="rounded"
-                      // @ts-ignore - Type issue in gravity-ui-catalog for appearance
+                      // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
                       appearance="gradient"
                       style={{
                         width: '144px',
