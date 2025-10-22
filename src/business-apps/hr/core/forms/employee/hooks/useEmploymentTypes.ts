@@ -20,7 +20,6 @@ export const useEmploymentTypes = (accessToken: string): UseEmploymentTypesRetur
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(true)
-  const [offset, setOffset] = useState(0)
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [initialLoadDone, setInitialLoadDone] = useState(false)
 
@@ -39,7 +38,6 @@ export const useEmploymentTypes = (accessToken: string): UseEmploymentTypesRetur
 
       if (reset) {
         setEmploymentTypes([])
-        setOffset(0)
       }
 
       setLoading(true)
@@ -75,7 +73,6 @@ export const useEmploymentTypes = (accessToken: string): UseEmploymentTypesRetur
         }
 
         setHasMore(entries.length === limit)
-        setOffset(prev => (reset ? limit : prev + limit))
         setInitialLoadDone(true)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to fetch employment types'

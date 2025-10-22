@@ -1,13 +1,6 @@
 import dayjs from 'dayjs'
 import { Employee } from '../hooks/useGetEmployeesReport'
 
-/**
- * Filters a list of employees based on a search term.
- * The search term is matched against first name, last name, job position, and location.
- * @param employees The list of employees to filter.
- * @param search The search term.
- * @returns A filtered list of employees.
- */
 const filterBySearch = (employees: Employee[], search: string): Employee[] => {
   if (!search) return employees
   const searchLower = search.toLowerCase()
@@ -20,13 +13,6 @@ const filterBySearch = (employees: Employee[], search: string): Employee[] => {
   )
 }
 
-/**
- * Filters a list of employees based on a set of selected filter strings.
- * Handles multi-select for categories by grouping filters.
- * @param employees The list of employees to filter.
- * @param selectedFilters An array of filter strings (e.g., 'position:Software Engineer').
- * @returns A filtered list of employees.
- */
 const filterBySelectedFilters = (employees: Employee[], selectedFilters: string[]): Employee[] => {
   if (selectedFilters.length === 0) return employees
 
@@ -36,7 +22,6 @@ const filterBySelectedFilters = (employees: Employee[], selectedFilters: string[
 
   let filtered = [...employees]
 
-  // Apply tenure filter
   if (tenureFilters.length > 0) {
     filtered = filtered.filter(employee => {
       if (!employee.startDate) return false
@@ -44,13 +29,11 @@ const filterBySelectedFilters = (employees: Employee[], selectedFilters: string[
       const startDate = dayjs(employee.startDate)
       if (!startDate.isValid()) return false
 
-      // Use exitDate if it exists, otherwise use today's date for the calculation.
       const endDate = employee.exitDate ? dayjs(employee.exitDate) : dayjs()
       if (!endDate.isValid()) return false
 
       const tenureYears = endDate.diff(startDate, 'year', true)
 
-      // Check if the employee's tenure matches ANY of the selected tenure filters.
       return tenureFilters.some(tenureFilter => {
         switch (tenureFilter) {
           case '0-1y':
@@ -70,7 +53,6 @@ const filterBySelectedFilters = (employees: Employee[], selectedFilters: string[
     })
   }
 
-  // Apply standard filters
   if (standardFilters.length > 0) {
     const groupedFilters = standardFilters.reduce(
       (acc, filter) => {
@@ -106,14 +88,6 @@ const filterBySelectedFilters = (employees: Employee[], selectedFilters: string[
   return filtered
 }
 
-/**
- * Applies all filtering logic (search, selected filters, and KPI matching) to a list of employees.
- * @param employees The full list of employees.
- * @param search The current search term.
- * @param selectedFilters An array of selected filter strings.
- * @param matchesKpi A function that checks if an employee matches the current KPI.
- * @returns The final filtered list of employees.
- */
 export const applyEmployeeFilters = (
   employees: Employee[],
   search: string,

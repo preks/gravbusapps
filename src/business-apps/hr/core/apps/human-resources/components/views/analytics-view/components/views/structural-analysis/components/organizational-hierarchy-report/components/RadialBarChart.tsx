@@ -39,12 +39,6 @@ import { ViewMode } from '../hooks/useHierarchyData'
 
 const { Title, Text } = Typography
 
-// Radial bar chart data interface
-interface RadialBarData {
-  level: string
-  [key: string]: string | number
-}
-
 export interface RadialBarChartProps extends SunburstVisualizationProps {
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
@@ -61,48 +55,6 @@ const RadialBarChart: React.FC<RadialBarChartProps> = ({
   onViewModeChange
 }) => {
   const [selectedLevel, setSelectedLevel] = useState<number | null>(null)
-
-  // Transform sunburst data into radial bar chart data
-  const radialBarData = useMemo(() => {
-    if (!data || data.length === 0) return []
-
-    const result: RadialBarData[] = []
-
-    // Get organizational levels from the root data
-    const rootNode = data[0]
-    if (rootNode && rootNode.children) {
-      rootNode.children.forEach((levelNode, levelIndex) => {
-        if (levelNode.children && levelNode.children.length > 0) {
-          const levelData: RadialBarData = {
-            level: `Level ${levelIndex}`
-          }
-
-          // Add country data for this level
-          levelNode.children.forEach(countryNode => {
-            const countryName = countryNode.countryName || countryNode.country || 'Unknown'
-            levelData[countryName] = countryNode.value
-          })
-
-          result.push(levelData)
-        }
-      })
-    }
-
-    return result
-  }, [data])
-
-  // Get all unique countries for the radial bars
-  const allCountries = useMemo(() => {
-    const countries = new Set<string>()
-    radialBarData.forEach(level => {
-      Object.keys(level).forEach(key => {
-        if (key !== 'level' && key !== 'fill') {
-          countries.add(key)
-        }
-      })
-    })
-    return Array.from(countries)
-  }, [radialBarData])
 
   // Colors are now handled through the colorMap from the data integration hook
 

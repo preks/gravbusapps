@@ -193,7 +193,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
-  const [offset, setOffset] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const { search, departments, jobProfiles, jobFunctions, vacant, missingJobProfile, sortField, sortOrder } = filters
 
@@ -202,7 +201,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
 
   // Reset pagination state on filter change (but keep data visible)
   useEffect(() => {
-    setOffset(0)
     setHasMore(true)
     // Note: We intentionally DON'T clear jobPositions to avoid loading flicker
     // The data will be replaced when the new query completes
@@ -298,7 +296,7 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
         limit: pageSize,
         offset: pageOffset,
         filter: filterConditions.length > 0 ? { _and: filterConditions } : {},
-        search: hasActiveSearch ? `%${currentFilters.search.trim()}%` : '%%', // Match all if no search
+        search: hasActiveSearch ? `%${currentFilters.search?.trim()}%` : '%%', // Match all if no search
         // Always provide vacant parameter, but set to undefined to ignore vacancy when filtering by missing job profile
         vacant: currentFilters.missingJobProfile ? undefined : currentFilters.vacant,
         orderBy: Object.keys(orderBy).length > 0 ? [orderBy] : [{ name: 'ASC_NULLS_LAST' }]
@@ -318,7 +316,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
           // Server-side filtering is now handled in the GraphQL query
           setJobPositions(positions)
           setTotal(res.JobPositionAggregate.aggregate.count)
-          setOffset(pageOffset)
 
           // Check if there are more positions to load
           const hasMoreData =
@@ -348,7 +345,6 @@ export function useJobPositionListData(filters: JobPositionListFilters & { acces
   const retry = useCallback(() => {
     setError(null)
     setHasMore(true)
-    setOffset(0)
     setJobPositions([])
     setTotal(0)
     loadPage(1)
