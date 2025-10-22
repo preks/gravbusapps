@@ -421,6 +421,18 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
       currencyRef
       currency { code }
       requestType { value }
+      employeeDocument {
+        file
+        fileSize
+        id
+        description
+        mimeType
+        name
+        type
+        employee {
+          id
+        }
+      }
     }
 
     currentMonthTotal: ExpensePlanAggregate(

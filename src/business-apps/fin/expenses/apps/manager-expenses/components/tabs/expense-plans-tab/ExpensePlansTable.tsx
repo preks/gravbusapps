@@ -183,7 +183,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
         } else if (!result.success) {
           console.error('[Print Error]', result.error)
         }
-      } catch {
+      } catch (error) {
         console.error('[Print Exception]', error)
       } finally {
         if (isMounted.current) {
