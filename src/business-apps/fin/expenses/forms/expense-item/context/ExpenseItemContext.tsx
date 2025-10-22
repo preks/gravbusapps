@@ -311,13 +311,152 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     }
   }
 
-  const fetchInitialData = async () => {
+  /**
+   * Fetches employee rule data
+   */
+  const fetchEmployeeRuleData = async (employeeId: string, currentDate: string) => {
     try {
-      if (!accessToken) {
-        return
+      const employeeRuleData = await fetchEmployeeRule(employeeId, currentDate, accessToken)
+
+      if (employeeRuleData && employeeRuleData.expenseRuleId) {
+        setEmployeeRuleId(employeeRuleData.expenseRuleId)
+        setExpenseRuleError(null)
+      } else {
+        const errorMsg = t(
+          'lowcoder:create_expense_item.missing_expense_rule_message',
+          'There is no rule set for your user, please reach out to your administrator.'
+        )
+        setExpenseRuleError(errorMsg)
+      }
+    } catch {
+      const errorMsg = t(
+        'lowcoder:create_expense_item.missing_expense_rule_message',
+        'There is no rule set for your user, please reach out to your administrator.'
+      )
+      setExpenseRuleError(errorMsg)
+      showToast(errorMsg, 'error')
+    }
+  }
+
+  /**
+   * Fetches general expense data
+   */
+  const fetchGeneralData = async () => {
+    try {
+      const generalData = await graphqlClient.query({
+        query: fetchExpenseRuleGeneralData,
+        variables: {
+          expenseRuleId: employeeRuleId,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          objectFilter: { useInExpense: true }
+        }
+      })
+      setGeneralDataResponse(generalData)
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+    }
+  }
+
+  /**
+   * Fetches catalogue data
+   */
+  const fetchCatalogueData = async (employeeId: string) => {
+    try {
+      const catalogueData = await graphqlClient.query({
+        query: fetchExpenseCatalogueData,
+        variables: {
+          employeeId,
+          expenseRuleId: employeeRuleId,
+          activeUserLocale: getCurrentActiveUserLocale(),
+          objectFilter: { useInExpense: true }
+        }
+      })
+      setCatalogueDataResponse(catalogueData)
+      return catalogueData
+    } catch {
+      showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
+      return null
+    }
+  }
+
+  /**
+   * Handles edit mode initialization
+   */
+  const initializeEditMode = async (expenseId: string) => {
+    setCurrentStep('form')
+    const editData = await setByEdit(
+      expenseId,
+      graphqlClient,
+      form,
+      setPositions,
+      setMultiPosition,
+      setExpenseRequests,
+      handleExpenseGroupChange,
+      handleExpenseTypeChange,
+      expenseTypes,
+      setExpenseTypes,
+      customFields,
+      setCustomFields,
+      employeeRuleId,
+      t,
+      setInitialItemValues
+    )
+    try {
+      const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
+      if (itemCurrencyId) {
+        await handleCurrencyChangeWrapper(itemCurrencyId)
+      }
+    } catch {}
+    setIsEditMode(true)
+  }
+
+  /**
+   * Initializes cost centers for employee position
+   */
+  const initializeCostCenters = async (structureId: string, employeePosition: any, costCenterData: any) => {
+    try {
+      const updatedPositions = [...positions]
+      const employeePositionCostCenterId = employeePosition[0]?.costCenterId
+      const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
+
+      if (employeePositionCostCenterId) {
+        updatedPositions[0].costCenter = employeePositionCostCenterId
+        setUserCostCenter(employeePositionCostCenterId)
+      } else if (firstCostCenterId) {
+        updatedPositions[0].costCenter = firstCostCenterId
+        setUserCostCenter(firstCostCenterId)
       }
 
-      if (!userInfo) {
+      setPositions(updatedPositions)
+
+      if (form && updatedPositions[0]?.costCenter) {
+        form.setFieldsValue({
+          [`costCenter-0`]: updatedPositions[0].costCenter
+        })
+      }
+    } catch {}
+  }
+
+  /**
+   * Initializes currencies from catalogue data
+   */
+  const initializeCurrencies = (catalogueData: any) => {
+    try {
+      const currencyData = catalogueData?.data?.currency
+      if (currencyData && Array.isArray(currencyData)) {
+        const finalCurrencies = transformCurrencies(currencyData)
+        setCurrencies(finalCurrencies)
+      } else {
+        setCurrencies([])
+      }
+    } catch {
+      setCurrencies([])
+    }
+  }
+
+  const fetchInitialData = async () => {
+    try {
+      if (!accessToken || !userInfo) {
         return
       }
 
@@ -327,148 +466,46 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       if (!employeeIdValue) {
         return
       }
-      try {
-        const employeeRuleData = await fetchEmployeeRule(employeeIdValue, currentDate, accessToken)
 
-        if (employeeRuleData && employeeRuleData.expenseRuleId) {
-          setEmployeeRuleId(employeeRuleData.expenseRuleId)
-          setExpenseRuleError(null)
-        } else {
-          setExpenseRuleError(
-            t(
-              'lowcoder:create_expense_item.missing_expense_rule_message',
-              'There is no rule set for your user, please reach out to your administrator.'
-            )
-          )
-        }
-      } catch {
-        setExpenseRuleError(
-          t(
-            'lowcoder:create_expense_item.missing_expense_rule_message',
-            'There is no rule set for your user, please reach out to your administrator.'
-          )
-        )
-        showToast(
-          t(
-            'lowcoder:create_expense_item.missing_expense_rule_message',
-            'There is no rule set for your user, please reach out to your administrator.'
-          ),
-          'error'
-        )
-      }
+      // Fetch employee rule
+      await fetchEmployeeRuleData(employeeIdValue, currentDate)
 
-      try {
-        const generalData = await graphqlClient.query({
-          query: fetchExpenseRuleGeneralData,
-          variables: {
-            expenseRuleId: employeeRuleId,
-            activeUserLocale: getCurrentActiveUserLocale(),
-            objectFilter: { useInExpense: true }
-          }
-        })
-        setGeneralDataResponse(generalData)
-      } catch {
-        showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
-      }
+      // Fetch general data
+      await fetchGeneralData()
 
+      // Only fetch catalogue data if not rerunning rule
       if (rerunRule === false) {
-        let catalogueData
-        try {
-          catalogueData = await graphqlClient.query({
-            query: fetchExpenseCatalogueData,
-            variables: {
-              employeeId: employeeIdValue,
-              expenseRuleId: employeeRuleId,
-              activeUserLocale: getCurrentActiveUserLocale(),
-              objectFilter: { useInExpense: true }
-            }
-          })
-          setCatalogueDataResponse(catalogueData)
-        } catch {
-          showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
-        }
+        const catalogueData = await fetchCatalogueData(employeeIdValue)
 
         if (firstRunVariable === false && catalogueData?.data) {
           const employeePosition = catalogueData?.data?.EmployeePosition || []
           const structureId = employeePosition[0]?.structureId || ''
           const expenseIdValue = additionalData?.psi_taskPayload?.psi_initialParameters?.expenseId
-          if (expenseIdValue) {
-            setCurrentStep('form')
 
-            const editData = await setByEdit(
-              expenseIdValue,
-              graphqlClient,
-              form,
-              setPositions,
-              setMultiPosition,
-              setExpenseRequests,
-              handleExpenseGroupChange,
-              handleExpenseTypeChange,
-              expenseTypes,
-              setExpenseTypes,
-              customFields,
-              setCustomFields,
-              employeeRuleId,
-              t,
-              setInitialItemValues
-            )
-            try {
-              const itemCurrencyId = editData?.ExpenseItemByPk?.currency?.id || form.getFieldValue('currency')
-              if (itemCurrencyId) {
-                await handleCurrencyChangeWrapper(itemCurrencyId)
-              }
-            } catch {}
-            setIsEditMode(true)
+          // Handle edit mode
+          if (expenseIdValue) {
+            await initializeEditMode(expenseIdValue)
           }
+
+          // Fetch and set cost centers
           let costCenterData
           try {
             costCenterData = await graphqlClient.query({
               query: getStructureCostCenter,
-              variables: {
-                structureId: structureId
-              }
+              variables: { structureId }
             })
-
             const userCostCenters = costCenterData?.data?.userCostCenters || []
             setCostCenters(userCostCenters)
           } catch {
             setCostCenters([])
           }
 
-          try {
-            const updatedPositions = [...positions]
+          // Initialize cost centers for positions
+          await initializeCostCenters(structureId, employeePosition, costCenterData)
 
-            const employeePositionCostCenterId = employeePosition[0]?.costCenterId
-            const firstCostCenterId = costCenterData?.data?.userCostCenters?.[0]?.id
+          // Initialize currencies
+          initializeCurrencies(catalogueData)
 
-            if (employeePositionCostCenterId) {
-              updatedPositions[0].costCenter = employeePositionCostCenterId
-              setUserCostCenter(employeePositionCostCenterId)
-            } else if (firstCostCenterId) {
-              updatedPositions[0].costCenter = firstCostCenterId
-              setUserCostCenter(firstCostCenterId)
-            }
-
-            setPositions(updatedPositions)
-
-            if (form && updatedPositions[0]?.costCenter) {
-              form.setFieldsValue({
-                [`costCenter-0`]: updatedPositions[0].costCenter
-              })
-            }
-          } catch {}
-
-          try {
-            const currencyData = catalogueData?.data?.currency
-            if (currencyData && Array.isArray(currencyData)) {
-              const finalCurrencies = transformCurrencies(currencyData)
-              setCurrencies(finalCurrencies)
-            } else {
-              setCurrencies([])
-            }
-          } catch {
-            setCurrencies([])
-          }
           setFirstRunVariable(true)
         }
       }
