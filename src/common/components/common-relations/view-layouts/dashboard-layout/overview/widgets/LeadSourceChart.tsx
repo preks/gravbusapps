@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, IconAvatar, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@newwork/nw-design-system'
 import { getQualityLevelBadgeVariant } from '@/common/utils/badgeUtils'
 import {
   ChartConfig,
@@ -10,7 +10,6 @@ import {
   ChartLegendContent
 } from '@newwork/nw-design-system'
 import { PieChart, Pie } from 'recharts'
-import { ChartPieIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface LeadSourceItem {
@@ -47,7 +46,7 @@ const toKey = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLeads, moduleColor }) => {
+export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLeads }) => {
   const dataKey = 'leads'
   const nameKey = 'source'
 
@@ -77,8 +76,6 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLe
   const getFlexibleHeight = useMemo(() => {
     const baseChartHeight = 250 // Increased minimum chart height for bigger pie chart
     const qualityIndicatorHeight = items.length * 44 // Each quality indicator row is ~44px
-    const headerHeight = 80 // Approximate header height
-    const paddingAndSpacing = 60 // Additional padding and spacing
 
     // For fewer sources, make chart significantly bigger to fill card better
     const chartHeight =
@@ -93,7 +90,6 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLe
   return (
     <Card className="gba:h-full gba:flex gba:flex-col">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
-        <IconAvatar icon={ChartPieIcon} variant={moduleColor as any} size="md" iconWeight="regular" decorative={true} />
         <div>
           <CardTitle>
             {getTranslationFromI18nKeyAndLabel('leadSources.monthlyOpenLeads', 'Lead Sources - Monthly Open Leads')}

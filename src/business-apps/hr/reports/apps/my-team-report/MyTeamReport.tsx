@@ -1,9 +1,6 @@
-'use client'
-
 import React, { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { PageLayout } from '@/components/layout/pageLayout'
-import { Row, Col } from 'antd'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { DataController, DataControllerProps } from '@/components/dataController'
 import { useGetEmployeesReport, Employee } from './hooks/useGetEmployeesReport'
@@ -15,41 +12,12 @@ import { useSort } from './hooks/useSort'
 import { sortData } from './utils/sortUtils'
 import { TeamReportTable } from './components/TeamReportTable'
 import { EmployeeDetails } from '@/business-apps/hr/core/details/employee-details'
-import { PiUsersThree } from 'react-icons/pi'
-import {
-  CalendarOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  IdcardOutlined,
-  SolutionOutlined,
-  UserOutlined
-} from '@ant-design/icons'
+import { PiUsersThree, PiUsers, PiCalendar } from 'react-icons/pi'
+import { CalendarOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import KpiCard from './components/KpiCard'
+import { WidgetGroup, WidgetItem } from '@/components/widget-group'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-const KpiIcon = ({ name }: { name: string }) => {
-  switch (name) {
-    case 'UserOutlined':
-      return <UserOutlined />
-    case 'CalendarOutlined':
-      return <CalendarOutlined />
-    case 'CheckOutlined':
-      return <CheckOutlined />
-    case 'CloseOutlined':
-      return <CloseOutlined />
-    case 'SolutionOutlined':
-      return <SolutionOutlined />
-    case 'IdcardOutlined':
-      return <IdcardOutlined />
-    default:
-      return null
-  }
-}
-
-/**
- * My Team Report V2 page component. Renders the team member list with a table view.
- * @returns {JSX.Element}
- */
 export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken, userInfo } = props
   const { t } = useTranslation()
@@ -58,7 +26,6 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
 
-  // Fetch all employees. Filtering and pagination will be done on the client side.
   const {
     employees: allEmployees,
     loading,
@@ -66,16 +33,31 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     retry
   } = useGetEmployeesReport({ accessToken: accessToken || '', userInfo })
 
-  // Calculate average tenure using the utility function
   const averageTenureFormatted = useMemo(() => {
     return calculateAverageTenure(allEmployees).formatted
   }, [allEmployees])
 
-  const kpiCards = useMemo(() => {
-    return generateKpiCards(allEmployees, averageTenureFormatted)
+  const getKpiIcon = (kpiKey: string) => {
+    if (kpiKey === 'all') return <PiUsers />
+    if (kpiKey === 'tenure') return <PiCalendar />
+    return undefined
+  }
+
+  const widgets: WidgetItem[] = useMemo(() => {
+    const kpiCards = generateKpiCards(allEmployees, averageTenureFormatted)
+
+    return kpiCards.map(kpi => ({
+      key: kpi.key,
+      title: kpi.label,
+      value: kpi.value,
+      prefix: getKpiIcon(kpi.key),
+      color: '#1890ff',
+      span: { xs: 24, sm: 12, lg: 6 },
+      description: kpi.subLabel,
+      onClick: () => setActiveKpi(kpi.key)
+    }))
   }, [allEmployees, averageTenureFormatted])
 
-  // Instantiate the sorting hook
   const { sortConfig, handleSort } = useSort()
 
   const { search, setSearch, selectedFilters, addFilter, removeFilter, clearFilters, filterGroups, filterLabelMap } =
@@ -93,29 +75,23 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     [activeKpi]
   )
 
-  // Apply filters to the employee list using the utility function
   const filteredEmployees = useMemo(() => {
     return applyEmployeeFilters(allEmployees, search, selectedFilters, matchesKpi)
   }, [allEmployees, search, selectedFilters, matchesKpi])
 
-  // Apply sorting to the filtered list
   const sortedEmployees = useMemo(() => {
     return sortData(filteredEmployees, sortConfig)
   }, [filteredEmployees, sortConfig])
 
-  // Apply client-side pagination
   const paginatedEmployees = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize
     return sortedEmployees.slice(startIndex, startIndex + pageSize)
   }, [sortedEmployees, currentPage, pageSize])
 
-  // Reset to page 1 when filters change
-  // Reset to page 1 when filters or sorting change
   React.useEffect(() => {
     setCurrentPage(1)
   }, [search, selectedFilters, sortConfig])
 
-  // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
     (filterId: string, checked: boolean) => {
       if (checked) {
@@ -128,33 +104,31 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
   )
 
   const displayFilters = useMemo(() => {
-    const kpiFilter = kpiCards.find(kpi => kpi.key === activeKpi)
+    const kpiFilter = widgets.find(widget => widget.key === activeKpi)
     const kpiFilterPill = kpiFilter && activeKpi !== 'all' ? [`kpi:${activeKpi}`] : []
     return [...kpiFilterPill, ...selectedFilters]
-  }, [activeKpi, selectedFilters, kpiCards])
+  }, [activeKpi, selectedFilters, widgets])
 
   const displayLabelMap = useMemo(() => {
-    const kpiLabelMap = kpiCards.reduce(
-      (acc, kpi) => {
-        acc[`kpi:${kpi.key}`] = kpi.label
+    const kpiLabelMap = widgets.reduce(
+      (acc, widget) => {
+        acc[`kpi:${widget.key}`] = widget.title
         return acc
       },
       {} as Record<string, string>
     )
 
     return { ...kpiLabelMap, ...filterLabelMap }
-  }, [kpiCards, filterLabelMap])
+  }, [widgets, filterLabelMap])
 
-  // When a filter pill is removed, update the correct state
   const handleDisplayFilterChange = useCallback(
     (newFilters: string[]) => {
       const kpiPillPrefix = 'kpi:'
       const newKpiFilters = newFilters.filter(f => f.startsWith(kpiPillPrefix))
       const newRegularFilters = newFilters.filter(f => !f.startsWith(kpiPillPrefix))
 
-      // Handle KPI filter changes
       if (newKpiFilters.length === 0 && activeKpi !== 'all') {
-        setActiveKpi('all') // Reset to 'all' if the KPI pill is removed
+        setActiveKpi('all')
       } else {
         const newActiveKpi = newKpiFilters[0]?.replace(kpiPillPrefix, '')
         if (newActiveKpi && newActiveKpi !== activeKpi) {
@@ -162,7 +136,6 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
         }
       }
 
-      // Handle regular filter changes
       if (newRegularFilters.length === 0 && selectedFilters.length > 0) {
         clearFilters()
       }
@@ -173,10 +146,9 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
         removeFilter(filterToRemove)
       })
     },
-    [activeKpi, selectedFilters, clearFilters, removeFilter, kpiCards]
+    [activeKpi, selectedFilters, clearFilters, removeFilter, widgets]
   )
 
-  // Handle page changes
   const loadPage = useCallback((page: number, newPageSize?: number) => {
     setCurrentPage(page)
     if (newPageSize) {
@@ -184,17 +156,24 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     }
   }, [])
 
-  // Handle employee selection
   const handleEmployeeSelect = useCallback((employee: Employee) => {
     setSelectedEmployee(employee)
   }, [])
 
-  // Handle details panel close
+  const handleWidgetClick = useCallback(
+    (widgetKey: string) => {
+      const widget = widgets.find(w => w.key === widgetKey)
+      if (widget?.onClick) {
+        widget.onClick()
+      }
+    },
+    [widgets]
+  )
+
   const handleDetailsPanelClose = useCallback(() => {
     setSelectedEmployee(null)
   }, [])
 
-  // Handle click outside of employee table to close details
   const handleOutsideClick = useCallback(
     (e: MouseEvent) => {
       const target = e.target as HTMLElement
@@ -207,7 +186,6 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     [selectedEmployee]
   )
 
-  // Add and remove click listener for outside clicks
   React.useEffect(() => {
     document.addEventListener('click', handleOutsideClick)
     return () => {
@@ -220,31 +198,31 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
       <PageLayout
         variant="default"
         headerIcon={<CalendarOutlined className="gba:text-info gba:text-3xl" />}
-        headerLabel={'My Team'}
+        headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:employee_my_team_report.overview_header', 'My Team')}
+        className="gba:[&_[data-testid=page-layout-content-header]]:!border-b-0 gba:[&_[data-testid=page-layout-header]]:!border-b-0"
         contentHeader={
-          <Row gutter={[16, 16]} className="gba:pb-6">
-            {kpiCards.map(kpi => (
-              <Col xs={24} sm={12} lg={6} key={kpi.key}>
-                <KpiCard
-                  {...props}
-                  kpiKey={kpi.key}
-                  data-testid={`team-report-kpi-${kpi.key}`}
-                  icon={kpi.key === 'all' || kpi.key === 'tenure' ? <KpiIcon name={kpi.iconName} /> : null}
-                  label={kpi.label}
-                  subLabel={kpi.subLabel}
-                  value={kpi.value}
-                  active={activeKpi === kpi.key}
-                  onClick={() => setActiveKpi(kpi.key)}
-                />
-              </Col>
-            ))}
-          </Row>
+          <div data-testid="team-report-kpi-container" className="gba:pb-4">
+            <WidgetGroup
+              widgets={widgets}
+              isLoading={loading}
+              error={error}
+              onRetry={retry}
+              onWidgetClick={handleWidgetClick}
+              skeletonCount={6}
+              emptyText={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:team_report_kpi.no_data_available',
+                'No KPI data available.'
+              )}
+              data-testid="team-report-kpi"
+            />
+          </div>
         }
         contentContainer={
           <DataContainer<DataControllerProps>
             contentBackground="white"
             floatingDetails={true}
             onDetailsPanelClose={handleDetailsPanelClose}
+            className="gba:[&_[data-testid=data-container-main-content]]:!pl-0"
             dataControllerComponent={DataController}
             dataControllerProps={{
               search: search,
@@ -254,26 +232,29 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
               setFilter: handleDisplayFilterChange,
               filterLabelMap: displayLabelMap,
               listIcon: <PiUsersThree size={20} />,
-              listAmount: filteredEmployees.length // Use filtered length for total
+              listAmount: filteredEmployees.length
             }}
             dataFilterProps={{
               filterGroups: filterGroups,
               onFilterChange: handleFilterChange
             }}
             dataBody={
-              <div data-testid="team-report-table-container">
-                <TeamReportTable
-                  employees={paginatedEmployees} // Use paginated employees
-                  loading={loading}
-                  error={error}
-                  loadPage={loadPage}
-                  retry={retry}
-                  total={filteredEmployees.length} // Use filtered length for total
-                  onSelectEmployee={handleEmployeeSelect}
-                  selectedEmployeeId={selectedEmployee?.id}
-                  sortConfig={sortConfig} // Pass sortConfig
-                  onSort={handleSort} // Pass handleSort
-                />
+              <div data-testid="team-report-table-container" className="gba:pt-4 gba:pl-0 gba:pr-4 gba:pb-4">
+                <div className="gba:border gba:border-gray-200 gba:rounded-lg gba:bg-white">
+                  <TeamReportTable
+                    {...props}
+                    employees={paginatedEmployees}
+                    loading={loading}
+                    error={error}
+                    loadPage={loadPage}
+                    retry={retry}
+                    total={filteredEmployees.length}
+                    onSelectEmployee={handleEmployeeSelect}
+                    selectedEmployeeId={selectedEmployee?.id}
+                    sortConfig={sortConfig}
+                    onSort={handleSort}
+                  />
+                </div>
               </div>
             }
             dataDetails={

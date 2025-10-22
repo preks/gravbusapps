@@ -138,7 +138,7 @@ export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
           hasHandledRef.current = true
           handleFlowProcessCompletion()
         }
-      } catch (e) {
+      } catch {
         // no-op
       }
     }

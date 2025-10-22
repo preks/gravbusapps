@@ -32,6 +32,7 @@ import ChangeLogTab from './components/tabs/ChangeLogTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
 
 /**
  * Employee Record Module
@@ -163,6 +164,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
+  const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
+  const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
 
   // Update URL when active tab changes
   useEffect(() => {
@@ -346,25 +349,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         )
       },
       {
-        key: TAB_KEYS.feedback,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiChatCircle className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">Feedback</span>
-          </div>
-        ),
-        children: (
-          <FeedbackTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-            employeeFeedback={feedback ?? []}
-          />
-        )
-      },
-      {
         key: TAB_KEYS.absences,
         label: (
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -401,25 +385,54 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      {
-        key: TAB_KEYS.changeLog,
-        label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiClockCounterClockwise style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Change Log</span>
-          </div>
-        ),
-        children: (
-          <ChangeLogTab
-            employeeId={employeeIdToShow}
-            employeeName={employee?.displayName || 'Employee'}
-            userRole={'employee'}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            additionalData={additionalData}
-          />
-        )
-      },
+      ...(feedbackTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.feedback,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiChatCircle className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">Feedback</span>
+                </div>
+              ),
+              children: (
+                <FeedbackTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                  employeeFeedback={feedback ?? []}
+                />
+              )
+            }
+          ]
+        : []),
+      ...(changeLogTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.changeLog,
+              label: (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <PiClockCounterClockwise
+                    style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }}
+                  />
+                  <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Change Log</span>
+                </div>
+              ),
+              children: (
+                <ChangeLogTab
+                  employeeId={employeeIdToShow}
+                  employeeName={employee?.displayName || 'Employee'}
+                  userRole={'employee'}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  additionalData={additionalData}
+                />
+              )
+            }
+          ]
+        : []),
       {
         key: TAB_KEYS.serviceRequests,
         label: (
