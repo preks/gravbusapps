@@ -79,9 +79,10 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           <div className="gba:flex gba:flex-col gba:gap-1">
             {creatorName ? (
               <button
-                className="gba:text-sm gba:text-gray-700 hover:gba:underline"
+                className="gba:text-sm gba:text-primary gba:hover:underline gba:underline-offset-2 gba:font-medium"
                 data-testid={`${dataTestIdPrefix}-creator-${id}`}
                 onClick={onCreatorClick}
+                type="button"
               >
                 {creatorName}
               </button>

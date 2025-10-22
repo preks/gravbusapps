@@ -14,6 +14,7 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { CalendarOutlined, SearchOutlined, DownloadOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import Pill from '@/components/pill/Pill'
 // import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
@@ -100,6 +101,8 @@ interface FormattedFeedback {
   private?: boolean
   feedbackPublic?: boolean | null
   type?: string
+  // Numeric timestamp for sorting by most recent first
+  timestamp?: number
 }
 
 /**
@@ -278,6 +281,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     if (!localFeedback?.length) return []
 
     return localFeedback.map(feedback => {
+      const timestamp = feedback.feedbackDate ? Date.parse((feedback as any).feedbackDate) : 0
       const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim()
       const date = feedback.feedbackDate
         ? (formatDate(feedback.feedbackDate, 'date.short') ??
@@ -302,7 +306,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         rating: feedback.rating,
         private: (feedback as any).feedbackPublic === false,
         feedbackPublic: (feedback as any).feedbackPublic,
-        type: ((feedback as any)?.type?.value as string) || (feedback as any).typeRef
+        type: ((feedback as any)?.type?.value as string) || (feedback as any).typeRef,
+        timestamp
       }
     })
   }
@@ -322,23 +327,25 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   // Note: Do not early-return error when there is no feedback; prefer empty state
 
   // Filter feedback based on search and filter criteria
-  const formattedFilteredFeedback = allFormattedFeedback.filter(feedback => {
-    const matchesSearch =
-      searchTerm === '' ||
-      feedback.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feedback.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feedback.lastName.toLowerCase().includes(searchTerm.toLowerCase())
+  const formattedFilteredFeedback = allFormattedFeedback
+    .filter(feedback => {
+      const matchesSearch =
+        searchTerm === '' ||
+        feedback.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        feedback.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        feedback.lastName.toLowerCase().includes(searchTerm.toLowerCase())
 
-    // Use feedbackPublic: explicitly treat false as Private; any other value as Public
-    const isPrivate = feedback.feedbackPublic === false
-    if (!isSelfView && isPrivate) {
-      return false
-    }
-    const matchesFilter =
-      filterType === 'all' || (filterType === 'private' && isPrivate) || (filterType === 'public' && !isPrivate)
+      // Use feedbackPublic: explicitly treat false as Private; any other value as Public
+      const isPrivate = feedback.feedbackPublic === false
+      if (!isSelfView && isPrivate) {
+        return false
+      }
+      const matchesFilter =
+        filterType === 'all' || (filterType === 'private' && isPrivate) || (filterType === 'public' && !isPrivate)
 
-    return matchesSearch && matchesFilter
-  })
+      return matchesSearch && matchesFilter
+    })
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
 
   return (
     <div className="gba:space-y-8 gba:pb-6" data-testid="feedback-tab">
@@ -403,63 +410,138 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         </div>
       </div>
 
-      {/* Feedback Requests Section */}
-      <div className="gba:space-y-6 " data-testid="feedback-requests-section">
-        <div className="gba:flex gba:items-center">
-          <h3 className="gba:text-xl gba:font-semibold">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_requests', 'Feedback Requests')}
-          </h3>
-        </div>
+      {/* Feedback Requests Section - visible only in self view */}
+      {isSelfView && (
+        <div className="gba:space-y-6 " data-testid="feedback-requests-section">
+          <div className="gba:flex gba:items-center">
+            <h3 className="gba:text-xl gba:font-semibold">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_requests', 'Feedback Requests')}
+            </h3>
+          </div>
 
-        {/* Two-column layout: received (left) and approvals (right) */}
-        <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:px-4 gba:py-2">
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-              <h4 className="gba:text-base gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:feedback_tab.col_received',
-                  'Feedback requests you received'
+          {/* Two-column layout: received (left) and approvals (right) */}
+          <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:px-4 gba:py-2">
+            <div>
+              <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
+                <h4 className="gba:text-base gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_tab.col_received',
+                    'Feedback requests you received'
+                  )}
+                </h4>
+                {feedbackRequests.length > 3 && (
+                  <button
+                    type="button"
+                    className="gba:text-blue-600 hover:gba:text-blue-800"
+                    onClick={() => setShowAllReceivedRequests(v => !v)}
+                    data-testid="received-requests-toggle"
+                    aria-label={
+                      showAllReceivedRequests
+                        ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
+                    }
+                  >
+                    {showAllReceivedRequests ? <UpOutlined /> : <DownOutlined />}
+                  </button>
                 )}
-              </h4>
-              {feedbackRequests.length > 3 && (
-                <button
-                  type="button"
-                  className="gba:text-blue-600 hover:gba:text-blue-800"
-                  onClick={() => setShowAllReceivedRequests(v => !v)}
-                  data-testid="received-requests-toggle"
-                  aria-label={
-                    showAllReceivedRequests
-                      ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
-                      : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
-                  }
-                >
-                  {showAllReceivedRequests ? <UpOutlined /> : <DownOutlined />}
-                </button>
+              </div>
+              {loading ? (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                  <Spin size="default" />
+                </div>
+              ) : error ? (
+                <div className="gba:text-red-500">{error}</div>
+              ) : feedbackRequests.length === 0 ? (
+                <Empty
+                  description={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_tab.no_feedback_requests',
+                    'No feedback requests'
+                  )}
+                />
+              ) : (
+                <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                  {(showAllReceivedRequests ? feedbackRequests : feedbackRequests.slice(0, 3)).map(
+                    (request: FeedbackRequest) => (
+                      <RequestCard
+                        key={request.id}
+                        id={request.id}
+                        title={request.taskTitle || 'Enter Requested Employee Feedback'}
+                        subtitle={request.feedbackText || undefined}
+                        creatorName={request.creatorName || null}
+                        dateText={
+                          request.requestedOn
+                            ? getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:feedback_tab.requested_on_date',
+                                `Requested on ${formatDate(request.requestedOn, 'date.short') ?? ''}`
+                              ).replace('{{date}}', formatDate(request.requestedOn, 'date.short') ?? '')
+                            : undefined
+                        }
+                        reviewerAvatars={(request.employeeFeedbackRequestReviewer || []).map(rev => ({
+                          id: rev.id,
+                          firstName: rev.reviewerEmployee?.firstName,
+                          lastName: rev.reviewerEmployee?.lastName,
+                          pictureThumbnail: rev.reviewerEmployee?.employeePosition?.employee?.pictureThumbnail || null
+                        }))}
+                        reviewerNames={request.reviewerNames || undefined}
+                        rightAction={
+                          <div className="gba:cursor-pointer">
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                          </div>
+                        }
+                        onRightActionClick={() => handleRespondClick(request)}
+                        dataTestIdPrefix={`received-request`}
+                      />
+                    )
+                  )}
+                </div>
               )}
             </div>
-            {loading ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                <Spin size="default" />
-              </div>
-            ) : error ? (
-              <div className="gba:text-red-500">{error}</div>
-            ) : feedbackRequests.length === 0 ? (
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:feedback_tab.no_feedback_requests',
-                  'No feedback requests'
+
+            <div>
+              <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
+                <h4 className="gba:text-base gba:font-medium">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
+                </h4>
+                {requestedFeedback.length > 3 && (
+                  <button
+                    type="button"
+                    className="gba:text-blue-600 hover:gba:text-blue-800"
+                    onClick={() => setShowAllApprovalRequests(v => !v)}
+                    data-testid="approval-requests-toggle"
+                    aria-label={
+                      showAllApprovalRequests
+                        ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
+                    }
+                  >
+                    {showAllApprovalRequests ? <UpOutlined /> : <DownOutlined />}
+                  </button>
                 )}
-              />
-            ) : (
-              <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                {(showAllReceivedRequests ? feedbackRequests : feedbackRequests.slice(0, 3)).map(
-                  (request: FeedbackRequest) => (
+              </div>
+              {requestsLoadingApproval ? (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                  <Spin size="default" />
+                </div>
+              ) : requestsErrorApproval ? (
+                <div className="gba:text-red-500">{requestsErrorApproval}</div>
+              ) : requestedFeedback.length === 0 ? (
+                <Empty
+                  description={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:feedback_tab.no_approval_requests',
+                    'No approval requests'
+                  )}
+                />
+              ) : (
+                <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                  {(showAllApprovalRequests ? requestedFeedback : requestedFeedback.slice(0, 3)).map(request => (
                     <RequestCard
                       key={request.id}
                       id={request.id}
-                      title={request.taskTitle || 'Enter Requested Employee Feedback'}
+                      title={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:feedback_tab.requested_feedback_card_title',
+                        'Requested Feedback'
+                      )}
                       subtitle={request.feedbackText || undefined}
-                      creatorName={request.creatorName || null}
                       dateText={
                         request.requestedOn
                           ? getTranslationFromI18nKeyAndLabel(
@@ -468,96 +550,33 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                             ).replace('{{date}}', formatDate(request.requestedOn, 'date.short') ?? '')
                           : undefined
                       }
-                      reviewerAvatars={(request.employeeFeedbackRequestReviewer || []).map(rev => ({
-                        id: rev.id,
-                        firstName: rev.reviewerEmployee?.firstName,
-                        lastName: rev.reviewerEmployee?.lastName,
-                        pictureThumbnail: rev.reviewerEmployee?.employeePosition?.employee?.pictureThumbnail || null
-                      }))}
-                      reviewerNames={request.reviewerNames || undefined}
-                      rightAction={
-                        <div className="gba:cursor-pointer">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
-                        </div>
+                      creatorName={request.creatorName || null}
+                      onCreatorClick={
+                        request.creatorEmployeeId
+                          ? () =>
+                              navigateTo(
+                                buildPlatformUrl('/platform/employee-record', {
+                                  employeeId: request.creatorEmployeeId as string
+                                })
+                              )
+                          : undefined
                       }
-                      onRightActionClick={() => handleRespondClick(request)}
-                      dataTestIdPrefix={`received-request`}
+                      dataTestIdPrefix={`approval-request`}
+                      rightAction={(() => {
+                        const state = (request.recordState || '').toString().toLowerCase()
+                        const statusText = state
+                          ? state.charAt(0).toUpperCase() + state.slice(1)
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.status_unknown', 'Unknown')
+                        return <Pill label={statusText} type="waiting" />
+                      })()}
                     />
-                  )
-                )}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-              <h4 className="gba:text-base gba:font-medium">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
-              </h4>
-              {requestedFeedback.length > 3 && (
-                <button
-                  type="button"
-                  className="gba:text-blue-600 hover:gba:text-blue-800"
-                  onClick={() => setShowAllApprovalRequests(v => !v)}
-                  data-testid="approval-requests-toggle"
-                  aria-label={
-                    showAllApprovalRequests
-                      ? getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.collapse', 'Collapse')
-                      : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.expand', 'Expand')
-                  }
-                >
-                  {showAllApprovalRequests ? <UpOutlined /> : <DownOutlined />}
-                </button>
+                  ))}
+                </div>
               )}
             </div>
-            {requestsLoadingApproval ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                <Spin size="default" />
-              </div>
-            ) : requestsErrorApproval ? (
-              <div className="gba:text-red-500">{requestsErrorApproval}</div>
-            ) : requestedFeedback.length === 0 ? (
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:feedback_tab.no_approval_requests',
-                  'No approval requests'
-                )}
-              />
-            ) : (
-              <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                {(showAllApprovalRequests ? requestedFeedback : requestedFeedback.slice(0, 3)).map(request => (
-                  <RequestCard
-                    key={request.id}
-                    id={request.id}
-                    title={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:feedback_tab.requested_feedback_card_title',
-                      'Requested Feedback'
-                    )}
-                    subtitle={request.feedbackText || undefined}
-                    dateText={
-                      request.requestedOn
-                        ? getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:feedback_tab.requested_on_date',
-                            `Requested on ${formatDate(request.requestedOn, 'date.short') ?? ''}`
-                          ).replace('{{date}}', formatDate(request.requestedOn, 'date.short') ?? '')
-                        : undefined
-                    }
-                    creatorName={request.creatorName || null}
-                    dataTestIdPrefix={`approval-request`}
-                    rightAction={(() => {
-                      const state = (request.recordState || '').toString().toLowerCase()
-                      const statusText = state
-                        ? state.charAt(0).toUpperCase() + state.slice(1)
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.status_unknown', 'Unknown')
-                      return <Pill label={statusText} type="waiting" />
-                    })()}
-                  />
-                ))}
-              </div>
-            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* Feedback History Section */}
       <div className="gba:space-y-6" data-testid="feedback-history-section">
