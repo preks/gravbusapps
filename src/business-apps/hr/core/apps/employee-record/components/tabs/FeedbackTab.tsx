@@ -163,8 +163,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     filterTaskName: 'enterRequestedFeedback'
   })
 
-  console.log(feedbackTasks, 'feedbackTasks')
-
   // GraphQL: Feedback you requested (second column)
   const [requestedFeedback, setRequestedFeedback] = useState<FeedbackRequest[]>([])
   const [requestsLoadingApproval, setRequestsLoadingApproval] = useState<boolean>(false)
@@ -180,7 +178,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY, {
         idEmployee: employee.id
       })
-      console.log(res, 'res')
       const rows: any[] = res?.EmployeeFeedbackRequest || []
       const mapped: FeedbackRequest[] = rows.map((r: any, idx: number) => ({
         id: `${r.requesterEmployeeId || 'req'}-${r.createdAt || idx}`,
