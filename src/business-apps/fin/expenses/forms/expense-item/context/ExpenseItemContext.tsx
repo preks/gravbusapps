@@ -154,7 +154,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       const matchingItems = expenseGroups.filter((item: any) => uniqueExpenseGroupRefs.includes(item.id))
 
       setExpenseGroups(matchingItems)
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
         'error'
@@ -266,7 +266,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           expenseGroupLabel: expenseGroupLabel
         })
       })
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_ai_items', 'Error processing expense AI items'),
         'error'
@@ -293,7 +293,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
     try {
       addRequests(catalogueDataResponse, setExpenseRequests, t)
-    } catch (error) {
+    } catch {
       showToast(
         t(
           'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
@@ -341,7 +341,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             )
           )
         }
-      } catch (ruleError) {
+      } catch {
         setExpenseRuleError(
           t(
             'lowcoder:create_expense_item.missing_expense_rule_message',
@@ -367,7 +367,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           }
         })
         setGeneralDataResponse(generalData)
-      } catch (generalDataError) {
+      } catch {
         showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
       }
 
@@ -384,7 +384,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             }
           })
           setCatalogueDataResponse(catalogueData)
-        } catch (catalogueError) {
+        } catch {
           showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
         }
 
@@ -431,7 +431,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
 
             const userCostCenters = costCenterData?.data?.userCostCenters || []
             setCostCenters(userCostCenters)
-          } catch (costCenterError) {
+          } catch {
             setCostCenters([])
           }
 
@@ -456,7 +456,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
                 [`costCenter-0`]: updatedPositions[0].costCenter
               })
             }
-          } catch (positionError) {}
+          } catch {}
 
           try {
             const currencyData = catalogueData?.data?.currency
@@ -466,14 +466,14 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
             } else {
               setCurrencies([])
             }
-          } catch (currencyError) {
+          } catch {
             setCurrencies([])
           }
           setFirstRunVariable(true)
         }
       }
       setRerunRule(false)
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
   }
@@ -536,7 +536,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           if (!isNaN(dateValue.getTime())) {
             form.setFieldsValue({ date: dateValue })
           }
-        } catch (error) {}
+        } catch {}
       }
 
       if (data.currencyCode) {
@@ -634,7 +634,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
                   form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
                 }
               }
-            } catch (error) {
+            } catch {
               showToast(
                 t(
                   'lowcoder:create_expense_type_item.process_error_receipt_processing',
@@ -646,7 +646,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           }
         })
       }
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
         'error'
@@ -676,7 +676,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       setIsFormDisabled(false)
 
       return result
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
         'error'
@@ -735,7 +735,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
           }
         })
       }
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.error_flows', 'Error in flow process'), 'error')
       form.resetFields()
       setPositions([DEFAULT_POSITION])
@@ -779,7 +779,7 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
       })
 
       addRequests(expenseRequestByCurrency, setExpenseRequests, t)
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     }
   }
