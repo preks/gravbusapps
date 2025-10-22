@@ -251,6 +251,8 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
 
     switch (category) {
       case 'core':
+      case 'manager':
+        // Both core and manager areas use blue theme
         return {
           iconBg: 'gba:bg-blue-50',
           iconColor: 'gba:text-blue-500',
@@ -269,13 +271,6 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
           iconBg: 'gba:bg-purple-50',
           iconColor: 'gba:text-purple-500',
           statsBg: '#8B5CF6',
-          statsText: 'gba:text-background'
-        }
-      case 'manager':
-        return {
-          iconBg: 'gba:bg-blue-50',
-          iconColor: 'gba:text-blue-500',
-          statsBg: '#3B82F6',
           statsText: 'gba:text-background'
         }
       default:
