@@ -1,6 +1,5 @@
-import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
-import { getCurrentActiveStructureId } from '../../../../../../common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCallback } from 'react'
 
 export interface AbsenceQueryVariables {
@@ -75,7 +74,7 @@ export interface AbsenceGroupsResponse {
   }>
 }
 
-export const GET_ABSENCE_DATA = (variables: AbsenceQueryVariables): string => {
+export const GET_ABSENCE_DATA = (): string => {
   return `
     query GetAbsenceData($limit: Int, $offset: Int) {
       EmployeeAbsence(
@@ -194,7 +193,7 @@ export const useGetAbsenceData = (context: BusinessAppContextProps) => {
         offset: 0
       }
     ): Promise<AbsenceDataResponse> => {
-      const query = GET_ABSENCE_DATA(variables)
+      const query = GET_ABSENCE_DATA()
       try {
         const result = await graphqlClient.request<AbsenceDataResponse>(query, variables)
         return result

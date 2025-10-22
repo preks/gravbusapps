@@ -10,6 +10,7 @@ import type {
   TaskAssigneeType,
   TaskHolidayPolicy
 } from './investmentEnums'
+import type { FileInfo } from '@/common/types/FileTypes'
 
 // Forward declaration for InvestmentRef to avoid circular dependencies
 export interface InvestmentRef {
@@ -108,7 +109,7 @@ export interface InvestmentDocumentRef {
   id: string
   name?: string
   file?: string
-  fileInfo?: any // JSONB field containing file metadata
+  fileInfo?: FileInfo
   mimeType?: string
   fileSize?: number
 }

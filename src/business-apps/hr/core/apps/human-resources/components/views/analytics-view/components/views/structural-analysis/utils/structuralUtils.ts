@@ -358,7 +358,7 @@ const findBottlenecks = (node: OrganizationalNode, allNodes: OrganizationalNode[
 }
 
 // Helper function to generate color shades
-const generateColorShades = (baseColor: string, depth: number, maxDepth: number = 5): string => {
+const generateColorShades = (baseColor: string, depth: number): string => {
   // Convert hex to RGB
   const hex = baseColor.replace('#', '')
   const r = parseInt(hex.substr(0, 2), 16)
@@ -440,7 +440,6 @@ export const generateSunburstData = (nodes: OrganizationalNode[]): SunburstNode 
 export const calculateStructuralStatistics = (
   nodes: OrganizationalNode[],
   spanData: SpanOfControlData[],
-  depthData: DepthAnalysisData[],
   chainSummary: ReportingChainSummary
 ): StructuralStatistics => {
   const totalEmployees = nodes.reduce((sum, node) => sum + node.employeeCount, 0)

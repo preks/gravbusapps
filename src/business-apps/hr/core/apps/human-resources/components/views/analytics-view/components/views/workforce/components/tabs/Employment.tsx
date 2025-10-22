@@ -11,7 +11,7 @@ import {
   Badge,
   Button
 } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PiFileText, PiFilePdf } from 'react-icons/pi'
 import { useEmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
@@ -30,8 +30,6 @@ import ContractTypePieChart from '../charts/ContractTypePieChart'
 import GapRateByOrgUnitChart from '../charts/GapRateByOrgUnitChart'
 import ProbationRateByOrgUnitChart from '../charts/ProbationRateByOrgUnitChart'
 
-interface EmploymentProps extends BusinessAppContextProps {}
-
 interface TableData {
   period: string
   value: number | string
@@ -41,7 +39,7 @@ interface TableData {
 /**
  * Employment tab component displaying key employment metrics and distributions
  */
-const Employment: React.FC<EmploymentProps> = context => {
+const Employment: React.FC<BusinessAppContextProps> = context => {
   const prefixDataTestId = 'Employment'
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
@@ -58,11 +56,7 @@ const Employment: React.FC<EmploymentProps> = context => {
   } = useEmploymentTypeDistribution(context.accessToken)
 
   // Get contract type distribution data
-  const {
-    distribution: contractTypeDistribution,
-    loading: contractTypeLoading,
-    error: contractTypeError
-  } = useContractTypeDistribution(context.accessToken)
+  const { distribution: contractTypeDistribution } = useContractTypeDistribution(context.accessToken)
 
   // Get FTE to Employee ratio data
   const { totalFte, employeeCount, loading: fteLoading, error: fteError } = useFteRatio(context.accessToken)
@@ -77,11 +71,7 @@ const Employment: React.FC<EmploymentProps> = context => {
   } = useGapRate(context.accessToken)
 
   // Get Gap Rate by Org Unit data
-  const {
-    data: gapRateByOrgUnit,
-    loading: gapRateOrgUnitLoading,
-    error: gapRateOrgUnitError
-  } = useGapRateByOrgUnit(context.accessToken)
+  const { data: gapRateByOrgUnit } = useGapRateByOrgUnit(context.accessToken)
 
   // Get Probation Rate data
   const {
@@ -93,19 +83,10 @@ const Employment: React.FC<EmploymentProps> = context => {
   } = useProbationRate(context.accessToken)
 
   // Get Probation Rate by Org Unit data
-  const {
-    data: probationRateByOrgUnit,
-    loading: probationRateOrgUnitLoading,
-    error: probationRateOrgUnitError
-  } = useProbationRateByOrgUnit(context.accessToken)
+  const { data: probationRateByOrgUnit } = useProbationRateByOrgUnit(context.accessToken)
 
   // Get Average Tenure data
-  const {
-    formattedTenure,
-    employeeCount: employeesWithTenure,
-    loading: tenureLoading,
-    error: tenureError
-  } = useAverageTenure(context.accessToken)
+  const { formattedTenure, loading: tenureLoading, error: tenureError } = useAverageTenure(context.accessToken)
 
   // Get Tenure by Organizational Unit data for heatmap
   const {
@@ -373,7 +354,7 @@ const Employment: React.FC<EmploymentProps> = context => {
               orgUnits={orgUnits}
               tenureRanges={tenureRanges}
               loading={tenureDistributionLoading}
-              error={tenureDistributionError?.message || null}
+              error={tenureDistributionError}
             />
             {selectedChart === 'tenure-heatmap-chart' && (
               <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">

@@ -204,85 +204,81 @@ export interface UseChangeLogDataReturn {
   refetch: () => void
 }
 
-export const useChangeLogData = ({
-  employeeId,
-  userRole,
-  filters,
-  accessToken
-}: UseChangeLogDataProps): UseChangeLogDataReturn => {
+export const useChangeLogData = ({ employeeId, userRole, filters }: UseChangeLogDataProps): UseChangeLogDataReturn => {
   const [changeLogEntries, setChangeLogEntries] = useState<ChangeLogEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
-  
+
   const graphqlClient = useGraphqlClient()
   const LIMIT = 50
-  
+
   // Use the smaller hooks
   const { applyVisibilityRules } = useChangeLogVisibility(userRole)
   const { transformAuditData, generateChangeLogFromVersions } = useChangeLogDataTransformer()
 
-
   // Fetch change log data
-  const fetchChangeLogData = useCallback(async (resetOffset = false) => {
-    if (!employeeId) return
+  const fetchChangeLogData = useCallback(
+    async (resetOffset = false) => {
+      if (!employeeId) return
 
-    setLoading(true)
-    setError(null)
+      setLoading(true)
+      setError(null)
 
-    try {
-      const currentOffset = resetOffset ? 0 : offset
-      
-      // First try to get data from FLOW audit system
-      const auditResponse = await graphqlClient.request(GET_CHANGE_LOG_DATA, {
-        employeeId,
-        limit: LIMIT,
-        offset: currentOffset
-      })
+      try {
+        const currentOffset = resetOffset ? 0 : offset
 
-      if (auditResponse?.FlowAuditLog?.length > 0) {
-        const transformedEntries = transformAuditData(auditResponse.FlowAuditLog)
-        const visibleEntries = applyVisibilityRules(transformedEntries)
-        
-        if (resetOffset) {
-          setChangeLogEntries(visibleEntries)
-        } else {
-          setChangeLogEntries(prev => [...prev, ...visibleEntries])
-        }
-        
-        setHasMore(auditResponse.FlowAuditLog.length === LIMIT)
-        setTotalCount(auditResponse.FlowAuditLog.length)
-      } else {
-        // Fallback: Generate change log from version comparison
-        const versionsResponse = await graphqlClient.request(GET_EMPLOYEE_VERSIONS, {
+        // First try to get data from FLOW audit system
+        const auditResponse = await graphqlClient.request(GET_CHANGE_LOG_DATA, {
           employeeId,
-          limit: LIMIT
+          limit: LIMIT,
+          offset: currentOffset
         })
 
-        if (versionsResponse?.Employee?.[0]) {
-          const employee = versionsResponse.Employee[0]
-          const generatedEntries = generateChangeLogFromVersions(employee, userRole, applyVisibilityRules)
-          
-          if (resetOffset) {
-            setChangeLogEntries(generatedEntries)
-          } else {
-            setChangeLogEntries(prev => [...prev, ...generatedEntries])
-          }
-          
-          setHasMore(false) // Version-based approach doesn't support pagination
-          setTotalCount(generatedEntries.length)
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching change log data:', err)
-      setError('Failed to load change log data')
-    } finally {
-      setLoading(false)
-    }
-  }, [employeeId, offset, graphqlClient, transformAuditData, applyVisibilityRules, generateChangeLogFromVersions])
+        if (auditResponse?.FlowAuditLog?.length > 0) {
+          const transformedEntries = transformAuditData(auditResponse.FlowAuditLog)
+          const visibleEntries = applyVisibilityRules(transformedEntries)
 
+          if (resetOffset) {
+            setChangeLogEntries(visibleEntries)
+          } else {
+            setChangeLogEntries(prev => [...prev, ...visibleEntries])
+          }
+
+          setHasMore(auditResponse.FlowAuditLog.length === LIMIT)
+          setTotalCount(auditResponse.FlowAuditLog.length)
+        } else {
+          // Fallback: Generate change log from version comparison
+          const versionsResponse = await graphqlClient.request(GET_EMPLOYEE_VERSIONS, {
+            employeeId,
+            limit: LIMIT
+          })
+
+          if (versionsResponse?.Employee?.[0]) {
+            const employee = versionsResponse.Employee[0]
+            const generatedEntries = generateChangeLogFromVersions(employee, userRole, applyVisibilityRules)
+
+            if (resetOffset) {
+              setChangeLogEntries(generatedEntries)
+            } else {
+              setChangeLogEntries(prev => [...prev, ...generatedEntries])
+            }
+
+            setHasMore(false) // Version-based approach doesn't support pagination
+            setTotalCount(generatedEntries.length)
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching change log data:', err)
+        setError('Failed to load change log data')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [employeeId, offset, graphqlClient, transformAuditData, applyVisibilityRules, generateChangeLogFromVersions]
+  )
 
   // Load more data
   const fetchMore = useCallback(() => {
