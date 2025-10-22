@@ -419,10 +419,35 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
       totalAmount
       reimbursableAmount
       advancePaymentPaidAmount
+      advancePaymentInTransitAmount
       currencyRef
       description
-      currency { code }
-      requestType { value }
+      requestTypeRef
+      createdAt
+      employeeDocumentId
+      currency {
+        type
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          localeCode
+          value
+        }
+        catalog {
+          defaultLocale
+        }
+        value
+        id
+        code
+      }
+      requestType {
+        value
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          localeCode
+          value
+        }
+        catalog {
+          defaultLocale
+        }
+      }
       employee {
         id
         code
@@ -432,6 +457,12 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
         employeePosition {
           supervisor {
             fullName
+          }
+          siteLocation {
+            name
+          }
+          organizationalUnit {
+            name
           }
         }
       }
@@ -459,6 +490,30 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
         employee {
           id
         }
+      }
+      expensePlanItem {
+        title
+        status
+        totalAmount
+        expenseDate
+      }
+      advancePayment {
+        id
+        amount
+        status
+        currency {
+          code
+          translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+            localeCode
+            value
+          }
+          catalog {
+            defaultLocale
+          }
+        }
+      }
+      expenseRequestTrip {
+        tripDateTime
       }
     }
 
