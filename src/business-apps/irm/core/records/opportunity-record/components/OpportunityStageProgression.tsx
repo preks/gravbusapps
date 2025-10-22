@@ -21,11 +21,11 @@ const OpportunityStageTooltipContent: React.FC<{
   return (
     <div style={{ maxWidth: '280px', padding: '4px 0' }}>
       <div
+        className="gba:text-primary-foreground"
         style={{
           fontSize: '13px',
           fontWeight: '600',
           marginBottom: '8px',
-          color: '#ffffff',
           borderBottom: '1px solid #4b5563',
           paddingBottom: '6px'
         }}
@@ -46,9 +46,15 @@ const OpportunityStageTooltipContent: React.FC<{
               }}
             >
               {condition.isCompleted ? (
-                <CheckCircleFilled style={{ color: '#4ade80', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
+                <CheckCircleFilled
+                  className="gba:text-success"
+                  style={{ fontSize: '12px', marginTop: '2px', flexShrink: 0 }}
+                />
               ) : (
-                <CloseCircleFilled style={{ color: '#d1d5db', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
+                <CloseCircleFilled
+                  className="gba:text-muted-foreground"
+                  style={{ fontSize: '12px', marginTop: '2px', flexShrink: 0 }}
+                />
               )}
               <div style={{ flex: 1 }}>
                 <div
@@ -62,9 +68,9 @@ const OpportunityStageTooltipContent: React.FC<{
                 </div>
                 {condition.isCompleted && condition.completedBy && (
                   <div
+                    className="gba:text-muted-foreground"
                     style={{
                       fontSize: '10px',
-                      color: '#d1d5db',
                       marginTop: '2px'
                     }}
                   >
@@ -76,8 +82,8 @@ const OpportunityStageTooltipContent: React.FC<{
           ))
         ) : (
           <div
+            className="gba:text-muted-foreground"
             style={{
-              color: '#d1d5db',
               fontSize: '12px',
               fontStyle: 'italic',
               textAlign: 'center',
@@ -90,9 +96,9 @@ const OpportunityStageTooltipContent: React.FC<{
       </div>
       {conditions.length > 0 && (
         <div
+          className="gba:text-muted-foreground"
           style={{
             fontSize: '10px',
-            color: '#d1d5db',
             marginTop: '8px',
             paddingTop: '6px',
             borderTop: '1px solid #4b5563',
@@ -178,7 +184,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   opportunityId,
   stageConditionStatuses,
   accessToken,
-  onStageUpdate: _onStageUpdate = () => {},
+  // onStageUpdate callback reserved for future use
   readonly = false,
   opportunityStatus
 }) => {
@@ -329,14 +335,13 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
 
           return (
             <div
+              className="gba:bg-popover gba:text-popover-foreground"
               style={{
                 position: 'fixed',
                 left: tooltipPosition.x,
                 top: tooltipPosition.y,
                 width: tooltipPosition.width, // Match stage width exactly
                 zIndex: 1050,
-                backgroundColor: '#1f2937',
-                color: 'white',
                 borderRadius: '6px',
                 padding: '4px',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',

@@ -27,12 +27,11 @@ import { SalesTeamPerformanceData, SalesTeamMember } from './components/sales-me
 import { DataContainer } from '@/components/layout/dataContainer'
 
 // Stub filter hook for sales team members
-const useSalesTeamFilters = (context: BusinessAppContextProps) => {
+const useSalesTeamFilters = () => {
   const [filterSearch, setFilterSearch] = React.useState<string>('')
   const [selectedFilters, setSelectedFilters] = React.useState<string[]>([])
   // For now, no filter groups, but structure is ready for future
   const filterGroups: any[] = []
-  const filterLabelMap: Record<string, string> = {}
   const handleSetFilter = (filters: string[]) => setSelectedFilters(filters)
   return {
     filterSearch,
@@ -40,7 +39,6 @@ const useSalesTeamFilters = (context: BusinessAppContextProps) => {
     selectedFilters,
     setSelectedFilters,
     filterGroups,
-    filterLabelMap,
     handleSetFilter
   }
 }
@@ -79,12 +77,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   const {
     role,
     canViewAllTeams,
-    canViewTeam,
     managedTeamId,
     managedTeamName,
     isLoading: roleLoading,
-    error: roleError,
-    permissions
+    error: roleError
   } = useUserRole({ accessToken, userInfo })
 
   // Check for debug mode in URL
@@ -204,15 +200,8 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   }
 
   // Add filter/search state for DataContainer
-  const {
-    filterSearch,
-    setFilterSearch,
-    selectedFilters,
-    setSelectedFilters,
-    filterGroups,
-    filterLabelMap,
-    handleSetFilter
-  } = useSalesTeamFilters({ accessToken })
+  const { filterSearch, setFilterSearch, selectedFilters, setSelectedFilters, filterGroups, handleSetFilter } =
+    useSalesTeamFilters()
 
   // Synchronize search states - use filterSearch as the main search state
   const handleSearchChange = (value: string) => {
@@ -404,7 +393,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
         title: 'Total Revenue',
         value: formatCurrency(trends.totalRevenue.currentValue),
         prefix: <PiCurrencyDollar />,
-        color: '#10b981',
+        color: 'hsl(var(--success))',
         description: 'Monthly revenue performance',
         valueIsString: true,
         trend: {
@@ -447,7 +436,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
         title: 'Pipeline Value',
         value: formatCurrency(trends.pipelineValue.currentValue),
         prefix: <PiChartLine />,
-        color: '#ff9500',
+        color: 'hsl(var(--warning))',
         description: 'Total pipeline value',
         valueIsString: true,
         trend: {
@@ -513,7 +502,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
     console.log('Showing role loading screen')
     return (
       <div
-        className="gba:bg-white gba:min-h-screen gba:p-6 gba:flex gba:items-center gba:justify-center"
+        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6 gba:flex gba:items-center gba:justify-center"
         data-testid={`${DATA_TEST_ID_PREFIX}-role-loading`}
       >
         <div className="gba:text-center">
@@ -531,7 +520,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   // Show role error
   if (roleError) {
     return (
-      <div className="gba:bg-white gba:min-h-screen gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-role-error`}>
+      <div
+        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6"
+        data-testid={`${DATA_TEST_ID_PREFIX}-role-error`}
+      >
         <Alert variant="destructive">
           <span>
             Error loading user permissions:{' '}
@@ -551,7 +543,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   if (isDataLoading && !roleLoading) {
     // Don't show data loading if we're still loading roles
     return (
-      <div className="gba:bg-white gba:min-h-screen gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-loading`}>
+      <div
+        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6"
+        data-testid={`${DATA_TEST_ID_PREFIX}-loading`}
+      >
         {renderBreadcrumbs()}
         <div className="gba:mt-6">
           <div className="gba:text-center gba:py-8">
@@ -567,7 +562,10 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
   // Show error state
   if ((actualError && !performanceData) || trends.error || teamsError) {
     return (
-      <div className="gba:bg-white gba:min-h-screen gba:p-6" data-testid={`${DATA_TEST_ID_PREFIX}-error`}>
+      <div
+        className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6"
+        data-testid={`${DATA_TEST_ID_PREFIX}-error`}
+      >
         <Alert variant="destructive">
           <div className="gba:space-y-2">
             <div>Error loading sales performance data:</div>
@@ -669,7 +667,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
     <div className="gba:space-y-6">
       {/* Header Section */}
       <div
-        className="gba:bg-gradient-to-r gba:from-white-50 gba:rounded-lg gba:p-6"
+        className="gba:bg-gradient-to-r gba:from-hsl(var(--background))-50 gba:rounded-lg gba:p-6"
         data-testid={`${DATA_TEST_ID_PREFIX}-header`}
       >
         <div className="gba:flex gba:items-center gba:justify-between">
@@ -721,7 +719,7 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
       {/* Sales Team Members Section */}
       <div data-testid={`${DATA_TEST_ID_PREFIX}-team-section`} className="gba:mb-6">
         <DataContainer
-          contentBackground="white"
+          contentBackground="hsl(var(--background))"
           dataControllerProps={{
             search: filterSearch,
             setSearch: handleDataContainerSearchChange,
@@ -764,8 +762,8 @@ export const SalesTeamPerformanceOverview: React.FC<SalesTeamPerformanceOverview
 
   return (
     <div
-      className="gba:bg-white gba:min-h-screen gba:p-6 gba:space-y-6"
-      style={{ backgroundColor: 'white' }}
+      className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6 gba:space-y-6"
+      style={{ backgroundColor: 'hsl(var(--background))' }}
       data-testid={DATA_TEST_ID_PREFIX}
     >
       {/* Breadcrumb Navigation */}

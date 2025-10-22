@@ -314,7 +314,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     })
   },
 
-  updateOpportunity: async (opportunityId: string, updates: Partial<Opportunity>, _accessToken: string) => {
+  updateOpportunity: async (opportunityId: string, updates: Partial<Opportunity>) => {
     set(state => ({
       opportunities: state.opportunities.map(opp => (opp.id === opportunityId ? { ...opp, ...updates } : opp)),
       isEditingOpportunity: false,
@@ -323,7 +323,7 @@ export const useKanbanStore = create<KanbanStore>((set, get) => ({
     return Promise.resolve()
   },
 
-  deleteOpportunity: async (opportunityId: string, _accessToken: string) => {
+  deleteOpportunity: async (opportunityId: string) => {
     set(state => ({
       opportunities: state.opportunities.filter(opp => opp.id !== opportunityId)
     }))

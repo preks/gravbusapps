@@ -285,7 +285,7 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
             key: 'campaigns',
             children: (
               <div
-                className="gba:space-y-6 gba:bg-white gba:pb-6"
+                className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:pb-6"
                 style={{ maxHeight: '480px', overflowY: 'auto', overflowX: 'hidden' }}
                 data-testid="top-campaigns-list"
               >
@@ -441,9 +441,8 @@ const CampaignsTopPerformers: React.FC<CampaignsAnalyticsComponentProps> = ({
                   performers.map((performer: any, index: number) => (
                     <div
                       key={performer.employeeId}
-                      className="gba:p-4 gba:rounded-lg"
+                      className="gba:p-4 gba:rounded-lg gba:bg-background"
                       style={{
-                        backgroundColor: '#fff',
                         boxShadow: 'var(--shadow-md)',
                         border: 'var(--border-width-thin) solid var(--color-border-default)'
                       }}

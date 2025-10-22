@@ -170,7 +170,7 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
           id: values.entityId
         })
         setParentFolders(Array.isArray(result?.CrmDocument) ? result.CrmDocument : [])
-      } catch (e) {
+      } catch {
         setParentFolders([])
       } finally {
         setParentLoading(false)

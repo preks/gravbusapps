@@ -27,9 +27,8 @@ const AdditionalInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-info-secondary gba:to-info"
         style={{
-          background: 'linear-gradient(to right, #bfdbfe, #93c5fd)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -40,12 +39,6 @@ const AdditionalInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #93c5fd, #60a5fa)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bfdbfe, #93c5fd)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'AdditionalInfoToggle')}
       >
@@ -64,7 +57,7 @@ const AdditionalInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -89,7 +82,7 @@ const AdditionalInformationSection: React.FC = () => {
               onChange={e => setFormValues({ notesSummary: e.target.value })}
               placeholder="Please Enter..."
               rows={4}
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'NotesSummaryTextarea')}
             />
           </div>
@@ -102,7 +95,7 @@ const AdditionalInformationSection: React.FC = () => {
               value={formValues.recordState}
               onChange={e => setFormValues({ recordState: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'RecordStateInput')}
             />
           </div>
@@ -118,7 +111,7 @@ const AdditionalInformationSection: React.FC = () => {
                 onChange={e => setFormValues({ version: parseInt(e.target.value) || 0 })}
                 placeholder="Please Enter..."
                 disabled
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'VersionInput')}
               />
             </div>
@@ -133,7 +126,7 @@ const AdditionalInformationSection: React.FC = () => {
                 value={formValues.id}
                 placeholder="System generated"
                 disabled
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'ContactIdInput')}
               />
             </div>

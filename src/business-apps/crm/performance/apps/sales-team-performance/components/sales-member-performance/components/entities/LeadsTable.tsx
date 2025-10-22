@@ -47,7 +47,6 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   leads,
   loading,
   error,
-  hasMore,
   total,
   pageSize,
   currentPage,
@@ -77,6 +76,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
     return '-'
   }
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   // Get contact email
   const getContactEmail = (lead: Lead) => {
     return lead.email || '-'
@@ -86,6 +86,7 @@ export const LeadsTable: React.FC<LeadsTableProps> = ({
   const getContactPhone = (lead: Lead) => {
     return lead.phoneNumber || '-'
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 
   // Handle row click
   const handleRowClick = React.useCallback(

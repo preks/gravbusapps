@@ -4,7 +4,7 @@ import { UserOutlined, ContactsOutlined, TeamOutlined, DollarOutlined } from '@a
 import { CampaignKPIsProps } from '../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpis, kpisWithTrends, isLoading, error, onRetry }) => {
+const CampaignKPIs: React.FC<CampaignKPIsProps> = ({ kpisWithTrends, isLoading, error, onRetry }) => {
   // Helper function to format percentage
   const formatPercentage = (percentage: number): string => {
     return `${percentage.toFixed(1)}%`

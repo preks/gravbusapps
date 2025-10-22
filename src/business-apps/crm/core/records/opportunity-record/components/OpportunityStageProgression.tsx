@@ -24,10 +24,10 @@ const OpportunityStageTooltipContent: React.FC<{
           fontSize: '13px',
           fontWeight: '600',
           marginBottom: '8px',
-          color: '#ffffff',
           borderBottom: '1px solid #4b5563',
           paddingBottom: '6px'
         }}
+        className="gba:text-background"
       >
         {stage.value} Stage Conditions
       </div>
@@ -45,15 +45,18 @@ const OpportunityStageTooltipContent: React.FC<{
               }}
             >
               {condition.isCompleted ? (
-                <CheckCircleFilled style={{ color: '#4ade80', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
+                <CheckCircleFilled
+                  className="gba:text-success gba:text-xs"
+                  style={{ marginTop: '2px', flexShrink: 0 }}
+                />
               ) : (
-                <CloseCircleFilled style={{ color: '#d1d5db', fontSize: '12px', marginTop: '2px', flexShrink: 0 }} />
+                <CloseCircleFilled className="gba:text-muted gba:text-xs" style={{ marginTop: '2px', flexShrink: 0 }} />
               )}
               <div style={{ flex: 1 }}>
                 <div
+                  className={condition.isCompleted ? 'gba:text-success' : 'gba:text-muted'}
                   style={{
                     fontWeight: '500',
-                    color: condition.isCompleted ? '#4ade80' : '#e5e7eb',
                     lineHeight: '1.3'
                   }}
                 >
@@ -61,9 +64,8 @@ const OpportunityStageTooltipContent: React.FC<{
                 </div>
                 {condition.isCompleted && condition.completedBy && (
                   <div
+                    className="gba:text-xs gba:text-muted"
                     style={{
-                      fontSize: '10px',
-                      color: '#d1d5db',
                       marginTop: '2px'
                     }}
                   >
@@ -75,10 +77,8 @@ const OpportunityStageTooltipContent: React.FC<{
           ))
         ) : (
           <div
+            className="gba:text-muted gba:text-xs gba:italic"
             style={{
-              color: '#d1d5db',
-              fontSize: '12px',
-              fontStyle: 'italic',
               textAlign: 'center',
               padding: '8px 0'
             }}
@@ -89,13 +89,11 @@ const OpportunityStageTooltipContent: React.FC<{
       </div>
       {conditions.length > 0 && (
         <div
+          className="gba:text-xs gba:text-muted gba:italic"
           style={{
-            fontSize: '10px',
-            color: '#d1d5db',
             marginTop: '8px',
             paddingTop: '6px',
-            borderTop: '1px solid #4b5563',
-            fontStyle: 'italic'
+            borderTop: '1px solid #4b5563'
           }}
         >
           Click stage to change • {conditions.filter(c => c.isCompleted).length}/{conditions.length} completed
@@ -175,8 +173,7 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
   stages,
   opportunityId,
   stageConditionStatuses,
-  accessToken,
-  onStageUpdate: _onStageUpdate = () => {}
+  accessToken
 }) => {
   // State for hover-based tooltip
   const [hoveredStageId, setHoveredStageId] = useState<string | null>(null)
@@ -296,13 +293,12 @@ export const OpportunityStageProgression: React.FC<OpportunityStageProgressionPr
                 top: tooltipPosition.y,
                 width: tooltipPosition.width, // Match stage width exactly
                 zIndex: 1050,
-                backgroundColor: '#1f2937',
-                color: 'white',
                 borderRadius: '6px',
                 padding: '4px',
                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
                 pointerEvents: 'none'
               }}
+              className="gba:bg-foreground gba:text-background"
             >
               <OpportunityStageTooltipContent stage={hoveredStage} conditions={conditions} />
             </div>

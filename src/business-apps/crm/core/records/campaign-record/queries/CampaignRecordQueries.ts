@@ -68,7 +68,7 @@ export interface CampaignEntitiesQueryResponse {
 }
 
 // Get Campaign Details Query
-export const GET_CAMPAIGN_RECORD = (variables: { campaignId: string }): string => {
+export const GET_CAMPAIGN_RECORD = (): string => {
   return `
     query GetCampaignRecord($campaignId: uuid!) {
       SalesCampaign(where: { id: { _eq: $campaignId }, isDeleted: { _eq: false } }) {
@@ -87,7 +87,7 @@ export const GET_CAMPAIGN_RECORD = (variables: { campaignId: string }): string =
 }
 
 // Get Campaign KPIs Query
-export const GET_CAMPAIGN_KPIS = (variables: { campaignId: string }): string => {
+export const GET_CAMPAIGN_KPIS = (): string => {
   return `
     query GetCampaignKPIs($campaignId: uuid!) {
       totalLeads: LeadAggregate(

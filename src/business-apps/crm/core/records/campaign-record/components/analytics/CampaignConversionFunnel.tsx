@@ -66,7 +66,7 @@ const CampaignConversionFunnelComponent: React.FC<CampaignConversionFunnelProps>
   const stageColors = ['#8884d8', '#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#eb2f96']
 
   // Format tooltip
-  const formatTooltip = (value: any, name: any, props: any) => {
+  const formatTooltip = (value: any) => {
     return [
       <div key="tooltip-content">
         <div>Count: {value}</div>

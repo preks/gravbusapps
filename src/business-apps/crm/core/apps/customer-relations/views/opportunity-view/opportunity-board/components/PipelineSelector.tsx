@@ -72,7 +72,7 @@ export function PipelineSelector({ accessToken }: BusinessAppContextProps) {
       <div className="gba:relative">
         <button
           onClick={toggleDropdown}
-          className="gba:flex gba:items-center gba:justify-between gba:w-64 gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-left gba:bg-white gba:dark:bg-gray-800 gba:border gba:border-gray-300 gba:dark:border-gray-700 gba:rounded-md gba:shadow-sm gba:hover:bg-gray-50 gba:dark:hover:bg-gray-700"
+          className="gba:flex gba:items-center gba:justify-between gba:w-64 gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-left gba:bg-hsl(var(--background)) gba:dark:bg-gray-800 gba:border gba:border-gray-300 gba:dark:border-gray-700 gba:rounded-md gba:shadow-sm gba:hover:bg-gray-50 gba:dark:hover:bg-gray-700"
           style={{ minWidth: '240px' }}
         >
           <div className="gba:flex-1 gba:mr-4">
@@ -85,7 +85,7 @@ export function PipelineSelector({ accessToken }: BusinessAppContextProps) {
         </button>
 
         {isOpen && (
-          <div className="gba:absolute gba:z-10 gba:mt-1 gba:w-full gba:bg-white gba:dark:bg-gray-800 gba:shadow-lg gba:rounded-md gba:border gba:border-gray-200 gba:dark:border-gray-700">
+          <div className="gba:absolute gba:z-10 gba:mt-1 gba:w-full gba:bg-hsl(var(--background)) gba:dark:bg-gray-800 gba:shadow-lg gba:rounded-md gba:border gba:border-gray-200 gba:dark:border-gray-700">
             <ul className="gba:py-1 gba:max-h-60 gba:overflow-auto">
               {pipelines.map((pipeline: any) => (
                 <li key={pipeline.id}>

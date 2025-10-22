@@ -12,7 +12,7 @@ import FinancialInformationSection from './FinancialInformationSection'
 const prefixDataTestId = 'AccountForm'
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, addressLineCount } = useAccountFormContext()
+  const { formValues, onSubmit, onCancel, isLoading, error } = useAccountFormContext()
 
   // Check if all mandatory fields are filled
   const isFormValid = formValues.owner && formValues.legalForm && formValues.accountName

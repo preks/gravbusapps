@@ -64,7 +64,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
     try {
       // Extract year from timestamp format (e.g., "2025-01-01T00:00:00.000Z" -> "2025")
       return new Date(yearTimestamp).getFullYear().toString()
-    } catch (error) {
+    } catch {
       return yearTimestamp // Fallback to original value if parsing fails
     }
   }
@@ -116,7 +116,7 @@ const EquityInvestmentRounds: React.FC<EquityInvestmentRoundsProps> = ({
             onRefresh()
           }
         }
-      } catch (err) {
+      } catch {
         // no-op
       }
     }

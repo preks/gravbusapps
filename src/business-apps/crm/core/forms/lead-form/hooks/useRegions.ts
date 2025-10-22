@@ -55,7 +55,7 @@ export const useRegions = ({ accessToken }: RegionsHookParams) => {
 
         setRegions(mappedRegions)
         return mappedRegions
-      } catch (err) {
+      } catch {
         // If catalog doesn't exist or fails, fall back to basic region handling
         console.warn('Region catalog not available, using manual input')
         setRegions([])

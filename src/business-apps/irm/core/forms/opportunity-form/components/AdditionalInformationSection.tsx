@@ -28,14 +28,8 @@ const AdditionalInformationSection: React.FC = () => {
         type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-info-secondary hover:gba:bg-info gba:border-0"
         style={{
-          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
-          transition: 'all 0.3s ease',
-          border: '0',
-          borderWidth: '0',
-          borderStyle: 'none',
-          borderColor: 'transparent',
           outline: 'none',
           outlineWidth: '0',
           outlineStyle: 'none',

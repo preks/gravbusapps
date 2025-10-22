@@ -43,7 +43,7 @@ export const parseLiquidityForecast = (liquidityForecast: any): LiquidityForecas
     }
 
     return null
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -102,7 +102,6 @@ const RealEstateLiquidityForecast: React.FC<RealEstateLiquidityForecastProps> = 
   // Check liquidity forecast data availability
   React.useEffect(() => {
     if (realEstateData?.realEstateInvestment) {
-      const hasLiquidityData = realEstateData.realEstateInvestment.liquidityForecast !== null
       // Track liquidity forecast data availability
     }
   }, [realEstateData])

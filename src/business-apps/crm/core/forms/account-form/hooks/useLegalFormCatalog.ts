@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export interface LegalFormOption {
   id: string
@@ -23,7 +22,6 @@ export const useLegalFormCatalog = (context: BusinessAppContextProps): UseLegalF
   const [legalFormError, setLegalFormError] = useState<string | null>(null)
 
   const catalogClient = useCatalogManagerClient(context.accessToken)
-  const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
 
   const loadLegalForms = useCallback(async () => {
     if (!context.accessToken) {

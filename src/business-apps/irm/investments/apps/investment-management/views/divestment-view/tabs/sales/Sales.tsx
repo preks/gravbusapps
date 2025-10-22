@@ -384,7 +384,7 @@ const Sales: React.FC<SalesProps> = ({ accessToken, userInfo }) => {
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
           loadPage(currentPage, pageSize)
         }
-      } catch (err) {
+      } catch {
         // Error handling process completion
       }
     }

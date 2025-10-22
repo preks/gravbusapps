@@ -71,7 +71,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
   return (
     <div className="gba:fixed gba:inset-0 gba:bg-black gba:bg-opacity-50 gba:flex gba:items-center gba:justify-center gba:z-50">
       <div
-        className="gba:bg-white gba:rounded-xl gba:shadow-2xl gba:w-full gba:max-w-2xl gba:max-h-[80vh] gba:m-4 gba:flex gba:flex-col"
+        className="gba:bg-hsl(var(--background)) gba:rounded-xl gba:shadow-2xl gba:w-full gba:max-w-2xl gba:max-h-[80vh] gba:m-4 gba:flex gba:flex-col"
         data-testid={formatDataTestId(prefixDataTestId, 'Container')}
       >
         {/* Header */}
@@ -100,7 +100,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
               value={searchTerm}
               onChange={e => handleSearchChange(e.target.value)}
               placeholder="Type to search employees..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               style={{ paddingLeft: '32px' }}
               data-testid={formatDataTestId(prefixDataTestId, 'SearchInput')}
             />
@@ -151,7 +151,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
                         alt={employee.name || 'Employee'}
                       />
                     ) : null}
-                    <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold">
+                    <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-hsl(var(--background)) gba:font-semibold">
                       {employee.name
                         ?.split(' ')
                         .map((n: string) => n[0])
@@ -175,7 +175,7 @@ const EmployeeSelectionModal: React.FC<EmployeeSelectionModalProps> = ({
                   {/* Selection Indicator */}
                   {selectedValue === employee.value && (
                     <div className="gba:w-5 gba:h-5 gba:bg-blue-500 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                      <div className="gba:w-2 gba:h-2 gba:bg-white gba:rounded-full"></div>
+                      <div className="gba:w-2 gba:h-2 gba:bg-hsl(var(--background)) gba:rounded-full"></div>
                     </div>
                   )}
                 </div>
