@@ -415,12 +415,34 @@ export const GET_EXPENSE_PLANS_OVERVIEW = `
       planDate
       startDate
       endDate
+      decisionDate
       totalAmount
       reimbursableAmount
       advancePaymentPaidAmount
       currencyRef
+      description
       currency { code }
       requestType { value }
+      employee {
+        id
+        code
+        firstName
+        lastName
+        fullName
+        employeePosition {
+          supervisor {
+            fullName
+          }
+        }
+      }
+      costCenter {
+        id
+        name
+      }
+      project {
+        id
+        name
+      }
       expenseRequest {
         id
         code
