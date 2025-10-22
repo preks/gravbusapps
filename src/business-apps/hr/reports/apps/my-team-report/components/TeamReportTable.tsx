@@ -60,17 +60,7 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
   )
 
   const handleSort = (field: keyof Employee) => {
-    if (sortConfig?.key === field) {
-      if (sortConfig.direction === 'asc') {
-        onSort(field)
-      } else if (sortConfig.direction === 'desc') {
-        onSort(field)
-      } else {
-        onSort(field)
-      }
-    } else {
-      onSort(field)
-    }
+    onSort(field)
   }
 
   const renderSortIcon = (field: keyof Employee) => {
@@ -89,6 +79,26 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     return formatDate(date, 'date.short') || '-'
   }
 
+  // Helper function to format year string with proper pluralization
+  const formatYearString = (years: number) => {
+    if (years <= 0) return ''
+    const yearLabel =
+      years === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.year', 'year')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')
+    return `${years} ${yearLabel}`
+  }
+
+  // Helper function to format month string with proper pluralization
+  const formatMonthString = (months: number) => {
+    if (months <= 0) return ''
+    const monthLabel =
+      months === 1
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.month', 'month')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.months', 'months')
+    return `${months} ${monthLabel}`
+  }
+
   const formatTenure = (startDate: string | undefined, exitDate: string | null | undefined) => {
     if (!startDate) return '-'
 
@@ -101,14 +111,8 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     const years = Math.floor(totalMonths / 12)
     const months = totalMonths % 12
 
-    const yearString =
-      years > 0
-        ? `${years} ${years === 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.year', 'year') : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')}`
-        : ''
-    const monthString =
-      months > 0
-        ? `${months} ${months === 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.month', 'month') : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.months', 'months')}`
-        : ''
+    const yearString = formatYearString(years)
+    const monthString = formatMonthString(months)
 
     if (yearString && monthString) {
       return `${yearString} ${getTranslationFromI18nKeyAndLabel('lowcoder:expense_summary_request.and', 'and')} ${monthString}`

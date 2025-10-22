@@ -37,6 +37,12 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     return calculateAverageTenure(allEmployees).formatted
   }, [allEmployees])
 
+  const getKpiIcon = (kpiKey: string) => {
+    if (kpiKey === 'all') return <PiUsers />
+    if (kpiKey === 'tenure') return <PiCalendar />
+    return undefined
+  }
+
   const widgets: WidgetItem[] = useMemo(() => {
     const kpiCards = generateKpiCards(allEmployees, averageTenureFormatted)
 
@@ -44,7 +50,7 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
       key: kpi.key,
       title: kpi.label,
       value: kpi.value,
-      prefix: kpi.key === 'all' ? <PiUsers /> : kpi.key === 'tenure' ? <PiCalendar /> : undefined,
+      prefix: getKpiIcon(kpi.key),
       color: '#1890ff',
       span: { xs: 24, sm: 12, lg: 6 },
       description: kpi.subLabel,
