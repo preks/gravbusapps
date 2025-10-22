@@ -274,7 +274,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
                         data-testid={`allowance-deduction-icon-${option.key}-${index}`}
                       />
                       <span
-                        style={{ display: 'block', overflowWrap: 'break-word', backgroundSpace: 'normal' }}
+                        style={{ display: 'block', overflowWrap: 'break-word', whiteSpace: 'normal' }}
                         data-testid={`allowance-deduction-label-${option.key}-${index}`}
                       >
                         {option.label}

@@ -306,7 +306,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                       height: '96px',
                       width: '100%',
                       marginBottom: '16px',
-                      className = 'gba:bg-muted',
+                      backgroundColor: 'hsl(var(--muted))',
                       padding: '0 24px',
                       borderRadius: '4px'
                     }}
@@ -355,7 +355,7 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                       height: '96px',
                       width: '100%',
                       marginBottom: '16px',
-                      className = 'gba:bg-muted',
+                      backgroundColor: 'hsl(var(--muted))',
                       padding: '0 24px',
                       borderRadius: '4px'
                     }}
