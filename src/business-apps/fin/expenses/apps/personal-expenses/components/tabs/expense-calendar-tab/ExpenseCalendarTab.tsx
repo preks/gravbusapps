@@ -302,7 +302,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
               style={{
                 fontSize: '0.8em',
                 fontWeight: 'bold',
-                backgroundSpace: 'nowrap',
+                whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis'
               }}

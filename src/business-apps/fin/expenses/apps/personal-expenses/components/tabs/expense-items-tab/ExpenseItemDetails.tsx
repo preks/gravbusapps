@@ -374,7 +374,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
                         style={{
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          backgroundSpace: 'nowrap',
+                          whiteSpace: 'nowrap',
                           maxWidth: '100%',
                           lineHeight: '1.2',
                           wordBreak: 'break-all'

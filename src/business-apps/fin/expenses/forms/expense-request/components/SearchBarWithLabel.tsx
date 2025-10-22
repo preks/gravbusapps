@@ -157,7 +157,7 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
       </div>
       {!expanded && (
         <div
-          style={{ fontSize: '14px', fontWeight: 'bold', color: 'foreground', backgroundSpace: 'nowrap' }}
+          style={{ fontSize: '14px', fontWeight: 'bold', color: 'foreground', whiteSpace: 'nowrap' }}
           data-testid="plan-count-text"
         >
           {label}
