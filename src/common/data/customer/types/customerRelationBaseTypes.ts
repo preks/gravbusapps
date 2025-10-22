@@ -3,6 +3,7 @@
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type { ContactType, AddressType } from './customerEnums'
+import type { FileInfo } from '@/common/types/FileTypes'
 
 // Forward declarations for reference types to avoid circular dependencies
 export interface CustomerAccountRef {
@@ -47,6 +48,15 @@ export interface CustomerLeadRef {
   firstName?: string
   lastName?: string
   email?: string
+}
+
+export interface CustomerDocumentRef {
+  id: string
+  name?: string
+  file?: string
+  fileInfo?: FileInfo
+  mimeType?: string
+  fileSize?: number
 }
 
 // =====================================================
@@ -202,6 +212,9 @@ export interface BaseCustomerTask extends BaseEntity {
   contact?: CustomerContactRef
   lead?: CustomerLeadRef
   opportunity?: CustomerOpportunityRef
+
+  // Documents
+  documents?: CustomerDocumentRef[]
 }
 
 // sales_activity table
@@ -235,6 +248,9 @@ export interface BaseCustomerActivity extends BaseEntity {
   contact?: CustomerContactRef
   lead?: CustomerLeadRef
   opportunity?: CustomerOpportunityRef
+
+  // Documents
+  documents?: CustomerDocumentRef[]
 }
 
 // crm_note table
@@ -254,6 +270,9 @@ export interface BaseCustomerNote extends BaseEntity {
   contact?: CustomerContactRef
   lead?: CustomerLeadRef
   opportunity?: CustomerOpportunityRef
+
+  // Documents
+  documents?: CustomerDocumentRef[]
 }
 
 // crm_document table

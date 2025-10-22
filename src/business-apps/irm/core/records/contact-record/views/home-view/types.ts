@@ -4,6 +4,7 @@ import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import type { Contact } from '../../hooks/useContactData'
 import type { InvestmentContact } from '@/common/data/investment/types'
 import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
+import type { DocumentItem } from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
 
 // =====================================================
 // CORE ENTITY TYPES
@@ -88,6 +89,7 @@ export interface TaskOrApproval {
   taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
   startDate?: string
   creatorEmployee?: EmployeeRef
+  documents?: DocumentItem[]
   // Entity relationships for reference building
   lead?: {
     id: string
@@ -139,6 +141,7 @@ export interface MappedTaskItem {
   taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
   startDate?: string
   creatorEmployee?: EmployeeRef
+  documents?: DocumentItem[]
   reference?: TaskReference
 }
 

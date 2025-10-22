@@ -181,7 +181,8 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               lastName: note.authorEmployee.lastName
             }
           : undefined,
-        reminderAt: note.reminderDate
+        reminderAt: note.reminderDate,
+        documents: note.documents
       }))
       setNotes(transformedNotes)
     } catch (err) {
@@ -798,6 +799,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       taskTiming: task.taskTiming,
                       startDate: task.startDate,
                       creatorEmployee: task.creatorEmployee,
+                      documents: task.documents,
                       reference: task.lead
                         ? {
                             type: 'lead' as const,
@@ -869,6 +871,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
                       taskTiming: approval.taskTiming,
                       startDate: approval.startDate,
                       creatorEmployee: approval.creatorEmployee,
+                      documents: approval.documents,
                       reference: approval.lead
                         ? {
                             type: 'lead' as const,

@@ -180,6 +180,27 @@ export const GET_INVESTMENT_TASK_BY_ID = `
       contact { ${INVESTMENT_CONTACT_REF} }
       lead { id code firstName lastName }
       opportunity { id code name }
+      
+      # Documents relationship
+      investmentDocument(where: { isDeleted: { _eq: false } }) {
+        id
+        version
+        name
+        description
+        file
+        fileSize
+        mimeType
+        documentGroup {
+          id
+          value
+          code
+        }
+        documentType {
+          id
+          value
+          code
+        }
+      }
     }
   }
 `

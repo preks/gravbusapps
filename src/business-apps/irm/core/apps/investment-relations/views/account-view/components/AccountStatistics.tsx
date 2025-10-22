@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { BuildOutlined, DollarOutlined, TrophyOutlined, RiseOutlined } from '@ant-design/icons'
-// import type { InvestmentAccount } from "@/common/data/investment/types";
+import { BuildOutlined, TeamOutlined, TrophyOutlined, RiseOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAccountStatisticsQueries } from '../queries/AccountStatisticsQueries'
-import { formatCurrencyLarge } from '@/business-apps/crm/common/utils/currencyUtils'
 
 type AccountStatisticsProps = BusinessAppContextProps
 
@@ -15,9 +13,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
     fetchRecentAccountsWithTrend,
     fetchActiveAccountsWithTrend,
     fetchAccountsThisYearWithTrend,
-    fetchTotalRevenueApprox,
-    fetchTotalRevenueWithTrend,
-    fetchCurrencyInfo
+    fetchTotalAccountsWithTrend
   } = useAccountStatisticsQueries(context)
 
   const [recent, setRecent] = useState<{ current: number; changePercent: number; isPositive: boolean }>({
@@ -35,26 +31,22 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
     changePercent: 0,
     isPositive: true
   })
-  const [totalRevenue, setTotalRevenue] = useState<number>(0)
-  const [totalRevenueTrend, setTotalRevenueTrend] = useState<{
+  const [totalAccounts, setTotalAccounts] = useState<{
     current: number
     changePercent: number
     isPositive: boolean
   }>({ current: 0, changePercent: 0, isPositive: true })
-  const [currencyCode, setCurrencyCode] = useState<string>('USD') // Default fallback
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true)
       setError(null)
       try {
-        const [r, a, y, rev, revTrend, currency] = await Promise.all([
+        const [r, a, y, total] = await Promise.all([
           fetchRecentAccountsWithTrend(),
           fetchActiveAccountsWithTrend(),
           fetchAccountsThisYearWithTrend(),
-          fetchTotalRevenueApprox(),
-          fetchTotalRevenueWithTrend(),
-          fetchCurrencyInfo()
+          fetchTotalAccountsWithTrend()
         ])
         const calc = (t: { current: number; previous: number }) => ({
           current: t.current,
@@ -64,9 +56,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
         setRecent(calc(r))
         setActive(calc(a))
         setThisYear(calc(y))
-        setTotalRevenue(rev)
-        setTotalRevenueTrend(calc(revTrend))
-        setCurrencyCode(currency || 'USD') // Use extracted currency or fallback to USD
+        setTotalAccounts(calc(total))
       } catch (e) {
         setError(e instanceof Error ? e : new Error('Failed to load account statistics'))
       } finally {
@@ -74,9 +64,12 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
       }
     }
     load()
-    // Run once on mount; hooks are memoized with useCallback
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [
+    fetchRecentAccountsWithTrend,
+    fetchActiveAccountsWithTrend,
+    fetchAccountsThisYearWithTrend,
+    fetchTotalAccountsWithTrend
+  ])
 
   // Helper function to format trend percentage with proper sign
   const formatTrendPercent = (changePercent: number): string => {
@@ -107,7 +100,7 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
       prefix: <RiseOutlined />,
       color: '#52c41a',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Currently active',
+      description: 'With opportunities',
       trend: {
         value: formatTrendPercent(active.changePercent),
         positive: active.isPositive,
@@ -129,17 +122,16 @@ export const AccountStatistics: React.FC<AccountStatisticsProps> = ({ ...context
       }
     },
     {
-      key: 'total-revenue',
-      title: 'Total Revenue',
-      value: formatCurrencyLarge(totalRevenue, currencyCode),
-      prefix: <DollarOutlined />,
-      color: '#eb2f96',
-      valueIsString: true,
+      key: 'total-accounts',
+      title: 'Total Accounts',
+      value: totalAccounts.current,
+      prefix: <TeamOutlined />,
+      color: '#722ed1',
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Approx. based on revenue bands',
+      description: 'All accounts',
       trend: {
-        value: formatTrendPercent(totalRevenueTrend.changePercent),
-        positive: totalRevenueTrend.isPositive,
+        value: formatTrendPercent(totalAccounts.changePercent),
+        positive: totalAccounts.isPositive,
         description: 'vs previous 30 days'
       }
     }
