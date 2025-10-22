@@ -55,11 +55,7 @@ const DateRangeSection: React.FC<DateRangeSectionProps> = ({
             required
           />
           {showFromError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-valid-from-error"
-            >
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-valid-from-error">
               {errors.validFrom}
             </div>
           )}
@@ -87,11 +83,7 @@ const DateRangeSection: React.FC<DateRangeSectionProps> = ({
             required
           />
           {showToError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-valid-to-error"
-            >
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-valid-to-error">
               {errors.validTo}
             </div>
           )}
