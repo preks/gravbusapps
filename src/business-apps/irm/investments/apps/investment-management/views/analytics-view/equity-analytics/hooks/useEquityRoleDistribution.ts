@@ -178,12 +178,8 @@ export const useEquityRoleDistribution = (
     setError(null)
 
     try {
-      console.log('📊 Loading role distribution (count + amount)...', { countCurrency, amountCurrency })
-
       // Step 1: Fetch distinct roles ONCE
-      console.log('🔍 Fetching distinct equity roles (single query for both count & amount)...')
       const rolesInfo = await fetchDistinctRoles()
-      console.log('✅ Distinct equity roles fetched:', rolesInfo.length)
 
       if (rolesInfo.length === 0) {
         setRoleCountDistribution([])
@@ -244,9 +240,7 @@ export const useEquityRoleDistribution = (
 
       setRoleCountDistribution(countData)
       setRoleAmountDistribution(amountData)
-      console.log('✅ Role distribution loaded successfully')
     } catch (err) {
-      console.error('❌ Error loading role distribution:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

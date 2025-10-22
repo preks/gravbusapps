@@ -42,12 +42,9 @@ export const useEquityStatusCountDistribution = (
     setError(null)
 
     try {
-      console.log('📊 Loading status COUNT distribution...', { currency })
       const countData = await fetchStatusCountDistribution(currency)
       setStatusCountDistribution(countData)
-      console.log('✅ Status COUNT distribution loaded successfully')
     } catch (err) {
-      console.error('❌ Error loading status count distribution:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

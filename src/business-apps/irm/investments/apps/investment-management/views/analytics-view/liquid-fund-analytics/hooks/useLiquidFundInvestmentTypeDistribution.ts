@@ -30,16 +30,13 @@ export const useLiquidFundInvestmentTypeDistribution = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Investment type distribution hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Investment type distribution hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Investment type distribution hook: Starting data load...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -63,17 +60,11 @@ export const useLiquidFundInvestmentTypeDistribution = (
 
       setCountData(transformedCountData)
       setAmountData(transformedAmountData)
-      console.log('✅ Investment type distribution hook: Data set successfully', {
-        countItems: transformedCountData.length,
-        amountItems: transformedAmountData.length
-      })
     } catch (err) {
-      console.error('❌ Investment type distribution hook: Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Investment type distribution hook: Load completed')
     }
   }, [context.accessToken, currency, fetchInvestmentTypeDistribution])
 

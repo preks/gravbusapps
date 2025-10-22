@@ -50,7 +50,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: totalInvestmentsChange.value,
         positive: totalInvestmentsChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -65,7 +65,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: averageInvestmentValueChange.value,
         positive: averageInvestmentValueChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -80,7 +80,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: averageMarketValueChange.value,
         positive: averageMarketValueChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -95,7 +95,7 @@ export const LiquidFundKPICards: React.FC<LiquidFundKPICardsProps> = ({
       trend: {
         value: totalFundValueChange.value,
         positive: totalFundValueChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     }
   ]

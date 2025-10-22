@@ -57,7 +57,7 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFi
         }
       }
       
-      # Previous period data (real estate investments existing 7 days ago)
+      # Previous period data (real estate investments existing 30 days ago)
       previousAggregate: InvestmentAggregate(
         where: {
           _and: [
@@ -140,10 +140,10 @@ export const useGetRealEstateKPIs = (context: BusinessAppContextProps, currency?
   const graphqlClient = useGraphQLClient(context.accessToken)
 
   const fetchRealEstateKPIs = useCallback(async (): Promise<RealEstateKPIComparison> => {
-    // Calculate date 7 days ago for comparison
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-    const comparisonDate = sevenDaysAgo.toISOString()
+    // Calculate date 30 days ago for comparison
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    const comparisonDate = thirtyDaysAgo.toISOString()
 
     const query = GET_REAL_ESTATE_KPIS_WITH_COMPARISON(comparisonDate, currency)
     try {

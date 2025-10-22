@@ -116,18 +116,13 @@ export const useGetInvestmentSizeData = (context: BusinessAppContextProps) => {
   const fetchInvestmentSizeData = useCallback(
     async (currency: string): Promise<InvestmentSizeRangeData[]> => {
       try {
-        console.log('📊 Fetching investment size distribution...', { currency })
-
         const query = BUILD_INVESTMENT_SIZE_QUERY(currency)
         const result = await graphqlClient.request<InvestmentSizeQueryResult>(query)
-
-        console.log('✅ Investment size data fetched:', result)
 
         // Get total count for percentage calculation
         const totalCount = result.total.aggregate.count
 
         if (totalCount === 0) {
-          console.log('⚠️ No investments found for currency:', currency)
           return []
         }
 
@@ -148,11 +143,8 @@ export const useGetInvestmentSizeData = (context: BusinessAppContextProps) => {
           }
         })
 
-        console.log('📈 Transformed investment size data:', sizeData)
-
         return sizeData
       } catch (error) {
-        console.error('❌ Error fetching investment size data:', error)
         throw error
       }
     },

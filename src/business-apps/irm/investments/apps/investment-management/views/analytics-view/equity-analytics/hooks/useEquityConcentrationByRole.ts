@@ -26,16 +26,13 @@ export const useEquityConcentrationByRole = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Concentration by Role hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Concentration by Role hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Concentration by Role hook: Starting data load...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -43,14 +40,11 @@ export const useEquityConcentrationByRole = (
     try {
       const result = await fetchConcentrationData(currency)
       setConcentrationData(result)
-      console.log('✅ Concentration by Role hook: Data set successfully')
     } catch (err) {
-      console.error('❌ Concentration by Role hook: Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Concentration by Role hook: Load completed')
     }
   }, [context.accessToken, currency, fetchConcentrationData])
 

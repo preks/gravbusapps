@@ -67,8 +67,6 @@ export const useGetEquityPortfolioMatrix = (context: BusinessAppContextProps) =>
   const fetchPortfolioMatrix = useCallback(
     async (currency: string): Promise<PortfolioMatrixDataPoint[]> => {
       try {
-        console.log('🔍 Fetching portfolio matrix data (optimized)...', { currency })
-
         const query = BUILD_PORTFOLIO_MATRIX_QUERY(currency)
         const result = await graphqlClient.request<PortfolioMatrixResponse>(query)
 
@@ -81,10 +79,8 @@ export const useGetEquityPortfolioMatrix = (context: BusinessAppContextProps) =>
           currencyCode: investment.currency?.code || currency
         }))
 
-        console.log('✅ Portfolio matrix data fetched:', dataPoints.length, 'investments')
         return dataPoints
       } catch (error) {
-        console.error('❌ Error fetching portfolio matrix data:', error)
         throw error
       }
     },

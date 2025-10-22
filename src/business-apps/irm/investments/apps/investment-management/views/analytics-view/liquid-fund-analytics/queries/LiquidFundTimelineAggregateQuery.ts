@@ -150,7 +150,6 @@ const parsePerformanceAggregateResponse = (data: any, years: string[]): YearlyPe
     item.cumulativeTotalInvested = cumulativeAmount
   })
 
-  console.log('📈 Parsed performance data:', { years: yearlyData.length })
   return yearlyData
 }
 
@@ -176,7 +175,6 @@ const parseValueTrendsAggregateResponse = (data: any, years: string[]): YearlyVa
     }
   })
 
-  console.log('📈 Parsed value trends data:', { years: yearlyData.length })
   return yearlyData
 }
 
@@ -190,20 +188,15 @@ export const fetchLiquidFundTimelineData = async (
   queryName: string,
   isPerformanceChart: boolean
 ): Promise<{ performanceData: YearlyPerformanceData[]; valueTrendsData: YearlyValueData[] }> => {
-  console.log('🚀 Fetching liquid fund timeline data...', { currency, queryName, isPerformanceChart })
-
   // Get last 5 years including current year
   const years = getLastNYears(5)
-  console.log('📅 Years to fetch:', years)
 
   try {
     if (isPerformanceChart) {
       // Performance Timeline: Fetch count + totalInvestmentAmount only
       const query = BUILD_PERFORMANCE_TIMELINE_QUERY(currency, years, queryName)
-      console.log('📊 Executing performance timeline query (optimized: count + totalInvestmentAmount)...')
 
       const result = await graphqlClient.request(query)
-      console.log('✅ Performance timeline data received')
 
       const performanceData = parsePerformanceAggregateResponse(result, years)
       // For performance chart, we don't need value trends data
@@ -213,10 +206,8 @@ export const fetchLiquidFundTimelineData = async (
     } else {
       // Value Trends: Fetch sum fields only (no count)
       const query = BUILD_VALUE_TRENDS_QUERY(currency, years, queryName)
-      console.log('📊 Executing value trends query (optimized: sum fields only)...')
 
       const result = await graphqlClient.request(query)
-      console.log('✅ Value trends data received')
 
       const valueTrendsData = parseValueTrendsAggregateResponse(result, years)
       // For value trends chart, we don't need performance data
@@ -225,7 +216,6 @@ export const fetchLiquidFundTimelineData = async (
       return { performanceData, valueTrendsData }
     }
   } catch (error) {
-    console.error('❌ Error fetching timeline data:', error)
     throw error
   }
 }

@@ -64,19 +64,16 @@ export const useGetEquityDistinctInvestmentTypes = (context: BusinessAppContextP
     // Check if we have a valid cache
     const now = Date.now()
     if (investmentTypesCache && now - cacheTimestamp < CACHE_DURATION) {
-      console.log('✅ Using cached distinct equity investment types:', investmentTypesCache.length)
       return investmentTypesCache
     }
 
     // If there's already a pending request, wait for it instead of creating a new one
     if (pendingRequest) {
-      console.log('⏳ Waiting for existing distinct investment types request...')
       return pendingRequest
     }
 
     // Create new request
     try {
-      console.log('🔍 Fetching distinct equity investment types (shared query)...')
       const distinctQuery = GET_DISTINCT_INVESTMENT_TYPES()
 
       // Store the promise so other concurrent calls can wait for it
@@ -101,7 +98,6 @@ export const useGetEquityDistinctInvestmentTypes = (context: BusinessAppContextP
           cacheTimestamp = Date.now()
           pendingRequest = null
 
-          console.log('✅ Distinct equity investment types fetched:', investmentTypesInfo.length)
           return investmentTypesInfo
         })
         .catch(error => {
@@ -111,7 +107,6 @@ export const useGetEquityDistinctInvestmentTypes = (context: BusinessAppContextP
 
       return await pendingRequest
     } catch (error) {
-      console.error('❌ Error fetching distinct equity investment types:', error)
       pendingRequest = null
       throw error
     }

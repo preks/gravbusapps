@@ -51,10 +51,7 @@ export const useGetEquityTopCompanies = (context: BusinessAppContextProps) => {
   const fetchTopCompanies = useCallback(
     async (currency: string, limit: number = 10): Promise<TopCompaniesResult> => {
       try {
-        console.log('🏆 Fetching top companies by valuation...', { currency, limit })
-
         const query = BUILD_TOP_COMPANIES_QUERY(currency, limit)
-        console.log('📝 Top companies query:', query)
 
         const result = await graphqlClient.request<{
           Investment: Array<{
@@ -65,8 +62,6 @@ export const useGetEquityTopCompanies = (context: BusinessAppContextProps) => {
           }>
         }>(query)
 
-        console.log('✅ Top companies result:', result.Investment.length, 'companies')
-
         // Transform to chart data format
         const companies: TopCompanyData[] = result.Investment.filter(
           inv => inv.investmentMarketValue && inv.investmentMarketValue > 0
@@ -76,13 +71,8 @@ export const useGetEquityTopCompanies = (context: BusinessAppContextProps) => {
           valuation: inv.investmentMarketValue || 0
         }))
 
-        console.log('📊 Transformed companies data:', companies.length, 'entries')
         return { companies }
       } catch (error) {
-        console.error('❌ Error fetching top companies:', error)
-        if (error instanceof Error) {
-          console.error('Error details:', error.message)
-        }
         throw error
       }
     },

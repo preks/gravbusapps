@@ -133,8 +133,6 @@ export const fetchCorrelationData = async (
   graphqlClient: any,
   currency: string
 ): Promise<InterestRateCorrelationData[]> => {
-  console.log('🚀 Fetching liquid fund correlation data...', { currency })
-
   try {
     const query = BUILD_CORRELATION_QUERY(currency)
 
@@ -167,10 +165,8 @@ export const fetchCorrelationData = async (
       }
     })
 
-    console.log('✅ Correlation data fetched:', { count: correlationData.length })
     return correlationData
   } catch (error) {
-    console.error('❌ Error fetching correlation data:', error)
     throw error
   }
 }
@@ -182,8 +178,6 @@ export const fetchPerformanceByType = async (
   graphqlClient: any,
   currency: string
 ): Promise<PerformanceByTypeData[]> => {
-  console.log('🚀 Fetching liquid fund performance by type...', { currency })
-
   try {
     // Step 1: Get distinct fund types
     interface DistinctTypesResponse {
@@ -204,11 +198,8 @@ export const fetchPerformanceByType = async (
     ).map((item: (typeof distinctResult.LiquidFundInvestment)[0]) => item.investmentLiquidFundType!.value!)
 
     if (types.length === 0) {
-      console.log('⚠️ No fund types found')
       return []
     }
-
-    console.log('📊 Found fund types:', types)
 
     // Step 2: Build and execute combined aggregate query
     const query = BUILD_PERFORMANCE_BY_TYPE_QUERY(currency, types)
@@ -237,10 +228,8 @@ export const fetchPerformanceByType = async (
       }
     })
 
-    console.log('✅ Performance by type data fetched:', { types: performanceData.length })
     return performanceData
   } catch (error) {
-    console.error('❌ Error fetching performance by type:', error)
     throw error
   }
 }

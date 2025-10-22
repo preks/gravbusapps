@@ -42,10 +42,8 @@ export const useEquityRoleCountDistribution = (
     setError(null)
 
     try {
-      console.log('📊 Loading role COUNT distribution...', { currency })
       const countData = await fetchRoleCountDistribution(currency)
       setRoleCountDistribution(countData)
-      console.log('✅ Role COUNT distribution loaded successfully')
     } catch (err) {
       console.error('❌ Error loading role count distribution:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')

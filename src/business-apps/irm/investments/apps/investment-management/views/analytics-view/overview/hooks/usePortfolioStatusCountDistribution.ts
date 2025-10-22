@@ -31,17 +31,14 @@ export const usePortfolioStatusCountDistribution = (
       return
     }
 
-    console.log('🔄 Loading status count distribution data...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchData()
-      console.log('✅ Status count distribution data loaded successfully', { statuses: result.length })
       setData(result)
     } catch (err) {
-      console.error('❌ Error loading status count distribution data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

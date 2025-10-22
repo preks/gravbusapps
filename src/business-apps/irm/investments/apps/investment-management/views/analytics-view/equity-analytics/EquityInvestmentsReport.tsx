@@ -34,7 +34,7 @@ import {
   getRiskLevelColor,
   getInvestmentRoleColor,
   safeCurrencyExtraction,
-  formatYearsDuration
+  formatDuration
 } from '../shared/utils'
 import type { EquityInvestmentSummary } from '../shared/types'
 import { EquityTimelineCharts, EquityAnalyticsCharts, EquityDistributionCharts } from './components'
@@ -47,7 +47,7 @@ export interface EquityInvestmentKPIs {
   numberOfEquityInvestments: number
 }
 
-// Note: safeCurrencyExtraction and formatYearsDuration now imported from shared utils
+// Note: safeCurrencyExtraction and formatDuration now imported from shared utils
 
 interface EquityInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -146,7 +146,6 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     setDataError(null)
 
     try {
-      console.log('📊 Loading equity investments data...', { currency: selectedCurrency })
       // Always fetch filtered by selected currency (server-side filtering)
       // selectedCurrency is already in full ID format: "Currency:v1:EUR"
       const currencyIds = selectedCurrency ? [selectedCurrency] : undefined
@@ -155,9 +154,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
       })
       // Data is transformed and used by server-side queries in EquityDistributionCharts
       transformEquityData(result.Investment as InvestmentWithSpecializations[])
-      console.log('✅ Equity investments data loaded successfully')
     } catch (err) {
-      console.error('❌ Error loading equity investments:', err)
       setDataError(err instanceof Error ? err.message : 'Unknown error')
     } finally {
       setDataLoading(false)
@@ -299,7 +296,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
             {
               key: 'average-duration',
               title: getTranslationFromI18nKeyAndLabel('kpi.averageDuration', 'Average Duration'),
-              value: formatYearsDuration(kpis.averageDuration),
+              value: formatDuration(kpis.averageDuration),
               prefix: <CalendarOutlined />,
               color: 'var(--nw-color-purple-500)',
               valueIsString: true,

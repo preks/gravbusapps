@@ -151,7 +151,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               trend: {
                 value: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).value,
                 positive: calculateChange(kpis.totalPortfolioValue, previousKpis.totalPortfolioValue).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
@@ -165,7 +165,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
@@ -187,7 +187,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
@@ -201,7 +201,7 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
               trend: {
                 value: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).value,
                 positive: calculateChange(kpis.activeInvestments, previousKpis.activeInvestments).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             }
           ]}

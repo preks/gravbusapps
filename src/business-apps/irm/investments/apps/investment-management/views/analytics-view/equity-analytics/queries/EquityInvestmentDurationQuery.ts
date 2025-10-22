@@ -115,18 +115,13 @@ export const useGetInvestmentDurationData = (context: BusinessAppContextProps) =
   const fetchInvestmentDurationData = useCallback(
     async (currency: string): Promise<InvestmentDurationRangeData[]> => {
       try {
-        console.log('📊 Fetching investment duration distribution...', { currency })
-
         const query = BUILD_INVESTMENT_DURATION_QUERY(currency)
         const result = await graphqlClient.request<InvestmentDurationQueryResult>(query)
-
-        console.log('✅ Investment duration data fetched:', result)
 
         // Get total count for percentage calculation
         const totalCount = result.total.aggregate.count
 
         if (totalCount === 0) {
-          console.log('⚠️ No investments with acquisition dates found for currency:', currency)
           return []
         }
 
@@ -145,11 +140,8 @@ export const useGetInvestmentDurationData = (context: BusinessAppContextProps) =
           }
         })
 
-        console.log('📈 Transformed investment duration data:', durationData)
-
         return durationData
       } catch (error) {
-        console.error('❌ Error fetching investment duration data:', error)
         throw error
       }
     },

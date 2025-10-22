@@ -30,28 +30,23 @@ export const usePortfolioTopAccounts = (
 
   const loadData = useCallback(async () => {
     if (!accessToken) {
-      console.warn('⚠️ No access token provided to usePortfolioTopAccounts')
       setIsLoading(false)
       return
     }
 
-    console.log(`🔄 Top Accounts hook: Loading data... {limit: ${limit}, currency: '${currency}'}`)
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchTopAccounts(graphqlClient, limit, currency)
 
-      console.log(`✅ Top Accounts hook: Successfully loaded ${result.accounts.length} accounts`)
       setAccounts(result.accounts)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-      console.error('❌ Top Accounts hook: Error loading data:', errorMessage)
       setError(errorMessage)
       setAccounts([])
     } finally {
       setIsLoading(false)
-      console.log('🏁 Top Accounts hook: Load completed')
     }
   }, [graphqlClient, currency, limit, accessToken])
 

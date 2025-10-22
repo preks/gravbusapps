@@ -42,12 +42,9 @@ export const useEquityStatusAmountDistribution = (
     setError(null)
 
     try {
-      console.log('💰 Loading status AMOUNT distribution...', { currency })
       const amountData = await fetchStatusAmountDistribution(currency)
       setStatusAmountDistribution(amountData)
-      console.log('✅ Status AMOUNT distribution loaded successfully')
     } catch (err) {
-      console.error('❌ Error loading status amount distribution:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

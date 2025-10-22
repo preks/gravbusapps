@@ -113,8 +113,6 @@ export const useGetLiquidFundInvestmentTypeDistribution = (context: BusinessAppC
   const fetchInvestmentTypeDistribution = useCallback(
     async (currency: string | null = null): Promise<InvestmentTypeDistributionResult> => {
       try {
-        console.log('📊 Fetching investment type distribution...', { currency })
-
         // Step 1: Fetch distinct investment types
         const distinctResult = await graphqlClient.request<{
           Investment: Array<{
@@ -131,10 +129,7 @@ export const useGetLiquidFundInvestmentTypeDistribution = (context: BusinessAppC
           (type): type is string => !!type
         )
 
-        console.log('📋 Distinct investment types found:', distinctTypes.length, distinctTypes)
-
         if (distinctTypes.length === 0) {
-          console.warn('⚠️ No investment types found')
           return {
             distinctTypes: [],
             countByType: new Map(),
@@ -144,10 +139,8 @@ export const useGetLiquidFundInvestmentTypeDistribution = (context: BusinessAppC
 
         // Step 2: Fetch combined count + amount data for all types in ONE query
         const combinedQuery = buildCombinedInvestmentTypeQuery(distinctTypes, currency)
-        console.log('🔍 Executing combined aggregate query with', distinctTypes.length, 'types')
 
         const aggregateResult = await graphqlClient.request<Record<string, any>>(combinedQuery)
-        console.log('✅ Aggregate result received:', Object.keys(aggregateResult).length, 'keys')
 
         // Step 3: Parse results and build maps
         const countByType = new Map<string, number>()
@@ -168,27 +161,12 @@ export const useGetLiquidFundInvestmentTypeDistribution = (context: BusinessAppC
           const totalAmount = marketValue || investmentAmount
           amountByType.set(type, totalAmount)
         })
-
-        console.log('📈 Distribution data processed:', {
-          types: distinctTypes.length,
-          countEntries: countByType.size,
-          amountEntries: amountByType.size
-        })
-
         return {
           distinctTypes,
           countByType,
           amountByType
         }
       } catch (error) {
-        console.error('❌ Error fetching investment type distribution:', error)
-        if (error instanceof Error) {
-          console.error('Error details:', error.message)
-          console.error('Error stack:', error.stack)
-        }
-        if (error && typeof error === 'object' && 'response' in error) {
-          console.error('GraphQL response:', (error as any).response)
-        }
         throw error
       }
     },

@@ -33,17 +33,14 @@ export const usePortfolioGroupAmountDistribution = (
       return
     }
 
-    console.log('🔄 Loading group amount distribution data...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchData()
-      console.log('✅ Group amount distribution data loaded successfully', { groups: result.length })
       setData(result)
     } catch (err) {
-      console.error('❌ Error loading group amount distribution data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

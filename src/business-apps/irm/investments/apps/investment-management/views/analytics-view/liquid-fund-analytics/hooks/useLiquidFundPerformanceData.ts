@@ -45,7 +45,6 @@ export const useLiquidFundCorrelationData = (
       return
     }
 
-    console.log('🔄 Loading liquid fund correlation data...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -53,13 +52,8 @@ export const useLiquidFundCorrelationData = (
     try {
       const data = await fetchCorrelationData(currency)
 
-      console.log('✅ Correlation data loaded successfully', {
-        dataPoints: data.length
-      })
-
       setCorrelationData(data)
     } catch (err) {
-      console.error('❌ Error loading correlation data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
@@ -104,7 +98,6 @@ export const useLiquidFundPerformanceByType = (
       return
     }
 
-    console.log('🔄 Loading liquid fund performance by type data...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -112,13 +105,8 @@ export const useLiquidFundPerformanceByType = (
     try {
       const data = await fetchPerformanceByTypeData(currency)
 
-      console.log('✅ Performance by type data loaded successfully', {
-        types: data.length
-      })
-
       setPerformanceByTypeData(data)
     } catch (err) {
-      console.error('❌ Error loading performance by type data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

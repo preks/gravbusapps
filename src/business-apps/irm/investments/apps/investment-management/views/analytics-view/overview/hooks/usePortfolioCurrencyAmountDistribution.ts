@@ -30,17 +30,14 @@ export const usePortfolioCurrencyAmountDistribution = (
       return
     }
 
-    console.log('🔄 Loading currency amount distribution data...')
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchData()
-      console.log('✅ Currency amount distribution data loaded successfully', { currencies: result.length })
       setData(result)
     } catch (err) {
-      console.error('❌ Error loading currency amount distribution data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

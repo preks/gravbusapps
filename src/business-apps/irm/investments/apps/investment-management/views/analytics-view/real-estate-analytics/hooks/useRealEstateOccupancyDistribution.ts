@@ -36,17 +36,14 @@ export const useRealEstateOccupancyDistribution = (
       return
     }
 
-    console.log('🔄 Loading occupancy distribution data...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchData()
-      console.log('✅ Occupancy distribution data loaded successfully', { ranges: result.length })
       setData(result)
     } catch (err) {
-      console.error('❌ Error loading occupancy distribution data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

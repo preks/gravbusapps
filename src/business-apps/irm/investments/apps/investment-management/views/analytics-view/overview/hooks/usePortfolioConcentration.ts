@@ -29,28 +29,23 @@ export const usePortfolioConcentration = (
 
   const loadData = useCallback(async () => {
     if (!accessToken) {
-      console.warn('⚠️ No access token provided to usePortfolioConcentration')
       setIsLoading(false)
       return
     }
 
-    console.log(`🔄 Concentration hook: Loading data... {currency: '${currency}'}`)
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchConcentrationData(graphqlClient, currency)
 
-      console.log(`✅ Concentration hook: Successfully loaded ${result.concentrationData.length} groups`)
       setConcentrationData(result.concentrationData)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
-      console.error('❌ Concentration hook: Error loading data:', errorMessage)
       setError(errorMessage)
       setConcentrationData([])
     } finally {
       setIsLoading(false)
-      console.log('🏁 Concentration hook: Load completed')
     }
   }, [graphqlClient, currency, accessToken])
 

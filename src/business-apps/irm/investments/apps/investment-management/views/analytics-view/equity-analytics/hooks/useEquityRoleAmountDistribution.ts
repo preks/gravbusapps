@@ -42,12 +42,9 @@ export const useEquityRoleAmountDistribution = (
     setError(null)
 
     try {
-      console.log('💰 Loading role AMOUNT distribution...', { currency })
       const amountData = await fetchRoleAmountDistribution(currency)
       setRoleAmountDistribution(amountData)
-      console.log('✅ Role AMOUNT distribution loaded successfully')
     } catch (err) {
-      console.error('❌ Error loading role amount distribution:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

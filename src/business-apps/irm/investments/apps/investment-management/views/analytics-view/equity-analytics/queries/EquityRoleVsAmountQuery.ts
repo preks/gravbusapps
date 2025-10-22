@@ -51,8 +51,6 @@ export const useGetRoleVsAmountData = (context: BusinessAppContextProps) => {
   const fetchRoleVsAmountData = useCallback(
     async (currency: string): Promise<RoleVsAmountData[]> => {
       try {
-        console.log('📊 Fetching role vs amount data...', { currency })
-
         const result = await graphqlClient.request<{
           Investment: Array<{
             id: string
@@ -68,8 +66,6 @@ export const useGetRoleVsAmountData = (context: BusinessAppContextProps) => {
             }>
           }>
         }>(BUILD_ROLE_VS_AMOUNT_QUERY(currency))
-
-        console.log('✅ Role vs amount data fetched:', result.Investment.length)
 
         // Transform data
         const roleVsAmountData: RoleVsAmountData[] = result.Investment.filter(
@@ -100,11 +96,8 @@ export const useGetRoleVsAmountData = (context: BusinessAppContextProps) => {
           }
         })
 
-        console.log('📈 Transformed role vs amount data:', roleVsAmountData.length)
-
         return roleVsAmountData
       } catch (error) {
-        console.error('❌ Error fetching role vs amount data:', error)
         throw error
       }
     },

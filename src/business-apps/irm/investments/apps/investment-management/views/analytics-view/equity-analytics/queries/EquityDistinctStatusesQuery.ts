@@ -64,19 +64,16 @@ export const useGetEquityDistinctStatuses = (context: BusinessAppContextProps) =
     // Check if we have a valid cache
     const now = Date.now()
     if (statusesCache && now - cacheTimestamp < CACHE_DURATION) {
-      console.log('✅ Using cached distinct equity statuses:', statusesCache.length)
       return statusesCache
     }
 
     // If there's already a pending request, wait for it instead of creating a new one
     if (pendingRequest) {
-      console.log('⏳ Waiting for existing distinct statuses request...')
       return pendingRequest
     }
 
     // Create new request
     try {
-      console.log('🔍 Fetching distinct equity statuses (shared query)...')
       const distinctQuery = GET_DISTINCT_STATUSES()
 
       // Store the promise so other concurrent calls can wait for it
@@ -101,7 +98,6 @@ export const useGetEquityDistinctStatuses = (context: BusinessAppContextProps) =
           cacheTimestamp = Date.now()
           pendingRequest = null
 
-          console.log('✅ Distinct equity statuses fetched:', statusesInfo.length)
           return statusesInfo
         })
         .catch(error => {
@@ -111,7 +107,6 @@ export const useGetEquityDistinctStatuses = (context: BusinessAppContextProps) =
 
       return await pendingRequest
     } catch (error) {
-      console.error('❌ Error fetching distinct equity statuses:', error)
       pendingRequest = null
       throw error
     }

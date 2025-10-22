@@ -63,7 +63,6 @@ const parsePropertyValueVsRentResponse = (data: any): PropertyValueVsRentData[] 
     }
   })
 
-  console.log('📊 Parsed property value vs rent data:', { count: propertyData.length })
   return propertyData
 }
 
@@ -74,18 +73,13 @@ export const fetchPropertyValueVsRent = async (
   graphqlClient: any,
   currency: string
 ): Promise<PropertyValueVsRentData[]> => {
-  console.log('🚀 Fetching property value vs rent...', { currency })
-
   try {
     const query = BUILD_PROPERTY_VALUE_VS_RENT_QUERY(currency)
-    console.log('📊 Executing property value vs rent query...')
 
     const result = await graphqlClient.request(query)
-    console.log('✅ Property value vs rent data received')
 
     return parsePropertyValueVsRentResponse(result)
   } catch (error) {
-    console.error('❌ Error fetching property value vs rent:', error)
     throw error
   }
 }

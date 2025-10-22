@@ -26,16 +26,13 @@ export const useEquityStakeVsAmount = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Stake vs Amount hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Stake vs Amount hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Stake vs Amount hook: Starting data load...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -43,14 +40,11 @@ export const useEquityStakeVsAmount = (
     try {
       const result = await fetchStakeVsAmountData(currency)
       setStakeVsAmountData(result)
-      console.log('✅ Stake vs Amount hook: Data set successfully')
     } catch (err) {
-      console.error('❌ Stake vs Amount hook: Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Stake vs Amount hook: Load completed')
     }
   }, [context.accessToken, currency, fetchStakeVsAmountData])
 

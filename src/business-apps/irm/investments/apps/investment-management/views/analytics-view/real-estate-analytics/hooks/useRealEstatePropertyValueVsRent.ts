@@ -33,17 +33,14 @@ export const useRealEstatePropertyValueVsRent = (
       return
     }
 
-    console.log('🔄 Loading property value vs rent data...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchData()
-      console.log('✅ Property value vs rent data loaded successfully', { count: result.length })
       setData(result)
     } catch (err) {
-      console.error('❌ Error loading property value vs rent data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

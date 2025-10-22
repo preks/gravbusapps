@@ -33,17 +33,14 @@ export const usePortfolioGroupCountDistribution = (
       return
     }
 
-    console.log('🔄 Loading group count distribution data...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const result = await fetchData()
-      console.log('✅ Group count distribution data loaded successfully', { groups: result.length })
       setData(result)
     } catch (err) {
-      console.error('❌ Error loading group count distribution data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

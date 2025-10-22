@@ -86,7 +86,6 @@ const parseOccupancyDistributionResponse = (data: any): OccupancyDistributionDat
     totalValue: rangeMap.get(range.label)?.totalValue || 0
   }))
 
-  console.log('📊 Parsed occupancy distribution:', { ranges: distributionData.length })
   return distributionData
 }
 
@@ -97,18 +96,13 @@ export const fetchOccupancyDistribution = async (
   graphqlClient: any,
   currency: string
 ): Promise<OccupancyDistributionData[]> => {
-  console.log('🚀 Fetching occupancy distribution...', { currency })
-
   try {
     const query = BUILD_OCCUPANCY_DISTRIBUTION_QUERY(currency)
-    console.log('📊 Executing occupancy query...')
 
     const result = await graphqlClient.request(query)
-    console.log('✅ Occupancy data received')
 
     return parseOccupancyDistributionResponse(result)
   } catch (error) {
-    console.error('❌ Error fetching occupancy distribution:', error)
     throw error
   }
 }

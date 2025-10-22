@@ -121,8 +121,6 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
   const fetchTimelineAggregate = useCallback(
     async (yearsCount: number = 5, currency?: string): Promise<TimelineAggregateResult> => {
       try {
-        console.log('🔍 Fetching timeline aggregate data...', { yearsCount, currency })
-
         // Step 1: Fetch distinct investment types
         const investmentTypesResult = await graphqlClient.request<{
           Investment: Array<{
@@ -131,8 +129,6 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
           }>
         }>(GET_DISTINCT_INVESTMENT_TYPES_QUERY)
 
-        console.log('📊 Found investment types:', investmentTypesResult.Investment.length)
-
         const investmentTypes: InvestmentTypeInfo[] = investmentTypesResult.Investment.filter(
           inv => inv.investmentType?.value && inv.investmentTypeRef
         ).map(inv => ({
@@ -140,16 +136,12 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
           investmentTypeValue: inv.investmentType!.value
         }))
 
-        console.log('✅ Filtered investment types:', investmentTypes)
-
         if (investmentTypes.length === 0) {
-          console.warn('⚠️ No investment types found')
           return { yearlyData: [] }
         }
 
         // Step 2: Get last N years
         const years = getLastNYears(yearsCount)
-        console.log('📅 Years to fetch:', years)
 
         // Step 3: Build and execute optimized aggregate query
         const query = BUILD_TIMELINE_AGGREGATE_QUERY(
@@ -158,10 +150,7 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
           currency
         )
 
-        console.log('📝 Generated GraphQL query:', query)
-        console.log('🔄 Executing aggregate query...')
         const aggregateResult = await graphqlClient.request<Record<string, any>>(query)
-        console.log('✅ Aggregate result received:', Object.keys(aggregateResult).length, 'keys')
 
         // Step 4: Parse results and build timeline data
         const yearlyData: TimelineYearData[] = []
@@ -183,14 +172,8 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
           })
         })
 
-        console.log('📈 Final yearly data:', yearlyData.length, 'entries')
         return { yearlyData }
       } catch (error) {
-        console.error('❌ Error fetching timeline aggregate data:', error)
-        if (error instanceof Error) {
-          console.error('Error details:', error.message)
-          console.error('Stack trace:', error.stack)
-        }
         throw error
       }
     },

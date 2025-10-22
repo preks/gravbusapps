@@ -35,23 +35,19 @@ export const useEquityTimelineAggregate = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Timeline hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Timeline hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Timeline hook: Starting data load...', { yearsCount, currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const { yearlyData } = await fetchTimelineAggregate(yearsCount, currency)
-      console.log('✅ Timeline hook: Data fetched successfully, processing...')
 
       // Extract unique investment types
       const uniqueTypes = Array.from(new Set(yearlyData.map(d => d.investmentType))).sort()
@@ -104,17 +100,11 @@ export const useEquityTimelineAggregate = (
       })
 
       setTimelineData(chartData)
-      console.log('✅ Timeline hook: Data processed and set successfully', {
-        dataPoints: chartData.length,
-        types: uniqueTypes.length
-      })
     } catch (err) {
-      console.error('❌ Timeline hook: Error loading equity timeline aggregate:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Timeline hook: Load completed', { hasError: error !== null })
     }
   }, [context.accessToken, yearsCount, currency, fetchTimelineAggregate])
 

@@ -163,7 +163,6 @@ const parseTimelineAggregateResponse = (data: any, years: string[]): YearlyTimel
     item.cumulativeTotalInvested = cumulativeAmount
   })
 
-  console.log('📈 Parsed timeline data:', { years: yearlyData.length })
   return yearlyData
 }
 
@@ -193,7 +192,6 @@ const parsePerformanceAggregateResponse = (data: any, years: string[]): YearlyPe
     }
   })
 
-  console.log('📈 Parsed performance data:', { years: yearlyData.length })
   return yearlyData
 }
 
@@ -206,20 +204,15 @@ export const fetchRealEstateTimelineData = async (
   queryName: string,
   isTimelineChart: boolean
 ): Promise<{ timelineData: YearlyTimelineData[]; performanceData: YearlyPerformanceData[] }> => {
-  console.log('🚀 Fetching real estate timeline data...', { currency, queryName, isTimelineChart })
-
   // Get last 5 years including current year
   const years = getLastNYears(5)
-  console.log('📅 Years to fetch:', years)
 
   try {
     if (isTimelineChart) {
       // Timeline: Fetch count + totalInvestmentAmount
       const query = BUILD_TIMELINE_QUERY(currency, years, queryName)
-      console.log('📊 Executing timeline query...')
 
       const result = await graphqlClient.request(query)
-      console.log('✅ Timeline data received')
 
       const timelineData = parseTimelineAggregateResponse(result, years)
       const performanceData: YearlyPerformanceData[] = []
@@ -228,10 +221,8 @@ export const fetchRealEstateTimelineData = async (
     } else {
       // Performance: Fetch property values and occupancy rates
       const query = BUILD_PERFORMANCE_QUERY(currency, years, queryName)
-      console.log('📊 Executing performance query...')
 
       const result = await graphqlClient.request(query)
-      console.log('✅ Performance data received')
 
       const performanceData = parsePerformanceAggregateResponse(result, years)
       const timelineData: YearlyTimelineData[] = []
@@ -239,7 +230,6 @@ export const fetchRealEstateTimelineData = async (
       return { timelineData, performanceData }
     }
   } catch (error) {
-    console.error('❌ Error fetching timeline data:', error)
     throw error
   }
 }

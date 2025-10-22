@@ -86,12 +86,8 @@ export const useGetEquityRoleAmountDistribution = (context: BusinessAppContextPr
   const fetchRoleAmountDistribution = useCallback(
     async (currency: string): Promise<RoleAmountDistributionData[]> => {
       try {
-        console.log('🔍 Fetching equity role AMOUNT distribution...', { currency })
-
         // Step 1: Get ALL distinct roles using shared query
         const rolesInfo = await fetchDistinctRoles()
-
-        console.log('📊 Found roles for amount distribution:', rolesInfo.length)
 
         if (rolesInfo.length === 0) {
           return []
@@ -121,10 +117,8 @@ export const useGetEquityRoleAmountDistribution = (context: BusinessAppContextPr
           })
           .sort((a, b) => b.totalAmount - a.totalAmount)
 
-        console.log('✅ Role amount distribution fetched successfully')
         return amountData
       } catch (error) {
-        console.error('❌ Error fetching equity role amount distribution:', error)
         throw error
       }
     },

@@ -38,30 +38,21 @@ export const usePortfolioTimelineAggregate = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Portfolio timeline hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Portfolio timeline hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Portfolio timeline hook: Starting data load...', { yearsCount, currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
 
     try {
       const { yearlyData } = await fetchTimelineAggregate(yearsCount, currency)
-      console.log('✅ Portfolio timeline hook: Data fetched successfully, processing...', {
-        yearlyDataPoints: yearlyData.length,
-        sampleData: yearlyData.slice(0, 3)
-      })
-
       // Extract unique investment groups
       const uniqueGroups = Array.from(new Set(yearlyData.map(d => d.investmentGroup))).sort()
-      console.log('📊 Unique groups extracted:', uniqueGroups)
       setInvestmentGroups(uniqueGroups)
 
       // Get last N years
@@ -124,30 +115,11 @@ export const usePortfolioTimelineAggregate = (
       })
 
       setTimelineData(chartData)
-      console.log('✅ Portfolio timeline hook: Data processed and set successfully', {
-        dataPoints: chartData.length,
-        groups: uniqueGroups.length,
-        chartDataSample: chartData.map(d => ({
-          year: d.year,
-          total: d.total,
-          count: d.count,
-          groups: uniqueGroups.reduce(
-            (acc, g) => {
-              const chartKey = getChartKey(g)
-              acc[chartKey] = d[chartKey]
-              return acc
-            },
-            {} as Record<string, any>
-          )
-        }))
-      })
     } catch (err) {
-      console.error('❌ Portfolio timeline hook: Error loading portfolio timeline aggregate:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Portfolio timeline hook: Load completed', { hasError: error !== null })
     }
   }, [context.accessToken, yearsCount, currency, fetchTimelineAggregate])
 

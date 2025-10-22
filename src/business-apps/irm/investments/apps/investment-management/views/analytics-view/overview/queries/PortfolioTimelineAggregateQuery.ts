@@ -132,17 +132,13 @@ export const useGetDistinctInvestmentGroups = (context: BusinessAppContextProps)
   const fetchDistinctInvestmentGroups = useCallback(async (): Promise<InvestmentGroupInfo[]> => {
     // Check if cache is still valid
     if (investmentGroupsCache && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_DURATION) {
-      console.log('✨ Using cached investment groups')
       return investmentGroupsCache
     }
 
     // If there's already a pending request, return it (promise deduplication)
     if (pendingRequest) {
-      console.log('⏳ Waiting for pending investment groups request')
       return pendingRequest
     }
-
-    console.log('🔍 Fetching distinct investment groups...')
 
     // Create and store the pending request
     pendingRequest = (async () => {
@@ -162,8 +158,6 @@ export const useGetDistinctInvestmentGroups = (context: BusinessAppContextProps)
             investmentGroupValue: inv.investmentGroup!.value
           }))
           .sort((a, b) => a.investmentGroupValue.localeCompare(b.investmentGroupValue))
-
-        console.log(`✅ Found ${groups.length} distinct investment groups`)
 
         // Update cache
         investmentGroupsCache = groups
@@ -216,7 +210,6 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
       // Check if cached data is still valid
       const cached = timelineAggregateCache[cacheKey]
       if (cached && Date.now() - cached.timestamp < AGGREGATE_CACHE_DURATION) {
-        console.log('✨ Using cached timeline aggregate data for:', cacheKey)
         return cached.data
       }
 
@@ -224,34 +217,26 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
       // This handles concurrent requests for the same currency
       // @ts-expect-error - Necessary for promise deduplication with concurrent requests
       if (pendingAggregateRequests[cacheKey]) {
-        console.log('⏳ Waiting for pending timeline aggregate request:', cacheKey)
         return pendingAggregateRequests[cacheKey]
       }
 
       // Create and store the pending request
       pendingAggregateRequests[cacheKey] = (async () => {
         try {
-          console.log('🔍 Fetching portfolio timeline aggregate data...', { yearsCount, currency, cacheKey })
-
           // Step 1: Fetch distinct investment groups (with smart caching)
           const investmentGroups = await fetchDistinctInvestmentGroups()
 
-          console.log('📊 Using investment groups:', investmentGroups.length)
-
           if (investmentGroups.length === 0) {
-            console.warn('⚠️ No investment groups found')
             return { yearlyData: [] }
           }
 
           // Step 2: Get last N years
           const years = getLastNYears(yearsCount)
-          console.log('📅 Years to fetch:', years)
 
           // Step 3: Build and execute aggregate query
           const investmentGroupRefs = investmentGroups.map(g => g.investmentGroupRef)
           const query = BUILD_PORTFOLIO_TIMELINE_QUERY(years, investmentGroupRefs, currency)
 
-          console.log('🔄 Executing aggregate query...')
           const result =
             await graphqlClient.request<
               Record<
@@ -263,20 +248,10 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
           // Step 4: Transform result into structured data
           const yearlyData: PortfolioTimelineYearData[] = []
 
-          console.log('🔄 Transforming result data...', {
-            resultKeys: Object.keys(result).length,
-            investmentGroups: investmentGroups.map(g => ({
-              ref: g.investmentGroupRef,
-              encoded: g.investmentGroupRef.replace(/[^a-zA-Z0-9]/g, '_'),
-              value: g.investmentGroupValue
-            }))
-          })
-
           Object.entries(result).forEach(([key, value]) => {
             // Parse alias: year_2021_group_InvestmentGroup_v1_EQUITY
             const match = key.match(/year_(\d+)_group_(.+)/)
             if (!match) {
-              console.warn('⚠️ Could not parse key:', key)
               return
             }
 
@@ -289,7 +264,6 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
             )
 
             if (!groupInfo) {
-              console.warn('⚠️ Could not find group info for encoded ref:', groupRefEncoded)
               return
             }
 
@@ -304,15 +278,8 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
               yearlyData.push(dataPoint)
 
               if (dataPoint.count > 0 || dataPoint.totalAmount > 0) {
-                console.log('✅ Added data point:', dataPoint)
               }
             }
-          })
-
-          console.log('✅ Portfolio timeline aggregate data fetched successfully', {
-            dataPoints: yearlyData.length,
-            years: years.length,
-            groups: investmentGroups.length
           })
 
           const resultData = { yearlyData }
@@ -325,7 +292,6 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
 
           return resultData
         } catch (error) {
-          console.error('❌ Error fetching portfolio timeline aggregate data:', error)
           throw error
         } finally {
           // Clear pending request

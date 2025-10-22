@@ -67,19 +67,16 @@ export const useGetEquityDistinctRoles = (context: BusinessAppContextProps) => {
     // Check if we have a valid cache
     const now = Date.now()
     if (rolesCache && now - cacheTimestamp < CACHE_DURATION) {
-      console.log('✅ Using cached distinct equity roles:', rolesCache.length)
       return rolesCache
     }
 
     // If there's already a pending request, wait for it instead of creating a new one
     if (pendingRequest) {
-      console.log('⏳ Waiting for existing distinct roles request...')
       return pendingRequest
     }
 
     // Create new request
     try {
-      console.log('🔍 Fetching distinct equity roles (shared query)...')
       const distinctQuery = GET_DISTINCT_ROLES()
 
       // Store the promise so other concurrent calls can wait for it
@@ -104,7 +101,6 @@ export const useGetEquityDistinctRoles = (context: BusinessAppContextProps) => {
           cacheTimestamp = Date.now()
           pendingRequest = null
 
-          console.log('✅ Distinct equity roles fetched:', rolesInfo.length)
           return rolesInfo
         })
         .catch(error => {
@@ -114,7 +110,6 @@ export const useGetEquityDistinctRoles = (context: BusinessAppContextProps) => {
 
       return await pendingRequest
     } catch (error) {
-      console.error('❌ Error fetching distinct equity roles:', error)
       pendingRequest = null
       throw error
     }

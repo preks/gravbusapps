@@ -26,16 +26,13 @@ export const useEquityTopCompanies = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Top companies hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Top companies hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Top companies hook: Starting data load...', { currency, limit })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -43,14 +40,11 @@ export const useEquityTopCompanies = (
     try {
       const { companies } = await fetchTopCompanies(currency, limit)
       setTopCompanies(companies)
-      console.log('✅ Top companies hook: Data set successfully', { count: companies.length })
     } catch (err) {
-      console.error('❌ Top companies hook: Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Top companies hook: Load completed')
     }
   }, [context.accessToken, currency, limit, fetchTopCompanies])
 

@@ -34,19 +34,22 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
           count
           sum {
             totalInvestmentAmount
+            investmentMarketValue
           }
         }
       }
       
-      # Current investments for MOIC and duration calculation
+      # Current investments for duration calculation
       currentInvestments: Investment(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
             { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
+            { acquisitionDate: { _isNull: false } }
             ${currencyCondition}
           ]
         }
+        limit: 1000
       ) {
         id
         acquisitionDate
@@ -59,7 +62,7 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { createdAt: { _lt: "${comparisonDate}" } }
+            { createdAt: { _lte: "${comparisonDate}" } }
             { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
             ${currencyCondition}
           ]
@@ -69,20 +72,23 @@ const GET_EQUITY_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?
           count
           sum {
             totalInvestmentAmount
+            investmentMarketValue
           }
         }
       }
       
-      # Previous investments for MOIC and duration calculation
+      # Previous investments for duration calculation
       previousInvestments: Investment(
         where: {
           _and: [
             { isDeleted: { _eq: false } }
-            { createdAt: { _lt: "${comparisonDate}" } }
+            { createdAt: { _lte: "${comparisonDate}" } }
             { investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }
+            { acquisitionDate: { _isNull: false } }
             ${currencyCondition}
           ]
         }
+        limit: 1000
       ) {
         id
         acquisitionDate
@@ -99,6 +105,7 @@ export interface EquityKPIResponse {
       count: number
       sum: {
         totalInvestmentAmount: number | null
+        investmentMarketValue: number | null
       }
     }
   }
@@ -113,6 +120,7 @@ export interface EquityKPIResponse {
       count: number
       sum: {
         totalInvestmentAmount: number | null
+        investmentMarketValue: number | null
       }
     }
   }
@@ -149,46 +157,58 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: st
         if (investments.length === 0) return 0
 
         const today = new Date()
+
         const durations = investments
-          .filter(inv => inv.acquisitionDate)
+          .filter(inv => inv.acquisitionDate) // Has acquisition date
           .map(inv => {
             const acquisitionDate = new Date(inv.acquisitionDate!)
-            const durationInMs = today.getTime() - acquisitionDate.getTime()
-            return Math.floor(durationInMs / (1000 * 60 * 60 * 24)) // Convert to days
-          })
 
-        if (durations.length === 0) return 0
+            // Validate date is valid
+            if (isNaN(acquisitionDate.getTime())) {
+              return null
+            }
+
+            const durationInMs = today.getTime() - acquisitionDate.getTime()
+            const durationInDays = Math.floor(durationInMs / (1000 * 60 * 60 * 24))
+
+            // Validate duration is reasonable (between 0 and 50 years)
+            if (durationInDays < 0) {
+              return null
+            }
+            if (durationInDays > 18250) {
+              // 50 years
+              return null
+            }
+
+            return durationInDays
+          })
+          .filter(duration => duration !== null) as number[] // Remove invalid entries
+
+        if (durations.length === 0) {
+          return 0
+        }
+
         const totalDuration = durations.reduce((sum, duration) => sum + duration, 0)
-        return totalDuration / durations.length
+        const avgDuration = Math.round(totalDuration / durations.length) // Round to nearest day
+
+        return avgDuration
       }
 
-      // Helper function to calculate Portfolio MOIC (Multiple on Invested Capital)
-      const calculatePortfolioMoic = (
-        investments: Array<{
-          id: string
-          acquisitionDate: string | null
-          totalInvestmentAmount: number | null
-          investmentMarketValue: number | null
-        }>
+      // Helper function to calculate Portfolio MOIC from aggregate sums (weighted by investment size)
+      const calculatePortfolioMoicFromAggregates = (
+        totalMarketValue: number | null,
+        totalInvestmentAmount: number | null
       ): number => {
-        if (investments.length === 0) return 0
-
-        const moics = investments
-          .filter(inv => inv.totalInvestmentAmount && inv.totalInvestmentAmount > 0 && inv.investmentMarketValue)
-          .map(inv => {
-            const moic = inv.investmentMarketValue! / inv.totalInvestmentAmount!
-            return moic
-          })
-
-        if (moics.length === 0) return 0
-        const totalMoic = moics.reduce((sum, moic) => sum + moic, 0)
-        return totalMoic / moics.length
+        if (!totalInvestmentAmount || totalInvestmentAmount === 0) return 0
+        if (!totalMarketValue) return 0
+        return totalMarketValue / totalInvestmentAmount
       }
 
       // Transform current data
       const currentCount = result.currentAggregate.aggregate.count
       const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const currentPortfolioMoic = calculatePortfolioMoic(result.currentInvestments)
+      const currentTotalMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0
+      const currentPortfolioMoic = calculatePortfolioMoicFromAggregates(currentTotalMarketValue, currentTotalAmount)
       const currentAvgDuration = calculateAverageDuration(result.currentInvestments)
 
       const current: EquityKPIData = {
@@ -201,7 +221,8 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: st
       // Check if we have meaningful historical data
       const previousCount = result.previousAggregate.aggregate.count
       const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const previousPortfolioMoic = calculatePortfolioMoic(result.previousInvestments)
+      const previousTotalMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
+      const previousPortfolioMoic = calculatePortfolioMoicFromAggregates(previousTotalMarketValue, previousTotalAmount)
       const previousAvgDuration = calculateAverageDuration(result.previousInvestments)
 
       let previous: EquityKPIData

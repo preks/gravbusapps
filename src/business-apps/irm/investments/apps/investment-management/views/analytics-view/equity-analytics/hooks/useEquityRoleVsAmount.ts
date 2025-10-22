@@ -26,16 +26,13 @@ export const useEquityRoleVsAmount = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Role vs Amount hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Role vs Amount hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Role vs Amount hook: Starting data load...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -43,14 +40,11 @@ export const useEquityRoleVsAmount = (
     try {
       const result = await fetchRoleVsAmountData(currency)
       setRoleVsAmountData(result)
-      console.log('✅ Role vs Amount hook: Data set successfully')
     } catch (err) {
-      console.error('❌ Role vs Amount hook: Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Role vs Amount hook: Load completed')
     }
   }, [context.accessToken, currency, fetchRoleVsAmountData])
 

@@ -64,19 +64,16 @@ export const useGetEquityDistinctStakeTypes = (context: BusinessAppContextProps)
     // Check if we have a valid cache
     const now = Date.now()
     if (stakeTypesCache && now - cacheTimestamp < CACHE_DURATION) {
-      console.log('✅ Using cached distinct equity stake types:', stakeTypesCache.length)
       return stakeTypesCache
     }
 
     // If there's already a pending request, wait for it instead of creating a new one
     if (pendingRequest) {
-      console.log('⏳ Waiting for existing distinct stake types request...')
       return pendingRequest
     }
 
     // Create new request
     try {
-      console.log('🔍 Fetching distinct equity stake types (shared query)...')
       const distinctQuery = GET_DISTINCT_STAKE_TYPES()
 
       // Store the promise so other concurrent calls can wait for it
@@ -101,7 +98,6 @@ export const useGetEquityDistinctStakeTypes = (context: BusinessAppContextProps)
           cacheTimestamp = Date.now()
           pendingRequest = null
 
-          console.log('✅ Distinct equity stake types fetched:', stakeTypesInfo.length)
           return stakeTypesInfo
         })
         .catch(error => {
@@ -111,7 +107,6 @@ export const useGetEquityDistinctStakeTypes = (context: BusinessAppContextProps)
 
       return await pendingRequest
     } catch (error) {
-      console.error('❌ Error fetching distinct equity stake types:', error)
       pendingRequest = null
       throw error
     }

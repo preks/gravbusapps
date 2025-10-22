@@ -41,18 +41,15 @@ export const useGetDistinctStatuses = (context: BusinessAppContextProps) => {
 
     // Return cached data if still valid
     if (statusesCache && cacheTimestamp && now - cacheTimestamp < CACHE_DURATION) {
-      console.log('📦 Using cached distinct statuses')
       return statusesCache
     }
 
     // Return existing pending request if one is in flight
     if (pendingRequest) {
-      console.log('⏳ Waiting for in-flight distinct statuses request')
       return pendingRequest
     }
 
     // Create new request
-    console.log('🔍 Fetching distinct investment statuses from GraphQL...')
     pendingRequest = (async () => {
       try {
         const result = await graphqlClient.request<{
@@ -68,8 +65,6 @@ export const useGetDistinctStatuses = (context: BusinessAppContextProps) => {
             statusValue: inv.investmentStatus!.value
           }))
           .sort((a, b) => a.statusValue.localeCompare(b.statusValue))
-
-        console.log(`✅ Found ${statuses.length} distinct statuses`)
 
         // Update cache
         statusesCache = statuses
@@ -164,8 +159,6 @@ export const buildStatusCountDistributionQuery = (
   graphqlClient: any
 ) => {
   return async (): Promise<Array<{ status: string; count: number }>> => {
-    console.log('🚀 Fetching status count distribution...', { currency, statuses: statuses.length })
-
     if (statuses.length === 0) {
       return []
     }
@@ -188,10 +181,8 @@ export const buildStatusCountDistributionQuery = (
         })
         .filter(item => item.count > 0)
 
-      console.log(`✅ Status count distribution: ${distribution.length} statuses with data`)
       return distribution
     } catch (error) {
-      console.error('❌ Error fetching status count distribution:', error)
       throw error
     }
   }
@@ -206,8 +197,6 @@ export const buildStatusAmountDistributionQuery = (
   graphqlClient: any
 ) => {
   return async (): Promise<Array<{ status: string; totalAmount: number }>> => {
-    console.log('🚀 Fetching status amount distribution...', { currency, statuses: statuses.length })
-
     if (statuses.length === 0) {
       return []
     }
@@ -230,10 +219,8 @@ export const buildStatusAmountDistributionQuery = (
         })
         .filter(item => item.totalAmount > 0)
 
-      console.log(`✅ Status amount distribution: ${distribution.length} statuses with data`)
       return distribution
     } catch (error) {
-      console.error('❌ Error fetching status amount distribution:', error)
       throw error
     }
   }

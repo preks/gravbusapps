@@ -45,8 +45,6 @@ export const useGetStakeVsAmountData = (context: BusinessAppContextProps) => {
   const fetchStakeVsAmountData = useCallback(
     async (currency: string): Promise<StakeVsAmountData[]> => {
       try {
-        console.log('📊 Fetching stake vs amount data...', { currency })
-
         const result = await graphqlClient.request<{
           Investment: Array<{
             id: string
@@ -56,8 +54,6 @@ export const useGetStakeVsAmountData = (context: BusinessAppContextProps) => {
             totalInvestmentAmount: number | null
           }>
         }>(BUILD_STAKE_VS_AMOUNT_QUERY(currency))
-
-        console.log('✅ Stake vs amount data fetched:', result.Investment.length)
 
         // Transform data
         const stakeVsAmountData: StakeVsAmountData[] = result.Investment.filter(
@@ -69,11 +65,8 @@ export const useGetStakeVsAmountData = (context: BusinessAppContextProps) => {
           investmentAmount: inv.totalInvestmentAmount!
         }))
 
-        console.log('📈 Transformed stake vs amount data:', stakeVsAmountData.length)
-
         return stakeVsAmountData
       } catch (error) {
-        console.error('❌ Error fetching stake vs amount data:', error)
         throw error
       }
     },

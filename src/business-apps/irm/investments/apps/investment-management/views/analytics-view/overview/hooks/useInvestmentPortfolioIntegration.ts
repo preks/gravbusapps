@@ -49,13 +49,17 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     totalPortfolioValue: 0,
     totalInvestments: 0,
     totalAmountInvested: 0,
-    activeInvestments: 0
+    activeInvestments: 0,
+    averageInvestmentValue: 0,
+    averageMarketValue: 0
   })
   const [previousKpis, setPreviousKPIs] = useState<InvestmentPortfolioKPIs>({
     totalPortfolioValue: 0,
     totalInvestments: 0,
     totalAmountInvested: 0,
-    activeInvestments: 0
+    activeInvestments: 0,
+    averageInvestmentValue: 0,
+    averageMarketValue: 0
   })
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -149,7 +153,6 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
       setError(null)
 
       try {
-        console.log('📊 Loading portfolio investments and KPIs...', { currency: selectedCurrency })
         // Fetch both investment data and KPIs with real historical comparison in parallel
         const [investmentResult, kpiResult] = await Promise.all([
           fetchInvestments({
@@ -173,9 +176,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
         setInvestments(enhancedInvestments)
         setKPIs(kpiResult.current)
         setPreviousKPIs(kpiResult.previous)
-        console.log('✅ Portfolio investments and KPIs loaded successfully')
       } catch (err) {
-        console.error('❌ Error loading portfolio data:', err)
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
         setIsLoading(false)

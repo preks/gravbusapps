@@ -87,12 +87,8 @@ export const useGetEquityStatusCountDistribution = (context: BusinessAppContextP
   const fetchStatusCountDistribution = useCallback(
     async (currency?: string): Promise<StatusCountDistributionData[]> => {
       try {
-        console.log('🔍 Fetching equity status COUNT distribution...', { currency })
-
         // Step 1: Get ALL distinct statuses using shared query
         const statusesInfo = await fetchDistinctStatuses()
-
-        console.log('📊 Found statuses for count distribution:', statusesInfo.length)
 
         if (statusesInfo.length === 0) {
           return []
@@ -122,10 +118,8 @@ export const useGetEquityStatusCountDistribution = (context: BusinessAppContextP
           })
           .sort((a, b) => b.count - a.count)
 
-        console.log('✅ Status count distribution fetched successfully')
         return countData
       } catch (error) {
-        console.error('❌ Error fetching equity status count distribution:', error)
         throw error
       }
     },

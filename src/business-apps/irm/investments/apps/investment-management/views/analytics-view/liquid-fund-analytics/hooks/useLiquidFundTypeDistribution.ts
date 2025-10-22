@@ -30,16 +30,13 @@ export const useLiquidFundTypeDistribution = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Liquid fund type distribution hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Liquid fund type distribution hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Liquid fund type distribution hook: Starting data load...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -63,17 +60,11 @@ export const useLiquidFundTypeDistribution = (
 
       setCountData(transformedCountData)
       setAmountData(transformedAmountData)
-      console.log('✅ Liquid fund type distribution hook: Data set successfully', {
-        countItems: transformedCountData.length,
-        amountItems: transformedAmountData.length
-      })
     } catch (err) {
-      console.error('❌ Liquid fund type distribution hook: Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Liquid fund type distribution hook: Load completed')
     }
   }, [context.accessToken, currency, fetchLiquidFundTypeDistribution])
 

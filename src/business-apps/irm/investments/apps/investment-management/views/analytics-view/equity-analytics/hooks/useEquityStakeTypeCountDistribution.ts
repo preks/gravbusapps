@@ -42,12 +42,9 @@ export const useEquityStakeTypeCountDistribution = (
     setError(null)
 
     try {
-      console.log('📊 Loading stake type COUNT distribution...', { currency })
       const countData = await fetchStakeTypeCountDistribution(currency)
       setStakeTypeCountDistribution(countData)
-      console.log('✅ Stake type COUNT distribution loaded successfully')
     } catch (err) {
-      console.error('❌ Error loading stake type count distribution:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

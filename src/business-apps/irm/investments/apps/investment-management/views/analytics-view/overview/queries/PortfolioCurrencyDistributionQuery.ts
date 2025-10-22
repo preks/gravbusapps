@@ -41,18 +41,15 @@ export const useGetDistinctCurrencies = (context: BusinessAppContextProps) => {
 
     // Return cached data if still valid
     if (currenciesCache && cacheTimestamp && now - cacheTimestamp < CACHE_DURATION) {
-      console.log('📦 Using cached distinct currencies')
       return currenciesCache
     }
 
     // Return existing pending request if one is in flight
     if (pendingRequest) {
-      console.log('⏳ Waiting for in-flight distinct currencies request')
       return pendingRequest
     }
 
     // Create new request
-    console.log('🔍 Fetching distinct currencies from GraphQL...')
     pendingRequest = (async () => {
       try {
         const result = await graphqlClient.request<{
@@ -67,8 +64,6 @@ export const useGetDistinctCurrencies = (context: BusinessAppContextProps) => {
             currencyCode: inv.currency!.code
           }))
           .sort((a, b) => a.currencyCode.localeCompare(b.currencyCode))
-
-        console.log(`✅ Found ${currencies.length} distinct currencies`)
 
         // Update cache
         currenciesCache = currencies
@@ -153,8 +148,6 @@ export const buildCurrencyCountDistributionQuery = (
   graphqlClient: any
 ) => {
   return async (): Promise<Array<{ currency: string; count: number }>> => {
-    console.log('🚀 Fetching currency count distribution...', { currencies: currencies.length })
-
     if (currencies.length === 0) {
       return []
     }
@@ -177,10 +170,8 @@ export const buildCurrencyCountDistributionQuery = (
         })
         .filter(item => item.count > 0)
 
-      console.log(`✅ Currency count distribution: ${distribution.length} currencies with data`)
       return distribution
     } catch (error) {
-      console.error('❌ Error fetching currency count distribution:', error)
       throw error
     }
   }
@@ -194,8 +185,6 @@ export const buildCurrencyAmountDistributionQuery = (
   graphqlClient: any
 ) => {
   return async (): Promise<Array<{ currency: string; totalAmount: number }>> => {
-    console.log('🚀 Fetching currency amount distribution...', { currencies: currencies.length })
-
     if (currencies.length === 0) {
       return []
     }
@@ -218,10 +207,8 @@ export const buildCurrencyAmountDistributionQuery = (
         })
         .filter(item => item.totalAmount > 0)
 
-      console.log(`✅ Currency amount distribution: ${distribution.length} currencies with data`)
       return distribution
     } catch (error) {
-      console.error('❌ Error fetching currency amount distribution:', error)
       throw error
     }
   }

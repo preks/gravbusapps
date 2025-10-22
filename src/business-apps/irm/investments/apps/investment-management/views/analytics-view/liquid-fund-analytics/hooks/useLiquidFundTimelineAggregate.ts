@@ -45,7 +45,6 @@ export const useLiquidFundTimelineAggregate = (
       return
     }
 
-    console.log('🔄 Loading liquid fund timeline data...', { currency, chartType, queryName })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -53,15 +52,9 @@ export const useLiquidFundTimelineAggregate = (
     try {
       const { performanceData: perf, valueTrendsData: trends } = await fetchTimelineData(currency, queryName)
 
-      console.log('✅ Timeline data loaded successfully', {
-        performanceYears: perf.length,
-        valueTrendsYears: trends.length
-      })
-
       setPerformanceData(perf)
       setValueTrendsData(trends)
     } catch (err) {
-      console.error('❌ Error loading liquid fund timeline data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

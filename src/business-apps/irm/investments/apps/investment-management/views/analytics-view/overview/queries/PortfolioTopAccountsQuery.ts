@@ -105,8 +105,6 @@ export const fetchTopAccounts = async (
   currency?: string
 ): Promise<TopAccountsQueryResult> => {
   try {
-    console.log('🔍 Fetching distinct accounts...')
-
     // Step 1: Get all distinct accounts
     const distinctResult = await graphqlClient.request<{
       Investment: Array<{
@@ -123,14 +121,11 @@ export const fetchTopAccounts = async (
       accountName: inv.investmentAccount.name || 'Unknown Account'
     }))
 
-    console.log(`📊 Found ${accounts.length} distinct accounts`)
-
     if (accounts.length === 0) {
       return { accounts: [] }
     }
 
     // Step 2: Build and execute aggregate query for all accounts
-    console.log(`🔄 Executing aggregate query for all accounts with currency: ${currency || 'ALL'}...`)
     const aggregateQuery = BUILD_ACCOUNT_AGGREGATE_QUERY(
       accounts.map(a => a.accountId),
       currency
@@ -162,11 +157,8 @@ export const fetchTopAccounts = async (
       .sort((a, b) => b.totalValue - a.totalValue)
       .slice(0, limit)
 
-    console.log(`✅ Fetched top ${topAccounts.length} accounts by value`)
-
     return { accounts: topAccounts }
   } catch (error) {
-    console.error('❌ Error fetching top accounts:', error)
     throw error
   }
 }

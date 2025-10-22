@@ -100,8 +100,6 @@ export const fetchConcentrationData = async (
   currency?: string
 ): Promise<ConcentrationQueryResult> => {
   try {
-    console.log('🔍 Fetching distinct investment groups for concentration...')
-
     // Step 1: Get all distinct investment groups
     const distinctResult = await graphqlClient.request<{
       Investment: Array<{
@@ -117,14 +115,11 @@ export const fetchConcentrationData = async (
       groupValue: inv.investmentGroup.value || 'Unknown'
     }))
 
-    console.log(`📊 Found ${groups.length} distinct investment groups`)
-
     if (groups.length === 0) {
       return { concentrationData: [] }
     }
 
     // Step 2: Build and execute aggregate query for all groups
-    console.log(`🔄 Executing concentration aggregate query with currency: ${currency || 'ALL'}...`)
     const aggregateQuery = BUILD_CONCENTRATION_QUERY(
       groups.map(g => g.groupId),
       currency
@@ -157,11 +152,8 @@ export const fetchConcentrationData = async (
       .filter(d => d.count > 0) // Only include groups with investments
       .sort((a, b) => b.totalValue - a.totalValue)
 
-    console.log(`✅ Fetched concentration data for ${sortedData.length} groups`)
-
     return { concentrationData: sortedData }
   } catch (error) {
-    console.error('❌ Error fetching concentration data:', error)
     throw error
   }
 }

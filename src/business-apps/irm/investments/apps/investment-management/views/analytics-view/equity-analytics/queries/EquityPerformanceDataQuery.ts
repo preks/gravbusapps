@@ -128,8 +128,6 @@ export const useGetEquityPerformanceData = (context: BusinessAppContextProps) =>
   const fetchPerformanceData = useCallback(
     async (currency: string): Promise<PerformanceDataResult> => {
       try {
-        console.log('📊 Fetching performance analysis data...', { currency })
-
         // Fetch all three queries in parallel
         const [stakeVsAmountResult, roleVsAmountResult, concentrationResult] = await Promise.all([
           graphqlClient.request<{
@@ -171,13 +169,6 @@ export const useGetEquityPerformanceData = (context: BusinessAppContextProps) =>
           }>(BUILD_CONCENTRATION_QUERY(currency))
         ])
 
-        console.log('✅ Performance data fetched:', {
-          stakeVsAmount: stakeVsAmountResult.Investment.length,
-          roleVsAmount: roleVsAmountResult.Investment.length,
-          concentration: concentrationResult.Investment.length
-        })
-
-        // Transform stake vs amount data
         const stakeVsAmountData: StakeVsAmountData[] = stakeVsAmountResult.Investment.filter(
           inv => inv.stakePercentage && inv.totalInvestmentAmount
         ).map(inv => ({
@@ -233,27 +224,12 @@ export const useGetEquityPerformanceData = (context: BusinessAppContextProps) =>
           averageValuation: data.totalValuation / data.count
         }))
 
-        console.log('📈 Transformed performance data:', {
-          stakeVsAmount: stakeVsAmountData.length,
-          roleVsAmount: roleVsAmountData.length,
-          concentration: concentrationData.length
-        })
-
         return {
           stakeVsAmountData,
           roleVsAmountData,
           concentrationData
         }
       } catch (error) {
-        console.error('❌ Error fetching performance data:', error)
-        if (error instanceof Error) {
-          console.error('Error details:', error.message)
-          console.error('Error stack:', error.stack)
-        }
-        // Log GraphQL-specific errors
-        if (error && typeof error === 'object' && 'response' in error) {
-          console.error('GraphQL response:', (error as any).response)
-        }
         throw error
       }
     },

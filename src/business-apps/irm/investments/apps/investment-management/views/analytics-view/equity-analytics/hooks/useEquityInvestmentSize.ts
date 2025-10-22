@@ -26,16 +26,13 @@ export const useEquityInvestmentSize = (
 
   const loadData = useCallback(async () => {
     if (!context.accessToken) {
-      console.warn('⚠️ Investment Size hook: No access token available')
       return
     }
 
     if (isLoadingRef.current) {
-      console.log('⏭️ Investment Size hook: Already loading, skipping duplicate request')
       return
     }
 
-    console.log('🚀 Investment Size hook: Starting data load...', { currency })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -43,14 +40,11 @@ export const useEquityInvestmentSize = (
     try {
       const result = await fetchInvestmentSizeData(currency)
       setInvestmentSizeData(result)
-      console.log('✅ Investment Size hook: Data set successfully')
     } catch (err) {
-      console.error('❌ Investment Size hook: Error loading data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)
       isLoadingRef.current = false
-      console.log('🏁 Investment Size hook: Load completed')
     }
   }, [context.accessToken, currency, fetchInvestmentSizeData])
 

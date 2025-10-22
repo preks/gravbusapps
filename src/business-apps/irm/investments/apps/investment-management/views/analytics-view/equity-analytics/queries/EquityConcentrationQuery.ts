@@ -45,8 +45,6 @@ export const useGetConcentrationData = (context: BusinessAppContextProps) => {
   const fetchConcentrationData = useCallback(
     async (currency: string): Promise<ConcentrationData[]> => {
       try {
-        console.log('📊 Fetching concentration data...', { currency })
-
         const result = await graphqlClient.request<{
           Investment: Array<{
             id: string
@@ -58,8 +56,6 @@ export const useGetConcentrationData = (context: BusinessAppContextProps) => {
             }>
           }>
         }>(BUILD_CONCENTRATION_QUERY(currency))
-
-        console.log('✅ Concentration data fetched:', result.Investment.length)
 
         // Transform concentration data (group by role)
         const roleGroups: Record<string, { count: number; totalValuation: number; valuations: number[] }> = {}
@@ -88,11 +84,8 @@ export const useGetConcentrationData = (context: BusinessAppContextProps) => {
           averageValuation: data.totalValuation / data.count
         }))
 
-        console.log('📈 Transformed concentration data:', concentrationData.length)
-
         return concentrationData
       } catch (error) {
-        console.error('❌ Error fetching concentration data:', error)
         throw error
       }
     },

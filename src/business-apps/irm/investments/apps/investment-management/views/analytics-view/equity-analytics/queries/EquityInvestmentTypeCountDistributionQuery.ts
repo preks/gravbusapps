@@ -87,12 +87,8 @@ export const useGetEquityInvestmentTypeCountDistribution = (context: BusinessApp
   const fetchInvestmentTypeCountDistribution = useCallback(
     async (currency?: string): Promise<InvestmentTypeCountDistributionData[]> => {
       try {
-        console.log('🔍 Fetching equity investment type COUNT distribution...', { currency })
-
         // Step 1: Get ALL distinct investment types using shared query
         const investmentTypesInfo = await fetchDistinctInvestmentTypes()
-
-        console.log('📊 Found investment types for count distribution:', investmentTypesInfo.length)
 
         if (investmentTypesInfo.length === 0) {
           return []
@@ -122,10 +118,8 @@ export const useGetEquityInvestmentTypeCountDistribution = (context: BusinessApp
           })
           .sort((a, b) => b.count - a.count)
 
-        console.log('✅ Investment type count distribution fetched successfully')
         return countData
       } catch (error) {
-        console.error('❌ Error fetching equity investment type count distribution:', error)
         throw error
       }
     },

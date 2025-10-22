@@ -230,7 +230,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               trend: {
                 value: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).value,
                 positive: calculateChange(kpis.totalInvestments, previousKpis.totalInvestments).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
@@ -245,7 +245,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               trend: {
                 value: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).value,
                 positive: calculateChange(kpis.totalAmountInvested, previousKpis.totalAmountInvested).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
@@ -260,7 +260,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               trend: {
                 value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
                 positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             },
             {
@@ -275,7 +275,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
               trend: {
                 value: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).value,
                 positive: calculateChange(kpis.averageOccupancyRate, previousKpis.averageOccupancyRate).positive,
-                description: 'vs 7 days ago'
+                description: 'vs 30 days ago'
               }
             }
           ]}

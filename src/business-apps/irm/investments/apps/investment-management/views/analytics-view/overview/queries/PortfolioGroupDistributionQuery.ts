@@ -48,19 +48,16 @@ export const useGetDistinctGroups = (context: BusinessAppContextProps) => {
     // Check if we have a valid cache
     const now = Date.now()
     if (groupsCache && now - cacheTimestamp < CACHE_DURATION) {
-      console.log('✅ Using cached distinct investment groups:', groupsCache.length)
       return groupsCache
     }
 
     // If there's already a pending request, wait for it instead of creating a new one
     if (pendingRequest) {
-      console.log('⏳ Waiting for existing distinct groups request...')
       return pendingRequest
     }
 
     // Create new request
     try {
-      console.log('🔍 Fetching distinct investment groups (shared query)...')
       const query = GET_DISTINCT_GROUPS()
 
       // Store the promise so other concurrent calls can wait for it
@@ -87,7 +84,6 @@ export const useGetDistinctGroups = (context: BusinessAppContextProps) => {
           cacheTimestamp = Date.now()
           pendingRequest = null
 
-          console.log('✅ Distinct investment groups fetched:', groups.length)
           return groups
         })
         .catch(error => {
@@ -97,7 +93,6 @@ export const useGetDistinctGroups = (context: BusinessAppContextProps) => {
 
       return await pendingRequest
     } catch (error) {
-      console.error('❌ Error fetching distinct investment groups:', error)
       pendingRequest = null
       throw error
     }
@@ -207,8 +202,6 @@ const parseGroupDistributionResponse = (
  */
 export const buildGroupCountDistributionQuery = (groups: string[], currency: string, graphqlClient: any) => {
   return async (): Promise<GroupDistributionData[]> => {
-    console.log('🚀 Fetching group count distribution...', { currency, groups: groups.length })
-
     if (groups.length === 0) {
       return []
     }
@@ -216,10 +209,8 @@ export const buildGroupCountDistributionQuery = (groups: string[], currency: str
     try {
       const query = BUILD_GROUP_COUNT_DISTRIBUTION_QUERY(groups, currency)
       const result = await graphqlClient.request(query)
-      console.log('✅ Group count distribution fetched')
       return parseGroupDistributionResponse(result, groups, false)
     } catch (error) {
-      console.error('❌ Error fetching group count distribution:', error)
       throw error
     }
   }
@@ -230,8 +221,6 @@ export const buildGroupCountDistributionQuery = (groups: string[], currency: str
  */
 export const buildGroupAmountDistributionQuery = (groups: string[], currency: string, graphqlClient: any) => {
   return async (): Promise<GroupDistributionData[]> => {
-    console.log('🚀 Fetching group amount distribution...', { currency, groups: groups.length })
-
     if (groups.length === 0) {
       return []
     }
@@ -239,10 +228,8 @@ export const buildGroupAmountDistributionQuery = (groups: string[], currency: st
     try {
       const query = BUILD_GROUP_AMOUNT_DISTRIBUTION_QUERY(groups, currency)
       const result = await graphqlClient.request(query)
-      console.log('✅ Group amount distribution fetched')
       return parseGroupDistributionResponse(result, groups, true)
     } catch (error) {
-      console.error('❌ Error fetching group amount distribution:', error)
       throw error
     }
   }

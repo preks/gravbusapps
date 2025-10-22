@@ -45,7 +45,6 @@ export const useRealEstateTimelineAggregate = (
       return
     }
 
-    console.log('🔄 Loading real estate timeline data...', { currency, chartType, queryName })
     isLoadingRef.current = true
     setIsLoading(true)
     setError(null)
@@ -53,15 +52,9 @@ export const useRealEstateTimelineAggregate = (
     try {
       const { timelineData: timeline, performanceData: perf } = await fetchTimelineData(currency, queryName)
 
-      console.log('✅ Timeline data loaded successfully', {
-        timelineYears: timeline.length,
-        performanceYears: perf.length
-      })
-
       setTimelineData(timeline)
       setPerformanceData(perf)
     } catch (err) {
-      console.error('❌ Error loading real estate timeline data:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
     } finally {
       setIsLoading(false)

@@ -87,12 +87,8 @@ export const useGetEquityStakeTypeCountDistribution = (context: BusinessAppConte
   const fetchStakeTypeCountDistribution = useCallback(
     async (currency?: string): Promise<StakeTypeCountDistributionData[]> => {
       try {
-        console.log('🔍 Fetching equity stake type COUNT distribution...', { currency })
-
         // Step 1: Get ALL distinct stake types using shared query
         const stakeTypesInfo = await fetchDistinctStakeTypes()
-
-        console.log('📊 Found stake types for count distribution:', stakeTypesInfo.length)
 
         if (stakeTypesInfo.length === 0) {
           return []
@@ -122,10 +118,8 @@ export const useGetEquityStakeTypeCountDistribution = (context: BusinessAppConte
           })
           .sort((a, b) => b.count - a.count)
 
-        console.log('✅ Stake type count distribution fetched successfully')
         return countData
       } catch (error) {
-        console.error('❌ Error fetching equity stake type count distribution:', error)
         throw error
       }
     },
