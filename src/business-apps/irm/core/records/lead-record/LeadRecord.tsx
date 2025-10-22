@@ -534,7 +534,8 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                         note.authorEmployee?.displayName ||
                         getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
                       authorEmployee: note.authorEmployee,
-                      reminderAt: note.reminderDate
+                      reminderAt: note.reminderDate,
+                      documents: note.documents
                     })),
                     noteActionProps: {
                       contextsArray: [FlowContextName.investmentNoteCreate],
@@ -582,6 +583,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                       taskTiming: task.taskTiming,
                       startDate: task.startDate,
                       creatorEmployee: task.creatorEmployee,
+                      documents: task.documents,
                       reference: task.lead
                         ? {
                             type: 'lead' as const,
@@ -659,6 +661,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                       taskTiming: approval.taskTiming,
                       startDate: approval.startDate,
                       creatorEmployee: approval.creatorEmployee,
+                      documents: approval.documents,
                       reference: approval.lead
                         ? {
                             type: 'lead' as const,

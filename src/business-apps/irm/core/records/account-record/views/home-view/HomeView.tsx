@@ -356,6 +356,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 taskTiming: task.taskTiming,
                 startDate: task.startDate,
                 creatorEmployee: task.creatorEmployee,
+                documents: task.documents,
                 reference: task.lead
                   ? {
                       type: 'lead' as const,
@@ -428,6 +429,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 taskTiming: approval.taskTiming,
                 startDate: approval.startDate,
                 creatorEmployee: approval.creatorEmployee,
+                documents: approval.documents,
                 reference: approval.lead
                   ? {
                       type: 'lead' as const,
@@ -504,7 +506,8 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                   note.authorEmployee?.displayName ||
                   getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
                 authorEmployee: note.authorEmployee,
-                reminderAt: note.reminderDate
+                reminderAt: note.reminderDate,
+                documents: note.documents
               })),
               noteActionProps: {
                 ...noteActionProps,

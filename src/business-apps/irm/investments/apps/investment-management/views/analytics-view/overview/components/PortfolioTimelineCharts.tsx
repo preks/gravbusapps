@@ -18,6 +18,7 @@ import {
 } from '@newwork/nw-design-system'
 import { AreaChart, Area, ComposedChart, Bar, Line, XAxis, YAxis } from 'recharts'
 import { formatCurrency } from '@/common/data/investment'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 
@@ -159,7 +160,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
             <ComposedChart data={filteredPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -266,10 +267,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = (
           >
             <AreaChart data={filteredValueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => formatCurrency(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
-              />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {

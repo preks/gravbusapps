@@ -21,6 +21,7 @@ export const getEmployeeAbsences = `
       type {
         id
         parentEntryId
+        objectValue
         translations {
           value
           localeCode
@@ -78,6 +79,7 @@ export const getTodayAbsences = `
       type {
         id
         parentEntryId
+        objectValue
         translations {
           value
           localeCode

@@ -191,17 +191,17 @@ export const groupAbsencesByMonth = (absences: any[], timeFilter?: string) => {
   })
 }
 
-// Color utilities for charts
+// Color utilities for charts (ONLY for data visualizations)
 export const getAbsenceGroupColor = (groupName: string): string => {
   const colorMap: Record<string, string> = {
-    Vacation: '#3b82f6',
-    'Sick Leave': '#ef4444',
-    'Special Leave': '#8b5cf6',
-    'Work Leave': '#f59e0b',
-    'Unknown Group': '#6b7280'
+    Vacation: 'var(--nw-chart-1)',
+    'Sick Leave': 'var(--nw-chart-2)',
+    'Special Leave': 'var(--nw-chart-3)',
+    'Work Leave': 'var(--nw-chart-4)',
+    'Unknown Group': 'var(--nw-chart-5)'
   }
 
-  return colorMap[groupName] || '#6b7280'
+  return colorMap[groupName] || 'var(--nw-chart-6)'
 }
 
 // Vacation entitlements utilities (UPDATED - new calculation logic)

@@ -34,25 +34,21 @@ export interface UseAbsenceDataProps {
 }
 
 export interface UseAbsenceDataReturn {
-  // Data state
   absences: EnhancedAbsence[]
   total: number
   loading: boolean
   error: Error | null
 
-  // Pagination state
   currentPage: number
   pageSize: number
   setCurrentPage: (page: number) => void
   setPageSize: (size: number) => void
 
-  // Sorting state
   sortField: string
   sortOrder: 'ASC' | 'DESC' | ''
   setSortField: (field: string) => void
   setSortOrder: (order: 'ASC' | 'DESC' | '') => void
 
-  // Actions
   fetchAbsences: () => Promise<void>
   handlePaginationChange: (page: number, newPageSize?: number) => void
   handleSort: (field: string) => void
@@ -60,6 +56,7 @@ export interface UseAbsenceDataReturn {
 
 export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenceDataProps): UseAbsenceDataReturn => {
   const graphQLClient = useGraphQLClient(accessToken)
+  
 
   const [absences, setAbsences] = useState<EnhancedAbsence[]>([])
   const [total, setTotal] = useState(0)
@@ -74,14 +71,25 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
 
   const initialLoadDone = useRef(false)
 
+  const filtersRef = useRef(filters)
+  const onDataChangeRef = useRef(onDataChange)
+  
+  useEffect(() => {
+    filtersRef.current = filters
+  }, [filters])
+  
+  useEffect(() => {
+    onDataChangeRef.current = onDataChange
+  }, [onDataChange])
+
   const extractColorFromObjectValue = (objectValue: any): string => {
     if (!objectValue || typeof objectValue !== 'object') {
-      return '#6b7280'
+      return 'var(--nw-muted-foreground)'
     }
 
     const color = objectValue.color
     if (!color) {
-      return '#6b7280'
+      return 'var(--nw-muted-foreground)'
     }
 
     return color.startsWith('#') ? color : `#${color}`
@@ -97,7 +105,8 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
         setLoading(true)
       }
 
-      const conditions: any = filters.buildWhereConditions()
+      const currentFilters = filtersRef.current
+      const conditions: any = currentFilters.buildWhereConditions()
 
       const orderBy: any[] = []
       if (sortField && sortOrder) {
@@ -140,14 +149,14 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
           },
           employeeName,
           groupName:
-            absence.type?.parentEntryId && filters.absenceGroups && filters.absenceGroups[absence.type.parentEntryId]
-              ? filters.absenceGroups[absence.type.parentEntryId]
+            absence.type?.parentEntryId && currentFilters.absenceGroups && currentFilters.absenceGroups[absence.type.parentEntryId]
+              ? currentFilters.absenceGroups[absence.type.parentEntryId]
               : 'Unknown Group',
           originalGroupName:
             absence.type?.parentEntryId &&
-            filters.originalAbsenceGroups &&
-            filters.originalAbsenceGroups[absence.type.parentEntryId]
-              ? filters.originalAbsenceGroups[absence.type.parentEntryId]
+            currentFilters.originalAbsenceGroups &&
+            currentFilters.originalAbsenceGroups[absence.type.parentEntryId]
+              ? currentFilters.originalAbsenceGroups[absence.type.parentEntryId]
               : absence.type?.value || 'Unknown Group',
           typeName: absence.type?.value || 'Unknown Type',
           color: extractColorFromObjectValue(absence.type?.parentEntry?.objectValue)
@@ -157,21 +166,21 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
       setAbsences(enhancedAbsences)
       setTotal(result.EmployeeAbsenceAggregate.aggregate.count)
 
-      if (onDataChange) {
-        onDataChange({
+      if (onDataChangeRef.current) {
+        onDataChangeRef.current({
           absences: enhancedAbsences,
           total: result.EmployeeAbsenceAggregate.aggregate.count,
-          isFiltered: filters.selectedFilters.length > 0 || !!filters.search,
+          isFiltered: currentFilters.selectedFilters.length > 0 || !!currentFilters.search,
           appliedFilters: {
-            search: filters.search,
-            selectedFilters: filters.selectedFilters,
+            search: currentFilters.search,
+            selectedFilters: currentFilters.selectedFilters,
             dateRange:
-              filters.startDate || filters.endDate
-                ? { startDate: filters.startDate, endDate: filters.endDate }
+              currentFilters.startDate || currentFilters.endDate
+                ? { startDate: currentFilters.startDate, endDate: currentFilters.endDate }
                 : undefined,
             creationDateRange:
-              filters.creationStartDate || filters.creationEndDate
-                ? { startDate: filters.creationStartDate, endDate: filters.creationEndDate }
+              currentFilters.creationStartDate || currentFilters.creationEndDate
+                ? { startDate: currentFilters.creationStartDate, endDate: currentFilters.creationEndDate }
                 : undefined
           }
         })
@@ -187,42 +196,100 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
   }, [
     accessToken,
     graphQLClient,
-    filters.absenceGroups,
-    filters.originalAbsenceGroups,
-    filters.selectedFilters,
-    filters.search,
-    filters.startDate,
-    filters.endDate,
-    filters.creationStartDate,
-    filters.creationEndDate,
     currentPage,
     pageSize,
     sortField,
-    sortOrder,
-    onDataChange
+    sortOrder
   ])
 
-  useEffect(() => {
-    if (!accessToken || initialLoadDone.current) return
-    initialLoadDone.current = true
-    fetchAbsences()
-  }, [accessToken])
+  const prevValuesRef = useRef<{
+    accessToken: string
+    absenceGroups: Record<string, string>
+    search: string
+    selectedFilters: string[]
+    startDate: string
+    endDate: string
+    creationStartDate: string
+    creationEndDate: string
+    currentPage: number
+    sortField: string
+    sortOrder: string
+  }>({
+    accessToken: '',
+    absenceGroups: {},
+    search: '',
+    selectedFilters: [],
+    startDate: '',
+    endDate: '',
+    creationStartDate: '',
+    creationEndDate: '',
+    currentPage: 1,
+    sortField: '',
+    sortOrder: ''
+  })
 
   useEffect(() => {
-    if (!accessToken || Object.keys(filters.absenceGroups).length === 0) return
-    if (initialLoadDone.current) {
-      fetchAbsences()
+   
+
+    if (!accessToken) return
+    
+    const currentValues = {
+      accessToken,
+      absenceGroups: filters.absenceGroups,
+      search: filters.search,
+      selectedFilters: filters.selectedFilters,
+      startDate: filters.startDate || '',
+      endDate: filters.endDate || '',
+      creationStartDate: filters.creationStartDate || '',
+      creationEndDate: filters.creationEndDate || '',
+      currentPage,
+      sortField,
+      sortOrder
     }
-  }, [filters.absenceGroups, accessToken])
 
-  useEffect(() => {
-    if (!initialLoadDone.current || !accessToken) return
-    if (currentPage !== 1) {
+    const prevValues = prevValuesRef.current
+    
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true
+      prevValuesRef.current = currentValues
+      fetchAbsences()
+      return
+    }
+    
+    if (Object.keys(filters.absenceGroups).length === 0) return
+    
+    const hasChanged = 
+      prevValues.accessToken !== currentValues.accessToken ||
+      JSON.stringify(prevValues.absenceGroups) !== JSON.stringify(currentValues.absenceGroups) ||
+      prevValues.search !== currentValues.search ||
+      JSON.stringify(prevValues.selectedFilters) !== JSON.stringify(currentValues.selectedFilters) ||
+      prevValues.startDate !== currentValues.startDate ||
+      prevValues.endDate !== currentValues.endDate ||
+      prevValues.creationStartDate !== currentValues.creationStartDate ||
+      prevValues.creationEndDate !== currentValues.creationEndDate ||
+      prevValues.currentPage !== currentValues.currentPage ||
+      prevValues.sortField !== currentValues.sortField ||
+      prevValues.sortOrder !== currentValues.sortOrder
+
+    if (!hasChanged) return
+    
+    if (currentPage !== 1 && (
+      prevValues.search !== currentValues.search ||
+      JSON.stringify(prevValues.selectedFilters) !== JSON.stringify(currentValues.selectedFilters) ||
+      prevValues.startDate !== currentValues.startDate ||
+      prevValues.endDate !== currentValues.endDate ||
+      prevValues.creationStartDate !== currentValues.creationStartDate ||
+      prevValues.creationEndDate !== currentValues.creationEndDate
+    )) {
       setCurrentPage(1)
       return
     }
+    
+    prevValuesRef.current = currentValues
     fetchAbsences()
   }, [
+    accessToken,
+    filters.absenceGroups,
     filters.search,
     filters.selectedFilters,
     filters.startDate,
@@ -230,14 +297,9 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
     filters.creationStartDate,
     filters.creationEndDate,
     currentPage,
-    accessToken
+    sortField,
+    sortOrder
   ])
-
-  useEffect(() => {
-    if (initialLoadDone.current && accessToken) {
-      fetchAbsences()
-    }
-  }, [currentPage, sortField, sortOrder, accessToken])
 
   const handlePaginationChange = useCallback(
     (page: number, newPageSize?: number) => {

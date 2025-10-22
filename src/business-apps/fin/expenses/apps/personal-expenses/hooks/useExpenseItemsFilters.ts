@@ -142,28 +142,6 @@ export const useExpenseItemsFilters = (
         hideSearch: true
       },
       {
-        id: 'expenseType',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:create_expense_item.change_expense_item_container.current_expense_type_label',
-          'Expense Type'
-        ),
-        filters: [
-          {
-            id: 'expense',
-            label: getTranslationFromI18nKeyAndLabel(
-              'lowcoder:create_expense_request.expense_select_button',
-              'Expense'
-            ),
-            selected: selectedFilters.includes('expense')
-          },
-          {
-            id: 'trip',
-            label: getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.trip_select_button', 'Trip'),
-            selected: selectedFilters.includes('trip')
-          }
-        ]
-      },
-      {
         id: 'status',
         title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.status', 'Status'),
         filters: allStatuses.map(status => ({
@@ -367,7 +345,7 @@ export const useExpenseItemsFilters = (
       // Map the lowercase status filters back to their uppercase enum values
       const statuses = statusFilters.map(f => f.toUpperCase())
 
-      const expenseTypes = filtersToApply.filter(f => EXPENSE_TYPE_OPTIONS.includes(f))
+      const expenseTypes: string[] = []
       const otherFilters = filtersToApply.filter(f => OTHER_OPTIONS.includes(f))
 
       // Check if no receipt filter is selected
@@ -391,18 +369,7 @@ export const useExpenseItemsFilters = (
         filter.expenseDateEnd = endDateRange[1].toISOString().split('T')[0]
       }
 
-      // Process expense type filters
-      if (expenseTypes.length > 0) {
-        // For now, use only the first selected expense type since expenseClass doesn't support multiple values
-        const selectedType = expenseTypes[0]
-
-        // Map UI expense types to the expected API values with proper capitalization
-        if (selectedType === 'expense') {
-          filter.expenseClass = { value: 'Expense' }
-        } else if (selectedType === 'trip') {
-          filter.expenseClass = { value: 'Trip' }
-        }
-      }
+      // Expense type filter removed
 
       // Process the No receipt filter
       if (hasNoReceiptFilter) {
@@ -421,7 +388,7 @@ export const useExpenseItemsFilters = (
 
       return filter
     },
-    [selectedFilters, EXPENSE_TYPE_OPTIONS, OTHER_OPTIONS, expenseDateRange, amountRange, getAllSelectedFilters]
+    [selectedFilters, OTHER_OPTIONS, expenseDateRange, amountRange, getAllSelectedFilters]
   )
 
   return {

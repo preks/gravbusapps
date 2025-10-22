@@ -35,7 +35,7 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
     description: absence.description || '',
     icon: React.createElement(PaperClipOutlined, {
       style: {
-        color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : '#1976d2'
+        color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-info)'
       }
     }),
     typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
@@ -81,27 +81,27 @@ export const calculateSkillStats = (skills: any[]) => {
 export const getLevelInfo = (level: number) => {
   const levelInfo = {
     0: {
-      color: 'var(--nw-color-gray-400)',
+      color: 'var(--nw-muted-foreground)',
       description: 'No level assigned'
     },
     1: {
-      color: 'var(--nw-color-red-500)',
+      color: 'var(--nw-destructive)',
       description: 'Beginner - Basic understanding'
     },
     2: {
-      color: 'var(--nw-color-orange-500)',
+      color: 'var(--nw-warning)',
       description: 'Novice - Limited experience'
     },
     3: {
-      color: 'var(--nw-color-yellow-500)',
+      color: 'var(--nw-warning)',
       description: 'Intermediate - Working knowledge'
     },
     4: {
-      color: 'var(--nw-color-blue-500)',
+      color: 'var(--nw-info)',
       description: 'Advanced - Proficient'
     },
     5: {
-      color: 'var(--nw-color-green-500)',
+      color: 'var(--nw-success)',
       description: 'Expert - Master level'
     }
   }

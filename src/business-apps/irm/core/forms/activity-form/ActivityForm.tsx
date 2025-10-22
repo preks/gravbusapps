@@ -11,13 +11,16 @@ import { useGetInvestmentActivityById, useInvestmentEntities } from '@/common/da
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
 const initialFormData: Activity = {
   title: '',
   activityTypeRef: '',
   occurredAt: '',
   description: '',
-  files: []
+  files: [],
+  documents: [],
+  _pendingFiles: []
 }
 
 const INVESTMENT_ACTIVITY_TYPE_CATALOG = 'InvestmentActivityType'
@@ -37,17 +40,16 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
 
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = React.useMemo(() => {
+    const additionalDataRecord = additionalData as Record<string, any>
     const nested =
-      (additionalData as any)?.psi_taskPayload?.psi_initialParameters ||
-      (additionalData as any)?.psi_initialParameters ||
-      {}
+      additionalDataRecord?.psi_taskPayload?.psi_initialParameters || additionalDataRecord?.psi_initialParameters || {}
     return {
-      activityId: (additionalData as any)?.activityId || nested?.activityId,
-      investmentId: (additionalData as any)?.investmentId || nested?.investmentId,
-      accountId: (additionalData as any)?.accountId || nested?.accountId,
-      contactId: (additionalData as any)?.contactId || nested?.contactId,
-      opportunityId: (additionalData as any)?.opportunityId || nested?.opportunityId,
-      leadId: (additionalData as any)?.leadId || nested?.leadId
+      activityId: additionalDataRecord?.activityId || nested?.activityId,
+      investmentId: additionalDataRecord?.investmentId || nested?.investmentId,
+      accountId: additionalDataRecord?.accountId || nested?.accountId,
+      contactId: additionalDataRecord?.contactId || nested?.contactId,
+      opportunityId: additionalDataRecord?.opportunityId || nested?.opportunityId,
+      leadId: additionalDataRecord?.leadId || nested?.leadId
     }
   }, [additionalData])
 
@@ -96,6 +98,38 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     }>
   >([])
 
+  // File upload client
+  const fileClient = useFileClient({ accessToken, userInfo, additionalData })
+
+  // Upload files to file service and return file IDs with metadata
+  const uploadFiles = useCallback(
+    async (files: File[], entityId: string): Promise<Array<{ name: string; fileInfo: any }>> => {
+      if (!files || files.length === 0) return []
+
+      const uploadPromises = files.map(async file => {
+        const folderPath = `/investmentRelations/activities/${entityId}/documents`
+
+        const result = await fileClient.uploadFile(
+          file,
+          { accessScope: 'tenant' },
+          {
+            appName: 'investmentRelations',
+            folderPath: folderPath,
+            mimeType: file.type
+          }
+        )
+
+        return {
+          name: file.name,
+          fileInfo: result.fileInfo // Pass entire fileInfo JSON
+        }
+      })
+
+      return await Promise.all(uploadPromises)
+    },
+    [fileClient]
+  )
+
   // Prefill current user as default assignee in create mode
   useEffect(() => {
     if (isUpdateMode) return // Only for create mode
@@ -132,17 +166,20 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
         jobPositionName?: string
       }
     >()
-    assigneePrefill.forEach(o => map.set(o.id, o))
-    employees.forEach(e =>
+    for (const o of assigneePrefill) {
+      map.set(o.id, o)
+    }
+    for (const e of employees) {
+      const employeeRecord = e as Record<string, any>
       map.set(e.id, {
         id: e.id,
         displayName: e.displayName,
         userId: e.userId,
-        pictureThumbnail: (e as any).pictureThumbnail,
-        organizationalUnitName: (e as any).organizationalUnitName,
-        jobPositionName: (e as any).jobPositionName
+        pictureThumbnail: employeeRecord.pictureThumbnail,
+        organizationalUnitName: employeeRecord.organizationalUnitName,
+        jobPositionName: employeeRecord.jobPositionName
       })
-    )
+    }
     return Array.from(map.values())
   }, [assigneePrefill, employees])
 
@@ -153,14 +190,21 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
         if (result.activity) {
           const activity = result.activity
 
-          // Set form data
-          setFormData({
+          // Construct new form data
+          const newFormData = {
             id: activity.id,
             title: activity.title || '',
             activityTypeRef: activity.activityType?.id || '',
             occurredAt: activity.occurredAt || '',
             description: activity.description || '',
             files: [],
+            documents:
+              (activity as Record<string, any>).investmentDocument?.map((doc: any) => ({
+                id: doc.id,
+                name: doc.name || '',
+                version: doc.version
+              })) || [],
+            _pendingFiles: [],
             account: activity.account,
             contact: activity.contact,
             opportunity: activity.opportunity,
@@ -172,7 +216,16 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
             ...(activity.contact?.id ? { relatedEntityId: activity.contact.id } : {}),
             ...(activity.opportunity?.id ? { relatedEntityId: activity.opportunity.id } : {}),
             ...(activity.lead?.id ? { relatedEntityId: activity.lead.id } : {})
-          } as any)
+          }
+
+          // Update state
+          setFormData(newFormData)
+
+          // Explicitly reset form with new data
+          form.reset({
+            ...newFormData,
+            ownerEmployeeId: activity.ownerEmployee?.id || ''
+          })
 
           // Hydrate and pin related entity if present so combobox trigger keeps rich label
           const relId = activity.account?.id || activity.contact?.id || activity.opportunity?.id || activity.lead?.id
@@ -225,15 +278,39 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
   // Form submission handler - business logic only
   const handleSubmit = useCallback(
     async (data: Activity) => {
-      // Merge form data with state to include id and version
-      const activityData = formData.id ? { ...data, id: formData.id, version: formData.version } : data
+      // Upload pending files if any
+      let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
+      if (formData._pendingFiles && formData._pendingFiles.length > 0) {
+        const tempId = formData.id || 'temp-' + Date.now()
+        uploadedDocuments = await uploadFiles(formData._pendingFiles, tempId)
+      }
 
-      const payload = buildActivityPayload(activityData, { accessToken, userInfo, additionalData } as any, {
-        isUpdate: isUpdateMode
-      })
+      // Combine existing documents (as objects with ID) and newly uploaded documents
+      // Backend expects all documents as objects, not mixed strings/objects
+      const existingDocumentsAsObjects = (formData.documents || [])
+        .filter(doc => doc.id)
+        .map(doc => ({
+          id: doc.id,
+          version: doc.version
+        }))
+
+      const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
+
+      // Merge form data with state to include id, version, and documents
+      const activityData = formData.id
+        ? { ...data, id: formData.id, version: formData.version, documents: allDocuments }
+        : { ...data, documents: allDocuments }
+
+      const payload = buildActivityPayload(
+        activityData,
+        { accessToken, userInfo, additionalData },
+        {
+          isUpdate: isUpdateMode
+        }
+      )
       return payload
     },
-    [accessToken, userInfo, additionalData, isUpdateMode, formData]
+    [accessToken, userInfo, additionalData, isUpdateMode, formData, uploadFiles]
   )
 
   // Success handler
@@ -252,20 +329,6 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
     },
     mode: 'onChange'
   })
-
-  // Only reset form data when formData changes, not when user ID changes
-  // This preserves user selections in the form
-  useEffect(() => {
-    form.reset({
-      ...formData,
-      // Only set ownerEmployeeId if it's not already set (preserve user selections)
-      ...(formData.ownerEmployee?.id
-        ? { ownerEmployeeId: formData.ownerEmployee.id }
-        : !form.getValues('ownerEmployeeId')
-          ? { ownerEmployeeId: userInfo?.employeeDetails?.employeeId || '' }
-          : {})
-    } as any)
-  }, [formData])
 
   return (
     <AppActionForm
@@ -304,8 +367,22 @@ const ActivityForm: React.FC<ActivityFormProps> = ({ accessToken, userInfo, addi
         typeLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.type', 'Type')}
         dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date & Time')}
         descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
-        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Upload File')}
+        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
         entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.relatedEntity', 'Related Entity')}
+        // File upload handlers
+        onFilesChange={(files: File[]) => {
+          setFormData(prev => ({
+            ...prev,
+            _pendingFiles: [...(prev._pendingFiles || []), ...files]
+          }))
+        }}
+        existingDocuments={formData.documents || []}
+        onDocumentRemove={(documentId: string) => {
+          setFormData(prev => ({
+            ...prev,
+            documents: prev.documents?.filter(doc => doc.id !== documentId) || []
+          }))
+        }}
         data-testid="activity-segment"
       />
     </AppActionForm>

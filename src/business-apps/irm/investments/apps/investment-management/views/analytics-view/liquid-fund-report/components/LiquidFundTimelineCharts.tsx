@@ -18,6 +18,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Line, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { formatCurrency } from '@/common/data/investment'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { LiquidFundInvestmentSummary } from '../../shared/types'
 import dayjs from 'dayjs'
@@ -27,11 +28,11 @@ interface LiquidFundTimelineChartsProps {
   rawLiquidFunds: LiquidFundInvestmentSummary[]
 }
 
-export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> = ({ chartData, rawLiquidFunds }) => {
+export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> = ({ rawLiquidFunds }) => {
   // Get available currencies
   const availableCurrencies = useMemo(() => {
     const currencies = [...new Set(rawLiquidFunds.map(fund => fund.currencyCode || 'EUR'))]
-    return currencies.filter(currency => currency).sort()
+    return currencies.filter(currency => currency).sort((a, b) => a.localeCompare(b))
   }, [rawLiquidFunds])
 
   // Currency filters
@@ -155,9 +156,9 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           <ChartContainer
             config={useMemo(() => {
               const config = {
-                investmentcount: { label: 'New Investments' },
-                totalinvestmentamount: { label: 'Total Invested Amount' },
-                cumulativeinvestments: { label: 'Cumulative Investments' }
+                investmentCount: { label: 'New Investments' },
+                totalInvestmentAmount: { label: 'Total Invested Amount' },
+                cumulativeInvestments: { label: 'Cumulative Investments' }
               }
               return config
             }, [])}
@@ -166,7 +167,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
             <ComposedChart data={investmentPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -207,19 +208,12 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar
-                yAxisId="left"
-                dataKey="investmentCount"
-                name="investmentcount"
-                fill="var(--color-investmentcount)"
-                radius={[4, 4, 0, 0]}
-              />
+              <Bar yAxisId="left" dataKey="investmentCount" fill="var(--color-investmentCount)" radius={[4, 4, 0, 0]} />
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="totalInvestmentAmount"
-                name="totalinvestmentamount"
-                stroke="var(--color-totalinvestmentamount)"
+                stroke="var(--color-totalInvestmentAmount)"
                 strokeWidth={3}
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -228,8 +222,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                 yAxisId="left"
                 type="monotone"
                 dataKey="cumulativeInvestments"
-                name="cumulativeinvestments"
-                stroke="var(--color-cumulativeinvestments)"
+                stroke="var(--color-cumulativeInvestments)"
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 3 }}
@@ -270,8 +263,8 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           <ChartContainer
             config={useMemo(() => {
               const config = {
-                totalinvestmentamount: { label: 'Total Invested Amount' },
-                totalmarketvalue: { label: 'Total Market Value' }
+                totalInvestmentAmount: { label: 'Total Invested Amount' },
+                totalMarketValue: { label: 'Total Market Value' }
               }
               return config
             }, [])}
@@ -279,7 +272,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           >
             <ComposedChart data={valueTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={value => dayjs(value).format('MMM YY')} />
-              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCurrency(value, valueCurrencyFilter)} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -294,10 +287,10 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
 
                           if (entry.dataKey === 'totalInvestmentAmount') {
                             properLabel = 'Total Invested Amount'
-                            dotColor = 'var(--color-totalinvestmentamount)'
+                            dotColor = 'var(--color-totalInvestmentAmount)'
                           } else if (entry.dataKey === 'totalMarketValue') {
                             properLabel = 'Total Market Value'
-                            dotColor = 'var(--color-totalmarketvalue)'
+                            dotColor = 'var(--color-totalMarketValue)'
                           }
 
                           return (
@@ -320,8 +313,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
               <Line
                 type="monotone"
                 dataKey="totalInvestmentAmount"
-                name="totalinvestmentamount"
-                stroke="var(--color-totalinvestmentamount)"
+                stroke="var(--color-totalInvestmentAmount)"
                 strokeWidth={3}
                 dot={false}
                 activeDot={{ r: 4 }}
@@ -329,8 +321,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
               <Line
                 type="monotone"
                 dataKey="totalMarketValue"
-                name="totalmarketvalue"
-                stroke="var(--color-totalmarketvalue)"
+                stroke="var(--color-totalMarketValue)"
                 strokeWidth={3}
                 dot={false}
                 activeDot={{ r: 4 }}

@@ -57,7 +57,6 @@ export const useAbsenceTypeDetails = (
         objectValue: entry.objectValue
       })
     } catch (err) {
-      console.error('Error loading absence type details:', err)
       setError(err instanceof Error ? err.message : 'Failed to load absence type details')
       setDetails(null)
     } finally {

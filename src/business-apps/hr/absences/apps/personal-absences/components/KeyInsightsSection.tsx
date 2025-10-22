@@ -56,16 +56,16 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
       {/* Planned Absences Card */}
       <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-planned-absences">
         <div className="gba:flex gba:items-center">
-          <span className="gba:text-sm gba:text-gray-500 gba:font-medium" data-testid="planned-absences-title">
+          <span className="gba:text-sm gba:text-muted-foreground gba:font-medium" data-testid="planned-absences-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.planned_absences', 'Planned Absences')}
           </span>
         </div>
-        <div className="gba:text-3xl gba:font-bold gba:text-gray-900" data-testid="planned-absences-value">
+        <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="planned-absences-value">
           {plannedPctFinal}%
         </div>
-        <div className="gba:text-xs gba:text-gray-500" data-testid="planned-absences-sub">
+        <div className="gba:text-xs gba:text-muted-foreground" data-testid="planned-absences-sub">
           {errorMessage ? (
-            <span className="gba:text-red-600" data-testid="planned-absences-error">
+            <span className="gba:text-destructive" data-testid="planned-absences-error">
               {errorMessage}
             </span>
           ) : overrides?.vacationCount !== undefined && overrides?.sickCount !== undefined ? (
@@ -87,28 +87,28 @@ const KeyInsightsSection: React.FC<KeyInsightsSectionProps> = ({
       {/* Avg Days Card */}
       <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-avg-days-per-request">
         <div className="gba:flex gba:items-center">
-          <span className="gba:text-sm gba:text-gray-500 gba:font-medium" data-testid="avg-days-title">
+          <span className="gba:text-sm gba:text-muted-foreground gba:font-medium" data-testid="avg-days-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_per_request', 'Avg Days per Request')}
           </span>
         </div>
-        <div className="gba:text-3xl gba:font-bold gba:text-gray-900" data-testid="avg-days-value">
+        <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="avg-days-value">
           {avg}
         </div>
-        <div className="gba:text-xs gba:text-gray-500" data-testid="avg-days-sub">
+        <div className="gba:text-xs gba:text-muted-foreground" data-testid="avg-days-sub">
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.avg_days_scope', 'Based on Approved requests')}
         </div>
       </Card>
       {/* Approval Rate Card */}
       <Card className="gba:h-full gba:shadow-sm gba:p-6" data-testid="key-insights-section-approval-rate">
         <div className="gba:flex gba:items-center">
-          <span className="gba:text-sm gba:text-gray-500 gba:font-medium" data-testid="approval-rate-title">
+          <span className="gba:text-sm gba:text-muted-foreground gba:font-medium" data-testid="approval-rate-title">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.approval_rate', 'Approval Rate')}
           </span>
         </div>
-        <div className="gba:text-3xl gba:font-bold gba:text-gray-900" data-testid="approval-rate-value">
+        <div className="gba:text-3xl gba:font-bold gba:text-foreground" data-testid="approval-rate-value">
           {approvalRate}%
         </div>
-        <div className="gba:text-xs gba:text-gray-500" data-testid="approval-rate-sub">
+        <div className="gba:text-xs gba:text-muted-foreground" data-testid="approval-rate-sub">
           {getTranslationFromI18nKeyAndLabel(
             'lowcoder:absence_hub.approval_status_scope',
             'Statuses considered: APPROVED vs ALL STATUSES'

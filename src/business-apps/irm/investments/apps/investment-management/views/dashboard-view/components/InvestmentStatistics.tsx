@@ -5,7 +5,9 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useInvestmentKPIIntegration } from '../hooks/useInvestmentKPIIntegration'
 import { formatCurrencyCompact } from '../../../utils/currencyUtils'
 
-type InvestmentStatisticsProps = BusinessAppContextProps
+interface InvestmentStatisticsProps extends BusinessAppContextProps {
+  selectedCurrency: string
+}
 
 // Removed formatCurrency - now using formatCurrencyCompact utility
 
@@ -14,16 +16,29 @@ const formatPercentage = (value: number): string => {
 }
 
 const calculateChange = (current: number, previous: number): { value: string; positive: boolean } => {
-  if (previous === 0) return { value: 'N/A', positive: true }
+  // If no previous data, show as new
+  if (previous === 0) {
+    return { value: current > 0 ? 'New' : 'N/A', positive: true }
+  }
+
   const change = ((current - previous) / previous) * 100
+
+  // Cap extreme percentages for better UX
+  if (Math.abs(change) >= 1000) {
+    return {
+      value: change >= 0 ? '>+1000%' : '<-1000%',
+      positive: change >= 0
+    }
+  }
+
   return {
     value: `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`,
     positive: change >= 0
   }
 }
 
-export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...context }) => {
-  const { current, previous, isLoading, error, refetch } = useInvestmentKPIIntegration(context)
+export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ selectedCurrency, ...context }) => {
+  const { current, previous, isLoading, error, refetch } = useInvestmentKPIIntegration(context, selectedCurrency)
 
   const { totalInvestments, totalInvested, averageStakePercentage, totalMarketValue } = useMemo(() => {
     return {
@@ -52,13 +67,13 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: investmentsChange.value,
         positive: investmentsChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-invested',
-      title: 'Total Invested',
-      value: formatCurrencyCompact(totalInvested),
+      title: `Total Invested (${selectedCurrency})`,
+      value: formatCurrencyCompact(totalInvested, selectedCurrency),
       prefix: <DollarOutlined />,
       color: '#52c41a',
       valueIsString: true,
@@ -67,7 +82,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: investedChange.value,
         positive: investedChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
@@ -82,13 +97,13 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: stakeChange.value,
         positive: stakeChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     },
     {
       key: 'total-market-value',
-      title: 'Total Market Value',
-      value: formatCurrencyCompact(totalMarketValue),
+      title: `Total Market Value (${selectedCurrency})`,
+      value: formatCurrencyCompact(totalMarketValue, selectedCurrency),
       prefix: <RiseOutlined />,
       color: '#722ed1',
       valueIsString: true,
@@ -97,7 +112,7 @@ export const InvestmentStatistics: React.FC<InvestmentStatisticsProps> = ({ ...c
       trend: {
         value: marketValueChange.value,
         positive: marketValueChange.positive,
-        description: 'vs 7 days ago'
+        description: 'vs 30 days ago'
       }
     }
   ]

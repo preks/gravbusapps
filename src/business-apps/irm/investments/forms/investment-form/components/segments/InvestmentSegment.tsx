@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Input,
   FormField,
@@ -15,7 +15,7 @@ import { EmployeeSelect } from '@/components/employee-select'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentFormContext } from '../../context/InvestmentFormContext'
-import { useGetInvestmentAccounts, useSearchInvestmentAccounts } from '@/common/data/investment'
+import { useGetInvestmentAccounts } from '@/common/data/investment'
 import { SelectOption, InvestmentFormValues } from '../../types'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
@@ -55,108 +55,26 @@ const InvestmentSegment: React.FC = () => {
     businessAppContext
   } = useInvestmentFormContext()
 
-  // Account data loading
-  const [accounts, setAccounts] = useState<SelectOption[]>([])
-  const [accountsLoading, setAccountsLoading] = useState(false)
+  // Use enhanced hook for account selection with state management
+  const {
+    options: accounts,
+    loading: accountsLoading,
+    error: accountsError,
+    hasMore: accountsHasMore,
+    search: searchAccounts,
+    loadMore: loadMoreAccounts
+  } = useGetInvestmentAccounts(businessAppContext, {
+    withState: true,
+    autoFetch: true,
+    pageSize: 50,
+    mapToSelectOptions: true
+  })
 
   // Currency data loading
   const [currencies, setCurrencies] = useState<SelectOption[]>([])
   const [currenciesLoading, setCurrenciesLoading] = useState(false)
 
-  // Error state
-  const [accountsError, setAccountsError] = useState<string | null>(null)
-
-  // Refs to track current lengths for pagination
-  const accountsLengthRef = useRef(0)
-
-  // Search state
-  const [accountSearchTerm, setAccountSearchTerm] = useState('')
-  const [accountsHasMore, setAccountsHasMore] = useState(false)
-
-  const { fetchInvestmentAccounts } = useGetInvestmentAccounts(businessAppContext)
-  const { searchInvestmentAccounts } = useSearchInvestmentAccounts(businessAppContext)
-
   const catalogClient = useCatalogManagerClient(businessAppContext.accessToken)
-
-  // Load accounts (initial load)
-  const loadAccounts = useCallback(
-    async (searchTerm = '', append = false) => {
-      if (!businessAppContext.accessToken) return
-
-      setAccountsLoading(true)
-      if (!append) {
-        setAccountsError(null) // Clear previous errors on new search
-      }
-      try {
-        const limit = 50 // Decreased from 100 to 50 for better performance
-        const offset = append ? accountsLengthRef.current : 0
-
-        let result
-        if (searchTerm.trim()) {
-          result = await searchInvestmentAccounts(searchTerm, { limit, offset })
-        } else {
-          result = await fetchInvestmentAccounts({ limit, offset })
-        }
-
-        const accountOptions = result.InvestmentAccount.map((account: any) => ({
-          id: account.id,
-          value: account.id,
-          label: account.name,
-          name: account.name
-        }))
-
-        if (append) {
-          setAccounts(prev => {
-            const newAccounts = [...prev, ...accountOptions]
-            accountsLengthRef.current = newAccounts.length
-            return newAccounts
-          })
-        } else {
-          setAccounts(accountOptions)
-          accountsLengthRef.current = accountOptions.length
-        }
-
-        // Check if there are more results
-        setAccountsHasMore(result.InvestmentAccount.length === limit)
-      } catch (error) {
-        console.error('Error loading accounts:', error)
-        const errorMessage = error instanceof Error ? error.message : 'Failed to load accounts. Please try again.'
-        setAccountsError(errorMessage)
-
-        // Don't clear existing accounts on append errors, only on initial load errors
-        if (!append) {
-          setAccounts([])
-          accountsLengthRef.current = 0
-          setAccountsHasMore(false)
-        }
-      } finally {
-        setAccountsLoading(false)
-      }
-    },
-    [fetchInvestmentAccounts, searchInvestmentAccounts, businessAppContext.accessToken]
-  )
-
-  // Load data on mount
-  useEffect(() => {
-    loadAccounts()
-  }, [loadAccounts])
-
-  // Search handlers
-  const handleAccountSearch = useCallback(
-    (searchTerm: string) => {
-      setAccountSearchTerm(searchTerm)
-      setAccountsError(null) // Clear errors when starting new search
-      loadAccounts(searchTerm, false)
-    },
-    [loadAccounts]
-  )
-
-  // Load more handlers
-  const handleLoadMoreAccounts = useCallback(() => {
-    if (!accountsLoading && accountsHasMore) {
-      loadAccounts(accountSearchTerm, true)
-    }
-  }, [loadAccounts, accountSearchTerm, accountsLoading, accountsHasMore])
 
   // Transform SelectOption[] to EmployeeOption[] format that EmployeeSelect expects
   // Load currencies
@@ -372,8 +290,8 @@ const InvestmentSegment: React.FC = () => {
                   emptyText="No accounts found"
                   disabled={accountsLoading}
                   loading={accountsLoading}
-                  onSearch={handleAccountSearch}
-                  onLoadMore={handleLoadMoreAccounts}
+                  onSearch={searchAccounts}
+                  onLoadMore={loadMoreAccounts}
                   hasMore={accountsHasMore}
                   data-testid={formatDataTestId(prefixDataTestId, 'AccountSelect')}
                 />

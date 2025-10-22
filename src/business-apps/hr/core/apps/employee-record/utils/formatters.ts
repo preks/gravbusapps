@@ -98,17 +98,17 @@ export const getTimeSince = (date: string): string => {
  */
 export const getStatusColorClass = (status: string): string => {
   const statusMap: Record<string, string> = {
-    APPROVED: 'gba:bg-green-100 gba:text-green-800',
-    PENDING: 'gba:bg-yellow-100 gba:text-yellow-800',
-    REJECTED: 'gba:bg-red-100 gba:text-red-800',
-    COMPLETED: 'gba:bg-blue-100 gba:text-blue-800',
-    IN_PROGRESS: 'gba:bg-purple-100 gba:text-purple-800',
-    ON_TRACK: 'gba:bg-green-100 gba:text-green-800',
-    BEHIND_TARGET: 'gba:bg-yellow-100 gba:text-yellow-800',
-    AT_RISK: 'gba:bg-red-100 gba:text-red-800',
-    ACHIEVED: 'gba:bg-blue-100 gba:text-blue-800',
-    NOT_ACHIEVED: 'gba:bg-gray-100 gba:text-gray-800'
+    APPROVED: 'gba:bg-success-secondary gba:text-success',
+    PENDING: 'gba:bg-warning-secondary gba:text-warning',
+    REJECTED: 'gba:bg-destructive-secondary gba:text-destructive',
+    COMPLETED: 'gba:bg-info-secondary gba:text-info',
+    IN_PROGRESS: 'gba:bg-info-secondary gba:text-info',
+    ON_TRACK: 'gba:bg-success-secondary gba:text-success',
+    BEHIND_TARGET: 'gba:bg-warning-secondary gba:text-warning',
+    AT_RISK: 'gba:bg-destructive-secondary gba:text-destructive',
+    ACHIEVED: 'gba:bg-info-secondary gba:text-info',
+    NOT_ACHIEVED: 'gba:bg-muted gba:text-muted-foreground'
   }
 
-  return statusMap[status] || 'gba:bg-gray-100 gba:text-gray-800'
+  return statusMap[status] || 'gba:bg-muted gba:text-muted-foreground'
 }

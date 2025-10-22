@@ -9,7 +9,6 @@ import { useTurnoverRate } from '../../../hooks/useTurnoverRate'
 import { useAverageSalary } from '../../../hooks/useAverageSalary'
 import { useHiresPerYear } from '../../../hooks/useHiresPerYear'
 import { useEmployeesPerYear } from '../../../hooks/useEmployeesPerYear'
-import { useEmployeesByOrgUnit } from '../../../hooks/useEmployeesByOrgUnit'
 import HiresPerYearChart from './components/charts/HiresPerYearChart'
 import EmployeesPerYearChart from './components/charts/EmployeesPerYearChart'
 import EmployeesByOrgUnitChart from './components/charts/EmployeesByOrgUnitChart'
@@ -73,28 +72,28 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
           title: analyticsData.employeeCount.label,
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#1890ff'
+          iconColor: 'var(--nw-info)'
         },
         {
           id: 'new-hires',
           title: analyticsData.newHires.label,
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#52c41a'
+          iconColor: 'var(--nw-success)'
         },
         {
           id: 'turnover-rate',
           title: analyticsData.turnoverRate.label,
           value: 'Loading...',
           icon: 'users',
-          iconColor: '#fa8c16'
+          iconColor: 'var(--nw-warning)'
         },
         {
           id: 'average-salary',
           title: analyticsData.averageSalary.label,
           value: 'Loading...',
           icon: 'mail', // Using mail as currency icon mapping
-          iconColor: '#722ed1'
+          iconColor: 'var(--nw-decorative)'
         }
       ]
     }
@@ -105,7 +104,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         title: analyticsData.employeeCount.label,
         value: analyticsData.employeeCount.value.toLocaleString(),
         icon: 'users',
-        iconColor: '#1890ff',
+        iconColor: 'var(--nw-info)',
         trend: {
           value: analyticsData.newHires.value.toString(),
           positive: analyticsData.newHires.value > 0 ? true : false,
@@ -118,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         title: analyticsData.turnoverRate.label,
         value: `${analyticsData.turnoverRate.value.toFixed(1)}%`,
         icon: 'users',
-        iconColor: analyticsData.turnoverRate.change < 0 ? '#52c41a' : '#fa8c16',
+        iconColor: analyticsData.turnoverRate.change < 0 ? 'var(--nw-success)' : 'var(--nw-warning)',
         trend: {
           value: `${analyticsData.turnoverRate.change > 0 ? '+' : ''}${analyticsData.turnoverRate.change.toFixed(1)}%`,
           positive: analyticsData.turnoverRate.change > 0 ? true : false
@@ -130,7 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
         title: analyticsData.averageSalary.label,
         value: `$${analyticsData.averageSalary.value}K`,
         icon: 'mail', // Using mail as currency icon mapping
-        iconColor: '#722ed1',
+        iconColor: 'var(--nw-info)',
         footer: getTranslationFromI18nKeyAndLabel('hr_analytics_annual_average', 'Annual average')
       }
     ]
@@ -145,13 +144,13 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
   }
 
   return (
-    <div className="gba:w-full gba:bg-white" data-testid="hr-analytics-dashboard">
+    <div className="gba:w-full gba:bg-card" data-testid="hr-analytics-dashboard">
       <div className="gba:p-6 gba:pb-0">
         <div className="gba:mb-6">
-          <Title level={2} className="gba:m-0">
+          <Title level={2} className="gba:m-0 gba:text-foreground">
             {getTranslationFromI18nKeyAndLabel('hr_analytics_dashboard_title', 'HR Analytics Dashboard')}
           </Title>
-          <Text className="gba:text-gray-500">
+          <Text className="gba:text-muted-foreground">
             {getTranslationFromI18nKeyAndLabel(
               'hr_analytics_dashboard_subtitle',
               'Comprehensive workforce insights and metrics'

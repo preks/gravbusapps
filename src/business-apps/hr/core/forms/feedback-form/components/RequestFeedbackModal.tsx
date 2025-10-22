@@ -15,7 +15,7 @@ import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import EmployeeSearchableSelect from '@/business-apps/crm/common/forms/lead-form/components/EmployeeSearchableSelect'
+import EmployeeSearchableSelect from '@/business-apps/crm/core/forms/lead-form/components/EmployeeSearchableSelect'
 
 const prefixDataTestId = 'RequestFeedbackModal'
 
@@ -283,7 +283,7 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
               variant="default"
               disabled={!selectedEmployeeId || isSubmitting}
               onClick={handleSubmit}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white"
+              className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground"
               data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
             >
               {isSubmitting && <Spinner size="sm" className="gba:mr-2" />}

@@ -249,6 +249,27 @@ export const GET_CUSTOMER_TASK_BY_ID = (taskId: string): string => {
         contact { ${CUSTOMER_CONTACT_REF} }
         lead { ${CUSTOMER_LEAD_REF} }
         opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
+        
+        # Documents relationship
+        customerDocument(where: { isDeleted: { _eq: false } }) {
+          id
+          version
+          name
+          description
+          file
+          fileSize
+          mimeType
+          documentGroup {
+            id
+            value
+            code
+          }
+          documentType {
+            id
+            value
+            code
+          }
+        }
       }
     }
   `

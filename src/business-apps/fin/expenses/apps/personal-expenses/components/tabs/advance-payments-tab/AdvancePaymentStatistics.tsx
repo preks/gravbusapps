@@ -14,7 +14,6 @@ interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
   onWidgetClick?: (widgetKey: string) => void
   activeWidgetKey?: string
   selectedCurrencyRef?: string
-  refreshKey?: string | number
 }
 
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
@@ -24,7 +23,6 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   onWidgetClick,
   activeWidgetKey,
   selectedCurrencyRef = 'Currency:v1:EUR',
-  refreshKey,
   ...contextProps
 }) => {
   // Memoize context props to ensure stable reference
@@ -57,7 +55,6 @@ const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
     stableContextProps.accessToken,
     stableContextProps.userInfo?.employeeDetails?.employeeId,
     selectedCurrencyRef,
-    refreshKey,
     fetchStatistics
   ])
 

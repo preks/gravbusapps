@@ -2,7 +2,6 @@ import dayjs from 'dayjs'
 import {
   AbsenceRecord,
   AbsenceBalance,
-  AbsenceEmployee,
   AbsenceType,
   AbsenceGroup,
   AbsenceStatistics,
@@ -244,7 +243,7 @@ export const generateChartData = (
     const groupEntries = Object.entries(monthData).filter(([key]) => key !== 'month')
     const result: any = { month: monthData.month }
 
-    groupEntries.slice(0, 4).forEach(([groupCode, days], index) => {
+    groupEntries.slice(0, 4).forEach(([days], index) => {
       const fieldNames = ['vacation', 'sickLeave', 'specialLeave', 'workLeave']
       result[fieldNames[index] || `group${index}`] = days
     })
@@ -266,9 +265,18 @@ export const generateChartData = (
     return { month, days }
   })
 
-  // Dynamic colors for groups
+  // Dynamic colors for groups - using design system chart tokens
   const generateColor = (index: number): string => {
-    const colors = ['#1890ff', '#ff4d4f', '#722ed1', '#52c41a', '#fa541c', '#13c2c2', '#eb2f96', '#f5222d']
+    const colors = [
+      'var(--nw-chart-1)',
+      'var(--nw-chart-2)',
+      'var(--nw-chart-3)',
+      'var(--nw-chart-4)',
+      'var(--nw-chart-5)',
+      'var(--nw-chart-6)',
+      'var(--nw-chart-7)',
+      'var(--nw-chart-8)'
+    ]
     return colors[index % colors.length]
   }
 

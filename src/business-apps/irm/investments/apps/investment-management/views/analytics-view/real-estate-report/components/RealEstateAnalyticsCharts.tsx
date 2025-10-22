@@ -4,6 +4,8 @@ import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent, IconAvat
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
+
 
 interface RealEstateAnalyticsChartsProps {
   chartData: {
@@ -18,8 +20,8 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
   // Occupancy Analysis Config
   const occupancyConfig = useMemo(
     () => ({
-      occupancyrate: { label: 'Occupancy Rate' },
-      propertyvalue: { label: 'Property Value' }
+      count: { label: 'Count' },
+      totalValue: { label: 'Total Value' }
     }),
     []
   )
@@ -27,9 +29,9 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
   // Property Value vs Annual Net Cold Rent Config
   const expensesValueConfig = useMemo(
     () => ({
-      annualexpenses: { label: 'Annual Net Cold Rent' },
-      propertyvalue: { label: 'Property Value' },
-      rentefficiency: { label: 'Rent Efficiency' }
+      annualExpenses: { label: 'Annual Net Cold Rent' },
+      propertyValue: { label: 'Property Value' },
+      expenseEfficiency: { label: 'Rent Efficiency' }
     }),
     []
   )
@@ -52,7 +54,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
             <ComposedChart data={occupancyData}>
               <XAxis dataKey="range" />
               <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="right" orientation="right" tickFormatter={(value) => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -67,11 +69,11 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                           if (entry.dataKey === 'count') {
                             properLabel = 'Property Count'
                             formattedValue = `${entry.value}`
-                            dotColor = 'var(--color-occupancyrate)'
+                            dotColor = 'var(--color-count)'
                           } else if (entry.dataKey === 'totalValue') {
                             properLabel = 'Total Property Value'
                             formattedValue = formatCurrency(entry.value as number)
-                            dotColor = 'var(--color-propertyvalue)'
+                            dotColor = 'var(--color-totalValue)'
                           }
 
                           return (
@@ -89,14 +91,8 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                 }}
               />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar yAxisId="left" dataKey="count" fill="var(--color-occupancyrate)" name="Property Count" />
-              <Bar
-                yAxisId="right"
-                dataKey="totalValue"
-                fill="var(--color-propertyvalue)"
-                name="Total Property Value"
-                opacity={0.8}
-              />
+              <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" />
+              <Bar yAxisId="right" dataKey="totalValue" fill="var(--color-totalValue)" opacity={0.8} />
             </ComposedChart>
           </ChartContainer>
         </CardContent>
@@ -117,8 +113,8 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
           {expensesValueData && expensesValueData.length > 0 ? (
             <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
               <ScatterChart data={expensesValueData}>
-                <XAxis dataKey="propertyValue" name="Property Value" type="number" />
-                <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
+                <XAxis dataKey="propertyValue" name="Property Value" type="number" tickFormatter={(value) => formatCompactNumber(value, 1)} />
+                <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" tickFormatter={(value) => formatCompactNumber(value, 1)} />
                 <ChartTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
@@ -129,7 +125,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                             <div
                               className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-propertyvalue)' }}
+                              style={{ backgroundColor: 'var(--color-propertyValue)' }}
                             />
                             <span className="gba:font-medium">Property Value:</span>
                             <span className="gba:font-semibold">{formatCurrency(data.propertyValue)}</span>
@@ -137,7 +133,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                             <div
                               className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-annualexpenses)' }}
+                              style={{ backgroundColor: 'var(--color-annualExpenses)' }}
                             />
                             <span className="gba:font-medium">Annual Net Cold Rent:</span>
                             <span className="gba:font-semibold">{formatCurrency(data.annualExpenses)}</span>
@@ -148,7 +144,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                     return null
                   }}
                 />
-                <Scatter dataKey="annualExpenses" fill="var(--color-annualexpenses)" name="Properties" />
+                <Scatter dataKey="annualExpenses" fill="var(--color-annualExpenses)" />
               </ScatterChart>
             </ChartContainer>
           ) : (

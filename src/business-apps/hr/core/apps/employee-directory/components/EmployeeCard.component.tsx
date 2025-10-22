@@ -72,7 +72,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
   }, [profileUrl])
   return (
     <div
-      className={`gba:relative gba:group employee-card-wrapper gba:bg-white gba:rounded-lg gba:shadow-lg gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-blue-500 gba:!border-2 gba:!shadow-xl' : 'gba:!border-gray-100'}`}
+      className={`gba:relative gba:group employee-card-wrapper gba:bg-card gba:rounded-lg gba:shadow-lg gba:!border gba:h-auto gba:w-full gba:transition gba:overflow-hidden ${isSelected ? 'gba:!border-info gba:!border-2 gba:!shadow-xl' : 'gba:!border-border'}`}
     >
       {/* The card itself - fixed height for consistency */}
       <div
@@ -111,7 +111,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
 
             {/* Job Position */}
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiOfficeChairBold className="gba:text-gray-500 gba:mr-1.5" size={14} />
+              <PiOfficeChairBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.jobTitle}>
                 {employee.jobTitle}
               </span>
@@ -119,7 +119,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
 
             {/* Organizational Unit */}
             <div className="gba:flex gba:items-center gba:mt-1 gba:text-xs">
-              <PiBuildingsBold className="gba:text-gray-500 gba:mr-1.5" size={14} />
+              <PiBuildingsBold className="gba:text-muted-foreground gba:mr-1.5" size={14} />
               <span className="gba:truncate" title={employee.organizationalUnit}>
                 {employee.organizationalUnit}
               </span>
@@ -154,14 +154,14 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onVideoCall,
   onProfile
 }) => (
-  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
+  <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
     <div className="gba:flex gba:gap-2">
       <Button
         variant="ghost"
         size="icon"
         onClick={onChat}
         aria-label="Chat"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiChatBold size={24} />
       </Button>
@@ -170,7 +170,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         size="icon"
         onClick={onCall}
         aria-label="Call"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiPhoneBold size={24} />
       </Button>
@@ -179,7 +179,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         size="icon"
         onClick={onVideoCall}
         aria-label="Video Call"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiVideoCameraBold size={24} />
       </Button>
@@ -188,7 +188,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         size="icon"
         onClick={onProfile}
         aria-label="Go to Profile"
-        className="gba:rounded-full gba:bg-white/80 gba:shadow-md gba:h-12 gba:w-12"
+        className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
         <PiUserBold size={24} />
       </Button>

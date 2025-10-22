@@ -173,7 +173,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
       }
 
       return true
-    } catch (error) {
+    } catch {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_item.missing_expense_rule_message',
         'There is no rule set for your user, please reach out to your administrator.'
@@ -190,8 +190,6 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     endTime: Date | undefined,
     isEndLocation: boolean = false
   ) => {
-    setStartLocationOverlap(null)
-    setEndLocationOverlap(null)
     if (!startDate) {
       return
     }
@@ -253,19 +251,27 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         startTimeValue: finalStartDate,
         endTimeValue: finalEndDate
       })
+
       if (lastAbsenceCheckKeyRef.current === dedupeKey) {
         return
       }
       lastAbsenceCheckKeyRef.current = dedupeKey
+
+      // Overlaps are cleared in the useEffect before this function is called
+      // No need to clear here as it causes issues with deduplication
+
       try {
         const response = await graphqlClient.request(getRequestsAbsences, variables)
+        if (lastAbsenceCheckKeyRef.current !== dedupeKey) {
+          return
+        }
         const overlapWarning = getOverlapWarningMessage(response, expenseId)
         if (isEndLocation) {
           setEndLocationOverlap(overlapWarning)
         } else {
           setStartLocationOverlap(overlapWarning)
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -274,7 +280,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
           'error'
         )
       }
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -313,71 +319,63 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
     setLocationsAreSynced(sanitizedLocation.location === startLocation.location)
   }
 
+  const hasTripData = () => {
+    return (
+      expensePlanData?.ExpensePlanByPk?.expenseRequestTrip &&
+      Array.isArray(expensePlanData.ExpensePlanByPk.expenseRequestTrip) &&
+      expensePlanData.ExpensePlanByPk.expenseRequestTrip.length !== 0
+    )
+  }
+
+  const fetchAndSetEmployeeRule = async (formattedDate: string) => {
+    const employeeId = userInfo?.employeeDetails?.employeeId
+    if (!employeeId) {
+      showToast(
+        getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.missing_employee_id', 'Missing employee ID'),
+        'error'
+      )
+      return null
+    }
+
+    const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
+    if (employeeRuleData?.expenseRuleId) {
+      setEmployeeRuleId(employeeRuleData.expenseRuleId)
+      const activeUserLocale = getCurrentActiveUserLocale()
+      const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
+        expenseRuleId: employeeRuleData.expenseRuleId,
+        activeUserLocale
+      })
+      setExpenseRulesData(rulesResponse)
+      return rulesResponse
+    }
+    return null
+  }
+
   const loadInitialTripData = async () => {
     try {
-      if (
-        expensePlanData?.ExpensePlanByPk?.expenseRequestTrip &&
-        Array.isArray(expensePlanData.ExpensePlanByPk.expenseRequestTrip) &&
-        expensePlanData.ExpensePlanByPk.expenseRequestTrip.length !== 0
-      ) {
-        let myData: any = []
-        if (
-          expensePlanData?.ExpensePlanByPk?.expenseRequestTrip &&
-          Array.isArray(expensePlanData.ExpensePlanByPk.expenseRequestTrip) &&
-          expensePlanData.ExpensePlanByPk.expenseRequestTrip.length !== 0
-        ) {
-          myData = expensePlanData.ExpensePlanByPk.expenseRequestTrip
-        }
-        const startObject = myData.find((item: any) => item.pointType === 'START_POINT')
-
-        if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
-          const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
-
-          const employeeId = userInfo?.employeeDetails?.employeeId
-          if (!employeeId) {
-            showToast(
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:modify_expense_request.missing_employee_id',
-                'Missing employee ID'
-              ),
-              'error'
-            )
-            return
-          }
-
-          const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
-          if (employeeRuleData && employeeRuleData.expenseRuleId) {
-            setEmployeeRuleId(employeeRuleData.expenseRuleId)
-            const activeUserLocale = getCurrentActiveUserLocale()
-            const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
-              expenseRuleId: employeeRuleData.expenseRuleId,
-              activeUserLocale
-            })
-
-            setExpenseRulesData(rulesResponse)
-            setByExternalCustomComponent(
-              expensePlanData,
-              rulesResponse,
-              setStartLocation,
-              setDestinations,
-              setEndLocation
-            )
-          } else {
-            setByExternalCustomComponent(expensePlanData, null, setStartLocation, setDestinations, setEndLocation)
-          }
-        } else {
-          setByExternalCustomComponent(
-            expensePlanData,
-            expenseRulesData,
-            setStartLocation,
-            setDestinations,
-            setEndLocation
-          )
-        }
-      } else {
+      if (!hasTripData()) {
         setLocalitiesDefault(expensePlanData, setStartLocation, setEndLocation, setLocationsAreSynced)
+        return
       }
-    } catch (error) {
+
+      const myData = expensePlanData.ExpensePlanByPk.expenseRequestTrip
+      const startObject = myData.find((item: any) => item.pointType === 'START_POINT')
+      const hasValidStartDate = startObject?.tripDateTime && dayjs(startObject.tripDateTime).isValid()
+
+      if (hasValidStartDate) {
+        const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
+        const rulesResponse = await fetchAndSetEmployeeRule(formattedDate)
+        setByExternalCustomComponent(expensePlanData, rulesResponse, setStartLocation, setDestinations, setEndLocation)
+      } else {
+        setByExternalCustomComponent(
+          expensePlanData,
+          expenseRulesData,
+          setStartLocation,
+          setDestinations,
+          setEndLocation
+        )
+      }
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_loading_trip_data',
@@ -435,27 +433,33 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
   }
 
   const [destinations, setDestinations] = useState<LocationData[]>([defaultDestination])
-  const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
-    if (accessToken && userInfo?.employeeId && expensePlanData) {
-      if (startLocation.departureDate || startLocation.departureTime) {
-        checkAbsencesAndPlans(
-          startLocation.departureDate,
-          startLocation.departureTime,
-          endLocation.departureDate,
-          endLocation.departureTime,
-          false
-        )
-      }
+    if (accessToken && userInfo?.employeeDetails?.employeeId && expensePlanData) {
+      //  Clear overlaps whenever dates change (before deduplication check)
+      // This ensures stale warnings don't persist when user changes dates
+      setStartLocationOverlap(null)
+      setEndLocationOverlap(null)
 
-      if (endLocation.departureDate || endLocation.departureTime) {
+      // Always check using the full trip range (start to end)
+      // This ensures we catch overlaps across the entire trip duration
+      if (
+        (startLocation.departureDate || startLocation.departureTime) &&
+        (endLocation.departureDate || endLocation.departureTime)
+      ) {
         checkAbsencesAndPlans(
           startLocation.departureDate,
           startLocation.departureTime,
           endLocation.departureDate,
           endLocation.departureTime,
-          true
+          false // Check for start location
+        )
+        checkAbsencesAndPlans(
+          startLocation.departureDate,
+          startLocation.departureTime,
+          endLocation.departureDate,
+          endLocation.departureTime,
+          true // Check for end location
         )
       }
     }
@@ -496,7 +500,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
         setExpenseRulesData(rulesResponse)
 
         await loadInitialTripData()
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -650,7 +654,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
           <div className="gba:border-b gba:border-b-[#e8e8e8] gba:py-4" data-testid="start-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location',
+                'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_title',
                 'Start Location'
               )}
               icon={ICONS.PIN_ICON}
@@ -703,20 +707,21 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 dateTimeLimits={startLimits}
                 travelRegions={getFilteredTravelRegions(startLocation.isAbroad)}
                 overlapWarning={endLocation.departureDate ? null : startLocationOverlap}
+                showFutureWarning={false}
                 showPastWarning={true}
                 errorMessage={employeeRuleError || ruleConflictError}
                 locationFormLabels={{
                   inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_location',
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_input_label',
                     'Start Location'
                   ),
                   dateFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.departure_date',
-                    'Departure Date'
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_date_label',
+                    'Start Date'
                   ),
                   timeFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.departure_time',
-                    'Departure Time'
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.start_time_label',
+                    'Start Time'
                   )
                 }}
               />
@@ -732,7 +737,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
             >
               <LocationContainer
                 title={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_collapsible_title',
+                  'lowcoder:add_items_to_plan.add_trip_info_to_plan.destination_title',
                   'Destination'
                 )}
                 icon={ICONS.PIN_ICON}
@@ -793,7 +798,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
           <div className="gba:py-4" data-testid="end-location-wrapper">
             <LocationContainer
               title={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_text',
+                'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_title',
                 'End Location'
               )}
               icon={ICONS.PIN_ICON}
@@ -850,7 +855,7 @@ export const PlanTripScreen: React.FC<TripScreenProps> = props => {
                 showFutureWarning={false}
                 locationFormLabels={{
                   inputFieldLabel: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_location_text',
+                    'lowcoder:add_items_to_plan.add_trip_info_to_plan.end_input_label',
                     'End Location'
                   ),
                   dateFieldLabel: getTranslationFromI18nKeyAndLabel(

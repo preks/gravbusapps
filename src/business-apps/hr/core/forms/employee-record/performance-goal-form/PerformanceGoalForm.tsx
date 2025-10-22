@@ -167,16 +167,15 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
     >
       <div className="gba:w-full gba:px-6">
         <div
-          className="gba:flex gba:items-center gba:justify-start gba:w-full gba:gap-2 gba:pb-4 gba:border-b"
+          className="gba:flex gba:items-center gba:justify-start gba:w-full gba:gap-2 gba:pb-4 gba:border-b gba:border-border"
           data-testid="create-new-absence-header"
-          style={{ borderBottomColor: '#E0E0E0' }}
         >
           <img
             src={flowSmall}
             alt="Flow Small"
             style={{
               filter: 'brightness(0)',
-              fill: '#000',
+              fill: 'var(--nw-foreground)',
               width: '24px',
               height: '24px'
             }}

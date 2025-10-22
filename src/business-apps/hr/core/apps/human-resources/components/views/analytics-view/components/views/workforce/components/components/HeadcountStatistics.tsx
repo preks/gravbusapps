@@ -15,7 +15,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       title: 'Monthly Hires',
       value: statistics.monthlyHires,
       icon: 'users',
-      iconColor: '#52c41a',
+      iconColor: 'var(--nw-success)',
       footer: 'New hires this month'
     },
     {
@@ -23,7 +23,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       title: 'Monthly Departures',
       value: statistics.monthlyExits,
       icon: 'users',
-      iconColor: '#ff4d4f',
+      iconColor: 'var(--nw-destructive)',
       footer: 'Departures this month'
     },
     {
@@ -31,7 +31,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       title: 'Net Change',
       value: statistics.netChange > 0 ? `+${statistics.netChange}` : statistics.netChange.toString(),
       icon: 'users',
-      iconColor: statistics.netChange >= 0 ? '#52c41a' : '#ff4d4f',
+      iconColor: statistics.netChange >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
       footer: 'Monthly headcount change'
     },
     {
@@ -39,7 +39,7 @@ const HeadcountStatistics: React.FC<HeadcountStatisticsProps> = ({ statistics, i
       title: 'Growth Rate',
       value: `${statistics.growthRate > 0 ? '+' : ''}${statistics.growthRate.toFixed(2)}%`,
       icon: 'calendar',
-      iconColor: statistics.growthRate >= 0 ? '#52c41a' : '#ff4d4f',
+      iconColor: statistics.growthRate >= 0 ? 'var(--nw-success)' : 'var(--nw-destructive)',
       footer: 'Monthly growth percentage'
     }
   ]

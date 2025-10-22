@@ -2,6 +2,8 @@
  * Utility functions for exporting data to CSV and Excel formats
  */
 
+import { sanitizeFilename } from '@/common/utils/textUtils'
+
 /**
  * Escapes a value for use in CSV format
  * Handles quotes, commas, and newlines
@@ -32,34 +34,19 @@ export const htmlEscape = (value: string): string =>
     .replace(/'/g, '&#39;')
 
 /**
- * Sanitizes a filename to prevent XSS and path traversal attacks
- * Removes potentially dangerous characters and limits to safe alphanumeric characters
- */
-const sanitizeFilename = (filename: string): string => {
-  // Remove any characters that are not alphanumeric, dash, underscore, or dot
-  // This prevents XSS, path traversal, and other injection attacks
-  return filename
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/\.{2,}/g, '_') // Prevent path traversal with multiple dots
-    .replace(/^\.+/, '') // Remove leading dots
-    .substring(0, 255) // Limit filename length (filesystem limit)
-}
-
-/**
  * Builds a timestamped filename for exports
  * Uses UTC time to ensure consistent filenames across timezones
- * Sanitizes inputs to prevent XSS attacks
+ * Sanitizes output to prevent XSS attacks using shared utility function
+ *
+ * Note: Input parameters (type, ext) are hardcoded in calling code,
+ * so only the final filename needs sanitization for defense-in-depth.
  */
 export const buildFilename = (type: string, ext: string): string => {
-  // Sanitize inputs to prevent XSS even though they are currently hardcoded
-  const safeType = sanitizeFilename(type)
-  const safeExt = sanitizeFilename(ext)
-
   const ts = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  const filename = `backoffice-expense-${safeType}-${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}-${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}.${safeExt}`
+  const filename = `backoffice-expense-${type}-${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}-${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}.${ext}`
 
-  // Final sanitization of the complete filename
+  // Sanitize once at the end for defense-in-depth
   return sanitizeFilename(filename)
 }
 
@@ -93,16 +80,14 @@ export const formatCellValue = (value: any): string => {
 /**
  * Triggers a file download by creating a temporary link element
  * Handles blob URL creation, link click, and cleanup
- * Sanitizes filename to prevent XSS attacks
+ *
+ * Note: Filename is already sanitized by buildFilename(), no need to sanitize again
  */
 const triggerDownload = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-
-  // Sanitize filename one more time before setting download attribute to prevent XSS
-  // This protects against any unsanitized input that might bypass previous checks
-  link.download = sanitizeFilename(filename)
+  link.download = filename
 
   // Set additional security attributes
   link.setAttribute('rel', 'noopener noreferrer')

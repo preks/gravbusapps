@@ -16,6 +16,7 @@ import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
   Task as CommonTask,
@@ -33,22 +34,35 @@ import {
 } from '@phosphor-icons/react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { FileInfo } from '@/common/types/FileTypes'
 
-type CatalogEntry = {
+export type CatalogEntry = {
   id?: string
   code?: string
   value?: string
   type?: string
 }
 
-type TaskItem = {
+export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
+export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+
+export type TaskDocument = {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  file?: string
+  fileInfo?: FileInfo
+}
+
+export type TaskItem = {
   id: string
   title: string
   description?: string
   createdAt?: string
   due?: string
   assignee?: string
-  statusCode?: 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
+  statusCode?: TaskStatusCode
   taskStatus?: CatalogEntry
   taskPriority?: CatalogEntry
   assigneeEmployee?: {
@@ -66,11 +80,12 @@ type TaskItem = {
     pictureThumbnail?: string
   }
   reference?: TaskReference
-  taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+  taskTiming?: TaskTimingType
   startDate?: string
+  documents?: TaskDocument[]
 }
 
-interface TaskSectionProps extends BusinessAppContextProps {
+export interface TaskSectionProps extends BusinessAppContextProps {
   accountId?: string
   contactId?: string
   opportunityId?: string
@@ -86,6 +101,23 @@ interface TaskSectionProps extends BusinessAppContextProps {
 
 const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
   const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null)
+
+  // Handle document download
+  const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
+
   // Determine color and icon based on status
   const getStatusColorAndIcon = (statusCode?: string) => {
     if (statusCode === 'COMPLETED') {
@@ -320,18 +352,39 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                     )
                   ) : undefined,
                   description: (
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      {timingTypeData && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="gba:flex gba:items-center">{timingTypeData.icon}</div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{timingTypeData.tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                    <div className="gba:flex gba:flex-col gba:gap-2">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        {timingTypeData && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="gba:flex gba:items-center">{timingTypeData.icon}</div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{timingTypeData.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <span>{descParts.join(' • ')}</span>
+                      </div>
+                      {t.documents && t.documents.length > 0 && (
+                        <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                          {t.documents.map(doc => {
+                            const FileIcon = getFileIcon(doc.mimeType)
+                            return (
+                              <button
+                                key={doc.id}
+                                onClick={e => handleDocumentClick(doc, e)}
+                                className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                                data-testid={`task-document-${t.id}-${doc.id}`}
+                                title={doc.name}
+                              >
+                                <FileIcon size={14} weight="bold" />
+                                <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
                       )}
-                      <span>{descParts.join(' • ')}</span>
                     </div>
                   ),
                   color,

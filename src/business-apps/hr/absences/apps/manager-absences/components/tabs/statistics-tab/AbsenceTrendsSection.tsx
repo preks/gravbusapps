@@ -2,30 +2,17 @@ import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAbsenceKPIData } from '../../../hooks/useAbsenceKPIData'
 import { AbsenceTrendsChart } from '../../KPISection/AbsenceTrendsChart'
-import { AbsenceFilters } from '../../../types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export interface AbsenceTrendsSectionProps extends BusinessAppContextProps {}
-
-export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = props => {
-  const filters: AbsenceFilters = {
-    search: '',
-    statuses: [],
-    types: [],
-    groups: [],
-    employees: [],
-    startDate: undefined,
-    endDate: undefined
-  }
-
-  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props, filters)
+export const AbsenceTrendsSection: React.FC<BusinessAppContextProps> = props => {
+  const { data, loading: dataLoading, error: dataError } = useAbsenceKPIData(props)
 
   const loading = dataLoading
   const error = dataError
 
   if (!props.userInfo?.employeeDetails?.employeeId) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-trends-error-no-employee">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="absence-trends-error-no-employee">
         Error: Employee ID not found. Please check your user profile.
       </div>
     )
@@ -41,7 +28,7 @@ export const AbsenceTrendsSection: React.FC<AbsenceTrendsSectionProps> = props =
 
   if (error) {
     return (
-      <div className="gba:p-6 gba:text-center gba:text-red-600" data-testid="absence-trends-error">
+      <div className="gba:p-6 gba:text-center gba:text-destructive" data-testid="absence-trends-error">
         Error: {error}
       </div>
     )

@@ -256,6 +256,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
   EmployeeFeedback(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     feedback
     feedbackDate
+    feedbackPublic
     senderEmployeeId
     senderEmployee {
       firstName
@@ -397,11 +398,6 @@ export interface EmployeeData {
   EmployeeFeedback: EmployeeFeedback[]
   EmployeeAbsenceEntitlement: EmployeeAbsenceEntitlement[]
   EmployeePerformanceGoal: EmployeePerformanceGoal[]
-}
-
-interface Skill {
-  id: string
-  name: string
 }
 
 interface EmployeeSkill {
@@ -622,13 +618,6 @@ interface WorkingHours {
   saturdayHours: number
   sundayHours: number
   weeklyDays: number
-}
-
-interface Skill {
-  skill: {
-    name: string
-    id: string
-  }
 }
 
 interface WorkPermit {

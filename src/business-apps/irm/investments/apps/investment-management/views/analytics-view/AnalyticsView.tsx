@@ -12,7 +12,9 @@ import LiquidFundInvestmentsReport from './liquid-fund-report/LiquidFundInvestme
 import RealEstateInvestmentsReport from './real-estate-report/RealEstateInvestmentsReport'
 import { InvestmentPortfolioOverview } from './overview'
 
-export type AnalyticsViewProps = BusinessAppContextProps
+export interface AnalyticsViewProps extends BusinessAppContextProps {
+  moduleColor?: string
+}
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
   const [activeTab, setActiveTab] = useState('overview')

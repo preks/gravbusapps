@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Users, FileText, User } from '@phosphor-icons/react'
+import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -17,22 +17,17 @@ import { useContactData } from './hooks/useContactData'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
-import { getContactTypeDisplayValue, getLanguageDisplayValue, getContactFullName } from './utils'
+import { getContactTypeDisplayValue, getContactFullName } from './utils'
 import { useContactAiSummary } from './hooks/useContactAiSummary'
 import { Bot } from 'lucide-react'
-import type { TaskReference } from '@/common/components/common-relations/detail-sheets/task-detail-sheet'
 import {
   useGetInvestmentActivitiesByContactId,
   useGetInvestmentNotesByContactId,
   useGetInvestmentTasksByContactId
 } from '@/common/data/investment/hooks/useInvestmentContacts'
-import { ContactDocuments } from './components/ContactDocuments'
-import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
-import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
-import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
-import AccountSection from '@/common/components/common-relations/record-sections/account-section/AccountSection'
-import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
-import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
+import { HomeView } from './views/home-view/HomeView'
+import { OpportunityView } from './views/opportunity-view/OpportunityView'
+import { DocumentView } from './views/document-view/DocumentView'
 
 interface ContactRecordContentProps extends BusinessAppContextProps {
   contactId: string
@@ -78,24 +73,6 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   const [approvals, setApprovals] = useState<any[]>([])
   const [sectionsLoading, setSectionsLoading] = useState(true)
   const [sectionsError, setSectionsError] = useState<string | null>(null)
-
-  // Build reference URLs for IRM context
-  const buildReferenceUrl = (reference: TaskReference): string => {
-    switch (reference.type) {
-      case 'lead':
-        return buildPlatformUrl('/platform/irm/lead-record', { leadId: reference.id })
-      case 'account':
-        return buildPlatformUrl('/platform/irm/account-record', { accountId: reference.id })
-      case 'contact':
-        return buildPlatformUrl('/platform/irm/contact-record', { contactId: reference.id })
-      case 'opportunity':
-        return buildPlatformUrl('/platform/irm/opportunity-record', { opportunityId: reference.id })
-      case 'investment':
-        return buildPlatformUrl('/platform/irm/investment-record', { investmentId: reference.id })
-      default:
-        return ''
-    }
-  }
 
   const handleTabChange = useCallback((value: string) => {
     setActiveTab(value)
@@ -279,15 +256,14 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.language', 'Language'),
-            value: getLanguageDisplayValue(contactData, contact),
+            value: contactData?.language?.value || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
             icon: Users
           },
           {
             label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
-            value:
-              contactData?.ownerEmployee?.displayName ||
-              contact?.ownerEmployee?.displayName ||
-              getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+            value: contactData?.ownerEmployee
+              ? `${contactData.ownerEmployee.firstName} ${contactData.ownerEmployee.lastName}`.trim()
+              : getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
             icon: User
           }
         ]
@@ -392,331 +368,33 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
           icon: <User className="gba:mr-2" />,
           content: (
-            <>
-              {/* Account Section - 1/3 width */}
-              <SectionWrapper
-                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
-                sections={[
-                  {
-                    id: 'account-section',
-                    component: AccountSection,
-                    props: {
-                      ...props,
-                      account: (rawContactData as any)?.investmentAccountContact?.[0]?.account
-                        ? {
-                            id: (rawContactData as any).investmentAccountContact[0].account.id,
-                            name: (rawContactData as any).investmentAccountContact[0].account.name,
-                            email: (rawContactData as any).investmentAccountContact[0].account.email,
-                            phone: (rawContactData as any).investmentAccountContact[0].account.phone,
-                            website: (rawContactData as any).investmentAccountContact[0].account.website,
-                            legalForm: (rawContactData as any).investmentAccountContact[0].account.legalForm?.value,
-                            industry: (rawContactData as any).investmentAccountContact[0].account.industryClass?.value,
-                            size: (rawContactData as any).investmentAccountContact[0].account.companySize?.value,
-                            revenue: (rawContactData as any).investmentAccountContact[0].account
-                              .accountAnnualRevenueBand?.value,
-                            numberOfEmployees: (rawContactData as any).investmentAccountContact[0].account.companySize,
-                            annualRevenue: (rawContactData as any).investmentAccountContact[0].account
-                              .accountAnnualRevenueBand
-                          }
-                        : undefined,
-                      address: (rawContactData as any)?.investmentAccountContact?.[0]?.account
-                        ? (() => {
-                            const addresses =
-                              (rawContactData as any).investmentAccountContact[0].account.addresses || []
-                            const primaryAddress = addresses.find((addr: any) => addr.addressType === 'PRIMARY_ADDRESS')
-                            const address = primaryAddress || addresses[0]
-
-                            return address
-                              ? {
-                                  addressLine: address.addressLine,
-                                  postalCode: address.postalCode,
-                                  locality: address.locality,
-                                  country:
-                                    typeof address.country === 'string' ? address.country : address.country?.value,
-                                  region: typeof address.region === 'string' ? address.region : address.region?.value
-                                }
-                              : undefined
-                          })()
-                        : undefined,
-                      accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id,
-                      recordUrl: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
-                        ? buildPlatformUrl('/platform/irm/account-record', {
-                            accountId: (rawContactData as any).investmentAccountContact[0].account.id,
-                            source: 'contact-relations',
-                            fromEntity: 'contacts'
-                          })
-                        : undefined,
-                      actionButtonProps: {
-                        contextsArray: [FlowContextName.customerAccountEntity],
-                        externalContextData: {
-                          accountId: (rawContactData as any)?.investmentAccountContact?.[0]?.account?.id
-                        },
-                        prefixDataTestId: 'contact-account'
-                      }
-                    }
-                  }
-                ]}
-                data-testid="contact-account-section-wrapper"
-              />
-
-              {/* Contact Section - 1/3 width */}
-              <SectionWrapper
-                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-1"
-                sections={[
-                  {
-                    id: 'contact-section',
-                    component: ContactSection,
-                    props: {
-                      ...props,
-                      contact: {
-                        id: contact?.id,
-                        firstName: contact?.firstName,
-                        lastName: contact?.lastName,
-                        email: contact?.email,
-                        phone: contact?.phone,
-                        jobTitle: (contact as any)?.jobTitle || (rawContactData as any)?.jobPosition,
-                        department: (contact as any)?.department || (rawContactData as any)?.department,
-                        academicTitle: contact?.academicTitle,
-                        professionalTitle: contact?.professionalTitle,
-                        communicationChannels: rawContactData?.communicationChannels
-                      },
-                      contactId: contact?.id,
-                      actionButtonProps: {
-                        contextsArray: [FlowContextName.customerContactEntity],
-                        externalContextData: { contactId: contact?.id },
-                        prefixDataTestId: 'contact-contact'
-                      }
-                    }
-                  }
-                ]}
-                data-testid="contact-contact-section-wrapper"
-              />
-
-              {/* Activities Section - 1/3 width, full height */}
-              <SectionWrapper
-                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4 gba:row-span-5"
-                sections={[
-                  {
-                    id: 'activities-section',
-                    component: ActivitySection,
-                    props: {
-                      ...props,
-                      activities: activities,
-                      activitiesLoading: sectionsLoading,
-                      activitiesError: sectionsError,
-                      onReloadActivities: loadSectionData,
-                      alignment: 'right',
-                      activitySectionActionProps: {
-                        ...activityActionProps,
-                        emptyStateBehavior: 'enable'
-                      },
-                      activityEntityActionProps: {
-                        contextsArray: [FlowContextName.investmentActivityEntity],
-                        externalContextData: { contactId },
-                        prefixDataTestId: 'contact-activity-entity',
-                        emptyStateBehavior: 'enable'
-                      }
-                    }
-                  }
-                ]}
-                data-testid="contact-activities-section-wrapper"
-              />
-
-              {/* Tasks & Approvals - 2/3 width, spans 2 rows */}
-              <SectionWrapper
-                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
-                sections={[
-                  {
-                    id: 'tasks-section',
-                    component: TaskSection,
-                    props: {
-                      ...props,
-                      buildReferenceUrl,
-                      tasks: tasks.map(task => ({
-                        id: task.id,
-                        title:
-                          task.name ||
-                          task.displayName ||
-                          getTranslationFromI18nKeyAndLabel('crm.common.untitledTask', 'Untitled Task'),
-                        description: task.description,
-                        createdAt: task.createdAt,
-                        due: task.dueDate,
-                        assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                        statusCode: task.taskStatus?.value?.toUpperCase() as any,
-                        taskStatus: task.taskStatus,
-                        taskPriority: task.taskPriority,
-                        assigneeEmployee: task.assignedEmployee,
-                        taskTiming: task.taskTiming,
-                        startDate: task.startDate,
-                        creatorEmployee: task.creatorEmployee,
-                        reference: task.lead
-                          ? {
-                              type: 'lead' as const,
-                              id: task.lead.id,
-                              name:
-                                `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() ||
-                                task.lead.code ||
-                                'Lead'
-                            }
-                          : task.account
-                            ? {
-                                type: 'account' as const,
-                                id: task.account.id,
-                                name: task.account.name || task.account.code || 'Account'
-                              }
-                            : task.contact
-                              ? {
-                                  type: 'contact' as const,
-                                  id: task.contact.id,
-                                  name:
-                                    `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
-                                    task.contact.code ||
-                                    'Contact'
-                                }
-                              : task.opportunity
-                                ? {
-                                    type: 'opportunity' as const,
-                                    id: task.opportunity.id,
-                                    name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                                  }
-                                : task.investment
-                                  ? {
-                                      type: 'investment' as const,
-                                      id: task.investment.id,
-                                      name: task.investment.name || task.investment.code || 'Investment'
-                                    }
-                                  : undefined
-                      })),
-                      taskActionProps: {
-                        ...taskActionProps,
-                        emptyStateBehavior: 'enable'
-                      },
-                      taskEntityActionProps: {
-                        contextsArray: [FlowContextName.investmentTaskEntity],
-                        externalContextData: { contactId },
-                        prefixDataTestId: 'contact-task-entity',
-                        emptyStateBehavior: 'enable'
-                      }
-                    }
-                  },
-                  {
-                    id: 'approval-tasks-section',
-                    component: TaskSection,
-                    props: {
-                      ...props,
-                      sectionTitle: 'Approval Tasks',
-                      buildReferenceUrl,
-                      tasks: approvals.map(approval => ({
-                        id: approval.id,
-                        title:
-                          approval.name ||
-                          approval.displayName ||
-                          getTranslationFromI18nKeyAndLabel('crm.common.untitledApproval', 'Approval Request'),
-                        description: approval.description,
-                        createdAt: approval.createdAt,
-                        due: approval.dueDate,
-                        assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
-                        statusCode: approval.taskStatus?.value?.toUpperCase() as any,
-                        taskStatus: approval.taskStatus,
-                        taskPriority: approval.taskPriority,
-                        assigneeEmployee: approval.assignedEmployee,
-                        taskTiming: approval.taskTiming,
-                        startDate: approval.startDate,
-                        creatorEmployee: approval.creatorEmployee,
-                        reference: approval.lead
-                          ? {
-                              type: 'lead' as const,
-                              id: approval.lead.id,
-                              name:
-                                `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
-                                approval.lead.code ||
-                                'Lead'
-                            }
-                          : approval.account
-                            ? {
-                                type: 'account' as const,
-                                id: approval.account.id,
-                                name: approval.account.name || approval.account.code || 'Account'
-                              }
-                            : approval.contact
-                              ? {
-                                  type: 'contact' as const,
-                                  id: approval.contact.id,
-                                  name:
-                                    `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
-                                    approval.contact.code ||
-                                    'Contact'
-                                }
-                              : approval.opportunity
-                                ? {
-                                    type: 'opportunity' as const,
-                                    id: approval.opportunity.id,
-                                    name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                                  }
-                                : approval.investment
-                                  ? {
-                                      type: 'investment' as const,
-                                      id: approval.investment.id,
-                                      name: approval.investment.name || approval.investment.code || 'Investment'
-                                    }
-                                  : undefined
-                      })),
-                      taskEntityActionProps: {
-                        contextsArray: [FlowContextName.investmentTaskEntity],
-                        externalContextData: { contactId },
-                        prefixDataTestId: 'contact-approval-entity',
-                        emptyStateBehavior: 'enable'
-                      },
-                      taskActionProps: {
-                        ...approvalActionProps,
-                        emptyStateBehavior: 'enable'
-                      }
-                    }
-                  }
-                ]}
-                data-testid="contact-tasks-approvals-section-wrapper"
-              />
-
-              {/* Notes Section - 2/3 width, spans 2 rows */}
-              <SectionWrapper
-                className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-8 gba:lg:col-span-8 gba:row-span-2"
-                sections={[
-                  {
-                    id: 'notes-section',
-                    component: NoteSection,
-                    props: {
-                      ...props,
-                      notes: notes.map(note => ({
-                        id: note.id,
-                        noteTitle:
-                          note.title ||
-                          note.displayName ||
-                          getTranslationFromI18nKeyAndLabel('crm.common.untitledNote', 'Untitled Note'),
-                        noteText: note.text || '',
-                        createdAt: note.createdAt,
-                        createdBy:
-                          note.authorDisplayName ||
-                          note.authorEmployee?.displayName ||
-                          getTranslationFromI18nKeyAndLabel('crm.common.unknown', 'Unknown'),
-                        authorEmployee: note.authorEmployee,
-                        reminderAt: note.reminderDate
-                      })),
-                      noteActionProps: {
-                        ...noteActionProps,
-                        emptyStateBehavior: 'enable'
-                      },
-                      noteEntityActionProps: {
-                        contextsArray: [FlowContextName.investmentNoteEntity],
-                        externalContextData: { contactId },
-                        prefixDataTestId: 'contact-note-entity',
-                        emptyStateBehavior: 'enable'
-                      }
-                    }
-                  }
-                ]}
-                data-testid="contact-notes-section-wrapper"
-              />
-            </>
+            <HomeView
+              contactId={contactId}
+              contact={contact}
+              rawContactData={rawContactData}
+              activities={activities}
+              notes={notes}
+              tasks={tasks}
+              approvals={approvals}
+              sectionsLoading={sectionsLoading}
+              sectionsError={sectionsError}
+              loadSectionData={loadSectionData}
+              activityActionProps={activityActionProps}
+              noteActionProps={noteActionProps}
+              taskActionProps={taskActionProps}
+              approvalActionProps={approvalActionProps}
+              {...props}
+            />
+          )
+        },
+        {
+          value: 'opportunities',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
+          icon: <CurrencyDollar className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <OpportunityView contactId={contactId} {...props} />
+            </div>
           )
         },
         {
@@ -725,7 +403,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
           icon: <FileText className="gba:mr-2" />,
           content: (
             <div className="gba:col-span-12">
-              <ContactDocuments contactId={contactId} context={props} />
+              <DocumentView contactId={contactId} {...props} />
             </div>
           )
         }

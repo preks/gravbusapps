@@ -218,21 +218,21 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
         className="gba:text-sm gba:text-muted-foreground gba:bg-muted gba:p-3 gba:rounded-md gba:border gba:border-border"
         data-testid="plan-vs-request-active-filters"
       >
-        <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('filters.period', 'Period')}:</span>{' '}
+        <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:</span>{' '}
         {selectedPeriod}
         {' · '}
         <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('filters.currency', 'Currency')}:
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')}:
         </span>{' '}
         {selectedCurrencyCode}
         {' · '}
         <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('filters.department', 'Department')}:
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')}:
         </span>{' '}
         {selectedDepartmentName}
         {' · '}
         <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('common.lastUpdated', 'Last updated')}:
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.last_updated', 'Last updated')}:
         </span>{' '}
         {dayjs().format('YYYY-MM-DD HH:mm')}
       </div>
