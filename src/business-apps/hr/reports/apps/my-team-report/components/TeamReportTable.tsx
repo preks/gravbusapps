@@ -18,7 +18,6 @@ import { SortConfig } from '../utils/sortUtils'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-// Initialize the required plugins
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 
@@ -49,10 +48,8 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
   sortConfig,
   onSort
 }) => {
-  // State to track current pagination
   const [pageSize, setPageSize] = useState(20)
 
-  // Handle row click to select employee
   const handleRowClick = useCallback(
     (employee: Employee) => {
       if (onSelectEmployee) {
@@ -62,7 +59,6 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     [onSelectEmployee]
   )
 
-  // Handle sorting
   const handleSort = (field: keyof Employee) => {
     if (sortConfig?.key === field) {
       if (sortConfig.direction === 'asc') {
@@ -77,7 +73,6 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     }
   }
 
-  // Render sort icon
   const renderSortIcon = (field: keyof Employee) => {
     if (sortConfig?.key !== field) return null
     if (sortConfig.direction === 'asc') return <PiArrowUp className="gba:inline gba:ml-1" size={12} />
@@ -85,18 +80,15 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     return null
   }
 
-  // Format date with user locale using the robust formatDate function
   const formatDateWithLocale = (dateString: string | undefined) => {
     if (!dateString) return '-'
 
     const date = new Date(dateString)
     if (isNaN(date.getTime())) return '-'
 
-    // Use the robust formatDate function that handles locale properly
     return formatDate(date, 'date.short') || '-'
   }
 
-  // Format tenure calculation with proper localization
   const formatTenure = (startDate: string | undefined, exitDate: string | null | undefined) => {
     if (!startDate) return '-'
 
@@ -109,7 +101,6 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     const years = Math.floor(totalMonths / 12)
     const months = totalMonths % 12
 
-    // Use localized formatting based on user locale
     const yearString =
       years > 0
         ? `${years} ${years === 1 ? getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.year', 'year') : getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')}`
@@ -130,14 +121,12 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
     )
   }
 
-  // Handle pagination changes
   const handlePaginationChange = (page: number, newPageSize?: number) => {
     const targetPageSize = newPageSize ?? pageSize
     setPageSize(targetPageSize)
     loadPage(page, targetPageSize)
   }
 
-  // Show error message if there's an error
   if (error) {
     return (
       <div
