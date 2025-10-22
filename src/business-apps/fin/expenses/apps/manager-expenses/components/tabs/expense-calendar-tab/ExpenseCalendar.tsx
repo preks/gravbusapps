@@ -71,7 +71,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
           managerId
         })
         setAllTeamMembers(result.Employee || [])
-      } catch (error) {
+      } catch {
         console.error('Error fetching team members:', error)
         setTeamMembersError(getTranslationFromI18nKeyAndLabel('lowcoder:common.error', 'Error loading team members'))
       } finally {

@@ -225,7 +225,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         if (isMounted.current) {
           setFileList(processedFiles)
         }
-      } catch (error) {
+      } catch {
         console.error('Error fetching file attachments:', error)
         if (isMounted.current) {
           setFileList([])
@@ -387,7 +387,7 @@ export const ExpenseItemDetails: React.FC<ExpenseItemDetailsProps> = ({ selected
         data-testid="expense-file-empty"
       >
         <div className="gba:flex gba:flex-col gba:items-center gba:space-y-2">
-          <FileImageOutlined style={{ fontSize: '48px', color: '#d9d9d9' }} />
+          <FileImageOutlined style={{ fontSize: '48px', color: 'border' }} />
           <p className="gba:text-sm gba:text-gray-600">
             {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.no_receipt_attached', 'No receipt attached')}
           </p>

@@ -293,7 +293,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = React.memo(pro
         } else if (!result.success) {
           console.error('Error printing request:', result.error)
         }
-      } catch (error) {
+      } catch {
         console.error('Error fetching print PDF:', error)
       } finally {
         if (isMounted.current) {

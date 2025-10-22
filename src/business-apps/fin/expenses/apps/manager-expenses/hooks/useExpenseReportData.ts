@@ -480,7 +480,7 @@ export const useExpenseReportData = ({
           if (!Array.isArray(processed) || processed.length < batchLimit) break
           offset += batchLimit
         }
-      } catch (error) {
+      } catch {
         console.error(`Error fetching batch for export (${errorContext}):`, error)
         setError(`Partial export: some ${errorContext} could not be fetched`)
       }

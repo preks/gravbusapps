@@ -64,7 +64,7 @@ export const fetchExpenseTypes = async (
     setExpenseTypes(expenseTypesByGroup)
 
     return expenseTypesList
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
       'error'
@@ -126,7 +126,7 @@ export const fetchCustomFields = async (
     }))
 
     return customFieldsList
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_custom_groups', 'Error processing custom groups'),
       'error'
@@ -167,7 +167,7 @@ export const setOnePositionItem = async (
           date: dateObj.toDate()
         })
       }
-    } catch (error) {}
+    } catch {}
   }
 
   const isMultiPosition = item.multiplePositions || (item.expensePosition && item.expensePosition.length > 1)
@@ -261,7 +261,7 @@ export const setOnePositionItem = async (
             }
           }
         }, 500)
-      } catch (error) {
+      } catch {
         showToast(
           t('lowcoder:create_expense_type_item.process_error_expense_types', 'Error processing expense types'),
           'error'
@@ -310,7 +310,7 @@ export const setMultiPositionItem = async (
           date: dateObj.toDate()
         })
       }
-    } catch (error) {}
+    } catch {}
   }
 
   setMultiPosition(true)
@@ -376,7 +376,7 @@ export const setMultiPositionItem = async (
               t,
               form
             )
-          } catch (error) {
+          } catch {
             showToast(
               t('lowcoder:create_expense_type_item.process_error_expense_group', 'Error processing expense groups'),
               'error'
@@ -517,7 +517,7 @@ export const setByEdit = async (
     }
 
     return response.data
-  } catch (error) {
+  } catch {
     showToast(t('lowcoder:create_expense_type_item.process_error_data_process', 'Error processing data'), 'error')
     return null
   }
@@ -547,7 +547,7 @@ export const addRequests = (
     )
 
     setExpenseRequests(formattedRequests)
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_expense_requests_fetch', 'Error processing expense requests'),
       'error'

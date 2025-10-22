@@ -156,7 +156,7 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         } else if (!result.success) {
           console.error('Error printing plan:', result.error)
         }
-      } catch (error) {
+      } catch {
         console.error('Error fetching print PDF:', error)
       } finally {
         if (isMounted.current) {

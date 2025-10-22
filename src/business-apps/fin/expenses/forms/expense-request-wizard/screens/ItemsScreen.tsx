@@ -187,7 +187,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       }
 
       setSelectItemsList(finalItems)
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_fetch_items',
@@ -412,7 +412,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
             setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
             setPayloadItemsLoaded(true)
           }
-        } catch (error) {
+        } catch {
           showToast(
             getTranslationFromI18nKeyAndLabel(
               'lowcoder:modify_expense_request.error_fetch_items_payload',
@@ -551,11 +551,11 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
         </div>
 
         <div
-          className="gba:bg-[#F7F7F7] gba:border-t gba:border-b gba:border-[#F7F7F7] gba:py-2 gba:px-2"
+          className="gba:bg-muted gba:border-t gba:border-b gba:border-muted gba:py-2 gba:px-2"
           data-testid="expense-request-wizard-select-items-content"
         >
           {isLoading ? (
-            <div className="gba:text-center gba:p-8 gba:bg-[#F7F7F7]" data-testid="loading-message">
+            <div className="gba:text-center gba:p-8 gba:bg-muted" data-testid="loading-message">
               {getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.loading_text', 'Loading items...')}
             </div>
           ) : selectItemsList.length > 0 ? (
@@ -605,7 +605,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               )}
             </>
           ) : (
-            <div className="gba:text-center gba:p-8 bg-[#F7F7F7]" data-testid="no-items-message">
+            <div className="gba:text-center gba:p-8 gba:bg-muted" data-testid="no-items-message">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:modify_expense_request.no_items_to_select',
                 'No expense items available to select'
@@ -642,7 +642,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               variant="secondary"
               icon={<img src={ICONS.ADD_CIRCLE} alt="Add" className="gba:w-4 gba:h-4" />}
               className="gba:flex gba:items-center gba:gap-1"
-              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight: 600 }}
+              style={{ backgroundColor: 'border', borderRadius: '9999px', fontWeight: 600 }}
               data-testid="add-item-button"
               onClick={toggleSelectItemsView}
             >
@@ -652,7 +652,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               variant="secondary"
               icon={<img src={ICONS.FOCUS} alt="Create" className="gba:w-4 gba:h-4" />}
               className="gba:flex gba:items-center gba:gap-1"
-              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight: 600 }}
+              style={{ backgroundColor: 'border', borderRadius: '9999px', fontWeight: 600 }}
               data-testid="create-item-button"
               onClick={handleCreateItem}
             >
@@ -663,7 +663,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       )}
 
       <div
-        className="gba:bg-[#F7F7F7] gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-[#F7F7F7]"
+        className="gba:bg-muted gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-muted"
         data-testid="expense-request-wizard-items-screen-content"
         style={{ flex: '1 1 auto', minHeight: expenseItems.length === 0 ? '50vh' : 'auto' }}
       >
@@ -707,7 +707,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
           </div>
         ) : (
           <div
-            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-[#F7F7F7] gba:gap-8"
+            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:gap-8"
             data-testid="empty-items-container"
             style={{
               flex: '1 1 auto',

@@ -40,7 +40,6 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
     setPayloadItemsLoaded,
     setPayloadItemIds
   } = useExpensePlanWizardContext()
-  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [selectedItemsToInitial, setSelectedItemsToInitial] = useState<any[]>([])
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1)
   const [expenseTotals, setExpenseTotals] = useState<{ currency: string; amount: number }[]>([])
@@ -196,7 +195,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
             setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
             setPayloadItemsLoaded(true)
           }
-        } catch (error) {
+        } catch {
           showToast(
             getTranslationFromI18nKeyAndLabel(
               'lowcoder:modify_expense_request.error_fetch_items_payload',
@@ -313,7 +312,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
               variant="secondary"
               icon={<img src={ICONS.FOCUS} alt="Create" className="gba:w-4 gba:h-4" />}
               className="gba:flex gba:items-center gba:gap-1"
-              style={{ backgroundColor: '#EFEFEF', borderRadius: '9999px', fontWeight: 600 }}
+              style={{ backgroundColor: 'border', borderRadius: '9999px', fontWeight: 600 }}
               data-testid="create-item-button"
               onClick={e => {
                 e.stopPropagation()
@@ -327,7 +326,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
       )}
 
       <div
-        className="gba:bg-[#F7F7F7] gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-[#F7F7F7]"
+        className="gba:bg-muted gba:flex gba:flex-col gba:flex-grow gba:border-t gba:border-b gba:border-muted"
         data-testid="expense-plan-wizard-items-screen-content"
         style={{ flex: '1 1 auto', minHeight: expenseItems.length === 0 ? '50vh' : 'auto' }}
       >
@@ -371,7 +370,7 @@ const PlanItemsScreen: React.FC<ItemsScreenProps> = props => {
           </div>
         ) : (
           <div
-            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-[#F7F7F7] gba:gap-8"
+            className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-8 gba:bg-muted gba:gap-8"
             data-testid="empty-items-container"
             style={{
               flex: '1 1 auto',
