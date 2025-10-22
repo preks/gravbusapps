@@ -20,7 +20,6 @@ interface StartDateRangeFilterProps {
 export const StartDateRangeFilter: React.FC<StartDateRangeFilterProps> = ({
   startDateRange,
   onDateRangeChange,
-  className = '',
   placeholder = ['Start date', 'End date']
 }) => {
   // Convert Date objects to dayjs objects for the DatePicker

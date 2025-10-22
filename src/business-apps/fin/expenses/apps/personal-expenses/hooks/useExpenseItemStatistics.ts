@@ -141,7 +141,7 @@ export const useExpenseItemStatistics = (context: BusinessAppContextProps, curre
       }))
       if (!isMounted.current) return
       setStats(s => ({ ...s, allItems: mappedItems, hasLoadedAllItems: true }))
-    } catch (e) {
+    } catch {
       return
     }
   }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, currencyRef, graphqlClient])

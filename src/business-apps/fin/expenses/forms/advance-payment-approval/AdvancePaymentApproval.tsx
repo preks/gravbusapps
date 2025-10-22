@@ -20,8 +20,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
   accessToken,
   additionalData,
   onClose = () => {},
-  onApprove = () => {},
-  onReject = () => {},
   ...contextProps
 }) => {
   const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)

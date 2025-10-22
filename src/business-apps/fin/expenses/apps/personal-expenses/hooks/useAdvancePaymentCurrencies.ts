@@ -54,7 +54,7 @@ export const useAdvancePaymentCurrencies = (
         const stats = aggregateCurrencyStats(rows, { fallbackRef: DEFAULT_CURRENCY_REF, fallbackCode: 'EUR' })
         setCurrencyStats(stats as CurrencyStat[])
         preselectMostUsedOnce(stats as CurrencyStat[])
-      } catch (_e) {
+      } catch {
         // ignore
       }
     })()
