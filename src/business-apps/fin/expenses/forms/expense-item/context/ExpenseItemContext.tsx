@@ -527,162 +527,202 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
     return calculateTotal(positions)
   }
 
-  const setByReceipts = (receiptData: any): void => {
-    if (!receiptData || !receiptData.data) {
-      return
+  /**
+   * Validates currency match between receipt and request
+   */
+  const validateReceiptCurrency = (data: any): boolean => {
+    if (!additionalData?.itemCurrency) return true
+
+    const requestCurrency = currencies.find(c => c.id === additionalData.itemCurrency)
+    if (requestCurrency && requestCurrency.code !== data.currencyCode) {
+      showToast(
+        t(
+          'lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail',
+          'The Receipt could not be added as it does not match the request currency.'
+        ),
+        'error',
+        t('lowcoder:create_expense_type_item.process_error_currency_mismatch_title', 'Currency Mismatch')
+      )
+      return false
     }
+    return true
+  }
+
+  /**
+   * Parses invoice date from various formats
+   */
+  const parseInvoiceDate = (invoiceDate: any): Date | null => {
+    try {
+      let dateValue: Date
+
+      if (typeof invoiceDate === 'string') {
+        if (invoiceDate.includes('T')) {
+          dateValue = new Date(invoiceDate)
+        } else {
+          const [year, month, day] = invoiceDate.split('-').map(Number)
+          dateValue = new Date(year, month - 1, day)
+        }
+      } else {
+        dateValue = new Date(invoiceDate)
+      }
+
+      return !isNaN(dateValue.getTime()) ? dateValue : null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Populates basic form fields from receipt data
+   */
+  const populateBasicFields = (data: any): void => {
+    if (data.vendor?.name) {
+      form.setFieldsValue({ title: data.vendor.name })
+    }
+
+    if (data.invoiceDate) {
+      const dateValue = parseInvoiceDate(data.invoiceDate)
+      if (dateValue) {
+        form.setFieldsValue({ date: dateValue })
+      }
+    }
+
+    if (data.currencyCode) {
+      const currencyId = currencies.find(c => c.code === data.currencyCode)?.id
+      if (currencyId) {
+        form.setFieldsValue({ currency: currencyId })
+      }
+    }
+  }
+
+  /**
+   * Matches expense group from receipt item
+   */
+  const matchExpenseGroup = (item: any): string => {
+    if (!item.expenseDetails?.expenseGroupCode) return ''
+
+    // Try direct match first
+    const matchingGroup = expenseGroups.find(group => group.code === item.expenseDetails.expenseGroupCode)
+    if (matchingGroup) return matchingGroup.id
+
+    // Try AI match
+    const aiMatch = aiGroupsAndTypes.find(
+      ai =>
+        ai.expenseGroupCode === item.expenseDetails.expenseGroupCode &&
+        ai.expenseCode === item.expenseDetails.expenseCode
+    )
+
+    if (aiMatch) {
+      const aiMatchingGroup = expenseGroups.find(group => group.code === aiMatch.expenseGroupCode)
+      return aiMatchingGroup?.id || ''
+    }
+
+    return ''
+  }
+
+  /**
+   * Matches expense type from receipt item
+   */
+  const matchExpenseType = (item: any, groupId: string): string => {
+    if (!item.expenseDetails?.expenseCode || !groupId || !expenseTypes[groupId]) {
+      return ''
+    }
+
+    const matchingType = expenseTypes[groupId].find(type => type.code === item.expenseDetails.expenseCode)
+    return matchingType?.id || ''
+  }
+
+  /**
+   * Creates expense positions from receipt items
+   */
+  const createPositionsFromReceipt = (data: any): ExpensePosition[] => {
+    if (!data.items || data.items.length === 0) return []
+
+    const costCenterId = positions[0]?.costCenter || ''
+
+    return data.items.map((item: any, index: number) => {
+      const expenseGroupId = matchExpenseGroup(item)
+      const expenseTypeId = matchExpenseType(item, expenseGroupId)
+
+      return {
+        id: `position-${Date.now()}-${index}`,
+        expenseGroup: expenseGroupId,
+        expenseType: expenseTypeId,
+        amount: item.totalPrice || 0,
+        costCenter: costCenterId,
+        isReimbursable: true,
+        customField: ''
+      }
+    })
+  }
+
+  /**
+   * Syncs positions to form fields
+   */
+  const syncPositionsToForm = (newPositions: ExpensePosition[]): void => {
+    const formValuesBatch: Record<string, any> = {}
+    newPositions.forEach((pos, idx) => {
+      formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined
+      formValuesBatch[`amount-${idx}`] = pos.amount
+      formValuesBatch[`costCenter-${idx}`] = pos.costCenter
+      formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable
+    })
+    form.setFieldsValue(formValuesBatch)
+    setMultiPosition(newPositions.length > 1)
+  }
+
+  /**
+   * Fetches missing expense types for positions
+   */
+  const fetchMissingExpenseTypes = async (newPositions: ExpensePosition[], data: any): Promise<void> => {
+    const promises = newPositions.map(async (position, index) => {
+      if (!position.expenseGroup || position.expenseType) return
+
+      try {
+        const types = await fetchExpenseTypesWrapper(position.expenseGroup)
+        const expenseCode = data.items[index]?.expenseDetails?.expenseCode
+
+        if (expenseCode) {
+          const matchingType = types.find(type => type.code === expenseCode)
+          if (matchingType) {
+            const updatedPositions = [...newPositions]
+            updatedPositions[index].expenseType = matchingType.id
+            setPositions(updatedPositions)
+            form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
+          }
+        }
+      } catch {
+        showToast(
+          t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
+          'error'
+        )
+      }
+    })
+
+    await Promise.all(promises)
+  }
+
+  const setByReceipts = (receiptData: any): void => {
+    if (!receiptData?.data) return
 
     try {
       const data = receiptData.data
 
-      if (additionalData?.itemCurrency) {
-        const requestCurrency = currencies.find(c => c.id === additionalData?.itemCurrency)
-        if (requestCurrency && requestCurrency.code !== data.currencyCode) {
-          showToast(
-            t(
-              'lowcoder:expense_item.currency_mismatchlowcoder:create_expense_type_item.process_error_currency_mismatch_detail',
-              'The Receipt could not be added as it does not match the request currency.'
-            ),
-            'error',
-            t('lowcoder:create_expense_type_item.process_error_currency_mismatch_title', 'Currency Mismatch')
-          )
+      // Validate currency match
+      if (!validateReceiptCurrency(data)) return
 
-          return
-        }
-      }
+      // Populate basic form fields
+      populateBasicFields(data)
 
-      if (data.vendor?.name) {
-        form.setFieldsValue({ title: data.vendor.name })
-      }
+      // Process items and create positions
+      const newPositions = createPositionsFromReceipt(data)
+      if (newPositions.length === 0) return
 
-      if (data.invoiceDate) {
-        try {
-          let dateValue
+      setPositions(newPositions)
+      syncPositionsToForm(newPositions)
 
-          if (typeof data.invoiceDate === 'string') {
-            if (data.invoiceDate.includes('T')) {
-              dateValue = new Date(data.invoiceDate)
-            } else {
-              const [year, month, day] = data.invoiceDate.split('-').map(Number)
-              dateValue = new Date(year, month - 1, day)
-            }
-          } else {
-            dateValue = new Date(data.invoiceDate)
-          }
-
-          if (!isNaN(dateValue.getTime())) {
-            form.setFieldsValue({ date: dateValue })
-          }
-        } catch {}
-      }
-
-      if (data.currencyCode) {
-        const currencyId = currencies.find(c => c.code === data.currencyCode)?.id
-        if (currencyId) {
-          form.setFieldsValue({ currency: currencyId })
-        }
-      }
-
-      if (data.items && data.items.length > 0) {
-        const newPositions: ExpensePosition[] = []
-
-        const costCenterId = positions[0]?.costCenter || ''
-
-        data.items.forEach((item: any, index: number) => {
-          const newPosition: ExpensePosition = {
-            id: `position-${Date.now()}-${index}`,
-            expenseGroup: '',
-            expenseType: '',
-            amount: item.totalPrice || 0,
-            costCenter: costCenterId,
-            isReimbursable: true,
-            customField: ''
-          }
-
-          if (item.expenseDetails) {
-            if (item.expenseDetails.expenseGroupCode) {
-              const matchingGroup = expenseGroups.find(group => group.code === item.expenseDetails.expenseGroupCode)
-
-              if (matchingGroup) {
-                newPosition.expenseGroup = matchingGroup.id
-
-                if (item.expenseDetails.expenseCode && expenseTypes[matchingGroup.id]) {
-                  const matchingType = expenseTypes[matchingGroup.id].find(
-                    type => type.code === item.expenseDetails.expenseCode
-                  )
-
-                  if (matchingType) {
-                    newPosition.expenseType = matchingType.id
-                  }
-                }
-              }
-            }
-          }
-
-          if (!newPosition.expenseGroup && item.expenseDetails?.expenseGroupCode) {
-            const aiMatch = aiGroupsAndTypes.find(
-              ai =>
-                ai.expenseGroupCode === item.expenseDetails.expenseGroupCode &&
-                ai.expenseCode === item.expenseDetails.expenseCode
-            )
-
-            if (aiMatch) {
-              const matchingGroup = expenseGroups.find(group => group.code === aiMatch.expenseGroupCode)
-
-              if (matchingGroup) {
-                newPosition.expenseGroup = matchingGroup.id
-              }
-            }
-          }
-
-          newPositions.push(newPosition)
-        })
-
-        setPositions(newPositions)
-
-        // Sync form fields for all generated positions (amount, cost center, reimbursable)
-        const formValuesBatch: Record<string, any> = {}
-        newPositions.forEach((pos, idx) => {
-          formValuesBatch[`expenseGroup-${idx}`] = pos.expenseGroup || undefined
-          formValuesBatch[`amount-${idx}`] = pos.amount
-          formValuesBatch[`costCenter-${idx}`] = pos.costCenter
-          formValuesBatch[`isReimbursable-${idx}`] = pos.isReimbursable
-        })
-        form.setFieldsValue(formValuesBatch)
-
-        if (newPositions.length > 1) {
-          setMultiPosition(true)
-        } else {
-          setMultiPosition(false)
-        }
-
-        newPositions.forEach(async (position, index) => {
-          if (position.expenseGroup && !position.expenseType) {
-            try {
-              const types = await fetchExpenseTypesWrapper(position.expenseGroup)
-
-              if (data.items[index]?.expenseDetails?.expenseCode) {
-                const matchingType = types.find(type => type.code === data.items[index].expenseDetails.expenseCode)
-
-                if (matchingType) {
-                  const updatedPositions = [...newPositions]
-                  updatedPositions[index].expenseType = matchingType.id
-                  setPositions(updatedPositions)
-                  form.setFieldsValue({ [`expenseType-${index}`]: matchingType.id })
-                }
-              }
-            } catch {
-              showToast(
-                t(
-                  'lowcoder:create_expense_type_item.process_error_receipt_processing',
-                  'Error processing receipt data'
-                ),
-                'error'
-              )
-            }
-          }
-        })
-      }
+      // Fetch missing expense types asynchronously
+      fetchMissingExpenseTypes(newPositions, data)
     } catch {
       showToast(
         t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
