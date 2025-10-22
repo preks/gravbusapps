@@ -566,7 +566,8 @@ export const ExpenseItemProvider: React.FC<ExpenseItemProviderProps> = ({
         dateValue = new Date(invoiceDate)
       }
 
-      return !isNaN(dateValue.getTime()) ? dateValue : null
+      const isValidDate = !Number.isNaN(dateValue.getTime())
+      return isValidDate ? dateValue : null
     } catch {
       return null
     }

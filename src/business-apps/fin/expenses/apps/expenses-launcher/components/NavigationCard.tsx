@@ -410,6 +410,36 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
 
   const areaStats = getAreaStats(area.id, area.kpiType)
 
+  /**
+   * Interactive link component with proper accessibility
+   */
+  const InteractiveLink: React.FC<{
+    onClick: (e: React.MouseEvent) => void
+    testId: string
+    label: string
+  }> = ({ onClick, testId, label }) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        onClick(e as any)
+      }
+    }
+
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+        onClick={onClick}
+        onKeyDown={handleKeyDown}
+        data-testid={testId}
+      >
+        <span className="gba:text-gray-700 gba:font-medium">{label}</span>
+        <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
+      </div>
+    )
+  }
+
   return (
     <Card
       className="gba:group gba:transition-all gba:duration-300 gba:h-full gba:bg-background/95 gba:backdrop-blur-md gba:border gba:border-background/20 gba:hover:shadow-xl gba:hover:shadow-black/10 gba:hover:border-background/40 gba:hover:bg-background gba:rounded-xl gba:overflow-hidden"
@@ -445,121 +475,88 @@ const NavigationCard: React.FC<NavigationCardProps> = ({ area, stats, showManage
           {(showManagerView || showFinanceView) && area.links ? (
             // Manager and Finance links
             area.links.map((link, index) => (
-              <div
+              <InteractiveLink
                 key={index}
-                className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
                 onClick={e => handleLinkClick(link.action, e)}
-                data-testid={`navigation-link-${link.action}`}
-              >
-                <span className="gba:text-gray-700 gba:font-medium">{link.label}</span>
-                <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-              </div>
+                testId={`navigation-link-${link.action}`}
+                label={link.label}
+              />
             ))
           ) : (
             // Regular action items for non-manager users
             <>
               {area.id === 'expense-items' && (
                 <>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('assigned-items', 'Assigned', e)}
-                    data-testid="quick-link-assigned-items"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Assigned Items</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    testId="quick-link-assigned-items"
+                    label="Assigned Items"
+                  />
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('unassigned-items', 'Draft', e)}
-                    data-testid="quick-link-unassigned-items"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Unassigned Items</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
+                    testId="quick-link-unassigned-items"
+                    label="Unassigned Items"
+                  />
                 </>
               )}
 
               {area.id === 'plans' && (
                 <>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('pending-plans', 'inApproval', e)}
-                    data-testid="quick-link-pending-plans"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Pending Plans</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    testId="quick-link-pending-plans"
+                    label="Pending Plans"
+                  />
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('approved-plans', 'Approved', e)}
-                    data-testid="quick-link-approved-plans"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Approved Plans</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
+                    testId="quick-link-approved-plans"
+                    label="Approved Plans"
+                  />
                 </>
               )}
 
               {area.id === 'advance-payments' && (
                 <>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('pending-advances', 'Prepared', e)}
-                    data-testid="quick-link-pending-advances"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Pending Advances</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    testId="quick-link-pending-advances"
+                    label="Pending Advances"
+                  />
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('approved-advances', 'inTransit', e)}
-                    data-testid="quick-link-approved-advances"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Approved Advances</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
+                    testId="quick-link-approved-advances"
+                    label="Approved Advances"
+                  />
                 </>
               )}
 
               {area.id === 'requests' && (
                 <>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('pending-approval', 'inApproval', e)}
-                    data-testid="quick-link-pending-approval"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Pending Approval</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    testId="quick-link-pending-approval"
+                    label="Pending Approval"
+                  />
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('draft-requests', 'Draft', e)}
-                    data-testid="quick-link-draft-requests"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Draft Requests</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
+                    testId="quick-link-draft-requests"
+                    label="Draft Requests"
+                  />
                 </>
               )}
 
               {area.id === 'analytics' && (
                 <>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('spending-trends', 'Trends', e)}
-                    data-testid="quick-link-spending-trends"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Spending Trends</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
-                  <div
-                    className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded-md gba:transition-colors gba:duration-200"
+                    testId="quick-link-spending-trends"
+                    label="Spending Trends"
+                  />
+                  <InteractiveLink
                     onClick={e => handleQuickLinkClick('budget-analysis', 'Budget', e)}
-                    data-testid="quick-link-budget-analysis"
-                  >
-                    <span className="gba:text-gray-700 gba:font-medium">Budget Analysis</span>
-                    <RemixIcons.RiArrowRightSLine className="gba:h-4 gba:w-4 gba:text-gray-400" />
-                  </div>
+                    testId="quick-link-budget-analysis"
+                    label="Budget Analysis"
+                  />
                 </>
               )}
             </>

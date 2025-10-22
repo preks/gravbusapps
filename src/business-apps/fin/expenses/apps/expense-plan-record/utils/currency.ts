@@ -46,7 +46,7 @@ export const formatCurrencyDisplay = (
   currencyCode: string | null | undefined
 ): string => {
   // Handle invalid amounts
-  if (amount === null || amount === undefined || amount === '' || isNaN(Number(amount))) {
+  if (amount === null || amount === undefined || amount === '' || Number.isNaN(Number(amount))) {
     return `0 ${currencyCode || 'EUR'}`
   }
 

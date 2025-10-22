@@ -57,6 +57,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
     }
   }
 
+  const handleContainerKeyDown = (e: React.KeyboardEvent) => {
+    if (!expanded && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault()
+      handleClick()
+    }
+  }
+
+  const handleClearKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.stopPropagation()
+      handleClear(e as any)
+    }
+  }
+
   return (
     <div
       style={{
@@ -76,6 +91,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
         justifyContent: expanded ? 'flex-start' : 'center'
       }}
       onClick={handleClick}
+      onKeyDown={handleContainerKeyDown}
+      role="button"
+      tabIndex={expanded ? -1 : 0}
+      aria-label={expanded ? undefined : 'Expand search'}
       ref={containerRef}
       data-testid="plan-search-bar"
     >
@@ -109,6 +128,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
             opacity: '1'
           }}
           onClick={handleClear}
+          onKeyDown={handleClearKeyDown}
+          role="button"
+          tabIndex={0}
+          aria-label="Clear search"
           data-testid="plan-search-clear"
         >
           <XCircleIcon />

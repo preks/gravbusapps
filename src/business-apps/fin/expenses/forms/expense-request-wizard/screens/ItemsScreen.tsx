@@ -345,84 +345,112 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     return expenseItems.slice(startIndex, endIndex)
   }, [expenseItems, initialCurrentPage, itemListLimit])
 
+  /**
+   * Extracts valid item IDs from payload
+   */
+  const extractPayloadItemIds = (additionalData: any): string[] => {
+    if (
+      !additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems ||
+      additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length === 0
+    ) {
+      return []
+    }
+
+    return additionalData.psi_taskPayload.psi_initialParameters.expenseItems
+      .filter((item: any) => item.itemId)
+      .map((item: any) => item.itemId)
+  }
+
+  /**
+   * Determines the currency to use for items
+   */
+  const determineItemCurrency = (currentCurrency: string, expenseRequestData: any, additionalData: any): string => {
+    // Use current currency if available
+    if (currentCurrency) return currentCurrency
+
+    // Try expense request currency
+    if (expenseRequestData?.ExpenseRequestByPk?.currencyRef) {
+      return expenseRequestData.ExpenseRequestByPk.currencyRef
+    }
+
+    // Try first expense item currency
+    if (expenseRequestData?.ExpenseItem?.length > 0) {
+      return expenseRequestData.ExpenseItem[0].currencyRef
+    }
+
+    // Try payload currency
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems?.length > 0) {
+      const itemWithCurrency = additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find(
+        (item: any) => item.itemId && item.currencyId
+      )
+      return itemWithCurrency?.currencyId || ''
+    }
+
+    return ''
+  }
+
+  /**
+   * Fetches and adds new items from payload
+   */
+  const fetchAndAddPayloadItems = async (newItemIds: string[], itemCurrency: string): Promise<void> => {
+    const userLocale = getCurrentActiveUserLocale()
+    const variables = {
+      employeeId,
+      status: REQUEST_STATUS.CREATED,
+      activeUserLocale: userLocale,
+      idsArray: newItemIds,
+      itemCurrency: itemCurrency
+    }
+
+    const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
+    const payloadItems = response?.ExpenseItemEmployee || []
+
+    if (payloadItems.length === 0) return
+
+    const itemsToAdd = payloadItems.map((item: any) => ({ ...item }))
+    const currentItems = expenseRequestData?.ExpenseItem || []
+    const updatedItems = [...currentItems, ...itemsToAdd]
+
+    setExpenseRequestData({
+      ...expenseRequestData,
+      ExpenseItem: updatedItems
+    })
+
+    setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
+    setPayloadItemsLoaded(true)
+  }
+
   useEffect(() => {
     const fetchItemsFromPayload = async () => {
-      if (payloadItemsLoaded) return
-      if (
-        additionalData &&
-        additionalData.psi_taskPayload &&
-        additionalData.psi_taskPayload.psi_initialParameters &&
-        additionalData.psi_taskPayload.psi_initialParameters.expenseItems &&
-        additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0
-      ) {
-        try {
-          setIsLoading(true)
-          const extractedPayloadItemIds = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
-            .filter((item: any) => item.itemId)
-            .map((item: any) => item.itemId)
+      // Early returns for invalid states
+      if (payloadItemsLoaded || !expenseRequestData) return
 
-          if (extractedPayloadItemIds.length === 0) return
-          setPayloadItemIds(extractedPayloadItemIds)
-          if (!expenseRequestData) return
-          const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || []
-          const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id))
+      const extractedPayloadItemIds = extractPayloadItemIds(additionalData)
+      if (extractedPayloadItemIds.length === 0) return
 
-          if (newItemIds.length === 0) return
-          let itemCurrency = currentCurrency || ''
-          if (expenseRequestData?.ExpenseRequestByPk?.currencyRef && !itemCurrency) {
-            itemCurrency = expenseRequestData.ExpenseRequestByPk.currencyRef
-          } else if (expenseRequestData?.ExpenseItem && expenseRequestData?.ExpenseItem.length > 0 && !itemCurrency) {
-            itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef
-          } else if (
-            additionalData.psi_taskPayload.psi_initialParameters.expenseItems &&
-            additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0 &&
-            !itemCurrency
-          ) {
-            itemCurrency =
-              additionalData.psi_taskPayload.psi_initialParameters.expenseItems.find(
-                (item: any) => item.itemId && item.currencyId
-              )?.currencyId || ''
-          }
+      try {
+        setIsLoading(true)
+        setPayloadItemIds(extractedPayloadItemIds)
 
-          const userLocale = getCurrentActiveUserLocale()
+        // Filter out items that already exist
+        const existingItemIds = expenseRequestData?.ExpenseItem?.map((item: any) => item.id) || []
+        const newItemIds = extractedPayloadItemIds.filter((id: string) => !existingItemIds.includes(id))
 
-          const variables = {
-            employeeId,
-            status: REQUEST_STATUS.CREATED,
-            activeUserLocale: userLocale,
-            idsArray: newItemIds,
-            itemCurrency: itemCurrency
-          }
-          const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
-          const payloadItems = response?.ExpenseItemEmployee || []
+        if (newItemIds.length === 0) return
 
-          if (payloadItems.length > 0) {
-            const itemsToAdd = payloadItems.map((item: any) => ({
-              ...item
-            }))
-
-            const currentItems = expenseRequestData?.ExpenseItem || []
-            const updatedItems = [...currentItems, ...itemsToAdd]
-
-            setExpenseRequestData({
-              ...expenseRequestData,
-              ExpenseItem: updatedItems
-            })
-
-            setSelectedItemsToInitial((prev: any[]) => [...prev, ...itemsToAdd])
-            setPayloadItemsLoaded(true)
-          }
-        } catch {
-          showToast(
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:modify_expense_request.error_fetch_items_payload',
-              'Error fetching items from payload'
-            ),
-            'error'
-          )
-        } finally {
-          setIsLoading(false)
-        }
+        // Determine currency and fetch items
+        const itemCurrency = determineItemCurrency(currentCurrency, expenseRequestData, additionalData)
+        await fetchAndAddPayloadItems(newItemIds, itemCurrency)
+      } catch {
+        showToast(
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:modify_expense_request.error_fetch_items_payload',
+            'Error fetching items from payload'
+          ),
+          'error'
+        )
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -525,6 +553,16 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
 
   const handleInitialPageChange = (page: number) => {
     setInitialCurrentPage(page)
+  }
+
+  /**
+   * Returns the default total display when no expense totals are available
+   */
+  const getDefaultTotalDisplay = (): string => {
+    if (expenseRequestData?.ExpenseRequestByPk && expenseRequestData.ExpenseRequestByPk.currency) {
+      return `0.00 ${expenseRequestData.ExpenseRequestByPk.currency.code}`
+    }
+    return `0.00 ${DEFAULT_CURRENCY_FALLBACK}`
   }
 
   if (showSelectItems) {
@@ -778,9 +816,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
               ))
             ) : (
               <span className="gba:text-3xl gba:font-bold" data-testid="expense-items-total-default">
-                {expenseRequestData?.ExpenseRequestByPk && expenseRequestData.ExpenseRequestByPk.currency
-                  ? `0.00 ${expenseRequestData.ExpenseRequestByPk.currency.code}`
-                  : `0.00 ${DEFAULT_CURRENCY_FALLBACK}`}
+                {getDefaultTotalDisplay()}
               </span>
             )}
           </div>

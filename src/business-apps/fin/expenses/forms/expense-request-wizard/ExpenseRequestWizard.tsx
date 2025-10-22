@@ -253,6 +253,69 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
     }
   }
 
+  /**
+   * Renders the main content area based on loading and error states
+   */
+  const renderMainContent = () => {
+    if (loading) {
+      return (
+        <div
+          className="gba:flex gba:justify-center gba:items-center"
+          style={{ height: '100%' }}
+          data-testid="expense-request-wizard-loading"
+        >
+          {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
+        </div>
+      )
+    }
+
+    if (expenseRuleError) {
+      return (
+        <div
+          style={{
+            backgroundColor: 'destructive-secondary',
+            padding: '16px 24px',
+            borderRadius: '4px',
+            marginBottom: '32px'
+          }}
+          data-testid="expense-request-wizard-error-container"
+        >
+          <h3
+            style={{ fontSize: '14px', fontWeight: 700, color: 'destructive', marginBottom: '8px' }}
+            data-testid="expense-request-wizard-error-title"
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_request.invalid_profile_title',
+              'Validation Issue'
+            )}
+          </h3>
+          <p
+            style={{ fontSize: '14px', color: 'foreground', margin: 0 }}
+            data-testid="expense-request-wizard-error-message"
+          >
+            {expenseRuleError}
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div
+        className="gba:flex gba:flex-col"
+        data-testid="expense-request-wizard-screen-container"
+        style={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: '1 1 auto',
+          minHeight: '50vh'
+        }}
+      >
+        {renderCurrentScreen()}
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div
@@ -496,55 +559,7 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
           minHeight: '50vh'
         }}
       >
-        {loading ? (
-          <div
-            className="gba:flex gba:justify-center gba:items-center"
-            style={{ height: '100%' }}
-            data-testid="expense-request-wizard-loading"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.loading_text', 'Loading...')}
-          </div>
-        ) : expenseRuleError ? (
-          <div
-            style={{
-              backgroundColor: 'destructive-secondary',
-              padding: '16px 24px',
-              borderRadius: '4px',
-              marginBottom: '32px'
-            }}
-            data-testid="expense-request-wizard-error-container"
-          >
-            <h3
-              style={{ fontSize: '14px', fontWeight: 700, color: 'destructive', marginBottom: '8px' }}
-              data-testid="expense-request-wizard-error-title"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:create_expense_request.invalid_profile_title',
-                'Validation Issue'
-              )}
-            </h3>
-            <p
-              style={{ fontSize: '14px', color: 'foreground', margin: 0 }}
-              data-testid="expense-request-wizard-error-message"
-            >
-              {expenseRuleError}
-            </p>
-          </div>
-        ) : (
-          <div
-            className="gba:flex gba:flex-col"
-            data-testid="expense-request-wizard-screen-container"
-            style={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              flex: '1 1 auto',
-              minHeight: '50vh'
-            }}
-          >
-            {renderCurrentScreen()}
-          </div>
-        )}
+        {renderMainContent()}
       </div>
 
       <div style={{ marginTop: 'auto', width: '100%' }} data-testid="expense-request-wizard-footer">

@@ -43,8 +43,18 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
     }
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (selectable && onClick && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault()
+      onClick()
+    }
+  }
+
+  const CardWrapper = selectable ? 'button' : 'div'
+
   return (
-    <div
+    <CardWrapper
+      type={selectable ? 'button' : undefined}
       className="gba:flex gba:flex-col"
       style={{
         backgroundColor: 'background',
@@ -52,6 +62,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
         width: '100%',
         cursor: selectable ? 'pointer' : 'default',
         transition: selectable ? 'all 0.2s ease' : 'none',
+        border: 'none',
+        textAlign: 'left',
         ...(selectable && {
           ':hover': {
             boxShadow: '0 0 12px rgba(0, 0, 0, 0.15)',
@@ -64,9 +76,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
         })
       }}
       data-testid={`plan-card-${plan.id}`}
-      onClick={handleClick}
-      role={selectable ? 'button' : undefined}
-      tabIndex={selectable ? 0 : undefined}
+      onClick={selectable ? handleClick : undefined}
+      onKeyDown={selectable ? handleKeyDown : undefined}
     >
       <div className="gba:flex gba:items-center" style={{ marginBottom: '12px' }} data-testid="plan-card-header">
         <div
@@ -150,7 +161,7 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, onClick, selectable = true })
           </span>
         </div>
       </div>
-    </div>
+    </CardWrapper>
   )
 }
 

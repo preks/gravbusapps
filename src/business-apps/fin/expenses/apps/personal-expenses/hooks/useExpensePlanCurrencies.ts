@@ -70,8 +70,11 @@ export const useExpensePlanCurrencies = (
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId
     const accessToken = context?.accessToken
-    if (!employeeId || !accessToken) return
-    ;(async () => {
+    if (!employeeId || !accessToken) {
+      return
+    }
+
+    const fetchCurrencies = async () => {
       try {
         const stats = await fetchEmployeeCurrencyStats({
           accessToken,
@@ -90,7 +93,9 @@ export const useExpensePlanCurrencies = (
       } finally {
         setInitialized(true)
       }
-    })()
+    }
+
+    fetchCurrencies()
   }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce])
 
   return {
