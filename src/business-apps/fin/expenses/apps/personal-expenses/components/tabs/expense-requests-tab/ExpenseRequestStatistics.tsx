@@ -15,6 +15,7 @@ interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   activeWidgetKey?: string
   currencyCode?: string
   selectedCurrencyRef?: string
+  currencyInitialized?: boolean
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
@@ -25,6 +26,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   activeWidgetKey,
   currencyCode,
   selectedCurrencyRef,
+  currencyInitialized,
   ...contextProps
 }) => {
   // Memoize context props to ensure stable reference
@@ -53,6 +55,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
 
   // Ensure statistics are fetched when component mounts or currency changes
   React.useEffect(() => {
+    // Avoid duplicate initial queries: wait until currencies are initialized
+    if (!currencyInitialized) return
+
     if (stableContextProps.accessToken && stableContextProps.userInfo?.employeeDetails?.employeeId) {
       fetchStatistics()
     }
@@ -60,7 +65,8 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     stableContextProps.accessToken,
     stableContextProps.userInfo?.employeeDetails?.employeeId,
     selectedCurrencyRef,
-    fetchStatistics
+    fetchStatistics,
+    currencyInitialized
   ])
 
   // Calculate current month name
