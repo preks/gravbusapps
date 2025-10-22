@@ -237,7 +237,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
   const getContainerStyles = (): React.CSSProperties => {
     if (fileList.length > 0) {
       return {
-        border: '2px solid #EFEFEF',
+        border: '2px solid border',
         borderRadius: '4px',
         padding: '20px 20px',
         position: 'relative' as const,
@@ -248,7 +248,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
 
     if (currentStep === 'start') {
       return {
-        border: '2px solid #EFEFEF',
+        border: '2px solid border',
         borderRadius: '4px',
         padding: '0',
         height: '204px',
@@ -260,7 +260,7 @@ export const UploadComponent: React.FC<UploadComponentProps> = ({ fileList, setF
     }
 
     return {
-      border: '2px solid #EFEFEF',
+      border: '2px solid border',
       borderRadius: '4px',
       padding: '0',
       backgroundColor: '#fff'

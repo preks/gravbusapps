@@ -37,7 +37,7 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
         <Button
           variant="secondary"
           className="gba:shadow-none gba:flex gba:items-center gba:justify-center gba:gap-2 gba:pl-3 gba:pr-3 gba:h-8 gba:w-[100px] gba:rounded-full gba:shadow-none gba:mb-5"
-          style={{ border: '2px solid #EFEFEF' }}
+          style={{ border: '2px solid border' }}
           data-testid={dataTestId ? `${dataTestId}-flows-button` : 'flows-button'}
           onMouseEnter={() => setOpen(true)}
         >
