@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-// Interface for team report filters to use with API calls
 export interface TeamReportFilter {
   position?: string[]
   location?: string[]
@@ -11,7 +11,6 @@ export interface TeamReportFilter {
   exitStatus?: 'active' | 'inactive' | null
 }
 
-// Interface for the return type of useTeamReportFilters
 export interface UseTeamReportV2FiltersReturn {
   search: string
   setSearch: (search: string) => void
@@ -24,9 +23,6 @@ export interface UseTeamReportV2FiltersReturn {
   clearFilters: () => void
 }
 
-/**
- * Hook to manage filter selection for team reports
- */
 export interface FilterOption {
   id: string
   name: string
@@ -38,73 +34,91 @@ export const useTeamReportFilters = (
   uniqueEmploymentTypes: string[] = [],
   uniqueContractTypes: string[] = []
 ): UseTeamReportV2FiltersReturn => {
-  // State for search and selected filters
   const [search, setSearch] = useState<string>('')
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
 
-  // Define these as constants for stable references
   const TENURE_OPTIONS = [
-    { id: '0-1y', label: '0-1 years' },
-    { id: '1-3y', label: '1-3 years' },
-    { id: '3-5y', label: '3-5 years' },
-    { id: '5-10y', label: '5-10 years' },
-    { id: '10+y', label: '10+ years' }
+    {
+      id: '0-1y',
+      label: '0-1 ' + getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')
+    },
+    {
+      id: '1-3y',
+      label: '1-3 ' + getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')
+    },
+    {
+      id: '3-5y',
+      label: '3-5 ' + getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')
+    },
+    {
+      id: '5-10y',
+      label: '5-10 ' + getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')
+    },
+    {
+      id: '10+y',
+      label: '10+ ' + getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.years', 'years')
+    }
   ]
-  const TENURE_OPTION_IDS = TENURE_OPTIONS.map(o => o.id)
-  const EXIT_STATUS_OPTIONS = ['activeOnly', 'inactiveOnly']
+  const TENURE_OPTION_IDS = new Set(TENURE_OPTIONS.map(o => o.id))
+  const EXIT_STATUS_OPTIONS = new Set(['activeOnly', 'inactiveOnly'])
 
-  // Define filter groups - memoized so they don't cause re-renders
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
     const SEARCH_THRESHOLD = 10
     const groups: DataFilterGroup[] = []
 
-    // Helper function to create a backendSearch implementation for local data
-    const createSearchHandler = (prefix: string, allItems: string[]) => (search: string) => {
-      const selectedForGroup = selectedFilters
-        .filter(f => f.startsWith(`${prefix}:`))
-        .map(f => f.replace(`${prefix}:`, ''))
+    const getSelectedForGroup = (prefix: string) => {
+      return selectedFilters.filter(f => f.startsWith(`${prefix}:`)).map(f => f.replace(`${prefix}:`, ''))
+    }
 
-      // If no search term is provided...
-      if (!search) {
-        // If there are selected filters, show them.
-        if (selectedForGroup.length > 0) {
-          const filters = selectedForGroup.map(item => ({
-            id: `${prefix}:${item}`,
-            label: item,
-            selected: true
-          }))
-          return { filters, loading: false, error: null }
-        }
-        // Otherwise, show a loading state to prompt user to search.
-        return { filters: [], loading: true, error: null }
-      }
-
-      // If a search term is provided, find matches.
-      const matchingItems = allItems.filter(item => item.toLowerCase().includes(search.toLowerCase()))
-
-      // Always include selected items in the results.
-      const allItemsToShow = [...new Set([...selectedForGroup, ...matchingItems])]
-
-      const filters = allItemsToShow.map(item => ({
+    const createFilterObjects = (items: string[], prefix: string, selectedForGroup: string[]) => {
+      return items.map(item => ({
         id: `${prefix}:${item}`,
         label: item,
-        selected: selectedFilters.includes(`${prefix}:${item}`)
+        selected: selectedForGroup.includes(item) || selectedFilters.includes(`${prefix}:${item}`)
       }))
+    }
 
+    const handleNoSearch = (prefix: string, selectedForGroup: string[]) => {
+      if (selectedForGroup.length > 0) {
+        const filters = createFilterObjects(selectedForGroup, prefix, selectedForGroup)
+        return { filters, loading: false, error: null }
+      }
+      return { filters: [], loading: true, error: null }
+    }
+
+    const handleWithSearch = (prefix: string, allItems: string[], search: string, selectedForGroup: string[]) => {
+      const matchingItems = allItems.filter(item => item.toLowerCase().includes(search.toLowerCase()))
+      const allItemsToShow = [...new Set([...selectedForGroup, ...matchingItems])]
+      const filters = createFilterObjects(allItemsToShow, prefix, selectedForGroup)
       return { filters, loading: false, error: null }
     }
 
-    // Position
+    const createSearchHandler = (prefix: string, allItems: string[]) => (search: string) => {
+      const selectedForGroup = getSelectedForGroup(prefix)
+
+      if (!search) {
+        return handleNoSearch(prefix, selectedForGroup)
+      }
+
+      return handleWithSearch(prefix, allItems, search, selectedForGroup)
+    }
+
     if (uniquePositions.length > SEARCH_THRESHOLD) {
       groups.push({
         id: 'position',
-        title: 'Position',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.summary_layout.public_profile_container.job_position',
+          'Job Position'
+        ),
         backendSearch: createSearchHandler('position', uniquePositions)
       })
     } else {
       groups.push({
         id: 'position',
-        title: 'Position',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.summary_layout.public_profile_container.job_position',
+          'Job Position'
+        ),
         filters: uniquePositions.map(position => ({
           id: `position:${position}`,
           label: position,
@@ -113,17 +127,22 @@ export const useTeamReportFilters = (
       })
     }
 
-    // Location
     if (uniqueLocations.length > SEARCH_THRESHOLD) {
       groups.push({
         id: 'location',
-        title: 'Location',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.profile_icon_list.location_title',
+          'Location'
+        ),
         backendSearch: createSearchHandler('location', uniqueLocations)
       })
     } else {
       groups.push({
         id: 'location',
-        title: 'Location',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.profile_icon_list.location_title',
+          'Location'
+        ),
         filters: uniqueLocations.map(location => ({
           id: `location:${location}`,
           label: location,
@@ -132,17 +151,22 @@ export const useTeamReportFilters = (
       })
     }
 
-    // Employment Type
     if (uniqueEmploymentTypes.length > SEARCH_THRESHOLD) {
       groups.push({
         id: 'employmentType',
-        title: 'Employment Type',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.employement_layout.working_conditions_container.employment_type_input',
+          'Employment Type'
+        ),
         backendSearch: createSearchHandler('employmentType', uniqueEmploymentTypes)
       })
     } else {
       groups.push({
         id: 'employmentType',
-        title: 'Employment Type',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.employement_layout.working_conditions_container.employment_type_input',
+          'Employment Type'
+        ),
         filters: uniqueEmploymentTypes.map(type => ({
           id: `employmentType:${type}`,
           label: type,
@@ -151,17 +175,22 @@ export const useTeamReportFilters = (
       })
     }
 
-    // Contract Type
     if (uniqueContractTypes.length > SEARCH_THRESHOLD) {
       groups.push({
         id: 'contractType',
-        title: 'Contract Type',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.employement_layout.working_conditions_container.contract_type_input',
+          'Contract Type'
+        ),
         backendSearch: createSearchHandler('contractType', uniqueContractTypes)
       })
     } else {
       groups.push({
         id: 'contractType',
-        title: 'Contract Type',
+        title: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:employee_profile.employement_layout.working_conditions_container.contract_type_input',
+          'Contract Type'
+        ),
         filters: uniqueContractTypes.map(type => ({
           id: `contractType:${type}`,
           label: type,
@@ -190,31 +219,28 @@ export const useTeamReportFilters = (
       return { filters, loading: false, error: null }
     }
 
-    // Tenure
     groups.push({
       id: 'tenure',
-      title: 'Tenure',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:employee_profile.employement_layout.working_conditions_container.tenure_header',
+        'Tenure'
+      ),
       backendSearch: tenureSearchHandler
     })
-
-    // Status (Active/Inactive)
-    // groups.push({
-    //   id: 'exitStatus',
-    //   title: 'Status',
-    //   filters: [
-    //     { id: 'activeOnly', label: 'Active employees only', selected: selectedFilters.includes('activeOnly') },
-    //     { id: 'inactiveOnly', label: 'Inactive employees only', selected: selectedFilters.includes('inactiveOnly') },
-    //   ],
-    // });
 
     return groups
   }, [selectedFilters, uniquePositions, uniqueLocations, uniqueEmploymentTypes, uniqueContractTypes])
 
-  // Build the filter label map dynamically
   const filterLabelMap = useMemo(() => {
     const labelMap: Record<string, string> = {
-      activeOnly: 'Active employees only',
-      inactiveOnly: 'Inactive employees only'
+      activeOnly: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_report_filters.active_only',
+        'Active employees only'
+      ),
+      inactiveOnly: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:team_report_filters.inactive_only',
+        'Inactive employees only'
+      )
     }
 
     TENURE_OPTIONS.forEach(option => {
@@ -222,34 +248,35 @@ export const useTeamReportFilters = (
     })
 
     uniquePositions.forEach(position => {
-      labelMap[`position:${position}`] = `Position: ${position}`
+      labelMap[`position:${position}`] =
+        `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.summary_layout.public_profile_container.job_position', 'Job Position')}: ${position}`
     })
 
     uniqueLocations.forEach(location => {
-      labelMap[`location:${location}`] = `Location: ${location}`
+      labelMap[`location:${location}`] =
+        `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.profile_icon_list.location_title', 'Location')}: ${location}`
     })
 
     uniqueEmploymentTypes.forEach(type => {
-      labelMap[`employmentType:${type}`] = `Employment Type: ${type}`
+      labelMap[`employmentType:${type}`] =
+        `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employement_layout.working_conditions_container.employment_type_input', 'Employment Type')}: ${type}`
     })
 
     uniqueContractTypes.forEach(type => {
-      labelMap[`contractType:${type}`] = `Contract Type: ${type}`
+      labelMap[`contractType:${type}`] =
+        `${getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employement_layout.working_conditions_container.contract_type_input', 'Contract Type')}: ${type}`
     })
 
     return labelMap
   }, [uniquePositions, uniqueLocations, uniqueEmploymentTypes, uniqueContractTypes])
 
-  // Add filter with proper dependency handling
   const addFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => {
-      // Special handling for exit status (active/inactive)
-      if (EXIT_STATUS_OPTIONS.includes(filterId)) {
-        const withoutExitStatus = prev.filter(f => !EXIT_STATUS_OPTIONS.includes(f))
+      if (EXIT_STATUS_OPTIONS.has(filterId)) {
+        const withoutExitStatus = prev.filter(f => !EXIT_STATUS_OPTIONS.has(f))
         return [...withoutExitStatus, filterId]
       }
 
-      // For multi-select filters, just add if not already selected
       if (prev.includes(filterId)) {
         return prev
       } else {
@@ -258,23 +285,18 @@ export const useTeamReportFilters = (
     })
   }, [])
 
-  // Remove filter with proper dependency handling
   const removeFilter = useCallback((filterId: string) => {
     setSelectedFilters(prev => prev.filter(f => f !== filterId))
   }, [])
 
-  // Clear all filters
   const clearFilters = useCallback(() => {
     setSelectedFilters([])
     setSearch('')
   }, [])
 
-  // Convert UI filters to API filter format
   const getFilters = useCallback((): TeamReportFilter => {
-    // Map UI filter format to the expected API filter format
     const filter: TeamReportFilter = {}
 
-    // Extract filters by category
     const positionFilters = selectedFilters.filter(f => f.startsWith('position:')).map(f => f.replace('position:', ''))
 
     const locationFilters = selectedFilters.filter(f => f.startsWith('location:')).map(f => f.replace('location:', ''))
@@ -287,11 +309,10 @@ export const useTeamReportFilters = (
       .filter(f => f.startsWith('contractType:'))
       .map(f => f.replace('contractType:', ''))
 
-    const tenurePeriods = selectedFilters.filter(f => TENURE_OPTION_IDS.includes(f))
+    const tenurePeriods = selectedFilters.filter(f => TENURE_OPTION_IDS.has(f))
 
-    const exitStatus = selectedFilters.find(f => EXIT_STATUS_OPTIONS.includes(f))
+    const exitStatus = selectedFilters.find(f => EXIT_STATUS_OPTIONS.has(f))
 
-    // Apply filters to the filter object
     if (positionFilters.length > 0) {
       filter.position = positionFilters
     }

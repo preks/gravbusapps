@@ -253,14 +253,14 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                   ? undefined
                   : `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
               }
-              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+              // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
               contentType={employeeData.pictureThumbnail ? 'image' : 'initials'}
               alt={`${employeeData.firstName} ${employeeData.lastName}`}
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               size="xl"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               shape="circle"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               appearance="gradient"
               style={{ width: '100px', height: '100px', fontSize: '3rem' }}
             />

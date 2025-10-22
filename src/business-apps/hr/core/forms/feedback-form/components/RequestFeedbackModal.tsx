@@ -58,7 +58,6 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
 
   // Add null checks for businessAppContext
   if (!businessAppContext || !businessAppContext.accessToken) {
@@ -166,7 +165,6 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
   }
 
   const handleEmployeeSearch = (value: string) => {
-    setSearchTerm(value)
     fetchEmployees(value)
   }
 
@@ -216,7 +214,6 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
     if (isOpen) {
       setSelectedEmployeeId('')
       setError(null)
-      setSearchTerm('')
       fetchEmployees()
     }
   }, [isOpen])

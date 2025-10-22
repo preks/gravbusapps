@@ -25,7 +25,7 @@ export interface AccountHealthMatrixProps {
   moduleColor?: string
 }
 
-export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data, moduleColor = 'default' }) => {
+export const AccountHealthMatrix: React.FC<AccountHealthMatrixProps> = ({ data }) => {
   const opportunityRatio = data?.totalAccounts > 0 ? (data.accountsWithOpportunities / data.totalAccounts) * 100 : 0
   const avgOpportunitiesScore = data?.avgOpportunitiesPerAccount
     ? Math.min((data.avgOpportunitiesPerAccount / 5) * 100, 100)

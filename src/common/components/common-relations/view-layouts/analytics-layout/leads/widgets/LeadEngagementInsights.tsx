@@ -18,11 +18,9 @@ export interface LeadEngagementInsightsProps {
 
 export const LeadEngagementInsights: React.FC<LeadEngagementInsightsProps> = ({
   leadsByRating,
-  leadHealthIndicators,
   conversionRate,
   avgTimeToConversion,
-  leadsOverTime,
-  moduleColor = 'default'
+  leadsOverTime
 }) => {
   const engagementLevels = (leadsByRating || []).map((rating, index) => {
     const colors = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444'] // success, info, warn, danger
