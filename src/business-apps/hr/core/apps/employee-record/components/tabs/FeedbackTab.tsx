@@ -163,6 +163,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     filterTaskName: 'enterRequestedFeedback'
   })
 
+  console.log(feedbackTasks, 'feedbackTasks')
+
   // GraphQL: Feedback you requested (second column)
   const [requestedFeedback, setRequestedFeedback] = useState<FeedbackRequest[]>([])
   const [requestsLoadingApproval, setRequestsLoadingApproval] = useState<boolean>(false)
@@ -178,6 +180,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY, {
         idEmployee: employee.id
       })
+      console.log(res, 'res')
       const rows: any[] = res?.EmployeeFeedbackRequest || []
       const mapped: FeedbackRequest[] = rows.map((r: any, idx: number) => ({
         id: `${r.requesterEmployeeId || 'req'}-${r.createdAt || idx}`,
@@ -187,7 +190,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         taskTitle: 'Approve Feedback',
         feedbackText: r.message,
         creatorName: r?.requesterEmployee?.displayName || null,
-        creatorEmployeeId: r?.requesterEmployeeId || null
+        creatorEmployeeId: r?.requesterEmployee.id || null
       }))
       setRequestedFeedback(mapped)
     } catch (e: any) {
@@ -221,6 +224,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       taskTitle: t.referenceName || null,
       feedbackText: t?.inputs?.feedback?.feedback || null,
       creatorName: t?.creatorName || null,
+      creatorEmployeeId: t?.creatorUserId || null,
       endpoint: t?.endpoint || null,
       processInstanceId: t?.processInstanceId || null
     }))
@@ -468,6 +472,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         title={request.taskTitle || 'Enter Requested Employee Feedback'}
                         subtitle={request.feedbackText || undefined}
                         creatorName={request.creatorName || null}
+                        highlightCreatorName={false}
                         dateText={
                           request.requestedOn
                             ? getTranslationFromI18nKeyAndLabel(
@@ -484,7 +489,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         }))}
                         reviewerNames={request.reviewerNames || undefined}
                         rightAction={
-                          <div className="gba:cursor-pointer">
+                          <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                            <PiPencilSimple />
                             {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
                           </div>
                         }
@@ -551,6 +557,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                           : undefined
                       }
                       creatorName={request.creatorName || null}
+                      highlightCreatorName={true}
                       onCreatorClick={
                         request.creatorEmployeeId
                           ? () =>
