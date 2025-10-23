@@ -4,6 +4,7 @@ import usePermissionCheck, { ResourcePermissionMap } from '../../../../../../com
 export const TAB_KEYS = {
   summary: 'summary',
   details: 'details',
+  timeTracking: 'timeTracking',
   employment: 'employment',
   documents: 'documents',
   performance: 'performance',
@@ -141,6 +142,11 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
   [TAB_KEYS.feedback]: {
     domain: 'employee',
     resource: 'employee_document_development',
+    permission: 'read'
+  },
+  [TAB_KEYS.timeTracking]: {
+    domain: 'employee',
+    resource: 'employee_time',
     permission: 'read'
   },
   [TAB_KEYS.absences]: {
