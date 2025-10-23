@@ -31,13 +31,12 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     employee,
     employees,
     defaults,
-    existingWorkingMeta,
     selectedEmployeeId,
     setSelectedEmployeeId,
-    activeEmployeeId,
     isFixedEmployeeId,
     loading,
-    error
+    error,
+    buildSubmitPayload
   } = useChangeWorkingHoursContext()
 
   const form = useForm<WorkingHoursFormValues>({
@@ -53,7 +52,6 @@ export const ChangeWorkingHoursForm: React.FC = () => {
     mode: 'onChange'
   })
 
-  // Reset when defaults change
   useEffect(() => {
     if (defaults) {
       form.reset(defaults)
@@ -257,53 +255,11 @@ export const ChangeWorkingHoursForm: React.FC = () => {
         }
         data-testid="change-working-hours-form"
         onSubmit={async (values: WorkingHoursFormValues) => {
-          const idForSubmit = activeEmployeeId
-          const weeklySumVal = typeof weeklySum === 'number' ? weeklySum : 0
-          const workingDaysVal = typeof workingDays === 'number' ? workingDays : 0
-          const fteVal = typeof fte === 'number' ? fte : 0
-          const workingHours = existingWorkingMeta || {}
-
-          if ((workingHours as any)?.id !== undefined && (workingHours as any)?.version !== undefined) {
-            return {
-              employeeWorkingHours: {
-                id: (workingHours as any)?.id,
-                version: (workingHours as any)?.version,
-                employeeId: idForSubmit,
-                weeklyHours: weeklySumVal,
-                weeklyDays: workingDaysVal,
-                fullTimeWeeklyHours: 40,
-                fullTimeEquivalent: fteVal,
-                mondayHours: Number(values.mondayHours || 0),
-                tuesdayHours: Number(values.tuesdayHours || 0),
-                wednesdayHours: Number(values.wednesdayHours || 0),
-                thursdayHours: Number(values.thursdayHours || 0),
-                fridayHours: Number(values.fridayHours || 0),
-                saturdayHours: Number(values.saturdayHours || 0),
-                sundayHours: Number(values.sundayHours || 0),
-                remoteRef: (workingHours as any)?.remoteRef ? (workingHours as any)?.remoteRef : ''
-              },
-              event: 'pse_submit'
-            }
-          } else {
-            return {
-              employeeWorkingHours: {
-                employeeId: idForSubmit,
-                weeklyHours: weeklySumVal,
-                weeklyDays: workingDaysVal,
-                fullTimeWeeklyHours: 40,
-                fullTimeEquivalent: fteVal,
-                mondayHours: Number(values.mondayHours || 0),
-                tuesdayHours: Number(values.tuesdayHours || 0),
-                wednesdayHours: Number(values.wednesdayHours || 0),
-                thursdayHours: Number(values.thursdayHours || 0),
-                fridayHours: Number(values.fridayHours || 0),
-                saturdayHours: Number(values.saturdayHours || 0),
-                sundayHours: Number(values.sundayHours || 0),
-                remoteRef: (workingHours as any)?.remoteRef ? (workingHours as any)?.remoteRef : ''
-              },
-              event: 'pse_submit'
-            }
-          }
+          return buildSubmitPayload(values, {
+            weeklySum: typeof weeklySum === 'number' ? weeklySum : 0,
+            workingDays: typeof workingDays === 'number' ? workingDays : 0,
+            fte: typeof fte === 'number' ? fte : 0
+          })
         }}
       >
         <div className="gba:flex-1 gba:flex gba:flex-col gba:justify-between">
@@ -362,7 +318,10 @@ export const ChangeWorkingHoursForm: React.FC = () => {
               })}
             </div>
 
-            <div className="gba:mt-2 gba:flex gba:flex-col gba:gap-2" data-testid="working-hours-errors">
+            <div
+              className={`${firstDayErrorMessage ? 'gba:mt-2' : ''} gba:flex gba:flex-col gba:gap-2`}
+              data-testid="working-hours-errors"
+            >
               {firstDayErrorMessage ? (
                 <div
                   className="gba:text-destructive gba:text-sm"

@@ -17,6 +17,10 @@ export interface ChangeWorkingHoursContextState {
   loading: boolean
   error: string | null
   reload: () => Promise<void>
+  buildSubmitPayload: (
+    values: WorkingHoursFormValues,
+    derived: { weeklySum: number; workingDays: number; fte: number }
+  ) => any
 }
 
 const ChangeWorkingHoursContext = createContext<ChangeWorkingHoursContextState | undefined>(undefined)
@@ -123,6 +127,54 @@ export function ChangeWorkingHoursProvider({
     await loadEmployee()
   }, [loadEmployee])
 
+  const buildSubmitPayload = useCallback(
+    (values: WorkingHoursFormValues, derived: { weeklySum: number; workingDays: number; fte: number }) => {
+      const { weeklySum, workingDays, fte } = derived
+      const workingHours = existingWorkingMeta || {}
+      if ((workingHours as any)?.id !== undefined && (workingHours as any)?.version !== undefined) {
+        return {
+          employeeWorkingHours: {
+            id: (workingHours as any)?.id,
+            version: (workingHours as any)?.version,
+            employeeId: activeEmployeeId,
+            weeklyHours: weeklySum,
+            weeklyDays: workingDays,
+            fullTimeWeeklyHours: 40,
+            fullTimeEquivalent: fte,
+            mondayHours: Number(values.mondayHours || 0),
+            tuesdayHours: Number(values.tuesdayHours || 0),
+            wednesdayHours: Number(values.wednesdayHours || 0),
+            thursdayHours: Number(values.thursdayHours || 0),
+            fridayHours: Number(values.fridayHours || 0),
+            saturdayHours: Number(values.saturdayHours || 0),
+            sundayHours: Number(values.sundayHours || 0),
+            remoteRef: (workingHours as any)?.remoteRef ? (workingHours as any)?.remoteRef : ''
+          },
+          event: 'pse_submit'
+        }
+      }
+      return {
+        employeeWorkingHours: {
+          employeeId: activeEmployeeId,
+          weeklyHours: weeklySum,
+          weeklyDays: workingDays,
+          fullTimeWeeklyHours: 40,
+          fullTimeEquivalent: fte,
+          mondayHours: Number(values.mondayHours || 0),
+          tuesdayHours: Number(values.tuesdayHours || 0),
+          wednesdayHours: Number(values.wednesdayHours || 0),
+          thursdayHours: Number(values.thursdayHours || 0),
+          fridayHours: Number(values.fridayHours || 0),
+          saturdayHours: Number(values.saturdayHours || 0),
+          sundayHours: Number(values.sundayHours || 0),
+          remoteRef: (workingHours as any)?.remoteRef ? (workingHours as any)?.remoteRef : ''
+        },
+        event: 'pse_submit'
+      }
+    },
+    [existingWorkingMeta, activeEmployeeId]
+  )
+
   return (
     <ChangeWorkingHoursContext.Provider
       value={{
@@ -136,7 +188,8 @@ export function ChangeWorkingHoursProvider({
         isFixedEmployeeId,
         loading,
         error,
-        reload
+        reload,
+        buildSubmitPayload
       }}
     >
       {children}
