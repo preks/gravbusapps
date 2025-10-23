@@ -39,6 +39,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
   const { t } = useTranslation()
   const { isFormDisabled, expenseRuleError, isEditMode } = useExpensePlanItem()
 
+  console.log('🟡 ExpensePlanItemForm render:', { costCentersCount: costCenters.length, costCenters })
+
   const [formIsValid, setFormIsValid] = useState(false)
 
   return (

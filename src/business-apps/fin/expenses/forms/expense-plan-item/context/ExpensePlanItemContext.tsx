@@ -280,6 +280,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
    * Fetches and sets cost centers for structure
    */
   const fetchAndSetCostCenters = async (structureId: string, employeePosition: any[]): Promise<void> => {
+    console.log('🔵 fetchAndSetCostCenters called', { structureId, hasEmployeePosition: !!employeePosition })
     try {
       const costCenterData = await graphqlClient.query({
         query: getStructureCostCenter,
@@ -287,9 +288,11 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       })
 
       const userCostCenters = costCenterData?.data?.userCostCenters || []
+      console.log('🟢 setCostCenters called with:', { count: userCostCenters.length, centers: userCostCenters })
       setCostCenters(userCostCenters)
       setDefaultCostCenter(userCostCenters, employeePosition)
-    } catch {
+    } catch (error) {
+      console.log('🔴 fetchAndSetCostCenters error:', error)
       setCostCenters([])
     }
   }
