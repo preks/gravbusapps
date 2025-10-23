@@ -113,7 +113,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         title: 'Total Company Revenue',
         value: formatCurrency(totalRevenue, currencyCode),
         prefix: <PiCurrencyDollar />,
-        color: '#10b981',
+        color: 'hsl(var(--success))',
         description: `Across ${teamsData.length} selected teams`,
         valueIsString: true
       },
@@ -132,7 +132,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         title: 'Total Activities',
         value: totalActivities,
         prefix: <PiUsers />,
-        color: '#722ed1',
+        color: 'hsl(var(--accent))',
         description: 'All team activities combined'
       },
       {
@@ -140,7 +140,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
         title: 'Total Pipeline Value',
         value: formatCurrency(totalPipeline, currencyCode),
         prefix: <PiChartLine />,
-        color: '#ff9500',
+        color: 'hsl(var(--warning))',
         description: 'Company-wide pipeline',
         valueIsString: true
       }
@@ -180,17 +180,17 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
   const getMetricColor = (metric: ComparisonMetric): string => {
     switch (metric) {
       case 'revenue':
-        return '#10b981'
+        return 'hsl(var(--success))'
       case 'winRate':
         return '#1677ff'
       case 'activities':
-        return '#722ed1'
+        return 'hsl(var(--accent))'
       case 'pipeline':
-        return '#ff9500'
+        return 'hsl(var(--warning))'
       case 'efficiency':
         return '#f59e0b'
       default:
-        return '#10b981'
+        return 'hsl(var(--success))'
     }
   }
 
@@ -227,7 +227,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
     )
 
     return [
-      { name: 'Calls', value: totals.calls, color: '#10b981' },
+      { name: 'Calls', value: totals.calls, color: 'hsl(var(--success))' },
       { name: 'Emails', value: totals.emails, color: '#1677ff' },
       { name: 'Meetings', value: totals.meetings, color: '#f59e0b' },
       { name: 'Tasks', value: totals.tasks, color: '#ef4444' }
@@ -278,7 +278,10 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
   })
 
   return (
-    <div className="gba:bg-white gba:min-h-screen gba:p-6 gba:space-y-6" data-testid={DATA_TEST_ID_PREFIX}>
+    <div
+      className="gba:bg-hsl(var(--background)) gba:min-h-screen gba:p-6 gba:space-y-6"
+      data-testid={DATA_TEST_ID_PREFIX}
+    >
       {/* Header Section */}
       <div
         className="gba:bg-gradient-to-r gba:from-purple-50 gba:to-indigo-50 gba:rounded-lg gba:p-6"
@@ -414,7 +417,7 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                           return team?.fullName || label
                         }}
                       />
-                      <Bar dataKey="totalActivities" fill="#722ed1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="totalActivities" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -499,8 +502,14 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                           return team?.fullName || label
                         }}
                       />
-                      <Bar yAxisId="left" dataKey="totalActivities" fill="#722ed1" />
-                      <Line yAxisId="right" type="monotone" dataKey="efficiency" stroke="#10b981" strokeWidth={3} />
+                      <Bar yAxisId="left" dataKey="totalActivities" fill="hsl(var(--accent))" />
+                      <Line
+                        yAxisId="right"
+                        type="monotone"
+                        dataKey="efficiency"
+                        stroke="hsl(var(--success))"
+                        strokeWidth={3}
+                      />
                     </ComposedChart>
                   </ResponsiveContainer>
                 )}
@@ -543,8 +552,8 @@ export const CEOTeamComparisonDashboard: React.FC<CEOTeamComparisonDashboardProp
                       <Area
                         type="monotone"
                         dataKey="activitiesPerMember"
-                        stroke="#ff9500"
-                        fill="#ff9500"
+                        stroke="hsl(var(--warning))"
+                        fill="hsl(var(--warning))"
                         fillOpacity={0.3}
                       />
                     </AreaChart>

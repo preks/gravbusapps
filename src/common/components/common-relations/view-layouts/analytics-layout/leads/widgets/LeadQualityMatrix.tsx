@@ -17,7 +17,7 @@ export interface LeadQualityMatrixProps {
   moduleColor?: string
 }
 
-export const LeadQualityMatrix: React.FC<LeadQualityMatrixProps> = ({ data, moduleColor = 'default' }) => {
+export const LeadQualityMatrix: React.FC<LeadQualityMatrixProps> = ({ data }) => {
   const realQualityScore = data?.conversionRate ? Math.round(data.conversionRate * 2.5 + 25) : 25
 
   const sourceQualityInsights = (data?.leadsBySource || []).slice(0, 4).map(source => {

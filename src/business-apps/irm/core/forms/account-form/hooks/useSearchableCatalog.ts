@@ -37,7 +37,7 @@ export const useSearchableCatalog = ({ accessToken, catalogIdentifier, pageSize 
 
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const buildCatalogQuery = (search: string = '', offset: number = 0) =>
+  const buildCatalogQuery = (search: string = '') =>
     search.trim()
       ? `
         query GetCatalogEntries($catalogIdentifier: String!, $limit: Int, $offset: Int, $search: String) {

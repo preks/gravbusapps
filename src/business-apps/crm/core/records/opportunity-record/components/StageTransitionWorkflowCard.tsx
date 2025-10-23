@@ -206,7 +206,7 @@ export const StageTransitionWorkflowCard: React.FC<StageTransitionWorkflowCardPr
             <div key={condition.id} className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3">
               {/* Condition Header */}
               <div className="gba:flex gba:items-center gba:space-x-2 gba:mb-3">
-                <Tag color={conditionIndex === 0 ? 'blue' : 'gold'}>
+                <Tag variant={conditionIndex === 0 ? 'default' : 'warning'}>
                   {conditionIndex === 0 ? 'Default' : 'High-Value'}
                 </Tag>
                 <span className="gba:text-sm gba:font-medium gba:text-gray-900">{condition.description}</span>
@@ -216,7 +216,7 @@ export const StageTransitionWorkflowCard: React.FC<StageTransitionWorkflowCardPr
               <div className="gba:space-y-2 gba:ml-4">
                 {condition.conditions.map((task, taskIndex) => (
                   <div key={`${condition.id}-${taskIndex}`} className="gba:flex gba:items-start gba:space-x-2">
-                    <Tag color="green" className="gba:mt-0.5">
+                    <Tag variant="success" className="gba:mt-0.5">
                       {taskIndex + 1}
                     </Tag>
                     <div className="gba:flex gba:flex-col gba:flex-1">
@@ -251,7 +251,7 @@ export const StageTransitionWorkflowCard: React.FC<StageTransitionWorkflowCardPr
               {getTranslationFromI18nKeyAndLabel('crm:opportunity.workflow.cardTitle', 'Stage Transition Workflows')}
             </span>
             {isHighValueOpportunity && (
-              <Tag color="gold">
+              <Tag variant="warning">
                 {getTranslationFromI18nKeyAndLabel('crm:opportunity.workflow.highValue', 'High Value')}
               </Tag>
             )}

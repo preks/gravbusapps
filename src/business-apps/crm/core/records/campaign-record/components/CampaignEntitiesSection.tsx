@@ -21,7 +21,6 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = p
     entities,
     isLoading,
     error,
-    totalCount,
     currentPage,
     pageSize,
     search,
@@ -29,8 +28,7 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = p
     sortOrder,
     setSearch,
     setPage,
-    setSorting,
-    refetch
+    setSorting
   } = useCampaignEntities(props, campaignId)
 
   // Local filter state
@@ -136,7 +134,7 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = p
 
   // Handle pagination change
   const handlePaginationChange = useCallback(
-    (page: number, newPageSize?: number) => {
+    (page: number) => {
       setPage(page)
       // Note: pageSize changes would need to be implemented in the hook if needed
     },
@@ -156,7 +154,7 @@ export const CampaignEntitiesSection: React.FC<CampaignEntitiesSectionProps> = p
   )
 
   // Handle table change (for compatibility)
-  const handleTableChange = useCallback((pagination: any, filters: any, sorter: any) => {
+  const handleTableChange = useCallback(() => {
     // This is called by the table for various changes
   }, [])
 

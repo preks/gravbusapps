@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { Form } from 'antd'
-import { useTranslation } from 'react-i18next'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { showToast } from '../../../utils/notificationUtils'
@@ -177,7 +176,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
       const refreshedCurrencyId =
         response?.ExpensePlanByPk?.currency?.id || response?.ExpensePlanByPk?.currencyRef || null
       setCurrentCurrency(refreshedCurrencyId)
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_fetching_expense_data',
@@ -233,7 +232,7 @@ export const ExpensePlanWizardProvider: React.FC<ExpensePlanWizardProviderProps>
             'error'
           )
         }
-      } catch (error) {
+      } catch {
         setExpenseRuleError(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_request.error_employee_rule',

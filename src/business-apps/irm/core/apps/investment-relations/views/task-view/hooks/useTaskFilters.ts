@@ -57,7 +57,7 @@ export const useTaskFilters = (context: BusinessAppContextProps & { sourceApp?: 
       setTypes(res.types)
       setEmployees(res.assignees)
       setCounts(res.referenceCounts)
-    } catch (e) {
+    } catch {
       // non-fatal for filters
     }
   }, [fetchInvestmentTaskFilterValues])

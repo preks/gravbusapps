@@ -120,7 +120,7 @@ const convertUnicodeSymbol = (value: string): string => {
       const unicodeCode = trimmedValue.substring(2)
       const codePoint = parseInt(unicodeCode, 16)
       return String.fromCodePoint(codePoint)
-    } catch (error) {
+    } catch {
       // If conversion fails, return the original value
       return value
     }

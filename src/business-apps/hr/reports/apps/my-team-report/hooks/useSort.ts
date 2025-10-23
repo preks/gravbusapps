@@ -7,11 +7,6 @@ export interface UseSortReturn {
   handleSort: (key: keyof Employee) => void
 }
 
-/**
- * Custom hook to manage sorting state.
- * @param initialConfig The initial sorting configuration.
- * @returns An object with the current sort configuration and a handler function.
- */
 export const useSort = (initialConfig: SortConfig | null = null): UseSortReturn => {
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(initialConfig)
 

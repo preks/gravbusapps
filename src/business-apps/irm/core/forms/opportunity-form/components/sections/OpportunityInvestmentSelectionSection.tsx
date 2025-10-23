@@ -14,7 +14,6 @@ const OpportunityInvestmentSelectionSection: React.FC = () => {
     investmentGroupsLoading,
     investmentGroupsError,
     investmentGroupsHasMore,
-    searchInvestmentGroups,
     loadMoreInvestmentGroups,
     dependentInvestmentTypesLoading,
     dependentInvestmentTypesError

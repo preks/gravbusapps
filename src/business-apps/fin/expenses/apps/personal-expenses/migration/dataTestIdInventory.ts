@@ -84,7 +84,7 @@ export const validateDataTestIds = (component: string): boolean => {
 
   let allFound = true
 
-  Object.entries(componentTestIds).forEach(([key, value]) => {
+  Object.entries(componentTestIds).forEach(([, value]) => {
     if (typeof value === 'function') {
       // Skip function-based test IDs (they generate dynamic IDs)
       return

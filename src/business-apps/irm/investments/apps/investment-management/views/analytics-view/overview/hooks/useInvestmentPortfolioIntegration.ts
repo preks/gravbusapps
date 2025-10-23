@@ -156,14 +156,6 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     })
   }, [])
 
-  const calculateKPIs = useCallback((enhancedInvestments: EnhancedInvestmentSummary[]): InvestmentPortfolioKPIs => {
-    const totalPortfolioValue = enhancedInvestments.reduce((sum, inv) => sum + (inv.marketValue || 0), 0)
-    const totalInvestments = enhancedInvestments.length
-    const activeInvestments = enhancedInvestments.filter(inv => inv.isActive).length
-    const totalAmountInvested = enhancedInvestments.reduce((sum, inv) => sum + (inv.totalInvestmentAmount || 0), 0)
-    return { totalPortfolioValue, totalInvestments, totalAmountInvested, activeInvestments }
-  }, [])
-
   const loadData = useCallback(
     async (variables: InvestmentQueryVariables = {}) => {
       if (!context.accessToken) {

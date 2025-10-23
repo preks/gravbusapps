@@ -45,15 +45,7 @@ interface FormValues {
   notes: string
 }
 
-export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
-  visible,
-  onCancel,
-  onSuccess,
-  investments,
-  accounts,
-  contacts,
-  prefixDataTestId
-}) => {
+export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({ visible, onCancel, onSuccess, investments }) => {
   const [isUploading, setIsUploading] = useState(false)
   const [fileList, setFileList] = useState<any[]>([])
 
@@ -96,39 +88,6 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
     onCancel()
   }
 
-  const uploadProps = {
-    fileList,
-    beforeUpload: (file: any) => {
-      const isValidType = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'text/plain'
-      ].includes(file.type)
-
-      if (!isValidType) {
-        // TODO: Replace with proper toast notification
-        console.error('You can only upload PDF, Word, Excel, or text files!')
-        return false
-      }
-
-      const isValidSize = file.size / 1024 / 1024 < 10
-      if (!isValidSize) {
-        // TODO: Replace with proper toast notification
-        console.error('File must be smaller than 10MB!')
-        return false
-      }
-
-      setFileList([file])
-      return false // Prevent auto upload
-    },
-    onRemove: () => {
-      setFileList([])
-    }
-  }
-
   const reportScopeOptions = [
     { label: getTranslationFromI18nKeyAndLabel('filter.scope.daily', 'Daily'), value: 'DAILY' },
     { label: getTranslationFromI18nKeyAndLabel('filter.scope.weekly', 'Weekly'), value: 'WEEKLY' },
@@ -155,7 +114,7 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
               control={form.control}
               name="file"
               rules={{ required: 'Please select a file' }}
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
                   <FormLabel>{getTranslationFromI18nKeyAndLabel('report.upload.file', 'Report File')}</FormLabel>
                   <FormControl>
@@ -172,14 +131,14 @@ export const ReportUploadModal: React.FC<ReportUploadModalProps> = ({
                         console.log('File picker clicked')
                       }}
                     >
-                      <FolderOpen size={48} style={{ color: '#9ca3af', marginBottom: '16px' }} />
-                      <p style={{ margin: '8px 0', fontSize: '16px', fontWeight: '500' }}>
+                      <FolderOpen size={48} className="gba:text-muted-foreground gba:mb-4" />
+                      <p className="gba:my-2 gba:text-base gba:font-medium">
                         {getTranslationFromI18nKeyAndLabel(
                           'report.upload.dragText',
                           'Click or drag file to this area to upload'
                         )}
                       </p>
-                      <p style={{ margin: '8px 0', fontSize: '14px', color: '#6b7280' }}>
+                      <p className="gba:my-2 gba:text-sm gba:text-muted-foreground">
                         {getTranslationFromI18nKeyAndLabel(
                           'report.upload.hint',
                           'Support for PDF, Word, Excel, and text files. Max size: 10MB.'

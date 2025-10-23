@@ -228,8 +228,8 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   })
 
   // Global state
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [isLoading] = useState(false)
+  const [error] = useState<string | null>(null)
   const [addressLineCount, setAddressLineCount] = useState(1)
 
   // Parent account autocomplete state
@@ -239,18 +239,11 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   // Auto-selection tracking
   const autoSelectionDone = useRef(false)
 
-  // Catalog initialization tracking
-  const hasInitialized = useRef(false)
-
   // Account data hook for fetching existing account data
-  const { accountData, loading: accountDataLoading, error: accountDataError } = useAccountData(businessAppContext)
+  const { accountData } = useAccountData(businessAppContext)
 
   // Current user employee hook for auto-selection
-  const {
-    employee: currentUserEmployee,
-    loading: currentUserLoading,
-    error: currentUserError
-  } = useEmployeeById({
+  const { employee: currentUserEmployee } = useEmployeeById({
     accessToken: businessAppContext.accessToken,
     employeeId: businessAppContext.userInfo?.employeeDetails?.employeeId
   })
@@ -487,14 +480,6 @@ export const AccountFormProvider: React.FC<AccountFormProviderProps> = ({
   }, [employeePositionData, currentUserEmployee, accountData])
 
   // Use dynamic forms from catalog (same as lead form)
-  const legalForms: SelectOption[] = useMemo(() => {
-    return legalFormsHook.allOptions
-  }, [legalFormsHook.allOptions])
-
-  const industries: SelectOption[] = useMemo(() => {
-    return industriesHook.allOptions
-  }, [industriesHook.allOptions])
-
   const timeZones: SelectOption[] = useMemo(() => {
     return transformedTimeZones
   }, [transformedTimeZones])

@@ -1,4 +1,5 @@
 import { Employee } from '../hooks/useGetEmployeesReport'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface KpiCardData {
   key: string
@@ -13,91 +14,66 @@ export const generateKpiCards = (allEmployees: Employee[], averageTenureFormatte
   const internalEmployees = allEmployees.filter(e => e.employmentType === 'Internal')
   const externalEmployees = allEmployees.filter(e => e.employmentType === 'External')
   const contractWorkers = allEmployees.filter(e => e.employmentType === 'Contract worker')
-  const demoTestUsers = allEmployees.filter(e => e.employmentType === 'Demo' || e.employmentType === 'Test')
   const fullTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('full time'))
   const partTimeEmployees = allEmployees.filter(e => e.contractType?.toLowerCase().includes('part time'))
 
   const cards: KpiCardData[] = [
     {
       key: 'all',
-      label: 'Total',
-      subLabel: 'All members',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_management_hub_backoffice.total', 'Total'),
+      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.all_members', 'All members'),
       value: allEmployees.length,
       iconName: 'UserOutlined',
       shouldShow: true
     },
     {
       key: 'internal',
-      label: 'Internal',
-      subLabel: 'Employees',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:communication_form.internal', 'Internal'),
+      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_list_title', 'Employees'),
       value: internalEmployees.length,
       iconName: 'CheckOutlined',
       shouldShow: internalEmployees.length > 0
     },
     {
       key: 'external',
-      label: 'External',
-      subLabel: 'Workers',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.external', 'External'),
+      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.workers', 'Workers'),
       value: externalEmployees.length,
       iconName: 'CheckOutlined',
       shouldShow: externalEmployees.length > 0
     },
     {
       key: 'contract',
-      label: 'Contract',
-      subLabel: 'Contractors',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.contract', 'Contract'),
+      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.contractors', 'Contractors'),
       value: contractWorkers.length,
       iconName: 'SolutionOutlined',
       shouldShow: contractWorkers.length > 0
     },
     {
-      key: 'demo',
-      label: 'Demo/Test',
-      subLabel: 'Test users',
-      value: demoTestUsers.length,
-      iconName: 'CloseOutlined',
-      shouldShow: demoTestUsers.length > 0
-    },
-    {
       key: 'tenure',
-      label: 'Avg. Tenure',
-      subLabel: 'Years & Months',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.avg_tenure', 'Avg. Tenure'),
+      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.years_months', 'Years & Months'),
       value: averageTenureFormatted,
       iconName: 'CalendarOutlined',
       shouldShow: true
     },
     {
       key: 'fulltime',
-      label: 'Full-time',
-      subLabel: 'Employees',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.fulltime', 'Full-time'),
+      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_list_title', 'Employees'),
       value: fullTimeEmployees.length,
       iconName: 'IdcardOutlined',
       shouldShow: fullTimeEmployees.length > 0
     },
     {
       key: 'parttime',
-      label: 'Part-time',
-      subLabel: 'Employees',
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.parttime', 'Part-time'),
+      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.employee_list_title', 'Employees'),
       value: partTimeEmployees.length,
       iconName: 'CheckOutlined',
       shouldShow: partTimeEmployees.length > 0
     }
-    // {
-    //   key: 'active',
-    //   label: 'Active',
-    //   subLabel: 'Currently employed',
-    //   value: activeEmployees.length,
-    //   iconName: 'CheckOutlined',
-    //   shouldShow: activeEmployees.length > 0,
-    // },
-    // {
-    //   key: 'inactive',
-    //   label: 'Inactive',
-    //   subLabel: 'Former employees',
-    //   value: inactiveEmployees.length,
-    //   iconName: 'CloseOutlined',
-    //   shouldShow: inactiveEmployees.length > 0,
-    // },
   ]
 
   return cards.filter(card => card.shouldShow)
@@ -109,18 +85,12 @@ export const matchesKpi = (employee: Employee, activeKpi: string): boolean => {
       return true
     case 'tenure':
       return !!employee.startDate
-    // case 'active':
-    //   return !employee.exitDate;
-    // case 'inactive':
-    //   return !!employee.exitDate;
     case 'internal':
       return employee.employmentType === 'Internal'
     case 'external':
       return employee.employmentType === 'External'
     case 'contract':
       return employee.employmentType === 'Contract worker'
-    case 'demo':
-      return employee.employmentType === 'Demo' || employee.employmentType === 'Test'
     case 'fulltime':
       return !!employee.contractType?.toLowerCase().includes('full time')
     case 'parttime':

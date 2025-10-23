@@ -56,7 +56,7 @@ export const StartScreenComponent: React.FC<StartScreenComponentProps> = ({
       <div className="gba:flex-grow" data-testid="start-screen-spacer" />
       <div className="gba:flex gba:flex-col" style={{ width: '100%' }}>
         <Divider
-          color="#EFEFEF"
+          color="border"
           horizontal
           size={1}
           className="gba:mt-[30px] gba:mb-[30px]"

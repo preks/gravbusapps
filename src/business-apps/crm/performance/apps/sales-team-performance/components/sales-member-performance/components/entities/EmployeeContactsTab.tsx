@@ -21,10 +21,7 @@ export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({ employ
     getFilters,
     addFilter,
     removeFilter,
-    clearAllFilters,
-    createdAfter,
-    createdBefore,
-    handleDateRangeChange
+    clearAllFilters
   } = useContactFilters({ accessToken })
 
   // Pagination and sorting
@@ -64,7 +61,6 @@ export const EmployeeContactsTab: React.FC<EmployeeContactsTabProps> = ({ employ
   // Initial and reactive data loading
   useEffect(() => {
     loadPage(currentPage, pageSize, additionalFilters)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, accessToken, search, sortField, sortOrder, currentPage, pageSize, JSON.stringify(additionalFilters)])
 
   // Report total to parent

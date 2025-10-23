@@ -54,8 +54,8 @@ export const useAdvancePaymentCurrencies = (
       // Avoid duplicate load for the same identity (e.g., quick remounts)
       return
     }
-    lastLoadSignatureRef.current = signature
-    ;(async () => {
+    lastLoadSignatureRef.current = signature;
+    (async () => {
       try {
         setIsLoading(true)
         const data = await graphqlClient.request<any>(GET_USED_ADVANCE_PAYMENT_CURRENCIES, {
@@ -69,7 +69,7 @@ export const useAdvancePaymentCurrencies = (
         const stats = aggregateCurrencyStats(rows, { fallbackRef: DEFAULT_CURRENCY_REF, fallbackCode: 'EUR' })
         setCurrencyStats(stats as CurrencyStat[])
         preselectMostUsedOnce(stats as CurrencyStat[])
-      } catch (_e) {
+      } catch {
         // ignore
       } finally {
         setIsLoading(false)

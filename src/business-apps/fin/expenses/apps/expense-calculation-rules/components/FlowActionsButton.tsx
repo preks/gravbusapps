@@ -7,7 +7,6 @@ import {
   DropdownMenuItem
 } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel as t } from '@/common/utils/windowUtils'
-import { env } from '@/common/env/EnvUtils'
 import { LightningIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
@@ -28,8 +27,6 @@ interface FlowActionsButtonProps {
 }
 
 const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction, dataTestId }) => {
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-
   const visibleActions = React.useMemo(() => actions.filter(a => !a.hidden), [actions])
 
   const [open, setOpen] = React.useState(false)
@@ -40,7 +37,7 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
         <Button
           variant="secondary"
           className="gba:shadow-none gba:flex gba:items-center gba:justify-center gba:gap-2 gba:pl-3 gba:pr-3 gba:h-8 gba:w-[100px] gba:rounded-full gba:shadow-none gba:mb-5"
-          style={{ border: '2px solid #EFEFEF' }}
+          style={{ border: '2px solid border' }}
           data-testid={dataTestId ? `${dataTestId}-flows-button` : 'flows-button'}
           onMouseEnter={() => setOpen(true)}
         >
@@ -49,7 +46,7 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
             alt="flows"
             className="gba:w-4 gba:h-4"
           /> */}
-          <LightningIcon color={open ? '#6c7fee' : '#000000'} weight={open ? 'fill' : 'regular'}></LightningIcon>
+          <LightningIcon color={open ? '#6c7fee' : 'foreground'} weight={open ? 'fill' : 'regular'}></LightningIcon>
           <span className="gba:font-bold gba:text-xs">
             {t('lowcoder:employee_list.flows_button.actions', 'Actions')}
           </span>
@@ -65,13 +62,12 @@ const FlowActionsButton: React.FC<FlowActionsButtonProps> = ({ actions, onAction
         <div className="gba:py-1">
           {visibleActions.map((action, idx) => {
             const label = t(action.nameKey, action.nameFallback)
-            const iconUrl = action.iconRelative ? `${baseUrl}${action.iconRelative}` : ''
             return (
               <DropdownMenuItem
                 key={`${label}-${idx}`}
                 className={`gba:flex gba:items-center gba:gap-2 ${
                   action.disabled
-                    ? 'gba:cursor-default hover:gba:bg-white focus:gba:bg-white data-[highlighted]:gba:bg-white gba:text-black'
+                    ? 'gba:cursor-default gba:hover:bg-background gba:focus:bg-background gba:data-[highlighted]:bg-background gba:text-black'
                     : 'gba:cursor-pointer'
                 }`}
                 tabIndex={action.disabled ? -1 : 0}

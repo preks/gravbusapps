@@ -35,8 +35,7 @@ const InvestmentSection: React.FC<InvestmentSectionProps> = ({
   businessAppContext,
   isLoading = false,
   error = null,
-  className = '',
-  actionButtonProps: _actionButtonProps
+  className = ''
 }) => {
   if (isLoading) {
     return (

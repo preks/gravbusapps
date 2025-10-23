@@ -20,7 +20,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAccountsGraphQL } from '../../opportunity-form/hooks/useAccountsGraphQL'
 import { useCurrenciesGraphQL } from '../../opportunity-form/hooks/useCurrenciesGraphQL'
 import { usePipelineCatalogs } from '../../opportunity-form/hooks/usePipelineCatalogs'
-import { useOpportunityStatusCatalog } from '../../opportunity-form/hooks/useOpportunityStatusCatalog'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Define SelectOption interface for SearchableSelect
@@ -60,7 +59,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
   const [currentPipeline, setCurrentPipeline] = useState<string>('')
 
   // Hooks for opportunity data
-  const { pipelineOptions, pipelineStageOptions, refetchStages } = usePipelineCatalogs({ accessToken }, currentPipeline)
+  const { pipelineOptions, pipelineStageOptions } = usePipelineCatalogs({ accessToken }, currentPipeline)
 
   // Accounts hook for account selection
   const {
@@ -81,11 +80,6 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
     loadMore: loadMoreCurrencies,
     error: currenciesError
   } = useCurrenciesGraphQL({
-    accessToken
-  })
-
-  // Opportunity status hook
-  const { opportunityStatusOptions } = useOpportunityStatusCatalog({
     accessToken
   })
 
@@ -219,7 +213,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                   }}
                   data-testid="opportunity-pipeline-select"
                 >
-                  <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                  <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                     <SelectValue
                       placeholder={getTranslationFromI18nKeyAndLabel(
                         'crm:opportunity.selectPipeline',
@@ -263,7 +257,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                   }
                   data-testid="opportunity-sales-pipeline-stage-select"
                 >
-                  <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                  <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                     <SelectValue
                       placeholder={
                         !form.getFieldValue('opportunityPipeline')
@@ -418,7 +412,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                 }}
                 data-testid="opportunity-source-app-select"
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue
                     placeholder={getTranslationFromI18nKeyAndLabel(
                       'crm:opportunity.selectSourceApp',
@@ -428,7 +422,7 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
                 </SelectTrigger>
                 <SelectContent
                   position="popper"
-                  className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:z-50"
+                  className="gba:bg-hsl(var(--background)) gba:border gba:border-gray-300 gba:rounded-md gba:shadow-lg gba:z-50"
                 >
                   {/* CRM should be first/default option */}
                   <SelectItem value="CRM">CRM</SelectItem>
@@ -439,14 +433,14 @@ const OpportunitySection: React.FC<OpportunitySectionProps> = ({
           </div>
 
           {/* Owner Information Section */}
-          <div className="gba:bg-white gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:mt-4">
+          <div className="gba:bg-hsl(var(--background)) gba:p-4 gba:rounded-lg gba:border gba:border-gray-200 gba:mt-4">
             <h4
               className="gba:text-lg gba:font-bold gba:mb-3 gba:text-gray-900 gba:border-b gba:border-gray-400 gba:pb-2"
               style={{
                 fontWeight: '700 !important',
-                fontSize: '18px',
-                color: '#111827'
+                fontSize: '18px'
               }}
+              className="gba:text-foreground"
             >
               {getTranslationFromI18nKeyAndLabel('crm:opportunity.ownerInformation', 'Owner Information')}
             </h4>

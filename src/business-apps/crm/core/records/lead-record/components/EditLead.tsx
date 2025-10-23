@@ -7,7 +7,7 @@ interface EditLeadProps extends BusinessAppContextProps {
   onSave: (data: any) => void
 }
 
-const EditLead: React.FC<EditLeadProps> = ({ leadData, onCancel, onSave }) => {
+const EditLead: React.FC<EditLeadProps> = ({ onCancel }) => {
   return (
     <div className="gba:edit-lead-container" data-testid="edit-lead-container">
       <h2>Edit Lead</h2>

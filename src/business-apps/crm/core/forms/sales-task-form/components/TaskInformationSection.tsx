@@ -8,7 +8,7 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 const prefixDataTestId = 'SalesTaskForm-TaskInfo'
 
 const TaskInformationSection: React.FC = () => {
-  const { formValues, setFormValues, isUpdateMode, businessAppContext } = useSalesTaskFormContext()
+  const { formValues, setFormValues, businessAppContext } = useSalesTaskFormContext()
 
   const { userInfo } = businessAppContext
 

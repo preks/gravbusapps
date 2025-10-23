@@ -65,11 +65,7 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
             required
           />
           {showCalculationError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-calculation-error"
-            >
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-calculation-error">
               {errors.calculationType}
             </div>
           )}
@@ -98,11 +94,7 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
             required
           />
           {showCountryError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-country-error"
-            >
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-country-error">
               {errors.countryRefId}
             </div>
           )}
@@ -132,11 +124,7 @@ const SelectsSection: React.FC<SelectsSectionProps> = ({
             required
           />
           {showCurrencyError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-currency-error"
-            >
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-currency-error">
               {errors.currencyId}
             </div>
           )}
