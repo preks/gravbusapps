@@ -40,6 +40,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   const [currency, setCurrency] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [currencies, setCurrencies] = useState<any[]>([])
+  const [isLoadingCurrencies, setIsLoadingCurrencies] = useState<boolean>(false)
   const [amountError, setAmountError] = useState<string>('')
   const [paymentMethodError, setPaymentMethodError] = useState<string>('')
   const [advancePaymentError, setAdvancePaymentError] = useState<string>('')
@@ -545,7 +546,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                     handleCurrencyChange(value)
                   }}
                   required={true}
-                  disabled={isCurrencyDisabled}
+                  disabled={isCurrencyDisabled || isLoadingCurrencies}
                 />
               </Form.Item>
             </div>
