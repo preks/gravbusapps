@@ -20,6 +20,8 @@ export interface RequestCardProps {
   rightAction?: React.ReactNode
   dataTestIdPrefix: string
   onRightActionClick?: () => void
+  // When true, style creator name link with info color (used in second column)
+  highlightCreatorName?: boolean
 }
 
 const toAvatarSrc = (thumb?: string | null): string | undefined => {
@@ -48,7 +50,8 @@ export const RequestCard: React.FC<RequestCardProps> = ({
   reviewerNames,
   rightAction,
   dataTestIdPrefix,
-  onRightActionClick
+  onRightActionClick,
+  highlightCreatorName = false
 }) => {
   return (
     <Card
@@ -79,9 +82,10 @@ export const RequestCard: React.FC<RequestCardProps> = ({
           <div className="gba:flex gba:flex-col gba:gap-1">
             {creatorName ? (
               <button
-                className="gba:text-sm gba:text-gray-700 hover:gba:underline"
+                className={`gba:text-sm ${highlightCreatorName ? 'gba:text-info gba:hover:underline gba:underline-offset-2' : 'gba:text-primary'} gba:font-medium`}
                 data-testid={`${dataTestIdPrefix}-creator-${id}`}
                 onClick={onCreatorClick}
+                type="button"
               >
                 {creatorName}
               </button>

@@ -85,7 +85,7 @@ const AccountInformationSection: React.FC = () => {
             value={formValues.accountName}
             onChange={e => setFormValues({ accountName: e.target.value })}
             placeholder="Please Enter..."
-            className="gba:border-gray-300 gba:bg-white"
+            className="gba:border-gray-300 gba:bg-hsl(var(--background))"
             data-testid={formatDataTestId(prefixDataTestId, 'AccountNameInput')}
           />
         </div>

@@ -71,7 +71,11 @@ export const JobPositionList: React.FC<BusinessAppContextProps> = (props: Busine
       // Enable filters when user first interacts with them (lazy loading)
       enableFilters()
       // Use the appropriate function directly
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter, enableFilters]
   )

@@ -18,10 +18,7 @@ export interface DealSummaryProps {
   onDealClick?: (dealId: string) => void
 }
 
-export const DealSummary: React.FC<DealSummaryProps> = ({ deals, moduleColor = 'default', onDealClick }) => {
-  // Remove unused variable warning
-  const _ = moduleColor
-
+export const DealSummary: React.FC<DealSummaryProps> = ({ deals, onDealClick }) => {
   const handleDealClick = (dealId: string) => {
     onDealClick?.(dealId)
   }

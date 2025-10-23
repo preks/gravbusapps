@@ -75,7 +75,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
         userRole
       })
 
-      const response = await changeLogService.fetchChangeLogEntries(filters, 50, 0)
+      const response = await changeLogService.fetchChangeLogEntries(50)
 
       // 1) Collect createdBy ids
       const createdByIds = Array.from(
@@ -224,7 +224,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
         userRole
       })
 
-      const blob = await changeLogService.exportChangeLog(filters)
+      const blob = await changeLogService.exportChangeLog()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

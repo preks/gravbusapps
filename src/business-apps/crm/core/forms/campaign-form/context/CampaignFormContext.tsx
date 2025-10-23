@@ -108,14 +108,13 @@ export const CampaignFormProvider: React.FC<React.PropsWithChildren<ProviderProp
             description: item.description ?? ''
           })
         }
-      } catch (_) {
+      } catch {
         // ignore and keep defaults
       }
     })()
     return () => {
       isCancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessAppContext.accessToken, resolvedId])
 
   // Load campaign types from catalog (v2)

@@ -40,18 +40,8 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { catalogManagerClient } from '@/common/network/catalogs/CatalogManagerClient'
-import { CatalogEntry } from '@/common/types/CatalogTypes'
 
 // Note: Replaced Select with Combobox from design system
-
-// Custom debounce utility
-const debounce = (func: Function, delay: number) => {
-  let timeoutId: NodeJS.Timeout
-  return (...args: any[]) => {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => func.apply(null, args), delay)
-  }
-}
 
 export type ConvertLeadFormProps = BusinessAppContextProps
 
@@ -107,14 +97,6 @@ const LEAD_QUERY = `
 
 // Note: Removed opportunity search queries since we only create new opportunities
 
-interface AddressFormData {
-  addressLine: string
-  city: string
-  postalCode: string
-  countryRef: string
-  regionRef: string
-}
-
 export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
   const { accessToken, additionalData } = props
   const [form] = Form.useForm()
@@ -124,7 +106,6 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
   const [accountOption, setAccountOption] = useState('match')
   const [contactOption, setContactOption] = useState('match')
   const [createOpportunity, setCreateOpportunity] = useState(false)
-  const [accounts, setAccounts] = useState<any[]>([])
 
   const [selectedAccount, setSelectedAccount] = useState<string | undefined>(undefined)
   const [selectedAccountOwnerEmployee, setSelectedAccountOwnerEmployee] = useState<string | undefined>(undefined)
@@ -191,11 +172,6 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
   // Note: Employee search is now handled by useEmployeePositions hook
 
   // Catalog states
-  const [currencies, setCurrencies] = useState<CatalogEntry[]>([])
-  const [countries, setCountries] = useState<CatalogEntry[]>([])
-  const [regions, setRegions] = useState<CatalogEntry[]>([])
-  const [academicTitles, setAcademicTitles] = useState<CatalogEntry[]>([])
-
   const [catalogsLoading, setCatalogsLoading] = useState(true)
 
   const graphQLClient = useGraphqlClient(accessToken)
@@ -293,7 +269,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
           leadId: leadId
         })
         setLeadData(data?.Lead?.[0] || null)
-      } catch (e) {
+      } catch {
         setLeadData(null)
       } finally {
         setLoading(false)
@@ -343,19 +319,6 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
       postalCode: address.postalCode || null,
       countryRef: address.countryRef || null,
       regionRef: address.regionRef || null
-    }
-  }
-
-  // Enhanced address format function for accounts with multiple address lines and region
-  const formatEnhancedAddress = (address: any) => {
-    if (!address) return null
-    return {
-      addressLine: address.addressLine || null,
-      addressLine2: address.addressLine2 || null,
-      city: address.city || null,
-      postalCode: address.postalCode || null,
-      countryRef: address.countryRef || null,
-      region: address.region || null // Use region instead of regionRef for text input
     }
   }
 
@@ -466,6 +429,7 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
     dispatchProcessContinueEvent('pse_pause', {})
   }
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const renderAddressForm = (prefix: string, label: string) => (
     <div className="gba:mb-4">
       <h5 className="gba:text-lg gba:font-semibold gba:mb-3 gba:text-gray-900">{label}</h5>
@@ -619,7 +583,10 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
   }
 
   return (
-    <div className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md" data-testid="convert-lead-form-container">
+    <div
+      className="gba:p-6 gba:bg-hsl(var(--background)) gba:rounded-lg gba:shadow-md"
+      data-testid="convert-lead-form-container"
+    >
       <Form
         form={form}
         layout="vertical"
@@ -639,9 +606,9 @@ export const ConvertLeadForm: React.FC<ConvertLeadFormProps> = props => {
             fontWeight: '900',
             lineHeight: '1.2',
             marginBottom: '1.5rem',
-            textAlign: 'center',
-            color: '#111827'
+            textAlign: 'center'
           }}
+          className="gba:text-foreground"
         >
           {getTranslationFromI18nKeyAndLabel('crm:convertLead.title', 'Convert Lead')}
         </h1>

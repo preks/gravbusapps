@@ -167,7 +167,12 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
             <ComposedChart data={investmentPerformanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 12 }}
+                tickFormatter={value => formatCompactNumber(value, 1)}
+              />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -272,7 +277,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           >
             <ComposedChart data={valueTrendsData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={value => dayjs(value).format('MMM YY')} />
-              <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => formatCompactNumber(value, 1)} />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {

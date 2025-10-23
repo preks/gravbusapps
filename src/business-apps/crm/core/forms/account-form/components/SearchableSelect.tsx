@@ -213,7 +213,7 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
                   onKeyDown={handleSearchKeyDown}
                   onClick={handleSearchClick}
                   placeholder="Search..."
-                  className="gba:border-gray-300 gba:bg-white gba:text-sm"
+                  className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:text-sm"
                   style={{
                     paddingLeft: '28px'
                   }}

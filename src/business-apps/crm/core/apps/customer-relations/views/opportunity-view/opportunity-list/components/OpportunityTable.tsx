@@ -50,11 +50,6 @@ const DATA_TEST_ID_PREFIX = 'OpportunityTable'
 const OpportunityTable: React.FC<OpportunityTableProps> = ({
   data,
   loading,
-  error,
-  hasMore,
-  loadMore,
-  loadPage,
-  retry,
   total,
   currentPage,
   pageSize,
@@ -70,16 +65,6 @@ const OpportunityTable: React.FC<OpportunityTableProps> = ({
 }) => {
   // Helper function to check if a column is visible
   const isColumnVisible = (columnId: string) => visibleColumns.includes(columnId)
-
-  const formatCurrency = (amount: number | undefined, currency?: string): string => {
-    if (!amount) return '$0'
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency || 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
 
   const formatDate = (dateString?: string): string => {
     if (!dateString) return '-'

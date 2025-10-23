@@ -44,7 +44,11 @@ export const EmployeeList: React.FC<BusinessAppContextProps> = (props: BusinessA
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       // Use the appropriate function directly
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )

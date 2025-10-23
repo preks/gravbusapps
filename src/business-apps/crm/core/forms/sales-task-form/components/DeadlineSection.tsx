@@ -13,20 +13,13 @@ const DeadlineSection: React.FC = () => {
   const { formValues, setFormValues } = useSalesTaskFormContext()
 
   return (
-    <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
+    <div className="gba:bg-hsl(var(--background)) gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-yellow-200 gba:to-amber-200 gba:hover:from-yellow-300 gba:hover:to-amber-300 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
+        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-warning-secondary gba:to-warning gba:hover:from-warning gba:hover:to-warning gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
         style={{
-          background: 'linear-gradient(to right, #fef3c7, #fde68a)',
           transition: 'background 0.2s ease'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fcd34d, #f59e0b)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fef3c7, #fde68a)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'Toggle')}
       >

@@ -88,7 +88,7 @@ export const useExpenseRequestFileService = (props: BusinessAppContextProps) => 
           success: true,
           pdfUrl: objectUrl
         }
-      } catch (error) {
+      } catch {
         return {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error occurred'

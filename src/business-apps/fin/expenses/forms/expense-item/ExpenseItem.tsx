@@ -119,7 +119,7 @@ const ExpenseItem: React.FC<BusinessAppContextProps & ExpenseItemProps> = ({
           // The hideExpenseItem function in ExpenseRequestWizardContext will handle the refetch
           onClose(true)
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_summary_request.no_expense_items',

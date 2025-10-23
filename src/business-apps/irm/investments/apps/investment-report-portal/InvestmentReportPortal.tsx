@@ -40,7 +40,7 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
     status: 'ALL' as 'ALL' | string
   })
 
-  const { reports, investments, accounts, contacts, isLoading, error, refetch } = useInvestmentReportPortalIntegration({
+  const { reports, investments, isLoading, error, refetch } = useInvestmentReportPortalIntegration({
     accessToken,
     userInfo,
     additionalData
@@ -48,7 +48,7 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
 
   // Filter investments to only show those relevant to the external user
   // This would be based on the user's company/account association
-  const userRelevantInvestments = investments.filter(investment => {
+  const userRelevantInvestments = investments.filter(() => {
     // TODO: Implement proper filtering based on user's company association
     // For now, show all investments - this should be filtered by the user's company
     return true
@@ -135,12 +135,11 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
     <div data-testid={formatDataTestId(prefixDataTestId, 'Container')}>
       {/* Welcome Header */}
       <div
+        className="gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:text-primary-foreground"
         style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: '12px',
           padding: '32px',
-          marginBottom: '32px',
-          color: 'white'
+          marginBottom: '32px'
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -158,12 +157,11 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
               <Button
                 data-testid={formatDataTestId(prefixDataTestId, 'UploadButton')}
                 onClick={handleUploadReport}
+                className="gba:bg-background gba:text-primary"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  backgroundColor: 'white',
-                  color: '#667eea',
                   border: 'none'
                 }}
               >
@@ -174,12 +172,11 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
                 data-testid={formatDataTestId(prefixDataTestId, 'CreateButton')}
                 onClick={handleCreateReport}
                 variant="ai"
+                className="gba:border-primary-foreground gba:text-primary-foreground"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
-                  borderColor: 'white',
-                  color: 'white'
+                  gap: '8px'
                 }}
               >
                 <Plus size={16} />
@@ -208,13 +205,15 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
         <Card>
           <CardContent style={{ padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <FileText size={20} style={{ color: '#3f8600' }} />
+              <FileText size={20} className="gba:text-success" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
                 {getTranslationFromI18nKeyAndLabel('dashboard.totalReports', 'Total Reports')}
               </h3>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#3f8600' }}>{userRelevantReports.length}</div>
-            <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '13px' }}>
+            <div className="gba:text-success" style={{ fontSize: '28px', fontWeight: '700' }}>
+              {userRelevantReports.length}
+            </div>
+            <p className="gba:text-muted-foreground" style={{ margin: '4px 0 0 0', fontSize: '13px' }}>
               {getTranslationFromI18nKeyAndLabel('dashboard.reportsDescription', 'Reports submitted to date')}
             </p>
           </CardContent>
@@ -223,12 +222,12 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
         <Card>
           <CardContent style={{ padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <Calendar size={20} style={{ color: '#1890ff' }} />
+              <Calendar size={20} className="gba:text-primary" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
                 {getTranslationFromI18nKeyAndLabel('dashboard.recentReports', 'Recent Reports')}
               </h3>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1890ff' }}>
+            <div className="gba:text-primary" style={{ fontSize: '28px', fontWeight: '700' }}>
               {
                 userRelevantReports.filter(r => {
                   if (!r.date) return false
@@ -239,7 +238,7 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
                 }).length
               }
             </div>
-            <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '13px' }}>
+            <p className="gba:text-muted-foreground" style={{ margin: '4px 0 0 0', fontSize: '13px' }}>
               {getTranslationFromI18nKeyAndLabel('dashboard.recentDescription', 'Last 30 days')}
             </p>
           </CardContent>
@@ -248,12 +247,12 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
         <Card>
           <CardContent style={{ padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <TrendUp size={20} style={{ color: '#722ed1' }} />
+              <TrendUp size={20} className="gba:text-accent" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
                 {getTranslationFromI18nKeyAndLabel('dashboard.avgReturn', 'Avg. Return')}
               </h3>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#722ed1' }}>
+            <div className="gba:text-accent" style={{ fontSize: '28px', fontWeight: '700' }}>
               {userRelevantReports.length > 0
                 ? `${(
                     userRelevantReports.reduce((sum, r) => {
@@ -267,7 +266,7 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
                   ).toFixed(1)}%`
                 : '0.0%'}
             </div>
-            <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '13px' }}>
+            <p className="gba:text-muted-foreground" style={{ margin: '4px 0 0 0', fontSize: '13px' }}>
               {getTranslationFromI18nKeyAndLabel('dashboard.returnDescription', 'Average across all reports')}
             </p>
           </CardContent>
@@ -276,15 +275,15 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
         <Card>
           <CardContent style={{ padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-              <CurrencyDollar size={20} style={{ color: '#fa8c16' }} />
+              <CurrencyDollar size={20} className="gba:text-warning" />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
                 {getTranslationFromI18nKeyAndLabel('dashboard.totalValue', 'Total Value')}
               </h3>
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#fa8c16' }}>
+            <div className="gba:text-warning" style={{ fontSize: '28px', fontWeight: '700' }}>
               ${(userRelevantReports.reduce((sum, r) => sum + (r.investmentMarketValue || 0), 0) / 1000000).toFixed(1)}M
             </div>
-            <p style={{ margin: '4px 0 0 0', color: '#6b7280', fontSize: '13px' }}>
+            <p className="gba:text-muted-foreground" style={{ margin: '4px 0 0 0', fontSize: '13px' }}>
               {getTranslationFromI18nKeyAndLabel('dashboard.valueDescription', 'Current market value')}
             </p>
           </CardContent>
@@ -346,11 +345,11 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
                   </Button>
                 </div>
 
-                <div style={{ marginTop: '24px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <div className="gba:bg-muted" style={{ marginTop: '24px', padding: '16px', borderRadius: '8px' }}>
                   <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>
                     {getTranslationFromI18nKeyAndLabel('dashboard.helpTitle', 'Need Help?')}
                   </h4>
-                  <p style={{ margin: '0', fontSize: '13px', color: '#6b7280' }}>
+                  <p className="gba:text-muted-foreground" style={{ margin: '0', fontSize: '13px' }}>
                     {getTranslationFromI18nKeyAndLabel(
                       'dashboard.helpText',
                       'Contact your investment manager for assistance with report submissions.'
@@ -421,15 +420,15 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
                       </div>
 
                       <div style={{ marginBottom: '16px' }}>
-                        <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#6b7280' }}>
+                        <p className="gba:text-muted-foreground" style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
                           {getTranslationFromI18nKeyAndLabel('investment.code', 'Code')}: {investment.code || 'N/A'}
                         </p>
-                        <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#6b7280' }}>
+                        <p className="gba:text-muted-foreground" style={{ margin: '0 0 8px 0', fontSize: '14px' }}>
                           {getTranslationFromI18nKeyAndLabel('investment.status', 'Status')}:{' '}
                           {investment.investmentStatus?.value || 'Active'}
                         </p>
                         {investment.totalInvestmentAmount && (
-                          <p style={{ margin: '0', fontSize: '14px', color: '#6b7280' }}>
+                          <p className="gba:text-muted-foreground" style={{ margin: '0', fontSize: '14px' }}>
                             {getTranslationFromI18nKeyAndLabel('investment.amount', 'Amount')}: $
                             {(investment.totalInvestmentAmount / 1000000).toFixed(1)}M
                           </p>
@@ -450,7 +449,7 @@ export const InvestmentReportPortal: React.FC<InvestmentReportPortalProps> = ({
               </div>
 
               {userRelevantInvestments.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                <div className="gba:text-muted-foreground" style={{ textAlign: 'center', padding: '40px' }}>
                   <Building size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
                   <p>
                     {getTranslationFromI18nKeyAndLabel(

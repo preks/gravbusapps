@@ -72,7 +72,10 @@ const MarkAsLostFormComponent: React.FC = () => {
   }
 
   return (
-    <div className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md" data-testid="mark-as-lost-form-container">
+    <div
+      className="gba:p-6 gba:bg-hsl(var(--background)) gba:rounded-lg gba:shadow-md"
+      data-testid="mark-as-lost-form-container"
+    >
       <Form form={form} layout="vertical" onFinish={handleSubmit} data-testid="mark-as-lost-form">
         <Title level={3} className="gba:!font-bold gba:mb-6 gba:text-center gba:!text-[24px]">
           {getTranslationFromI18nKeyAndLabel('crm:markLeadAsLost.title', 'Mark Lead as Lost')}

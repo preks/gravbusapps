@@ -573,7 +573,7 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
                         height="14"
                         className="gba:w-[120px] gba:h-[14px]"
                       />
-                      <span className="gba:text-xs gba:text-[#666]">v{packageVersion}</span>
+                      <span className="gba:text-xs gba:text-muted-foreground">v{packageVersion}</span>
                     </a>
                   </div>
 

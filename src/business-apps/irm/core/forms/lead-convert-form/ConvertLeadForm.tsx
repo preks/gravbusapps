@@ -35,7 +35,6 @@ export const ConvertInvestmentLeadForm = ({
   accessToken,
   userInfo,
   additionalData,
-  onCancel: _onCancel, // Renamed to avoid unused warning
   onSuccess
 }: ConvertInvestmentLeadFormProps) => {
   // React Hook Form setup

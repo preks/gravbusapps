@@ -231,9 +231,9 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                       variant="outline"
                       style={{
                         backgroundColor: getColorForAbsence(record),
-                        color: 'white',
                         borderColor: getColorForAbsence(record)
                       }}
+                      className="gba:text-white"
                     >
                       {record.groupName}
                     </Badge>

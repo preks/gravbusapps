@@ -136,9 +136,7 @@ export const useSalesData = (params: UseSalesDataParams): UseSalesDataReturn => 
           const transformedOpportunities = wonOpportunities.map(transformSoldOpportunityData)
           setSoldOpportunities(transformedOpportunities)
 
-          // Use the total count from aggregation but only count WON opportunities
-          const aggregateCount = result.InvestmentOpportunityAggregate?.aggregate?.count || 0
-          // For now, use the filtered count since we don't have a way to pre-filter by status in the API
+          // Use the filtered count since we filter by WON status
           const totalCount = wonOpportunities.length
           setTotal(totalCount)
           setHasMore(page * pageSize < totalCount)

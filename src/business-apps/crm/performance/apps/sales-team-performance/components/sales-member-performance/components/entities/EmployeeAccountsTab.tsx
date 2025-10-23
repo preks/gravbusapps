@@ -21,10 +21,7 @@ export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({ employ
     getFilters,
     addFilter,
     removeFilter,
-    clearAllFilters,
-    createdAfter,
-    createdBefore,
-    handleDateRangeChange
+    clearAllFilters
   } = useAccountFilters({ accessToken })
 
   // Pagination and sorting
@@ -61,7 +58,6 @@ export const EmployeeAccountsTab: React.FC<EmployeeAccountsTabProps> = ({ employ
   // Initial and reactive data loading
   useEffect(() => {
     loadPage(currentPage, pageSize, additionalFilters)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     employeeId,
     accessToken,

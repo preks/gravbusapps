@@ -368,7 +368,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       {/* Spacer to push content to the bottom */}
       <div className="gba:flex-grow" data-testid="expense-item-spacer" />
 
-      <Divider color="#EFEFEF" horizontal size={1} className="gba:mt-[30px] gba:mb-[30px]" data-testid="form-divider" />
+      <Divider color="border" horizontal size={1} className="gba:mt-[30px] gba:mb-[30px]" data-testid="form-divider" />
       <div
         className="gba:flex gba:justify-between gba:py-4"
         style={{ width: '100%' }}

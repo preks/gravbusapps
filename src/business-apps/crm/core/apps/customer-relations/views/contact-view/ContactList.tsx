@@ -298,7 +298,11 @@ const ContactList: React.FC<ContactListProps> = context => {
         dataFilterProps={{
           filterGroups: visibleFilterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
-            selected ? contactFilters.addFilter(filterId) : contactFilters.removeFilter(filterId)
+            if (selected) {
+              contactFilters.addFilter(filterId)
+            } else {
+              contactFilters.removeFilter(filterId)
+            }
           }
         }}
         dataBody={

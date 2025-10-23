@@ -29,53 +29,44 @@ const CompanyInformationSection: React.FC = () => {
   const {
     formValues,
     setFormValues,
-    isLoading,
 
     // Legal Forms
     legalForms,
     legalFormsLoading,
-    legalFormsError,
     legalFormsHasMore,
     legalFormsNeedsMoreData,
     legalFormsDisplayCount,
     legalFormsTotalFetched,
-    searchLegalForms,
     loadMoreLegalForms,
     showMoreLegalForms,
 
     // Industries
     industries,
     industriesLoading,
-    industriesError,
     industriesHasMore,
     industriesNeedsMoreData,
     industriesDisplayCount,
     industriesTotalFetched,
-    searchIndustries,
     loadMoreIndustries,
     showMoreIndustries,
 
     // Employee Sizes
     employeeSizes,
     employeeSizesLoading,
-    employeeSizesError,
     employeeSizesHasMore,
     employeeSizesNeedsMoreData,
     employeeSizesDisplayCount,
     employeeSizesTotalFetched,
-    searchEmployeeSizes,
     loadMoreEmployeeSizes,
     showMoreEmployeeSizes,
 
     // Revenue Sizes
     revenueSizes,
     revenueSizesLoading,
-    revenueSizesError,
     revenueSizesHasMore,
     revenueSizesNeedsMoreData,
     revenueSizesDisplayCount,
     revenueSizesTotalFetched,
-    searchRevenueSizes,
     loadMoreRevenueSizes,
     showMoreRevenueSizes
   } = useLeadFormContext()
@@ -233,9 +224,8 @@ const CompanyInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-accent-secondary gba:to-accent"
         style={{
-          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -246,12 +236,6 @@ const CompanyInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #c4b5fd, #a78bfa)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #ddd6fe, #c4b5fd)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'CompanyInfoToggle')}
       >
@@ -270,7 +254,7 @@ const CompanyInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -291,7 +275,7 @@ const CompanyInformationSection: React.FC = () => {
                 onOpenChange={setIsLegalFormOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'LegalFormSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -335,7 +319,7 @@ const CompanyInformationSection: React.FC = () => {
                 onOpenChange={setIsIndustryOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'IndustrySelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -373,22 +357,20 @@ const CompanyInformationSection: React.FC = () => {
 
           {/* Collapsible Additional Information */}
           <Card
-            className="gba:border-0 gba:shadow-none gba:bg-white"
+            className="gba:border-0 gba:shadow-none gba:bg-background"
             style={{
               border: '0',
               borderWidth: '0',
               borderStyle: 'none',
               borderColor: 'transparent',
-              boxShadow: 'none',
-              background: 'white'
+              boxShadow: 'none'
             }}
           >
             <Button
               variant="ghost"
               onClick={() => setIsAdditionalInfoExpanded(!isAdditionalInfoExpanded)}
-              className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+              className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-muted gba:to-muted"
               style={{
-                background: 'linear-gradient(to right, #f3f4f6, #e5e7eb)',
                 transition: 'all 0.3s ease',
                 border: '0',
                 borderWidth: '0',
@@ -399,12 +381,6 @@ const CompanyInformationSection: React.FC = () => {
                 outlineStyle: 'none',
                 boxShadow: 'none',
                 borderRadius: '12px'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'linear-gradient(to right, #e5e7eb, #d1d5db)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'linear-gradient(to right, #f3f4f6, #e5e7eb)'
               }}
               data-testid={formatDataTestId(prefixDataTestId, 'AdditionalInfoToggle')}
             >
@@ -423,14 +399,13 @@ const CompanyInformationSection: React.FC = () => {
 
             {isAdditionalInfoExpanded && (
               <CardContent
-                className="gba:space-y-4 gba:bg-white gba:border-0 gba:p-3"
+                className="gba:space-y-4 gba:bg-background gba:border-0 gba:p-3"
                 style={{
                   border: '0',
                   borderWidth: '0',
                   borderStyle: 'none',
                   borderColor: 'transparent',
-                  padding: '12px',
-                  background: 'white'
+                  padding: '12px'
                 }}
               >
                 {/* Website */}
@@ -441,7 +416,7 @@ const CompanyInformationSection: React.FC = () => {
                     value={typeof formValues.website === 'string' ? formValues.website : ''}
                     onChange={e => setFormValues({ website: e.target.value })}
                     placeholder="Please Enter..."
-                    className="gba:border-gray-300 gba:bg-white"
+                    className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                     data-testid={formatDataTestId(prefixDataTestId, 'WebsiteInput')}
                   />
                 </div>
@@ -458,7 +433,7 @@ const CompanyInformationSection: React.FC = () => {
                       value={typeof formValues.companyEmail === 'string' ? formValues.companyEmail : ''}
                       onChange={e => setFormValues({ companyEmail: e.target.value })}
                       placeholder="Please Enter..."
-                      className="gba:pl-8 gba:border-gray-300 gba:bg-white"
+                      className="gba:pl-8 gba:border-gray-300 gba:bg-hsl(var(--background))"
                       style={{
                         borderColor: companyEmailError ? '#ef4444' : '#d1d5db',
                         paddingLeft: '32px'
@@ -481,7 +456,7 @@ const CompanyInformationSection: React.FC = () => {
                       value={typeof formValues.companyPhone === 'string' ? formValues.companyPhone : ''}
                       onChange={e => setFormValues({ companyPhone: e.target.value })}
                       placeholder="Please Enter..."
-                      className="gba:pl-8 gba:border-gray-300 gba:bg-white"
+                      className="gba:pl-8 gba:border-gray-300 gba:bg-hsl(var(--background))"
                       style={{
                         borderColor: companyPhoneError ? '#ef4444' : '#d1d5db',
                         paddingLeft: '32px'
@@ -501,7 +476,7 @@ const CompanyInformationSection: React.FC = () => {
                     onOpenChange={setIsEmployeeSizeOpen}
                     data-testid={formatDataTestId(prefixDataTestId, 'NumberOfEmployeesSelect')}
                   >
-                    <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                    <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                       <SelectValue placeholder="Please Select..." />
                     </SelectTrigger>
                     <SelectContent
@@ -549,7 +524,7 @@ const CompanyInformationSection: React.FC = () => {
                     onOpenChange={setIsRevenueSizeOpen}
                     data-testid={formatDataTestId(prefixDataTestId, 'AnnualRevenueSelect')}
                   >
-                    <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                    <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                       <SelectValue placeholder="Please Select..." />
                     </SelectTrigger>
                     <SelectContent

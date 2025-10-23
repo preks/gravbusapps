@@ -39,7 +39,6 @@ interface TeamActivitiesCalendarProps extends BusinessAppContextProps {
 }
 
 export const TeamActivitiesCalendar: React.FC<TeamActivitiesCalendarProps> = ({
-  teamId: _teamId,
   teamMembers,
   accessToken,
   userInfo
@@ -279,7 +278,7 @@ export const TeamActivitiesCalendar: React.FC<TeamActivitiesCalendarProps> = ({
                   key={index}
                   className={`
                     gba:min-h-28 gba:p-2 gba:border gba:border-gray-200 gba:rounded-sm
-                    ${day.isCurrentMonth ? 'gba:bg-white' : 'gba:bg-gray-50'}
+                    ${day.isCurrentMonth ? 'gba:bg-hsl(var(--background))' : 'gba:bg-gray-50'}
                     ${day.isToday ? 'gba:ring-2 gba:ring-blue-500' : ''}
                   `}
                   data-testid={`${DATA_TEST_ID_PREFIX}-day-${day.date.format('YYYY-MM-DD')}`}
@@ -310,7 +309,7 @@ export const TeamActivitiesCalendar: React.FC<TeamActivitiesCalendarProps> = ({
                         <Tooltip key={activity.id}>
                           <TooltipTrigger asChild>
                             <div
-                              className={`gba:px-1 gba:py-0.5 gba:rounded gba:text-xs gba:text-white gba:flex gba:items-center gba:gap-1 gba:truncate gba:cursor-pointer ${
+                              className={`gba:px-1 gba:py-0.5 gba:rounded gba:text-xs gba:text-hsl(var(--background)) gba:flex gba:items-center gba:gap-1 gba:truncate gba:cursor-pointer ${
                                 isManagerActivity ? 'gba:ring-1 gba:ring-yellow-300 gba:ring-opacity-50' : ''
                               }`}
                               style={{
@@ -395,7 +394,7 @@ export const TeamActivitiesCalendar: React.FC<TeamActivitiesCalendarProps> = ({
                   return (
                     <div
                       key={activity.id}
-                      className="gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:bg-white gba:shadow-sm"
+                      className="gba:p-4 gba:border gba:border-gray-200 gba:rounded-lg gba:bg-hsl(var(--background)) gba:shadow-sm"
                       data-testid={`${DATA_TEST_ID_PREFIX}-drawer-activity-${activity.id}`}
                     >
                       <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
@@ -404,7 +403,7 @@ export const TeamActivitiesCalendar: React.FC<TeamActivitiesCalendarProps> = ({
                           <h3 className="gba:font-semibold gba:text-gray-900">{activity.title}</h3>
                         </div>
                         <span
-                          className="gba:text-sm gba:font-medium gba:px-2 gba:py-1 gba:rounded gba:text-white"
+                          className="gba:text-sm gba:font-medium gba:px-2 gba:py-1 gba:rounded gba:text-hsl(var(--background))"
                           style={{
                             backgroundColor: getActivityColor(activityType)
                           }}

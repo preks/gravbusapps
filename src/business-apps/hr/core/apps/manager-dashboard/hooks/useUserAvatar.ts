@@ -10,11 +10,6 @@ interface UseUserAvatarProps {
   userId: string | undefined
 }
 
-interface UserAvatar {
-  id: string
-  profilePicture: string | null
-}
-
 /**
  * Custom hook to fetch user avatar from GraphQL API
  */

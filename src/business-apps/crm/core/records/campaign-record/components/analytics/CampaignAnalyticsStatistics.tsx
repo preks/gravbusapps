@@ -54,7 +54,6 @@ const CampaignAnalyticsStatistics: React.FC<CampaignAnalyticsStatisticsProps> = 
   const totalAccounts = metrics?.totalEntities.accounts || 0
   const totalContacts = metrics?.totalEntities.contacts || 0
 
-  const teamMembers = metrics?.performanceMetrics.topPerformers.length || 0
   const averageDealSize = metrics?.revenueMetrics.averageDealSize || 0
 
   // Transform metrics data into combined widgets format

@@ -279,7 +279,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-gradient-decorative-1">
       <PageLayout
         variant="display"
-        headerIcon={<SquaresFour color="#000000" />}
+        headerIcon={<SquaresFour className="gba:text-foreground" />}
         headerLabel="Business Applications"
         headerLabelClassName="gba:!text-black"
         className="gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
@@ -289,7 +289,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {exampleItems.items.length > 0 && (
               <div className="gba:mb-8" data-testid="IDE-Examples-Section">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <SquaresFour color="#000000" />
+                  <SquaresFour className="gba:text-foreground" />
                   Examples
                 </h4>
                 <div
@@ -375,7 +375,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {recentlyUsedApps.length > 0 && (
               <div className="gba:mb-8">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <Clock color="#000000" />
+                  <Clock className="gba:text-foreground" />
                   Recently Used
                 </h4>
                 <div className="gba:grid gba:gap-4 gba:grid-cols-5">
@@ -423,7 +423,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {/* Module Cards */}
             <div className="gba:mb-4">
               <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                <AppWindow color="#000000" />
+                <AppWindow className="gba:text-foreground" />
                 All Applications
               </h4>
               {Object.keys(groupedApps).length === 0 ? (

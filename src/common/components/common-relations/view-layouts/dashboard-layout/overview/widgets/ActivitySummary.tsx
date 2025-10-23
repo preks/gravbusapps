@@ -24,14 +24,7 @@ export interface ActivitySummaryProps {
   source?: 'investments' | 'customer-relations'
 }
 
-export const ActivitySummary: React.FC<ActivitySummaryProps> = ({
-  activities,
-  moduleColor = 'default',
-  source = 'investments'
-}) => {
-  // Remove unused variable warning
-  const _ = moduleColor
-
+export const ActivitySummary: React.FC<ActivitySummaryProps> = ({ activities, source = 'investments' }) => {
   // Navigation handler for activity clicks
   const handleActivityClick = useCallback(
     (activity: ActivityItem) => {

@@ -13,7 +13,7 @@ export interface LiquidFundTypeSelectSegmentProps {
 }
 
 const LiquidFundTypeSelectSegment: React.FC<LiquidFundTypeSelectSegmentProps> = ({
-  currentInvestmentType: _currentInvestmentType, // Received for consistency with other selectors, filtering handled by context
+  // currentInvestmentType is received for consistency with other selectors, filtering handled by context
   isUpdate = false
 }) => {
   const { control } = useFormContext()
