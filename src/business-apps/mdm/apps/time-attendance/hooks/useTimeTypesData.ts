@@ -103,33 +103,17 @@ export const useTimeTypesData = (context: BusinessAppContextProps): UseTimeTypes
     })
   }, [])
 
-  const fetchSystemTimeTypes = useCallback(async () => {
-    if (!context.accessToken) {
-      setError(new Error('Access token is required'))
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      const result = await graphqlClient.request<SystemTimeTypeResponse>(GET_SYSTEM_TIME_TYPES, {})
-      const transformedData = result.Catalog[0].catalogEntries.map(item => ({
-        // label: item.value,
-        label: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
-        value: item.code,
-        code: item.code,
-        visible: item?.visible ?? true
-      }))
-      setSystemTimeTypes(transformedData)
-    } catch (err) {
-      console.error('Error fetching system time types data:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch system time types data'))
-    } finally {
-      setLoading(false)
-    }
-  }, [context.accessToken, graphqlClient])
+  // Filter system time types to exclude those with codes that exist in timeTypes
+  const filterSystemTimeTypes = useCallback(
+    (
+      systemTypes: TransformedSystemTimeType[],
+      existingTimeTypes: TransformedTimeType[]
+    ): TransformedSystemTimeType[] => {
+      const existingCodes = new Set(existingTimeTypes.map(item => item.code))
+      return systemTypes.filter(systemType => !existingCodes.has(systemType.code))
+    },
+    []
+  )
 
   const fetchTimeTypesData = useCallback(async () => {
     if (!context.accessToken) {
@@ -142,12 +126,25 @@ export const useTimeTypesData = (context: BusinessAppContextProps): UseTimeTypes
     setError(null)
 
     try {
-      const result = await graphqlClient.request<TimeTypeResponse>(GET_TIME_TYPES_QUERY, {})
-      const transformedData = transformTimeTypes(result.TimeType || [])
-      setTimeTypes(transformedData)
+      const systemResult = await graphqlClient.request<SystemTimeTypeResponse>(GET_SYSTEM_TIME_TYPES, {})
+      const timeResult = await graphqlClient.request<TimeTypeResponse>(GET_TIME_TYPES_QUERY, {})
+      const transformedTimeData = transformTimeTypes(timeResult.TimeType || [])
+      setTimeTypes(transformedTimeData)
+      const transformedSystemData = systemResult.Catalog[0].catalogEntries.map(item => ({
+        label: item.value,
+        value: item.code,
+        code: item.code,
+        visible: item?.visible ?? true
+      }))
+      if (transformedTimeData.length > 0) {
+        const filteredSystemTypes = filterSystemTimeTypes(transformedSystemData, transformedTimeData)
+        setSystemTimeTypes(filteredSystemTypes)
+      } else {
+        setSystemTimeTypes(transformedSystemData)
+      }
     } catch (err) {
-      console.error('Error fetching time types data:', err)
-      setError(err instanceof Error ? err : new Error('Failed to fetch time types data'))
+      console.error('Error fetching data:', err)
+      setError(err instanceof Error ? err : new Error('Failed to fetch data'))
     } finally {
       setLoading(false)
     }
@@ -160,8 +157,7 @@ export const useTimeTypesData = (context: BusinessAppContextProps): UseTimeTypes
   // Initial fetch
   useEffect(() => {
     fetchTimeTypesData()
-    fetchSystemTimeTypes()
-  }, [fetchTimeTypesData, fetchSystemTimeTypes])
+  }, [fetchTimeTypesData])
 
   return { systemTimeTypes, timeTypes, loading, error, refetch }
 }

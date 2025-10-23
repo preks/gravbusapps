@@ -17,7 +17,7 @@ import {
   Label
 } from '@newwork/nw-design-system'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { useTranslation } from 'react-i18next'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { TransformedSystemTimeType, TransformedTimeType } from '../../apps/time-attendance/hooks/useTimeTypesData'
@@ -59,7 +59,6 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
   usedCodes = [],
   systemTimeTypes
 }) => {
-  const { t } = useTranslation('master-data')
   const dataTestId = formatDataTestId(prefixDataTestId, 'TimeTypeForm')
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
@@ -169,8 +168,21 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
   return (
     <FormWrapperModal
       childAddButton={childAddButton}
-      title={timeType ? 'Edit Time Type' : 'Create Time Type'}
-      description="Configure time type details and access permissions"
+      title={
+        timeType
+          ? getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.time_types.actions.edit',
+              'Edit Time Type'
+            )
+          : getTranslationFromI18nKeyAndLabel(
+              'master-data:hr.time_attendance.time_types.actions.create_new',
+              'Create Time Type'
+            )
+      }
+      description={getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.time_types.description_create_new',
+        'Configure time type details and access permissions'
+      )}
       onSubmit={handleSubmit}
       onCancel={handleCancel}
       defaultValues={defaultValues}
@@ -187,9 +199,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {t('forms.timeType.fields.type.label', {
-                  defaultValue: 'Type'
-                })}
+                {getTranslationFromI18nKeyAndLabel('master-data:forms.department.fields.type.label', 'Type')}
               </FormLabel>
               <FormControl>
                 <Select
@@ -205,11 +215,23 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
                   disabled={!!timeType}
                 >
                   <SelectTrigger data-testid={`${dataTestId}-type-select`}>
-                    <SelectValue placeholder="Select a type" />
+                    <SelectValue
+                      placeholder={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:absence_form.select_type',
+                        'Select a type'
+                      )}
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="System">System</SelectItem>
-                    <SelectItem value="Custom">Custom</SelectItem>
+                    <SelectItem value="System">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actors.system', 'System')}
+                    </SelectItem>
+                    <SelectItem value="Custom">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'master-data:hr.time_attendance.time_types.fields.custom',
+                        'Custom'
+                      )}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </FormControl>
@@ -219,10 +241,18 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
         />
         {isSystemTimeType && (
           <div className="nw:space-y-2">
-            <Label>Time Type Options</Label>
+            <Label>
+              {getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.time_types.type_options.title',
+                'Time Type Options'
+              )}
+            </Label>
             <Combobox
               className="gba:w-[230px] gba:truncate"
-              emptyText="No time type options found."
+              emptyText={getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.time_types.type_options.empty_text',
+                'No time type options found.'
+              )}
               onValueChange={value => {
                 const selectedOption = systemTimeTypes.find(option => option.value === value)
 
@@ -233,8 +263,14 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
                 }
               }}
               options={systemTimeTypes}
-              placeholder="Select a time type option..."
-              searchPlaceholder="Search time type options..."
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.time_types.type_options.select_placeholder',
+                'Select a time type option...'
+              )}
+              searchPlaceholder={getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.time_types.type_options.search_placeholder',
+                'Search time type options...'
+              )}
             />
           </div>
         )}
@@ -245,16 +281,15 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {t('forms.timeType.fields.code.label', {
-                defaultValue: 'Code'
-              })}
+              {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.code.label', 'Code')}
             </FormLabel>
             <FormControl>
               <Input
                 {...field}
-                placeholder={t('forms.timeType.fields.code.placeholder', {
-                  defaultValue: 'Enter code (e.g., WK, BR, OT)'
-                })}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.time_types.actions.enter_code_placeholder',
+                  'Enter code (e.g., WK, BR, OT)'
+                )}
                 data-testid={`${dataTestId}-code-input`}
                 disabled={isSystemTimeType}
               />
@@ -269,16 +304,15 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
         render={({ field }) => (
           <FormItem>
             <FormLabel>
-              {t('forms.timeType.fields.name.label', {
-                defaultValue: 'Name'
-              })}
+              {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
             </FormLabel>
             <FormControl>
               <Input
                 {...field}
-                placeholder={t('forms.timeType.fields.name.placeholder', {
-                  defaultValue: 'Enter name'
-                })}
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:expense_calculation_rule_details.calculation_allowance_period_list.calculation_allowance_period_modal.name_placeholder',
+                  'Enter name'
+                )}
                 data-testid={`${dataTestId}-name-input`}
                 disabled={isSystemTimeType}
               />
@@ -292,11 +326,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
         name="visible"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>
-              {t('forms.timeType.fields.visibility.label', {
-                defaultValue: 'Visibility'
-              })}
-            </FormLabel>
+            <FormLabel>{getTranslationFromI18nKeyAndLabel('flow:flow_launcher.visibility', 'Visibility')}</FormLabel>
             <FormControl>
               <Select
                 {...field}
@@ -305,11 +335,26 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
                 onValueChange={value => field.onChange(value === 'true')}
               >
                 <SelectTrigger data-testid={`${dataTestId}-visibility-select`}>
-                  <SelectValue placeholder="Select visibility" />
+                  <SelectValue
+                    placeholder={getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.select_visibility_placeholder',
+                      'Select visibility'
+                    )}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="true">Visible</SelectItem>
-                  <SelectItem value="false">Hidden</SelectItem>
+                  <SelectItem value="true">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.visible',
+                      'Visible'
+                    )}
+                  </SelectItem>
+                  <SelectItem value="false">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.hidden',
+                      'Hidden'
+                    )}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </FormControl>

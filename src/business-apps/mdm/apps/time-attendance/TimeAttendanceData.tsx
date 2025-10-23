@@ -62,7 +62,7 @@ const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, pref
   const tabItems = [
     {
       key: TimeAttendanceTabs.TIME_TYPES,
-      label: getTranslationFromI18nKeyAndLabel('hr.time_types', 'Time Types'),
+      label: getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.time_types.title', 'Time Types'),
       children: <TimeTypesTab {...contextProps} prefixDataTestId={`${prefixDataTestId || ''}-${DATA_TEST_ID}`} />
     }
   ]
@@ -70,7 +70,7 @@ const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, pref
   return (
     <PageLayout
       headerIcon={<ClockIcon />}
-      headerLabel={getTranslationFromI18nKeyAndLabel('hr.time_attendance_data', 'Time Attendance Data')}
+      headerLabel={getTranslationFromI18nKeyAndLabel('hr.time_attendance.title_dashboard', 'Time Attendance Data')}
       className={className}
       contentContainer={
         <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: '24px' }}>

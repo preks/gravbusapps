@@ -37,6 +37,7 @@ import TimeTypeForm from '../../../../forms/time-types-form/TimeTypeForm'
 import { useTimeTypesData, TransformedTimeType } from '../../hooks/useTimeTypesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface TimeTypesProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -86,7 +87,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
-            Code
+            {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.code.label', 'Code')}
             <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
           </Button>
         ),
@@ -105,7 +106,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
-            Name
+            {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
           </Button>
         ),
         enableSorting: false,
@@ -126,7 +127,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
-            Type
+            {getTranslationFromI18nKeyAndLabel('master-data:forms.department.fields.type.label', 'Type')}
           </Button>
         ),
         enableSorting: false,
@@ -143,7 +144,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
           >
-            Visibility
+            {getTranslationFromI18nKeyAndLabel('flow:flow_launcher.visibility', 'Visibility')}
           </Button>
         ),
         enableSorting: false,
@@ -154,7 +155,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
       },
       {
         id: 'actions',
-        header: 'Actions',
+        header: getTranslationFromI18nKeyAndLabel('translation:actions.actions', 'Actions'),
         enableSorting: false,
         enableHiding: true,
         cell: ({ row }) => {
@@ -256,7 +257,12 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
   if (error) {
     return (
       <Alert variant="destructive" data-testid={formatDataTestId(dataTestId, 'error-alert')}>
-        <AlertTitle>Error Loading Time Types</AlertTitle>
+        <AlertTitle>
+          {getTranslationFromI18nKeyAndLabel(
+            'master-data:hr.time_attendance.time_types.error_loading_time_types',
+            'Error Loading Time Types'
+          )}
+        </AlertTitle>
         <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     )
@@ -269,10 +275,14 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
           <div className="gba:flex gba:justify-between gba:items-center gba:w-full">
             <div className="gba:flex gba:flex-col gba:gap-2 gba:h-full">
               <CardTitle className="gba:text-2xl gba:font-semibold gba:leading-none gba:tracking-tight">
-                Time Types ({timeTypes.length})
+                {getTranslationFromI18nKeyAndLabel('master-data:hr.time_attendance.time_types.title', 'Time Types')} (
+                {timeTypes.length})
               </CardTitle>
               <CardDescription className="gba:text-sm gba:text-muted-foreground">
-                Configure time categories for duration calculations and reporting.
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.time_types.description',
+                  'Configure time categories for duration calculations and reporting.'
+                )}
               </CardDescription>
             </div>
             <TimeTypeForm
@@ -286,7 +296,10 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
                   className="gba:flex gba:items-center gba:gap-2"
                 >
                   <PlusIcon size={16} />
-                  Add Time Type
+                  {getTranslationFromI18nKeyAndLabel(
+                    'master-data:hr.time_attendance.time_types.actions.add',
+                    'Add Time Type'
+                  )}
                 </Button>
               }
               refetch={refetch}
@@ -305,17 +318,22 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
               <DebouncedInput
                 value={searchTerm}
                 onChange={handleSearch}
-                placeholder="Search time types..."
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.time_types.actions.search_placeholder',
+                  'Search time types...'
+                )}
                 icon={<MagnifyingGlassIcon size={16} />}
                 data-testid={formatDataTestId(dataTestId, 'search-input')}
                 className="gba:max-w-md"
               />
             </div>
             <div className="gba:text-sm gba:text-gray-600">
-              {filteredTimeTypes.length} of {timeTypes.length} time types
+              {`${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:peersonal_expenses.of', 'of')} ${timeTypes.length} ${getTranslationFromI18nKeyAndLabel(
+                'master-data:hr.time_attendance.time_types.title',
+                'time types'
+              ).toLowerCase()}`}
             </div>
           </div>
-
           {renderTimeTypesTable()}
         </div>
 
@@ -324,16 +342,34 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
             <DialogHeader>
               <DialogTitle className="gba:flex gba:items-center gba:gap-2">
                 <WarningIcon className="gba:text-destructive" />
-                Delete Time Type
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.time_types.actions.delete_title',
+                  'Delete Time Type'
+                )}
               </DialogTitle>
-              <DialogDescription>{`Are you sure you want to delete ${selectedTimeType?.name ?? ''}?`}</DialogDescription>
+              <DialogDescription>
+                {getTranslationFromI18nKeyAndLabel(
+                  'master-data:hr.time_attendance.time_types.actions.delete_message',
+                  'Are you sure you want to delete this time type?'
+                )}
+              </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
+                <Button variant="outline">
+                  {getTranslationFromI18nKeyAndLabel('master-data:forms.common.buttons.cancel', 'Cancel')}
+                </Button>
               </DialogClose>
               <Button variant="destructive" onClick={() => handleDeleteTimeType(selectedTimeType)}>
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting
+                  ? getTranslationFromI18nKeyAndLabel(
+                      'master-data:hr.time_attendance.time_types.actions.deleting',
+                      'Deleting...'
+                    )
+                  : getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_calculation_rule.expense_table.delete',
+                      'Delete'
+                    )}
               </Button>
             </DialogFooter>
           </DialogContent>
