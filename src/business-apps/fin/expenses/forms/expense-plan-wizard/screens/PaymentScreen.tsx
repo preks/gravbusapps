@@ -490,10 +490,14 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
          gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
          gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
          gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
-                    'Enter Amount'
-                  )}
+                  placeholder={(() => {
+                    const locale = getCurrentActiveUserLocale() || 'en-US'
+                    const exampleFormat = new Intl.NumberFormat(locale, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }).format(0)
+                    return exampleFormat
+                  })()}
                   data-testid="payment-amount-input"
                   onChange={field => {
                     const prev = amount || ''
