@@ -349,19 +349,27 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         <div className={`gba:relative`}>
           <Form.Item
             noStyle
-            shouldUpdate={(prevValues, currentValues) =>
-              prevValues.costCenter !== currentValues.costCenter || costCenters.length > 0
-            }
+            shouldUpdate={(prevValues, currentValues) => prevValues.costCenter !== currentValues.costCenter}
           >
             {() => {
               const costCenterId = form.getFieldValue('costCenter')
-              const costCenterValue =
-                costCenterId && costCenters.length > 0
-                  ? {
-                      id: costCenterId,
-                      name: costCenters.find(c => c.id === costCenterId)?.name || costCenterId
-                    }
-                  : undefined
+              let costCenterValue = undefined
+
+              if (costCenterId) {
+                const center = costCenters.find(c => c.id === costCenterId)
+                // If we have the center in the array, use it; otherwise create a temporary entry
+                costCenterValue = center
+                  ? { id: center.id, name: center.name }
+                  : { id: costCenterId, name: costCenterId }
+              }
+
+              // If costCenters is empty but we have a value, add it to the data array temporarily
+              const selectData =
+                costCenters.length > 0
+                  ? costCenters.map(center => ({ id: center.id, name: center.name }))
+                  : costCenterValue
+                    ? [costCenterValue]
+                    : []
 
               return (
                 <Form.Item
@@ -389,10 +397,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                       'Select Cost Center'
                     )}
                     data-testid="cost-center-select"
-                    data={costCenters.map(center => ({
-                      id: center.id,
-                      name: center.name
-                    }))}
+                    data={selectData}
                     onChange={(value: any) => form.setFieldsValue({ costCenter: value.value })}
                     value={costCenterValue}
                     required={true}
