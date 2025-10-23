@@ -232,14 +232,23 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   // Handle amount change
   const handleAmountChange = (field: any) => {
     let value = field.value as string
-    if (value.includes('.')) {
-      const parts = value.split('.')
+
+    // Handle both period and comma as decimal separators
+    // Normalize to period for internal storage
+    const normalizedValue = value.replace(',', '.')
+
+    if (normalizedValue.includes('.')) {
+      const parts = normalizedValue.split('.')
       if (parts[1] && parts[1].length > 2) {
         value = `${parts[0]}.${parts[1].substring(0, 2)}`
+      } else {
+        value = normalizedValue
       }
+    } else {
+      value = normalizedValue
     }
 
-    // Store the raw value for calculations
+    // Store the normalized value for calculations
     setAmount(value)
 
     // Validate amount
@@ -274,11 +283,17 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
       return
     }
 
-    // Format to 2 decimal places and set back as standard format (period as decimal separator)
-    // This ensures consistency across all locales
-    const formattedValue = num.toFixed(2)
+    // Format using the user's locale
+    const locale = getCurrentActiveUserLocale() || 'en-US'
+    const formattedValue = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(num)
+
+    // Update form and state with locale-formatted value
     form.setFieldsValue({ amount: formattedValue })
-    setAmount(formattedValue)
+    // But keep internal state as normalized (period) for calculations
+    setAmount(num.toFixed(2))
   }
 
   // Validation functions
