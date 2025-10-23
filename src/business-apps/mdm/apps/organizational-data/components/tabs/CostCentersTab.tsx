@@ -553,7 +553,7 @@ const CostCentersTab: React.FC<CostCentersTabProps> = context => {
   if (error) {
     return (
       <div className="gba:p-6 gba:text-center">
-        <Alert className="gba:w-full gba:flex! gba:justify-between gba:items-center!" variant="destructive">
+        <Alert className="gba:w-full gba:!flex gba:justify-between gba:!items-center" variant="destructive">
           <AlertTitle className="gba:flex gba:items-center gba:justify-center gba:gap-2">
             <Icon icon={XCircleIcon} />
             Error Loading Cost Centers
