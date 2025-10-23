@@ -377,6 +377,16 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                 name: center.name
               }))}
               onChange={(value: any) => form.setFieldsValue({ costCenter: value.value })}
+              value={
+                form.getFieldValue('costCenter')
+                  ? {
+                      id: form.getFieldValue('costCenter'),
+                      name:
+                        costCenters.find(c => c.id === form.getFieldValue('costCenter'))?.name ||
+                        form.getFieldValue('costCenter')
+                    }
+                  : undefined
+              }
               required={true}
             />
           </Form.Item>
