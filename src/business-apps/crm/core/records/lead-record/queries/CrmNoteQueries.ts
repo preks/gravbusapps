@@ -29,6 +29,16 @@ export const GET_CRM_NOTES = (): string => {
         createdBy
         noteText
         noteTitle
+        title: noteTitle
+        displayName: noteTitle
+        text: noteText
+        reminderDate
+        authorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+        }
       }
     }
   `

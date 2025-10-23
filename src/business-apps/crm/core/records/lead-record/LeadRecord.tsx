@@ -22,6 +22,7 @@ import { useAiSummary } from './hooks/useAiSummary'
 import { useGetSalesActivities } from './queries/SalesActivityQueries'
 import { useGetCrmNotes } from './queries/CrmNoteQueries'
 import { useGetSalesTasks } from './queries/SalesTaskQueries'
+import { StatusProgression } from './components/StatusProgression'
 import { HomeView } from './views/home-view/HomeView'
 import { DocumentView } from './views/document-view/DocumentView'
 
@@ -304,16 +305,30 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
   const activityActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerActivityCreate],
-      externalContextData: { leadId },
+      externalContextData: {
+        leadId,
+        lead: leadId,
+        salesActivity: { lead: leadId },
+        // Ensure employee details are present
+        ...(props.userInfo?.id && {
+          employeeId: props.userInfo.id,
+          userId: props.userInfo.id,
+          employeeDetails: { userId: props.userInfo.id }
+        })
+      },
       prefixDataTestId: 'lead-activity'
     }),
-    [leadId]
+    [leadId, props.userInfo]
   )
 
   const noteActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.customerNoteCreate],
-      externalContextData: { leadId },
+      externalContextData: {
+        leadId,
+        lead: leadId,
+        crmNote: { lead: leadId }
+      },
       prefixDataTestId: 'lead-note'
     }),
     [leadId]
@@ -322,10 +337,20 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
   const taskActionProps = useMemo(
     () => ({
       contextsArray: [FlowContextName.createCustomerTask],
-      externalContextData: { leadId },
+      externalContextData: {
+        leadId,
+        lead: leadId,
+        salesTask: { lead: leadId },
+        // Ensure employee details are present
+        ...(props.userInfo?.id && {
+          employeeId: props.userInfo.id,
+          userId: props.userInfo.id,
+          employeeDetails: { userId: props.userInfo.id }
+        })
+      },
       prefixDataTestId: 'lead-task'
     }),
-    [leadId]
+    [leadId, props.userInfo]
   )
 
   const approvalActionProps = useMemo(
@@ -333,12 +358,37 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
       contextsArray: [FlowContextName.createCustomerTask],
       externalContextData: {
         leadId,
-        typeRef: 'SalesTaskType:v1:APPROVAL'
+        lead: leadId,
+        typeRef: 'SalesTaskType:v1:APPROVAL',
+        salesTask: { lead: leadId, type: 'SalesTaskType:v1:APPROVAL' },
+        // Ensure employee details are present
+        ...(props.userInfo?.id && {
+          employeeId: props.userInfo.id,
+          userId: props.userInfo.id,
+          employeeDetails: { userId: props.userInfo.id }
+        })
       },
       prefixDataTestId: 'lead-approval'
     }),
-    [leadId]
+    [leadId, props.userInfo]
   )
+
+  // Header content with status progression
+  const headerContent = useMemo(() => {
+    if (!loadingStatuses && leadStatuses && leadStatuses.length > 0 && lead) {
+      return (
+        <StatusProgression
+          currentStatus={leadData?.leadStatus?.value || lead?.status || 'New'}
+          statuses={leadStatuses}
+          leadId={leadId}
+          leadVersion={parseInt(lead.version) || 0}
+          accessToken={props.accessToken}
+          onStatusUpdate={refetchLeadData}
+        />
+      )
+    }
+    return null
+  }, [loadingStatuses, leadStatuses, lead, leadData, leadId, props.accessToken, refetchLeadData])
 
   const subViewsConfig = useMemo(
     () => ({
@@ -365,9 +415,6 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
               noteActionProps={noteActionProps}
               taskActionProps={taskActionProps}
               approvalActionProps={approvalActionProps}
-              leadStatuses={leadStatuses as any as any[]}
-              loadingStatuses={loadingStatuses}
-              onStatusUpdate={refetchLeadData}
               {...props}
             />
           )
@@ -470,6 +517,7 @@ const LeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId, onBack, f
         headerDetailGroups={headerDetailGroups}
         headerActions={headerActions}
         headerActionButton={headerActionButton}
+        headerContent={headerContent}
         subViews={subViewsConfig}
       />
     </div>

@@ -7,7 +7,6 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import { StatusProgression } from '../../components/StatusProgression'
 import { CompanyInfoCard } from './components/CompanyInfoCard'
 import { ContactInfoCard } from './components/ContactInfoCard'
 import type { HomeViewProps } from './types'
@@ -31,7 +30,6 @@ const buildReferenceUrl = (reference: TaskReference): string => {
 
 export const HomeView: React.FC<HomeViewProps> = ({
   leadId,
-  lead,
   rawLeadData,
   activities,
   notes,
@@ -44,28 +42,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   noteActionProps,
   taskActionProps,
   approvalActionProps,
-  leadStatuses,
-  loadingStatuses,
-  onStatusUpdate,
   accessToken,
   ...props
 }) => {
   return (
     <>
-      {/* Status Progression - Full width at top */}
-      {!loadingStatuses && leadStatuses && leadStatuses.length > 0 && lead && (
-        <div className="gba:col-span-12 gba:mb-6">
-          <StatusProgression
-            currentStatus={rawLeadData?.leadStatus?.value || lead?.status || 'New'}
-            statuses={leadStatuses}
-            leadId={leadId}
-            leadVersion={parseInt(lead.version) || 0}
-            accessToken={accessToken}
-            onStatusUpdate={onStatusUpdate}
-          />
-        </div>
-      )}
-
       {/* Company Information Card - 1/3 width */}
       <div
         className="gba:col-span-1 gba:sm:col-span-3 gba:md:col-span-4 gba:lg:col-span-4"

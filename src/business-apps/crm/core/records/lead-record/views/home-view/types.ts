@@ -1,5 +1,4 @@
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { ReferenceData } from '../../types'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 
 export interface HomeViewProps extends BusinessAppContextProps {
@@ -17,7 +16,4 @@ export interface HomeViewProps extends BusinessAppContextProps {
   noteActionProps: Omit<AppActionCommonProps, 'accessToken'>
   taskActionProps: Omit<AppActionCommonProps, 'accessToken'>
   approvalActionProps: Omit<AppActionCommonProps, 'accessToken'>
-  leadStatuses: ReferenceData[]
-  loadingStatuses: boolean
-  onStatusUpdate: () => void
 }

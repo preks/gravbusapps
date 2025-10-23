@@ -935,7 +935,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: {
                     accountId
                   },
@@ -952,7 +952,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: {
                     accountId,
                     createFolder: true
@@ -1193,7 +1193,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           accountId,
                                           ...(node.folderId ? { parentDocument: node.folderId } : {})
@@ -1214,7 +1214,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           accountId,
                                           createFolder: true,
@@ -1418,7 +1418,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                 onClick: () =>
                   startProcess({
                     domain: 'customer-relations',
-                    processName: 'saveCrmDocument',
+                    processName: 'createCrmDocument',
                     payload: {
                       accountId
                     },
