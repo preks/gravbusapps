@@ -36,7 +36,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   const graphQLClient = useGraphqlClient(accessToken)
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
 
-  const [amount, setAmount] = useState<string>('0.00')
+  const [amount, setAmount] = useState<string>('')
   const [currency, setCurrency] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [currencies, setCurrencies] = useState<any[]>([])
@@ -485,19 +485,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
                   type="number"
                   step="0.01"
                   min="0"
-                  className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
-                  placeholder={(() => {
-                    const locale = getCurrentActiveUserLocale() || 'en-US'
-                    const exampleFormat = new Intl.NumberFormat(locale, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    }).format(0)
-                    return exampleFormat
-                  })()}
+                  inputMode="decimal"
+                  placeholder="0.00"
                   data-testid="payment-amount-input"
                   onChange={field => {
                     const prev = amount || ''
