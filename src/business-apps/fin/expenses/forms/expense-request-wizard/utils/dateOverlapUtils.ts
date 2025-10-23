@@ -33,11 +33,11 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_error_message_absences',
-      'The selected date overlaps with an existing event: {{absenceType}} from {{timeStampStart}} to {{timeStampEnd}}. Please adjust the date.',
+      'The selected date overlaps with an existing event: {{absenceType}} from {{planTimeStampStart}} to {{planTimeStampEnd}}. Please adjust the date.',
       {
         absenceType,
-        timeStampStart: absenceRequestTimeStampStart,
-        timeStampEnd: absenceRequestTimeStampEnd
+        planTimeStampStart: absenceRequestTimeStampStart,
+        planTimeStampEnd: absenceRequestTimeStampEnd
       }
     )
 
@@ -52,11 +52,11 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_error_message_expense_request',
-      'The selected date overlaps with an existing event: Expense Request {{expenseRequestTitle}} from {{timeStampStart}} to {{timeStampEnd}}. Please adjust the date.',
+      'The selected date overlaps with an existing event: Expense Request {{expenseRequestTitle}} from {{planTimeStampStart}} to {{planTimeStampEnd}}. Please adjust the date.',
       {
         expenseRequestTitle: expenseRequest.title,
-        timeStampStart: expenseRequestTimeStampStart,
-        timeStampEnd: expenseRequestTimeStampEnd
+        planTimeStampStart: expenseRequestTimeStampStart,
+        planTimeStampEnd: expenseRequestTimeStampEnd
       }
     )
 
@@ -71,11 +71,11 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.periods_overlapping_plan_info_message',
-      'There is an existing plan {{planName}} from {{timeStampStart}} to {{timeStampEnd}} for the selected period. You might want to cancel your request and create a new request based on your existing plan.',
+      'There is an existing plan {{planName}} from {{planTimeStampStart}} to {{planTimeStampEnd}} for the selected period. You might want to cancel your request and create a new request based on your existing plan.',
       {
         planName: expensePlan.title,
-        timeStampStart: expensePlanTimeStampStart,
-        timeStampEnd: expensePlanTimeStampEnd
+        planTimeStampStart: expensePlanTimeStampStart,
+        planTimeStampEnd: expensePlanTimeStampEnd
       }
     )
 
