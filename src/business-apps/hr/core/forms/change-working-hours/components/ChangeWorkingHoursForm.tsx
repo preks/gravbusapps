@@ -70,9 +70,9 @@ export const ChangeWorkingHoursForm: React.FC = () => {
 
   const buildErrorMessage = (key: DayKey) => buildDayMissingValueError(fullDayLabel(key))
 
-  const watchedValues = form.watch() as Partial<WorkingHoursFormValues>
+  const watchedValues = form.watch()
   const { weeklySum, workingDays, fte, areAllDaysValid } = useMemo(() => {
-    const keys: DayKey[] = [
+    const keys: (keyof WorkingHoursFormValues)[] = [
       'mondayHours',
       'tuesdayHours',
       'wednesdayHours',
@@ -82,7 +82,7 @@ export const ChangeWorkingHoursForm: React.FC = () => {
       'sundayHours'
     ]
     const nums = keys.map(k => {
-      const v = (watchedValues as any)?.[k]
+      const v = watchedValues?.[k]
       if (v === '' || v === null || v === undefined) return NaN
       const n = Number(v)
       return Number.isFinite(n) ? n : NaN
@@ -294,10 +294,15 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                       data-testid={dayInputTestIds[key]}
                       onChange={e => {
                         const raw = e.target.value
-                        const num = raw === '' ? '' : Number(raw)
-                        form.setValue(key, num as any, { shouldValidate: true, shouldDirty: true })
-                        const val = raw === '' ? '' : Number(raw)
-                        if (val === '' || Number.isNaN(val) || val < minHours || val > maxHours) {
+                        const numericOrEmpty: number | '' = raw === '' ? '' : Number(raw)
+                        form.setValue(key, numericOrEmpty as any, { shouldValidate: true, shouldDirty: true })
+                        const val = numericOrEmpty
+                        if (
+                          val === '' ||
+                          Number.isNaN(val as any) ||
+                          (val as number) < minHours ||
+                          (val as number) > maxHours
+                        ) {
                           form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
                         } else {
                           form.clearErrors(key)
@@ -305,8 +310,13 @@ export const ChangeWorkingHoursForm: React.FC = () => {
                       }}
                       onBlur={e => {
                         const raw = e.currentTarget.value
-                        const val = raw === '' ? '' : Number(raw)
-                        if (val === '' || Number.isNaN(val) || val < minHours || val > maxHours) {
+                        const val: number | '' = raw === '' ? '' : Number(raw)
+                        if (
+                          val === '' ||
+                          Number.isNaN(val as any) ||
+                          (val as number) < minHours ||
+                          (val as number) > maxHours
+                        ) {
                           form.setError(key, { type: 'validate', message: buildErrorMessage(key) })
                         } else {
                           form.clearErrors(key)

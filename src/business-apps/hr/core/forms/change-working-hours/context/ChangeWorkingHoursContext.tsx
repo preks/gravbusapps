@@ -5,8 +5,17 @@ import { EMPLOYEE_DATA_QUERY, ALL_EMPLOYEE_DATA_QUERY } from '../ChangeWorkingHo
 import { WorkingHoursFormValues } from '../constants/changeWorkingHoursConstants'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+export interface EmployeeLite {
+  pictureThumbnail?: string
+  firstName?: string
+  lastName?: string
+  employeePosition?: {
+    jobPosition?: { name?: string }
+  }
+}
+
 export interface ChangeWorkingHoursContextState {
-  employee: any | null
+  employee: EmployeeLite | null
   employees: Array<{ id: string; firstName: string; lastName: string }>
   defaults: WorkingHoursFormValues | null
   existingWorkingMeta: { id?: string; version?: number; remoteRef?: string } | null
@@ -47,7 +56,7 @@ export function ChangeWorkingHoursProvider({
   const graphql = useGraphqlClient(accessToken)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [employee, setEmployee] = useState<any | null>(null)
+  const [employee, setEmployee] = useState<EmployeeLite | null>(null)
   const [defaults, setDefaults] = useState<WorkingHoursFormValues | null>(null)
   const [existingWorkingMeta, setExistingWorkingMeta] = useState<{
     id?: string
