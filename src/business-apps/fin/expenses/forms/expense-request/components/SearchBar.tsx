@@ -57,6 +57,21 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
     }
   }
 
+  const handleContainerKeyDown = (e: React.KeyboardEvent) => {
+    if (!expanded && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault()
+      handleClick()
+    }
+  }
+
+  const handleClearKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.stopPropagation()
+      handleClear(e as any)
+    }
+  }
+
   return (
     <div
       style={{
@@ -68,14 +83,18 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
         transition: 'width 0.3s, padding 0.3s, background-color 0.3s',
         cursor: 'pointer',
         width: expanded ? '300px' : '44px',
-        border: '2px solid #EBEBEB',
-        background: expanded ? '#F7F7F7' : '#EBEBEB',
+        border: '2px solid border',
+        background: expanded ? 'muted' : 'border',
         position: 'relative',
         overflow: 'hidden',
         height: '32px',
         justifyContent: expanded ? 'flex-start' : 'center'
       }}
       onClick={handleClick}
+      onKeyDown={handleContainerKeyDown}
+      role="button"
+      tabIndex={expanded ? -1 : 0}
+      aria-label={expanded ? undefined : 'Expand search'}
       ref={containerRef}
       data-testid="plan-search-bar"
     >
@@ -93,7 +112,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
           transition: 'opacity 0.3s, width 0.3s',
           backgroundColor: 'transparent',
           paddingLeft: '30px',
-          color: '#333'
+          color: 'foreground'
         }}
         data-testid="plan-search-input"
       />
@@ -109,6 +128,10 @@ const SearchBar: React.FC<SearchBarProps> = ({ onSearch, placeholder = 'Search..
             opacity: '1'
           }}
           onClick={handleClear}
+          onKeyDown={handleClearKeyDown}
+          role="button"
+          tabIndex={0}
+          aria-label="Clear search"
           data-testid="plan-search-clear"
         >
           <XCircleIcon />

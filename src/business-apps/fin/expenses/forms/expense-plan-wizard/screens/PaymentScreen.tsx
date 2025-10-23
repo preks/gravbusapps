@@ -31,7 +31,7 @@ const DIRECT_DEPOSIT = 'DIRECT_DEPOSIT'
 const CASH_PAYMENT = 'CASH_PAYMENT'
 
 const PaymentScreen: React.FC<PaymentScreenProps> = props => {
-  const { accessToken, userInfo, additionalData } = props
+  const { accessToken, additionalData } = props
   const { expensePlanData, employeeRuleId, currentTitle, updateTripFormValidation } = useExpensePlanWizardContext()
   const graphQLClient = useGraphqlClient(accessToken)
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
@@ -40,7 +40,6 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
   const [currency, setCurrency] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<string>('')
   const [currencies, setCurrencies] = useState<any[]>([])
-  const [isLoadingCurrencies, setIsLoadingCurrencies] = useState<boolean>(false)
   const [amountError, setAmountError] = useState<string>('')
   const [paymentMethodError, setPaymentMethodError] = useState<string>('')
   const [advancePaymentError, setAdvancePaymentError] = useState<string>('')
@@ -127,7 +126,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
           activeUserLocale: getCurrentActiveUserLocale()
         })
         setCurrencies(response.currency || [])
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:create_expense_type_item.process_error_expense_requests_fetch',
@@ -645,7 +644,7 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
               {getTranslationFromI18nKeyAndLabel('lowcoder:employee_landing_page.advance_payment', 'Advance Payment')}
             </span>
             <span
-              className={`gba:text-sm gba:font-bold gba:text-${advancePaymentTotal ? '[#A2519A]' : '[#999999]'}`}
+              className={`gba:text-sm gba:font-bold gba:text-${advancePaymentTotal ? '[primary]' : '[#999999]'}`}
               data-testid="advance-payment-value"
             >
               {formatNumberFunction(advancePaymentTotal.toString(), '0.00[,]00')} {selectedCurrencyCode}

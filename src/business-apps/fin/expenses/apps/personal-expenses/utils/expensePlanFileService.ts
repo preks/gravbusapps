@@ -93,7 +93,7 @@ export const useExpensePlanFileService = (props: BusinessAppContextProps) => {
           success: true,
           pdfUrl: objectUrl
         }
-      } catch (error) {
+      } catch {
         console.error('Error fetching file for print:', error)
         return {
           success: false,

@@ -104,7 +104,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
             setCostCenters(formattedCostCenters)
           }
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetch_regions_cost_centers',
@@ -145,7 +145,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
         } else {
           setDeductionsData(response.TravelBreakdown || [])
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:modify_expense_request.error_fetch_regions_cost_centers',
@@ -317,7 +317,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
       if (projectsResponse?.Project) {
         setProjects(projectsResponse.Project)
       }
-    } catch (error) {
+    } catch {
       showToast(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.error_fetch_projects',
