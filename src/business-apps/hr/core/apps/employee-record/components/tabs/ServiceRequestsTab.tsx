@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Employee } from '../../hooks/useEmployeeData'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { getUserRequests, SubmittedRequest } from './serviceRequestsAdapter'
+import { getUserRequests } from '../../services/service-requests/serviceRequestsService'
+import type { SubmittedRequest } from '../../services/service-requests/serviceRequestsTypes'
 import { Card, Badge, Spinner, Alert, Button } from '@newwork/nw-design-system'
 import { PiReceipt, PiCheckCircle, PiClock, PiPlus } from 'react-icons/pi'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { navigateTo } from '@/common/utils/navigationUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface ServiceRequestsTabProps {
   employee: Employee
@@ -76,17 +77,18 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
     return { total, active, completed, completionRate }
   }, [requests])
 
-  // Format date
-  const formatDate = (dateString: string) => {
-    try {
+  // Format date with fallback
+  const formatRequestDate = (dateString: string) => {
+    const formatted = formatDate(dateString, 'date.short')
+    // If formatDate returns ISO string (fallback), format it nicely
+    if (formatted && formatted.includes('T')) {
       return new Date(dateString).toLocaleDateString(undefined, {
         year: 'numeric',
         month: 'short',
         day: 'numeric'
       })
-    } catch {
-      return dateString
     }
+    return formatted
   }
 
   // Get status badge variant
@@ -155,6 +157,14 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
     return request.steps[0].name
   }
 
+  const handleRequestClick = (requestId: string) => {
+    const url = buildPlatformUrl('/platform/sales-demo/service-launcher', {
+      view: 'myRequests',
+      requestId: requestId
+    })
+    navigateTo(url)
+  }
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-64">
@@ -202,7 +212,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
         {isSelfView && (
           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
             <Button
-              onClick={() => navigateTo('/platform/sales-demo/service-launcher')}
+              onClick={() => navigateTo(buildPlatformUrl('/platform/sales-demo/service-launcher'))}
               className="gba:flex gba:items-center gba:gap-2"
               data-testid="create-new-request-button"
             >
@@ -340,7 +350,12 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
                     >
                       <td className="gba:px-6 gba:py-4">
                         <div className="gba:flex gba:flex-col">
-                          <span className="gba:text-sm gba:font-medium gba:text-gray-900">{request.titleSnapshot}</span>
+                          <button
+                            onClick={() => handleRequestClick(request.id)}
+                            className="gba:text-sm gba:font-medium gba:text-blue-600 hover:gba:text-blue-800 hover:gba:underline gba:text-left gba:cursor-pointer gba:bg-transparent gba:border-none gba:p-0"
+                          >
+                            {request.titleSnapshot}
+                          </button>
                           <span className="gba:text-xs gba:text-gray-500 gba:mt-1">{getCurrentStepName(request)}</span>
                         </div>
                       </td>
@@ -361,7 +376,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
                         </div>
                       </td>
                       <td className="gba:px-6 gba:py-4 gba:text-sm gba:text-gray-600">
-                        {formatDate(request.createdAt)}
+                        {formatRequestDate(request.createdAt)}
                       </td>
                       <td className="gba:px-6 gba:py-4 gba:text-sm gba:text-gray-600">
                         {request.steps.filter(s => s.status === 'COMPLETED' || s.status === 'DONE').length} /{' '}
