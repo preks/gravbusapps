@@ -33,7 +33,7 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_existing_event_no_title',
-      `The selected date overlaps with an existing event: ${absenceType} from ${absenceRequestTimeStampStart} to ${absenceRequestTimeStampEnd}. Please adjust the date.`,
+      'The selected date overlaps with an existing event: {{employeeAbsence}} from {{absenceRequestTimeStampStart}} to {{absenceRequestTimeStampEnd}}. Please adjust the date.',
       {
         employeeAbsence: absenceType,
         absenceRequestTimeStampStart,
@@ -52,7 +52,7 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_existing_event_expense_request',
-      `The selected date overlaps with an existing event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please adjust the date.`,
+      'The selected date overlaps with an existing event: Expense Request {{requestTitle}} from {{requestTimeStampStart}} to {{requestTimeStampEnd}}. Please adjust the date.',
       {
         requestTitle: expenseRequest.title,
         requestTimeStampStart: expenseRequestTimeStampStart,
@@ -71,7 +71,7 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_planned_event_plan',
-      `There is an existing plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
+      'There is an existing plan {{planTitle}} from {{planTimeStampStart}} to {{planTimeStampEnd}} for the selected period. You might want to cancel your request and create a new request based on your existing plan.',
       {
         planTitle: expensePlan.title,
         planTimeStampStart: expensePlanTimeStampStart,

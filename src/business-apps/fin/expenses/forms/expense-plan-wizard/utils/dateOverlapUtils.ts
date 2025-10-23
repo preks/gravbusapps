@@ -33,7 +33,7 @@ export const getOverlapWarningMessage = (
 
     const message = getTranslatedMessage(
       'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_existing_event_no_title',
-      `The selected date overlaps with an existing event: ${absenceType} from ${absenceRequestTimeStampStart} to ${absenceRequestTimeStampEnd}. Please adjust the date.`,
+      'The selected date overlaps with an existing event: {{employeeAbsence}} from {{absenceRequestTimeStampStart}} to {{absenceRequestTimeStampEnd}}. Please adjust the date.',
       {
         employeeAbsence: absenceType,
         absenceRequestTimeStampStart,
@@ -63,7 +63,7 @@ export const getOverlapWarningMessage = (
     if (blockStatuses.includes(expenseRequest.status)) {
       const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_existing_event_expense_request',
-        `The selected date overlaps with an existing event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please adjust the date.`,
+        'The selected date overlaps with an existing event: Expense Request {{requestTitle}} from {{requestTimeStampStart}} to {{requestTimeStampEnd}}. Please adjust the date.',
         {
           requestTitle: expenseRequest.title,
           requestTimeStampStart: expenseRequestTimeStampStart,
@@ -78,7 +78,7 @@ export const getOverlapWarningMessage = (
     if (expenseRequest.status === EXPENSE_STATUS.CREATED) {
       const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_request',
-        `The selected date overlaps with a draft event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please review before submitting if adjustments are needed.`,
+        'The selected date overlaps with a draft event: Expense Request {{requestTitle}} from {{requestTimeStampStart}} to {{requestTimeStampEnd}}. Please review before submitting if adjustments are needed.',
         {
           requestTitle: expenseRequest.title,
           requestTimeStampStart: expenseRequestTimeStampStart,
@@ -103,7 +103,7 @@ export const getOverlapWarningMessage = (
       // Block for all other statuses (PENDING, APPROVED, VERIFIED, BOOKED, TRANSFERRED, PAID, etc.)
       const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_existing_event_expense_plan',
-        `The selected date overlaps with an existing event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please adjust the date.`,
+        'The selected date overlaps with an existing event: Expense Plan {{planTitle}} from {{planTimeStampStart}} to {{planTimeStampEnd}}. Please adjust the date.',
         {
           planTitle: expensePlan.title,
           planTimeStampStart: expensePlanTimeStampStart,
@@ -118,7 +118,7 @@ export const getOverlapWarningMessage = (
     if (expensePlan.status === EXPENSE_STATUS.CREATED || expensePlan.status === EXPENSE_STATUS.REJECTED) {
       const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_plan',
-        `The selected date overlaps with a planned event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please review before submitting if adjustments are needed.`,
+        'The selected date overlaps with a planned event: Expense Plan {{planTitle}} from {{planTimeStampStart}} to {{planTimeStampEnd}}. Please review before submitting if adjustments are needed.',
         {
           planTitle: expensePlan.title,
           planTimeStampStart: expensePlanTimeStampStart,
