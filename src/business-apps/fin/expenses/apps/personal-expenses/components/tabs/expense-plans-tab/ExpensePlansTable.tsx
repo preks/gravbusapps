@@ -851,7 +851,6 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = React.memo(props => 
         }}
         hideFilter={false}
         dataBody={renderDataBody}
-        contentBackground="background"
         addLeftPaddingWhenNoFilter={true}
       />
 

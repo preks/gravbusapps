@@ -300,100 +300,98 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
               <div data-testid="expense-plan-without-plan-section">
                 {/* Expense Button - Only show if not disabled */}
                 {!isExpenseDisabled && (
-                  <Button
-                    variant="ghost"
-                    style={{
-                      height: '96px',
-                      width: '100%',
-                      marginBottom: '16px',
-                      backgroundColor: 'hsl(var(--muted))',
-                      padding: '0 24px',
-                      borderRadius: '4px'
-                    }}
-                    data-testid="expense-plan-expense-button"
-                    onClick={handleExpenseClick}
-                  >
-                    <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
-                      <div className="gba:flex gba:items-center">
+                  <div className="gba:bg-muted gba:rounded gba:mb-4">
+                    <Button
+                      variant="ghost"
+                      style={{
+                        height: '96px',
+                        width: '100%',
+                        padding: '0 24px'
+                      }}
+                      data-testid="expense-plan-expense-button"
+                      onClick={handleExpenseClick}
+                    >
+                      <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
+                        <div className="gba:flex gba:items-center">
+                          <img
+                            src={ICONS.RECEIPT_ICON}
+                            alt="Receipt"
+                            style={{ marginRight: '16px' }}
+                            width="32"
+                            height="32"
+                            data-testid="expense-plan-receipt-icon"
+                          />
+                          <span
+                            style={{
+                              fontFamily: "'Roboto', sans-serif",
+                              fontSize: '18px',
+                              lineHeight: '20px',
+                              fontWeight: 600
+                            }}
+                            data-testid="expense-plan-expense-text"
+                          >
+                            {t('lowcoder:create_expense_request.expense_select_button', 'Expense')}
+                          </span>
+                        </div>
                         <img
-                          src={ICONS.RECEIPT_ICON}
-                          alt="Receipt"
-                          style={{ marginRight: '16px' }}
-                          width="32"
-                          height="32"
-                          data-testid="expense-plan-receipt-icon"
+                          src={ICONS.RIGHT_ARROW}
+                          alt="Arrow"
+                          style={{ width: '24px', height: '24px' }}
+                          width="24"
+                          height="24"
+                          data-testid="expense-plan-expense-arrow"
                         />
-                        <span
-                          style={{
-                            fontFamily: "'Roboto', sans-serif",
-                            fontSize: '18px',
-                            lineHeight: '20px',
-                            fontWeight: 600
-                          }}
-                          data-testid="expense-plan-expense-text"
-                        >
-                          {t('lowcoder:create_expense_request.expense_select_button', 'Expense')}
-                        </span>
                       </div>
-                      <img
-                        src={ICONS.RIGHT_ARROW}
-                        alt="Arrow"
-                        style={{ width: '24px', height: '24px' }}
-                        width="24"
-                        height="24"
-                        data-testid="expense-plan-expense-arrow"
-                      />
-                    </div>
-                  </Button>
+                    </Button>
+                  </div>
                 )}
 
                 {/* Trip Button - Only show if not disabled */}
                 {!isTripDisabled && (
-                  <Button
-                    variant="ghost"
-                    style={{
-                      height: '96px',
-                      width: '100%',
-                      marginBottom: '16px',
-                      backgroundColor: 'hsl(var(--muted))',
-                      padding: '0 24px',
-                      borderRadius: '4px'
-                    }}
-                    data-testid="expense-plan-trip-button"
-                    onClick={handleTripClick}
-                  >
-                    <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
-                      <div className="gba:flex gba:items-center">
+                  <div className="gba:bg-muted gba:rounded gba:mb-4">
+                    <Button
+                      variant="ghost"
+                      style={{
+                        height: '96px',
+                        width: '100%',
+                        padding: '0 24px'
+                      }}
+                      data-testid="expense-plan-trip-button"
+                      onClick={handleTripClick}
+                    >
+                      <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
+                        <div className="gba:flex gba:items-center">
+                          <img
+                            src={ICONS.TRIP_ICON}
+                            alt="Trip"
+                            style={{ marginRight: '16px' }}
+                            width="32"
+                            height="32"
+                            data-testid="expense-plan-trip-icon"
+                          />
+                          <span
+                            style={{
+                              fontFamily: "'Roboto', sans-serif",
+                              fontSize: '18px',
+                              lineHeight: '20px',
+                              fontWeight: 600
+                            }}
+                            data-testid="expense-plan-trip-text"
+                          >
+                            {t('lowcoder:create_expense_request.trip_select_button', 'Trip')}
+                          </span>
+                        </div>
                         <img
-                          src={ICONS.TRIP_ICON}
-                          alt="Trip"
-                          style={{ marginRight: '16px' }}
-                          width="32"
-                          height="32"
-                          data-testid="expense-plan-trip-icon"
+                          src={ICONS.RIGHT_ARROW}
+                          alt="Arrow"
+                          style={{ width: '24px', height: '24px' }}
+                          width="24"
+                          height="24"
+                          data-testid="expense-plan-trip-arrow"
                         />
-                        <span
-                          style={{
-                            fontFamily: "'Roboto', sans-serif",
-                            fontSize: '18px',
-                            lineHeight: '20px',
-                            fontWeight: 600
-                          }}
-                          data-testid="expense-plan-trip-text"
-                        >
-                          {t('lowcoder:create_expense_request.trip_select_button', 'Trip')}
-                        </span>
                       </div>
-                      <img
-                        src={ICONS.RIGHT_ARROW}
-                        alt="Arrow"
-                        style={{ width: '24px', height: '24px' }}
-                        width="24"
-                        height="24"
-                        data-testid="expense-plan-trip-arrow"
-                      />
-                    </div>
-                  </Button>
+                    </Button>
+                  </div>
                 )}
               </div>
 
