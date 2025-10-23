@@ -282,18 +282,15 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
     if (isNaN(num)) {
       return
     }
-
-    // Format using the user's locale
-    const locale = getCurrentActiveUserLocale() || 'en-US'
-    const formattedValue = new Intl.NumberFormat(locale, {
+    const platformFormatted = formatNumberFunction(String(num), '0.00[,]00')
+    const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(num)
 
-    // Update form and state with locale-formatted value
-    form.setFieldsValue({ amount: formattedValue })
-    // But keep internal state as normalized (period) for calculations
-    setAmount(num.toFixed(2))
+    const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
+
+    form.setFieldsValue({ amount: finalDisplay })
   }
 
   // Validation functions
