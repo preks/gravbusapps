@@ -30,7 +30,7 @@ import {
   RiPlayLine as Play
 } from '@remixicon/react'
 
-interface FlowHubProps extends BusinessAppContextProps {}
+type FlowHubProps = BusinessAppContextProps
 
 const FlowHub: React.FC<FlowHubProps> = context => {
   const { stats, isLoading, error, refetch } = useFlowDashboardStats(context)
@@ -298,7 +298,8 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         links: [
           { label: 'Compliance Solution', action: 'solution-compliance' },
           { label: 'Employee Lifecycle', action: 'solution-employee-lifecycle' },
-          { label: 'Survey Solution', action: 'solution-survey' }
+          { label: 'Survey Solution', action: 'solution-survey' },
+          { label: 'Blink', action: 'solution-blink' }
         ],
         buttonLabel: 'Browse Solutions',
         buttonAction: 'navigate-solution-compliance'
@@ -554,6 +555,9 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         case 'navigate-solution-survey':
           navigateTo('/platform/apps/flow/apps/solutions/survey')
           break
+        case 'navigate-solution-blink':
+          navigateTo('/platform/apps/flow/apps/solutions/blink')
+          break
         case 'navigate-personal-analytics':
         case 'navigate-team-analytics':
         case 'navigate-system-analytics':
@@ -616,6 +620,9 @@ const FlowHub: React.FC<FlowHubProps> = context => {
         return
       case 'solution-survey':
         navigateTo('/platform/apps/flow/apps/solutions/survey')
+        return
+      case 'solution-blink':
+        navigateTo('/platform/apps/flow/apps/solutions/blink')
         return
 
       // Flow Templates / Creator
