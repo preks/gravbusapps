@@ -1,3 +1,5 @@
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
 /**
  * Helper to get translated message with proper parameter extraction.
  * Extracting params into a variable is required for i18n interpolation to work.
@@ -8,39 +10,12 @@
  */
 export const getTranslatedMessage = (key: string, defaultValue: string, params: Record<string, string>): string => {
   // Extract parameters into a variable - this is REQUIRED for i18n interpolation
-  const translationParams = params
-
-  // Use window.lowcoder.i18n.t directly to ensure proper translation
-  if (typeof window?.lowcoder?.i18n?.t === 'function') {
-    const translation = window.lowcoder.i18n.t(key, {
-      defaultValue,
-      ...translationParams,
-      interpolation: { escapeValue: false }
-    })
-
-    // If translation key is not found, i18n returns the key itself
-    // In that case, manually interpolate the defaultValue
-    if (translation === key || key?.split('lowcoder:')?.[1] === translation) {
-      return interpolateString(defaultValue, translationParams)
-    }
-
-    return translation || interpolateString(defaultValue, translationParams)
+  // This is the critical fix: params must be in a separate variable, not inline
+  const translationParams = {
+    ...params,
+    interpolation: { escapeValue: false }
   }
 
-  // Fallback: manually interpolate defaultValue
-  return interpolateString(defaultValue, translationParams)
-}
-
-/**
- * Manually interpolate placeholders in a string using safe string replacement.
- * Uses split/join instead of RegExp to avoid ReDoS security vulnerabilities.
- */
-function interpolateString(template: string, params: Record<string, string>): string {
-  let result = template
-  for (const [key, value] of Object.entries(params)) {
-    // Safe replacement using split/join - no RegExp, no security risk
-    const placeholder = `{{${key}}}`
-    result = result.split(placeholder).join(value)
-  }
-  return result
+  // Use the established windowUtils function to maintain consistency with project guidelines
+  return getTranslationFromI18nKeyAndLabel(key, defaultValue, translationParams)
 }
