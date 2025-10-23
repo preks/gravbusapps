@@ -497,7 +497,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                   <div className="gba:bg-muted gba:rounded gba:mb-4">
                     <Button
                       variant="ghost"
-                      className="gba:h-24 gba:w-full gba:px-6"
+                      style={{
+                        height: '96px',
+                        width: '100%',
+                        padding: '0 24px'
+                      }}
                       data-testid="expense-request-expense-button"
                       onClick={handleExpenseClick}
                     >
@@ -539,7 +543,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                   <div className="gba:bg-muted gba:rounded gba:mb-4">
                     <Button
                       variant="ghost"
-                      className="gba:h-24 gba:w-full gba:px-6"
+                      style={{
+                        height: '96px',
+                        width: '100%',
+                        padding: '0 24px'
+                      }}
                       data-testid="expense-request-trip-button"
                       onClick={handleTripClick}
                     >
@@ -601,7 +609,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                     <div className="gba:bg-muted gba:rounded gba:mb-4">
                       <Button
                         variant="ghost"
-                        className="gba:h-24 gba:w-full gba:px-6"
+                        style={{
+                          height: '96px',
+                          width: '100%',
+                          padding: '0 24px'
+                        }}
                         data-testid="expense-request-plan-button"
                         onClick={handlePlanClick}
                       >

@@ -303,7 +303,11 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                   <div className="gba:bg-muted gba:rounded gba:mb-4">
                     <Button
                       variant="ghost"
-                      className="gba:h-24 gba:w-full gba:px-6"
+                      style={{
+                        height: '96px',
+                        width: '100%',
+                        padding: '0 24px'
+                      }}
                       data-testid="expense-plan-expense-button"
                       onClick={handleExpenseClick}
                     >
@@ -347,7 +351,11 @@ const ExpensePlanContent: React.FC<ExpensePlanContentProps> = ({ accessToken, us
                   <div className="gba:bg-muted gba:rounded gba:mb-4">
                     <Button
                       variant="ghost"
-                      className="gba:h-24 gba:w-full gba:px-6"
+                      style={{
+                        height: '96px',
+                        width: '100%',
+                        padding: '0 24px'
+                      }}
                       data-testid="expense-plan-trip-button"
                       onClick={handleTripClick}
                     >
