@@ -143,7 +143,11 @@ export const EmployeeLeadsTab: React.FC<EmployeeLeadsTabProps> = ({ employeeId, 
 
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
       setCurrentPage(1)
     },
     [addFilter, removeFilter]
@@ -161,7 +165,6 @@ export const EmployeeLeadsTab: React.FC<EmployeeLeadsTabProps> = ({ employeeId, 
   // Ensure data loads on initial mount and whenever filters/search/sort/page change
   React.useEffect(() => {
     loadPage(currentPage, pageSize, additionalFilters)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, accessToken, search, sortField, sortOrder, currentPage, pageSize, JSON.stringify(additionalFilters)])
 
   // Report total count changes to parent

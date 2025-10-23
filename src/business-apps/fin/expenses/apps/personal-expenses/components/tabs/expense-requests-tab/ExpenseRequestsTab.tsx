@@ -48,7 +48,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     setStartDateRange,
     setEndDateRange,
     setRequestDateRange,
-    // @ts-ignore - new field exists in hook state
+    // @ts-expect-error - new field exists in hook state
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
@@ -272,7 +272,11 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   // Adapter function for DataFilter component
   const handleFilterChangeCallback = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )

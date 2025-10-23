@@ -1,6 +1,5 @@
 import React from 'react'
 import FeedbackRequestForm from './FeedbackRequestForm'
-import { FeedbackRequestFormValues } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
@@ -22,7 +21,7 @@ const FeedbackRequestFormScreen: React.FC<FeedbackRequestFormScreenProps> = ({
     additionalData?.psi_taskPayload?.psi_initialParameters?.employeeId ||
     preSelectedEmployeeId
 
-  const handleSubmitFeedbackRequest = async (values: FeedbackRequestFormValues) => {
+  const handleSubmitFeedbackRequest = async () => {
     // Feedback request submission is now handled by Kogito process via dispatchProcessContinueEvent
     // This function is kept for backward compatibility but the actual submission happens in the context
   }

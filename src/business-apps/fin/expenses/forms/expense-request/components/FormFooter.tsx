@@ -23,8 +23,7 @@ const FormFooter: React.FC<FormFooterProps> = ({
   formIsValid = false,
   onCancel,
   onSubmit,
-  testIdPrefix = REQUEST_TYPES.EXPENSE,
-  additionalData
+  testIdPrefix = REQUEST_TYPES.EXPENSE
 }) => {
   const { t } = useTranslation()
   return (

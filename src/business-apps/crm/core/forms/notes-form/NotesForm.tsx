@@ -198,7 +198,10 @@ export const NotesForm: React.FC<NotesFormProps> = props => {
   }
 
   return (
-    <div className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md" data-testid="notes-form-container">
+    <div
+      className="gba:p-6 gba:bg-hsl(var(--background)) gba:rounded-lg gba:shadow-md"
+      data-testid="notes-form-container"
+    >
       <Form
         form={form}
         layout="vertical"

@@ -3,7 +3,7 @@
 import React, { useEffect, useCallback, useState, useMemo } from 'react'
 import { useGetEmployees, Employee } from '@/business-apps/hr/core/hooks/useGetEmployees'
 import { useEmployeeFilters } from '@/business-apps/hr/core/hooks/useEmployeeFilters'
-import { PageLayout, IconAvatar } from '@newwork/nw-design-system'
+import { PageLayout } from '@newwork/nw-design-system'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { DataController, DataControllerProps } from '@/components/dataController'
 import { DataCards } from '@/components/dataCards'
@@ -38,7 +38,11 @@ export const EmployeeDirectory: React.FC<BusinessAppContextProps> = (props: Busi
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       // Use the appropriate function directly
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )

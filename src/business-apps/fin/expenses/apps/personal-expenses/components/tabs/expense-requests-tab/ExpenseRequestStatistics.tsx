@@ -42,10 +42,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     isLoading: hookLoading,
     error: hookError,
     fetchStatistics
-  } = useGetExpenseRequestStatistics(
-    stableContextProps,
-    selectedCurrencyRef || 'Currency:v1:EUR'
-  )
+  } = useGetExpenseRequestStatistics(stableContextProps, selectedCurrencyRef || 'Currency:v1:EUR')
 
   // Combine loading states
   const isLoading = statsLoading || hookLoading
@@ -175,7 +172,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
       value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), (contextProps as any).currencyCode || 'EUR')}`,
       // currencyCode provided by parent (derived from selectedCurrencyRef)
       // fallback to 'EUR' when not available
-      
+
       prefix: <DollarOutlined />,
       color: '#3f8600',
       precision: 2,

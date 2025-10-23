@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useDepartmentFilters, DepartmentFilterOption } from './useDepartmentFilters'
 import { useJobProfileFilters, JobProfileFilterOption } from './useJobProfileFilters'
@@ -45,7 +45,7 @@ export function useJobPositionFilters(accessToken: string) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<string[]>([])
-  const [filtersInitialized, setFiltersInitialized] = useState(true) // OPTIMIZED: Initialize immediately
+  const [filtersInitialized] = useState(true) // OPTIMIZED: Initialize immediately
 
   // Lazy loading state for filters
   const [filtersEnabled, setFiltersEnabled] = useState(true) // Enable immediately to load filter options

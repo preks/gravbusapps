@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react'
 import { Card, Button, CardContent } from '@newwork/nw-design-system'
-import { PlusCircleOutlined, SendOutlined, ExperimentOutlined } from '@ant-design/icons'
+import { PlusCircleOutlined, SendOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'

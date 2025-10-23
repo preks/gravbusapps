@@ -12,10 +12,8 @@ interface PositionTerminationProps extends BusinessAppContextProps {
 
 export const PositionTermination: React.FC<PositionTerminationProps> = ({
   accessToken,
-  userInfo,
   additionalData,
-  jobPositionId: directJobPositionId,
-  ...otherProps
+  jobPositionId: directJobPositionId
 }) => {
   // Extract jobPositionId from flow context structure or direct prop
   const extractJobPositionIdFromContext = (data: any): string | null => {
@@ -54,7 +52,7 @@ export const PositionTermination: React.FC<PositionTerminationProps> = ({
     // Method 5: Look for common keys that might contain the jobPositionId
     if (data) {
       // Look for any UUID-like values in the data
-      for (const [key, value] of Object.entries(data)) {
+      for (const [, value] of Object.entries(data)) {
         // Check if this looks like a UUID (basic check)
         if (
           typeof value === 'string' &&
@@ -92,7 +90,7 @@ export const PositionTermination: React.FC<PositionTerminationProps> = ({
   }
 
   return (
-    <PositionTerminationProvider jobPositionId={jobPositionId} accessToken={accessToken} userInfo={userInfo}>
+    <PositionTerminationProvider jobPositionId={jobPositionId} accessToken={accessToken}>
       <PositionTerminationForm />
     </PositionTerminationProvider>
   )

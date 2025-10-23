@@ -97,11 +97,9 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
       setIsLoading(true)
       setError(null)
       try {
-        const p = graphqlClient
-          .request<any>(GET_EXPENSE_PLANS_OVERVIEW, variables)
-          .finally(() => {
-            inflightRef.current.delete(key)
-          })
+        const p = graphqlClient.request<any>(GET_EXPENSE_PLANS_OVERVIEW, variables).finally(() => {
+          inflightRef.current.delete(key)
+        })
         inflightRef.current.set(key, p)
         const data = await p
 
@@ -110,7 +108,9 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
 
         const destinationRegions: string[] = (data?.destinations ?? [])
           .flatMap((plan: any) =>
-            (plan.expenseRequestTrip || []).map((trip: any) => trip?.travelRegion?.translations?.[0]?.value || trip?.travelRegion?.value)
+            (plan.expenseRequestTrip || []).map(
+              (trip: any) => trip?.travelRegion?.translations?.[0]?.value || trip?.travelRegion?.value
+            )
           )
           .filter(Boolean)
         const topDestination = (() => {
@@ -147,5 +147,3 @@ export const useExpensePlansOverview = (context: BusinessAppContextProps) => {
 
   return { data, isLoading, error, fetchOverview }
 }
-
-

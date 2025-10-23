@@ -172,14 +172,6 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Account autocomplete state
-  const [accountSuggestions, setAccountSuggestions] = useState<SelectOption[]>([])
-  const [isSearchingAccounts, setIsSearchingAccounts] = useState(false)
-
-  // Lead autocomplete state
-  const [leadSuggestions, setLeadSuggestions] = useState<SelectOption[]>([])
-  const [isSearchingLeads, setIsSearchingLeads] = useState(false)
-
   // Refs for auto-selection control
   const autoSelectionDone = useRef(false)
 
@@ -226,12 +218,7 @@ export const OpportunityFormProvider: React.FC<OpportunityFormProviderProps> = (
   })
 
   // Opportunity data fetching hook for pre-filling form when updating existing opportunity
-  const {
-    opportunityData,
-    loading: opportunityDataLoading,
-    error: opportunityDataError,
-    mapOpportunityToFormValues
-  } = useOpportunityData({ businessAppContext })
+  const { opportunityData, mapOpportunityToFormValues } = useOpportunityData({ businessAppContext })
 
   // Extract opportunityId for tracking changes
   const opportunityId =

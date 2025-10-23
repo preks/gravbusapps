@@ -22,7 +22,7 @@ const moduleColor = MODULE_COLORS.IRM
 export const InvestmentRelations: React.FC<InvestmentRelationsProps> = context => {
   const { fetchPipelines } = useDashboardQueries(context)
   const [pipelines, setPipelines] = useState<PipelineInfo[]>([])
-  const [dateRange, setDateRange] = useState<{ startDate: Date; endDate: Date }>(() => {
+  const [dateRange] = useState<{ startDate: Date; endDate: Date }>(() => {
     const now = new Date()
     const start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0)
     const end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999)

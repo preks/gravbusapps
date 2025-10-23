@@ -45,7 +45,6 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
   opportunities,
   loading,
   error,
-  hasMore,
   retry,
   total,
   pageSize,

@@ -55,7 +55,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
   locationFormLabels = {}
 }) => {
   const { minDate, minTime, maxDate, maxTime } = dateTimeLimits
-  const { id, name, isAbroad, location, departureDate, departureTime, travelRegionRef } = locationData
+  const { id, isAbroad, location, departureDate, departureTime, travelRegionRef } = locationData
   const idPrefix = index !== undefined ? `${id}-${index}` : id
 
   const travelRegionOptions = useMemo(
@@ -175,10 +175,7 @@ const LocationForm: React.FC<LocationFormProps> = ({
     <div className="gba:flex gba:flex-col gba:gap-4" data-testid={`${idPrefix}-form-content`}>
       <div className="gba:mb-0" data-testid={`${idPrefix}-abroad-switch-container`}>
         <Switch
-          label={getTranslationFromI18nKeyAndLabel(
-            'lowcoder:add_items_to_plan.add_trip_info_to_plan.switch',
-            'Abroad'
-          )}
+          label={getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.add_trip_info_to_plan.switch', 'Abroad')}
           name={`${idPrefix}Abroad`}
           data-testid={`${idPrefix}-abroad-switch`}
           value={isAbroad}

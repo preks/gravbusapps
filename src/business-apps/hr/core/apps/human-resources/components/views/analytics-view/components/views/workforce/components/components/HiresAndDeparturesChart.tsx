@@ -73,14 +73,14 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
     // Fix: ensure sort is stable and robust, handle potential invalid dates
     return Array.from(dataMap.entries())
       .sort(([a], [b]) => {
-        const aTime = new Date(a).getTime();
-        const bTime = new Date(b).getTime();
-        if (isNaN(aTime) && isNaN(bTime)) return 0;
-        if (isNaN(aTime)) return 1;
-        if (isNaN(bTime)) return -1;
-        return aTime - bTime;
+        const aTime = new Date(a).getTime()
+        const bTime = new Date(b).getTime()
+        if (isNaN(aTime) && isNaN(bTime)) return 0
+        if (isNaN(aTime)) return 1
+        if (isNaN(bTime)) return -1
+        return aTime - bTime
       })
-      .map(([_, data]) => data)
+      .map(([, data]) => data)
   }, [hiresData, exitsData, netChangeData])
 
   if (isLoading) {

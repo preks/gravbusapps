@@ -218,7 +218,9 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
         className="gba:text-sm gba:text-muted-foreground gba:bg-muted gba:p-3 gba:rounded-md gba:border gba:border-border"
         data-testid="plan-vs-request-active-filters"
       >
-        <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:</span>{' '}
+        <span className="gba:font-medium">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:
+        </span>{' '}
         {selectedPeriod}
         {' · '}
         <span className="gba:font-medium">

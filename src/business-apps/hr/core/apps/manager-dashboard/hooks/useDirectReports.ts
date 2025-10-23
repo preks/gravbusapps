@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { Employee, EmployeeResponse, EmployeeAbsence, EmployeeAbsenceResponse } from '../types/employee.types'
+import { Employee, EmployeeAbsence } from '../types/employee.types'
 
 export interface DirectReport {
   id: string
@@ -164,7 +164,7 @@ export const useDirectReports = ({ accessToken, managerId }: UseDirectReportsPro
         )
 
         const formattedReports: DirectReport[] = employees.map((employee: Employee) => {
-          const absences = absencesByEmployee[employee.id] || []
+          const absences = absencesByEmployee[employee.id || ''] || []
           const now = new Date()
 
           // Find current absence (currently active)

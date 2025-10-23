@@ -92,7 +92,7 @@ export const SalesMemberPerformance: React.FC<SalesMemberPerformanceProps> = ({
   return (
     <div className="gba:w-full gba:min-h-screen gba:bg-gray-50" data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
       {/* Header Section */}
-      <div className="gba:p-6 gba:bg-white gba:border-b">
+      <div className="gba:p-6 gba:bg-hsl(var(--background)) gba:border-b">
         <PerformanceHeader
           headerData={headerData}
           isLoading={headerLoading}

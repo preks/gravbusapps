@@ -40,36 +40,30 @@ const FinancialInformationSection: React.FC = () => {
     // Time Zones
     timeZones,
     timeZonesLoading,
-    timeZonesError,
     timeZonesHasMore,
     timeZonesNeedsMoreData,
     timeZonesDisplayCount,
     timeZonesTotalFetched,
-    searchTimeZones,
     loadMoreTimeZones,
     showMoreTimeZones,
 
     // Employee Sizes
     employeeSizes,
     employeeSizesLoading,
-    employeeSizesError,
     employeeSizesHasMore,
     employeeSizesNeedsMoreData,
     employeeSizesDisplayCount,
     employeeSizesTotalFetched,
-    searchEmployeeSizes,
     loadMoreEmployeeSizes,
     showMoreEmployeeSizes,
 
     // Revenue Sizes
     revenueSizes,
     revenueSizesLoading,
-    revenueSizesError,
     revenueSizesHasMore,
     revenueSizesNeedsMoreData,
     revenueSizesDisplayCount,
     revenueSizesTotalFetched,
-    searchRevenueSizes,
     loadMoreRevenueSizes,
     showMoreRevenueSizes
   } = useAccountFormContext()
@@ -134,18 +128,6 @@ const FinancialInformationSection: React.FC = () => {
     }
   }, [isRevenueSizeOpen, revenueSizesDisplayCount, revenueSizesTotalFetched, showMoreRevenueSizes])
 
-  const handleLoadMoreTimeZones = () => {
-    if (timeZonesNeedsMoreData && !timeZonesLoading && timeZonesHasMore) {
-      console.log(`🚀 Manual load more - fetching next 100 time zones from API`)
-      loadMoreTimeZones()
-    } else if (timeZonesDisplayCount < timeZonesTotalFetched) {
-      console.log(
-        `🚀 Manual load more - showing more time zones from cache (${timeZonesDisplayCount}/${timeZonesTotalFetched})`
-      )
-      showMoreTimeZones()
-    }
-  }
-
   const handleLoadMoreRevenueSizes = () => {
     if (revenueSizesNeedsMoreData && !revenueSizesLoading && revenueSizesHasMore) {
       console.log(`🚀 Manual load more - fetching next 100 revenue sizes from API`)
@@ -186,9 +168,8 @@ const FinancialInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-destructive-secondary gba:to-warning-secondary"
         style={{
-          background: 'linear-gradient(to right, #fecaca, #fbb6ce)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -223,7 +204,7 @@ const FinancialInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -243,7 +224,7 @@ const FinancialInformationSection: React.FC = () => {
                 onOpenChange={setIsRevenueSizeOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'AnnualRevenueSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -306,7 +287,7 @@ const FinancialInformationSection: React.FC = () => {
                 onOpenChange={setIsEmployeeSizeOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'NumberOfEmployeesSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -353,7 +334,7 @@ const FinancialInformationSection: React.FC = () => {
                 onOpenChange={setIsTimeZoneOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'TimeZoneSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -386,7 +367,7 @@ const FinancialInformationSection: React.FC = () => {
                 type="date"
                 value={formValues.foundationDate || ''}
                 onChange={e => setFormValues({ foundationDate: e.target.value })}
-                className="gba:border-gray-300 gba:bg-white gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
                 data-testid={formatDataTestId(prefixDataTestId, 'FoundationDateInput')}
               />
             </div>
@@ -398,7 +379,7 @@ const FinancialInformationSection: React.FC = () => {
                 value={formValues.tickerSymbol}
                 onChange={e => setFormValues({ tickerSymbol: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'TickerSymbolInput')}
               />
             </div>
@@ -412,7 +393,7 @@ const FinancialInformationSection: React.FC = () => {
               value={formValues.sicCode}
               onChange={e => setFormValues({ sicCode: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'SicCodeInput')}
             />
           </div>

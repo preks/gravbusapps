@@ -24,11 +24,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
 
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
 
-  const {
-    pipelineData,
-    isLoading: pipelineLoading,
-    error: pipelineError
-  } = usePipelineData(context, selectedPipeline || null, dateRange)
+  const { pipelineData } = usePipelineData(context, selectedPipeline || null, dateRange)
 
   const handlePipelineChange = (pipelineId: string) => {
     setSelectedPipelineId(pipelineId)

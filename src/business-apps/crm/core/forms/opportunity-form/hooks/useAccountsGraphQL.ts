@@ -28,7 +28,7 @@ export const useAccountsGraphQL = ({ accessToken, pageSize = 20 }: AccountsHookP
 
   const graphqlClient = useGraphQLClient(accessToken)
 
-  const buildAccountsQuery = (search: string = '', offset: number = 0, limit: number = 20) =>
+  const buildAccountsQuery = (search: string = '') =>
     search.trim()
       ? `
         query GetAccounts($limit: Int, $offset: Int, $search: String) {

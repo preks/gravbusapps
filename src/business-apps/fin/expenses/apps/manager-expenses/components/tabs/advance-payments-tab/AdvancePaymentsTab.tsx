@@ -237,7 +237,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       {/* Data Container with Table */}
       <DataContainer
         key="advance-payments-data-container"
-        contentBackground="white"
+        contentBackground="background"
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,

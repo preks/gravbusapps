@@ -14,11 +14,10 @@ const bookletServerSchema = z.object({
 })
 
 // UI schema extends server response for AiSummaryButton rendering
-const bookletSchema = bookletServerSchema.extend({
-  summary: z.string().describe('A concise status summary for display'),
-  keyInsights: z.array(z.string()).describe('Details and context for display')
-})
-type BookletSchema = z.infer<typeof bookletSchema>
+type BookletSchema = z.infer<typeof bookletServerSchema> & {
+  summary: string
+  keyInsights: string[]
+}
 
 export function useGenerateAIBooklet(
   accountId: string,
@@ -68,7 +67,7 @@ export function useGenerateAIBooklet(
         } catch {
           // ignore parse errors, treat as success without extra details
         }
-      } catch (e) {
+      } catch {
         setState({ type: 'error' })
         return
       }
@@ -101,7 +100,7 @@ export function useGenerateAIBooklet(
       }
 
       setState({ type: 'success', content: result })
-    } catch (e) {
+    } catch {
       setState({ type: 'error' })
     }
   }, [accessToken, accountId, options?.maxQuestions, options?.outputFileName, restClient])

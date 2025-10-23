@@ -7,12 +7,6 @@ export interface SortConfig {
   direction: SortDirection
 }
 
-/**
- * Sorts an array of data based on a key and direction.
- * @param data The array of employees to sort.
- * @param sortConfig The sorting configuration.
- * @returns The sorted array.
- */
 export const sortData = (data: Employee[], sortConfig: SortConfig | null): Employee[] => {
   if (!sortConfig) {
     return data

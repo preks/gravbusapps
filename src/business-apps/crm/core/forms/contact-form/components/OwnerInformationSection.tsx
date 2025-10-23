@@ -84,7 +84,7 @@ const OwnerInformationSection: React.FC = () => {
               value={formValues.firstName}
               onChange={e => setFormValues({ firstName: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'FirstNameInput')}
             />
           </div>
@@ -98,7 +98,7 @@ const OwnerInformationSection: React.FC = () => {
               value={formValues.lastName}
               onChange={e => setFormValues({ lastName: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'LastNameInput')}
             />
           </div>
@@ -115,7 +115,7 @@ const OwnerInformationSection: React.FC = () => {
             value={formValues.email}
             onChange={e => setFormValues({ email: e.target.value })}
             placeholder="Please Enter..."
-            className="gba:border-gray-300 gba:bg-white"
+            className="gba:border-gray-300 gba:bg-hsl(var(--background))"
             data-testid={formatDataTestId(prefixDataTestId, 'EmailInput')}
           />
         </div>
@@ -130,7 +130,7 @@ const OwnerInformationSection: React.FC = () => {
               value={formValues.phone}
               onChange={e => setFormValues({ phone: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'PhoneInput')}
             />
           </div>
@@ -143,7 +143,7 @@ const OwnerInformationSection: React.FC = () => {
               value={formValues.fax}
               onChange={e => setFormValues({ fax: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'FaxInput')}
             />
           </div>

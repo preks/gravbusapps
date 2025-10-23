@@ -107,7 +107,7 @@ const AddressInformationSection: React.FC = () => {
           value={value || ''}
           onChange={e => setFormValues({ [fieldName]: e.target.value })}
           placeholder="Please Enter..."
-          className="gba:border-gray-300 gba:bg-white"
+          className="gba:border-gray-300 gba:bg-hsl(var(--background))"
           data-testid={formatDataTestId(prefixDataTestId, `AddressLine${lineNumber}Input`)}
         />
       </div>
@@ -130,9 +130,8 @@ const AddressInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-warning-secondary gba:to-warning"
         style={{
-          background: 'linear-gradient(to right, #fed7aa, #fdba74)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -143,12 +142,6 @@ const AddressInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fdba74, #fb923c)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fed7aa, #fdba74)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'AddressInfoToggle')}
       >
@@ -167,7 +160,7 @@ const AddressInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -228,7 +221,7 @@ const AddressInformationSection: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={removeAddressLine}
-                    className="gba:text-red-700 gba:border-gray-300 gba:bg-white gba:hover:bg-red-50 gba:text-xs gba:px-2 gba:py-1"
+                    className="gba:text-red-700 gba:border-gray-300 gba:bg-hsl(var(--background)) gba:hover:bg-red-50 gba:text-xs gba:px-2 gba:py-1"
                     data-testid={formatDataTestId(prefixDataTestId, 'RemoveAddressLineButton')}
                   >
                     <PiMinus className="gba:w-3 gba:h-3 gba:mr-1" />
@@ -240,7 +233,7 @@ const AddressInformationSection: React.FC = () => {
                     variant="outline"
                     size="sm"
                     onClick={addAddressLine}
-                    className="gba:text-blue-700 gba:border-gray-300 gba:bg-white gba:hover:bg-blue-50 gba:text-xs gba:px-2 gba:py-1"
+                    className="gba:text-blue-700 gba:border-gray-300 gba:bg-hsl(var(--background)) gba:hover:bg-blue-50 gba:text-xs gba:px-2 gba:py-1"
                     data-testid={formatDataTestId(prefixDataTestId, 'AddAddressLineButton')}
                   >
                     <PiPlus className="gba:w-3 gba:h-3 gba:mr-1" />
@@ -262,7 +255,7 @@ const AddressInformationSection: React.FC = () => {
                 value={formValues.postalCode || ''}
                 onChange={e => setFormValues({ postalCode: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'PostalCodeInput')}
               />
             </div>
@@ -274,7 +267,7 @@ const AddressInformationSection: React.FC = () => {
                 value={formValues.city || ''}
                 onChange={e => setFormValues({ city: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'CityInput')}
               />
             </div>

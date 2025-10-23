@@ -81,14 +81,13 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
   return (
     <div style={{ marginBottom: '24px' }}>
       <div
+        className="gba:bg-muted gba:border gba:border-muted"
         style={{
           display: 'flex',
           alignItems: 'center',
           height: '48px',
-          backgroundColor: '#f5f5f5',
           borderRadius: '24px',
           overflow: 'visible',
-          border: '1px solid #e0e0e0',
           padding: '0 4px'
         }}
       >
@@ -105,7 +104,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
               fontSize: '14px',
               fontWeight: '600',
               backgroundColor: isOpen ? '#4CAF50' : 'transparent',
-              color: isOpen ? 'white' : '#666666',
+              color: isOpen ? 'white' : 'var(--color-muted-foreground)',
               borderRadius: '20px 0 0 20px',
               marginRight: '8px',
               transition: 'all 0.3s ease',
@@ -127,10 +126,10 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
             >
               {isOpen && (
                 <span
+                  className="gba:bg-primary-foreground/30"
                   style={{
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    backgroundColor: 'rgba(255,255,255,0.3)',
                     borderRadius: '50%',
                     width: '20px',
                     height: '20px',
@@ -151,17 +150,16 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
         {isOpen ? (
           /* If Open: Show both Converted and Lost (not colored) */
           <div
+            className="gba:bg-muted gba:border gba:border-muted"
             style={{
               position: 'relative',
               height: '40px',
               flex: 1,
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: '#f5f5f5',
               borderRadius: '0 20px 20px 0',
               marginRight: '0',
               transition: 'all 0.3s ease',
-              border: '1px solid #e0e0e0',
               overflow: 'hidden',
               clipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)',
               WebkitClipPath: 'polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 24px 50%)'
@@ -179,7 +177,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                 fontSize: '14px',
                 fontWeight: '600',
                 backgroundColor: 'transparent',
-                color: '#666666',
+                color: 'var(--color-muted-foreground)',
                 transition: 'all 0.3s ease',
                 cursor: 'pointer'
               }}
@@ -200,10 +198,10 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
 
             {/* Divider */}
             <div
+              className="gba:bg-border"
               style={{
                 width: '1px',
-                height: '24px',
-                backgroundColor: '#e0e0e0'
+                height: '24px'
               }}
             />
 
@@ -218,7 +216,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
                 fontSize: '14px',
                 fontWeight: '600',
                 backgroundColor: 'transparent',
-                color: '#666666',
+                color: 'var(--color-muted-foreground)',
                 transition: 'all 0.3s ease',
                 cursor: 'pointer'
               }}
@@ -278,10 +276,10 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
             >
               {(isConverted || isLost) && (
                 <span
+                  className="gba:bg-primary-foreground/30"
                   style={{
                     fontSize: '14px',
                     fontWeight: 'bold',
-                    backgroundColor: 'rgba(255,255,255,0.3)',
                     borderRadius: '50%',
                     width: '20px',
                     height: '20px',
@@ -316,7 +314,7 @@ export const StatusProgression: React.FC<StatusProgressionProps> = ({
         <p>
           Are you sure you want to change the lead status to <strong>{selectedStatus?.value}</strong>?
         </p>
-        <p style={{ color: '#666', fontSize: '14px', marginTop: '8px' }}>
+        <p className="gba:text-muted-foreground gba:text-sm gba:mt-2">
           This action will update the lead's current status and may trigger additional workflows.
         </p>
       </Modal>
