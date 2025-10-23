@@ -118,7 +118,7 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
       {loading ? (
         <div>Loading activities...</div>
       ) : activities.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '32px', color: '#999' }}>
+        <div className="gba:text-muted-foreground" style={{ textAlign: 'center', padding: '32px' }}>
           <p>No activities found</p>
           <AppAction
             contextsArray={[FlowContextName.customerActivityCreate]}
@@ -140,13 +140,17 @@ export const ActivityTimelineWithFlowRegistry: React.FC<ActivityTimelineProps> =
       ) : (
         <Timeline>
           {activities.map(activity => (
-            <Timeline.Item key={activity.id} color="blue">
+            <Timeline.Item key={activity.id}>
               <div style={{ position: 'relative', paddingRight: '80px' }}>
                 <div>
                   <strong>{activity.title}</strong>
-                  {activity.description && <p style={{ margin: '4px 0', color: '#666' }}>{activity.description}</p>}
+                  {activity.description && (
+                    <p className="gba:text-muted-foreground" style={{ margin: '4px 0' }}>
+                      {activity.description}
+                    </p>
+                  )}
                   {activity.date && (
-                    <small style={{ color: '#999' }}>{new Date(activity.date).toLocaleDateString()}</small>
+                    <small className="gba:text-muted-foreground">{new Date(activity.date).toLocaleDateString()}</small>
                   )}
                 </div>
 

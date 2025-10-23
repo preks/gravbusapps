@@ -192,9 +192,7 @@ export const useExpensePlanFilters = () => {
     // Plan type filters (EXPENSES or TRIP) map to requestTypeRef
     const planTypeTokens = selectedFilters.filter(f => f.startsWith('planType:'))
     if (planTypeTokens.length > 0) {
-      const allowedTypes = planTypeTokens
-        .map(t => t.split(':')[1])
-        .filter(t => t === 'EXPENSES' || t === 'TRIP')
+      const allowedTypes = planTypeTokens.map(t => t.split(':')[1]).filter(t => t === 'EXPENSES' || t === 'TRIP')
 
       if (allowedTypes.length > 0) {
         const typeOr = allowedTypes.map(t => ({ requestTypeRef: { _eq: `ExpenseRequestType:v1:${t}` } }))
@@ -257,16 +255,6 @@ export const useExpensePlanFilters = () => {
     conditions.push({ status: { _neq: ExpenseStatus.DISCARDED } })
     return { _and: conditions.length > 0 ? conditions : [{}] }
   }, [search, selectedFilters, planDateRange, startDateRange, endDateRange, effectiveDateRange])
-
-  // deprecated: use clearAllFilters instead
-  const clearFilters = useCallback(() => {
-    setSelectedFilters([])
-    setStartDateRange(null)
-    setEndDateRange(null)
-    setPlanDateRange(null)
-    setEffectiveDateRange(null)
-    setSearch('')
-  }, [])
 
   const handleFilterChange = useCallback((filterId: string, selected: boolean) => {
     setSelectedFilters(prev => (selected ? [...prev, filterId] : prev.filter(id => id !== filterId)))

@@ -6,7 +6,7 @@ import ExpenseRequestsTable from './ExpenseRequestsTable'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
 import { standardizeCurrencyRef } from '../../../utils/currencyUtils'
 
-export interface ExpenseRequestsTabProps extends BusinessAppContextProps {}
+export type ExpenseRequestsTabProps = BusinessAppContextProps
 
 const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const managerId = props.userInfo?.employeeDetails?.employeeId || ''

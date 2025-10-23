@@ -71,5 +71,3 @@ export const useExpenseItemStatsOverview = (context: BusinessAppContextProps) =>
 
   return { data, isLoading, error, fetchOverview }
 }
-
-

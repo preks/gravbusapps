@@ -19,7 +19,6 @@ interface AdvancePaymentStatisticsProps extends BusinessAppContextProps {
 const AdvancePaymentStatistics: React.FC<AdvancePaymentStatisticsProps> = ({
   statsLoading = false,
   statsError = null,
-  fetchAdvancePaymentStatistics = () => Promise.resolve(),
   onWidgetClick,
   activeWidgetKey,
   selectedCurrencyRef = 'Currency:v1:EUR',

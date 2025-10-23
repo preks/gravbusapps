@@ -155,7 +155,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   const {
     options: accountSuggestions,
     loading: accountsLoading,
-    error: accountsError,
     hasMore: accountsHasMore,
     search: searchAccounts,
     loadMore: loadMoreAccounts
@@ -165,7 +164,6 @@ export const ContactFormProvider: React.FC<ContactFormProviderProps> = ({
   const {
     options: campaignSuggestions,
     loading: campaignsLoading,
-    error: campaignsError,
     hasMore: campaignsHasMore,
     search: searchCampaigns,
     loadMore: loadMoreCampaigns

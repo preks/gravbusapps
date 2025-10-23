@@ -121,8 +121,7 @@ export const useMainViewExpensePlans = ({
   searchTerm,
   currentStatusFilter,
   currentCurrencyFilter,
-  statisticsOnly = false,
-  sortConfig = { field: null, order: null, lastField: null }
+  statisticsOnly = false
 }: UseMainViewExpensePlansProps) => {
   const hookId = useMemo(() => Math.random().toString(36).substring(7), [])
 

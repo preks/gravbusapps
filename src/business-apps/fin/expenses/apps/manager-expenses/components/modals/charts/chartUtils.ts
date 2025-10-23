@@ -3,13 +3,13 @@
  * Handles SSR gracefully by returning the original value if window/document are unavailable.
  * Supports CSS fallback syntax: var(--token, fallbackValue)
  *
- * @param color - CSS color value (e.g., "var(--nw-primary)" or "#ff0000")
+ * @param color - CSS color value (e.g., "var(--nw-primary)" or "destructive")
  * @returns Resolved color value; always returns a string (possibly empty when input is empty)
  *
  * @example
  * resolveCssVar("var(--nw-primary)") // "#1890ff" (example)
  * resolveCssVar("var(--missing, #000)") // "#000"
- * resolveCssVar("#ff0000") // "#ff0000"
+ * resolveCssVar("destructive") // "destructive"
  */
 export const resolveCssVar = (color?: string | null): string => {
   const input = (color ?? '').trim()

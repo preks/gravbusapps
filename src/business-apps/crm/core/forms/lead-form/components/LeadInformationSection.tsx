@@ -19,7 +19,6 @@ import SearchableSelect from '../../opportunity-form/components/SearchableSelect
 const prefixDataTestId = 'LeadForm'
 
 const LeadInformationSection: React.FC = () => {
-  const [isExpanded, setIsExpanded] = useState(true)
   const [isStatusOpen, setIsStatusOpen] = useState(false)
   const [isSourceOpen, setIsSourceOpen] = useState(false)
   const [isRatingOpen, setIsRatingOpen] = useState(false)
@@ -27,41 +26,34 @@ const LeadInformationSection: React.FC = () => {
   const {
     formValues,
     setFormValues,
-    isLoading,
 
     // Lead Sources
     leadSources,
     leadSourcesLoading,
-    leadSourcesError,
     leadSourcesHasMore,
     leadSourcesNeedsMoreData,
     leadSourcesDisplayCount,
     leadSourcesTotalFetched,
-    searchLeadSources,
     loadMoreLeadSources,
     showMoreLeadSources,
 
     // Lead Statuses
     leadStatuses,
     leadStatusesLoading,
-    leadStatusesError,
     leadStatusesHasMore,
     leadStatusesNeedsMoreData,
     leadStatusesDisplayCount,
     leadStatusesTotalFetched,
-    searchLeadStatuses,
     loadMoreLeadStatuses,
     showMoreLeadStatuses,
 
     // Lead Ratings
     leadRatings,
     leadRatingsLoading,
-    leadRatingsError,
     leadRatingsHasMore,
     leadRatingsNeedsMoreData,
     leadRatingsDisplayCount,
     leadRatingsTotalFetched,
-    searchLeadRatings,
     loadMoreLeadRatings,
     showMoreLeadRatings,
 
@@ -71,10 +63,7 @@ const LeadInformationSection: React.FC = () => {
     salesCampaignsError,
     salesCampaignsHasMore,
     searchSalesCampaigns,
-    loadMoreSalesCampaigns,
-
-    // Access token for API calls
-    accessToken
+    loadMoreSalesCampaigns
   } = useLeadFormContext()
 
   // Note: Removed accounts hook since we're using simple input instead of dropdown
@@ -160,7 +149,7 @@ const LeadInformationSection: React.FC = () => {
               onChange={e => setFormValues({ firstName: e.target.value })}
               placeholder="Please Enter..."
               required
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'FirstNameInput')}
             />
           </div>
@@ -175,7 +164,7 @@ const LeadInformationSection: React.FC = () => {
               onChange={e => setFormValues({ lastName: e.target.value })}
               placeholder="Please Enter..."
               required
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'LastNameInput')}
             />
           </div>
@@ -192,7 +181,7 @@ const LeadInformationSection: React.FC = () => {
             onChange={e => setFormValues({ company: e.target.value })}
             placeholder="Please Enter..."
             required
-            className="gba:border-gray-300 gba:bg-white"
+            className="gba:border-gray-300 gba:bg-hsl(var(--background))"
             data-testid={formatDataTestId(prefixDataTestId, 'CompanyInput')}
           />
         </div>
@@ -208,7 +197,7 @@ const LeadInformationSection: React.FC = () => {
               onOpenChange={setIsStatusOpen}
               data-testid={formatDataTestId(prefixDataTestId, 'LeadStatusSelect')}
             >
-              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent
@@ -238,7 +227,7 @@ const LeadInformationSection: React.FC = () => {
               onOpenChange={setIsSourceOpen}
               data-testid={formatDataTestId(prefixDataTestId, 'LeadSourceSelect')}
             >
-              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent
@@ -272,7 +261,7 @@ const LeadInformationSection: React.FC = () => {
                 onOpenChange={setIsRatingOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'RatingSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent

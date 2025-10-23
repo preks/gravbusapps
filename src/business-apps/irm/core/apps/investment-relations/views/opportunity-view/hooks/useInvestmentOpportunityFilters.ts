@@ -22,22 +22,11 @@ export const useInvestmentOpportunityFilters = (
   const [accounts, setAccounts] = useState<SimpleItem[]>([])
   const [statuses, setStatuses] = useState<SimpleItem[]>([])
 
-  const [loading, setLoading] = useState({
-    owners: false,
-    stages: false,
-    pipelines: false,
-    accounts: false,
-    statuses: false
-  })
-  const [errors, setErrors] = useState<{ [k: string]: Error | null }>({})
-
   const [closeAfter, setCloseAfter] = useState<string | undefined>(undefined)
   const [closeBefore, setCloseBefore] = useState<string | undefined>(undefined)
 
   const loadOwners = useCallback(async () => {
     if (!context.accessToken) return
-    setLoading(prev => ({ ...prev, owners: true }))
-    setErrors(prev => ({ ...prev, owners: null }))
     try {
       const res = await graphqlClient.request<{
         InvestmentOpportunity: Array<{
@@ -58,18 +47,13 @@ export const useInvestmentOpportunityFilters = (
           return { id: e.id, label: name }
         })
       setOwners(items)
-    } catch (e) {
+    } catch {
       setOwners([])
-      setErrors(prev => ({ ...prev, owners: e as Error }))
-    } finally {
-      setLoading(prev => ({ ...prev, owners: false }))
     }
   }, [context.accessToken, graphqlClient])
 
   const loadStages = useCallback(async () => {
     if (!context.accessToken) return
-    setLoading(prev => ({ ...prev, stages: true }))
-    setErrors(prev => ({ ...prev, stages: null }))
     try {
       const res = await graphqlClient.request<{
         InvestmentOpportunity: Array<{
@@ -88,18 +72,13 @@ export const useInvestmentOpportunityFilters = (
         if (s?.id) map.set(s.id, s.value || s.code || s.id)
       })
       setStages(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
-    } catch (e) {
+    } catch {
       setStages([])
-      setErrors(prev => ({ ...prev, stages: e as Error }))
-    } finally {
-      setLoading(prev => ({ ...prev, stages: false }))
     }
   }, [context.accessToken, graphqlClient])
 
   const loadPipelines = useCallback(async () => {
     if (!context.accessToken) return
-    setLoading(prev => ({ ...prev, pipelines: true }))
-    setErrors(prev => ({ ...prev, pipelines: null }))
     try {
       const res = await graphqlClient.request<{
         InvestmentOpportunity: Array<{ opportunityPipeline?: { id: string; code?: string; value?: string } | null }>
@@ -116,18 +95,13 @@ export const useInvestmentOpportunityFilters = (
         if (p?.id) map.set(p.id, p.value || p.code || p.id)
       })
       setPipelines(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
-    } catch (e) {
+    } catch {
       setPipelines([])
-      setErrors(prev => ({ ...prev, pipelines: e as Error }))
-    } finally {
-      setLoading(prev => ({ ...prev, pipelines: false }))
     }
   }, [context.accessToken, graphqlClient])
 
   const loadAccounts = useCallback(async () => {
     if (!context.accessToken) return
-    setLoading(prev => ({ ...prev, accounts: true }))
-    setErrors(prev => ({ ...prev, accounts: null }))
     try {
       const res = await graphqlClient.request<{
         InvestmentOpportunity: Array<{ account?: { id: string; name: string } | null }>
@@ -144,18 +118,13 @@ export const useInvestmentOpportunityFilters = (
         if (a?.id) map.set(a.id, a.name)
       })
       setAccounts(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
-    } catch (e) {
+    } catch {
       setAccounts([])
-      setErrors(prev => ({ ...prev, accounts: e as Error }))
-    } finally {
-      setLoading(prev => ({ ...prev, accounts: false }))
     }
   }, [context.accessToken, graphqlClient])
 
   const loadStatuses = useCallback(async () => {
     if (!context.accessToken) return
-    setLoading(prev => ({ ...prev, statuses: true }))
-    setErrors(prev => ({ ...prev, statuses: null }))
     try {
       const res = await graphqlClient.request<{
         InvestmentOpportunity: Array<{ opportunityStatus?: { id: string; code?: string; value?: string } | null }>
@@ -172,11 +141,8 @@ export const useInvestmentOpportunityFilters = (
         if (s?.id) map.set(s.id, s.value || s.code || s.id)
       })
       setStatuses(Array.from(map.entries()).map(([id, label]) => ({ id, label })))
-    } catch (e) {
+    } catch {
       setStatuses([])
-      setErrors(prev => ({ ...prev, statuses: e as Error }))
-    } finally {
-      setLoading(prev => ({ ...prev, statuses: false }))
     }
   }, [context.accessToken, graphqlClient])
 

@@ -127,26 +127,7 @@ const FinancialInformationSection: React.FC = () => {
         type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
-        style={{
-          background: 'linear-gradient(to right, #fecaca, #fbb6ce)',
-          transition: 'all 0.3s ease',
-          border: '0',
-          borderWidth: '0',
-          borderStyle: 'none',
-          borderColor: 'transparent',
-          outline: 'none',
-          outlineWidth: '0',
-          outlineStyle: 'none',
-          boxShadow: 'none',
-          borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fca5a5, #f9a8d4)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fecaca, #fbb6ce)'
-        }}
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-destructive-secondary hover:gba:bg-destructive gba:border-0"
         data-testid={formatDataTestId(prefixDataTestId, 'financial-info-toggle-button')}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">

@@ -25,7 +25,6 @@ export const WorkflowsStatusModal: React.FC<WorkflowsStatusModalProps> = ({
   opportunityId,
   fromStage,
   toStage,
-  opportunityData,
   accessToken,
   onWorkflowsCompleted,
   onCancel,

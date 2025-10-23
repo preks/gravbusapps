@@ -26,7 +26,6 @@ export const SalesPerformanceTab: React.FC<SalesPerformanceTabProps> = ({
   entitiesOwned = { leads: [], contacts: [], opportunities: [], accounts: [] },
   accessToken,
   isLoading = false,
-  error = null,
   onRetry,
   teamContext,
   showComparisons = true,

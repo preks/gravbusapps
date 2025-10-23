@@ -202,8 +202,12 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
   }, [addFilter, removeFilter, selectedFilters, clearFilters])
 
   // Function to fetch statistics data specifically (kept for compatibility; will be replaced by hook usage)
-  const { data: statsOverview, isLoading: statsLoading, error: statsError, fetchOverview } =
-    useExpenseItemStatsOverview(contextProps)
+  const {
+    data: statsOverview,
+    isLoading: statsLoading,
+    error: statsError,
+    fetchOverview
+  } = useExpenseItemStatsOverview(contextProps)
 
   const fetchItemStatistics = useCallback(async () => {
     if (!selectedCurrencyRef) return
@@ -244,7 +248,7 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
                 currencyRef: selectedCurrencyRef
               })
               setPendingItemCountFromApi(data?.pendingExcludingAllowance?.aggregate?.count ?? 0)
-            } catch (e) {
+            } catch {
               setPendingItemCountFromApi(0)
             }
           }
@@ -361,7 +365,6 @@ const ExpenseItemsTab: React.FC<ExpenseItemsTabProps> = props => {
       return () => clearTimeout(timerId)
     }
   }, [onContentHeaderChange, contentHeader, hideStats])
-
 
   // Handle adding a new expense item
   const handleAddExpenseItem = useCallback(() => {

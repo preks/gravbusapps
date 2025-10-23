@@ -6,9 +6,7 @@ import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetCrmNotes, CrmNoteData } from '../queries/CrmNoteQueries'
-import { useRestClient } from '@/common/network/rest/useRestClient'
 import { NoteDeletePopup } from '@/common/components/common-relations/popups/note-delete-popup'
-import { env } from '@/common/env/EnvUtils'
 import dayjs from 'dayjs'
 import { LanguageDropdown } from './LanguageDropdown'
 import { translateMultipleTexts } from '../utils/translationService'
@@ -35,7 +33,6 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
   const [translating, setTranslating] = useState(false)
   const originalNotesRef = useRef<CrmNoteData[]>([])
   const { fetchCrmNotes } = useGetCrmNotes(context)
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const [deletePopup, setDeletePopup] = useState<{ open: boolean; note?: CrmNoteData }>({ open: false })
   const { getEmployeeDisplayName } = useEmployeeData(context.accessToken)
 
@@ -149,6 +146,7 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
     setDeletePopup({ open: true, note })
   }
 
+  /* eslint-disable @typescript-eslint/no-unused-vars */
   const handleAddNote = () => {
     if (opportunityId) {
       startProcess({
@@ -242,14 +240,16 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ opportunityId, conte
 
         {!loading && !error && notes.length === 0 && (
           <Empty description="No notes yet" style={{ padding: '40px 0' }} data-testid="empty-notes">
-            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>Start by adding your first note</div>
+            <div className="gba:text-muted-foreground" style={{ fontSize: '14px' }}>
+              Start by adding your first note
+            </div>
           </Empty>
         )}
 
         {!loading && !error && notes.length > 0 && (
           <Timeline>
             {notes.map((note, index) => (
-              <Timeline.Item key={note.id || index} color="blue">
+              <Timeline.Item key={note.id || index}>
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text strong>{note.translatedTitle || note.noteTitle}</Text>

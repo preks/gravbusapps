@@ -8,7 +8,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { CurrencyStat } from './useExpenseCurrencies'
 
 // Define these as constants for stable references outside the hook
-const EXPENSE_TYPE_OPTIONS = ['expense', 'trip']
 const OTHER_OPTIONS = ['noreceiptfilter']
 
 export enum DataFilterType {
@@ -345,7 +344,6 @@ export const useExpenseItemsFilters = (
       // Map the lowercase status filters back to their uppercase enum values
       const statuses = statusFilters.map(f => f.toUpperCase())
 
-      const expenseTypes: string[] = []
       const otherFilters = filtersToApply.filter(f => OTHER_OPTIONS.includes(f))
 
       // Check if no receipt filter is selected

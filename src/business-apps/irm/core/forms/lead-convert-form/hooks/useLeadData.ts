@@ -62,7 +62,7 @@ export const useLeadData = (accessToken: string, additionalData: any) => {
         } else {
           setLeadData(null)
         }
-      } catch (error) {
+      } catch {
         setLeadData(null)
       } finally {
         setLoading(false)

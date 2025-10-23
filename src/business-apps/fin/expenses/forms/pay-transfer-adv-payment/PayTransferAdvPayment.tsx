@@ -12,12 +12,7 @@ import SupervisorInfoSection from './components/SupervisorInfoSection'
 import TransactionSection from './components/TransactionSection'
 import ActionButtons from './components/ActionButtons'
 
-const PayTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
-  additionalData,
-  accessToken,
-  userInfo,
-  ...contextProps
-}) => {
+const PayTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({ additionalData, accessToken, userInfo }) => {
   const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +41,7 @@ const PayTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
       }
 
       return date.toISOString()
-    } catch (error) {
+    } catch {
       return new Date().toISOString()
     }
   }
@@ -145,7 +140,7 @@ const PayTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
           }
         })
       )
-    } catch (error) {
+    } catch {
       setError('Failed to confirm payment. Please try again.')
     } finally {
       setIsLoading(false)

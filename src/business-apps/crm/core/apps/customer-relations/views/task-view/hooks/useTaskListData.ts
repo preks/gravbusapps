@@ -193,8 +193,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     createdBefore,
     sortField,
     sortOrder,
-    accessToken,
-    sourceApp
+    accessToken
   } = props
 
   // State
@@ -207,7 +206,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
   const [hasMore, setHasMore] = useState(false)
 
   // GraphQL queries
-  const { fetchSalesTasks, fetchSalesTasksCount, fetchSalesTasksWithCount } = useSalesTaskQueries({ accessToken })
+  const { fetchSalesTasksWithCount } = useSalesTaskQueries({ accessToken })
 
   // Refs to track the latest props
   const propsRef = useRef(props)

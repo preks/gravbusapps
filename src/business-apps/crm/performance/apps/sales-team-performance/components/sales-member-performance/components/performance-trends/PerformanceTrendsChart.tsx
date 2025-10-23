@@ -204,13 +204,18 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = pro
                   bottom: 20
                 }}
               >
-                <XAxis dataKey="period" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} stroke="#666" />
-                <YAxis yAxisId="left" tick={{ fontSize: 12 }} stroke="#666" />
+                <XAxis
+                  dataKey="period"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={formatXAxisLabel}
+                  stroke="hsl(var(--muted-foreground))"
+                />
+                <YAxis yAxisId="left" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
                 <YAxis
                   yAxisId="right"
                   orientation="right"
                   tick={{ fontSize: 12 }}
-                  stroke="#666"
+                  stroke="hsl(var(--muted-foreground))"
                   tickFormatter={value =>
                     new Intl.NumberFormat('en-US', {
                       style: 'currency',
@@ -225,7 +230,7 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = pro
                   formatter={formatTooltip}
                   labelFormatter={label => `Period: ${formatXAxisLabel(label)}`}
                   contentStyle={{
-                    backgroundColor: 'white',
+                    backgroundColor: 'hsl(var(--background))',
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     fontSize: '12px'
@@ -239,12 +244,12 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = pro
                     yAxisId="left"
                     type="monotone"
                     dataKey="convertedLeads"
-                    stroke="#3B82F6"
-                    fill="#3B82F6"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
                     name="Converted Leads"
                   />
                 )}
@@ -255,12 +260,12 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = pro
                     yAxisId="left"
                     type="monotone"
                     dataKey="contactsWithAccounts"
-                    stroke="#8B5CF6"
-                    fill="#8B5CF6"
+                    stroke="hsl(var(--accent))"
+                    fill="hsl(var(--accent))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#8B5CF6', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--accent))', strokeWidth: 2 }}
                     name="Contacts with Accounts"
                   />
                 )}
@@ -271,12 +276,12 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = pro
                     yAxisId="left"
                     type="monotone"
                     dataKey="wonOpportunities"
-                    stroke="#F59E0B"
-                    fill="#F59E0B"
+                    stroke="hsl(var(--warning))"
+                    fill="hsl(var(--warning))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#F59E0B', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--warning))', strokeWidth: 2 }}
                     name="Won Opportunities"
                   />
                 )}
@@ -287,12 +292,12 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = pro
                     yAxisId="left"
                     type="monotone"
                     dataKey="managedAccounts"
-                    stroke="#06B6D4"
-                    fill="#06B6D4"
+                    stroke="hsl(var(--info))"
+                    fill="hsl(var(--info))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#06B6D4', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--info))', strokeWidth: 2 }}
                     name="Managed Accounts"
                   />
                 )}
@@ -303,12 +308,12 @@ export const PerformanceTrendsChart: React.FC<PerformanceTrendsChartProps> = pro
                     yAxisId="right"
                     type="monotone"
                     dataKey="totalSales"
-                    stroke="#10B981"
-                    fill="#10B981"
+                    stroke="hsl(var(--success))"
+                    fill="hsl(var(--success))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#10B981', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--success))', strokeWidth: 2 }}
                     name="Total Sales (EUR)"
                   />
                 )}
