@@ -248,7 +248,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
               )}
             </Label>
             <Combobox
-              className="gba:w-[230px] gba:truncate"
+              className="gba:!min-w-[230px] gba:truncate"
               emptyText={getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.time_attendance.time_types.type_options.empty_text',
                 'No time type options found.'
