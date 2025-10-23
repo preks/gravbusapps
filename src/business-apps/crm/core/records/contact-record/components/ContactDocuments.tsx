@@ -881,7 +881,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, c
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: {
                     contactId
                   },
@@ -898,7 +898,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, c
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: {
                     contactId,
                     createFolder: true
@@ -1137,7 +1137,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, c
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           contactId,
                                           ...(node.folderId ? { parentDocument: node.folderId } : {})
@@ -1158,7 +1158,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, c
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           contactId,
                                           createFolder: true,
@@ -1359,7 +1359,7 @@ export const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, c
                 onClick: () =>
                   startProcess({
                     domain: 'customer-relations',
-                    processName: 'saveCrmDocument',
+                    processName: 'createCrmDocument',
                     payload: {
                       contactId
                     },

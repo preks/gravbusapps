@@ -862,7 +862,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: { leadId },
                   builderType: 'NATIVE_SCREEN'
                 })
@@ -877,7 +877,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: { leadId, createFolder: true },
                   builderType: 'NATIVE_SCREEN'
                 })
@@ -1120,7 +1120,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           leadId,
                                           ...(node.folderId ? { parentDocument: node.folderId } : {})
@@ -1141,7 +1141,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           leadId,
                                           createFolder: true,
@@ -1343,7 +1343,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                 onClick: () =>
                   startProcess({
                     domain: 'customer-relations',
-                    processName: 'saveCrmDocument',
+                    processName: 'createCrmDocument',
                     payload: { leadId },
                     builderType: 'NATIVE_SCREEN'
                   }),
