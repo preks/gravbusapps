@@ -32,12 +32,15 @@ export const getTranslatedMessage = (key: string, defaultValue: string, params: 
 }
 
 /**
- * Manually interpolate placeholders in a string
+ * Manually interpolate placeholders in a string using safe string replacement.
+ * Uses split/join instead of RegExp to avoid ReDoS security vulnerabilities.
  */
 function interpolateString(template: string, params: Record<string, string>): string {
   let result = template
   for (const [key, value] of Object.entries(params)) {
-    result = result.replace(new RegExp(`{{${key}}}`, 'g'), value)
+    // Safe replacement using split/join - no RegExp, no security risk
+    const placeholder = `{{${key}}}`
+    result = result.split(placeholder).join(value)
   }
   return result
 }
