@@ -291,6 +291,8 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
     const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
 
     form.setFieldsValue({ amount: finalDisplay })
+    // Update state with normalized value (period as decimal) for saving
+    setAmount(num.toFixed(2))
   }
 
   // Validation functions
