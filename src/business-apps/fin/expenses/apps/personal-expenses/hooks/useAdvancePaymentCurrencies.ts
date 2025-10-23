@@ -76,7 +76,13 @@ export const useAdvancePaymentCurrencies = (
         setInitialized(true)
       }
     })()
-  }, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken])
+	}, [context?.userInfo?.employeeDetails?.employeeId, context?.accessToken, preselectMostUsedOnce])
+
+	useEffect(() => {
+		if (initialized && currencyStats.length > 0) {
+			preselectMostUsedOnce(currencyStats)
+		}
+	}, [initialized, currencyStats, preselectMostUsedOnce])
 
   return {
     currencyStats,
