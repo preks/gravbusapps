@@ -8,6 +8,9 @@ import { getTranslatedMessage } from '../../shared/utils/translationUtils'
  * @param queryResponse - Response from getPlansAbsences query
  * @param currentPlanId - Current expense plan ID
  * @returns Warning message and error flag
+ *
+ * Note: Similar logic exists in Request wizard but with different translation keys
+ * and business rules. The duplication is intentional and domain-specific.
  */
 export const getOverlapWarningMessage = (
   queryResponse: any,
