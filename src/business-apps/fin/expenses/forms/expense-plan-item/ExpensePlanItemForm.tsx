@@ -345,7 +345,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         </div>
       </div>
 
-      <div className={`gba:mb-4`} data-testid="cost-center-field-container">
+      <div className={`gba:mb-4`} data-testid="cost-center-field-container" key={`cost-center-${costCenters.length}`}>
         <div className={`gba:relative`}>
           <Form.Item
             noStyle
@@ -355,12 +355,6 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
             {() => {
               const costCenterId = form.getFieldValue('costCenter')
               let costCenterValue = undefined
-
-              console.log('🔍 Cost Center Debug:', {
-                costCenterId,
-                costCentersLength: costCenters.length,
-                costCenters: costCenters.map(c => ({ id: c.id, name: c.name }))
-              })
 
               if (costCenterId) {
                 const center = costCenters.find(c => c.id === costCenterId)
@@ -393,6 +387,7 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
                   style={{ marginBottom: 0 }}
                 >
                   <SelectField
+                    key={`select-${costCenters.length}`}
                     allowClear
                     label={t(
                       'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
