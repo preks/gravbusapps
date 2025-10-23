@@ -311,20 +311,6 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     }
   }
 
-  /**
-   * Initializes first-run data (cost centers and currencies)
-   */
-  const initializeFirstRunData = async (catalogueData: any): Promise<void> => {
-    if (!firstRunVariable && catalogueData?.data) {
-      const employeePosition = catalogueData?.data?.EmployeePosition || []
-      const structureId = employeePosition[0]?.structureId || ''
-
-      await fetchAndSetCostCenters(structureId, employeePosition)
-      processCurrencies(catalogueData)
-      setFirstRunVariable(true)
-    }
-  }
-
   const fetchInitialData = async () => {
     try {
       // Early validation
@@ -344,7 +330,15 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       // Fetch catalogue data and initialize if needed
       if (rerunRule === false) {
         const catalogueData = await fetchCatalogueData(employeeIdValue)
-        await initializeFirstRunData(catalogueData)
+
+        if (firstRunVariable === false && catalogueData?.data) {
+          const employeePosition = catalogueData?.data?.EmployeePosition || []
+          const structureId = employeePosition[0]?.structureId || ''
+
+          await fetchAndSetCostCenters(structureId, employeePosition)
+          processCurrencies(catalogueData)
+          setFirstRunVariable(true)
+        }
       }
 
       setRerunRule(false)
