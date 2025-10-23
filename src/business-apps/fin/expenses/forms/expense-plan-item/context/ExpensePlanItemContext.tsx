@@ -315,14 +315,14 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
    * Initializes first-run data (cost centers and currencies)
    */
   const initializeFirstRunData = async (catalogueData: any): Promise<void> => {
-    if (firstRunVariable || !catalogueData?.data) return
+    if (!firstRunVariable && catalogueData?.data) {
+      const employeePosition = catalogueData?.data?.EmployeePosition || []
+      const structureId = employeePosition[0]?.structureId || ''
 
-    const employeePosition = catalogueData?.data?.EmployeePosition || []
-    const structureId = employeePosition[0]?.structureId || ''
-
-    await fetchAndSetCostCenters(structureId, employeePosition)
-    processCurrencies(catalogueData)
-    setFirstRunVariable(true)
+      await fetchAndSetCostCenters(structureId, employeePosition)
+      processCurrencies(catalogueData)
+      setFirstRunVariable(true)
+    }
   }
 
   const fetchInitialData = async () => {
