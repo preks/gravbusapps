@@ -352,7 +352,6 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
                     <FileUpload
                       multiple={false}
                       maxFiles={1}
-                      maxSizeMB={10}
                       accept={acceptedFileTypes}
                       layout="list"
                       preview="icon"

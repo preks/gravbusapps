@@ -229,7 +229,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     setExpandedSubModules(newExpanded)
   }
 
-  const renderSubModuleContent = (subModules: Record<string, BusinessAppInfo[]>) => {
+  const renderSubModuleContent = (module: string, subModules: Record<string, BusinessAppInfo[]>) => {
     const subModuleEntries = Object.entries(subModules)
 
     // If only one sub-module and it's 'default', show apps directly
@@ -241,12 +241,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     return (
       <div className="gba:w-full gba:space-y-2">
         {subModuleEntries.map(([subModule, apps]) => {
-          const isExpanded = expandedSubModules.has(subModule)
+          const subModuleId = `${module}/${subModule}`
+          const isExpanded = expandedSubModules.has(subModuleId)
           return (
             <div key={subModule} className="gba:bg-secondary gba:rounded gba:mb-2">
               <Button
                 variant="ghost"
-                onClick={() => toggleSubModule(subModule)}
+                onClick={() => toggleSubModule(subModuleId)}
                 className="gba:w-full gba:justify-between gba:px-4 gba:py-2 gba:text-left"
               >
                 <div className="gba:flex gba:items-center gba:gap-2">
@@ -449,7 +450,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                             <Badge variant="secondary">{totalApps}</Badge>
                           </div>
                           <div className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:max-h-full">
-                            {renderSubModuleContent(subModules)}
+                            {renderSubModuleContent(module, subModules)}
                           </div>
                         </CardContent>
                       </Card>
