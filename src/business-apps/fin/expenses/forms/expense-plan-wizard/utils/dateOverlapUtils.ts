@@ -1,6 +1,7 @@
 import dayjs from 'dayjs'
-import { getCatalogValue, getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCatalogValue, getDateFormat } from '@/common/utils/windowUtils'
 import { EXPENSE_STATUS } from '../constants/constants'
+import { getTranslatedMessage } from '../../shared/utils/translationUtils'
 
 /**
  * Get overlap warning message from query response
@@ -27,21 +28,15 @@ export const getOverlapWarningMessage = (
     // Use typeName directly from the absence type object
     const absenceType = getCatalogValue(employeeAbsence.type) || 'Absence'
 
-    const translationParams = {
-      employeeAbsence: absenceType,
-      absenceRequestTimeStampStart,
-      absenceRequestTimeStampEnd,
-      interpolation: {
-        escapeValue: false
-      }
-    }
-    console.log('[OVERLAP DEBUG] Absence in Plan - Translation params:', translationParams)
-    const message = getTranslationFromI18nKeyAndLabel(
+    const message = getTranslatedMessage(
       'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_existing_event_no_title',
       `The selected date overlaps with an existing event: ${absenceType} from ${absenceRequestTimeStampStart} to ${absenceRequestTimeStampEnd}. Please adjust the date.`,
-      translationParams
+      {
+        employeeAbsence: absenceType,
+        absenceRequestTimeStampStart,
+        absenceRequestTimeStampEnd
+      }
     )
-    console.log('[OVERLAP DEBUG] Absence in Plan - Translated message:', message)
 
     return { message, isError: true }
   }
@@ -63,42 +58,30 @@ export const getOverlapWarningMessage = (
     ]
 
     if (blockStatuses.includes(expenseRequest.status)) {
-      const translationParams = {
-        requestTitle: expenseRequest.title,
-        requestTimeStampStart: expenseRequestTimeStampStart,
-        requestTimeStampEnd: expenseRequestTimeStampEnd,
-        interpolation: {
-          escapeValue: false
-        }
-      }
-      console.log('[OVERLAP DEBUG] Request (blocking) in Plan - Translation params:', translationParams)
-      const message = getTranslationFromI18nKeyAndLabel(
+      const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_existing_event_expense_request',
         `The selected date overlaps with an existing event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please adjust the date.`,
-        translationParams
+        {
+          requestTitle: expenseRequest.title,
+          requestTimeStampStart: expenseRequestTimeStampStart,
+          requestTimeStampEnd: expenseRequestTimeStampEnd
+        }
       )
-      console.log('[OVERLAP DEBUG] Request (blocking) in Plan - Translated message:', message)
 
       return { message, isError: true }
     }
 
     // Warning for created requests
     if (expenseRequest.status === EXPENSE_STATUS.CREATED) {
-      const translationParams = {
-        requestTitle: expenseRequest.title,
-        requestTimeStampStart: expenseRequestTimeStampStart,
-        requestTimeStampEnd: expenseRequestTimeStampEnd,
-        interpolation: {
-          escapeValue: false
-        }
-      }
-      console.log('[OVERLAP DEBUG] Request (draft) in Plan - Translation params:', translationParams)
-      const message = getTranslationFromI18nKeyAndLabel(
+      const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_request',
         `The selected date overlaps with a draft event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please review before submitting if adjustments are needed.`,
-        translationParams
+        {
+          requestTitle: expenseRequest.title,
+          requestTimeStampStart: expenseRequestTimeStampStart,
+          requestTimeStampEnd: expenseRequestTimeStampEnd
+        }
       )
-      console.log('[OVERLAP DEBUG] Request (draft) in Plan - Translated message:', message)
 
       return { message, isError: false }
     }
@@ -115,42 +98,30 @@ export const getOverlapWarningMessage = (
 
     if (!allowedStatuses.includes(expensePlan.status)) {
       // Block for all other statuses (PENDING, APPROVED, VERIFIED, BOOKED, TRANSFERRED, PAID, etc.)
-      const translationParams = {
-        planTitle: expensePlan.title,
-        planTimeStampStart: expensePlanTimeStampStart,
-        planTimeStampEnd: expensePlanTimeStampEnd,
-        interpolation: {
-          escapeValue: false
-        }
-      }
-      console.log('[OVERLAP DEBUG] Plan (blocking) in Plan - Translation params:', translationParams)
-      const message = getTranslationFromI18nKeyAndLabel(
+      const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_existing_event_expense_plan',
         `The selected date overlaps with an existing event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please adjust the date.`,
-        translationParams
+        {
+          planTitle: expensePlan.title,
+          planTimeStampStart: expensePlanTimeStampStart,
+          planTimeStampEnd: expensePlanTimeStampEnd
+        }
       )
-      console.log('[OVERLAP DEBUG] Plan (blocking) in Plan - Translated message:', message)
 
       return { message, isError: true }
     }
 
     // Warning for CREATED and REJECTED plans
     if (expensePlan.status === EXPENSE_STATUS.CREATED || expensePlan.status === EXPENSE_STATUS.REJECTED) {
-      const translationParams = {
-        planTitle: expensePlan.title,
-        planTimeStampStart: expensePlanTimeStampStart,
-        planTimeStampEnd: expensePlanTimeStampEnd,
-        interpolation: {
-          escapeValue: false
-        }
-      }
-      console.log('[OVERLAP DEBUG] Plan (draft) in Plan - Translation params:', translationParams)
-      const message = getTranslationFromI18nKeyAndLabel(
+      const message = getTranslatedMessage(
         'lowcoder:add_items_to_plan.add_trip_info_to_plan.period_overlapping_planned_event_plan',
         `The selected date overlaps with a planned event: Expense Plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd}. Please review before submitting if adjustments are needed.`,
-        translationParams
+        {
+          planTitle: expensePlan.title,
+          planTimeStampStart: expensePlanTimeStampStart,
+          planTimeStampEnd: expensePlanTimeStampEnd
+        }
       )
-      console.log('[OVERLAP DEBUG] Plan (draft) in Plan - Translated message:', message)
 
       return { message, isError: false }
     }

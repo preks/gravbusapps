@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
-import { getCatalogValue, getDateFormat, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCatalogValue, getDateFormat } from '@/common/utils/windowUtils'
+import { getTranslatedMessage } from '../../shared/utils/translationUtils'
 
 /**
  * Get overlap warning message from query response
@@ -27,21 +28,15 @@ export const getOverlapWarningMessage = (
     // Use typeName directly from the absence type object
     const absenceType = getCatalogValue(employeeAbsence.type) || 'Absence'
 
-    const translationParams = {
-      employeeAbsence: absenceType,
-      absenceRequestTimeStampStart,
-      absenceRequestTimeStampEnd,
-      interpolation: {
-        escapeValue: false
-      }
-    }
-    console.log('[OVERLAP DEBUG] Absence in Request - Translation params:', translationParams)
-    const message = getTranslationFromI18nKeyAndLabel(
+    const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_existing_event_no_title',
       `The selected date overlaps with an existing event: ${absenceType} from ${absenceRequestTimeStampStart} to ${absenceRequestTimeStampEnd}. Please adjust the date.`,
-      translationParams
+      {
+        employeeAbsence: absenceType,
+        absenceRequestTimeStampStart,
+        absenceRequestTimeStampEnd
+      }
     )
-    console.log('[OVERLAP DEBUG] Absence in Request - Translated message:', message)
 
     return { message, isError: true }
   }
@@ -52,21 +47,15 @@ export const getOverlapWarningMessage = (
     const expenseRequestTimeStampStart = dayjs(expenseRequest.startDate).format(getDateFormat('date-long'))
     const expenseRequestTimeStampEnd = dayjs(expenseRequest.endDate).format(getDateFormat('date-long'))
 
-    const translationParams = {
-      requestTitle: expenseRequest.title,
-      requestTimeStampStart: expenseRequestTimeStampStart,
-      requestTimeStampEnd: expenseRequestTimeStampEnd,
-      interpolation: {
-        escapeValue: false
-      }
-    }
-    console.log('[OVERLAP DEBUG] Request in Request - Translation params:', translationParams)
-    const message = getTranslationFromI18nKeyAndLabel(
+    const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_existing_event_expense_request',
       `The selected date overlaps with an existing event: Expense Request ${expenseRequest.title} from ${expenseRequestTimeStampStart} to ${expenseRequestTimeStampEnd}. Please adjust the date.`,
-      translationParams
+      {
+        requestTitle: expenseRequest.title,
+        requestTimeStampStart: expenseRequestTimeStampStart,
+        requestTimeStampEnd: expenseRequestTimeStampEnd
+      }
     )
-    console.log('[OVERLAP DEBUG] Request in Request - Translated message:', message)
 
     return { message, isError: true }
   }
@@ -77,21 +66,15 @@ export const getOverlapWarningMessage = (
     const expensePlanTimeStampStart = dayjs(expensePlan.startDate).format(getDateFormat('date-long'))
     const expensePlanTimeStampEnd = dayjs(expensePlan.endDate).format(getDateFormat('date-long'))
 
-    const translationParams = {
-      planTitle: expensePlan.title,
-      planTimeStampStart: expensePlanTimeStampStart,
-      planTimeStampEnd: expensePlanTimeStampEnd,
-      interpolation: {
-        escapeValue: false
-      }
-    }
-    console.log('[OVERLAP DEBUG] Plan in Request - Translation params:', translationParams)
-    const message = getTranslationFromI18nKeyAndLabel(
+    const message = getTranslatedMessage(
       'lowcoder:create_expense_request.add_request_trip_details.period_overlapping_planned_event_plan',
       `There is an existing plan ${expensePlan.title} from ${expensePlanTimeStampStart} to ${expensePlanTimeStampEnd} for the selected period. You might want to cancel your request and create a new request based on your existing plan.`,
-      translationParams
+      {
+        planTitle: expensePlan.title,
+        planTimeStampStart: expensePlanTimeStampStart,
+        planTimeStampEnd: expensePlanTimeStampEnd
+      }
     )
-    console.log('[OVERLAP DEBUG] Plan in Request - Translated message:', message)
 
     return { message, isError: false }
   }
