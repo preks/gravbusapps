@@ -9,7 +9,7 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 const prefixDataTestId = 'StageTransitionPopup'
 
 const StageTransitionPopupComponent: React.FC = () => {
-  const { formValues, error, businessAppContext, isLoading, incompleteConditionIds, currentStageConditions } =
+  const { formValues, error, isLoading, incompleteConditionIds, currentStageConditions } =
     useStageTransitionPopupContext()
 
   const [submitting, setSubmitting] = useState(false)

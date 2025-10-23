@@ -39,14 +39,14 @@ export const MultiPositionComponent: React.FC<MultiPositionComponentProps> = ({
         <Card
           key={index}
           title={`Position ${index + 1}`}
-          className="gba:mb-4 gba:border-[3px] gba:border-[#EFEFEF]"
+          className="gba:mb-4 gba:border-[3px] gba:border-border"
           data-testid={`position-card-${index}`}
           extra={
             positions.length > 1 && (
               <Button
                 variant="ghost"
                 onClick={() => handleRemovePosition(position.id)}
-                className="gba:text-[#f5222d] hover:gba:text-[#cf1322] hover:gba:bg-[rgba(245,34,45,0.1)]"
+                className="gba:text-destructive gba:hover:text-destructive gba:hover:bg-destructive/10"
                 disabled={isProcessingFiles}
                 data-testid={`delete-position-button-${index}`}
               >

@@ -22,7 +22,6 @@ export const PerformanceStatistics: React.FC<PerformanceStatisticsProps> = ({
   employeeId,
   accessToken,
   onRetry,
-  teamContext,
   showComparisons = true,
   ...context
 }) => {

@@ -27,9 +27,8 @@ const DescriptionSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-info-secondary gba:to-info"
         style={{
-          background: 'linear-gradient(to right, #bfdbfe, #93c5fd)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -40,12 +39,6 @@ const DescriptionSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #93c5fd, #60a5fa)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bfdbfe, #93c5fd)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'DescriptionToggle')}
       >
@@ -64,7 +57,7 @@ const DescriptionSection: React.FC = () => {
 
       {isDescriptionExpanded && (
         <CardContent
-          className="gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -82,7 +75,7 @@ const DescriptionSection: React.FC = () => {
               onChange={e => setFormValues({ notes: e.target.value })}
               placeholder="Please Enter..."
               rows={4}
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'DescriptionTextarea')}
             />
           </div>

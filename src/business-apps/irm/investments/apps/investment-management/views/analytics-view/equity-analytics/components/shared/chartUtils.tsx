@@ -11,7 +11,7 @@ export const CHART_COLORS = [
   'var(--nw-color-info-500)' // Light Blue
 ]
 
-// Custom label renderer for pie charts
+// Custom label renderer for pie charts - returns label props
 export const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
   const RADIAN = Math.PI / 180
   const radius = innerRadius + (outerRadius - innerRadius) * 0.5

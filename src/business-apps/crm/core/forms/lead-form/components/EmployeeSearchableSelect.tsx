@@ -185,12 +185,6 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
     }
   }, [isOpen])
 
-  // Create display value for selected employee
-  const getDisplayValue = () => {
-    if (!displayOption) return placeholder
-    return displayOption.name || 'Unknown Employee'
-  }
-
   // Custom employee option renderer
   const EmployeeSelectItem: React.FC<{ employee: SelectOption }> = ({ employee }) => (
     <div className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:w-full">
@@ -202,7 +196,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
             alt={employee.name || 'Employee'}
           />
         ) : null}
-        <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold gba:text-xs">
+        <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-hsl(var(--background)) gba:font-semibold gba:text-xs">
           {employee.name
             ?.split(' ')
             .map((n: string) => n[0])
@@ -241,7 +235,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
           data-testid={dataTestId}
           open={isOpen}
         >
-          <SelectTrigger className="gba:w-full gba:max-w-full gba:border-gray-300 gba:bg-white gba:min-h-[60px]">
+          <SelectTrigger className="gba:w-full gba:max-w-full gba:border-gray-300 gba:bg-hsl(var(--background)) gba:min-h-[60px]">
             <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:overflow-hidden">
               {displayOption ? (
                 <>
@@ -253,7 +247,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
                         alt={displayOption.name || 'Employee'}
                       />
                     ) : null}
-                    <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold gba:text-xs">
+                    <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-hsl(var(--background)) gba:font-semibold gba:text-xs">
                       {displayOption.name
                         ?.split(' ')
                         .map((n: string) => n[0])
@@ -278,7 +272,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
               )}
             </div>
           </SelectTrigger>
-          <SelectContent className="gba:w-full gba:min-w-[300px] gba:max-w-[500px] gba:border-gray-300 gba:bg-white">
+          <SelectContent className="gba:w-full gba:min-w-[300px] gba:max-w-[500px] gba:border-gray-300 gba:bg-hsl(var(--background))">
             {/* Search input */}
             <div className="gba:p-2 gba:border-b gba:border-gray-200" onClick={handleSearchClick}>
               <div className="gba:relative">
@@ -291,7 +285,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
                   onKeyDown={handleSearchKeyDown}
                   onClick={handleSearchClick}
                   placeholder="Search employees..."
-                  className="gba:border-gray-300 gba:bg-white gba:text-sm"
+                  className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:text-sm"
                   style={{
                     paddingLeft: '28px'
                   }}

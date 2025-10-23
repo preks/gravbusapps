@@ -66,7 +66,6 @@ export const ContactStatistics: React.FC<ContactStatisticsProps> = ({ ...context
     }
     load()
     // Run once on mount; hooks are memoized with useCallback
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Helper function to format trend percentage with proper sign

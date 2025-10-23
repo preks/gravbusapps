@@ -46,7 +46,6 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
   contacts,
   loading,
   error,
-  hasMore,
   retry,
   total,
   pageSize,

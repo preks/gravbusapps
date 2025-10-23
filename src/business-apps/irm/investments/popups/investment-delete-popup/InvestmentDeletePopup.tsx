@@ -124,7 +124,7 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
   }, [investmentId, props.accessToken, graphqlClient])
 
   // Submit handler for deletion
-  const handleSubmit = async (_formData: InvestmentDeletePopupValues) => {
+  const handleSubmit = async () => {
     if (!investment) {
       throw new Error(getTranslationFromI18nKeyAndLabel('investment.delete.error.noData', 'Investment data not loaded'))
     }
@@ -144,7 +144,7 @@ const InvestmentDeletePopup: React.FC<InvestmentDeletePopupProps> = ({ initialVa
   }
 
   // Validation function
-  const validateForm = (_formData: InvestmentDeletePopupValues): string[] | null => {
+  const validateForm = (): string[] | null => {
     if (!investment) {
       return [getTranslationFromI18nKeyAndLabel('investment.delete.error.noData', 'Investment data not loaded')]
     }

@@ -46,12 +46,16 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
         }}
         onFieldsChange={() => {
           const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-          setFormIsValid && setFormIsValid(isFormValidValue)
+          if (setFormIsValid) {
+            setFormIsValid(isFormValidValue)
+          }
         }}
         onValuesChange={() => {
           form.validateFields().catch(() => {})
           const isFormValidValue = form.getFieldsError().every((fieldErr: any) => fieldErr.errors.length === 0)
-          setFormIsValid && setFormIsValid(isFormValidValue)
+          if (setFormIsValid) {
+            setFormIsValid(isFormValidValue)
+          }
         }}
         validateTrigger={['onChange', 'onBlur']}
       >
@@ -200,8 +204,7 @@ const ExpenseFormContent: React.FC<ExpenseFormContentProps> = ({
                     value: item.id
                   }))}
                   onChange={(values: any) => form.setFieldsValue({ transportationMeans: values })}
-                  className="gba:flex gba:flex-col"
-                  style={{ gap: '15px', backgroundColor: '#ffffff' }}
+                  className="gba:flex gba:flex-col gba:gap-4 gba:bg-background"
                 />
               </Form.Item>
             </div>

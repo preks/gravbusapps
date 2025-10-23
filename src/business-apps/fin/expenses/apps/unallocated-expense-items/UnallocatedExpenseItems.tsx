@@ -9,7 +9,7 @@ import { useExpenseItemsFilters } from '../personal-expenses/hooks/useExpenseIte
 import { startProcess } from '@/common/utils/start-process'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 
-interface UnallocatedExpenseItemsProps extends BusinessAppContextProps {}
+type UnallocatedExpenseItemsProps = BusinessAppContextProps
 
 const UnallocatedExpenseItems: React.FC<UnallocatedExpenseItemsProps> = ({ accessToken, userInfo, additionalData }) => {
   // Block rendering until platform injects context to avoid unauthorized fetches

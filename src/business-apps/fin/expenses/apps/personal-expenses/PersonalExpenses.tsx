@@ -28,7 +28,7 @@ import AdvancePaymentsTab from './components/tabs/advance-payments-tab'
 import ExpenseRequestsTab from './components/tabs/expense-requests-tab'
 import ExpenseCalendarTab from './components/tabs/expense-calendar-tab'
 
-export interface PersonalExpensesProps extends BusinessAppContextProps {}
+export type PersonalExpensesProps = BusinessAppContextProps
 
 const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null)
@@ -186,37 +186,25 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
 
           {activeTab === 'expense-items' && (
             <div data-testid="tab-expense-items">
-              <ExpenseItemsTab
-                {...props}
-                onContentHeaderChange={setContentHeader}
-              />
+              <ExpenseItemsTab {...props} onContentHeaderChange={setContentHeader} />
             </div>
           )}
 
           {activeTab === 'expense-plans' && (
             <div data-testid="tab-expense-plans">
-              <ExpensePlansTab
-                {...props}
-                onContentHeaderChange={setContentHeader}
-              />
+              <ExpensePlansTab {...props} onContentHeaderChange={setContentHeader} />
             </div>
           )}
 
           {activeTab === 'advance-payments' && (
             <div data-testid="tab-advance-payments">
-              <AdvancePaymentsTab
-                {...props}
-                onContentHeaderChange={setContentHeader}
-              />
+              <AdvancePaymentsTab {...props} onContentHeaderChange={setContentHeader} />
             </div>
           )}
 
           {activeTab === 'expense-requests' && (
             <div data-testid="tab-expense-requests">
-              <ExpenseRequestsTab
-                {...props}
-                onContentHeaderChange={setContentHeader}
-              />
+              <ExpenseRequestsTab {...props} onContentHeaderChange={setContentHeader} />
             </div>
           )}
 

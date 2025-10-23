@@ -48,7 +48,7 @@ const ApprovalTablePagination: React.FC<ApprovalTablePaginationProps> = ({
               const newPageSize = Number(e.target.value)
               handlePageSizeChange(newPageSize)
             }}
-            className="gba:h-8 gba:w-16 gba:rounded gba:border gba:border-gray-300 gba:bg-white gba:px-2 gba:py-1 gba:text-sm"
+            className="gba:h-8 gba:w-16 gba:rounded gba:border gba:border-gray-300 gba:bg-background gba:px-2 gba:py-1 gba:text-sm"
             data-testid={`${dataTestIdPrefix}-page-size-select`}
           >
             <option value={10}>10</option>

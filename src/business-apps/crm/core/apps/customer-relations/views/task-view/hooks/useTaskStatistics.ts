@@ -201,10 +201,7 @@ export const useTaskStatistics = (props: UseTaskStatisticsProps): UseTaskStatist
     assignedEmployeeIds,
     statusRefs,
     priorityRefs,
-    taskTypes,
-    search,
-    createdAfter,
-    createdBefore
+    taskTypes
   } = props
 
   // State

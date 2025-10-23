@@ -20,20 +20,13 @@ export interface LeadsBySourcePieProps {
   moduleColor?: string
 }
 
-const formatLargeNumber = (value: number): string => {
-  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`
-  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`
-  if (value >= 1000) return `${(value / 1000).toFixed(1)}K`
-  return value.toString()
-}
-
 const toKey = (value: string): string =>
   value
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, moduleColor }) => {
+export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data }) => {
   const dataKey = 'leads'
   const nameKey = 'source'
 
@@ -59,10 +52,6 @@ export const LeadsBySourcePie: React.FC<LeadsBySourcePieProps> = ({ data, module
       config[key] = { label: item.source }
     })
     return config as ChartConfig
-  }, [data])
-
-  const totalLeads = useMemo(() => {
-    return data?.reduce((sum, item) => sum + item.count, 0) || 0
   }, [data])
 
   return (

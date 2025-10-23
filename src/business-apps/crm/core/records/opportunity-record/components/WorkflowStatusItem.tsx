@@ -56,15 +56,15 @@ const getStepStatusColor = (status: string) => {
 const getStepStatusIcon = (status: string) => {
   switch (status) {
     case 'COMPLETED':
-      return <CheckCircleOutlined style={{ color: '#52c41a' }} />
+      return <CheckCircleOutlined className="gba:text-success" />
     case 'IN_PROGRESS':
-      return <PlayCircleOutlined style={{ color: '#1890ff' }} />
+      return <PlayCircleOutlined className="gba:text-info" />
     case 'SCHEDULED':
-      return <ClockCircleOutlined style={{ color: '#faad14' }} />
+      return <ClockCircleOutlined className="gba:text-warning" />
     case 'QUEUED':
-      return <PauseCircleOutlined style={{ color: '#d9d9d9' }} />
+      return <PauseCircleOutlined className="gba:text-muted" />
     default:
-      return <ClockCircleOutlined style={{ color: '#d9d9d9' }} />
+      return <ClockCircleOutlined className="gba:text-muted" />
   }
 }
 
@@ -193,7 +193,7 @@ export const WorkflowStatusItem: React.FC<WorkflowStatusItemProps> = ({ workflow
         </Text>
 
         <div className="gba:space-y-3">
-          {workflow.steps.map((step, index) => (
+          {workflow.steps.map(step => (
             <div
               key={step.id}
               className="gba:border gba:border-gray-200 gba:rounded-lg gba:p-3 gba:bg-gray-50"
@@ -208,11 +208,7 @@ export const WorkflowStatusItem: React.FC<WorkflowStatusItemProps> = ({ workflow
                       <Tag size="small" color={getStepStatusColor(step.status)}>
                         {step.status}
                       </Tag>
-                      {step.type && (
-                        <Tag size="small" color="blue">
-                          {step.type}
-                        </Tag>
-                      )}
+                      {step.type && <Tag size="small">{step.type}</Tag>}
                     </div>
 
                     {/* Manual Approval Buttons */}
@@ -276,11 +272,7 @@ export const WorkflowStatusItem: React.FC<WorkflowStatusItemProps> = ({ workflow
               {(step.assignmentMode || step.assignmentTargets) && (
                 <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
                   <div className="gba:flex gba:flex-wrap gba:gap-2 gba:text-xs">
-                    {step.assignmentMode && (
-                      <Tag size="small" color="purple">
-                        {step.assignmentMode}
-                      </Tag>
-                    )}
+                    {step.assignmentMode && <Tag size="small">{step.assignmentMode}</Tag>}
                     {step.allowReassignment !== undefined && (
                       <Tag size="small" color={step.allowReassignment ? 'green' : 'red'}>
                         {step.allowReassignment ? 'Reassignable' : 'Fixed Assignment'}
@@ -288,7 +280,7 @@ export const WorkflowStatusItem: React.FC<WorkflowStatusItemProps> = ({ workflow
                     )}
                     {step.assignmentTargets && (
                       <Tooltip title={getAssignmentTargetsText(step.assignmentTargets)}>
-                        <Tag size="small" color="orange">
+                        <Tag size="small">
                           {getTranslationFromI18nKeyAndLabel('crm:opportunity.workflowAssignments', 'Assignments')}
                         </Tag>
                       </Tooltip>

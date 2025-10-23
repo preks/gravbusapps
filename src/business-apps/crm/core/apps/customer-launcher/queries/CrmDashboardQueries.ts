@@ -1,6 +1,7 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface CrmDashboardQueryVariables {
   // No variables needed for dashboard stats, but keeping interface for consistency
 }
@@ -139,6 +140,7 @@ export type CrmDashboardStatsData = {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface GetCrmDashboardStatsVariables {
   // No variables needed for this query
 }

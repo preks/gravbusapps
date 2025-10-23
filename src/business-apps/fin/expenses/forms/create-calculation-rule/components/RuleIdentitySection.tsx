@@ -50,11 +50,7 @@ const RuleIdentitySection: React.FC<RuleIdentitySectionProps> = ({
             required
           />
           {showCodeError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-code-error"
-            >
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-code-error">
               {errors.code}
             </div>
           )}
@@ -82,11 +78,7 @@ const RuleIdentitySection: React.FC<RuleIdentitySectionProps> = ({
             required
           />
           {showNameError && (
-            <div
-              className="gba:mt-1 gba:pl-1 gba:text-[14px]"
-              style={{ color: '#ff4d4f' }}
-              data-testid="ccr-name-error"
-            >
+            <div className="gba:mt-1 gba:pl-1 gba:text-[14px] gba:text-destructive" data-testid="ccr-name-error">
               {errors.name}
             </div>
           )}

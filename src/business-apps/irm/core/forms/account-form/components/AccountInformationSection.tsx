@@ -37,7 +37,6 @@ const AccountInformationSection: React.FC = () => {
     // Legal Forms
     legalForms,
     legalFormsLoading,
-    legalFormsError,
     legalFormsHasMore,
     legalFormsNeedsMoreData,
     legalFormsDisplayCount,
@@ -48,7 +47,6 @@ const AccountInformationSection: React.FC = () => {
     // Industries
     industries,
     industriesLoading,
-    industriesError,
     industriesHasMore,
     industriesNeedsMoreData,
     industriesDisplayCount,

@@ -30,16 +30,16 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
   // Helper function to get timing type icon
   const getTimingTypeIcon = (timingType?: string) => {
     if (!timingType) {
-      return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
+      return <Clock className="gba:text-sm gba:text-muted-foreground" />
     }
 
     switch (timingType.toUpperCase()) {
       case 'DEADLINE':
-        return <Clock style={{ fontSize: '14px', color: '#ff4d4f' }} />
+        return <Clock className="gba:text-sm gba:text-destructive" />
       case 'SCHEDULED':
-        return <Calendar style={{ fontSize: '14px', color: '#1677ff' }} />
+        return <Calendar className="gba:text-sm gba:text-info" />
       default:
-        return <Clock style={{ fontSize: '14px', color: '#8c8c8c' }} />
+        return <Clock className="gba:text-sm gba:text-muted-foreground" />
     }
   }
 
@@ -262,8 +262,8 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
 
   return (
     <div
+      className="gba:bg-background"
       style={{
-        backgroundColor: 'white',
         borderRadius: '8px',
         border: '1px solid #f0f0f0',
         overflow: 'hidden',
@@ -324,7 +324,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       {getTimingTypeIcon(task.timingType)}
-                      <Text strong style={{ fontSize: '16px', color: '#1f2937' }}>
+                      <Text strong className="gba:text-base gba:text-foreground">
                         {task.name || 'Untitled Task'}
                       </Text>
                     </div>
@@ -333,7 +333,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                         style={{
                           background:
                             task.priority?.value === 'High'
-                              ? '#fff2e8'
+                              ? 'hsl(var(--background))2e8'
                               : task.priority?.value === 'Medium'
                                 ? '#f6ffed'
                                 : '#f0f0f0',
@@ -356,9 +356,9 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                           background: task.statusRef?.includes('COMPLETED')
                             ? '#f6ffed'
                             : task.statusRef?.includes('IN_PROGRESS')
-                              ? '#fff7e6'
+                              ? 'hsl(var(--background))7e6'
                               : task.statusRef?.includes('OVERDUE')
-                                ? '#fff2f0'
+                                ? 'hsl(var(--background))2f0'
                                 : '#f0f0f0',
                           color: task.statusRef?.includes('COMPLETED')
                             ? '#52c41a'
@@ -403,11 +403,18 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
                   </div>
                   <div style={{ marginTop: '4px' }}>
                     {createTaskSummary(task) && (
-                      <div style={{ fontSize: '13px', color: '#4b5563', fontWeight: '500', marginBottom: '4px' }}>
+                      <div
+                        className="gba:text-sm gba:text-muted-foreground gba:font-medium"
+                        style={{ marginBottom: '4px' }}
+                      >
                         {createTaskSummary(task)}
                       </div>
                     )}
-                    {task.description && <div style={{ marginTop: '4px', color: '#374151' }}>{task.description}</div>}
+                    {task.description && (
+                      <div className="gba:text-foreground" style={{ marginTop: '4px' }}>
+                        {task.description}
+                      </div>
+                    )}
                   </div>
                   <div style={{ position: 'absolute', right: 0, top: 0, display: 'flex', gap: '4px' }}>
                     <Button
@@ -436,7 +443,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ leadId, context }) =
         )}
 
         {!loading && !error && tasks.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '40px 0', color: '#8c8c8c' }}>
+          <div className="gba:text-muted-foreground" style={{ textAlign: 'center', padding: '40px 0' }}>
             <div style={{ fontSize: '16px', marginBottom: '8px' }}>No tasks yet</div>
             <div style={{ fontSize: '14px' }}>Add tasks to track your progress with this lead</div>
           </div>

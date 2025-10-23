@@ -22,10 +22,10 @@ const prefixDataTestId = 'LeadForm'
 const ContactInformationSection: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false) // Start collapsed
 
-  const { formValues, setFormValues, isLoading, accessToken } = useLeadFormContext()
+  const { formValues, setFormValues, accessToken } = useLeadFormContext()
 
   // Fetch academic titles from catalog
-  const { academicTitleOptions, isLoading: academicTitlesLoading } = useAcademicTitles(accessToken)
+  const { academicTitleOptions } = useAcademicTitles(accessToken)
 
   const emailError = formValues.email && !validateEmail(formValues.email) ? 'Please enter a valid email address' : ''
   const phoneError = formValues.phone && !validatePhone(formValues.phone) ? 'Please enter a valid phone number' : ''
@@ -46,9 +46,8 @@ const ContactInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-success-secondary gba:to-success"
         style={{
-          background: 'linear-gradient(to right, #bbf7d0, #6ee7b7)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -59,12 +58,6 @@ const ContactInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #86efac, #34d399)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bbf7d0, #6ee7b7)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'ContactInfoToggle')}
       >
@@ -83,7 +76,7 @@ const ContactInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -101,7 +94,7 @@ const ContactInformationSection: React.FC = () => {
               onValueChange={value => setFormValues({ salutation: value || '' })}
               data-testid={formatDataTestId(prefixDataTestId, 'SalutationSelect')}
             >
-              <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+              <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                 <SelectValue placeholder="Please Select..." />
               </SelectTrigger>
               <SelectContent
@@ -125,7 +118,7 @@ const ContactInformationSection: React.FC = () => {
               value={typeof formValues.jobPosition === 'string' ? formValues.jobPosition : ''}
               onChange={e => setFormValues({ jobPosition: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'JobPositionInput')}
             />
           </div>
@@ -142,7 +135,7 @@ const ContactInformationSection: React.FC = () => {
                 value={typeof formValues.phone === 'string' ? formValues.phone : ''}
                 onChange={e => setFormValues({ phone: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:pl-8 gba:border-gray-300 gba:bg-white"
+                className="gba:pl-8 gba:border-gray-300 gba:bg-hsl(var(--background))"
                 style={{
                   borderColor: phoneError ? '#ef4444' : '#d1d5db',
                   paddingLeft: '32px'
@@ -165,7 +158,7 @@ const ContactInformationSection: React.FC = () => {
                 value={typeof formValues.email === 'string' ? formValues.email : ''}
                 onChange={e => setFormValues({ email: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:pl-8 gba:border-gray-300 gba:bg-white"
+                className="gba:pl-8 gba:border-gray-300 gba:bg-hsl(var(--background))"
                 style={{
                   borderColor: emailError ? '#ef4444' : '#d1d5db',
                   paddingLeft: '32px'

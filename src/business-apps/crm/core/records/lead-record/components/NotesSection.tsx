@@ -240,14 +240,16 @@ export const NotesSection: React.FC<NotesSectionProps> = ({ leadId, context }) =
 
         {!loading && !error && notes.length === 0 && (
           <Empty description="No notes yet" style={{ padding: '40px 0' }} data-testid="empty-notes">
-            <div style={{ fontSize: '14px', color: '#8c8c8c' }}>Start by adding your first note</div>
+            <div className="gba:text-muted-foreground" style={{ fontSize: '14px' }}>
+              Start by adding your first note
+            </div>
           </Empty>
         )}
 
         {!loading && !error && notes.length > 0 && (
           <Timeline>
             {notes.map((note, index) => (
-              <Timeline.Item key={note.id || index} color="blue">
+              <Timeline.Item key={note.id || index}>
                 <div style={{ position: 'relative' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text strong>{note.translatedTitle || note.noteTitle}</Text>

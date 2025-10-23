@@ -20,8 +20,6 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
   accessToken,
   additionalData,
   onClose = () => {},
-  onApprove = () => {},
-  onReject = () => {},
   ...contextProps
 }) => {
   const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
@@ -297,7 +295,7 @@ const AdvancePaymentApproval: React.FC<AdvancePaymentApprovalProps & BusinessApp
                   />
                 ) : (
                   <Avatar className="gba:w-14 gba:h-14 gba:bg-blue-500 gba:flex-shrink-0" data-testid="employee-avatar">
-                    <span className="gba:text-lg gba:text-white">{employee.firstName?.charAt(0) || 'A'}</span>
+                    <span className="gba:text-lg gba:text-background">{employee.firstName?.charAt(0) || 'A'}</span>
                   </Avatar>
                 )}
                 <div className="gba:flex-1 gba:min-w-0">

@@ -18,7 +18,7 @@ export interface CrmNoteResponse {
   CrmNote: CrmNoteData[]
 }
 
-export const GET_CRM_NOTES = (variables: CrmNoteQueryVariables): string => {
+export const GET_CRM_NOTES = (): string => {
   return `
     query GetCrmNotes($leadId: uuid!) {
       CrmNote(where: {lead: {id: {_eq: $leadId}}, isDeleted: {_eq: false}}) {
