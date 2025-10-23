@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from 'react'
 import { FileText, Upload as UploadIcon, X, AlertCircle } from 'lucide-react'
 import { Button, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { BlinkUploadFile } from '../hooks/useBlinkFileUpload'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface BlinkFileUploadProps {
   value: BlinkUploadFile[]
@@ -33,13 +34,21 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
     (file: File): string | null => {
       // Check file size
       if (file.size > maxFileSize * 1024 * 1024) {
-        return `File size must be less than ${maxFileSize}MB`
+        return getTranslationFromI18nKeyAndLabel(
+          'blink.upload.error.fileSize',
+          `File size must be less than ${maxFileSize}MB`,
+          { maxSize: maxFileSize }
+        )
       }
 
       // Check file type
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
       if (!allowedFileTypes.includes(fileExtension)) {
-        return `File type ${fileExtension} is not allowed`
+        return getTranslationFromI18nKeyAndLabel(
+          'blink.upload.error.fileType',
+          `File type ${fileExtension} is not allowed`,
+          { fileType: fileExtension }
+        )
       }
 
       return null
@@ -154,13 +163,23 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
 
         {canAddMoreFiles ? (
           <>
-            <p className="gba:mb-2 gba:font-medium gba:text-gray-700">Drop files here or click to browse</p>
+            <p className="gba:mb-2 gba:font-medium gba:text-gray-700">
+              {getTranslationFromI18nKeyAndLabel('blink.upload.dropText', 'Drop files here or click to browse')}
+            </p>
             <p className="gba:text-sm gba:text-gray-500">
-              Supports: {allowedFileTypes.join(', ')}. Max {maxFiles} files, {maxFileSize}MB each.
+              {getTranslationFromI18nKeyAndLabel(
+                'blink.upload.hint',
+                `Supports: ${allowedFileTypes.join(', ')}. Max ${maxFiles} files, ${maxFileSize}MB each.`,
+                { types: allowedFileTypes.join(', '), maxFiles, maxSize: maxFileSize }
+              )}
             </p>
           </>
         ) : (
-          <p className="gba:text-sm gba:text-gray-500">Maximum {maxFiles} files reached</p>
+          <p className="gba:text-sm gba:text-gray-500">
+            {getTranslationFromI18nKeyAndLabel('blink.upload.maxFiles', `Maximum ${maxFiles} files reached`, {
+              maxFiles
+            })}
+          </p>
         )}
       </div>
 
@@ -178,7 +197,11 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
       {/* File List */}
       {value.length > 0 && (
         <div className="gba:space-y-2">
-          <p className="gba:text-sm gba:font-medium gba:text-gray-700">Selected Files ({value.length})</p>
+          <p className="gba:text-sm gba:font-medium gba:text-gray-700">
+            {getTranslationFromI18nKeyAndLabel('blink.upload.selectedFiles', `Selected Files (${value.length})`, {
+              count: value.length
+            })}
+          </p>
           {value.map(file => (
             <div
               key={file.uid}
@@ -202,7 +225,9 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
                 {file.status === 'uploading' && (
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <div className="gba:animate-spin gba:rounded-full gba:h-4 gba:w-4 gba:border-b-2 gba:border-blue-600"></div>
-                    <span className="gba:text-xs gba:text-blue-600">Uploading...</span>
+                    <span className="gba:text-xs gba:text-blue-600">
+                      {getTranslationFromI18nKeyAndLabel('blink.upload.uploading', 'Uploading...')}
+                    </span>
                   </div>
                 )}
               </div>
