@@ -345,68 +345,40 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
         </div>
       </div>
 
-      <div className={`gba:mb-4`} data-testid="cost-center-field-container" key={`cost-center-${costCenters.length}`}>
+      <div className={`gba:mb-4`} data-testid="cost-center-field-container">
         <div className={`gba:relative`}>
           <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) => prevValues.costCenter !== currentValues.costCenter}
-            dependencies={['costCenter']}
-          >
-            {() => {
-              const costCenterId = form.getFieldValue('costCenter')
-              let costCenterValue = undefined
-
-              if (costCenterId) {
-                const center = costCenters.find(c => c.id === costCenterId)
-                // If we have the center in the array, use it; otherwise create a temporary entry
-                costCenterValue = center
-                  ? { id: center.id, name: center.name }
-                  : { id: costCenterId, name: costCenterId }
+            name="costCenter"
+            rules={[
+              {
+                required: true,
+                message: t(
+                  'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
+                  'Please select a cost center'
+                )
               }
-
-              // If costCenters is empty but we have a value, add it to the data array temporarily
-              const selectData =
-                costCenters.length > 0
-                  ? costCenters.map(center => ({ id: center.id, name: center.name }))
-                  : costCenterValue
-                    ? [costCenterValue]
-                    : []
-
-              return (
-                <Form.Item
-                  name="costCenter"
-                  rules={[
-                    {
-                      required: true,
-                      message: t(
-                        'lowcoder:create_expense_request.expense_request_container.current_cost_center_custom_rule',
-                        'Please select a cost center'
-                      )
-                    }
-                  ]}
-                  style={{ marginBottom: 0 }}
-                >
-                  <SelectField
-                    key={`select-${costCenters.length}`}
-                    allowClear
-                    label={t(
-                      'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
-                      'Cost Center'
-                    )}
-                    name="costCenter"
-                    placeholder={t(
-                      'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
-                      'Select Cost Center'
-                    )}
-                    data-testid="cost-center-select"
-                    data={selectData}
-                    onChange={(value: any) => form.setFieldsValue({ costCenter: value.value })}
-                    value={costCenterValue}
-                    required={true}
-                  />
-                </Form.Item>
-              )
-            }}
+            ]}
+            style={{ marginBottom: 0 }}
+          >
+            <SelectField
+              allowClear
+              label={t(
+                'lowcoder:create_expense_request.expense_request_container.current_cost_center_label',
+                'Cost Center'
+              )}
+              name="costCenter"
+              placeholder={t(
+                'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
+                'Select Cost Center'
+              )}
+              data-testid="cost-center-select"
+              data={costCenters.map(center => ({
+                id: center.id,
+                name: center.name
+              }))}
+              onChange={(value: any) => form.setFieldsValue({ costCenter: value.value })}
+              required={true}
+            />
           </Form.Item>
         </div>
       </div>
