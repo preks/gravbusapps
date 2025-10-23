@@ -49,6 +49,7 @@ export function useGenerateAIBooklet(
   const [jobId, setJobId] = useState<string | null>(null)
   const [lastOutputFileName, setLastOutputFileName] = useState<string | null>(null)
   const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  // const baseUrl = 'http://127.0.0.1:8000'
   const restClient = useRestClient(baseUrl)
 
   const formatTimestamp = useCallback((value?: string | null) => {
@@ -284,11 +285,18 @@ export function useGenerateAIBooklet(
 
         setJobId(parsedStatus.job_id)
         setState({ type: 'success', content: result })
-      } catch {
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('404')) {
+          // Job is no longer available (e.g. server restarted); start a fresh generation run
+          setJobId(null)
+          await startNewBookletJob()
+          return
+        }
+
         setState({ type: 'error' })
       }
     },
-    [accessToken, buildBookletSummaryFromStatus, restClient]
+    [accessToken, buildBookletSummaryFromStatus, restClient, startNewBookletJob]
   )
 
   const generateSummary = useCallback(async () => {
