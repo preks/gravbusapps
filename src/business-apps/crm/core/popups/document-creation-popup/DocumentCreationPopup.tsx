@@ -50,9 +50,38 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
       ad?.psi_taskPayload?.initialParameters?.crmDocument ||
       payload?.crmDocument
     const crm = src?.crmDocument || crmFromAd || {}
-    const accountId = src?.accountId || src?.account || crm?.account || ''
-    const contactId = src?.contactId || src?.contact || crm?.contact || ''
-    const leadId = src?.leadId || src?.lead || crm?.lead || ''
+
+    // Extract entity IDs from all possible locations
+    const accountId =
+      src?.accountId ||
+      src?.account ||
+      ad?.accountId ||
+      ad?.account ||
+      payload?.accountId ||
+      payload?.account ||
+      crm?.account ||
+      ''
+    const contactId =
+      src?.contactId ||
+      src?.contact ||
+      ad?.contactId ||
+      ad?.contact ||
+      payload?.contactId ||
+      payload?.contact ||
+      crm?.contact ||
+      ''
+    const leadId =
+      src?.leadId || src?.lead || ad?.leadId || ad?.lead || payload?.leadId || payload?.lead || crm?.lead || ''
+
+    // Debugging - log what we found
+    console.log('DocumentCreationPopup - Entity Detection:', {
+      accountId,
+      contactId,
+      leadId,
+      src_keys: Object.keys(src),
+      ad_keys: Object.keys(ad),
+      payload_keys: Object.keys(payload)
+    })
 
     let entityType: DocumentCreationEntityType = 'account'
     let entityId = ''
@@ -379,6 +408,11 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
 
       // If uploading a file (create or update), upload to File Service and include returned fileId
       if (!renameMode && !values.folder && file) {
+        // Validate we have a resolved entity ID before uploading
+        if (!resolvedId) {
+          throw new Error(`Unable to determine ${values.entityType} ID. Please ensure the entity ID is provided.`)
+        }
+
         // Ensure auth header
         if (props.accessToken) {
           fileClient.setAccessToken(props.accessToken)
@@ -405,7 +439,19 @@ const DocumentCreationPopup: React.FC<DocumentCreationPopupProps> = ({ initialVa
 
         const uploadResponse = await fileClient.uploadFile(file, pathParams, queryParams)
 
-        crmDocument.file = uploadResponse.fileInfo.fileId
+        // Extract fileId without extension (backend expects UUID only)
+        const cleanFileId = uploadResponse.fileInfo.fileId ? uploadResponse.fileInfo.fileId.split('.')[0] : null
+
+        // Create fileInfo object with clean fileId
+        const fileInfoWithCleanId = uploadResponse.fileInfo
+          ? {
+              ...uploadResponse.fileInfo,
+              fileId: cleanFileId
+            }
+          : null
+
+        crmDocument.file = cleanFileId
+        crmDocument.fileInfo = fileInfoWithCleanId
         crmDocument.fileSize = file.size
         crmDocument.mimeType = file.type || undefined
       }
