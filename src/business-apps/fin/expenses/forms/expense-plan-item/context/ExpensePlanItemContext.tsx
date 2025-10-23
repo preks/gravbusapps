@@ -103,15 +103,8 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
 
   useEffect(() => {
-    console.log('🔥 useEffect triggered - BUILD v1.0.0', {
-      hasAccessToken: !!accessToken,
-      hasUserInfo: !!userInfo,
-      employeeRuleId,
-      firstRunVariable,
-      rerunRule
-    })
     fetchInitialData()
-  }, [accessToken, userInfo, employeeRuleId, firstRunVariable, rerunRule])
+  }, [accessToken, userInfo, employeeRuleId, rerunRule])
 
   useEffect(() => {
     if (!accessToken || !generalDataResponse || !catalogueDataResponse || expenseRuleError) {
@@ -319,7 +312,6 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   }
 
   const fetchInitialData = async () => {
-    console.log('🚀 ExpensePlanItem fetchInitialData called - BUILD v1.0.0')
     try {
       // Early validation
       if (!accessToken || !userInfo) return
@@ -340,18 +332,12 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
         const catalogueData = await fetchCatalogueData(employeeIdValue)
 
         if (firstRunVariable === false && catalogueData?.data) {
-          console.log('✅ Loading cost centers - BUILD v1.0.0', { catalogueData, firstRunVariable })
           const employeePosition = catalogueData?.data?.EmployeePosition || []
           const structureId = employeePosition[0]?.structureId || ''
 
           await fetchAndSetCostCenters(structureId, employeePosition)
           processCurrencies(catalogueData)
           setFirstRunVariable(true)
-        } else {
-          console.log('❌ Skipping cost centers - BUILD v1.0.0', {
-            firstRunVariable,
-            hasCatalogueData: !!catalogueData?.data
-          })
         }
       }
 
