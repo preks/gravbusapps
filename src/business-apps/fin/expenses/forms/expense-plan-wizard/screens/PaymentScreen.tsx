@@ -273,15 +273,12 @@ const PaymentScreen: React.FC<PaymentScreenProps> = props => {
     if (isNaN(num)) {
       return
     }
-    const platformFormatted = formatNumberFunction(String(num), '0.00[,]00')
-    const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(num)
 
-    const finalDisplay = platformFormatted && platformFormatted !== String(num) ? platformFormatted : intlFormatted
-
-    form.setFieldsValue({ amount: finalDisplay })
+    // Format to 2 decimal places and set back as standard format (period as decimal separator)
+    // This ensures consistency across all locales
+    const formattedValue = num.toFixed(2)
+    form.setFieldsValue({ amount: formattedValue })
+    setAmount(formattedValue)
   }
 
   // Validation functions
