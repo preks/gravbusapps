@@ -5,10 +5,15 @@
  * by interfacing with the publish-dev-screen.js script.
  */
 
-import { GeneratedFile } from './forgeClient'
 import { ENV } from '../config/environment'
 
 const PUBLISH_API_URL = ENV.PUBLISH_API_URL
+
+export interface GeneratedFile {
+  path: string
+  content: string
+  changeType?: 'create' | 'update' | 'delete'
+}
 
 export interface PublishRequest {
   files: GeneratedFile[]
@@ -28,84 +33,23 @@ export interface PublishResponse {
 }
 
 /**
- * Fixed vite.config.ts content with exports: 'auto'
- * This ensures the bundle preserves both default and named exports
+ * NOTE: vite.config.ts fix is no longer needed!
+ * Forge's base repository was updated on 2025-01-21 to have exports: 'auto'
+ * The workaround has been removed - builds now work correctly out of the box
  */
-const FIXED_VITE_CONFIG = `exports: 'auto' // Allow both default and named exports - required for component registration`
-
-/**
- * Inject vite.config.ts fix into the session before publishing
- * This is a workaround until Forge's base repository is reindexed
- */
-async function injectViteConfigFix(request: PublishRequest): Promise<void> {
-  try {
-    // Read the current vite.config.ts from the repo
-    const viteConfigResponse = await fetch(`${PUBLISH_API_URL}/api/files/read`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${request.accessToken}`
-      },
-      body: JSON.stringify({
-        repoId: ENV.GRAVBUSAPPS_REPO_ID,
-        sessionId: request.sessionId,
-        filePath: 'vite.config.ts'
-      })
-    })
-
-    if (viteConfigResponse.ok) {
-      const { content } = await viteConfigResponse.json()
-
-      // Check if it needs the fix
-      if (content && content.includes("exports: 'named'")) {
-        console.log('[AI Builder] Injecting vite.config.ts fix...')
-
-        // Replace exports: 'named' with exports: 'auto'
-        const fixedContent = content.replace(/exports:\s*['"]named['"]/g, FIXED_VITE_CONFIG)
-
-        // Track the change in the session
-        await fetch(`${PUBLISH_API_URL}/api/newwork/track-change`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${request.accessToken}`
-          },
-          body: JSON.stringify({
-            repoId: ENV.GRAVBUSAPPS_REPO_ID,
-            sessionId: request.sessionId,
-            filePath: 'vite.config.ts',
-            changeType: 'modify',
-            newContent: fixedContent
-          })
-        })
-
-        console.log('[AI Builder] ✅ vite.config.ts fix injected successfully')
-      } else {
-        console.log('[AI Builder] vite.config.ts already has correct exports setting')
-      }
-    }
-  } catch (error) {
-    console.warn('[AI Builder] Failed to inject vite.config.ts fix:', error)
-    // Don't fail the publish if this fails - it's a workaround
-  }
-}
 
 /**
  * Publish generated screen to NEWWORK platform
  *
  * This function:
- * 1. Injects vite.config.ts fix (workaround for base repo issue)
- * 2. Writes the generated files to the file system
- * 3. Calls the publish-dev-screen.js script
- * 4. Uploads the build to Azure
- * 5. Registers the screen in the platform
+ * 1. Writes the generated files to the file system
+ * 2. Calls the publish-dev-screen.js script
+ * 3. Uploads the build to Azure
+ * 4. Registers the screen in the platform
  */
 export async function publishScreen(request: PublishRequest): Promise<PublishResponse> {
   try {
-    // STEP 1: Inject vite.config.ts fix before publishing
-    await injectViteConfigFix(request)
-
-    // STEP 2: Proceed with normal publish
+    // Make HTTP request to Forge API
     const response = await fetch(`${PUBLISH_API_URL}/api/publish`, {
       method: 'POST',
       headers: {
@@ -121,8 +65,32 @@ export async function publishScreen(request: PublishRequest): Promise<PublishRes
     })
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Failed to publish screen')
+      // Try to get detailed error from response
+      let errorDetails = 'Failed to publish screen'
+      try {
+        const errorData = await response.json()
+        // Get the most detailed error message available
+        errorDetails = errorData.error || errorData.message || errorData.details || errorDetails
+
+        // If there's a build error with stack trace, include it
+        if (errorData.buildError) {
+          errorDetails = `Build Error:\n${errorData.buildError}`
+        }
+
+        // If there's stderr output, include it
+        if (errorData.stderr) {
+          errorDetails = `${errorDetails}\n\nError Output:\n${errorData.stderr}`
+        }
+      } catch {
+        // If response is not JSON, try to get text
+        try {
+          errorDetails = await response.text()
+        } catch {
+          errorDetails = `HTTP ${response.status}: ${response.statusText}`
+        }
+      }
+
+      throw new Error(errorDetails)
     }
 
     const data = await response.json()
@@ -130,19 +98,14 @@ export async function publishScreen(request: PublishRequest): Promise<PublishRes
       success: true,
       screenPath: request.screenPath,
       resourceUrl: request.resourceUrl,
-      azureUrl: data.azureUrl,
-      message: 'Screen published successfully'
+      azureUrl: data.azureUrl || '',
+      message: data.message || 'Screen published successfully'
     }
   } catch (error) {
     console.error('Publish failed:', error)
-    return {
-      success: false,
-      screenPath: request.screenPath,
-      resourceUrl: request.resourceUrl,
-      azureUrl: '',
-      message: 'Publish failed',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }
+
+    // Re-throw the error with full details so it can be shown in the chat
+    throw error
   }
 }
 
