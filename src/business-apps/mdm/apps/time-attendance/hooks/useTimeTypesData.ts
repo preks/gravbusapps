@@ -26,6 +26,13 @@ const GET_SYSTEM_TIME_TYPES = `query GetSystemTimeTypes {
   }
 }`
 
+export enum TimeTypeEnum {
+  // This is intentionally written as TIME_TYPE_SYSETM to match the GraphQL query
+  TIME_TYPE_SYSTEM = 'TIME_TYPE_SYSETM',
+  TIME_TYPE_CUSTOM = 'TIME_TYPE_CUSTOM',
+  TIME_TYPE_UNKNOWN = 'UNKNOWN_TIME_TYPE'
+}
+
 // Response interface
 export interface TimeTypeResponse {
   TimeType: Array<{
@@ -53,7 +60,7 @@ export interface TransformedTimeType {
   id: string
   name: string
   visible: boolean
-  type: 'System' | 'Custom' | 'Unkown'
+  type: 'System' | 'Custom' | 'Unknown'
   code: string
   version: number
 }
@@ -84,11 +91,11 @@ export const useTimeTypesData = (context: BusinessAppContextProps): UseTimeTypes
   // Transform GraphQL data to final format
   const transformTimeTypes = useCallback((rawData: TimeTypeResponse['TimeType']): TransformedTimeType[] => {
     return rawData.map(item => {
-      let type: 'System' | 'Custom' | 'Unkown' = 'Unkown'
+      let type: 'System' | 'Custom' | 'Unknown' = 'Unknown'
 
-      if (item.type === 'TIME_TYPE_SYSETM') {
+      if (item.type === TimeTypeEnum.TIME_TYPE_SYSTEM) {
         type = 'System'
-      } else if (item.type === 'TIME_TYPE_CUSTOM') {
+      } else if (item.type === TimeTypeEnum.TIME_TYPE_CUSTOM) {
         type = 'Custom'
       }
 

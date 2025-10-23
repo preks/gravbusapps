@@ -132,7 +132,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
         ),
         enableSorting: false,
         cell: ({ getValue }) => {
-          const type = getValue() as 'System' | 'Custom' | 'Unkown'
+          const type = getValue() as 'System' | 'Custom' | 'Unknown'
           return <Badge variant={getTypeBadgeVariant(type)}>{type}</Badge>
         }
       },
@@ -245,7 +245,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
   }, [])
 
   // Get badge variant for type
-  const getTypeBadgeVariant = useCallback((type: 'System' | 'Custom' | 'Unkown') => {
+  const getTypeBadgeVariant = useCallback((type: 'System' | 'Custom' | 'Unknown') => {
     if (type === 'System') {
       return 'default'
     } else {

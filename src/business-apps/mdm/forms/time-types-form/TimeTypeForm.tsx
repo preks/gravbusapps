@@ -20,7 +20,11 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { TransformedSystemTimeType, TransformedTimeType } from '../../apps/time-attendance/hooks/useTimeTypesData'
+import {
+  TimeTypeEnum,
+  TransformedSystemTimeType,
+  TransformedTimeType
+} from '../../apps/time-attendance/hooks/useTimeTypesData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 
@@ -113,7 +117,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
   const handleSubmit = async (values: any) => {
     try {
       setLoading(true)
-      const type = values.type === 'System' ? 'TIME_TYPE_SYSETM' : 'TIME_TYPE_CUSTOM'
+      const type = values.type === 'System' ? TimeTypeEnum.TIME_TYPE_SYSTEM : TimeTypeEnum.TIME_TYPE_CUSTOM
 
       const payload = {
         changeMode: 'INSERT',
