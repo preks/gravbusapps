@@ -350,10 +350,17 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
           <Form.Item
             noStyle
             shouldUpdate={(prevValues, currentValues) => prevValues.costCenter !== currentValues.costCenter}
+            dependencies={['costCenter']}
           >
             {() => {
               const costCenterId = form.getFieldValue('costCenter')
               let costCenterValue = undefined
+
+              console.log('🔍 Cost Center Debug:', {
+                costCenterId,
+                costCentersLength: costCenters.length,
+                costCenters: costCenters.map(c => ({ id: c.id, name: c.name }))
+              })
 
               if (costCenterId) {
                 const center = costCenters.find(c => c.id === costCenterId)
