@@ -307,7 +307,14 @@ export const SinglePositionComponent: React.FC<SinglePositionComponentProps> = (
                     'lowcoder:create_expense_request.expense_request_container.current_cost_center_placeholder',
                     'Select Cost Center'
                   )}
-                  value={position.costCenter || undefined}
+                  value={
+                    position.costCenter
+                      ? {
+                          id: position.costCenter,
+                          name: costCenters.find(c => c.id === position.costCenter)?.name || position.costCenter
+                        }
+                      : undefined
+                  }
                   required={true}
                 />
               </Form.Item>
