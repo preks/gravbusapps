@@ -93,9 +93,10 @@ const DynamicSegment: React.FC<DynamicSegmentProps> = ({
     investmentCatalogLoading,
     formValues.investment.id,
     getFormFieldsDefinition,
-    isUpdate,
-    formValues,
-    setFormValues
+    isUpdate
+    // Note: formValues and setFormValues are accessed but not dependencies
+    // formValues is read inside the effect for current state (stable via closure)
+    // setFormValues is stable from context
   ])
 
   // Render reference field (for REF_ type fields)
