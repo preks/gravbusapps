@@ -328,7 +328,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
               />
             </div>
             <div className="gba:text-sm gba:text-gray-600">
-              {`${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:peersonal_expenses.of', 'of')} ${timeTypes.length} ${getTranslationFromI18nKeyAndLabel(
+              {`${filteredTimeTypes.length} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${timeTypes.length} ${getTranslationFromI18nKeyAndLabel(
                 'master-data:hr.time_attendance.time_types.title',
                 'time types'
               ).toLowerCase()}`}

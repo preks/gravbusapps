@@ -70,10 +70,13 @@ const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, pref
   return (
     <PageLayout
       headerIcon={<ClockIcon />}
-      headerLabel={getTranslationFromI18nKeyAndLabel('hr.time_attendance.title_dashboard', 'Time Attendance Data')}
+      headerLabel={getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.time_attendance.title_dashboard',
+        'Time Attendance Data'
+      )}
       className={className}
       contentContainer={
-        <div className="gba:w-full gba:h-full gba:!overflow-y-auto" style={{ padding: '24px' }}>
+        <div className="gba:w-full gba:h-full gba:overflow-y-auto!" style={{ padding: '24px' }}>
           <div data-testid={`${prefixDataTestId || ''}-${DATA_TEST_ID}-Tabs`}>
             <Tabs value={selectedTab} onValueChange={onChangeTab} className="gba:w-full">
               <TabsList className="gba:w-full">
