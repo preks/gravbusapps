@@ -45,7 +45,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({
 
   return (
     <div
-      className={`gba:flex gba:items-center gba:gap-2 gba:bg-white gba:p-3 gba:rounded-lg gba:border gba:border-gray-200 gba:shadow-sm ${className}`}
+      className={`gba:flex gba:items-center gba:gap-2 gba:bg-hsl(var(--background)) gba:p-3 gba:rounded-lg gba:border gba:border-gray-200 gba:shadow-sm ${className}`}
     >
       <RangePicker
         value={dateRange}

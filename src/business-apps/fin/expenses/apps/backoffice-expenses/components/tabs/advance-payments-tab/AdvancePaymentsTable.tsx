@@ -602,7 +602,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
           {/* Dropdown with search results */}
           {showReporterDropdown && reporterSearchText.trim() && (
-            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
               {renderReporterDropdownContent()}
             </div>
           )}
@@ -734,7 +734,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   return (
     <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
       <DataContainer
-        contentBackground="white"
+        contentBackground="background"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:backoffice_expense_landing_page.advance_title',
@@ -770,7 +770,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           )
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
               {selectedItem?.title ||

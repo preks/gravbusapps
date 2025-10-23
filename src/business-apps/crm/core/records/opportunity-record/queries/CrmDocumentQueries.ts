@@ -23,7 +23,7 @@ export interface CrmDocumentResponse {
   CrmDocument: CrmDocumentData[]
 }
 
-export const GET_CRM_DOCUMENTS = (variables: CrmDocumentQueryVariables): string => {
+export const GET_CRM_DOCUMENTS = (): string => {
   return `
     query GetCrmDocuments($opportunityId: uuid!) {
       CrmDocument(where: {opportunity: {id: {_eq: $opportunityId}}, isDeleted: {_eq: false}}) {

@@ -70,11 +70,10 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
         <p>No campaign ID provided. Please navigate back to the campaign list.</p>
         <button
           onClick={handleBack}
+          className="gba:bg-primary gba:text-primary-foreground"
           style={{
             marginTop: '16px',
             padding: '8px 16px',
-            backgroundColor: '#1890ff',
-            color: 'white',
             border: 'none',
             borderRadius: '4px',
             cursor: 'pointer'
@@ -131,7 +130,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
           <p className="gba:text-gray-600">Campaign ID: {campaignId}</p>
           <button
             onClick={handleBack}
-            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:rounded gba:hover:bg-blue-600"
+            className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-hsl(var(--background)) gba:rounded gba:hover:bg-blue-600"
             data-testid="campaign-error-back-button"
           >
             {getBackButtonText()}
@@ -210,7 +209,7 @@ const CampaignRecord: React.FC<CampaignRecordComponentProps> = ({
   )
 
   return (
-    <div className="gba:w-full" style={{ backgroundColor: 'white', padding: '16px' }}>
+    <div className="gba:w-full gba:bg-background" style={{ padding: '16px' }}>
       {/* Back navigation */}
       <div className="gba:back-navigation" style={{ marginBottom: '16px' }}>
         <button

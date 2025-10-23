@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { TextTransformationRequest, TextTransformationResponse } from '../types'
 import { env } from '@/common/env/EnvUtils'
 

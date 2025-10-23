@@ -74,7 +74,7 @@ const transformMenuItemsToReports = (menuItems: MenuItem[], currentLocale: strin
             icon: <RiBarChartLine className="h-5 w-5" />,
             category: getTranslatedValue(item.resourceUrl.name_i18n, item.resourceUrl.name || 'Report', currentLocale),
             favorite: false,
-            url: `https://newwork-dev.newwork.com${item.resourceUrl.url}`
+            url: `${env('NEXT_PUBLIC_BASE_URL') || ''}${item.resourceUrl.url}`
           })
         }
       }

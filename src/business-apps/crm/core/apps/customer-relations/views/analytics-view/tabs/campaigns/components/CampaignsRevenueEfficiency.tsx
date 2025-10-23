@@ -78,7 +78,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+        <div className="gba:bg-hsl(var(--background)) gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
           <div className="gba:space-y-1">
             <p className="gba:text-sm">
@@ -110,7 +110,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
         const totalRevenue = efficiencyData.reduce((sum, item) => sum + item.revenue, 0)
         const percentage = totalRevenue > 0 ? ((data.size / totalRevenue) * 100).toFixed(1) : '0.0'
         return (
-          <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+          <div className="gba:bg-hsl(var(--background)) gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
             <p className="gba:font-semibold gba:mb-2">{data.fullName || data.name}</p>
             <div className="gba:space-y-1">
               <p className="gba:text-sm">
@@ -138,7 +138,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+        <div className="gba:bg-hsl(var(--background)) gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
           <div className="gba:space-y-1">
             <p className="gba:text-sm">
@@ -181,7 +181,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                   label={{ value: 'Win Rate (%)', angle: -90, position: 'insideLeft' }}
                 />
                 <Tooltip content={<ScatterTooltip />} />
-                <Scatter name="Campaigns" dataKey="winRate" fill="#8B5CF6">
+                <Scatter name="Campaigns" dataKey="winRate" fill="hsl(var(--accent))">
                   {efficiencyData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={`hsl(${120 + entry.efficiencyScore * 2}, 70%, 50%)`} />
                   ))}
@@ -204,7 +204,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                 <Bar
                   yAxisId="revenue"
                   dataKey="revenuePerLead"
-                  fill="#10B981"
+                  fill="hsl(var(--success))"
                   name="Revenue per Lead"
                   radius={[4, 4, 0, 0]}
                 />
@@ -212,10 +212,10 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                   yAxisId="score"
                   type="monotone"
                   dataKey="efficiencyScore"
-                  stroke="#8B5CF6"
+                  stroke="hsl(var(--accent))"
                   strokeWidth={3}
                   name="Efficiency Score (%)"
-                  dot={{ fill: '#8B5CF6', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: 'hsl(var(--accent))', strokeWidth: 2, r: 4 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -238,9 +238,9 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
                   }))}
                   dataKey="size"
                   aspectRatio={4 / 3}
-                  stroke="#fff"
+                  stroke="hsl(var(--background))"
                   strokeWidth={2}
-                  fill="#8B5CF6"
+                  fill="hsl(var(--accent))"
                 >
                   <Tooltip content={<TreemapTooltip />} />
                 </Treemap>
@@ -299,7 +299,7 @@ const CampaignsRevenueEfficiency: React.FC<CampaignsAnalyticsComponentProps> = (
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <ThunderboltOutlined style={{ color: '#8B5CF6' }} />
+            <ThunderboltOutlined className="gba:text-accent" />
             {getTranslationFromI18nKeyAndLabel(
               'campaigns.analytics.revenueEfficiency.title',
               'Revenue Efficiency Analysis'

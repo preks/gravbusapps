@@ -21,8 +21,8 @@ import { useForm } from 'react-hook-form'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useGetInvestments, useGetInvestmentAccounts } from '@/common/data/investment'
-import type { InvestmentReport, Investment, InvestmentAccount, ReportScope } from '@/common/data/investment'
+import { useGetInvestments } from '@/common/data/investment'
+import type { InvestmentReport, Investment, ReportScope } from '@/common/data/investment'
 import dayjs from 'dayjs'
 
 interface InvestmentReportFormProps extends BusinessAppContextProps {
@@ -60,10 +60,8 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
 
   // Initialize hooks
   const { fetchInvestments } = useGetInvestments({ accessToken, userInfo, additionalData })
-  const { fetchInvestmentAccounts } = useGetInvestmentAccounts({ accessToken, userInfo, additionalData })
 
   const [investments, setInvestments] = useState<Investment[]>([])
-  const [accounts, setAccounts] = useState<InvestmentAccount[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const isEditing = !!initialValues?.id
@@ -161,8 +159,8 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
 
   if (!accessToken) {
     return (
-      <div style={{ padding: '24px', textAlign: 'center' }}>
-        <div style={{ color: '#ef4444' }}>
+      <div className="gba:p-6 gba:text-center">
+        <div className="gba:text-destructive">
           {getTranslationFromI18nKeyAndLabel(
             'error.noAccessToken',
             'Error: No access token found. Please ensure you are properly authenticated.'
@@ -190,7 +188,7 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
             ? getTranslationFromI18nKeyAndLabel('report.form.editTitle', 'Edit Investment Report')
             : getTranslationFromI18nKeyAndLabel('report.form.createTitle', 'Submit Investment Report')}
         </h2>
-        <p style={{ margin: 0, color: '#6b7280' }}>
+        <p className="gba:m-0 gba:text-muted-foreground">
           {isEditing ? 'Update your investment report details' : 'Submit a new report for your investment'}
         </p>
       </div>

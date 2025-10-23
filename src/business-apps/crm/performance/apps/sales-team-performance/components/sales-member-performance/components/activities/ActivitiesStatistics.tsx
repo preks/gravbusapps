@@ -12,9 +12,7 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   employeeId,
   onRetry,
   accessToken,
-  userInfo,
-  additionalData,
-  ...context
+  userInfo
 }) => {
   // Fetch real activities statistics
   const { statistics, loading, error, refetch } = useEmployeeActivitiesStatistics({
@@ -62,7 +60,7 @@ export const ActivitiesStatistics: React.FC<ActivitiesStatisticsProps> = ({
   const getTrendColor = (trend: 'up' | 'down' | 'stable') => {
     switch (trend) {
       case 'up':
-        return '#10b981'
+        return 'hsl(var(--success))'
       case 'down':
         return '#ef4444'
       default:

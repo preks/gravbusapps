@@ -29,7 +29,7 @@ const SectionWrapper = <T = Record<string, any>,>({
       if (storedTab && sections.some(s => s.id === storedTab)) {
         return storedTab
       }
-    } catch (_e) {
+    } catch {
       // ignore storage errors
     }
     return sections[0]?.id || ''
@@ -42,7 +42,7 @@ const SectionWrapper = <T = Record<string, any>,>({
     setActiveTab(tabId)
     try {
       sessionStorage.setItem(storageKey, tabId)
-    } catch (_e) {
+    } catch {
       // ignore storage errors
     }
   }

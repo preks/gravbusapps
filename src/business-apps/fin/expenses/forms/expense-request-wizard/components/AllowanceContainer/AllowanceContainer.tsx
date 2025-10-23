@@ -16,10 +16,8 @@ interface AllowanceContainerProps {
   isCollapsed: boolean
   onToggleCollapse: () => void
   costCenters: CostCenter[]
-  defaultCostCenter?: string
   onCostCenterChange: (index: number, value: string | undefined) => void
   projects: any[]
-  defaultProject?: string
   onProjectChange: (index: number, value: string | undefined) => void
   onDeductionsChange?: (index: number, deductions: string[]) => void
   hasDeductions?: boolean
@@ -35,10 +33,8 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
   isCollapsed,
   onToggleCollapse,
   costCenters,
-  defaultCostCenter,
   onCostCenterChange,
   projects,
-  defaultProject,
   onProjectChange,
   onDeductionsChange,
   hasDeductions,
@@ -111,7 +107,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
             data-testid={`allowance-icon-${index}`}
           />
           <span
-            className="gba:text-[#000]"
+            className="gba:text-foreground"
             style={{ fontSize: '16px', fontWeight: 500 }}
             data-testid={`allowance-title-${index}`}
           >
@@ -260,7 +256,7 @@ const AllowanceContainer: React.FC<AllowanceContainerProps> = ({
                       key={option.key}
                       type="button"
                       onClick={() => toggleDeduction(option.key)}
-                      className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:bg-[#F7F7F7] gba:text-black gba:text-base gba:p-2 gba:rounded-none gba:box-border gba:font-bold"
+                      className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center gba:bg-muted gba:text-black gba:text-base gba:p-2 gba:rounded-none gba:box-border gba:font-bold"
                       style={{
                         border: isSelected ? '2px solid black' : '2px solid transparent',
                         width: '100%',

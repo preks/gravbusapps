@@ -17,7 +17,6 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
   opportunity,
   opportunityData,
   opportunityId,
-  additionalData,
   accessToken
 }) => {
   const formatDate = (dateString: string) => {
@@ -27,10 +26,9 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
 
   return (
     <div
-      className="gba:opportunity-header"
+      className="gba:opportunity-header gba:bg-background"
       style={{
         marginBottom: '24px',
-        backgroundColor: 'white',
         borderRadius: '8px',
         padding: '20px'
       }}
@@ -48,14 +46,13 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{opportunity.name}</div>
               {opportunityData?.estimatedAmount && (
                 <div
+                  className="gba:bg-success-secondary gba:text-success"
                   style={{
-                    backgroundColor: '#f6ffed',
-                    border: '1px solid #b7eb8f',
+                    border: '1px solid hsl(var(--success))',
                     borderRadius: '6px',
                     padding: '8px 12px',
                     fontSize: '16px',
-                    fontWeight: 'bold',
-                    color: '#389e0d'
+                    fontWeight: 'bold'
                   }}
                 >
                   <DollarOutlined style={{ marginRight: '6px' }} />
@@ -67,7 +64,7 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               )}
             </div>
 
-            <div style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}>
+            <div className="gba:text-muted-foreground" style={{ fontSize: '14px', marginBottom: '8px' }}>
               <StarOutlined style={{ marginRight: '4px' }} />
               <span>Status: {opportunityData?.opportunityStatus?.value || opportunity.status}</span>
               <span style={{ margin: '0 8px' }}>•</span>
@@ -82,7 +79,7 @@ export const OpportunityHeader: React.FC<OpportunityHeaderProps> = ({
               </span>
             </div>
 
-            <div style={{ color: '#8c8c8c', fontSize: '14px', marginBottom: '8px' }}>
+            <div className="gba:text-muted-foreground" style={{ fontSize: '14px', marginBottom: '8px' }}>
               <UserOutlined style={{ marginRight: '4px' }} />
               <span>
                 Owner:{' '}

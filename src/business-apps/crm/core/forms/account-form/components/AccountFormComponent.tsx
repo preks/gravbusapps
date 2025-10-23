@@ -12,7 +12,7 @@ import FinancialInformationSection from './FinancialInformationSection'
 const prefixDataTestId = 'AccountForm'
 
 const AccountFormComponent: React.FC = () => {
-  const { formValues, onSubmit, onCancel, isLoading, error, addressLineCount } = useAccountFormContext()
+  const { formValues, onSubmit, onCancel, isLoading, error } = useAccountFormContext()
 
   // Check if all mandatory fields are filled
   const isFormValid = formValues.owner && formValues.legalForm && formValues.accountName
@@ -31,7 +31,7 @@ const AccountFormComponent: React.FC = () => {
       // Prepare comprehensive account payload following the API structure
       const accountPayload: any = {
         sourceApp: 'CRM',
-        accountName: toStringOrUndefined(formValues.accountName),
+        name: toStringOrUndefined(formValues.accountName),
         parentAccountRef: toStringOrUndefined(formValues.parentAccount),
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         industryRef: toStringOrUndefined(formValues.industry),

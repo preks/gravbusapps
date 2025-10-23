@@ -145,15 +145,15 @@ export const TeamActivitiesTable: React.FC<TeamActivitiesTableProps> = ({
   const getActivityTypeIcon = (type: string) => {
     switch (type) {
       case 'Call':
-        return <PiPhone size={16} style={{ color: '#52c41a' }} /> // green
+        return <PiPhone size={16} className="gba:text-success" />
       case 'Email':
-        return <PiEnvelope size={16} style={{ color: '#1677ff' }} /> // blue
+        return <PiEnvelope size={16} className="gba:text-primary" />
       case 'Meeting':
-        return <PiUsers size={16} style={{ color: '#fa8c16' }} /> // orange
+        return <PiUsers size={16} className="gba:text-warning" />
       case 'Task':
-        return <PiListChecks size={16} style={{ color: '#722ed1' }} /> // purple
+        return <PiListChecks size={16} className="gba:text-accent" />
       default:
-        return <PiListChecks size={16} style={{ color: '#bfbfbf' }} /> // gray fallback
+        return <PiListChecks size={16} className="gba:text-muted-foreground" />
     }
   }
 

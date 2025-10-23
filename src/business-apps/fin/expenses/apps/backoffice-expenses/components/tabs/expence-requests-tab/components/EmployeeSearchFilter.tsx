@@ -1,5 +1,5 @@
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useEffect } from 'react'
 
 interface Employee {
   id: string
@@ -68,7 +68,7 @@ const EmployeeSearchFilter: React.FC<EmployeeSearchFilterProps> = ({
 
       {/* Dropdown with search results */}
       {showEmployeeDropdown && employeeSearchText.trim() && (
-        <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-white gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+        <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
           {employeeSearchLoading ? (
             <div className="gba:p-2 gba:text-sm gba:text-gray-500">Loading employees...</div>
           ) : employeeSearchResults.length === 0 ? (

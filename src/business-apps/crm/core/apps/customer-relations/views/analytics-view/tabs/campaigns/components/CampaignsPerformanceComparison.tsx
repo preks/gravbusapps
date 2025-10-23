@@ -36,7 +36,7 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+        <div className="gba:bg-hsl(var(--background)) gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{label}</p>
           <div className="gba:space-y-1">
             <p className="gba:text-sm">
@@ -135,23 +135,41 @@ const CampaignsPerformanceComparison: React.FC<CampaignsAnalyticsComponentProps>
                   <XAxis dataKey="campaignName" angle={-45} textAnchor="end" height={80} interval={0} />
                   <YAxis />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="leadsCount" fill="#1890ff" name="Leads" />
-                  <Bar dataKey="accountsCount" fill="#52c41a" name="Accounts" />
-                  <Bar dataKey="contactsCount" fill="#722ed1" name="Contacts" />
-                  <Bar dataKey="opportunitiesCount" fill="#fa8c16" name="Opportunities" />
+                  <Bar dataKey="leadsCount" fill="hsl(var(--primary))" name="Leads" />
+                  <Bar dataKey="accountsCount" fill="hsl(var(--success))" name="Accounts" />
+                  <Bar dataKey="contactsCount" fill="hsl(var(--accent))" name="Contacts" />
+                  <Bar dataKey="opportunitiesCount" fill="hsl(var(--warning))" name="Opportunities" />
                 </BarChart>
               ) : (
                 <LineChart data={campaignComparisons} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <XAxis dataKey="campaignName" angle={-45} textAnchor="end" height={80} interval={0} />
                   <YAxis />
                   <Tooltip content={<CustomTooltip />} />
-                  <Line type="monotone" dataKey="leadsCount" stroke="#1890ff" name="Leads" strokeWidth={2} />
-                  <Line type="monotone" dataKey="accountsCount" stroke="#52c41a" name="Accounts" strokeWidth={2} />
-                  <Line type="monotone" dataKey="contactsCount" stroke="#722ed1" name="Contacts" strokeWidth={2} />
+                  <Line
+                    type="monotone"
+                    dataKey="leadsCount"
+                    stroke="hsl(var(--primary))"
+                    name="Leads"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="accountsCount"
+                    stroke="hsl(var(--success))"
+                    name="Accounts"
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="contactsCount"
+                    stroke="hsl(var(--accent))"
+                    name="Contacts"
+                    strokeWidth={2}
+                  />
                   <Line
                     type="monotone"
                     dataKey="opportunitiesCount"
-                    stroke="#fa8c16"
+                    stroke="hsl(var(--warning))"
                     name="Opportunities"
                     strokeWidth={2}
                   />

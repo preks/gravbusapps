@@ -1,12 +1,7 @@
-'use client'
-
 import { useEffect, useState, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-/**
- * Employee type definition for the directory.
- */
 export interface Employee {
   startDate?: string
   exitDate?: string | null
@@ -25,10 +20,6 @@ export interface Employee {
   employmentType?: string
   contractType?: string
 }
-
-/**
- * Filters for the employee directory query.
- */
 
 const EMPLOYEE_POSITION_QUERY = `
     query EmployeePositions($limit: Int!, $supervisorId: uuid!) {
@@ -81,12 +72,6 @@ const EMPLOYEE_POSITION_QUERY = `
   }
 `
 
-/**
- * Helper function to calculate the tenure from start date to now or exit date
- * @param startDate The employee's start date
- * @param exitDate The employee's exit date (if any)
- * @returns A formatted string representing the tenure
- */
 function calculateTenure(startDate: string | undefined, exitDate: string | null | undefined): string {
   if (!startDate) return ''
 
@@ -123,14 +108,10 @@ function calculateTenure(startDate: string | undefined, exitDate: string | null 
   return result
 }
 
-/**
- * Custom hook to fetch all employees for the report.
- * @param accessToken The access token for authentication.
- * @returns All employees, loading state, error, and a retry function.
- */
-interface UseGetEmployeesReportProps extends Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'> {}
-
-export function useGetEmployeesReport({ accessToken, userInfo }: UseGetEmployeesReportProps) {
+export function useGetEmployeesReport({
+  accessToken,
+  userInfo
+}: Pick<BusinessAppContextProps, 'accessToken' | 'userInfo'>) {
   const ALL_EMPLOYEES_LIMIT = 10000
   const client = useGraphqlClient(accessToken)
   const supervisorEmployeeId = userInfo?.employeeDetails?.employeeId

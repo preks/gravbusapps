@@ -231,7 +231,7 @@ const DocumentPopup: React.FC<DocumentPopupProps> = ({ initialValues = {}, ...pr
           id: contextValues.entityId
         })
         setParentFolders(Array.isArray(result?.InvestmentDocument) ? result.InvestmentDocument : [])
-      } catch (e) {
+      } catch {
         setParentFolders([])
       } finally {
         setParentLoading(false)

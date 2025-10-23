@@ -101,7 +101,10 @@ export const useGetExpenseDashboard = (
       setError(null)
       try {
         const now = dayjs()
-        const selectedCurrency = filters?.currency!
+        const selectedCurrency = filters?.currency
+        if (!selectedCurrency) {
+          throw new Error('Currency is required')
+        }
         const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = filters?.period || 'monthly'
 
         const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod)

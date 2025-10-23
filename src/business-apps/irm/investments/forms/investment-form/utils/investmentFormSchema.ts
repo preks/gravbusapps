@@ -103,7 +103,7 @@ const baseInvestmentSchema = z
 // - "liquidFundInvestment.additionalProperties.name" → "liquidFundInvestment.additionalProperties.name"
 // NOTE: For CATALOG_ fields, property is WITHOUT "Ref" suffix in both config and form state
 // IMPORTANT: This must match the naming logic in DynamicForm component
-const getPropertyName = (property: string, _fieldType?: string): string => {
+const getPropertyName = (property: string): string => {
   // Use the property path as-is (no Ref suffix manipulation needed)
   // Form state uses catalog fields WITHOUT "Ref" suffix
   return property

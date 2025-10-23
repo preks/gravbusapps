@@ -311,7 +311,7 @@ export const useApprovalHandling = ({
         } else {
           failedTasks.push({ id: task.id, error: result.error || 'Unknown error' })
         }
-      } catch (error) {
+      } catch {
         const errorMessage =
           error instanceof Error
             ? error.message
@@ -365,7 +365,7 @@ export const useApprovalHandling = ({
       showSummaryToasts(approvedCount, failedTasks)
 
       return { success: true, approvedCount, failedCount: failedTasks.length }
-    } catch (error) {
+    } catch {
       const errorMessage =
         error instanceof Error
           ? error.message

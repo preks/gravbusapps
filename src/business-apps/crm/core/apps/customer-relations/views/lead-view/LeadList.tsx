@@ -219,7 +219,11 @@ export const LeadList: React.FC<LeadListProps> = (props: LeadListProps) => {
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )

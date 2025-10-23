@@ -27,9 +27,8 @@ const BusinessInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-warning-secondary gba:to-warning"
         style={{
-          background: 'linear-gradient(to right, #fed7aa, #fdba74)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -40,12 +39,6 @@ const BusinessInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fdba74, #fb923c)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #fed7aa, #fdba74)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'BusinessInfoToggle')}
       >
@@ -64,7 +57,7 @@ const BusinessInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -83,7 +76,7 @@ const BusinessInformationSection: React.FC = () => {
                 value={formValues.businessKey || ''}
                 onChange={e => setFormValues({ businessKey: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'BusinessKeyInput')}
               />
             </div>
@@ -95,7 +88,7 @@ const BusinessInformationSection: React.FC = () => {
                 value={formValues.code || ''}
                 onChange={e => setFormValues({ code: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'CodeInput')}
               />
             </div>
@@ -113,7 +106,7 @@ const BusinessInformationSection: React.FC = () => {
                 value={formValues.winningChance || ''}
                 onChange={e => setFormValues({ winningChance: e.target.value })}
                 placeholder="0"
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'WinningChanceInput')}
               />
             </div>
@@ -125,7 +118,7 @@ const BusinessInformationSection: React.FC = () => {
                 type="date"
                 value={formValues.closeDate || ''}
                 onChange={e => setFormValues({ closeDate: e.target.value })}
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'CloseDateInput')}
               />
             </div>

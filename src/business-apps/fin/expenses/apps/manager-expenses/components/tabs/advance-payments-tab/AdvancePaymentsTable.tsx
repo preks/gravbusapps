@@ -137,7 +137,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         {/* Table with horizontal scrolling */}
         <div className="gba:overflow-x-auto gba:pr-4 gba:border-b gba:border-border">
           <Table data-testid="advance-payments-table" className="gba:w-full">
-            <TableHeader className="gba:sticky gba:top-0 gba:bg-white gba:z-10 gba:border-b gba:border-border">
+            <TableHeader className="gba:sticky gba:top-0 gba:bg-background gba:z-10 gba:border-b gba:border-border">
               <TableRow>
                 <TableHead
                   className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:bg-muted gba:font-semibold"

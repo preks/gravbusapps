@@ -152,7 +152,7 @@ export const useOverviewData = (
           stages.forEach((stage: any) => {
             allStages.set(stage.code, stage)
           })
-        } catch (err) {
+        } catch {
           // Failed to fetch stages for this pipeline
         }
       }

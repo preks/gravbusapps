@@ -161,16 +161,8 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
         // Prefill with empty list; backend search will populate dynamically
         setEmployees([])
 
-        // Loaded catalogs successfully
-        const catalogStats = {
-          groups: hardcodedGroups.length,
-          types: hardcodedTypes.length,
-          statuses: hardcodedStatuses.length,
-          employees: 0
-        }
-
         setFiltersInitialized(true)
-      } catch (error) {
+      } catch {
         // Error loading investment catalogs
         setFiltersInitialized(true) // Still allow the component to work
       }
@@ -501,11 +493,7 @@ export const useAllInvestmentsFilters = (context: BusinessAppContextProps) => {
 
   // Track filter groups
   useEffect(() => {
-    const groupStats = {
-      totalGroups: filterGroups.length,
-      groupsWithFilters: filterGroups.filter(g => g.filters.length > 0).length,
-      filterGroups: filterGroups.map(g => ({ id: g.id, title: g.title, filterCount: g.filters.length }))
-    }
+    // Filter groups are tracked for debugging/monitoring
   }, [filterGroups])
 
   // Create filter label map for display

@@ -96,7 +96,6 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
   accounts = [],
   loading,
   error,
-  hasMore,
   retry,
   total,
   pageSize,

@@ -47,7 +47,7 @@ const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, onClear, placeho
           value={localValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
-          className="gba:pl-9 gba:pr-9 gba:py-2 gba:w-full gba:border-gray-300 gba:bg-white gba:text-sm gba:rounded-md focus:gba:ring-2 focus:gba:ring-blue-500 focus:gba:border-blue-500 gba:transition-colors gba:duration-200"
+          className="gba:pl-9 gba:pr-9 gba:py-2 gba:w-full gba:border-gray-300 gba:bg-hsl(var(--background)) gba:text-sm gba:rounded-md focus:gba:ring-2 focus:gba:ring-blue-500 focus:gba:border-blue-500 gba:transition-colors gba:duration-200"
           data-testid="search-input"
           aria-label="Search CRM areas"
         />

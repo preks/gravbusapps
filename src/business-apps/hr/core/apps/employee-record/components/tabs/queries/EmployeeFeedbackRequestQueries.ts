@@ -10,7 +10,10 @@ export const EMPLOYEE_FEEDBACK_REQUESTS_QUERY = `
       updatedAt
       requesterEmployeeId
       employeeId
-      requesterEmployee { displayName }
+      requesterEmployee {
+        displayName
+        id
+      }
     }
   }
 `

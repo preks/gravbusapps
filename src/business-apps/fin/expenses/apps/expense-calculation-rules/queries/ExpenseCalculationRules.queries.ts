@@ -20,7 +20,6 @@ export interface FetchExpenseRulesVariables {
 }
 
 export const GET_CALCULATION_TYPES = (): string => {
-  const activeUserLocale = getCurrentActiveUserLocale()
   return `
   query getCalculationTypes($activeUserLocale: String!) {
     calculationType: CatalogEntry(
