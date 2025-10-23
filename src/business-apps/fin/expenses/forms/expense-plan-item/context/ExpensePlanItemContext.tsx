@@ -103,6 +103,13 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const graphqlClient = useMemo(() => createGraphQLClient(accessToken), [accessToken])
 
   useEffect(() => {
+    console.log('🔥 useEffect triggered - BUILD v1.0.0', {
+      hasAccessToken: !!accessToken,
+      hasUserInfo: !!userInfo,
+      employeeRuleId,
+      firstRunVariable,
+      rerunRule
+    })
     fetchInitialData()
   }, [accessToken, userInfo, employeeRuleId, firstRunVariable, rerunRule])
 
