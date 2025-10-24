@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useCallback } from 'react'
 import { FileText, Upload as UploadIcon, X, AlertCircle } from 'lucide-react'
 import { Button, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { QuickTaskUploadFile } from '../hooks/useQuickTaskFileUpload'
+import { QuickTaskUploadFile } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface QuickTaskFileUploadProps {
@@ -229,7 +229,7 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
                 />
                 <div className="gba:flex-1">
                   <p className="gba:text-sm gba:font-medium gba:text-gray-900">{file.name}</p>
-                  <p className="gba:text-xs gba:text-gray-500">{formatFileSize(file.size)}</p>
+                  {file.size && <p className="gba:text-xs gba:text-gray-500">{formatFileSize(file.size)}</p>}
                   {file.errorMessage && <p className="gba:text-xs gba:text-red-600 gba:mt-1">{file.errorMessage}</p>}
                 </div>
                 {file.status === 'uploading' && (

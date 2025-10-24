@@ -11,7 +11,7 @@ export { useEmployeeSearch } from './hooks/useEmployeeSearch'
 export { useQuickTaskFileUpload } from './hooks/useQuickTaskFileUpload'
 
 // Services
-export { QuickTaskFlowService } from './services/QuickTaskFlowService'
+export { QuickTaskFlowService, createAssignmentTargets } from './services/QuickTaskFlowService'
 export type { QuickTaskFlowData, ExecuteQuickTaskOptions } from './services/QuickTaskFlowService'
 
 // Types

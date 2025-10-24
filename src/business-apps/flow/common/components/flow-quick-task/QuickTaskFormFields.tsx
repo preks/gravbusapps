@@ -17,6 +17,14 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { QuickTaskFormConfig, QuickTaskFormData, AssigneeOption } from './types'
 import { cn } from '@/common/utils/cn'
 
+/**
+ * Helper function to get translated text with fallback to custom label
+ * Reduces duplication of the labels.X || getTranslationFromI18nKeyAndLabel pattern
+ */
+const getLabel = (customLabel: string | undefined, i18nKey: string, defaultText: string): string => {
+  return customLabel || getTranslationFromI18nKeyAndLabel(i18nKey, defaultText)
+}
+
 export interface QuickTaskFormFieldsProps {
   form: UseFormReturn<QuickTaskFormData>
   onSubmit: (data: QuickTaskFormData) => Promise<void>
@@ -67,20 +75,18 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
           control={form.control}
           name="title"
           rules={{
-            required:
-              labels.title || getTranslationFromI18nKeyAndLabel('quickTask.field.title.required', 'Title is required')
+            required: getLabel(labels.title, 'quickTask.field.title.required', 'Title is required')
           }}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {labels.title || getTranslationFromI18nKeyAndLabel('quickTask.field.title.label', 'Task Title')}
-              </FormLabel>
+              <FormLabel>{getLabel(labels.title, 'quickTask.field.title.label', 'Task Title')}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder={
-                    labels.titlePlaceholder ||
-                    getTranslationFromI18nKeyAndLabel('quickTask.field.title.placeholder', 'Enter task title...')
-                  }
+                  placeholder={getLabel(
+                    labels.titlePlaceholder,
+                    'quickTask.field.title.placeholder',
+                    'Enter task title...'
+                  )}
                   {...field}
                   data-testid="blink-task-title-input"
                 />
@@ -95,25 +101,18 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
           control={form.control}
           name="message"
           rules={{
-            required:
-              labels.message ||
-              getTranslationFromI18nKeyAndLabel('quickTask.field.message.required', 'Message is required')
+            required: getLabel(labels.message, 'quickTask.field.message.required', 'Message is required')
           }}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {labels.message ||
-                  getTranslationFromI18nKeyAndLabel('quickTask.field.message.label', 'Task Description')}
-              </FormLabel>
+              <FormLabel>{getLabel(labels.message, 'quickTask.field.message.label', 'Task Description')}</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder={
-                    labels.messagePlaceholder ||
-                    getTranslationFromI18nKeyAndLabel(
-                      'quickTask.field.message.placeholder',
-                      'Enter detailed description or instructions...'
-                    )
-                  }
+                  placeholder={getLabel(
+                    labels.messagePlaceholder,
+                    'quickTask.field.message.placeholder',
+                    'Enter detailed description or instructions...'
+                  )}
                   rows={4}
                   {...field}
                   data-testid="blink-task-message-input"
@@ -132,8 +131,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>
-                  {labels.attachments ||
-                    getTranslationFromI18nKeyAndLabel('quickTask.field.documents.label', 'Attachments (Optional)')}
+                  {getLabel(labels.attachments, 'quickTask.field.documents.label', 'Attachments (Optional)')}
                 </FormLabel>
                 <FormControl>
                   <QuickTaskFileUpload
@@ -157,39 +155,33 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
           name="assignedUserId"
           rules={{
             required: assigneeSelector.required
-              ? labels.assignee ||
-                getTranslationFromI18nKeyAndLabel(
-                  'quickTask.field.assignee.required',
-                  'Please select an employee to assign'
-                )
+              ? getLabel(labels.assignee, 'quickTask.field.assignee.required', 'Please select an employee to assign')
               : false
           }}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>
-                {labels.assignee || getTranslationFromI18nKeyAndLabel('quickTask.field.assignee.label', 'Assign To')}
-              </FormLabel>
+              <FormLabel>{getLabel(labels.assignee, 'quickTask.field.assignee.label', 'Assign To')}</FormLabel>
               <FormControl>
                 {assigneeSelector.mode === 'custom' && CustomAssigneeComponent ? (
                   <CustomAssigneeComponent
                     value={field.value}
                     onValueChange={field.onChange}
                     disabled={isSubmitting}
-                    placeholder={
-                      labels.assigneePlaceholder ||
-                      getTranslationFromI18nKeyAndLabel('quickTask.field.assignee.placeholder', 'Search and select...')
-                    }
-                    searchPlaceholder={
-                      labels.assigneeSearchPlaceholder ||
-                      getTranslationFromI18nKeyAndLabel(
-                        'quickTask.field.assignee.searchPlaceholder',
-                        'Type to search...'
-                      )
-                    }
-                    emptyText={
-                      labels.assigneeEmptyText ||
-                      getTranslationFromI18nKeyAndLabel('quickTask.field.assignee.emptyText', 'No results found.')
-                    }
+                    placeholder={getLabel(
+                      labels.assigneePlaceholder,
+                      'quickTask.field.assignee.placeholder',
+                      'Search and select...'
+                    )}
+                    searchPlaceholder={getLabel(
+                      labels.assigneeSearchPlaceholder,
+                      'quickTask.field.assignee.searchPlaceholder',
+                      'Type to search...'
+                    )}
+                    emptyText={getLabel(
+                      labels.assigneeEmptyText,
+                      'quickTask.field.assignee.emptyText',
+                      'No results found.'
+                    )}
                     loading={employeesLoading}
                   />
                 ) : (
@@ -198,24 +190,21 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
                     value={field.value}
                     onValueChange={field.onChange}
                     onSearchChange={onEmployeeSearch || (() => {})}
-                    placeholder={
-                      labels.assigneePlaceholder ||
-                      getTranslationFromI18nKeyAndLabel(
-                        'quickTask.field.assignee.placeholder',
-                        'Search and select employee...'
-                      )
-                    }
-                    searchPlaceholder={
-                      labels.assigneeSearchPlaceholder ||
-                      getTranslationFromI18nKeyAndLabel(
-                        'quickTask.field.assignee.searchPlaceholder',
-                        'Type to search employees...'
-                      )
-                    }
-                    emptyText={
-                      labels.assigneeEmptyText ||
-                      getTranslationFromI18nKeyAndLabel('quickTask.field.assignee.emptyText', 'No employees found.')
-                    }
+                    placeholder={getLabel(
+                      labels.assigneePlaceholder,
+                      'quickTask.field.assignee.placeholder',
+                      'Search and select employee...'
+                    )}
+                    searchPlaceholder={getLabel(
+                      labels.assigneeSearchPlaceholder,
+                      'quickTask.field.assignee.searchPlaceholder',
+                      'Type to search employees...'
+                    )}
+                    emptyText={getLabel(
+                      labels.assigneeEmptyText,
+                      'quickTask.field.assignee.emptyText',
+                      'No employees found.'
+                    )}
                     disabled={employeesLoading || isSubmitting}
                     loading={employeesLoading}
                   />
@@ -223,11 +212,11 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
               </FormControl>
               {assigneeSelector.mode === 'employee-search' && (
                 <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
-                  {labels.assigneeHint ||
-                    getTranslationFromI18nKeyAndLabel(
-                      'quickTask.field.assignee.hint',
-                      'Type to search employees by name (max 20 results).'
-                    )}
+                  {getLabel(
+                    labels.assigneeHint,
+                    'quickTask.field.assignee.hint',
+                    'Type to search employees by name (max 20 results).'
+                  )}
                 </p>
               )}
               <FormMessage />
@@ -241,20 +230,19 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
             control={form.control}
             name="dueDate"
             rules={{
-              required: getTranslationFromI18nKeyAndLabel('quickTask.field.dueDate.required', 'Due date is required')
+              required: getLabel(labels.dueDate, 'quickTask.field.dueDate.required', 'Due date is required')
             }}
             render={({ field }) => (
               <FormItem>
-                <FormLabel>
-                  {labels.dueDate || getTranslationFromI18nKeyAndLabel('quickTask.field.dueDate.label', 'Due Date')}
-                </FormLabel>
+                <FormLabel>{getLabel(labels.dueDate, 'quickTask.field.dueDate.label', 'Due Date')}</FormLabel>
                 <FormControl>
                   <Input
                     type="date"
-                    placeholder={
-                      labels.dueDatePlaceholder ||
-                      getTranslationFromI18nKeyAndLabel('quickTask.field.dueDate.placeholder', 'Select due date...')
-                    }
+                    placeholder={getLabel(
+                      labels.dueDatePlaceholder,
+                      'quickTask.field.dueDate.placeholder',
+                      'Select due date...'
+                    )}
                     {...field}
                     data-testid="blink-task-due-date-input"
                   />
@@ -278,19 +266,19 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
               }
             }}
           >
-            {labels.cancelButton || getTranslationFromI18nKeyAndLabel('quickTask.button.cancel', 'Cancel')}
+            {getLabel(labels.cancelButton, 'quickTask.button.cancel', 'Cancel')}
           </Button>
           <Button type="submit" variant="default" disabled={isSubmitting || isUploadingFiles}>
             {isUploadingFiles
-              ? uploadProgress || getTranslationFromI18nKeyAndLabel('quickTask.button.uploading', 'Uploading files...')
+              ? uploadProgress || getLabel(undefined, 'quickTask.button.uploading', 'Uploading files...')
               : isSubmitting
                 ? taskName
-                  ? `${getTranslationFromI18nKeyAndLabel('quickTask.button.creating.prefix', 'Creating')} ${taskName}...`
-                  : getTranslationFromI18nKeyAndLabel('quickTask.button.creating', 'Creating Quick Task...')
+                  ? `${getLabel(undefined, 'quickTask.button.creating.prefix', 'Creating')} ${taskName}...`
+                  : getLabel(undefined, 'quickTask.button.creating', 'Creating Quick Task...')
                 : labels.submitButton ||
                   (taskName
-                    ? `${getTranslationFromI18nKeyAndLabel('quickTask.button.create.prefix', 'Create')} ${taskName}`
-                    : getTranslationFromI18nKeyAndLabel('quickTask.button.create', 'Create Quick Task'))}
+                    ? `${getLabel(undefined, 'quickTask.button.create.prefix', 'Create')} ${taskName}`
+                    : getLabel(undefined, 'quickTask.button.create', 'Create Quick Task'))}
           </Button>
         </div>
       </form>

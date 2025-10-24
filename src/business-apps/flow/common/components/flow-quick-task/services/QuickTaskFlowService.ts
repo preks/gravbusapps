@@ -27,6 +27,22 @@ export interface ExecuteQuickTaskOptions {
 }
 
 /**
+ * Helper function to create standard assignment targets structure
+ * Reduces duplication of the assignment targets object
+ * @param userIds - Array of user IDs to assign
+ * @returns Standard assignment targets object
+ */
+export const createAssignmentTargets = (userIds: string[]) => ({
+  users: userIds,
+  capabilities: [],
+  organizationalUnits: [],
+  companies: [],
+  siteLocations: [],
+  costCenters: [],
+  matrixTeams: []
+})
+
+/**
  * Service for generating dynamic Quick Task workflows
  */
 export class QuickTaskFlowService {
@@ -188,15 +204,7 @@ export class QuickTaskFlowService {
           step_0: {
             assignment: {
               assignmentMode: AssignmentMode.ASSIGN,
-              targets: {
-                users: [actualUserId],
-                capabilities: [],
-                organizationalUnits: [],
-                companies: [],
-                siteLocations: [],
-                costCenters: [],
-                matrixTeams: []
-              },
+              targets: createAssignmentTargets([actualUserId]),
               allowReassignment: false
             }
           }

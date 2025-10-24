@@ -43,6 +43,8 @@ export interface QuickTaskUploadFile {
   url?: string
   originFileObj?: File
   percent?: number
+  size?: number
+  errorMessage?: string
 }
 
 /**
