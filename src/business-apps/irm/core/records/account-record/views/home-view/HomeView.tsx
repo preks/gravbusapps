@@ -251,7 +251,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                 : undefined,
               accountId: accountId,
               actionButtonProps: {
-                contextsArray: [FlowContextName.customerAccountEntity],
+                contextsArray: [FlowContextName.investmentAccountEntity],
                 externalContextData: { accountId },
                 prefixDataTestId: 'account-account'
               }
@@ -290,7 +290,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
                   })
                 : undefined,
               actionButtonProps: {
-                contextsArray: [FlowContextName.customerContactEntity],
+                contextsArray: [FlowContextName.investmentContactEntity],
                 externalContextData: { accountId },
                 prefixDataTestId: 'account-contact'
               }
