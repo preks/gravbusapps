@@ -9,7 +9,8 @@ export const TAB_KEYS = {
   performance: 'performance',
   feedback: 'feedback',
   absences: 'absences',
-  skills: 'skills'
+  skills: 'skills',
+  serviceRequests: 'serviceRequests'
 }
 
 // Section key constants for the employee record app
@@ -169,6 +170,11 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
         permission: 'read'
       }
     }
+  },
+  [TAB_KEYS.serviceRequests]: {
+    domain: 'employee',
+    resource: 'employee',
+    permission: 'read'
   }
 }
 
