@@ -182,7 +182,7 @@ export const useCatalogSelectController = (catalogIdentifier: string): CatalogSe
 export const useCatalogValidation = () => {
   const ctx = useContext(CatalogSelectContext)
 
-  const shouldValidateField = useCallback(
+  const validateField = useCallback(
     (fieldName: string): boolean => {
       const controller = ctx?.controllers[fieldName]
       return !!(controller?.hasOptions && !controller?.disabled)
@@ -190,7 +190,7 @@ export const useCatalogValidation = () => {
     [ctx]
   )
 
-  return { shouldValidateField }
+  return { validateField }
 }
 
 export default CatalogSelectProvider

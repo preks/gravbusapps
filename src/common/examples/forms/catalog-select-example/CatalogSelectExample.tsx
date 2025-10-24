@@ -61,7 +61,7 @@ type FormValues = {
 }
 
 const FormContent: React.FC<BusinessAppContextProps> = context => {
-  const { shouldValidateField } = CatalogSelect.useValidation()
+  const { validateField } = CatalogSelect.useValidation()
   const catalogContext = CatalogSelect.useContext()
 
   const schema = z
@@ -93,7 +93,7 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
     })
     .superRefine((data, ctx) => {
       // Conditional validation: regions required only when they have options
-      if (shouldValidateField('birthRegion')) {
+      if (validateField('birthRegion')) {
         if (!data.birthRegion || data.birthRegion.trim() === '') {
           ctx.addIssue({
             code: 'custom',
@@ -103,7 +103,7 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
         }
       }
 
-      if (shouldValidateField('residenceRegion')) {
+      if (validateField('residenceRegion')) {
         if (!data.residenceRegion || data.residenceRegion.trim() === '') {
           ctx.addIssue({
             code: 'custom',
