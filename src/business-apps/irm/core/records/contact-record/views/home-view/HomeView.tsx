@@ -10,7 +10,7 @@ import AccountSection from '@/common/components/common-relations/record-sections
 import ContactSection from '@/common/components/common-relations/record-sections/contact-section/ContactSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import type { HomeViewProps } from './types'
-import { transformTaskOrApproval } from './utils'
+import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 
 // Build reference URLs for IRM context
 const buildReferenceUrl = (reference: TaskReference): string => {

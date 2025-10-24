@@ -274,7 +274,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
   const form = useForm<any>({
     resolver: createTaskSegmentResolver({
       requireAssignee: false,
-      requireEntity: false,
+      requireEntity: true,
       requireType: !((additionalData as any)?.typeRef === 'InvestmentTaskType:v1:APPROVAL')
     }),
     defaultValues: formData as any,
@@ -498,6 +498,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
         // entity search
         // Hide entity selection if entity is provided from context
         showEntitySelection={shouldShowEntitySelection}
+        requireEntity={true}
         showAssigneeSelection={true}
         entities={entities}
         entitiesLoading={entitiesLoading}

@@ -28,6 +28,7 @@ import InvestmentSection from '@/common/components/common-relations/record-secti
 import ActivitySection from '@/common/components/common-relations/record-sections/activity-section/ActivitySection'
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
+import { transformTaskOrApproval } from '@/common/components/common-relations/record-sections/task-section/utils/taskMappers'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
 import { AiActions, AiAction } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { useAiSummary } from './hooks/useAiSummary'
@@ -566,62 +567,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     ...props,
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: tasks.map(task => ({
-                      id: task.id,
-                      title:
-                        task.name ||
-                        task.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task'),
-                      description: task.description,
-                      createdAt: task.createdAt,
-                      due: task.dueDate,
-                      assignee: task.assignedEmployee?.displayName || task.assignedEmployee?.fullName,
-                      statusCode: task.taskStatus?.value?.toUpperCase() as any,
-                      taskStatus: task.taskStatus,
-                      taskPriority: task.taskPriority,
-                      assigneeEmployee: task.assignedEmployee,
-                      taskTiming: task.taskTiming,
-                      startDate: task.startDate,
-                      creatorEmployee: task.creatorEmployee,
-                      documents: task.documents,
-                      reference: task.lead
-                        ? {
-                            type: 'lead' as const,
-                            id: task.lead.id,
-                            name:
-                              `${task.lead.firstName || ''} ${task.lead.lastName || ''}`.trim() ||
-                              task.lead.code ||
-                              'Lead'
-                          }
-                        : task.account
-                          ? {
-                              type: 'account' as const,
-                              id: task.account.id,
-                              name: task.account.name || task.account.code || 'Account'
-                            }
-                          : task.contact
-                            ? {
-                                type: 'contact' as const,
-                                id: task.contact.id,
-                                name:
-                                  `${task.contact.firstName || ''} ${task.contact.lastName || ''}`.trim() ||
-                                  task.contact.code ||
-                                  'Contact'
-                              }
-                            : task.opportunity
-                              ? {
-                                  type: 'opportunity' as const,
-                                  id: task.opportunity.id,
-                                  name: task.opportunity.name || task.opportunity.code || 'Opportunity'
-                                }
-                              : task.investment
-                                ? {
-                                    type: 'investment' as const,
-                                    id: task.investment.id,
-                                    name: task.investment.name || task.investment.code || 'Investment'
-                                  }
-                                : undefined
-                    })),
+                    tasks: tasks.map(task =>
+                      transformTaskOrApproval(
+                        task,
+                        getTranslationFromI18nKeyAndLabel('crm.tasks.untitled', 'Untitled Task')
+                      )
+                    ),
                     taskActionProps: {
                       contextsArray: [FlowContextName.investmentTaskCreate],
                       externalContextData: { leadId },
@@ -644,62 +595,12 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     sectionTitle: 'Approval Tasks',
                     leadId: leadId,
                     buildReferenceUrl,
-                    tasks: approvals.map(approval => ({
-                      id: approval.id,
-                      title:
-                        approval.name ||
-                        approval.displayName ||
-                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request'),
-                      description: approval.description,
-                      createdAt: approval.createdAt,
-                      due: approval.dueDate,
-                      assignee: approval.assignedEmployee?.displayName || approval.assignedEmployee?.fullName,
-                      statusCode: approval.taskStatus?.value?.toUpperCase() as any,
-                      taskStatus: approval.taskStatus,
-                      taskPriority: approval.taskPriority,
-                      assigneeEmployee: approval.assignedEmployee,
-                      taskTiming: approval.taskTiming,
-                      startDate: approval.startDate,
-                      creatorEmployee: approval.creatorEmployee,
-                      documents: approval.documents,
-                      reference: approval.lead
-                        ? {
-                            type: 'lead' as const,
-                            id: approval.lead.id,
-                            name:
-                              `${approval.lead.firstName || ''} ${approval.lead.lastName || ''}`.trim() ||
-                              approval.lead.code ||
-                              'Lead'
-                          }
-                        : approval.account
-                          ? {
-                              type: 'account' as const,
-                              id: approval.account.id,
-                              name: approval.account.name || approval.account.code || 'Account'
-                            }
-                          : approval.contact
-                            ? {
-                                type: 'contact' as const,
-                                id: approval.contact.id,
-                                name:
-                                  `${approval.contact.firstName || ''} ${approval.contact.lastName || ''}`.trim() ||
-                                  approval.contact.code ||
-                                  'Contact'
-                              }
-                            : approval.opportunity
-                              ? {
-                                  type: 'opportunity' as const,
-                                  id: approval.opportunity.id,
-                                  name: approval.opportunity.name || approval.opportunity.code || 'Opportunity'
-                                }
-                              : approval.investment
-                                ? {
-                                    type: 'investment' as const,
-                                    id: approval.investment.id,
-                                    name: approval.investment.name || approval.investment.code || 'Investment'
-                                  }
-                                : undefined
-                    })),
+                    tasks: approvals.map(approval =>
+                      transformTaskOrApproval(
+                        approval,
+                        getTranslationFromI18nKeyAndLabel('crm.approvals.request', 'Approval Request')
+                      )
+                    ),
                     taskEntityActionProps: {
                       contextsArray: [FlowContextName.investmentTaskEntity],
                       externalContextData: { leadId },

@@ -65,6 +65,7 @@ export type TaskItem = {
   statusCode?: TaskStatusCode
   taskStatus?: CatalogEntry
   taskPriority?: CatalogEntry
+  taskType?: CatalogEntry
   assigneeEmployee?: {
     id: string
     displayName?: string
@@ -202,7 +203,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
             pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail
           }
         : undefined,
-      type: taskItem.taskPriority?.type || '',
+      type: taskItem.taskType?.value || taskItem.taskType?.code || 'GENERAL',
       priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
       status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
       dueDate: taskItem.due || taskItem.createdAt || '',

@@ -1,11 +1,19 @@
 import React, { useEffect } from 'react'
 import { createElement } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  LocalizationProvider,
+  SupportedLocale
+} from '@newwork/nw-design-system'
 import { Alert } from '@newwork/nw-design-system'
 import { Button } from '@newwork/nw-design-system'
 import { useDynamicScreen } from '@/common/hooks/useDynamicScreen'
 import { BusinessAppInfo } from '@/components/ide-main-menu'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 // Dynamic component wrapper that loads components on demand
 const DynamicComponentWrapper: React.FC<{
@@ -83,6 +91,9 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
   additionalData,
   onAppSelect
 }) => {
+  // Get user locale for LocalizationProvider
+  const locale = getCurrentActiveUserLocale() as SupportedLocale
+
   // Manage dialog visibility internally based on app type
   const [dialogVisible, setDialogVisible] = React.useState<boolean>(false)
 
@@ -116,27 +127,33 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
 
   // Render app content directly in main area (fills parent)
   if (selectedApp && selectedApp.type === 'app') {
-    return <div className="gba:w-full gba:h-full">{renderAppContent()}</div>
+    return (
+      <LocalizationProvider locale={locale}>
+        <div className="gba:w-full gba:h-full">{renderAppContent()}</div>
+      </LocalizationProvider>
+    )
   }
 
   // Render forms and popups in dialog
   if (selectedApp && (selectedApp.type === 'form' || selectedApp.type === 'popup')) {
     return (
-      <Dialog open={dialogVisible} onOpenChange={open => !open && handleDialogClose()}>
-        <DialogContent
-          className="gba:max-w-[553px] gba:w-[553px] gba:flex gba:flex-col gba:bg-background"
-          style={{
-            height: selectedApp.type === 'form' ? 'calc(100vh - 120px)' : 'auto',
-            overflow: selectedApp.type === 'form' ? 'auto' : 'visible',
-            justifyContent: 'flex-start'
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle className="gba:text-lg gba:font-semibold">{selectedApp.name}</DialogTitle>
-          </DialogHeader>
-          {renderAppContent()}
-        </DialogContent>
-      </Dialog>
+      <LocalizationProvider locale={locale}>
+        <Dialog open={dialogVisible} onOpenChange={open => !open && handleDialogClose()}>
+          <DialogContent
+            className="gba:max-w-[553px] gba:w-[553px] gba:flex gba:flex-col gba:bg-background"
+            style={{
+              height: selectedApp.type === 'form' ? 'calc(100vh - 120px)' : 'auto',
+              overflow: selectedApp.type === 'form' ? 'auto' : 'visible',
+              justifyContent: 'flex-start'
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle className="gba:text-lg gba:font-semibold">{selectedApp.name}</DialogTitle>
+            </DialogHeader>
+            {renderAppContent()}
+          </DialogContent>
+        </Dialog>
+      </LocalizationProvider>
     )
   }
 

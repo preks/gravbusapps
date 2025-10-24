@@ -167,7 +167,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
           else if (priority.includes('high')) normalizedPriority = 'high'
           else if (priority.includes('low')) normalizedPriority = 'low'
 
-          const type = (it.taskTypeLabel || it.taskTiming || 'GENERAL').toString().toUpperCase()
+          const type = (it.taskTypeLabel || 'GENERAL').toString()
 
           // Reference preference order
           let reference: Task['reference'] | undefined
