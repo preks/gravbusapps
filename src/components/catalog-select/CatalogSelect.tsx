@@ -17,10 +17,10 @@ export interface CatalogSelectProps {
   catalogIdentifier?: string // e.g. "Country:v1" - triggers auto-registration
   prefetch?: boolean // include in batch prefetch
   pageSize?: number // default 25
-  parentConfigId?: string // dependency on parent catalog
-  childConfigId?: string // bi-directional dependency
+  parentField?: string // dependency on parent catalog
+  childField?: string // bi-directional dependency
   requireSourceForEnable?: boolean // disable until source has value
-  externalEqualsFilters?: Array<{ externalKey: string; field: string }> // external filtering
+  filterField?: string | Array<{ from: string; on: string }> // external filtering: "formField:catalogField" or array
 
   // UI props
   variant?: Variant // optional; auto-detected when using provider
@@ -36,10 +36,10 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   catalogIdentifier,
   prefetch,
   pageSize,
-  parentConfigId,
-  childConfigId,
+  parentField,
+  childField,
   requireSourceForEnable,
-  externalEqualsFilters,
+  filterField,
   // UI props
   variant,
   value,
@@ -63,9 +63,15 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     // Not inside a FormField, that's ok
   }
 
-  if (!fieldName) {
-    console.warn('[CatalogSelect] Could not auto-detect field name. Must be used inside a FormField component.')
-  }
+  // Parse filterField: string "formField:catalogField" or array
+  const parsedFilterField = React.useMemo(() => {
+    if (!filterField) return undefined
+    if (typeof filterField === 'string') {
+      const [from, on] = filterField.split(':')
+      return [{ from, on }]
+    }
+    return filterField
+  }, [filterField])
 
   // ✅ Self-registration: Register ONCE on mount
   const registeredRef = React.useRef(false)
@@ -76,10 +82,10 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
         catalogIdentifier,
         prefetch,
         pageSize,
-        parentConfigId,
-        childConfigId,
+        parentField,
+        childField,
         requireSourceForEnable,
-        externalEqualsFilters
+        filterField: parsedFilterField
       })
       registeredRef.current = true
     }
@@ -88,10 +94,10 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     catalogIdentifier,
     prefetch,
     pageSize,
-    parentConfigId,
-    childConfigId,
+    parentField,
+    childField,
     requireSourceForEnable,
-    externalEqualsFilters
+    parsedFilterField
     // NOTE: context NOT in deps to avoid infinite loops
   ])
 
@@ -107,14 +113,34 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const wiredControllerValue = controller?.value ?? ''
   const effectiveValue = value !== undefined ? value : wiredControllerValue
 
+  // Initial sync: Set controller value from form's initial value (only once on mount)
+  const hasInitializedRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!hasInitializedRef.current && controller?.setValue && effectiveValue) {
+      controller.setValue(effectiveValue)
+      hasInitializedRef.current = true
+    }
+  }, [controller, effectiveValue, fieldName])
+
   // If parent passes a controlled value but provider updates internally (e.g., bi-directional auto-select),
   // sync the controlled prop back by invoking onValueChange to keep external state in sync.
+  // BUT: Only sync Controller → Form, not Form → Controller (to avoid overwriting initial form values)
   const isControlled = value !== undefined
+  const lastControllerValueRef = React.useRef<string>(wiredControllerValue)
+
   React.useEffect(() => {
     if (!isControlled || !onValueChange) return
 
-    // Simple sync: if controller and controlled values differ, notify parent
+    // Only sync if CONTROLLER changed (not if form changed)
     const ctrl = wiredControllerValue
+    const lastCtrl = lastControllerValueRef.current
+
+    // Update tracked value
+    lastControllerValueRef.current = ctrl
+
+    // Only proceed if controller actually changed
+    if (ctrl === lastCtrl) return
+
     const controlled = value
 
     // Normalize both values for comparison (null vs '' are equivalent)
@@ -124,7 +150,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     if (normalizedCtrl !== normalizedControlled) {
       onValueChange(normalizedCtrl)
     }
-  }, [isControlled, onValueChange, wiredControllerValue, value])
+  }, [isControlled, onValueChange, wiredControllerValue, value, fieldName])
   const testId = dataTestId || `catalog-select-${fieldName}-${wiredVariant}`
 
   // Do not force a no-op search; rely on prefetched options and sentinel observer
@@ -171,8 +197,8 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     return wiredOptions.map(o => ({ value: String(o.value), label: typeof o.label === 'string' ? o.label : '' }))
   }, [wiredOptions])
 
-  // Use a more stable key that doesn't change during search
-  const stableKey = `${fieldName}-${wiredVariant}-${wiredDisabled ? 'd' : 'e'}`
+  // Use a stable key that doesn't change during search or loading
+  const stableKey = `${fieldName}-${wiredVariant}`
 
   // Stable handlers for internal Combobox
   const handleLoadMore = React.useCallback(() => {
@@ -197,13 +223,6 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
     },
     [controller, onValueChange]
   )
-
-  // Clear value when field becomes disabled
-  React.useEffect(() => {
-    if (wiredDisabled && effectiveValue) {
-      handleExternalValueChange('')
-    }
-  }, [wiredDisabled, effectiveValue, handleExternalValueChange])
 
   // Trigger validation when field becomes disabled (if form context available)
   React.useEffect(() => {

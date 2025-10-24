@@ -29,12 +29,12 @@ const parseCatalogIdentifier = (catalogIdentifier: string): { identifier: string
  *     id: 'birthCountry',
  *     catalogIdentifier: 'Country:v2',     // Specific version
  *     prefetch: true,
- *     childConfigId: 'birthRegion'         // Bi-directional with birth region
+ *     childField: 'birthRegion'         // Bi-directional with birth region
  *   },
  *   {
  *     id: 'birthRegion',
  *     catalogIdentifier: 'CountryRegion:v1',
- *     parentConfigId: 'birthCountry'       // Depends on birth country
+ *     parentField: 'birthCountry'       // Depends on birth country
  *   },
  *   {
  *     id: 'residenceCountry',
@@ -50,10 +50,10 @@ export interface CatalogSelectConfig {
   prefetch?: boolean // include in initial batched prefetch
   pageSize?: number // default 25
   // Dependency config
-  parentConfigId?: string // this instance depends on (filters by) the selected value of parent instance
-  childConfigId?: string // this instance has a bi-directional relationship with child instance
+  parentField?: string // this instance depends on (filters by) the selected value of parent instance
+  childField?: string // this instance has a bi-directional relationship with child instance
   requireSourceForEnable?: boolean // disable until source has a value
-  externalEqualsFilters?: Array<{ externalKey: string; field: string }> // map external values to equals filters
+  filterField?: Array<{ from: string; on: string }> // external filtering: from form field, filter on catalog field
 }
 
 export interface CatalogSelectController {
@@ -113,9 +113,6 @@ export const useCatalogSelect = (
     variant: 'select' | 'combobox'
     metaByValue?: Record<string, EntryMeta>
     lastFiltersSig?: string
-    fetchedByEntryId?: Record<string, boolean>
-    inFlightByEntryId?: Record<string, boolean>
-    lastParentValue?: string | null
     manuallyCleared?: boolean // Flag to prevent bi-directional auto-select after manual clear
   }
 
@@ -132,9 +129,7 @@ export const useCatalogSelect = (
         limit: c.pageSize ?? defaultPageSize,
         offset: 0,
         search: undefined,
-        variant: 'combobox',
-        fetchedByEntryId: {},
-        inFlightByEntryId: {}
+        variant: 'combobox'
       }
     })
     return initial
@@ -144,23 +139,21 @@ export const useCatalogSelect = (
     setStateById(prev => ({ ...prev, [id]: updater(prev[id]) }))
   }, [])
 
-  const controllersRef = { current: {} as Record<string, CatalogSelectController> }
-
   const getActiveFilters = useCallback(
     (id: string): ActiveFilters => {
       const cfg = configs.find(c => c.id === id)
       const filters: ActiveFilters = {}
       if (!cfg) return filters
       // Parent filter
-      if (cfg.parentConfigId) {
-        const source = stateById[cfg.parentConfigId]
+      if (cfg.parentField) {
+        const source = stateById[cfg.parentField]
         if (source?.value) filters.parentEntryId = source.value
       }
-      // External equals filters
-      if (cfg.externalEqualsFilters && externalValues) {
-        cfg.externalEqualsFilters.forEach(map => {
-          const v = externalValues[map.externalKey]
-          if (v && map.field === 'type') {
+      // External filters
+      if (cfg.filterField && externalValues) {
+        cfg.filterField.forEach(map => {
+          const v = externalValues[map.from]
+          if (v && map.on === 'type') {
             filters.typeEquals = v
           }
         })
@@ -200,6 +193,8 @@ export const useCatalogSelect = (
         const limit = cfg.pageSize ?? defaultPageSize
         const total = cat.total ?? cat.entriesCount ?? 0
         const initialEntries = (cat.entries || []).slice(0, limit)
+        const metaByValue = buildEntryMeta(initialEntries as CatalogEntry[])
+
         setFor(cfg.id, prev => ({
           ...prev,
           loading: false,
@@ -210,7 +205,7 @@ export const useCatalogSelect = (
           limit,
           offset: initialEntries.length,
           variant: total <= defaultThreshold ? 'select' : 'combobox',
-          metaByValue: buildEntryMeta(initialEntries as CatalogEntry[])
+          metaByValue
         }))
       })
     })
@@ -257,6 +252,49 @@ export const useCatalogSelect = (
   const initOnce = useCallback(async () => {
     await Promise.all([preload(), primeNonPrefetch()])
   }, [preload, primeNonPrefetch])
+
+  // Fetch missing options for initial values
+  useEffect(() => {
+    configs.forEach(cfg => {
+      const state = stateById[cfg.id]
+      if (!state || !state.value || !state.options || state.loading) return
+
+      // Check if option exists for current value
+      const hasOption = state.options.some(opt => opt.value === state.value)
+      if (hasOption) return
+
+      // Fetch the option
+      const fetchOption = async () => {
+        try {
+          const res = await fetchCatalogEntriesByIdentifier(cfg.id, {
+            limit: 1,
+            offset: 0,
+            entryId: state.value
+          })
+
+          if (res.entries.length > 0) {
+            const entry = res.entries[0]
+            const option = { value: entry.id, label: entry.value || entry.id }
+            const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
+
+            setFor(cfg.id, prev => {
+              if (!prev) return prev
+              // Avoid duplicates - only add if option doesn't exist
+              const optionExists = prev.options.some(opt => opt.value === option.value)
+              return {
+                ...prev,
+                options: optionExists ? prev.options : [...prev.options, option],
+                metaByValue: { ...(prev.metaByValue || {}), [entry.id]: meta }
+              }
+            })
+          }
+        } catch {
+          // Ignore fetch errors for initial value options
+        }
+      }
+      fetchOption()
+    })
+  }, [configs, stateById, fetchCatalogEntriesByIdentifier])
 
   const controllers = useMemo<Record<string, CatalogSelectController>>(() => {
     const record: Record<string, CatalogSelectController> = {}
@@ -309,8 +347,7 @@ export const useCatalogSelect = (
             metaByValue: { ...(prev.metaByValue || {}), ...buildEntryMeta(res.entries as CatalogEntry[]) },
             lastFiltersSig: filtersSig
           }))
-        } catch (error) {
-          console.error(`[CatalogSelect] Search failed for ${id}:`, error)
+        } catch {
           setFor(id, prev => ({ ...prev, loading: false }))
         }
       }
@@ -341,54 +378,36 @@ export const useCatalogSelect = (
       }
 
       // disabled rules: requireSourceForEnable when missing source (parent or external), or no options available under active filters
-      const hasParentSelected = Boolean(cfg.parentConfigId && stateById[cfg.parentConfigId || '']?.value)
-      const hasExternalFilterValue = Boolean(
-        cfg.externalEqualsFilters?.some(m => Boolean(externalValues?.[m.externalKey]))
-      )
+      const hasParentSelected = Boolean(cfg.parentField && stateById[cfg.parentField || '']?.value)
+      const hasExternalFilterValue = Boolean(cfg.filterField?.some(m => Boolean(externalValues?.[m.from])))
 
-      if (id === 'pipelineStage') {
-        console.log('[useCatalogSelect] Pipeline Stage disabled logic:', {
-          id,
-          hasExternalFilterValue,
-          externalValues,
-          externalEqualsFilters: cfg.externalEqualsFilters,
-          requireSourceForEnable: cfg.requireSourceForEnable
-        })
-      }
+      // Check if this is a bi-directional relationship (not strict dependency)
+      const parentConfig = configs.find(c => c.id === cfg.parentField)
+      const isBiDirectional = parentConfig?.childField === id
 
       const disabledRequire = Boolean(
         cfg.requireSourceForEnable &&
-          ((cfg.parentConfigId && !hasParentSelected) || (cfg.externalEqualsFilters && !hasExternalFilterValue))
+          ((cfg.parentField && !hasParentSelected) || (cfg.filterField && !hasExternalFilterValue))
       )
       const hasAnyFilterActive = Boolean(
-        (cfg.parentConfigId && hasParentSelected) || (cfg.externalEqualsFilters && hasExternalFilterValue)
+        (cfg.parentField && hasParentSelected) || (cfg.filterField && hasExternalFilterValue)
       )
-      // Keep disabled while loading when filters are active to prevent flicker
-      const disabledWhileLoading = Boolean(hasAnyFilterActive && current?.loading)
+      // Don't disable bi-directional children during loading (they keep their value during filtering)
+      const disabledWhileLoading = Boolean(hasAnyFilterActive && current?.loading && !isBiDirectional)
       // Disable when loading is complete and no options found
       const disabledNoOptions = Boolean(
         hasAnyFilterActive && !current?.loading && (current?.options?.length || 0) === 0
       )
       const disabled = disabledRequire || disabledWhileLoading || disabledNoOptions
 
-      if (id === 'pipelineStage') {
-        console.log('[useCatalogSelect] Pipeline Stage disabled result:', {
-          disabled,
-          disabledRequire,
-          disabledWhileLoading,
-          disabledNoOptions,
-          hasAnyFilterActive
-        })
-      }
-
       // ✅ hasOptions logic for validation:
       // - Strict dependencies (requireSourceForEnable: true): only valid when parent is selected
       // - Bi-directional dependencies (no requireSourceForEnable): valid whenever options exist
-      // - Standalone fields (no parentConfigId): valid whenever options exist
+      // - Standalone fields (no parentField): valid whenever options exist
       const hasOptionsInState = (current?.options?.length || 0) > 0
 
       // Only strict dependencies require parent selection for validation
-      const requiresParentForValidation = cfg.requireSourceForEnable && cfg.parentConfigId && !hasParentSelected
+      const requiresParentForValidation = cfg.requireSourceForEnable && cfg.parentField && !hasParentSelected
       const hasOptions = hasOptionsInState && !requiresParentForValidation
 
       record[id] = {
@@ -418,11 +437,6 @@ export const useCatalogSelect = (
     })
     return record
   }, [configs, stateById, fetchCatalogEntriesByIdentifier, setFor, getActiveFilters])
-
-  // Keep a runtime ref to controllers for effects
-  useEffect(() => {
-    controllersRef.current = controllers
-  }, [controllers])
 
   // Use extracted dependency management hook (filters and bi-directional behavior)
   useCatalogSelectDependencies({

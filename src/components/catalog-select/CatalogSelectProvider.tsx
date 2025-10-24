@@ -21,8 +21,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useLayoutEffect } from 'react'
 import { UseFormReturn, FieldValues } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import type { CatalogSelectConfig, CatalogSelectController } from './useCatalogSelect'
-import useCatalogSelect from './useCatalogSelect'
+import type { CatalogSelectConfig, CatalogSelectController } from './internal/useCatalogSelect'
+import useCatalogSelect from './internal/useCatalogSelect'
 
 export interface CatalogSelectContextValue {
   controllers: Record<string, CatalogSelectController>
@@ -75,8 +75,8 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   const externalKeys = useMemo(() => {
     const keys = new Set<string>()
     allConfigs.forEach(cfg => {
-      cfg.externalEqualsFilters?.forEach(filter => {
-        keys.add(filter.externalKey)
+      cfg.filterField?.forEach(filter => {
+        keys.add(filter.from)
       })
     })
     return Array.from(keys)
@@ -88,12 +88,9 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
 
   useEffect(() => {
     if (!activeForm || externalKeys.length === 0) {
-      console.log('[CatalogSelectProvider] No form or no external keys', { form: !!activeForm, externalKeys })
       setExternalValues(undefined)
       return
     }
-
-    console.log('[CatalogSelectProvider] Setting up subscription for external keys:', externalKeys)
 
     // Subscribe to form changes for external keys
     const subscription = activeForm.watch(values => {
@@ -101,7 +98,6 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
       externalKeys.forEach(key => {
         newValues[key] = ((values as any)[key] as string) || null
       })
-      console.log('[CatalogSelectProvider] Form values changed:', newValues)
       setExternalValues(newValues)
     })
 
@@ -111,7 +107,6 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     externalKeys.forEach(key => {
       initialValues[key] = ((currentValues as any)[key] as string) || null
     })
-    console.log('[CatalogSelectProvider] Initial values:', initialValues)
     setExternalValues(initialValues)
 
     return () => subscription.unsubscribe()
