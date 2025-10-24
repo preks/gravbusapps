@@ -89,7 +89,7 @@ const NoteDeletePopup: React.FC<NoteDeletePopupProps> = ({ initialValues = {}, .
     loadNote()
   }, [noteId, props.accessToken, fetchInvestmentNoteById])
 
-  const handleSubmit = async (_formData: NoteDeletePopupValues) => {
+  const handleSubmit = async () => {
     if (!note) {
       throw new Error(getTranslationFromI18nKeyAndLabel('note.delete.error.noData', 'Note data not loaded'))
     }
@@ -105,7 +105,7 @@ const NoteDeletePopup: React.FC<NoteDeletePopupProps> = ({ initialValues = {}, .
     return deletePayload
   }
 
-  const validateForm = (_formData: NoteDeletePopupValues): string[] | null => {
+  const validateForm = (): string[] | null => {
     if (!note) {
       return [getTranslationFromI18nKeyAndLabel('note.delete.error.noData', 'Note data not loaded')]
     }

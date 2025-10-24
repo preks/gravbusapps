@@ -17,6 +17,7 @@ import {
   SelectValue
 } from '@newwork/nw-design-system'
 import { ComposedChart, ScatterChart, Scatter, Bar, Line, XAxis, YAxis, LabelList, ZAxis } from 'recharts'
+import { formatCompactNumber } from '@/common/utils/numberFormatter'
 import { ChartLineUpIcon, TrendUpIcon, ChartScatterIcon } from '@phosphor-icons/react'
 import type { EquityInvestmentSummary } from '../../shared/types'
 import dayjs from 'dayjs'
@@ -224,10 +225,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
           <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
             <ComposedChart data={filteredEquityTimelineData.data} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => formatCurrency(value, timelineCurrency).replace(/[€$£¥]/g, '')}
-              />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
@@ -457,10 +455,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                   return value.length > 15 ? `${value.substring(0, 15)}...` : value
                 }}
               />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replace(/[€$£¥]/g, '')}
-              />
+              <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {

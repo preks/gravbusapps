@@ -90,7 +90,7 @@ export const ChangeEmployeeAddressProvider: React.FC<ProviderProps> = ({
       const addrVariables = { id: employeeId } as any
       const addressData = await graphqlClient.request<EmployeeAddressDataResponse>(GET_EMPLOYEE_ADDRESS, addrVariables)
       setData(prev => ({ address: addressData, catalogs: prev?.catalogs ?? null }))
-    } catch (e) {
+    } catch {
       // swallow errors here; primary fetch handles messaging
     }
   }

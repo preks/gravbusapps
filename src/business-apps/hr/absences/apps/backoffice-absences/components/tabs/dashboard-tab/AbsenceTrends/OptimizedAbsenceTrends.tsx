@@ -117,10 +117,7 @@ const ServerBackedTooltip: React.FC<any> = ({ active, payload, label, absenceTyp
   )
 }
 
-const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({
-  dashboardData,
-  onMonthClick
-}) => {
+const OptimizedAbsenceTrends: React.FC<OptimizedAbsenceTrendsProps> = ({ dashboardData, onMonthClick }) => {
   const { monthlyData, isLoading, error } = dashboardData
 
   // No need for additional GraphQL calls - monthlyData already contains the aggregated data

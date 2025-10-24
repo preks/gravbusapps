@@ -90,6 +90,43 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
       }, [] as any[])
   }, [rawInvestments, statusCurrencyFilter])
 
+  // Memoize all chart configs at the top level to avoid conditional hook calls
+  const typeCountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    typeData.forEach((item: any) => {
+      const key = item.type.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.type }
+    })
+    return config
+  }, [typeData])
+
+  const typeAmountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    filteredTypeData.forEach((item: any) => {
+      const key = item.type.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.type }
+    })
+    return config
+  }, [filteredTypeData])
+
+  const statusCountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    statusData.forEach((item: any) => {
+      const key = item.status.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.status }
+    })
+    return config
+  }, [statusData])
+
+  const statusAmountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    filteredStatusData.forEach((item: any) => {
+      const key = item.status.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.status }
+    })
+    return config
+  }, [filteredStatusData])
+
   return (
     <div className="gba:space-y-6">
       {/* Type Distribution */}
@@ -108,17 +145,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                typeData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '')
-                  config[key] = { label: item.type }
-                })
-                return config
-              }, [typeData])}
-              className="gba:h-[300px] gba:w-full"
-            >
+            <ChartContainer config={typeCountConfig} className="gba:h-[300px] gba:w-full">
               <PieChart>
                 <Pie
                   data={typeData.map((item: any) => {
@@ -134,7 +161,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   outerRadius={80}
                   dataKey="count"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
                 >
                   {typeData.map((entry: any, index: number) => {
                     const key = entry.type.toLowerCase().replace(/\s+/g, '')
@@ -196,65 +223,65 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                filteredTypeData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '')
-                  config[key] = { label: item.type }
-                })
-                return config
-              }, [filteredTypeData])}
-              className="gba:h-[300px] gba:w-full"
-            >
-              <PieChart>
-                <Pie
-                  data={filteredTypeData.map((item: any) => {
-                    const key = item.type.toLowerCase().replace(/\s+/g, '')
-                    return {
-                      ...item,
-                      name: item.type,
-                      fill: `var(--color-${key})`
-                    }
-                  })}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="totalAmount"
-                  nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                >
-                  {filteredTypeData.map((entry: any, index: number) => {
-                    const key = entry.type.toLowerCase().replace(/\s+/g, '')
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                  })}
-                </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0]
-                      const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '')
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${typeKey})` }}
-                            />
-                            <span className="gba:font-medium">{data.payload.name}</span>
+            {filteredTypeData.length === 0 ? (
+              <div className="gba:h-[300px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center">
+                <CurrencyCircleDollarIcon className="gba:h-12 gba:w-12 gba:text-muted-foreground gba:mb-3" />
+                <p className="gba:text-sm gba:font-medium gba:text-foreground">No data available</p>
+                <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                  No properties found in {typeCurrencyFilter} currency
+                </p>
+              </div>
+            ) : (
+              <ChartContainer config={typeAmountConfig} className="gba:h-[300px] gba:w-full">
+                <PieChart>
+                  <Pie
+                    data={filteredTypeData.map((item: any) => {
+                      const key = item.type.toLowerCase().replace(/\s+/g, '')
+                      return {
+                        ...item,
+                        name: item.type,
+                        fill: `var(--color-${key})`
+                      }
+                    })}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="totalAmount"
+                    nameKey="name"
+                    label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
+                  >
+                    {filteredTypeData.map((entry: any, index: number) => {
+                      const key = entry.type.toLowerCase().replace(/\s+/g, '')
+                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    })}
+                  </Pie>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]
+                        const typeKey = data.payload.type.toLowerCase().replace(/\s+/g, '')
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: `var(--color-${typeKey})` }}
+                              />
+                              <span className="gba:font-medium">{data.payload.name}</span>
+                            </div>
+                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                              {formatCurrency(data.value as number, typeCurrencyFilter)}
+                            </div>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {formatCurrency(data.value as number, typeCurrencyFilter)}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-              </PieChart>
-            </ChartContainer>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -275,17 +302,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                statusData.forEach((item: any) => {
-                  const key = item.status.toLowerCase().replace(/\s+/g, '')
-                  config[key] = { label: item.status }
-                })
-                return config
-              }, [statusData])}
-              className="gba:h-[300px] gba:w-full"
-            >
+            <ChartContainer config={statusCountConfig} className="gba:h-[300px] gba:w-full">
               <PieChart>
                 <Pie
                   data={statusData.map((item: any) => {
@@ -301,7 +318,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   outerRadius={80}
                   dataKey="count"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
                 >
                   {statusData.map((entry: any, index: number) => {
                     const key = entry.status.toLowerCase().replace(/\s+/g, '')
@@ -343,65 +360,65 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                filteredStatusData.forEach((item: any) => {
-                  const key = item.status.toLowerCase().replace(/\s+/g, '')
-                  config[key] = { label: item.status }
-                })
-                return config
-              }, [filteredStatusData])}
-              className="gba:h-[300px] gba:w-full"
-            >
-              <PieChart>
-                <Pie
-                  data={filteredStatusData.map((item: any) => {
-                    const key = item.status.toLowerCase().replace(/\s+/g, '')
-                    return {
-                      ...item,
-                      name: item.status,
-                      fill: `var(--color-${key})`
-                    }
-                  })}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  dataKey="totalAmount"
-                  nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
-                >
-                  {filteredStatusData.map((entry: any, index: number) => {
-                    const key = entry.status.toLowerCase().replace(/\s+/g, '')
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                  })}
-                </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0]
-                      const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '')
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${statusKey})` }}
-                            />
-                            <span className="gba:font-medium">{data.payload.name}</span>
+            {filteredStatusData.length === 0 ? (
+              <div className="gba:h-[300px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:text-center">
+                <CurrencyCircleDollarIcon className="gba:h-12 gba:w-12 gba:text-muted-foreground gba:mb-3" />
+                <p className="gba:text-sm gba:font-medium gba:text-foreground">No data available</p>
+                <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                  No properties found in {statusCurrencyFilter} currency
+                </p>
+              </div>
+            ) : (
+              <ChartContainer config={statusAmountConfig} className="gba:h-[300px] gba:w-full">
+                <PieChart>
+                  <Pie
+                    data={filteredStatusData.map((item: any) => {
+                      const key = item.status.toLowerCase().replace(/\s+/g, '')
+                      return {
+                        ...item,
+                        name: item.status,
+                        fill: `var(--color-${key})`
+                      }
+                    })}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    dataKey="totalAmount"
+                    nameKey="name"
+                    label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
+                  >
+                    {filteredStatusData.map((entry: any, index: number) => {
+                      const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    })}
+                  </Pie>
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0]
+                        const statusKey = data.payload.status.toLowerCase().replace(/\s+/g, '')
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: `var(--color-${statusKey})` }}
+                              />
+                              <span className="gba:font-medium">{data.payload.name}</span>
+                            </div>
+                            <div className="gba:mt-1 gba:text-lg gba:font-semibold">
+                              {formatCurrency(data.value as number, statusCurrencyFilter)}
+                            </div>
                           </div>
-                          <div className="gba:mt-1 gba:text-lg gba:font-semibold">
-                            {formatCurrency(data.value as number, statusCurrencyFilter)}
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-              </PieChart>
-            </ChartContainer>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ChartContainer>
+            )}
           </CardContent>
         </Card>
       </div>

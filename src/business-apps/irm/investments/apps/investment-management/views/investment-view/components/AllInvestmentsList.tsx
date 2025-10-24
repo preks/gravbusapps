@@ -160,13 +160,6 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
       return group.filters.length > 0 || group.customComponent
     })
 
-    // Debug filter groups
-    const groupStats = {
-      totalGroups: filterGroups.length,
-      visibleGroups: result.length,
-      visibleFilterGroups: result.map(g => ({ id: g.id, title: g.title, filterCount: g.filters.length }))
-    }
-
     return result
   }, [filterGroups])
 
@@ -256,7 +249,7 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
           loadData()
         }
-      } catch (err) {
+      } catch {
         // Error handling process completion
       }
     }
@@ -289,7 +282,11 @@ const AllInvestmentsList: React.FC<AllInvestmentsListProps> = context => {
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )

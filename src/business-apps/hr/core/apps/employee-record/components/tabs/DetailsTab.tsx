@@ -25,7 +25,7 @@ interface DetailsTabProps {
  * Details Tab Component
  * Displays detailed personal information about the employee
  */
-const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, userInfo, isSelfView }) => {
+const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
   // Remove debug log
   // Use employee ID from props or fallback to employee data
   const employeeIdForPermissions = employeeId || employee?.id
@@ -96,7 +96,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ employee, accessToken, employee
     },
     {
       label: 'Place of Birth',
-      value: employee.birthPlace || '',
+      value: employee.birthPlace?.value || '',
       sectionKey: SECTION_KEYS.details.personalInfoPrivate
     },
     {

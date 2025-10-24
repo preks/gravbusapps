@@ -176,7 +176,12 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpenseRequestItems expenseRequestItems={expenseRequest?.expenseRequestItem || []} />
+      children: (
+        <ExpenseRequestItems
+          expenseRequestItems={expenseRequest?.expenseRequestItem || []}
+          currencyCode={expenseRequest?.currency?.code}
+        />
+      )
     },
 
     // Allowances tab - only show if there are allowances
@@ -369,7 +374,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   if (loading) {
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_records.request.title',
           'Expense Request Record'
@@ -418,7 +423,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_records.request.title',
           'Expense Request Record'
@@ -436,7 +441,7 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
   return (
     <PageLayout
-      headerIcon={<PiWalletDuotone color="#c92559" />}
+      headerIcon={<PiWalletDuotone className="gba:text-primary" />}
       headerLabel={getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_records.request.title',
         'Expense Request Record'

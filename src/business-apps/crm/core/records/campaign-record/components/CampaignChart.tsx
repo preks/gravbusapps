@@ -200,10 +200,15 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   bottom: 20
                 }}
               >
-                <XAxis dataKey="date" tick={{ fontSize: 12 }} tickFormatter={formatXAxisLabel} stroke="#666" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={formatXAxisLabel}
+                  stroke="hsl(var(--muted-foreground))"
+                />
                 <YAxis
                   tick={{ fontSize: 12 }}
-                  stroke="#666"
+                  stroke="hsl(var(--muted-foreground))"
                   tickFormatter={value => Math.floor(value).toString()}
                   domain={[0, 'dataMax']}
                   allowDecimals={false}
@@ -212,7 +217,7 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   formatter={formatTooltip}
                   labelFormatter={label => `Period: ${formatXAxisLabel(label)}`}
                   contentStyle={{
-                    backgroundColor: 'white',
+                    backgroundColor: 'hsl(var(--background))',
                     border: '1px solid #ccc',
                     borderRadius: '4px',
                     fontSize: '12px'
@@ -225,12 +230,12 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   <Area
                     type="monotone"
                     dataKey="totalLeads"
-                    stroke="#3B82F6"
-                    fill="#3B82F6"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#3B82F6', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
                     name="Total Leads"
                   />
                 )}
@@ -240,12 +245,12 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   <Area
                     type="monotone"
                     dataKey="totalAccounts"
-                    stroke="#52c41a"
-                    fill="#52c41a"
+                    stroke="hsl(var(--success))"
+                    fill="hsl(var(--success))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#52c41a', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--success))', strokeWidth: 2 }}
                     name="Total Accounts"
                   />
                 )}
@@ -255,12 +260,12 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   <Area
                     type="monotone"
                     dataKey="totalContacts"
-                    stroke="#722ed1"
-                    fill="#722ed1"
+                    stroke="hsl(var(--accent))"
+                    fill="hsl(var(--accent))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#722ed1', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--accent))', strokeWidth: 2 }}
                     name="Total Contacts"
                   />
                 )}
@@ -270,12 +275,12 @@ const CampaignChart: React.FC<CampaignChartProps> = ({ campaignId, campaign, ...
                   <Area
                     type="monotone"
                     dataKey="totalOpportunities"
-                    stroke="#fa8c16"
-                    fill="#fa8c16"
+                    stroke="hsl(var(--warning))"
+                    fill="hsl(var(--warning))"
                     fillOpacity={0.1}
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 6, stroke: '#fa8c16', strokeWidth: 2 }}
+                    activeDot={{ r: 6, stroke: 'hsl(var(--warning))', strokeWidth: 2 }}
                     name="Total Opportunities"
                   />
                 )}

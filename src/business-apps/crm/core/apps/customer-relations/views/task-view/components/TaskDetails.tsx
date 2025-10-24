@@ -68,7 +68,7 @@ const FieldRow: React.FC<FieldRowProps> = ({ icon: IconComponent, label, childre
   </div>
 )
 
-export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, onClose, sourceApp }) => {
+export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, sourceApp }) => {
   console.log('🔍 TaskDetails rendering:', {
     taskId: task?.id,
     taskName: task?.name,
@@ -255,7 +255,7 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, onClose, sourceA
                       <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:w-full">
                         <div className="gba:min-w-0 gba:flex-1">
                           <div
-                            className="gba:text-sm gba:font-medium gba:mb-1 gba:min-w-0 gba:whitespace-nowrap"
+                            className="gba:text-sm gba:font-medium gba:mb-1 gba:min-w-0 gba:hsl(var(--background))space-nowrap"
                             title={task.reference.name || 'Unknown Reference'}
                           >
                             {getTruncatedText(task.reference.name || 'Unknown Reference')}
@@ -335,7 +335,9 @@ export const TaskDetails: React.FC<TaskDetailsProps> = ({ task, onClose, sourceA
             {/* Description */}
             {task.description && (
               <FieldRow icon={TextAlignLeft} label="Description" testId={`${DATA_TEST_ID_PREFIX}-description-field`}>
-                <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">{task.description}</p>
+                <p className="gba:text-sm gba:text-foreground gba:hsl(var(--background))space-pre-wrap">
+                  {task.description}
+                </p>
               </FieldRow>
             )}
 

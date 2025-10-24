@@ -84,7 +84,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
     if (active && payload && payload.length) {
       const data = payload[0].payload
       return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+        <div className="gba:bg-hsl(var(--background)) gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
           <div className="gba:space-y-1">
             <p className="gba:text-sm">
@@ -112,7 +112,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       const data = payload[0].payload
       const percentage = ((data.revenue / revenueData.reduce((sum, item) => sum + item.revenue, 0)) * 100).toFixed(1)
       return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
+        <div className="gba:bg-hsl(var(--background)) gba:p-3 gba:border gba:rounded-lg gba:shadow-lg">
           <p className="gba:font-semibold gba:mb-2">{data.fullName}</p>
           <p className="gba:text-sm">
             <span className="gba:text-green-600">Revenue:</span> {formatCurrency(data.revenue)} ({percentage}%)
@@ -153,7 +153,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
                 <YAxis tickFormatter={formatCurrency} />
                 <Tooltip content={<RevenueBarTooltip />} />
-                <Bar dataKey="revenue" fill="#10B981" name="Revenue" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="revenue" fill="hsl(var(--success))" name="Revenue" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -192,8 +192,8 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
               <AreaChart data={revenueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <defs>
                   <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0.1} />
+                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.8} />
+                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.1} />
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
@@ -202,7 +202,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                 <Area
                   type="monotone"
                   dataKey="revenue"
-                  stroke="#10B981"
+                  stroke="hsl(var(--success))"
                   fillOpacity={1}
                   fill="url(#revenueGradient)"
                   strokeWidth={3}
@@ -223,32 +223,32 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
                 <Radar
                   name="Revenue"
                   dataKey="Revenue"
-                  stroke="#10B981"
-                  fill="#10B981"
+                  stroke="hsl(var(--success))"
+                  fill="hsl(var(--success))"
                   fillOpacity={0.1}
                   strokeWidth={2}
                 />
                 <Radar
                   name="Win Rate"
                   dataKey="Win Rate"
-                  stroke="#3B82F6"
-                  fill="#3B82F6"
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary))"
                   fillOpacity={0.1}
                   strokeWidth={2}
                 />
                 <Radar
                   name="Rev/Opp"
                   dataKey="Rev/Opp"
-                  stroke="#8B5CF6"
-                  fill="#8B5CF6"
+                  stroke="hsl(var(--accent))"
+                  fill="hsl(var(--accent))"
                   fillOpacity={0.1}
                   strokeWidth={2}
                 />
                 <Radar
                   name="Rev/Lead"
                   dataKey="Rev/Lead"
-                  stroke="#F59E0B"
-                  fill="#F59E0B"
+                  stroke="hsl(var(--warning))"
+                  fill="hsl(var(--warning))"
                   fillOpacity={0.1}
                   strokeWidth={2}
                 />
@@ -303,7 +303,7 @@ const CampaignsRevenueAnalysis: React.FC<CampaignsAnalyticsComponentProps> = ({
       <CardHeader>
         <div className="gba:flex gba:justify-between gba:items-center">
           <CardTitle className="gba:flex gba:items-center gba:gap-2">
-            <DollarOutlined style={{ color: '#10B981' }} />
+            <DollarOutlined className="gba:text-success" />
             {getTranslationFromI18nKeyAndLabel('campaigns.analytics.revenueAnalysis.title', 'Won Revenue Analysis')}
           </CardTitle>
           <div className="gba:flex gba:gap-2">

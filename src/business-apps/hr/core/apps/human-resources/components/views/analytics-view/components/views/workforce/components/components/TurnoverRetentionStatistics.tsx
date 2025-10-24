@@ -19,8 +19,6 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'Voluntary Turnover Rate',
       value: statistics.currentTurnoverRate ? `${statistics.currentTurnoverRate.toFixed(1)}%` : 'N/A',
       icon: 'calendar',
-      iconColor:
-        statistics.currentTurnoverRate > 10 ? 'var(--nw-destructive)' : statistics.currentTurnoverRate > 5 ? 'var(--nw-warning)' : 'var(--nw-success)',
       footer: 'Current month rate'
     },
     {
@@ -28,7 +26,6 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'Average Tenure',
       value: statistics.averageTenure || 'N/A',
       icon: 'users',
-      iconColor: 'var(--nw-info)',
       footer: 'Company-wide average'
     },
     {
@@ -36,8 +33,6 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'At-Risk Departments',
       value: statistics.atRiskDepartments,
       icon: 'mail',
-      iconColor:
-        statistics.atRiskDepartments > 3 ? 'var(--nw-destructive)' : statistics.atRiskDepartments > 0 ? 'var(--nw-warning)' : 'var(--nw-success)',
       footer: `Below ${statistics.retentionTarget}% retention target`
     },
     {
@@ -45,7 +40,6 @@ const TurnoverRetentionStatistics: React.FC<TurnoverRetentionStatisticsProps> = 
       title: 'Target Retention',
       value: `${statistics.retentionTarget}%`,
       icon: 'users',
-      iconColor: 'var(--nw-info)',
       footer: 'Company target retention rate'
     }
   ]

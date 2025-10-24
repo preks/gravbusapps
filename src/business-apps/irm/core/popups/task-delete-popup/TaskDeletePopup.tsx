@@ -148,7 +148,7 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
     loadTask()
   }, [taskId, props.accessToken, graphqlClient])
 
-  const handleSubmit = async (_formData: TaskDeletePopupValues) => {
+  const handleSubmit = async () => {
     if (!task) {
       throw new Error(getTranslationFromI18nKeyAndLabel('task.delete.error.noData', 'Task data not loaded'))
     }
@@ -164,7 +164,7 @@ const TaskDeletePopup: React.FC<TaskDeletePopupProps> = ({ initialValues = {}, .
     return deletePayload
   }
 
-  const validateForm = (_formData: TaskDeletePopupValues): string[] | null => {
+  const validateForm = (): string[] | null => {
     if (!task) {
       return [getTranslationFromI18nKeyAndLabel('task.delete.error.noData', 'Task data not loaded')]
     }

@@ -50,11 +50,8 @@ export const OpportunityLifecycleChart: React.FC<OpportunityLifecycleChartProps>
   onTimeFilterChange,
   pipelines,
   selectedPipelineId,
-  onPipelineChange,
-  moduleColor = 'default'
+  onPipelineChange
 }) => {
-  // Remove unused variable warning
-  const _ = moduleColor
   const [visibleLines, setVisibleLines] = React.useState({ opportunitiesCreated: true, opportunitiesWon: true })
   const timeFilterOptions: { key: TimeFilter; label: string }[] = [
     { key: 'month', label: 'Last Month' },

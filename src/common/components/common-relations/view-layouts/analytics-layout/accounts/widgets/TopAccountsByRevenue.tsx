@@ -15,7 +15,7 @@ interface TopAccountsByRevenueProps {
   moduleColor?: string
 }
 
-export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({ topAccounts, moduleColor = 'default' }) => {
+export const TopAccountsByRevenue: React.FC<TopAccountsByRevenueProps> = ({ topAccounts }) => {
   return (
     <Card data-testid="top-accounts-section">
       <CardHeader>

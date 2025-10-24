@@ -73,7 +73,6 @@ const CompanyInformationSection: React.FC = () => {
     // Address line management
     addressLineCount,
     addAddressLine,
-    removeAddressLine,
     removeAddressLineAtIndex
   } = useLeadFormContext()
 
@@ -211,26 +210,7 @@ const CompanyInformationSection: React.FC = () => {
         type="button"
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
-        style={{
-          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
-          transition: 'all 0.3s ease',
-          border: '0',
-          borderWidth: '0',
-          borderStyle: 'none',
-          borderColor: 'transparent',
-          outline: 'none',
-          outlineWidth: '0',
-          outlineStyle: 'none',
-          boxShadow: 'none',
-          borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #c4b5fd, #a78bfa)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #ddd6fe, #c4b5fd)'
-        }}
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-info-secondary hover:gba:bg-info gba:border-0"
         data-testid={formatDataTestId(prefixDataTestId, 'company-info-toggle')}
       >
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
@@ -490,34 +470,15 @@ const CompanyInformationSection: React.FC = () => {
               borderWidth: '0',
               borderStyle: 'none',
               borderColor: 'transparent',
-              boxShadow: 'none',
-              background: 'white'
+              boxShadow: 'none'
             }}
+            className="gba:bg-background"
           >
             <Button
               type="button"
               variant="ghost"
               onClick={() => setIsAdditionalInfoExpanded(!isAdditionalInfoExpanded)}
-              className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
-              style={{
-                background: 'linear-gradient(to right, #f3f4f6, #e5e7eb)',
-                transition: 'all 0.3s ease',
-                border: '0',
-                borderWidth: '0',
-                borderStyle: 'none',
-                borderColor: 'transparent',
-                outline: 'none',
-                outlineWidth: '0',
-                outlineStyle: 'none',
-                boxShadow: 'none',
-                borderRadius: '12px'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'linear-gradient(to right, #e5e7eb, #d1d5db)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'linear-gradient(to right, #f3f4f6, #e5e7eb)'
-              }}
+              className="gba:w-full gba:px-4 gba:py-2 gba:transition-all gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-xl gba:text-sm gba:bg-muted hover:gba:bg-accent gba:border-0"
               data-testid={formatDataTestId(prefixDataTestId, 'AdditionalInfoToggle')}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
@@ -534,17 +495,7 @@ const CompanyInformationSection: React.FC = () => {
             </Button>
 
             {isAdditionalInfoExpanded && (
-              <CardContent
-                className="gba:space-y-4 gba:bg-white gba:border-0 gba:p-3"
-                style={{
-                  border: '0',
-                  borderWidth: '0',
-                  borderStyle: 'none',
-                  borderColor: 'transparent',
-                  padding: '12px',
-                  background: 'white'
-                }}
-              >
+              <CardContent className="gba:space-y-4 gba:bg-background gba:border-0 gba:p-3">
                 {/* Website */}
                 <div className="gba:space-y-2">
                   <Label className="gba:text-sm gba:font-medium gba:text-gray-900">Website</Label>

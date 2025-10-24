@@ -28,7 +28,7 @@ import AdvancePaymentsTab from './components/tabs/advance-payments-tab'
 import ExpenseRequestsTab from './components/tabs/expense-requests-tab'
 import ExpenseCalendarTab from './components/tabs/expense-calendar-tab'
 
-export interface PersonalExpensesProps extends BusinessAppContextProps {}
+export type PersonalExpensesProps = BusinessAppContextProps
 
 const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
   const [contentHeader, setContentHeader] = useState<ReactNode | null>(null)
@@ -113,7 +113,7 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
     }
   }, [activeTab])
 
-  const noop = (_header?: ReactNode) => {}
+  // no-op removed: onContentHeaderChange is passed only when tab is active
 
   return (
     <div data-testid="personal-expenses-container">
@@ -176,43 +176,43 @@ const PersonalExpenses: React.FC<PersonalExpensesProps> = props => {
           </div>
         )}
 
-        {/* Render all tabs concurrently; toggle visibility for instant switching */}
+        {/* Render only the active tab to avoid loading all queries at once */}
         <div data-testid="tabs-container">
-          <div className={activeTab === 'dashboard' ? '' : 'gba:hidden'} data-testid="tab-dashboard">
-            <ExpenseDashboardTab {...props} />
-          </div>
+          {activeTab === 'dashboard' && (
+            <div data-testid="tab-dashboard">
+              <ExpenseDashboardTab {...props} />
+            </div>
+          )}
 
-          <div className={activeTab === 'expense-items' ? '' : 'gba:hidden'} data-testid="tab-expense-items">
-            <ExpenseItemsTab
-              {...props}
-              onContentHeaderChange={activeTab === 'expense-items' ? setContentHeader : noop}
-            />
-          </div>
+          {activeTab === 'expense-items' && (
+            <div data-testid="tab-expense-items">
+              <ExpenseItemsTab {...props} onContentHeaderChange={setContentHeader} />
+            </div>
+          )}
 
-          <div className={activeTab === 'expense-plans' ? '' : 'gba:hidden'} data-testid="tab-expense-plans">
-            <ExpensePlansTab
-              {...props}
-              onContentHeaderChange={activeTab === 'expense-plans' ? setContentHeader : noop}
-            />
-          </div>
+          {activeTab === 'expense-plans' && (
+            <div data-testid="tab-expense-plans">
+              <ExpensePlansTab {...props} onContentHeaderChange={setContentHeader} />
+            </div>
+          )}
 
-          <div className={activeTab === 'advance-payments' ? '' : 'gba:hidden'} data-testid="tab-advance-payments">
-            <AdvancePaymentsTab
-              {...props}
-              onContentHeaderChange={activeTab === 'advance-payments' ? setContentHeader : noop}
-            />
-          </div>
+          {activeTab === 'advance-payments' && (
+            <div data-testid="tab-advance-payments">
+              <AdvancePaymentsTab {...props} onContentHeaderChange={setContentHeader} />
+            </div>
+          )}
 
-          <div className={activeTab === 'expense-requests' ? '' : 'gba:hidden'} data-testid="tab-expense-requests">
-            <ExpenseRequestsTab
-              {...props}
-              onContentHeaderChange={activeTab === 'expense-requests' ? setContentHeader : noop}
-            />
-          </div>
+          {activeTab === 'expense-requests' && (
+            <div data-testid="tab-expense-requests">
+              <ExpenseRequestsTab {...props} onContentHeaderChange={setContentHeader} />
+            </div>
+          )}
 
-          <div className={activeTab === 'calendar' ? '' : 'gba:hidden'} data-testid="tab-calendar">
-            <ExpenseCalendarTab {...props} />
-          </div>
+          {activeTab === 'calendar' && (
+            <div data-testid="tab-calendar">
+              <ExpenseCalendarTab {...props} />
+            </div>
+          )}
         </div>
       </PageLayout>
     </div>

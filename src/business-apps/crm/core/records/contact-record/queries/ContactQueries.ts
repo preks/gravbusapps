@@ -71,8 +71,41 @@ export const GET_CONTACT_BY_ID = `
       createdAt
       accountId
       account {
-        name
         id
+        name
+        email
+        phone
+        website
+        legalForm {
+          id
+          value
+        }
+        industry {
+          id
+          value
+        }
+        numberOfEmployees {
+          id
+          value
+        }
+        annualRevenue {
+          id
+          value
+        }
+        addresses {
+          addressType
+          addressLine
+          postalCode
+          city
+          country {
+            id
+            value
+          }
+          region {
+            id
+            value
+          }
+        }
       }
       ownerEmployee {
         id

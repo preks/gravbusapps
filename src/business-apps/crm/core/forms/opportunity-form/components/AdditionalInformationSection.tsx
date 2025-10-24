@@ -27,9 +27,8 @@ const AdditionalInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-accent-secondary gba:to-accent"
         style={{
-          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -40,12 +39,6 @@ const AdditionalInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #c4b5fd, #a78bfa)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #ddd6fe, #c4b5fd)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'AdditionalInfoToggle')}
       >
@@ -64,7 +57,7 @@ const AdditionalInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -87,7 +80,7 @@ const AdditionalInformationSection: React.FC = () => {
                   value={formValues.winningChance || ''}
                   onChange={e => setFormValues({ winningChance: e.target.value })}
                   placeholder="Enter percentage..."
-                  className="gba:border-gray-300 gba:bg-white gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200 gba:pr-8"
+                  className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200 gba:pr-8"
                   data-testid={formatDataTestId(prefixDataTestId, 'WinningChanceInput')}
                 />
                 <div className="gba:absolute gba:inset-y-0 gba:right-0 gba:pr-3 gba:flex gba:items-center gba:pointer-events-none">
@@ -103,7 +96,7 @@ const AdditionalInformationSection: React.FC = () => {
                 type="date"
                 value={formValues.closeDate || ''}
                 onChange={e => setFormValues({ closeDate: e.target.value })}
-                className="gba:border-gray-300 gba:bg-white gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
                 data-testid={formatDataTestId(prefixDataTestId, 'CloseDateInput')}
               />
             </div>
@@ -117,7 +110,7 @@ const AdditionalInformationSection: React.FC = () => {
               value={formValues.code || ''}
               onChange={e => setFormValues({ code: e.target.value })}
               placeholder="Enter code..."
-              className="gba:border-gray-300 gba:bg-white gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background)) gba:focus:border-blue-500 gba:focus:ring-2 gba:focus:ring-blue-200 gba:transition-all gba:duration-200"
               data-testid={formatDataTestId(prefixDataTestId, 'CodeInput')}
             />
           </div>
@@ -140,7 +133,7 @@ const AdditionalInformationSection: React.FC = () => {
                 onClick={() => setFormValues({ personal: !(formValues.personal || false) })}
               >
                 <div
-                  className="gba:absolute gba:top-1/2 gba:w-5 gba:h-5 gba:bg-white gba:rounded-full gba:shadow-md gba:transition-all gba:duration-300 gba:ease-in-out gba:-translate-y-1/2"
+                  className="gba:absolute gba:top-1/2 gba:w-5 gba:h-5 gba:bg-hsl(var(--background)) gba:rounded-full gba:shadow-md gba:transition-all gba:duration-300 gba:ease-in-out gba:-translate-y-1/2"
                   style={{
                     transform: formValues.personal
                       ? 'translateX(20px) translateY(-50%)'
@@ -166,7 +159,7 @@ const AdditionalInformationSection: React.FC = () => {
               onChange={e => setFormValues({ notesSummary: e.target.value })}
               placeholder="Add notes about this opportunity..."
               rows={4}
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'NotesSummaryInput')}
             />
             <div className="gba:text-xs gba:text-gray-400 gba:text-right">

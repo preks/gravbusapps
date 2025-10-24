@@ -33,8 +33,6 @@ const ContactSegment: React.FC<ContactSegmentProps> = props => {
     salutationLabel,
     academicTitleLabel,
     languageLabel,
-    birthDateLabel,
-    descriptionLabel,
     jobPositionLabel,
     departmentLabel,
     codeLabel,

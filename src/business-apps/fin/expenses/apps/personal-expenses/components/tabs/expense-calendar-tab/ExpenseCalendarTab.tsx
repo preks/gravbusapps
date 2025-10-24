@@ -45,7 +45,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
     isLoading: isLoadingExpenses,
     error: fetchExpensesErrorHook,
     fetchItems: fetchExpenseHookItems
-  } = useGetExpenseItems(props)
+  } = useGetExpenseItems(props, { autoFetch: false })
   const [calendarItems, setCalendarItems] = useState<CalendarExpenseItem[]>([])
   const [expensesError, setExpensesError] = useState<string | null>(null)
 
@@ -363,15 +363,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
               borderRadius: '4px'
             }}
           >
-            <div
-              style={{
-                width: '14px',
-                height: '14px',
-                backgroundColor: '#fafafa',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px'
-              }}
-            />
+            <div className="gba:w-[14px] gba:h-[14px] gba:bg-muted gba:border gba:border-border gba:rounded-sm" />
             <Typography.Text>
               {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}
             </Typography.Text>
@@ -386,15 +378,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
               borderRadius: '4px'
             }}
           >
-            <div
-              style={{
-                width: '14px',
-                height: '14px',
-                backgroundColor: '#e6f7ff',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px'
-              }}
-            />
+            <div className="gba:w-[14px] gba:h-[14px] gba:bg-info-secondary gba:border gba:border-border gba:rounded-sm" />
             <Typography.Text>
               {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.plans', 'Plans')}
             </Typography.Text>
@@ -409,15 +393,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
               borderRadius: '4px'
             }}
           >
-            <div
-              style={{
-                width: '14px',
-                height: '14px',
-                backgroundColor: '#e6fffb',
-                border: '1px solid #d9d9d9',
-                borderRadius: '2px'
-              }}
-            />
+            <div className="gba:w-[14px] gba:h-[14px] gba:bg-success-secondary gba:border gba:border-border gba:rounded-sm" />
             <Typography.Text>
               {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.requests', 'Requests')}
             </Typography.Text>

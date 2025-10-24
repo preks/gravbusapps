@@ -204,7 +204,7 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
           equityInvestment: finalEquityInvestmentId
         })
       }
-    } catch (error) {
+    } catch {
       // Error loading existing round data
     } finally {
       setLoadingRoundData(false)

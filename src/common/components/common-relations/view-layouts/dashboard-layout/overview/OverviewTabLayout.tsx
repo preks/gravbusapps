@@ -27,7 +27,6 @@ export const OverviewTabLayout: React.FC<OverviewTabLayoutProps> = ({
   source = 'investments',
   aggregatedFunnel,
   revenueBySource,
-  totalRevenue,
   totalLeadCount,
   recentRecords,
   activeTasks,

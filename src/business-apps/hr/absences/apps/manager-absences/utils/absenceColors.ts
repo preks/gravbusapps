@@ -85,7 +85,6 @@ export class AbsenceColorsManager {
       })
 
       // Create maps for easy lookup
-      const groupsMap = new Map(groups.map(g => [g.id, g]))
       const typesByGroupMap = new Map<string, CatalogEntry[]>()
 
       // Group types by their parent group
@@ -100,12 +99,9 @@ export class AbsenceColorsManager {
 
       const colorMap: { [key: string]: string } = {}
       const displayItems: AbsenceColorConfig[] = []
-      let colorIndex = 0
 
       // Process each group in the sorted order
       for (const group of sortedGroups) {
-        const groupName = group.value.toLowerCase()
-
         // Handle all groups uniformly - use group color only
         const groupColor = this.extractColorFromCatalog(group)
 
@@ -284,7 +280,7 @@ export class AbsenceColorsManager {
   /**
    * Get default color for absence type based on special rules
    */
-  private getDefaultColorForType(typeCodeOrId: string): string {
+  private getDefaultColorForType(): string {
     // Use status-based colors only
     return 'var(--nw-muted-foreground)' // Default gray for all types
   }
@@ -345,7 +341,7 @@ export class AbsenceColorsManager {
     }
 
     // Apply special rules for specific types
-    const defaultColor = this.getDefaultColorForType(typeCodeOrId)
+    const defaultColor = this.getDefaultColorForType()
     this.colorCache.set(typeCodeOrId, defaultColor)
 
     return defaultColor
@@ -374,7 +370,7 @@ export class AbsenceColorsManager {
     }
 
     // Apply special rules for specific groups
-    const defaultColor = this.getDefaultColorForType(groupCodeOrId)
+    const defaultColor = this.getDefaultColorForType()
     this.colorCache.set(groupCodeOrId, defaultColor)
 
     return defaultColor

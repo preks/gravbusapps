@@ -188,7 +188,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = (props: TaskManagem
           teamTasks.refetch?.()
           refetchStatistics()
         }
-      } catch (err) {
+      } catch {
         // Silently handle errors in process completion
       }
     }

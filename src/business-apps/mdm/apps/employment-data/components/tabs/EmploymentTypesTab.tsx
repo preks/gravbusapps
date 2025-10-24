@@ -61,8 +61,6 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const [selectedRows, setSelectedRows] = useState<any[]>([])
-
   const loadEmploymentTypes = async () => {
     try {
       setLoading(true)
@@ -275,10 +273,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
         sorting={sorting}
         onSortingChange={setSorting}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
         enableSorting
-        enableSelection
         enablePagination
       />
     )

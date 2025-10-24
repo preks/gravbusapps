@@ -24,20 +24,13 @@ const CoreDetailsSection: React.FC = () => {
   } = useSalesTaskFormContext()
 
   return (
-    <div className="gba:bg-white gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
+    <div className="gba:bg-hsl(var(--background)) gba:rounded-xl gba:shadow-sm gba:border gba:border-gray-100 gba:overflow-hidden">
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-blue-200 gba:to-cyan-200 gba:hover:from-blue-300 gba:hover:to-cyan-300 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
+        className="gba:w-full gba:px-6 gba:py-4 gba:border-b gba:border-gray-100 gba:bg-gradient-to-r gba:from-info-secondary gba:to-success-secondary gba:hover:from-info gba:hover:to-success gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left"
         style={{
-          background: 'linear-gradient(to right, #bfdbfe, #a7f3d0)',
           transition: 'background 0.2s ease'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #93c5fd, #86efac)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bfdbfe, #a7f3d0)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'Toggle')}
       >

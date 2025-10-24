@@ -352,7 +352,7 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
                     <Line
                       type="monotone"
                       dataKey="cumulativeLeads"
-                      stroke="#1890ff"
+                      stroke="hsl(var(--primary))"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                       name="Leads"
@@ -362,7 +362,7 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
                     <Line
                       type="monotone"
                       dataKey="cumulativeAccounts"
-                      stroke="#52c41a"
+                      stroke="hsl(var(--success))"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                       name="Accounts"
@@ -372,7 +372,7 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
                     <Line
                       type="monotone"
                       dataKey="cumulativeContacts"
-                      stroke="#fa8c16"
+                      stroke="hsl(var(--warning))"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                       name="Contacts"
@@ -382,7 +382,7 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
                     <Line
                       type="monotone"
                       dataKey="cumulativeOpportunities"
-                      stroke="#722ed1"
+                      stroke="hsl(var(--accent))"
                       strokeWidth={2}
                       dot={{ r: 4 }}
                       name="Opportunities"
@@ -433,7 +433,7 @@ const CampaignRevenueCharts: React.FC<CampaignRevenueChartsProps> = ({ metrics, 
                   <Line
                     type="monotone"
                     dataKey="cumulativeRevenue"
-                    stroke="#52c41a"
+                    stroke="hsl(var(--success))"
                     strokeWidth={3}
                     dot={{ r: 4, fill: '#52c41a' }}
                     name="Revenue"

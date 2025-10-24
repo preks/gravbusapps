@@ -164,6 +164,40 @@ export const GET_COMPANY_BY_ID = `
         id
         value
       }
+      accountContacts(where: { isDeleted: { _eq: false } }) {
+        contactType
+        contact {
+          id
+          firstName
+          lastName
+          email
+          phone
+          jobTitle
+          department
+          linkedinUrl
+          xingUrl
+          academicTitle {
+            id
+            value
+          }
+        }
+      }
+      addresses {
+        city
+        country {
+          id
+          value
+          code
+        }
+        region {
+          id
+          value
+          code
+        }
+        postalCode
+        addressLine
+        addressType
+      }
     }
   }
 `

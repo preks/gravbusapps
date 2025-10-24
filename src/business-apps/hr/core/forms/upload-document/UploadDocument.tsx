@@ -6,20 +6,17 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  Input,
+  DateInput,
   Textarea,
   Combobox,
-  Button,
-  Spinner
+  FileUpload
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
-import { Upload } from 'antd'
 import type { UploadFile } from 'antd'
-import { UploadOutlined } from '@ant-design/icons'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { useUploadDocumentLookups } from './queries/UploadDocumentQueries'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
@@ -113,8 +110,8 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
     mode: 'onChange'
   })
 
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [isUploading] = useState(false)
+  const [, setFileList] = useState<UploadFile[]>([])
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const initialDefaultsRef = useRef(form.getValues())
 
   const title = useMemo(
@@ -124,11 +121,11 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
 
   const isSubmitDisabled = useMemo(() => {
     const hasValidationErrors = Object.keys((form.formState as any)?.errors ?? {}).length > 0
-    const hasFile = fileList.length > 0
+    const hasFile = Boolean(selectedFile)
     const vals = form.getValues()
     const requiredMissing = !vals.documentGroupId || !vals.documentTypeId
     return hasValidationErrors || !hasFile || requiredMissing
-  }, [form.formState, fileList])
+  }, [form.formState, selectedFile])
 
   // GraphQL lookups -> directly populate dropdowns
   const { groups, types } = useUploadDocumentLookups(context)
@@ -162,7 +159,17 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
         handlePreSubmit={async (values: UploadDocumentValues) => {
           const res = await submitUploadDocument(values, {
             employeeId,
-            files: fileList,
+            // Provide a minimal UploadFile-like object carrying the actual File
+            files: selectedFile
+              ? ([
+                  {
+                    uid: 'selected-file',
+                    name: selectedFile.name,
+                    type: selectedFile.type,
+                    originFileObj: selectedFile
+                  } as any
+                ] as UploadFile[])
+              : ([] as UploadFile[]),
             accessToken: context.accessToken,
             fileClient
           })
@@ -197,30 +204,26 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
             <FormLabel>
               {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.upload_document', 'Upload Document')}
             </FormLabel>
-            <div className="gba:mt-2">
-              <Upload
-                fileList={fileList}
-                onChange={({ fileList: list }) => setFileList(list)}
-                beforeUpload={() => false}
-                maxCount={1}
-                data-testid="flw_documentModule_uploadFile"
-              >
-                <Button
-                  variant="secondary"
-                  type="button"
-                  disabled={isUploading}
-                  data-testid="flw_documentModule_uploadFile"
-                >
-                  {isUploading ? <Spinner size="sm" className="gba:mr-2" /> : null}
-                  <UploadOutlined />
-                  <span className="gba:ml-2">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:upload_document_form.upload_document',
-                      'Upload Document'
-                    )}
-                  </span>
-                </Button>
-              </Upload>
+            <div className="gba:mt-2" data-testid="flw_documentModule_uploadFile">
+              <FileUpload
+                multiple={false}
+                maxFiles={1}
+                accept={'.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png'}
+                layout="list"
+                preview="icon"
+                onFilesChange={(files: any[]) => {
+                  // minimal UploadFile mapping without originFileObj to satisfy type
+                  const mapped = (files || []).map((f: any) => ({
+                    uid: f.id,
+                    name: f.file?.name || 'file',
+                    status: 'done' as const,
+                    type: (f.file as File)?.type
+                  })) as UploadFile[]
+                  setFileList(mapped)
+                  const first = (files || [])[0]
+                  setSelectedFile(first && first.file instanceof File ? (first.file as File) : null)
+                }}
+              />
             </div>
           </div>
 
@@ -306,12 +309,14 @@ const UploadDocument: React.FC<UploadDocumentFormProps> = context => {
                   {getTranslationFromI18nKeyAndLabel('lowcoder:upload_document_form.expiry_date', 'Expiry Date')}
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    type="date"
-                    className="gba:w-full"
-                    data-testid="flw_uploadDocument_fld_expiryDate"
-                    {...field}
-                  />
+                  <div data-testid="flw_uploadDocument_fld_expiryDate">
+                    <DateInput
+                      type="date"
+                      value={field.value || ''}
+                      onChange={(v?: string) => field.onChange(v || '')}
+                      className="gba:w-full"
+                    />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>

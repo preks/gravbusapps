@@ -5,8 +5,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { useRestClient } from '@/common/network/rest/useRestClient'
-import { env } from '@/common/env/EnvUtils'
 import { useDocumentCatalogs } from './hooks/useDocumentCatalogs'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -56,13 +54,11 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = props => {
   const [selectedGroupId, setSelectedGroupId] = useState<string>('')
   const [parentFolders, setParentFolders] = useState<{ id: string; name: string }[]>([])
   const [parentFoldersLoading, setParentFoldersLoading] = useState(false)
-  const [parentFoldersError, setParentFoldersError] = useState<string | null>(null)
   const fileClient = useFileClient({ accessToken } as any)
-  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
   const graphQLClient = useGraphQLClient(accessToken)
 
   // Fetch document catalogs
-  const { documentGroups, documentTypes, filteredDocumentTypes } = useDocumentCatalogs(accessToken, selectedGroupId)
+  const { documentGroups, filteredDocumentTypes } = useDocumentCatalogs(accessToken, selectedGroupId)
 
   // Load parent folders (format: FOLDER) for the current entity
   useEffect(() => {
@@ -287,7 +283,7 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = props => {
     }
   }
 
-  const beforeUpload = (file: File) => {
+  const beforeUpload = () => {
     return false
   }
 
@@ -298,7 +294,10 @@ export const DocumentUploadForm: React.FC<DocumentUploadFormProps> = props => {
   }
 
   return (
-    <div className="gba:p-6 gba:bg-white gba:rounded-lg gba:shadow-md" data-testid="document-upload-form-container">
+    <div
+      className="gba:p-6 gba:bg-hsl(var(--background)) gba:rounded-lg gba:shadow-md"
+      data-testid="document-upload-form-container"
+    >
       <Form
         form={form}
         layout="vertical"

@@ -11,8 +11,19 @@ import { useInvestmentEntities, useInvestmentTasks } from '@/common/data/investm
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useForm } from 'react-hook-form'
 import { createTaskSegmentResolver } from '@/common/components/common-relations/form-segments/task-segment/TaskSegment'
+import { useFileClient } from '@/common/network/files/useFileClient'
 
-type TaskFormData = TaskSegmentSchema & { id?: string; version?: number; code?: string }
+type TaskFormData = TaskSegmentSchema & {
+  id?: string
+  version?: number
+  code?: string
+  documents?: Array<{
+    id: string
+    name?: string
+    version?: number
+  }>
+  _pendingFiles?: File[] // Files pending upload (not sent to backend)
+}
 
 const initialFormData: TaskFormData = {
   title: '',
@@ -24,7 +35,9 @@ const initialFormData: TaskFormData = {
   dueDate: '',
   timingType: 'DEADLINE',
   assignedEmployeeId: '',
-  relatedEntityId: ''
+  relatedEntityId: '',
+  documents: [],
+  _pendingFiles: []
 }
 
 const TASK_TYPE_CATALOG = 'InvestmentTaskType'
@@ -42,7 +55,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
   additionalData,
   onSuccess,
   onCancel
-}) => {
+}: InvestmentTaskFormProps) => {
   const [formData, _setFormData] = useState<TaskFormData>({
     ...initialFormData,
     assignedEmployeeId: userInfo?.employeeDetails?.employeeId || ''
@@ -75,6 +88,9 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
     }>
   >([])
   const { fetchInvestmentTaskById } = useInvestmentTasks({ accessToken, userInfo, additionalData })
+
+  // File client for document uploads
+  const fileClient = useFileClient({ accessToken } as any)
 
   // Resolve IDs from additionalData (platform may pass ids inside psi_taskPayload.psi_initialParameters)
   const platformParams = React.useMemo(() => {
@@ -141,10 +157,16 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
           timingType: (task.taskTiming as any) || 'DEADLINE',
           assignedEmployeeId: task.assignedEmployee?.id || '',
           relatedEntityId:
-            task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || ''
+            task.investment?.id || task.account?.id || task.contact?.id || task.opportunity?.id || task.lead?.id || '',
+          documents:
+            (task as any).investmentDocument?.map((doc: any) => ({
+              id: doc.id,
+              name: doc.name || '',
+              version: doc.version
+            })) || []
         }
 
-        _setFormData(prev => ({ ...prev, ...newFormData }))
+        _setFormData((prev: TaskFormData) => ({ ...prev, ...newFormData }))
 
         // CRITICAL: Also update the React Hook Form values
         form.reset(newFormData)
@@ -187,14 +209,19 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
           account: task.account ? { id: task.account.id } : undefined,
           contact: task.contact ? { id: task.contact.id } : undefined,
           opportunity: task.opportunity ? { id: task.opportunity.id } : undefined,
-          lead: task.lead ? { id: task.lead.id } : undefined
+          lead: task.lead ? { id: task.lead.id } : undefined,
+          documents:
+            (task as any).investmentDocument?.map((doc: any) => ({
+              id: doc.id,
+              name: doc.name || '',
+              version: doc.version
+            })) || []
         })
       } catch (e) {
         console.error('Error loading task:', e)
       }
     })()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [platformParams.taskId])
+  }, [platformParams.taskId, accessToken])
 
   // Prefill current user as default assignee in create mode so Combobox shows a label
   React.useEffect(() => {
@@ -223,17 +250,20 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
         jobPositionName?: string
       }
     >()
-    assigneePrefill.forEach(o => map.set(o.id, o))
-    employees.forEach(e =>
+    for (const o of assigneePrefill) {
+      map.set(o.id, o)
+    }
+    for (const e of employees) {
+      const employeeRecord = e as Record<string, any>
       map.set(e.id, {
         id: e.id,
         displayName: e.displayName,
         userId: e.userId,
-        pictureThumbnail: (e as any).pictureThumbnail,
-        organizationalUnitName: (e as any).organizationalUnitName,
-        jobPositionName: (e as any).jobPositionName
+        pictureThumbnail: employeeRecord.pictureThumbnail,
+        organizationalUnitName: employeeRecord.organizationalUnitName,
+        jobPositionName: employeeRecord.jobPositionName
       })
-    )
+    }
     return Array.from(map.values())
   }, [assigneePrefill, employees])
 
@@ -250,6 +280,35 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
     defaultValues: formData as any,
     mode: 'onChange'
   })
+
+  // Upload files to storage and return document metadata
+  const uploadFiles = useCallback(
+    async (files: File[], entityId: string): Promise<Array<{ name: string; fileInfo: any }>> => {
+      if (!files || files.length === 0) return []
+
+      const uploadPromises = files.map(async file => {
+        const folderPath = `/investmentRelations/tasks/${entityId}/documents`
+
+        const result = await fileClient.uploadFile(
+          file,
+          { accessScope: 'tenant' },
+          {
+            appName: 'investmentRelations',
+            folderPath: folderPath,
+            mimeType: file.type
+          }
+        )
+
+        return {
+          name: file.name,
+          fileInfo: result.fileInfo // Pass entire fileInfo JSON
+        }
+      })
+
+      return await Promise.all(uploadPromises)
+    },
+    [fileClient]
+  )
 
   const handleSubmit = useCallback(
     async (data: TaskSegmentSchema) => {
@@ -270,6 +329,25 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
           return {} as any
         })()
 
+        // Upload pending files if any
+        let uploadedDocuments: Array<{ name: string; fileInfo: any }> = []
+        if (formData._pendingFiles && formData._pendingFiles.length > 0) {
+          // Use a temporary ID for folder structure during upload
+          const tempId = formData.id || 'temp-' + Date.now()
+          uploadedDocuments = await uploadFiles(formData._pendingFiles, tempId)
+        }
+
+        // Combine existing documents (as objects with ID) and newly uploaded documents
+        // Backend expects all documents as objects, not mixed strings/objects
+        const existingDocumentsAsObjects = (formData.documents || [])
+          .filter((doc: any) => doc.id) // Only existing docs with IDs
+          .map((doc: any) => ({
+            id: doc.id,
+            version: doc.version
+          }))
+
+        const allDocuments = [...existingDocumentsAsObjects, ...uploadedDocuments]
+
         const base: InvestmentTaskFormData = {
           title: data.title,
           code: formData.code,
@@ -286,6 +364,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
           assignedUserId: assignedUserId,
           creatorEmployeeId: allValues.creatorEmployeeId,
           creatorUserId: allValues.creatorUserId,
+          documents: allDocuments, // Always send array (empty array deletes all documents)
           ...(entityRef as any)
         }
 
@@ -306,7 +385,7 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
         throw error
       }
     },
-    [accessToken, userInfo, additionalData, formData, employees, form]
+    [accessToken, userInfo, additionalData, formData, employees, form, uploadFiles]
   )
 
   const handleSuccess = useCallback(() => {
@@ -394,9 +473,22 @@ const InvestmentTaskForm: React.FC<InvestmentTaskFormProps> = ({
         statusLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.status', 'Status')}
         assigneeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.assignedTo', 'Assigned To')}
         entityLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.relatedEntity', 'Related Entity')}
-        //TODO ADD FILE UPLOAD TO BACKEND AND THEN READD IT IN FRONTEND
-        //uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
-        //onFilesChange={() => {/* File upload handling */}}
+        uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.uploadFile', 'Attach Documents')}
+        onFilesChange={(files: File[]) => {
+          // Store files pending upload (will be uploaded on submit)
+          _setFormData((prev: TaskFormData) => ({
+            ...prev,
+            _pendingFiles: [...(prev._pendingFiles || []), ...files]
+          }))
+        }}
+        existingDocuments={formData.documents || []}
+        onDocumentRemove={(documentId: string) => {
+          // Remove document from list - backend will handle deletion
+          _setFormData((prev: TaskFormData) => ({
+            ...prev,
+            documents: prev.documents?.filter((doc: any) => doc.id !== documentId) || []
+          }))
+        }}
         timingTypeLabel={getTranslationFromI18nKeyAndLabel('crm:salesTask.timingType', 'Timing Type')}
         // catalogs
         accessToken={accessToken}

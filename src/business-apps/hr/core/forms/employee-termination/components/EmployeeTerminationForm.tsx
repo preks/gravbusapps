@@ -8,11 +8,16 @@ import {
   AlertTitle,
   AlertDescription,
   Spinner,
-  Input
+  DateInput
 } from '@newwork/nw-design-system'
 import flowSmall from '@/assets/icons/flowSmall.svg'
 import { useEmployeeTerminationContext } from '../context/EmployeeTerminationContext'
-import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
+import {
+  getTranslationFromI18nKeyAndLabel,
+  formatDateToISO,
+  getCurrentActiveUserLocale,
+  getDateFormat
+} from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import FormHeader from '../../components/FormHeader'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -25,7 +30,49 @@ export const EmployeeTerminationForm: React.FC = () => {
     defaultValues: { employeeId: formValues.employeeId }
   })
 
+  const exitDate = employee?.employeePosition?.exitDate
+    ? dayjs(employee?.employeePosition?.exitDate).format(getDateFormat('date-long'))
+    : ''
+
   const isFormValid = formValues.terminationDate?.isValid()
+
+  if (loading) {
+    return <div className="gba:h-full gba:w-full" data-testid="employee-termination-loading-blank" />
+  }
+
+  if (exitDate) {
+    return (
+      <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:p-0">
+        <FormHeader
+          title={getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.title', 'Employee Termination')}
+          flowIconUrl={flowSmall}
+          className="gba:px-6"
+        />
+        <div
+          className="gba:flex-1 gba:flex gba:items-center gba:justify-center gba:px-6"
+          data-testid="employee-termination-terminated-container"
+        >
+          <div className="gba:text-muted-foreground gba:text-start">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_termination.exitDate_error_message_line_1',
+              `A termination for this employee is already scheduled for ${exitDate}.`,
+              {
+                terminationDate: exitDate,
+                interpolation: {
+                  escapeValue: false
+                }
+              }
+            )}
+            <br />
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_termination.exitDate_error_message_line_2',
+              'If you need to update or reverse this action, please contact your administrator.'
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0 gba:[&>div[data-testid='employee-termination-form']]:!pt-0">
@@ -61,8 +108,8 @@ export const EmployeeTerminationForm: React.FC = () => {
         }}
       >
         <div className="gba:flex-1 gba:flex gba:flex-col gba:justify-between">
-          <div className=" gba:pt-4">
-            <div className="gba:flex gba:items-center gba:mb-8">
+          <div>
+            <div className="gba:flex gba:items-center gba:mb-6">
               {loading ? (
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <Spinner size="sm" />
@@ -101,7 +148,7 @@ export const EmployeeTerminationForm: React.FC = () => {
                     )}
                   </Avatar>
                   <div className="gba:ml-2">
-                    <div>{`${employee.firstName || ''} ${employee.lastName || ''}`}</div>
+                    <div className="gba:font-semibold">{`${employee.firstName || ''} ${employee.lastName || ''}`}</div>
                     <div>{employee.employeePosition?.organizationalUnit?.name}</div>
                     <div>{employee.employeePosition?.jobPosition?.name}</div>
                   </div>
@@ -117,15 +164,14 @@ export const EmployeeTerminationForm: React.FC = () => {
             </div>
 
             <div className="gba:mb-6">
-              <label className="gba:block gba:mb-2">
+              <label className="gba:block gba:mb-2 gba:font-semibold">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.exit_date_input', 'Exit Date')}
                 <span className="gba:text-destructive"> *</span>
               </label>
-              <Input
+              <DateInput
                 type="date"
                 value={formValues.terminationDate?.isValid() ? formValues.terminationDate.format('YYYY-MM-DD') : ''}
-                onChange={e => {
-                  const v = e.target.value
+                onChange={(v?: string) => {
                   if (v) {
                     setFormValues({ terminationDate: dayjs(v) })
                   } else {
@@ -137,29 +183,32 @@ export const EmployeeTerminationForm: React.FC = () => {
                   'Please Select'
                 )}
                 data-testid="exit-date-picker"
+                className="gba:w-full"
+                locale={getCurrentActiveUserLocale()}
               />
             </div>
 
-            <div className="gba:pt-6">
-              <label
-                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:rounded"
-                htmlFor="terminate-job-checkbox"
-                data-testid="terminate-job-checkbox-container"
-              >
+            <div className="gba:mb-6">
+              <div className="gba:block gba:mb-2 gba:font-semibold">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:employee_termination.checkbox_label',
+                  'Terminate Job Position'
+                )}
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2" data-testid="terminate-job-checkbox-container">
                 <Checkbox
                   id="terminate-job-checkbox"
                   checked={formValues.terminateJobPosition}
                   onCheckedChange={checked => setFormValues({ terminateJobPosition: !!checked })}
                   data-testid="terminate-job-checkbox"
-                  className="gba:border-2 gba:border-foreground"
                 />
-                <span className="gba:cursor-pointer">
+                <span>
                   {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_termination.checkbox_label',
-                    'Terminate Job Position'
+                    'lowcoder:employee_termination.checkbox_description',
+                    'Also terminate the employee’s job position '
                   )}
                 </span>
-              </label>
+              </div>
             </div>
           </div>
         </div>
