@@ -1,30 +1,20 @@
-import { useState, useCallback } from 'react'
+﻿import { useState, useCallback } from 'react'
 import { env } from '@/common/env/EnvUtils'
 
 const FILES_ENDPOINT = env('NEXT_PUBLIC_FILE_SERVICE_ENDPOINT')
-
-export interface BlinkUploadFile {
-  uid: string
-  name: string
-  size: number
-  status: 'uploading' | 'done' | 'error'
-  originFileObj?: File
-  errorMessage?: string
-  uploadResult?: any
-}
 
 export interface UploadProgress {
   current: number
   total: number
 }
 
-export interface UseBlinkFileUploadProps {
+export interface UseQuickTaskFileUploadProps {
   accessToken: string
   onSuccess?: (results: any[]) => void
   onError?: (error: string) => void
 }
 
-export interface UseBlinkFileUploadReturn {
+export interface UseQuickTaskFileUploadReturn {
   uploadFiles: (files: File[], requestId?: string) => Promise<any[]>
   isUploading: boolean
   uploadProgress: UploadProgress | null
@@ -32,11 +22,11 @@ export interface UseBlinkFileUploadReturn {
   clearError: () => void
 }
 
-export const useBlinkFileUpload = ({
+export const useQuickTaskFileUpload = ({
   accessToken,
   onSuccess,
   onError
-}: UseBlinkFileUploadProps): UseBlinkFileUploadReturn => {
+}: UseQuickTaskFileUploadProps): UseQuickTaskFileUploadReturn => {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,19 +42,19 @@ export const useBlinkFileUpload = ({
         throw new Error('File service endpoint not configured')
       }
 
-      // Create folder path for blink task documents
-      const folderPath = requestId ? `/blink-tasks/${requestId}/attachments` : `/blink-tasks/temp/${Date.now()}`
+      // Create folder path for Quick Task documents
+      const folderPath = requestId ? `/quick-tasks/${requestId}/attachments` : `/quick-tasks/temp/${Date.now()}`
 
       const mimeType = file.type
 
       // Build URL with blink app name and folder structure
-      const url = `${FILES_ENDPOINT}/tenant/files?appName=blink&folderPath=${encodeURIComponent(folderPath)}&mimeType=${encodeURIComponent(mimeType)}`
+      const url = `${FILES_ENDPOINT}/tenant/files?appName=quick-task&folderPath=${encodeURIComponent(folderPath)}&mimeType=${encodeURIComponent(mimeType)}`
 
       // Create FormData
       const formData = new FormData()
       formData.append('fileContent', file)
 
-      console.log(`[Blink] Uploading file: ${file.name} to ${folderPath}`)
+      console.log(`[QuickTask] Uploading file: ${file.name} to ${folderPath}`)
 
       const response = await fetch(url, {
         method: 'POST',
@@ -79,7 +69,7 @@ export const useBlinkFileUpload = ({
       }
 
       const result = await response.json()
-      console.log(`[Blink] File uploaded successfully:`, result)
+      console.log(`[QuickTask] File uploaded successfully:`, result)
       return result
     },
     [accessToken]
@@ -111,12 +101,12 @@ export const useBlinkFileUpload = ({
 
           setUploadProgress({ current: i + 1, total: totalFiles })
 
-          console.log(`[Blink] Uploading file ${i + 1}/${totalFiles}: ${file.name}`)
+          console.log(`[QuickTask] Uploading file ${i + 1}/${totalFiles}: ${file.name}`)
 
           const uploadResult = await uploadSingleFile(file, requestId)
           uploadResults.push(uploadResult)
 
-          console.log(`[Blink] File ${i + 1} uploaded successfully`)
+          console.log(`[QuickTask] File ${i + 1} uploaded successfully`)
         }
 
         setUploadProgress(null)
@@ -128,7 +118,7 @@ export const useBlinkFileUpload = ({
         return uploadResults
       } catch (err: any) {
         const errorMessage = err?.message || 'Upload failed'
-        console.error('[Blink] File upload failed:', err)
+        console.error('[QuickTask] File upload failed:', err)
         setError(errorMessage)
         setUploadProgress(null)
 

@@ -40,12 +40,14 @@ import {
   Eye,
   FileText,
   Info,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { TaskDetailsTab } from './components'
 import { FlowManagement } from '../../common/components'
+import { QuickTaskModal, QuickTaskFormData } from '../../common/components/flow-quick-task'
 
 // Remove unused Ant Design destructuring
 
@@ -231,6 +233,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
   const [completedTasks, setCompletedTasks] = useState<Task[]>([])
   const [completedLoading, setCompletedLoading] = useState(false)
   const [completedError, setCompletedError] = useState<string | null>(null)
+  const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
 
   // Handle URL parameters for initial tab selection
   useEffect(() => {
@@ -485,6 +488,83 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }
 
+  // Handle Quick Task submission
+  const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
+    try {
+      // Import required services
+      const { QuickTaskFlowService } = await import('../../common/components/flow-quick-task')
+      const { AssignmentMode } = await import('@/common/network/flows/FlowTemplateClient')
+
+      const actualUserId = data.assignedUserId
+      if (!actualUserId) {
+        throw new Error('Invalid employee selection')
+      }
+
+      // Step 1: Upload files if any exist
+      const uploadResults: any[] = []
+      if (data.documents && data.documents.length > 0) {
+        // For now, skip file upload in inbox - can be added later if needed
+        // This would require integrating the useQuickTaskFileUpload hook
+      }
+
+      // Step 2: Generate dynamic workflow template
+      const flowTemplate = QuickTaskFlowService.generateFlowTemplate({
+        ...data,
+        uploadResults,
+        priority: 'medium',
+        assignments: {
+          assignmentMode: AssignmentMode.ASSIGN,
+          targets: null,
+          allowReassignment: false
+        }
+      })
+
+      // Step 3: Execute the workflow
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          templateDefinition: flowTemplate,
+          initiatorId: userInfo?.id || 'unknown',
+          stepAssignments: {
+            step_0: {
+              assignment: {
+                assignmentMode: AssignmentMode.ASSIGN,
+                targets: {
+                  users: [actualUserId],
+                  capabilities: [],
+                  organizationalUnits: [],
+                  companies: [],
+                  siteLocations: [],
+                  costCenters: [],
+                  matrixTeams: []
+                },
+                allowReassignment: false
+              }
+            }
+          }
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to create Quick Task')
+      }
+
+      await response.json()
+      message.success(`Quick Task "${data.title}" created successfully!`)
+
+      // Refresh the task list to show the new task
+      await fetchUserData(selectedUserId)
+    } catch (error) {
+      message.error(`Failed to create Quick Task: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
+
   /* eslint-disable newwork-local/no-hardcoded-colors */
   const getTaskTypeIcon = (task: Task) => {
     switch (task.type) {
@@ -593,8 +673,17 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
             </div>
           </div>
 
-          {/* Top Right: User Selection */}
+          {/* Top Right: User Selection and Quick Task Button */}
           <div className="gba:flex gba:items-center gba:gap-3">
+            <Button
+              onClick={() => setIsQuickTaskModalOpen(true)}
+              className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
+              data-testid={`${prefixDataTestId}-QuickTaskButton`}
+            >
+              <Zap className="gba:h-4 gba:w-4 gba:mr-2" />
+              Quick Task
+            </Button>
+
             <Select
               value={selectedUserId}
               onValueChange={setSelectedUserId}
@@ -1180,6 +1269,24 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Quick Task Modal */}
+      <QuickTaskModal
+        open={isQuickTaskModalOpen}
+        onOpenChange={setIsQuickTaskModalOpen}
+        accessToken={accessToken}
+        onSubmit={handleQuickTaskSubmit}
+        title="Blink"
+        description="Fill out the form to create and assign a task instantly"
+        config={{
+          assigneeSelector: { mode: 'employee-search', required: true },
+          enableFileUpload: true,
+          enableDueDate: true,
+          maxFiles: 5,
+          maxFileSize: 10,
+          allowedFileTypes: ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.zip']
+        }}
+      />
     </div>
   )
 }

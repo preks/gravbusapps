@@ -1,12 +1,12 @@
-import React, { useState, useRef, useCallback } from 'react'
+﻿import React, { useState, useRef, useCallback } from 'react'
 import { FileText, Upload as UploadIcon, X, AlertCircle } from 'lucide-react'
 import { Button, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { BlinkUploadFile } from '../hooks/useBlinkFileUpload'
+import { QuickTaskUploadFile } from '../hooks/useQuickTaskFileUpload'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export interface BlinkFileUploadProps {
-  value: BlinkUploadFile[]
-  onChange: (files: BlinkUploadFile[]) => void
+export interface QuickTaskFileUploadProps {
+  value: QuickTaskUploadFile[]
+  onChange: (files: QuickTaskUploadFile[]) => void
   disabled?: boolean
   maxFiles?: number
   maxFileSize?: number // in MB
@@ -18,7 +18,7 @@ const DEFAULT_MAX_FILES = 5
 const DEFAULT_MAX_FILE_SIZE = 10 // MB
 const DEFAULT_ALLOWED_TYPES = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.zip']
 
-export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
+export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
   value = [],
   onChange,
   disabled = false,
@@ -35,7 +35,7 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
       // Check file size
       if (file.size > maxFileSize * 1024 * 1024) {
         return getTranslationFromI18nKeyAndLabel(
-          'blink.upload.error.fileSize',
+          'quickTask.upload.error.fileSize',
           `File size must be less than ${maxFileSize}MB`,
           { maxSize: maxFileSize }
         )
@@ -45,7 +45,7 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase()
       if (!allowedFileTypes.includes(fileExtension)) {
         return getTranslationFromI18nKeyAndLabel(
-          'blink.upload.error.fileType',
+          'quickTask.upload.error.fileType',
           `File type ${fileExtension} is not allowed`,
           { fileType: fileExtension }
         )
@@ -64,7 +64,7 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
       const remainingSlots = maxFiles - value.length
       const filesToAdd = newFiles.slice(0, remainingSlots)
 
-      const uploadFiles: BlinkUploadFile[] = filesToAdd.map((file, index) => {
+      const uploadFiles: QuickTaskUploadFile[] = filesToAdd.map((file, index) => {
         const validationError = validateFile(file)
 
         return {
@@ -164,11 +164,11 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
         {canAddMoreFiles ? (
           <>
             <p className="gba:mb-2 gba:font-medium gba:text-gray-700">
-              {getTranslationFromI18nKeyAndLabel('blink.upload.dropText', 'Drop files here or click to browse')}
+              {getTranslationFromI18nKeyAndLabel('quickTask.upload.dropText', 'Drop files here or click to browse')}
             </p>
             <p className="gba:text-sm gba:text-gray-500">
               {getTranslationFromI18nKeyAndLabel(
-                'blink.upload.hint',
+                'quickTask.upload.hint',
                 `Supports: ${allowedFileTypes.join(', ')}. Max ${maxFiles} files, ${maxFileSize}MB each.`,
                 { types: allowedFileTypes.join(', '), maxFiles, maxSize: maxFileSize }
               )}
@@ -176,7 +176,7 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
           </>
         ) : (
           <p className="gba:text-sm gba:text-gray-500">
-            {getTranslationFromI18nKeyAndLabel('blink.upload.maxFiles', `Maximum ${maxFiles} files reached`, {
+            {getTranslationFromI18nKeyAndLabel('quickTask.upload.maxFiles', `Maximum ${maxFiles} files reached`, {
               maxFiles
             })}
           </p>
@@ -198,7 +198,7 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
       {value.length > 0 && (
         <div className="gba:space-y-2">
           <p className="gba:text-sm gba:font-medium gba:text-gray-700">
-            {getTranslationFromI18nKeyAndLabel('blink.upload.selectedFiles', `Selected Files (${value.length})`, {
+            {getTranslationFromI18nKeyAndLabel('quickTask.upload.selectedFiles', `Selected Files (${value.length})`, {
               count: value.length
             })}
           </p>
@@ -226,7 +226,7 @@ export const BlinkFileUpload: React.FC<BlinkFileUploadProps> = ({
                   <div className="gba:flex gba:items-center gba:gap-2">
                     <div className="gba:animate-spin gba:rounded-full gba:h-4 gba:w-4 gba:border-b-2 gba:border-blue-600"></div>
                     <span className="gba:text-xs gba:text-blue-600">
-                      {getTranslationFromI18nKeyAndLabel('blink.upload.uploading', 'Uploading...')}
+                      {getTranslationFromI18nKeyAndLabel('quickTask.upload.uploading', 'Uploading...')}
                     </span>
                   </div>
                 )}

@@ -1,15 +1,6 @@
-import { useState, useCallback, useRef } from 'react'
+﻿import { useState, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-
-export interface Employee {
-  id: string
-  userId: string
-  firstName: string
-  lastName: string
-  fullName: string
-  email?: string
-  personnelCode?: string
-}
+import { Employee } from '../types'
 
 interface UseEmployeeSearchResult {
   employees: Employee[]

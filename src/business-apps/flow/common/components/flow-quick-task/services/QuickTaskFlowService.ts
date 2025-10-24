@@ -1,4 +1,4 @@
-import { FlowTemplate, FlowStep, FlowStepType, TaskAssignment, Link } from '@/common/network/flows/FlowTemplateClient'
+﻿import { FlowTemplate, FlowStep, FlowStepType, TaskAssignment, Link } from '@/common/network/flows/FlowTemplateClient'
 
 export interface BlinkFlowData {
   title: string
@@ -11,11 +11,11 @@ export interface BlinkFlowData {
 }
 
 /**
- * Service for generating dynamic Blink task workflows
+ * Service for generating dynamic Quick Task workflows
  */
-export class BlinkFlowService {
+export class QuickTaskFlowService {
   /**
-   * Generate a dynamic Blink task template from form data
+   * Generate a dynamic Quick Task template from form data
    */
   static generateFlowTemplate(data: BlinkFlowData): FlowTemplate {
     // Create links for uploaded documents using actual file service results
@@ -34,7 +34,7 @@ export class BlinkFlowService {
 
       // Fallback if no path is provided
       if (!downloadUrl && fileInfo?.fileId) {
-        downloadUrl = `/files/api/v1/tenant/downloads/blink/${fileInfo?.fileId}`
+        downloadUrl = `/files/api/v1/tenant/downloads/quick-task/${fileInfo?.fileId}`
       }
 
       return {
@@ -60,13 +60,13 @@ export class BlinkFlowService {
 
     // Tag for blink app filtering
     const tags = {
-      app: 'blink'
+      app: 'quick-task'
     }
 
     const template: FlowTemplate = {
       type: 'TEMPLATE',
       name: data.title, // Use user's title directly as workflow name
-      description: `Blink task: ${data.title}`,
+      description: `Quick Task: ${data.title}`,
       version: 1,
       steps: [step],
       tags
