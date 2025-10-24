@@ -8,9 +8,9 @@ import {
   Tabs,
   TabsList,
   TabsTrigger,
-  TabsContent
+  TabsContent,
+  Toaster
 } from '@newwork/nw-design-system'
-import { Toaster } from 'sonner'
 import { ArrowClockwiseIcon, PlayCircleIcon, DatabaseIcon, InfoIcon, WarningCircleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout } from '@/components/layout/pageLayout'

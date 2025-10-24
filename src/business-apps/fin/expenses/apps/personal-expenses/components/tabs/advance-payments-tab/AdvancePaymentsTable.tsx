@@ -60,11 +60,11 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   )
 
   const { items, isLoading, totalCount, fetchItems } = useGetAdvancePayments(contextProps)
-  const { currencyStats, selectedCurrencyRef, isReady: isCurrencyReady } = useAdvancePaymentCurrencies(
-    contextProps,
-    props.selectedFilters || [],
-    props.onFilterChange as any
-  )
+  const {
+    currencyStats,
+    selectedCurrencyRef,
+    isReady: isCurrencyReady
+  } = useAdvancePaymentCurrencies(contextProps, props.selectedFilters || [], props.onFilterChange as any)
   const [searchText, setSearchText] = useState<string>(props.search ?? '')
   const [selectedItem, setSelectedItem] = useState<AdvancePayment | null>(null)
   const [selectedExpensePlan, setSelectedExpensePlan] = useState<any>(null)
@@ -159,7 +159,13 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
     } else {
       console.warn('Cannot fetch advance payments: Missing accessToken or employeeId')
     }
-  }, [contextProps.accessToken, contextProps.userInfo?.employeeDetails?.employeeId, fetchItems, fetchParams, isCurrencyReady])
+  }, [
+    contextProps.accessToken,
+    contextProps.userInfo?.employeeDetails?.employeeId,
+    fetchItems,
+    fetchParams,
+    isCurrencyReady
+  ])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
   useEffect(() => {

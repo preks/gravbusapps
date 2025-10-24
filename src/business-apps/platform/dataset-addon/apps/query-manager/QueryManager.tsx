@@ -1,6 +1,15 @@
 import React, { useState } from 'react'
-import { Button, Alert, Spinner, Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { toast, Toaster } from 'sonner'
+import {
+  Button,
+  Alert,
+  Spinner,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  toast,
+  Toaster
+} from '@newwork/nw-design-system'
 import {
   ArrowClockwiseIcon,
   GearIcon,
