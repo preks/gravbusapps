@@ -97,7 +97,7 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
   )
 
   const handleDrop = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
+    (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault()
       setDragActive(false)
 
@@ -109,12 +109,12 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
     [disabled, handleFilesAdded]
   )
 
-  const handleDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragOver = useCallback((event: React.DragEvent<HTMLElement>) => {
     event.preventDefault()
     setDragActive(true)
   }, [])
 
-  const handleDragLeave = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+  const handleDragLeave = useCallback((event: React.DragEvent<HTMLElement>) => {
     event.preventDefault()
     setDragActive(false)
   }, [])
@@ -140,32 +140,39 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
     const k = 1024
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  // Determine border color based on state
+  const getBorderColor = () => {
+    if (dragActive) return 'gba:border-blue-500 gba:bg-blue-50'
+    if (error) return 'gba:border-red-300'
+    return 'gba:border-gray-300'
+  }
+
+  // Determine file item styling based on upload status
+  const getFileItemStyle = (status: 'uploading' | 'done' | 'error') => {
+    if (status === 'error') return 'gba:border-red-300 gba:bg-red-50'
+    if (status === 'uploading') return 'gba:border-blue-300 gba:bg-blue-50'
+    return 'gba:border-gray-200 gba:bg-gray-50'
   }
 
   return (
     <div className="gba:space-y-3">
       {/* Upload Area */}
-      <div
-        role="button"
-        tabIndex={canAddMoreFiles && !disabled ? 0 : -1}
-        className={`gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:transition-colors ${
+      <button
+        type="button"
+        disabled={disabled || !canAddMoreFiles}
+        className={`gba:border-2 gba:border-dashed gba:rounded-lg gba:p-6 gba:text-center gba:transition-colors gba:w-full ${
           disabled
             ? 'gba:opacity-50 gba:cursor-not-allowed gba:bg-gray-50'
             : 'gba:cursor-pointer hover:gba:border-blue-400'
-        } ${dragActive ? 'gba:border-blue-500 gba:bg-blue-50' : error ? 'gba:border-red-300' : 'gba:border-gray-300'}`}
+        } ${getBorderColor()}`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onClick={canAddMoreFiles ? openFilePicker : undefined}
-        onKeyDown={e => {
-          if (canAddMoreFiles && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault()
-            openFilePicker()
-          }
-        }}
         aria-label={getTranslationFromI18nKeyAndLabel('quickTask.upload.ariaLabel', 'Upload files')}
-        aria-disabled={disabled || !canAddMoreFiles}
       >
         <div className="gba:flex gba:justify-center gba:mb-3">
           <UploadIcon className="gba:w-10 gba:h-10 gba:text-gray-400" />
@@ -191,7 +198,7 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
             })}
           </p>
         )}
-      </div>
+      </button>
 
       {/* Hidden File Input */}
       <input
@@ -215,13 +222,9 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
           {value.map(file => (
             <div
               key={file.uid}
-              className={`gba:flex gba:items-center gba:justify-between gba:p-3 gba:rounded-md gba:border ${
-                file.status === 'error'
-                  ? 'gba:border-red-300 gba:bg-red-50'
-                  : file.status === 'uploading'
-                    ? 'gba:border-blue-300 gba:bg-blue-50'
-                    : 'gba:border-gray-200 gba:bg-gray-50'
-              }`}
+              className={`gba:flex gba:items-center gba:justify-between gba:p-3 gba:rounded-md gba:border ${getFileItemStyle(
+                file.status
+              )}`}
             >
               <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1">
                 <FileText

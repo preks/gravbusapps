@@ -25,6 +25,38 @@ const getLabel = (customLabel: string | undefined, i18nKey: string, defaultText:
   return customLabel || getTranslationFromI18nKeyAndLabel(i18nKey, defaultText)
 }
 
+/**
+ * Helper function to get submit button text based on submission state
+ */
+const getSubmitButtonText = (
+  isUploadingFiles: boolean,
+  uploadProgress: string,
+  isSubmitting: boolean,
+  taskName: string | undefined,
+  submitButtonLabel: string | undefined
+): string => {
+  if (isUploadingFiles) {
+    return uploadProgress || getLabel(undefined, 'quickTask.button.uploading', 'Uploading files...')
+  }
+
+  if (isSubmitting) {
+    if (taskName) {
+      return `${getLabel(undefined, 'quickTask.button.creating.prefix', 'Creating')} ${taskName}...`
+    }
+    return getLabel(undefined, 'quickTask.button.creating', 'Creating Quick Task...')
+  }
+
+  if (submitButtonLabel) {
+    return submitButtonLabel
+  }
+
+  if (taskName) {
+    return `${getLabel(undefined, 'quickTask.button.create.prefix', 'Create')} ${taskName}`
+  }
+
+  return getLabel(undefined, 'quickTask.button.create', 'Create Quick Task')
+}
+
 export interface QuickTaskFormFieldsProps {
   form: UseFormReturn<QuickTaskFormData>
   onSubmit: (data: QuickTaskFormData) => Promise<void>
@@ -269,16 +301,7 @@ export const QuickTaskFormFields: React.FC<QuickTaskFormFieldsProps> = ({
             {getLabel(labels.cancelButton, 'quickTask.button.cancel', 'Cancel')}
           </Button>
           <Button type="submit" variant="default" disabled={isSubmitting || isUploadingFiles}>
-            {isUploadingFiles
-              ? uploadProgress || getLabel(undefined, 'quickTask.button.uploading', 'Uploading files...')
-              : isSubmitting
-                ? taskName
-                  ? `${getLabel(undefined, 'quickTask.button.creating.prefix', 'Creating')} ${taskName}...`
-                  : getLabel(undefined, 'quickTask.button.creating', 'Creating Quick Task...')
-                : labels.submitButton ||
-                  (taskName
-                    ? `${getLabel(undefined, 'quickTask.button.create.prefix', 'Create')} ${taskName}`
-                    : getLabel(undefined, 'quickTask.button.create', 'Create Quick Task'))}
+            {getSubmitButtonText(isUploadingFiles, uploadProgress, isSubmitting, taskName, labels.submitButton)}
           </Button>
         </div>
       </form>

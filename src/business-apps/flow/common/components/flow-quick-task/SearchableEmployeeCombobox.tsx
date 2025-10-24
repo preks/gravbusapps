@@ -66,12 +66,22 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
 
   const selectedOption = options.find(opt => opt.value === value)
 
+  // Render empty state message based on loading and options
+  const renderEmptyState = () => {
+    if (loading && options.length === 0) {
+      return <CommandEmpty>Loading...</CommandEmpty>
+    }
+    if (options.length === 0) {
+      return <CommandEmpty>{emptyText}</CommandEmpty>
+    }
+    return null
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          role="combobox"
           aria-expanded={open}
           className={cn('gba:w-full gba:justify-between', className)}
           disabled={disabled}
@@ -89,11 +99,7 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
             className="gba:h-9"
           />
           <CommandList>
-            {loading && options.length === 0 ? (
-              <CommandEmpty>Loading...</CommandEmpty>
-            ) : options.length === 0 ? (
-              <CommandEmpty>{emptyText}</CommandEmpty>
-            ) : null}
+            {renderEmptyState()}
             <CommandGroup>
               {options.map(option => (
                 <CommandItem key={option.value} value={option.value} onSelect={handleSelect}>

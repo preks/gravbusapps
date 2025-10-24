@@ -43,7 +43,7 @@ export const QuickTaskForm: React.FC<QuickTaskFormProps> = ({
     })
 
   // Use external isSubmitting if provided, otherwise use internal
-  const submitting = externalIsSubmitting !== undefined ? externalIsSubmitting : isSubmitting
+  const submitting = externalIsSubmitting ?? isSubmitting
 
   return (
     <QuickTaskFormFields
