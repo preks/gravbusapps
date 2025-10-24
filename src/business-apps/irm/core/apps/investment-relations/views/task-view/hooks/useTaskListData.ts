@@ -244,7 +244,14 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
                   initials: '',
                   pictureThumbnail: it.creatorEmployee.pictureThumbnail
                 }
-              : undefined
+              : undefined,
+            documents: it.documents?.map(doc => ({
+              id: doc.id,
+              name: doc.name || 'Untitled Document',
+              mimeType: doc.mimeType,
+              fileSize: doc.fileSize,
+              fileInfo: doc.fileInfo
+            }))
           } as Task
         })
 

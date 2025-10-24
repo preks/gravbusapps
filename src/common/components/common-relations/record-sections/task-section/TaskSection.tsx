@@ -223,7 +223,14 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
       updatedAt: taskItem.createdAt || '',
       reference: taskItem.reference,
       timingType: taskItem.taskTiming as any,
-      scheduleDate: taskItem.startDate
+      scheduleDate: taskItem.startDate,
+      documents: taskItem.documents?.map(doc => ({
+        id: doc.id,
+        name: doc.name || 'Untitled Document',
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize,
+        fileInfo: doc.fileInfo
+      }))
     }
   }
 
