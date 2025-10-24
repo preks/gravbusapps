@@ -417,9 +417,10 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                           industry:
                             leadData.industryClass?.value || leadData.industryClass?.code || leadData.industryClass,
                           size: leadData.companySize?.value || leadData.companySize?.code || leadData.companySize,
-                          revenue: leadData.annualRevenue?.value || leadData.annualRevenue,
+                          revenue: leadData.accountAnnualRevenueBand?.value || leadData.accountAnnualRevenueBand?.code,
                           // Add numberOfEmployees for AccountSection compatibility
-                          numberOfEmployees: leadData.companySize
+                          numberOfEmployees: leadData.companySize,
+                          annualRevenue: leadData.accountAnnualRevenueBand
                         }
                       : {
                           name: getTranslationFromI18nKeyAndLabel('crm.account.companyName', 'Company Name'),
