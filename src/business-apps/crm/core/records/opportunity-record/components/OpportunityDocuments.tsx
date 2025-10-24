@@ -879,7 +879,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: { opportunityId },
                   builderType: 'NATIVE_SCREEN'
                 })
@@ -894,7 +894,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: { opportunityId, createFolder: true },
                   builderType: 'NATIVE_SCREEN'
                 })
@@ -1130,7 +1130,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           opportunityId,
                                           ...(node.folderId ? { parentDocument: node.folderId } : {})
@@ -1151,7 +1151,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           opportunityId,
                                           createFolder: true,
@@ -1352,7 +1352,7 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
                 onClick: () =>
                   startProcess({
                     domain: 'customer-relations',
-                    processName: 'saveCrmDocument',
+                    processName: 'createCrmDocument',
                     payload: {
                       opportunityId
                     },

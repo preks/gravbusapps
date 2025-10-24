@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -66,16 +67,19 @@ export const GET_SALES_ACTIVITIES = (): string => {
 export const useGetSalesActivities = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchSalesActivities = async (variables: SalesActivityQueryVariables) => {
-    const query = GET_SALES_ACTIVITIES(variables)
-    try {
-      const result = await graphqlClient.request<SalesActivityResponse>(query, variables)
-      return result
-    } catch (error) {
-      console.error('Error fetching sales activities:', error)
-      throw error
-    }
-  }
+  const fetchSalesActivities = useCallback(
+    async (variables: SalesActivityQueryVariables) => {
+      const query = GET_SALES_ACTIVITIES()
+      try {
+        const result = await graphqlClient.request<SalesActivityResponse>(query, variables)
+        return result
+      } catch (error) {
+        console.error('Error fetching sales activities:', error)
+        throw error
+      }
+    },
+    [graphqlClient]
+  )
 
   return { fetchSalesActivities }
 }

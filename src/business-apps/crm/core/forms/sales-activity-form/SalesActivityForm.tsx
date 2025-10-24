@@ -8,6 +8,7 @@ import ActivitySegment, {
 import { AppActionForm } from '@/components/app-action-form'
 import { useForm } from 'react-hook-form'
 import { useFileClient } from '@/common/network/files/useFileClient'
+import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 
 export type SalesActivityFormProps = BusinessAppContextProps
 
@@ -38,6 +39,15 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = props => {
 
   // File upload client
   const fileClient = useFileClient({ accessToken } as any)
+
+  // Employee search hook for owner selection
+  const {
+    employees,
+    search: searchEmployees,
+    loading: employeesLoading,
+    hasMore: employeesHasMore,
+    loadMore: loadMoreEmployees
+  } = useEmployeeSearch(accessToken)
 
   // Upload files to file service and return file IDs with metadata
   const uploadFiles = useCallback(
@@ -148,6 +158,12 @@ export const SalesActivityForm: React.FC<SalesActivityFormProps> = props => {
           dateLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.date', 'Date')}
           descriptionLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.description', 'Description')}
           uploadFileLabel={getTranslationFromI18nKeyAndLabel('crm:salesActivity.uploadFile', 'Attach Documents')}
+          // Employee search props
+          assignees={employees}
+          assigneesLoading={employeesLoading}
+          onAssigneeSearch={searchEmployees}
+          assigneesHasMore={employeesHasMore}
+          onAssigneeLoadMore={loadMoreEmployees}
           // File upload handlers
           onFilesChange={(files: File[]) => {
             setFormData(prev => ({

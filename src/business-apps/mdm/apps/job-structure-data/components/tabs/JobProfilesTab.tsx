@@ -67,8 +67,6 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
   const [selectedProfile, setSelectedProfile] = useState<JobProfile | null>(null)
   const [sorting, setSorting] = useState<SortingState>([])
 
-  const [selectedRows, setSelectedRows] = useState<any[]>([])
-
   const { fetchEmploymentTypes } = useGetEmploymentTypesData(catalogClient, userLocale)
 
   const { fetchContractTypes } = useGetContractTypesData(catalogClient, userLocale)
@@ -378,10 +376,7 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
         columns={columns}
         sorting={sorting}
         onSortingChange={setSorting}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
         enableSorting
-        enableSelection
         enablePagination
       />
     )
