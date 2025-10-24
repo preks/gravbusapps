@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { PageLayout } from '@newwork/nw-design-system'
-import { Toaster } from 'sonner'
+import { PageLayout, Toaster } from '@newwork/nw-design-system'
 import { PiArrowLeft } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ApprovalRequest, ApprovalTabKey } from '../../types'

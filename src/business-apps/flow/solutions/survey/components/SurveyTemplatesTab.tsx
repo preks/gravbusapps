@@ -15,7 +15,6 @@ import {
   TableRow,
   Badge,
   Spinner,
-  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -27,23 +26,10 @@ import {
   DialogTitle,
   DialogFooter
 } from '@newwork/nw-design-system'
-import {
-  FileText,
-  Search,
-  Filter,
-  RefreshCw,
-  Eye,
-  Play,
-  Calendar,
-  Tag,
-  Users,
-  Settings,
-  ExternalLink,
-  X
-} from 'lucide-react'
+import { FileText, Filter, RefreshCw, Eye, Play, Calendar, Users } from 'lucide-react'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 import { AssignmentSelector } from '@/components/assignment-selector'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 
@@ -62,7 +48,7 @@ interface SurveyTemplate {
   usageCount?: number
 }
 
-interface SurveyTemplatesTabProps extends BusinessAppContextProps {}
+type SurveyTemplatesTabProps = BusinessAppContextProps
 
 export const SurveyTemplatesTab: React.FC<SurveyTemplatesTabProps> = ({ accessToken, ...context }) => {
   const [templates, setTemplates] = useState<SurveyTemplate[]>([])

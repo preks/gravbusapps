@@ -145,11 +145,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       try {
         if (event.detail?.resolution === 'success') {
           // Refresh expense requests data after successful process completion
-          if (
-            currenciesInitialized &&
-            contextProps.accessToken &&
-            contextProps.userInfo?.employeeDetails?.employeeId
-          ) {
+          if (currenciesInitialized && contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
             fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder)
           }
 

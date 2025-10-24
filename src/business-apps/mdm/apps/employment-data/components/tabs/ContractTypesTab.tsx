@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge, toast } from '@newwork/nw-design-system'
 import {
   EyeIcon,
   ArrowsDownUpIcon,
@@ -20,7 +20,6 @@ import { DeleteButton } from '../../../generic-components/delete-button/DeleteBu
 import ContractTypeForm from '@/business-apps/mdm/forms/contract-type-form/ContractTypeForm'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { useGetContractTypesData } from '../../queries/ContractTypesQueries'
-import { toast } from 'sonner'
 import {
   CONTRACT_TYPE_CATALOG,
   CONTRACT_TYPE_VERSION
