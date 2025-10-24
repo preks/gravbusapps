@@ -175,17 +175,10 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
 
     try {
       setLoadingRoundData(true)
-      // TODO: Implement GraphQL query to fetch existing round data from backend
-      // For now, use round data from task payload with validation
+      // TODO: Implement GraphQL query to fetch existing round data
+      // Use actual round data from task payload if available
       const taskPayload = additionalData?.psi_taskPayload?.psi_initialParameters || additionalData
       const roundData = taskPayload?.roundData || additionalData?.roundData
-
-      if (!roundData) {
-        console.warn('No round data found in task payload for round ID:', equityInvestmentRoundId)
-        console.warn('This may indicate the round was deleted or does not exist in the current environment')
-        setLoadingRoundData(false)
-        return
-      }
 
       if (roundData) {
         const existingData = {
@@ -195,12 +188,11 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
           preValue: roundData.preValue?.toString() || '',
           investmentVolume: roundData.investmentVolume?.toString() || '',
           roundSharePercentage: roundData.roundSharePercentage?.toString() || '',
-          currencyRef: roundData.currency?.id || roundData.currencyRef || 'Currency:v1:EUR',
+          currencyRef: roundData.currency?.id || 'Currency:v1:EUR',
           version: roundData.version || 0
         }
 
-        // Round data loaded successfully
-        console.log('Loading existing round:', existingData.id, existingData.name)
+        // Round data loaded
 
         // Pre-fill form with existing data
         form.reset({
@@ -215,9 +207,8 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
           version: existingData.version
         })
       }
-    } catch (error) {
-      console.error('Error loading existing round data:', error)
-      // If loading fails, the form will show empty - user can still create new round
+    } catch {
+      // Error loading existing round data
     } finally {
       setLoadingRoundData(false)
     }
