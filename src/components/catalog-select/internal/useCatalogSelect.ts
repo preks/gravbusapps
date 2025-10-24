@@ -178,16 +178,9 @@ export const useCatalogSelect = (
     const allIdentifiers = configs.filter(c => c.prefetch !== false).map(c => c.catalogIdentifier)
     // Deduplicate catalog identifiers - multiple instances might use the same catalog
     const identifiers = [...new Set(allIdentifiers)]
-    console.log(
-      '[useCatalogSelect] 📦 preload() called - prefetch configs:',
-      configs.filter(c => c.prefetch !== false).length,
-      '| unique catalogs:',
-      identifiers.length
-    )
     if (identifiers.length === 0) return
 
     const largestPageSize = Math.max(...configs.map(c => c.pageSize ?? defaultPageSize))
-    console.log('[useCatalogSelect] 📡 Batching request for:', identifiers)
     const list = await fetchCatalogs({
       catalogIdentifiers: identifiers,
       includeCatalogEntries: true,
@@ -196,7 +189,6 @@ export const useCatalogSelect = (
       limit: identifiers.length
     })
     const items = list.items || []
-    console.log('[useCatalogSelect] ✅ Batched request completed, received', items.length, 'catalogs')
     items.forEach(cat => {
       // Find ALL configs that match this catalog identifier:version
       const catalogIdentifierWithVersion = `${cat.identifier}:${cat.version || 'v1'}`
@@ -234,21 +226,9 @@ export const useCatalogSelect = (
   const { fetchCatalog } = useCatalog(context)
   const primeNonPrefetch = useCallback(async () => {
     const nonPrefetch = configs.filter(c => c.prefetch === false)
-    console.log(
-      '[useCatalogSelect] 🔧 primeNonPrefetch() called for',
-      nonPrefetch.length,
-      'non-prefetch configs:',
-      nonPrefetch.map(c => c.id)
-    )
     await Promise.all(
       nonPrefetch.map(async cfg => {
         const { identifier, version } = parseCatalogIdentifier(cfg.catalogIdentifier)
-        console.log(
-          '[useCatalogSelect] 📡 Individual request for non-prefetch:',
-          cfg.id,
-          '->',
-          identifier + ':' + version
-        )
         try {
           const full = await fetchCatalog(
             {
@@ -288,26 +268,17 @@ export const useCatalogSelect = (
   const missingOptionsFetchedRef = useRef(false)
   useEffect(() => {
     const fetchMissingOptions = async () => {
-      console.log(
-        '[useCatalogSelect] 🔍 fetchMissingOptions check - already fetched?',
-        missingOptionsFetchedRef.current
-      )
-
       // Only run once
       if (missingOptionsFetchedRef.current) return
 
       // Wait for configs to be registered
-      if (configs.length === 0) {
-        console.log('[useCatalogSelect] 🔍 No configs yet, waiting...')
-        return
-      }
+      if (configs.length === 0) return
 
       // Wait for preload to finish (all configs have finished loading, regardless of whether initial values exist)
       const allReady = configs.every(cfg => {
         const state = stateById[cfg.id]
         return state && !state.loading
       })
-      console.log('[useCatalogSelect] 🔍 allReady?', allReady, '| configs:', configs.length)
       if (!allReady) return
 
       // Mark as fetched to prevent re-runs
@@ -317,16 +288,6 @@ export const useCatalogSelect = (
       const missing: Array<{ cfg: (typeof configs)[0]; value: string }> = []
       configs.forEach(cfg => {
         const state = stateById[cfg.id]
-        console.log(
-          '[useCatalogSelect] 🔍 Check',
-          cfg.id,
-          '| value:',
-          state?.value,
-          '| options:',
-          state?.options?.length,
-          '| hasOption:',
-          state?.options?.some(opt => opt.value === state?.value)
-        )
         if (!state || !state.value || !state.options) return
         const hasOption = state.options.some(opt => opt.value === state.value)
         if (!hasOption) {
@@ -334,14 +295,7 @@ export const useCatalogSelect = (
         }
       })
 
-      console.log(
-        '[useCatalogSelect] 🔍 Missing options:',
-        missing.length,
-        missing.map(m => ({ id: m.cfg.id, value: m.value }))
-      )
       if (missing.length === 0) return
-
-      console.log('[useCatalogSelect] 📡 Batching', missing.length, 'missing option fetches in ONE request')
 
       // Batch all fetches in parallel
       await Promise.all(

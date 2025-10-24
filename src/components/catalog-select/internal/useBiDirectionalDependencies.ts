@@ -12,7 +12,7 @@
  * 5. User selects new child after manual clear: Reset flag, allow auto-select again
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
 import { toOptions, getLocalizedValue } from './catalogSelectUtils'
@@ -64,6 +64,25 @@ export const useBiDirectionalDependencies = ({
   const lastParentValuesRef = useRef<Map<string, string | null>>(new Map())
   // Track auto-selected parents to handle them specially
   const autoSelectedParentsRef = useRef<Set<string>>(new Set())
+
+  // Memoize dependency signature to prevent unnecessary effect re-runs
+  const dependencySignature = useMemo(
+    () =>
+      configs
+        .filter(c => {
+          if (!c.parentField) return false
+          const parentConfig = configs.find(p => p.id === c.parentField)
+          return parentConfig?.childField === c.id
+        })
+        .map(c => {
+          const parentValue = c.parentField ? stateById[c.parentField]?.value : 'none'
+          const ownValue = stateById[c.id]?.value
+          const manuallyCleared = c.parentField ? stateById[c.parentField]?.manuallyCleared : false
+          return `${c.id}:${ownValue}:${parentValue}:${manuallyCleared}`
+        })
+        .join('|'),
+    [configs, stateById]
+  )
 
   useEffect(() => {
     const autoSelectedToCleanup = new Set<string>()
@@ -139,7 +158,6 @@ export const useBiDirectionalDependencies = ({
           })
 
           const fetchFiltered = async () => {
-            console.log('[useBiDirectionalDependencies] 📡 fetchFiltered for child:', id, 'with parent:', parentValue)
             try {
               const res = await fetchCatalogEntriesByIdentifier(id, {
                 limit: config.pageSize ?? defaultPageSize,
@@ -166,7 +184,8 @@ export const useBiDirectionalDependencies = ({
                   metaByValue: { ...(prev.metaByValue || {}), ...metaByValue }
                 }
               })
-            } catch {
+            } catch (error) {
+              console.error(`[useBiDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
               setFor(id, prev => {
                 if (!prev) return prev
                 return { ...prev, loading: false }
@@ -210,12 +229,6 @@ export const useBiDirectionalDependencies = ({
           // Ensure parent has the option
           const parentHasOption = stateById[parentField]?.options?.some(opt => opt.value === childMeta.parentEntryId)
           if (!parentHasOption) {
-            console.log(
-              '[useBiDirectionalDependencies] 📡 Fetching missing parent option for:',
-              parentField,
-              'entryId:',
-              childMeta.parentEntryId
-            )
             const fetchParentOption = async () => {
               try {
                 const res = await fetchCatalogEntriesByIdentifier(parentField, {
@@ -236,8 +249,8 @@ export const useBiDirectionalDependencies = ({
                     }
                   })
                 }
-              } catch {
-                // Ignore fetch errors for parent option
+              } catch (error) {
+                console.error(`[useBiDirectionalDependencies] Failed to fetch parent option for ${parentField}:`, error)
               }
             }
             fetchParentOption()
@@ -258,21 +271,7 @@ export const useBiDirectionalDependencies = ({
     autoSelectedToCleanup.forEach(parentId => {
       autoSelectedParentsRef.current.delete(parentId)
     })
-  }, [
-    configs
-      .filter(c => {
-        if (!c.parentField) return false
-        const parentConfig = configs.find(p => p.id === c.parentField)
-        return parentConfig?.childField === c.id // Only bi-directional
-      })
-      .map(c => {
-        const parentValue = c.parentField ? stateById[c.parentField]?.value : 'none'
-        const ownValue = stateById[c.id]?.value
-        const manuallyCleared = c.parentField ? stateById[c.parentField]?.manuallyCleared : false
-        return `${c.id}:${ownValue}:${parentValue}:${manuallyCleared}`
-      })
-      .join('|')
-  ])
+  }, [dependencySignature, setFor, fetchCatalogEntriesByIdentifier, defaultPageSize, locale])
 }
 
 export default useBiDirectionalDependencies

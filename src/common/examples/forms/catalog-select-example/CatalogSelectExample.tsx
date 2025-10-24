@@ -336,7 +336,7 @@ const FormContent: React.FC<BusinessAppContextProps> = context => {
             <FormControl>
               <CatalogSelect
                 catalogIdentifier="Language:v1"
-                value={field.value || ''}
+                value="Language:v1:EA"
                 onValueChange={v => field.onChange(v)}
                 data-testid="language-combobox"
               />

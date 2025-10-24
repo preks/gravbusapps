@@ -157,12 +157,6 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   // Preload once registration is complete
   useEffect(() => {
     if (isRegistrationComplete && allConfigs.length > 0 && !preloadedRef.current) {
-      console.log(
-        '[CatalogSelectProvider] 🚀 Triggering preload for',
-        allConfigs.length,
-        'configs:',
-        allConfigs.map(c => c.id)
-      )
       preloadedRef.current = true
       preload()
     }

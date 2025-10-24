@@ -11,7 +11,7 @@
  * 4. Child has no effect on parent (one-way only)
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
 import { toOptions } from './catalogSelectUtils'
@@ -61,6 +61,24 @@ export const useUniDirectionalDependencies = ({
 }: UseUniDirectionalDependenciesParams) => {
   // Track last parent values to detect changes (only for uni-directional)
   const lastParentValuesRef = useRef<Map<string, string | null>>(new Map())
+
+  // Memoize dependency signature to prevent unnecessary effect re-runs
+  const dependencySignature = useMemo(
+    () =>
+      configs
+        .filter(c => {
+          if (!c.parentField) return false
+          const parentConfig = configs.find(p => p.id === c.parentField)
+          return parentConfig?.childField !== c.id
+        })
+        .map(c => {
+          const parentValue = c.parentField ? stateById[c.parentField]?.value : 'none'
+          const ownValue = stateById[c.id]?.value
+          return `${c.id}:${ownValue}:${parentValue}`
+        })
+        .join('|'),
+    [configs, stateById]
+  )
 
   useEffect(() => {
     // Filter for uni-directional configs (has parent, but parent doesn't have childField pointing back)
@@ -121,7 +139,6 @@ export const useUniDirectionalDependencies = ({
           })
 
           const fetchFiltered = async () => {
-            console.log('[useUniDirectionalDependencies] 📡 fetchFiltered for child:', id, 'with parent:', parentValue)
             try {
               const res = await fetchCatalogEntriesByIdentifier(id, {
                 limit: config.pageSize ?? defaultPageSize,
@@ -148,7 +165,8 @@ export const useUniDirectionalDependencies = ({
                   metaByValue: { ...(prev.metaByValue || {}), ...metaByValue }
                 }
               })
-            } catch {
+            } catch (error) {
+              console.error(`[useUniDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
               setFor(id, prev => {
                 if (!prev) return prev
                 return { ...prev, loading: false }
@@ -172,20 +190,7 @@ export const useUniDirectionalDependencies = ({
         }
       }
     })
-  }, [
-    configs
-      .filter(c => {
-        if (!c.parentField) return false
-        const parentConfig = configs.find(p => p.id === c.parentField)
-        return parentConfig?.childField !== c.id // Only uni-directional
-      })
-      .map(c => {
-        const parentValue = c.parentField ? stateById[c.parentField]?.value : 'none'
-        const ownValue = stateById[c.id]?.value
-        return `${c.id}:${ownValue}:${parentValue}`
-      })
-      .join('|')
-  ])
+  }, [dependencySignature, setFor, fetchCatalogEntriesByIdentifier, defaultPageSize, locale])
 }
 
 export default useUniDirectionalDependencies
