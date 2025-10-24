@@ -331,10 +331,16 @@ if (globalThis.__APP_BUILD_INFO__) {
           const relativePath = path.relative(projectRootDir, entryPath).replace(/\\/g, '/')
           // Use a unique variable name for each import based on entryKey
           const cleanEntryKey = entryKey.replace(/[^a-zA-Z0-9]/g, '_')
+          const shouldSkipWrap = entryKey === '.debug/DebugView' || entryKey.includes('/.debug/DebugView')
           code += `import ${cleanEntryKey}Original from './${relativePath}';
 `
-          code += `export const ${cleanEntryKey} = wrapWithUiCatalog(${cleanEntryKey}Original);
+          if (shouldSkipWrap) {
+            code += `export const ${cleanEntryKey} = ${cleanEntryKey}Original;
 `
+          } else {
+            code += `export const ${cleanEntryKey} = wrapWithUiCatalog(${cleanEntryKey}Original);
+`
+          }
         })
 
         console.log('[UiCatalogWrapper] Created virtual module with wrapped components')
@@ -504,17 +510,27 @@ if (globalThis.__APP_BUILD_INFO__) {
         entryKey.includes('/services') ||
         entryKey.endsWith('/services')
 
-      const wrapperContent = isNamedExportsOnlyEntry
-        ? `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports
+      const isDebugViewEntry = entryKey === '.debug/DebugView' || entryKey.includes('/.debug/DebugView')
+      let wrapperContent: string
+      if (isNamedExportsOnlyEntry) {
+        wrapperContent = `// Auto-generated wrapper file for types/queries/hooks/tabs/components/utils/views/pages/services - re-export all named exports
 export * from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 `
-        : `// Auto-generated wrapper file
+      } else if (isDebugViewEntry) {
+        wrapperContent = `// Auto-generated wrapper file (no UiCatalogProvider for DebugView)
+import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
+
+export default OriginalComponent;
+`
+      } else {
+        wrapperContent = `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
 export default wrapWithUiCatalog(OriginalComponent);
 `
+      }
 
       // Write the wrapper file
       fs.writeFileSync(wrappedEntryPath, wrapperContent, 'utf8')
