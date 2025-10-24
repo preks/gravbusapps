@@ -283,11 +283,18 @@ export const InvestmentFormComponent: React.FC = () => {
 
     loadFormFields()
   }, [
-    formValues.investment.investmentGroup,
-    formValues.investment.investmentType,
-    formValues.liquidFundInvestment?.investmentLiquidFundType,
+    // Extract IDs to prevent infinite loop from object reference changes
+    typeof formValues.investment.investmentGroup === 'object'
+      ? formValues.investment.investmentGroup?.id
+      : formValues.investment.investmentGroup,
+    typeof formValues.investment.investmentType === 'object'
+      ? formValues.investment.investmentType?.id
+      : formValues.investment.investmentType,
+    typeof formValues.liquidFundInvestment?.investmentLiquidFundType === 'object'
+      ? formValues.liquidFundInvestment?.investmentLiquidFundType?.id
+      : formValues.liquidFundInvestment?.investmentLiquidFundType,
     getFormFieldsDefinition
-  ]) // Without Ref suffixes
+  ])
 
   const formResolver = createInvestmentFormResolver(formFieldsDefinition)
 

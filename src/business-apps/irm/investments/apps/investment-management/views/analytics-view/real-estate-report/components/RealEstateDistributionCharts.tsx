@@ -90,6 +90,43 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
       }, [] as any[])
   }, [rawInvestments, statusCurrencyFilter])
 
+  // Memoize all chart configs at the top level to avoid conditional hook calls
+  const typeCountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    typeData.forEach((item: any) => {
+      const key = item.type.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.type }
+    })
+    return config
+  }, [typeData])
+
+  const typeAmountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    filteredTypeData.forEach((item: any) => {
+      const key = item.type.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.type }
+    })
+    return config
+  }, [filteredTypeData])
+
+  const statusCountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    statusData.forEach((item: any) => {
+      const key = item.status.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.status }
+    })
+    return config
+  }, [statusData])
+
+  const statusAmountConfig = useMemo(() => {
+    const config: Record<string, { label: string }> = {}
+    filteredStatusData.forEach((item: any) => {
+      const key = item.status.toLowerCase().replace(/\s+/g, '')
+      config[key] = { label: item.status }
+    })
+    return config
+  }, [filteredStatusData])
+
   return (
     <div className="gba:space-y-6">
       {/* Type Distribution */}
@@ -108,17 +145,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                typeData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '')
-                  config[key] = { label: item.type }
-                })
-                return config
-              }, [typeData])}
-              className="gba:h-[300px] gba:w-full"
-            >
+            <ChartContainer config={typeCountConfig} className="gba:h-[300px] gba:w-full">
               <PieChart>
                 <Pie
                   data={typeData.map((item: any) => {
@@ -134,7 +161,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   outerRadius={80}
                   dataKey="count"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
                 >
                   {typeData.map((entry: any, index: number) => {
                     const key = entry.type.toLowerCase().replace(/\s+/g, '')
@@ -205,17 +232,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                 </p>
               </div>
             ) : (
-              <ChartContainer
-                config={useMemo(() => {
-                  const config: Record<string, { label: string }> = {}
-                  filteredTypeData.forEach((item: any) => {
-                    const key = item.type.toLowerCase().replace(/\s+/g, '')
-                    config[key] = { label: item.type }
-                  })
-                  return config
-                }, [filteredTypeData])}
-                className="gba:h-[300px] gba:w-full"
-              >
+              <ChartContainer config={typeAmountConfig} className="gba:h-[300px] gba:w-full">
                 <PieChart>
                   <Pie
                     data={filteredTypeData.map((item: any) => {
@@ -231,7 +248,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     outerRadius={80}
                     dataKey="totalAmount"
                     nameKey="name"
-                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
                   >
                     {filteredTypeData.map((entry: any, index: number) => {
                       const key = entry.type.toLowerCase().replace(/\s+/g, '')
@@ -285,17 +302,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             </div>
           </CardHeader>
           <CardContent>
-            <ChartContainer
-              config={useMemo(() => {
-                const config: Record<string, { label: string }> = {}
-                statusData.forEach((item: any) => {
-                  const key = item.status.toLowerCase().replace(/\s+/g, '')
-                  config[key] = { label: item.status }
-                })
-                return config
-              }, [statusData])}
-              className="gba:h-[300px] gba:w-full"
-            >
+            <ChartContainer config={statusCountConfig} className="gba:h-[300px] gba:w-full">
               <PieChart>
                 <Pie
                   data={statusData.map((item: any) => {
@@ -311,7 +318,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   outerRadius={80}
                   dataKey="count"
                   nameKey="name"
-                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
                 >
                   {statusData.map((entry: any, index: number) => {
                     const key = entry.status.toLowerCase().replace(/\s+/g, '')
@@ -362,17 +369,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                 </p>
               </div>
             ) : (
-              <ChartContainer
-                config={useMemo(() => {
-                  const config: Record<string, { label: string }> = {}
-                  filteredStatusData.forEach((item: any) => {
-                    const key = item.status.toLowerCase().replace(/\s+/g, '')
-                    config[key] = { label: item.status }
-                  })
-                  return config
-                }, [filteredStatusData])}
-                className="gba:h-[300px] gba:w-full"
-              >
+              <ChartContainer config={statusAmountConfig} className="gba:h-[300px] gba:w-full">
                 <PieChart>
                   <Pie
                     data={filteredStatusData.map((item: any) => {
@@ -388,7 +385,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     outerRadius={80}
                     dataKey="totalAmount"
                     nameKey="name"
-                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${(((percent ?? 0) as number) * 100).toFixed(0)}%`}
                   >
                     {filteredStatusData.map((entry: any, index: number) => {
                       const key = entry.status.toLowerCase().replace(/\s+/g, '')

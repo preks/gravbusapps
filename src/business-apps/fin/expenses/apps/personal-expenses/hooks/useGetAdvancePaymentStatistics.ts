@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED } from '../queries/advancePayments'
@@ -37,6 +37,7 @@ export const useGetAdvancePaymentStatistics = (
   })
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const lastSignatureRef = useRef<string>('')
 
   const fetchStatistics = useCallback(async () => {
     if (!employeeId || !accessToken) {
@@ -45,16 +46,23 @@ export const useGetAdvancePaymentStatistics = (
       return
     }
 
+    const now = dayjs()
+    const currentMonthStart = now.startOf('month').toISOString()
+    const currentMonthEnd = now.endOf('month').toISOString()
+    const previousMonthStart = now.subtract(1, 'month').startOf('month').toISOString()
+    const previousMonthEnd = now.subtract(1, 'month').endOf('month').toISOString()
+
+    // Skip duplicate identical requests
+    const signature = JSON.stringify({ employeeId, currencyRef, currentMonthStart, currentMonthEnd, previousMonthStart, previousMonthEnd })
+    if (signature === lastSignatureRef.current) {
+      return
+    }
+    lastSignatureRef.current = signature
+
     setIsLoading(true)
     setError(null)
 
     try {
-      const now = dayjs()
-      const currentMonthStart = now.startOf('month').toISOString()
-      const currentMonthEnd = now.endOf('month').toISOString()
-      const previousMonthStart = now.subtract(1, 'month').startOf('month').toISOString()
-      const previousMonthEnd = now.subtract(1, 'month').endOf('month').toISOString()
-
       const data = await graphqlClient.request<any>(GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED, {
         employeeId,
         currentStart: currentMonthStart,
@@ -94,12 +102,12 @@ export const useGetAdvancePaymentStatistics = (
     }
   }, [employeeId, accessToken, currencyRef, graphqlClient])
 
-  // Automatically fetch statistics when the hook is initialized
+  // Automatically fetch statistics when the hook is initialized or currency changes
   useEffect(() => {
     if (employeeId && accessToken) {
       fetchStatistics()
     }
-  }, [employeeId, accessToken, fetchStatistics])
+  }, [employeeId, accessToken, currencyRef, fetchStatistics])
 
   // Add a timeout to prevent infinite loading
   useEffect(() => {

@@ -39,7 +39,6 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setEndDateRange,
     setPlanDateRange,
     // expose effective date setter from filters hook
-    // @ts-expect-error - new field exists in hook state
     setEffectiveDateRange,
     filterLabelMap,
     addFilter,
