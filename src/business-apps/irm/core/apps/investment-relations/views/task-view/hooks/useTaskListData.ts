@@ -167,7 +167,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
           else if (priority.includes('high')) normalizedPriority = 'high'
           else if (priority.includes('low')) normalizedPriority = 'low'
 
-          const type = (it.taskTypeLabel || it.taskTiming || 'GENERAL').toString().toUpperCase()
+          const type = (it.taskTypeLabel || 'GENERAL').toString()
 
           // Reference preference order
           let reference: Task['reference'] | undefined
@@ -244,7 +244,14 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
                   initials: '',
                   pictureThumbnail: it.creatorEmployee.pictureThumbnail
                 }
-              : undefined
+              : undefined,
+            documents: it.documents?.map(doc => ({
+              id: doc.id,
+              name: doc.name || 'Untitled Document',
+              mimeType: doc.mimeType,
+              fileSize: doc.fileSize,
+              fileInfo: doc.fileInfo
+            }))
           } as Task
         })
 

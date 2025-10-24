@@ -31,10 +31,10 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem
+  DropdownMenuItem,
+  toast
 } from '@newwork/nw-design-system'
 import { Gear } from '@phosphor-icons/react'
-import { toast } from 'sonner'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { DataContainer } from '@/components/layout/dataContainer'

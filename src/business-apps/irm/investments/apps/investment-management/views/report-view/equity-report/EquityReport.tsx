@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger, Alert, Spinner } from '@newwork/nw-design-system'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Alert, Spinner, toast } from '@newwork/nw-design-system'
 import { PieChart } from 'lucide-react'
-import { toast } from 'sonner'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { EquityAnalyticsFilters } from './types'

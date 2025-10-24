@@ -39,7 +39,16 @@ export interface SalesTaskData {
     lastName?: string
     displayName?: string
     fullName?: string
+    pictureThumbnail?: string
   }
+  documents?: {
+    id: string
+    name: string
+    file?: string
+    fileInfo?: any
+    mimeType?: string
+    fileSize?: number
+  }[]
 }
 
 export interface SalesTaskResponse {
@@ -81,6 +90,15 @@ export const GET_SALES_TASKS = (): string => {
           lastName
           displayName
           fullName
+          pictureThumbnail
+        }
+        documents(where: { isDeleted: { _eq: false } }) {
+          id
+          name
+          file
+          fileInfo
+          mimeType
+          fileSize
         }
       }
     }
