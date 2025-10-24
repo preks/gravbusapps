@@ -1,4 +1,4 @@
-import { BaseCatalog, BaseCatalogEntry, Catalog, CatalogEntry } from '../types/catalogTypes'
+import { BaseCatalog, BaseCatalogEntry, Catalog, CatalogEntry, CatalogEntryTranslation } from '../types/catalogTypes'
 
 export interface ToCatalogOptions {
   mapEntries?: boolean
@@ -6,6 +6,74 @@ export interface ToCatalogOptions {
   entriesLimit?: number
   entriesOffset?: number
   search?: string
+}
+
+/**
+ * Converts separate translation fields back into the translations array format expected by the API
+ */
+export const toTranslationsArray = (entryData: Partial<CatalogEntry>): CatalogEntryTranslation[] | undefined => {
+  const translations: CatalogEntryTranslation[] = []
+  const locales = new Set<string>()
+
+  // Collect all locale codes from all translation fields
+  if (entryData.valueTranslations) {
+    Object.keys(entryData.valueTranslations).forEach(locale => locales.add(locale))
+  }
+  if (entryData.descriptionTranslations) {
+    Object.keys(entryData.descriptionTranslations).forEach(locale => locales.add(locale))
+  }
+  if (entryData.additionalValue1Translations) {
+    Object.keys(entryData.additionalValue1Translations).forEach(locale => locales.add(locale))
+  }
+  if (entryData.additionalValue2Translations) {
+    Object.keys(entryData.additionalValue2Translations).forEach(locale => locales.add(locale))
+  }
+  if (entryData.additionalValue3Translations) {
+    Object.keys(entryData.additionalValue3Translations).forEach(locale => locales.add(locale))
+  }
+
+  // Build translation objects for each locale
+  locales.forEach(localeCode => {
+    const translation: Partial<CatalogEntryTranslation> = {
+      localeCode,
+      value: entryData.valueTranslations?.[localeCode] || '',
+      additionalValue1: entryData.additionalValue1Translations?.[localeCode] || '',
+      additionalValue2: entryData.additionalValue2Translations?.[localeCode] || '',
+      additionalValue3: entryData.additionalValue3Translations?.[localeCode] || ''
+    }
+
+    // Description is stored in objectValue
+    if (entryData.descriptionTranslations?.[localeCode]) {
+      translation.objectValue = {
+        description: entryData.descriptionTranslations[localeCode]
+      }
+    }
+
+    translations.push(translation as CatalogEntryTranslation)
+  })
+
+  return translations.length > 0 ? translations : undefined
+}
+
+/**
+ * Prepares catalog entry data for API submission by converting translation fields
+ */
+export const prepareCatalogEntryForApi = (entryData: Partial<CatalogEntry>): Partial<CatalogEntry> => {
+  // Convert translation fields to translations array
+  const translations = toTranslationsArray(entryData)
+
+  // Remove translation fields from entry data
+  const restData = { ...entryData }
+  delete restData.valueTranslations
+  delete restData.descriptionTranslations
+  delete restData.additionalValue1Translations
+  delete restData.additionalValue2Translations
+  delete restData.additionalValue3Translations
+
+  return {
+    ...restData,
+    ...(translations && { translations })
+  }
 }
 
 export const toCatalog = (baseCatalog: BaseCatalog, options: ToCatalogOptions = {}): Catalog => {
@@ -59,8 +127,11 @@ export const toCatalogEntry = (
   allEntries?: BaseCatalogEntry[],
   mapChildEntries: boolean = false
 ): CatalogEntry => {
-  const { childEntries: _ignoredChildEntries, ...baseEntryWithoutChildren } = baseEntry
   const hasChildren = (baseEntry.childEntries?.length || 0) > 0
+
+  // Create entry without childEntries field
+  const baseEntryWithoutChildren = { ...baseEntry }
+  delete baseEntryWithoutChildren.childEntries
 
   let level = 0
   let currentParentId = baseEntry.parentEntryId
@@ -93,6 +164,36 @@ export const toCatalogEntry = (
 
   const displayValue = baseEntry.value || baseEntry.code || baseEntry.description || baseEntry.id
 
+  // Transform translations array into separate translation fields
+  const valueTranslations: Record<string, string> = {}
+  const descriptionTranslations: Record<string, string> = {}
+  const additionalValue1Translations: Record<string, string> = {}
+  const additionalValue2Translations: Record<string, string> = {}
+  const additionalValue3Translations: Record<string, string> = {}
+
+  if (baseEntry.translations && Array.isArray(baseEntry.translations)) {
+    baseEntry.translations.forEach(translation => {
+      if (translation.localeCode) {
+        if (translation.value) {
+          valueTranslations[translation.localeCode] = translation.value
+        }
+        // Description is stored in the objectValue field of translations
+        if (translation.objectValue?.description) {
+          descriptionTranslations[translation.localeCode] = translation.objectValue.description
+        }
+        if (translation.additionalValue1) {
+          additionalValue1Translations[translation.localeCode] = translation.additionalValue1
+        }
+        if (translation.additionalValue2) {
+          additionalValue2Translations[translation.localeCode] = translation.additionalValue2
+        }
+        if (translation.additionalValue3) {
+          additionalValue3Translations[translation.localeCode] = translation.additionalValue3
+        }
+      }
+    })
+  }
+
   const entry: CatalogEntry = {
     ...(baseEntryWithoutChildren as Omit<BaseCatalogEntry, 'childEntries'>),
     displayValue,
@@ -100,7 +201,13 @@ export const toCatalogEntry = (
     hasChildren,
     level,
     parentPath: parentPath.length > 0 ? parentPath.join(' > ') : undefined,
-    searchableText
+    searchableText,
+    // Add transformed translation fields
+    valueTranslations,
+    descriptionTranslations,
+    additionalValue1Translations,
+    additionalValue2Translations,
+    additionalValue3Translations
   }
 
   if (mapChildEntries && baseEntry.childEntries && baseEntry.childEntries.length > 0) {

@@ -11,6 +11,7 @@
 import { useEffect, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
+import { toOptions } from './catalogSelectUtils'
 import useStandaloneDependencies from './useStandaloneDependencies'
 import useUniDirectionalDependencies from './useUniDirectionalDependencies'
 import useBiDirectionalDependencies from './useBiDirectionalDependencies'
@@ -49,6 +50,7 @@ export interface UseCatalogSelectDependenciesParams {
   ) => Promise<{ entries: CatalogEntry[]; totalCount: number }>
   defaultPageSize: number
   externalValues?: Record<string, string | null>
+  locale?: string
 }
 
 export const useCatalogSelectDependencies = ({
@@ -57,7 +59,8 @@ export const useCatalogSelectDependencies = ({
   setFor,
   fetchCatalogEntriesByIdentifier,
   defaultPageSize,
-  externalValues
+  externalValues,
+  locale
 }: UseCatalogSelectDependenciesParams) => {
   // Track last external values for external filter changes
   const lastExternalValuesRef = useRef<Map<string, string | null>>(new Map())
@@ -70,7 +73,8 @@ export const useCatalogSelectDependencies = ({
     stateById,
     setFor,
     fetchCatalogEntriesByIdentifier,
-    defaultPageSize
+    defaultPageSize,
+    locale
   })
 
   useBiDirectionalDependencies({
@@ -78,7 +82,8 @@ export const useCatalogSelectDependencies = ({
     stateById,
     setFor,
     fetchCatalogEntriesByIdentifier,
-    defaultPageSize
+    defaultPageSize,
+    locale
   })
 
   // Handle external filter dependencies (e.g., pipelineType → pipelineStage)
@@ -130,7 +135,7 @@ export const useCatalogSelectDependencies = ({
                   return {
                     ...prev,
                     loading: false,
-                    options: res.entries.map(e => ({ value: e.id, label: e.value || e.id })),
+                    options: toOptions(res.entries, locale),
                     total: res.totalCount,
                     offset: res.entries.length
                   }

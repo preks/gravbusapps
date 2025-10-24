@@ -6,6 +6,7 @@ import useCatalog from '@/common/data/catalog/hooks/useCatalog'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import { ActiveFilters, EntryMeta, buildEntryMeta, buildFiltersSignature, toOptions } from './catalogSelectUtils'
 import useCatalogSelectDependencies from './useCatalogSelectDependencies'
+import { useLocalizationContext } from '@newwork/nw-design-system'
 
 // Utility function to parse catalogIdentifier with version
 const parseCatalogIdentifier = (catalogIdentifier: string): { identifier: string; version: string } => {
@@ -83,6 +84,9 @@ export const useCatalogSelect = (
   const { fetchCatalogEntriesByIdentifier: baseFetchCatalogEntries } = useCatalogEntries({
     accessToken: context.accessToken
   })
+
+  // Get locale from LocalizationProvider for translations
+  const { locale } = useLocalizationContext()
 
   // Wrapper function that converts instance id to catalog identifier
   const fetchCatalogEntriesByIdentifier = useCallback(
@@ -198,8 +202,8 @@ export const useCatalogSelect = (
         setFor(cfg.id, prev => ({
           ...prev,
           loading: false,
-          options: toOptions(initialEntries),
-          prefetchedOptions: toOptions(initialEntries),
+          options: toOptions(initialEntries, locale),
+          prefetchedOptions: toOptions(initialEntries, locale),
           total,
           fullTotal: total,
           limit,
@@ -209,7 +213,7 @@ export const useCatalogSelect = (
         }))
       })
     })
-  }, [configs, fetchCatalogs])
+  }, [configs, fetchCatalogs, locale])
 
   // Initialize non-prefetch catalogs with a tiny call to decide variant and, if small, load all options
   const { fetchCatalog } = useCatalog(context)
@@ -233,8 +237,8 @@ export const useCatalogSelect = (
           setFor(cfg.id, prev => ({
             ...prev,
             loading: false,
-            options: total <= defaultThreshold ? toOptions(entries) : [],
-            prefetchedOptions: total <= defaultThreshold ? toOptions(entries) : [],
+            options: total <= defaultThreshold ? toOptions(entries, locale) : [],
+            prefetchedOptions: total <= defaultThreshold ? toOptions(entries, locale) : [],
             total,
             fullTotal: total,
             limit: cfg.pageSize ?? defaultPageSize,
@@ -246,7 +250,7 @@ export const useCatalogSelect = (
         }
       })
     )
-  }, [configs, fetchCatalog])
+  }, [configs, fetchCatalog, locale])
 
   // Prime non-prefetch catalogs once
   const initOnce = useCallback(async () => {
@@ -333,7 +337,7 @@ export const useCatalogSelect = (
             parentEntryId: activeFilters.parentEntryId,
             typeEquals: activeFilters.typeEquals
           })
-          const options = toOptions(res.entries)
+          const options = toOptions(res.entries, locale)
 
           setFor(id, prev => ({
             ...prev,
@@ -365,7 +369,7 @@ export const useCatalogSelect = (
           parentEntryId: activeFilters.parentEntryId,
           typeEquals: activeFilters.typeEquals
         })
-        const appended = toOptions(res.entries)
+        const appended = toOptions(res.entries, locale)
         setFor(id, prev => ({
           ...prev,
           loading: false,
@@ -446,7 +450,8 @@ export const useCatalogSelect = (
     getActiveFilters,
     fetchCatalogEntriesByIdentifier,
     defaultPageSize,
-    externalValues
+    externalValues,
+    locale
   })
 
   return { controllers, preload: initOnce }

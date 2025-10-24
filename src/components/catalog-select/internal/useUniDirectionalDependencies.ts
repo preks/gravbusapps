@@ -14,6 +14,7 @@
 import { useEffect, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
+import { toOptions } from './catalogSelectUtils'
 
 type State = {
   value: string
@@ -47,6 +48,7 @@ export interface UseUniDirectionalDependenciesParams {
     }
   ) => Promise<{ entries: CatalogEntry[]; totalCount: number }>
   defaultPageSize: number
+  locale?: string
 }
 
 export const useUniDirectionalDependencies = ({
@@ -54,7 +56,8 @@ export const useUniDirectionalDependencies = ({
   stateById,
   setFor,
   fetchCatalogEntriesByIdentifier,
-  defaultPageSize
+  defaultPageSize,
+  locale
 }: UseUniDirectionalDependenciesParams) => {
   // Track last parent values to detect changes (only for uni-directional)
   const lastParentValuesRef = useRef<Map<string, string | null>>(new Map())
@@ -138,7 +141,7 @@ export const useUniDirectionalDependencies = ({
                 return {
                   ...prev,
                   loading: false,
-                  options: res.entries.map(e => ({ value: e.id, label: e.value || e.id })),
+                  options: toOptions(res.entries, locale),
                   total: res.totalCount,
                   offset: res.entries.length,
                   metaByValue: { ...(prev.metaByValue || {}), ...metaByValue }
