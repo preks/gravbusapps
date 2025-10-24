@@ -68,7 +68,9 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-notes-cell-${e.id}`}>{e.notes ?? ''}</TableCell>
                 <TableCell data-testid={`time-tracking-table-status-cell-${e.id}`}>
-                  <Badge variant={statusToVariant[e.status] as any}>{e.status}</Badge>
+                  <Badge variant={statusToVariant[e.status] as any}>
+                    {e.status.charAt(0).toUpperCase() + e.status.slice(1)}
+                  </Badge>
                 </TableCell>
               </TableRow>
             ))

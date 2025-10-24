@@ -16,7 +16,7 @@ interface TimeTrackingTabProps extends BusinessAppContextProps {
   isSelfView: boolean
 }
 
-const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ accessToken, employeeId, isSelfView }) => {
+const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken, employeeId, isSelfView }) => {
   // Request Correction uses a Flow via AppActionMenu
 
   const locale = getCurrentActiveUserLocale()
@@ -32,6 +32,44 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ accessToken, employee
     clockIn,
     clockOut
   } = useTimeTrackingData({ employeeId })
+
+  // Build daily working-hour requirements (minutes) from employee working hours
+  const dailyRequirementsMins: number[] = React.useMemo(() => {
+    const wh = employee?.workingHours?.[0]
+    if (!wh) return [0, 0, 0, 0, 0, 0, 0]
+    const toMin = (h?: number) => (typeof h === 'number' ? Math.max(0, Math.round(h * 60)) : 0)
+    // JS getDay(): 0=Sun ... 6=Sat
+    return [
+      toMin(wh?.sundayHours),
+      toMin(wh?.mondayHours),
+      toMin(wh?.tuesdayHours),
+      toMin(wh?.wednesdayHours),
+      toMin(wh?.thursdayHours),
+      toMin(wh?.fridayHours),
+      toMin(wh?.saturdayHours)
+    ]
+  }, [employee?.workingHours])
+
+  // Not displayed, but used for deficit computation
+
+  // Compare visible entries against requirements and collect deficits
+  const deficits = React.useMemo(() => {
+    return (entries || []).reduce<{ date: string; workedMins: number; requiredMins: number }[]>((acc, e) => {
+      const date = new Date(e.dateISO)
+      const req = dailyRequirementsMins[date.getDay()] || 0
+      const worked = e.totalMinutes || 0
+      if (req > 0 && worked < req) {
+        acc.push({
+          date: date.toLocaleDateString(locale),
+          workedMins: worked,
+          requiredMins: req
+        })
+      }
+      return acc
+    }, [])
+  }, [entries, dailyRequirementsMins, locale])
+
+  const [showDeficits, setShowDeficits] = React.useState(false)
 
   return (
     <div className="gba:time-tracking-tab gba:space-y-6" data-testid="time-tracking-tab-container">
@@ -82,6 +120,35 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ accessToken, employee
       </div>
 
       {error && <Alert variant="destructive">{error}</Alert>}
+      {/* Working hours guideline */}
+      {/* Working hours breakdown removed per request */}
+      {deficits.length > 0 && (
+        <Card className="gba:p-6 gba:cursor-pointer" onClick={() => setShowDeficits(v => !v)}>
+          <div className="gba:flex gba:items-start gba:justify-between">
+            <div className="gba:mt-2 gba:text-2xl gba:font-semibold">You have less worked time</div>
+            <div className="gba:bg-warning-secondary gba:text-warning gba:text-sm gba:px-3 gba:py-1 gba:rounded-full">
+              {deficits.length} {deficits.length === 1 ? 'day' : 'days'}
+            </div>
+          </div>
+          <div className="gba:text-muted-foreground">Days with worked time below required hours (visible range)</div>
+          {showDeficits && (
+            <div className="gba:mt-3 gba:space-y-2" style={{ maxWidth: 300 }}>
+              {deficits.map(d => {
+                const fmt = (m: number) => `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}`
+                const pct = d.requiredMins > 0 ? Math.round((d.workedMins / d.requiredMins) * 1000) / 10 : 0
+                return (
+                  <div key={d.date} className="gba:grid gba:grid-cols-3 gba:items-center">
+                    <div className="gba:text-foreground gba:text-sm">{d.date}</div>
+                    <div className="gba:text-base gba:font-semibold gba:text-center">{fmt(d.workedMins)}</div>
+                    <div className="gba:text-muted-foreground gba:text-xs gba:text-right">{pct}%</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {!showDeficits && <div className="gba:text-xs gba:text-muted-foreground gba:mt-2">Click to view details</div>}
+        </Card>
+      )}
 
       <Card className="gba:p-4">
         <div className="gba:flex gba:items-center gba:justify-start gba:mb-3">

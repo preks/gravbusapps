@@ -64,9 +64,9 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
         return { id, dateISO: d.toISOString(), status: 'approved', notes: 'Weekend', totalMinutes: 0, breakMinutes: 0 }
       }
       const start = '09:00'
-      const end = '17:30'
+      const end = '17:00'
       const breakMinutes = 30
-      const totalMinutes = 8 * 60
+      const totalMinutes = 7 * 60
       return { id, dateISO: d.toISOString(), start, end, breakMinutes, totalMinutes, notes: '', status: 'approved' }
     })
 
