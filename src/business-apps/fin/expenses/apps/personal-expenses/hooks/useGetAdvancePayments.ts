@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -180,6 +180,8 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
   const [error, setError] = useState<Error | null>(null)
   const [totalCount, setTotalCount] = useState(0)
   const graphqlClient = useGraphQLClient(context?.accessToken || '')
+  // Prevent duplicate in-flight calls with the exact same parameters (e.g., StrictMode)
+  const lastCallSignatureRef = useRef<string>('')
 
   const fetchItems = useCallback(
     async (
@@ -200,6 +202,24 @@ export const useGetAdvancePayments = (context?: BusinessAppContextProps): Advanc
         console.warn('Missing employeeId or accessToken for advance payments query')
         return
       }
+
+      const callSignature = JSON.stringify({
+        searchTerm,
+        page,
+        pageSize,
+        statusFilter,
+        amountRange,
+        advanceRange,
+        sortField,
+        sortOrder,
+        currencyRef,
+        employeeId
+      })
+      if (callSignature === lastCallSignatureRef.current) {
+        // Skip duplicate identical request
+        return
+      }
+      lastCallSignatureRef.current = callSignature
 
       setIsLoading(true)
       setError(null)

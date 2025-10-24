@@ -31,7 +31,7 @@ const AccountFormComponent: React.FC = () => {
       // Prepare comprehensive account payload following the API structure
       const accountPayload: any = {
         sourceApp: 'CRM',
-        accountName: toStringOrUndefined(formValues.accountName),
+        name: toStringOrUndefined(formValues.accountName),
         parentAccountRef: toStringOrUndefined(formValues.parentAccount),
         legalFormRef: toStringOrUndefined(formValues.legalForm),
         industryRef: toStringOrUndefined(formValues.industry),
