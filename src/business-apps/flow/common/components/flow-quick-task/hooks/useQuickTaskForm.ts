@@ -3,6 +3,9 @@ import { useForm } from 'react-hook-form'
 import { useEmployeeSearch } from './useEmployeeSearch'
 import { UseQuickTaskFormOptions, UseQuickTaskFormResult, QuickTaskFormData, AssigneeOption } from '../types'
 
+// Constants
+const SEARCH_DEBOUNCE_DELAY_MS = 300
+
 /**
  * Custom hook for managing Blink form state and logic
  * Handles employee search, form initialization, and submission
@@ -47,7 +50,7 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
           // Use custom search function if provided
           config.assigneeSelector.searchFunction(query)
         }
-      }, 300) // 300ms debounce
+      }, SEARCH_DEBOUNCE_DELAY_MS)
     },
     [assigneeMode, searchEmployees, config.assigneeSelector]
   )

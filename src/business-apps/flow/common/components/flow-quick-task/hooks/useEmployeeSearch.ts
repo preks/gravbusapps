@@ -1,4 +1,4 @@
-﻿import { useState, useCallback, useRef } from 'react'
+﻿import { useState, useCallback, useRef, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { Employee } from '../types'
 
@@ -99,6 +99,15 @@ export const useEmployeeSearch = (accessToken: string): UseEmployeeSearchResult 
     },
     [accessToken, graphqlClient]
   )
+
+  // Cleanup: abort any pending requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+    }
+  }, [])
 
   return {
     employees,
