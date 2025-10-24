@@ -121,6 +121,7 @@ export const useUniDirectionalDependencies = ({
           })
 
           const fetchFiltered = async () => {
+            console.log('[useUniDirectionalDependencies] 📡 fetchFiltered for child:', id, 'with parent:', parentValue)
             try {
               const res = await fetchCatalogEntriesByIdentifier(id, {
                 limit: config.pageSize ?? defaultPageSize,

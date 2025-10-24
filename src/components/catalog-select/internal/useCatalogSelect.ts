@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogs } from '@/common/data/catalog/hooks/useCatalogs'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import useCatalog from '@/common/data/catalog/hooks/useCatalog'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
-import { ActiveFilters, EntryMeta, buildEntryMeta, buildFiltersSignature, toOptions } from './catalogSelectUtils'
+import {
+  ActiveFilters,
+  EntryMeta,
+  buildEntryMeta,
+  buildFiltersSignature,
+  toOptions,
+  getLocalizedValue
+} from './catalogSelectUtils'
 import useCatalogSelectDependencies from './useCatalogSelectDependencies'
 import { useLocalizationContext } from '@newwork/nw-design-system'
 
@@ -48,7 +55,7 @@ const parseCatalogIdentifier = (catalogIdentifier: string): { identifier: string
 export interface CatalogSelectConfig {
   id: string // unique instance identifier (for dependencies and state management)
   catalogIdentifier: string // catalog identifier with optional version ("Country:v2" or "Country")
-  prefetch?: boolean // include in initial batched prefetch
+  prefetch?: boolean // include in initial batched prefetch (default: true)
   pageSize?: number // default 25
   // Dependency config
   parentField?: string // this instance depends on (filters by) the selected value of parent instance
@@ -168,12 +175,19 @@ export const useCatalogSelect = (
   )
 
   const preload = useCallback(async () => {
-    const allIdentifiers = configs.filter(c => c.prefetch).map(c => c.catalogIdentifier)
+    const allIdentifiers = configs.filter(c => c.prefetch !== false).map(c => c.catalogIdentifier)
     // Deduplicate catalog identifiers - multiple instances might use the same catalog
     const identifiers = [...new Set(allIdentifiers)]
+    console.log(
+      '[useCatalogSelect] 📦 preload() called - prefetch configs:',
+      configs.filter(c => c.prefetch !== false).length,
+      '| unique catalogs:',
+      identifiers.length
+    )
     if (identifiers.length === 0) return
 
     const largestPageSize = Math.max(...configs.map(c => c.pageSize ?? defaultPageSize))
+    console.log('[useCatalogSelect] 📡 Batching request for:', identifiers)
     const list = await fetchCatalogs({
       catalogIdentifiers: identifiers,
       includeCatalogEntries: true,
@@ -182,6 +196,7 @@ export const useCatalogSelect = (
       limit: identifiers.length
     })
     const items = list.items || []
+    console.log('[useCatalogSelect] ✅ Batched request completed, received', items.length, 'catalogs')
     items.forEach(cat => {
       // Find ALL configs that match this catalog identifier:version
       const catalogIdentifierWithVersion = `${cat.identifier}:${cat.version || 'v1'}`
@@ -218,10 +233,22 @@ export const useCatalogSelect = (
   // Initialize non-prefetch catalogs with a tiny call to decide variant and, if small, load all options
   const { fetchCatalog } = useCatalog(context)
   const primeNonPrefetch = useCallback(async () => {
-    const nonPrefetch = configs.filter(c => !c.prefetch)
+    const nonPrefetch = configs.filter(c => c.prefetch === false)
+    console.log(
+      '[useCatalogSelect] 🔧 primeNonPrefetch() called for',
+      nonPrefetch.length,
+      'non-prefetch configs:',
+      nonPrefetch.map(c => c.id)
+    )
     await Promise.all(
       nonPrefetch.map(async cfg => {
         const { identifier, version } = parseCatalogIdentifier(cfg.catalogIdentifier)
+        console.log(
+          '[useCatalogSelect] 📡 Individual request for non-prefetch:',
+          cfg.id,
+          '->',
+          identifier + ':' + version
+        )
         try {
           const full = await fetchCatalog(
             {
@@ -257,48 +284,99 @@ export const useCatalogSelect = (
     await Promise.all([preload(), primeNonPrefetch()])
   }, [preload, primeNonPrefetch])
 
-  // Fetch missing options for initial values
+  // Fetch missing options for initial values (batched, run once after preload)
+  const missingOptionsFetchedRef = useRef(false)
   useEffect(() => {
-    configs.forEach(cfg => {
-      const state = stateById[cfg.id]
-      if (!state || !state.value || !state.options || state.loading) return
+    const fetchMissingOptions = async () => {
+      console.log(
+        '[useCatalogSelect] 🔍 fetchMissingOptions check - already fetched?',
+        missingOptionsFetchedRef.current
+      )
 
-      // Check if option exists for current value
-      const hasOption = state.options.some(opt => opt.value === state.value)
-      if (hasOption) return
+      // Only run once
+      if (missingOptionsFetchedRef.current) return
 
-      // Fetch the option
-      const fetchOption = async () => {
-        try {
-          const res = await fetchCatalogEntriesByIdentifier(cfg.id, {
-            limit: 1,
-            offset: 0,
-            entryId: state.value
-          })
-
-          if (res.entries.length > 0) {
-            const entry = res.entries[0]
-            const option = { value: entry.id, label: entry.value || entry.id }
-            const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
-
-            setFor(cfg.id, prev => {
-              if (!prev) return prev
-              // Avoid duplicates - only add if option doesn't exist
-              const optionExists = prev.options.some(opt => opt.value === option.value)
-              return {
-                ...prev,
-                options: optionExists ? prev.options : [...prev.options, option],
-                metaByValue: { ...(prev.metaByValue || {}), [entry.id]: meta }
-              }
-            })
-          }
-        } catch {
-          // Ignore fetch errors for initial value options
-        }
+      // Wait for configs to be registered
+      if (configs.length === 0) {
+        console.log('[useCatalogSelect] 🔍 No configs yet, waiting...')
+        return
       }
-      fetchOption()
-    })
-  }, [configs, stateById, fetchCatalogEntriesByIdentifier])
+
+      // Wait for preload to finish (all configs have finished loading, regardless of whether initial values exist)
+      const allReady = configs.every(cfg => {
+        const state = stateById[cfg.id]
+        return state && !state.loading
+      })
+      console.log('[useCatalogSelect] 🔍 allReady?', allReady, '| configs:', configs.length)
+      if (!allReady) return
+
+      // Mark as fetched to prevent re-runs
+      missingOptionsFetchedRef.current = true
+
+      // Collect all missing options in ONE go
+      const missing: Array<{ cfg: (typeof configs)[0]; value: string }> = []
+      configs.forEach(cfg => {
+        const state = stateById[cfg.id]
+        console.log(
+          '[useCatalogSelect] 🔍 Check',
+          cfg.id,
+          '| value:',
+          state?.value,
+          '| options:',
+          state?.options?.length,
+          '| hasOption:',
+          state?.options?.some(opt => opt.value === state?.value)
+        )
+        if (!state || !state.value || !state.options) return
+        const hasOption = state.options.some(opt => opt.value === state.value)
+        if (!hasOption) {
+          missing.push({ cfg, value: state.value })
+        }
+      })
+
+      console.log(
+        '[useCatalogSelect] 🔍 Missing options:',
+        missing.length,
+        missing.map(m => ({ id: m.cfg.id, value: m.value }))
+      )
+      if (missing.length === 0) return
+
+      console.log('[useCatalogSelect] 📡 Batching', missing.length, 'missing option fetches in ONE request')
+
+      // Batch all fetches in parallel
+      await Promise.all(
+        missing.map(async ({ cfg, value }) => {
+          try {
+            const res = await fetchCatalogEntriesByIdentifier(cfg.id, {
+              limit: 1,
+              offset: 0,
+              entryId: value
+            })
+
+            if (res.entries.length > 0) {
+              const entry = res.entries[0]
+              const option = { value: entry.id, label: getLocalizedValue(entry, locale) }
+              const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
+
+              setFor(cfg.id, prev => {
+                if (!prev) return prev
+                const optionExists = prev.options.some(opt => opt.value === option.value)
+                return {
+                  ...prev,
+                  options: optionExists ? prev.options : [...prev.options, option],
+                  metaByValue: { ...(prev.metaByValue || {}), [entry.id]: meta }
+                }
+              })
+            }
+          } catch {
+            // Ignore fetch errors
+          }
+        })
+      )
+    }
+
+    fetchMissingOptions()
+  }, [configs, stateById, fetchCatalogEntriesByIdentifier, locale])
 
   const controllers = useMemo<Record<string, CatalogSelectController>>(() => {
     const record: Record<string, CatalogSelectController> = {}

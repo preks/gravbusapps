@@ -15,7 +15,7 @@
 import { useEffect, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
-import { toOptions } from './catalogSelectUtils'
+import { toOptions, getLocalizedValue } from './catalogSelectUtils'
 
 type State = {
   value: string
@@ -94,14 +94,13 @@ export const useBiDirectionalDependencies = ({
         }
 
         const wasAutoSelected = autoSelectedParentsRef.current.has(parentField)
+        // Check if this is initial load: first time seeing non-empty parent AND child has value
+        const isInitialLoad = lastParentValue === undefined && parentValue && childValue
 
         if (wasAutoSelected) {
           // Parent was auto-selected by this child - don't clear child, just refetch options
           autoSelectedToCleanup.add(parentField)
         } else {
-          // Check if this is initial load: first time seeing non-empty parent AND child has value
-          const isInitialLoad = lastParentValue === undefined && parentValue && childValue
-
           if (isInitialLoad) {
             // Keep both, just filter options
           } else if (parentValue && childValue) {
@@ -126,8 +125,8 @@ export const useBiDirectionalDependencies = ({
           }
         }
 
-        // Refetch child options with new parent filter (for ALL cases where parent has value)
-        if (parentValue) {
+        // Refetch child options with new parent filter (ONLY if parent actually changed, not on initial load)
+        if (parentValue && !isInitialLoad) {
           setFor(id, prev => {
             if (!prev) return prev
             return {
@@ -140,6 +139,7 @@ export const useBiDirectionalDependencies = ({
           })
 
           const fetchFiltered = async () => {
+            console.log('[useBiDirectionalDependencies] 📡 fetchFiltered for child:', id, 'with parent:', parentValue)
             try {
               const res = await fetchCatalogEntriesByIdentifier(id, {
                 limit: config.pageSize ?? defaultPageSize,
@@ -210,6 +210,12 @@ export const useBiDirectionalDependencies = ({
           // Ensure parent has the option
           const parentHasOption = stateById[parentField]?.options?.some(opt => opt.value === childMeta.parentEntryId)
           if (!parentHasOption) {
+            console.log(
+              '[useBiDirectionalDependencies] 📡 Fetching missing parent option for:',
+              parentField,
+              'entryId:',
+              childMeta.parentEntryId
+            )
             const fetchParentOption = async () => {
               try {
                 const res = await fetchCatalogEntriesByIdentifier(parentField, {
@@ -219,7 +225,7 @@ export const useBiDirectionalDependencies = ({
                 })
 
                 if (res.entries.length > 0) {
-                  const parentOption = { value: res.entries[0].id, label: res.entries[0].value || res.entries[0].id }
+                  const parentOption = { value: res.entries[0].id, label: getLocalizedValue(res.entries[0], locale) }
                   setFor(parentField, prev => {
                     if (!prev) return prev
                     // Avoid duplicates
