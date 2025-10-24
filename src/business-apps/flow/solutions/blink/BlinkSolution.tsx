@@ -1,13 +1,12 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PageLayout, Card, CardContent } from '@newwork/nw-design-system'
-import { Zap } from 'lucide-react'
 import { AssignmentMode } from '@/common/network/flows/FlowTemplateClient'
 import { useForm } from 'react-hook-form'
 import { BlinkFlowService } from './services/BlinkFlowService'
 import { env } from '@/common/env/EnvUtils'
 import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
-import { useAllEmployees } from './hooks/useAllEmployees'
+import { useEmployeeSearch } from './hooks/useAllEmployees'
 import { useBlinkFileUpload, BlinkUploadFile } from './hooks/useBlinkFileUpload'
 import { BlinkTaskForm, BlinkTaskFormData } from './components/BlinkTaskForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -19,8 +18,11 @@ export const BlinkSolution: React.FC<BlinkSolutionProps> = context => {
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<string>('')
 
-  // Fetch ALL employees for the dropdown
-  const { employees, loading: employeesLoading } = useAllEmployees(context.accessToken)
+  // Get employee search hook
+  const { employees, loading: employeesLoading, searchEmployees } = useEmployeeSearch(context.accessToken)
+
+  // Debounce timer ref
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Initialize file upload hook
   const { uploadFiles } = useBlinkFileUpload({
@@ -33,25 +35,44 @@ export const BlinkSolution: React.FC<BlinkSolutionProps> = context => {
     }
   })
 
+  // Debounced search handler
+  const handleEmployeeSearch = useCallback(
+    (query: string) => {
+      // Clear existing timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+
+      // Set new timer for debounced search
+      debounceTimerRef.current = setTimeout(() => {
+        searchEmployees(query)
+      }, 300) // 300ms debounce
+    },
+    [searchEmployees]
+  )
+
+  // Trigger initial search on mount
+  useEffect(() => {
+    searchEmployees('') // Load initial results with empty search
+  }, [searchEmployees])
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
   // Convert employees to combobox options
-  // Note: For proper search filtering, we use the searchable text as 'value'
-  // and store the actual userId in a map
   const employeeOptions = useMemo(() => {
-    return employees.map(employee => ({
-      value: employee.fullName,
-      label: employee.fullName
-    }))
-  }, [employees])
-
-  // Create a map to convert display value back to userId
-  const employeeValueToIdMap = useMemo(() => {
-    const map = new Map<string, string>()
-
-    employees.forEach(employee => {
-      map.set(employee.fullName, employee.userId)
-    })
-
-    return map
+    return employees
+      .filter(employee => employee.userId && employee.fullName)
+      .map(employee => ({
+        value: employee.userId,
+        label: employee.fullName
+      }))
   }, [employees])
 
   const form = useForm<BlinkTaskFormData>({
@@ -70,8 +91,8 @@ export const BlinkSolution: React.FC<BlinkSolutionProps> = context => {
       try {
         console.log('Creating Blink task with data:', data)
 
-        // Convert display value to actual userId
-        const actualUserId = employeeValueToIdMap.get(data.assignedUserId)
+        // assignedUserId is already the actual userId
+        const actualUserId = data.assignedUserId
         if (!actualUserId) {
           throw new Error('Invalid employee selection')
         }
@@ -195,18 +216,12 @@ export const BlinkSolution: React.FC<BlinkSolutionProps> = context => {
         setIsSubmitting(false)
       }
     },
-    [employeeValueToIdMap, uploadFiles, context.accessToken, context.userInfo?.id, form]
+    [uploadFiles, context.accessToken, context.userInfo?.id, form]
   )
 
   return (
     <div data-testid="blink-solution-app">
       <PageLayout
-        headerPhosphorIcon={{
-          icon: Zap,
-          variant: 'default',
-          size: 'lg',
-          label: getTranslationFromI18nKeyAndLabel('blink.header.label', 'Blink')
-        }}
         headerTitle={getTranslationFromI18nKeyAndLabel('blink.header.title', 'Blink')}
         headerDescription={getTranslationFromI18nKeyAndLabel(
           'blink.header.description',
@@ -237,6 +252,7 @@ export const BlinkSolution: React.FC<BlinkSolutionProps> = context => {
                 isSubmitting={isSubmitting}
                 isUploadingFiles={isUploadingFiles}
                 uploadProgress={uploadProgress}
+                onEmployeeSearch={handleEmployeeSearch}
               />
             </CardContent>
           </Card>

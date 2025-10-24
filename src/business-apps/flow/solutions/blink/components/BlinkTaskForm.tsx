@@ -8,12 +8,12 @@ import {
   FormControl,
   FormMessage,
   Input,
-  Textarea,
-  Combobox
+  Textarea
 } from '@newwork/nw-design-system'
 import { UseFormReturn } from 'react-hook-form'
 import { BlinkFileUpload } from './BlinkFileUpload'
 import { BlinkUploadFile } from '../hooks/useBlinkFileUpload'
+import { SearchableEmployeeCombobox } from './SearchableEmployeeCombobox'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface BlinkTaskFormData {
@@ -32,6 +32,7 @@ export interface BlinkTaskFormProps {
   isSubmitting: boolean
   isUploadingFiles: boolean
   uploadProgress: string
+  onEmployeeSearch: (query: string) => void
 }
 
 export const BlinkTaskForm: React.FC<BlinkTaskFormProps> = ({
@@ -41,7 +42,8 @@ export const BlinkTaskForm: React.FC<BlinkTaskFormProps> = ({
   employeesLoading,
   isSubmitting,
   isUploadingFiles,
-  uploadProgress
+  uploadProgress,
+  onEmployeeSearch
 }) => {
   return (
     <Form {...form}>
@@ -133,32 +135,28 @@ export const BlinkTaskForm: React.FC<BlinkTaskFormProps> = ({
             <FormItem>
               <FormLabel>{getTranslationFromI18nKeyAndLabel('blink.field.assignee.label', 'Assign To')}</FormLabel>
               <FormControl>
-                <Combobox
+                <SearchableEmployeeCombobox
                   options={employeeOptions}
                   value={field.value}
                   onValueChange={field.onChange}
+                  onSearchChange={onEmployeeSearch}
                   placeholder={getTranslationFromI18nKeyAndLabel(
                     'blink.field.assignee.placeholder',
-                    'Select employee...'
+                    'Search and select employee...'
                   )}
                   searchPlaceholder={getTranslationFromI18nKeyAndLabel(
                     'blink.field.assignee.searchPlaceholder',
-                    'Search employees...'
+                    'Type to search employees...'
                   )}
-                  emptyText={getTranslationFromI18nKeyAndLabel('blink.field.assignee.emptyText', 'No employees found')}
+                  emptyText={getTranslationFromI18nKeyAndLabel('blink.field.assignee.emptyText', 'No employees found.')}
+                  disabled={employeesLoading || isSubmitting}
                   loading={employeesLoading}
-                  loadingText={getTranslationFromI18nKeyAndLabel(
-                    'blink.field.assignee.loadingText',
-                    'Loading employees...'
-                  )}
-                  disabled={employeesLoading}
-                  data-testid="blink-task-assignee"
                 />
               </FormControl>
               <p className="gba:text-xs gba:text-gray-500 gba:mt-1">
                 {getTranslationFromI18nKeyAndLabel(
                   'blink.field.assignee.hint',
-                  'Shows all employees in the organization. You can assign tasks to anyone.'
+                  'Type to search employees by name (max 20 results).'
                 )}
               </p>
               <FormMessage />
