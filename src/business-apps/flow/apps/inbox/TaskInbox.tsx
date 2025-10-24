@@ -491,71 +491,20 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
   // Handle Quick Task submission
   const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
     try {
-      // Import required services
+      // Import required service
       const { QuickTaskFlowService } = await import('../../common/components/flow-quick-task')
-      const { AssignmentMode } = await import('@/common/network/flows/FlowTemplateClient')
 
-      const actualUserId = data.assignedUserId
-      if (!actualUserId) {
-        throw new Error('Invalid employee selection')
-      }
-
-      // Step 1: Upload files if any exist
-      const uploadResults: any[] = []
-      if (data.documents && data.documents.length > 0) {
-        // For now, skip file upload in inbox - can be added later if needed
-        // This would require integrating the useQuickTaskFileUpload hook
-      }
-
-      // Step 2: Generate dynamic workflow template
-      const flowTemplate = QuickTaskFlowService.generateFlowTemplate({
-        ...data,
-        uploadResults,
-        priority: 'medium',
-        assignments: {
-          assignmentMode: AssignmentMode.ASSIGN,
-          targets: null,
-          allowReassignment: false
-        }
-      })
-
-      // Step 3: Execute the workflow
       const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
-      const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          templateDefinition: flowTemplate,
-          initiatorId: userInfo?.id || 'unknown',
-          stepAssignments: {
-            step_0: {
-              assignment: {
-                assignmentMode: AssignmentMode.ASSIGN,
-                targets: {
-                  users: [actualUserId],
-                  capabilities: [],
-                  organizationalUnits: [],
-                  companies: [],
-                  siteLocations: [],
-                  costCenters: [],
-                  matrixTeams: []
-                },
-                allowReassignment: false
-              }
-            }
-          }
-        })
+
+      // Execute the quick task using the service method
+      await QuickTaskFlowService.executeQuickTask({
+        formData: data,
+        uploadResults: [], // File upload can be added later if needed
+        accessToken,
+        initiatorId: userInfo?.id || 'unknown',
+        apiBaseUrl: baseUrl
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to create Quick Task')
-      }
-
-      await response.json()
       message.success(`Quick Task "${data.title}" created successfully!`)
 
       // Refresh the task list to show the new task

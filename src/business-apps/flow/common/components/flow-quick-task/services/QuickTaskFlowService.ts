@@ -1,6 +1,14 @@
-﻿import { FlowTemplate, FlowStep, FlowStepType, TaskAssignment, Link } from '@/common/network/flows/FlowTemplateClient'
+﻿import {
+  FlowTemplate,
+  FlowStep,
+  FlowStepType,
+  TaskAssignment,
+  Link,
+  AssignmentMode
+} from '@/common/network/flows/FlowTemplateClient'
+import { QuickTaskFormData } from '../types'
 
-export interface BlinkFlowData {
+export interface QuickTaskFlowData {
   title: string
   message: string
   uploadResults?: any[] // Upload results from file service
@@ -10,6 +18,14 @@ export interface BlinkFlowData {
   priority?: 'low' | 'medium' | 'high'
 }
 
+export interface ExecuteQuickTaskOptions {
+  formData: QuickTaskFormData
+  uploadResults?: any[]
+  accessToken: string
+  initiatorId: string
+  apiBaseUrl: string
+}
+
 /**
  * Service for generating dynamic Quick Task workflows
  */
@@ -17,7 +33,7 @@ export class QuickTaskFlowService {
   /**
    * Generate a dynamic Quick Task template from form data
    */
-  static generateFlowTemplate(data: BlinkFlowData): FlowTemplate {
+  static generateFlowTemplate(data: QuickTaskFlowData): FlowTemplate {
     // Create links for uploaded documents using actual file service results
     const documentLinks: Link[] = (data.uploadResults || []).map(result => {
       const fileInfo = result?.fileInfo || result
@@ -78,7 +94,7 @@ export class QuickTaskFlowService {
   /**
    * Calculate due configuration - either dueDate or dueInMinutes
    */
-  private static calculateDueConfig(data: BlinkFlowData): { dueDate?: string; dueInMinutes?: number } {
+  private static calculateDueConfig(data: QuickTaskFlowData): { dueDate?: string; dueInMinutes?: number } {
     if (data.dueDate && data.dueDate.trim() !== '') {
       // Convert YYYY-MM-DD to ISO date string with end of day time
       const formattedDueDate = new Date(data.dueDate + 'T23:59:59.999Z').toISOString()
@@ -132,5 +148,67 @@ export class QuickTaskFlowService {
         }, {} as any)
       }
     }
+  }
+
+  /**
+   * Execute a Quick Task - creates and submits the workflow
+   * This method encapsulates the common logic for creating and executing quick tasks
+   */
+  static async executeQuickTask(options: ExecuteQuickTaskOptions): Promise<any> {
+    const { formData, uploadResults = [], accessToken, initiatorId, apiBaseUrl } = options
+
+    const actualUserId = formData.assignedUserId
+    if (!actualUserId) {
+      throw new Error('Invalid employee selection')
+    }
+
+    // Generate dynamic workflow template
+    const flowTemplate = this.generateFlowTemplate({
+      ...formData,
+      uploadResults,
+      priority: 'medium',
+      assignments: {
+        assignmentMode: AssignmentMode.ASSIGN,
+        targets: null,
+        allowReassignment: false
+      }
+    })
+
+    // Execute the workflow
+    const response = await fetch(`${apiBaseUrl}/api/templates/execute-dynamic`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({
+        templateDefinition: flowTemplate,
+        initiatorId,
+        stepAssignments: {
+          step_0: {
+            assignment: {
+              assignmentMode: AssignmentMode.ASSIGN,
+              targets: {
+                users: [actualUserId],
+                capabilities: [],
+                organizationalUnits: [],
+                companies: [],
+                siteLocations: [],
+                costCenters: [],
+                matrixTeams: []
+              },
+              allowReassignment: false
+            }
+          }
+        }
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || 'Failed to create Quick Task')
+    }
+
+    return await response.json()
   }
 }

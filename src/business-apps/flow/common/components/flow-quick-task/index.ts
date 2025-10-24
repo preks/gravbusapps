@@ -12,6 +12,7 @@ export { useQuickTaskFileUpload } from './hooks/useQuickTaskFileUpload'
 
 // Services
 export { QuickTaskFlowService } from './services/QuickTaskFlowService'
+export type { QuickTaskFlowData, ExecuteQuickTaskOptions } from './services/QuickTaskFlowService'
 
 // Types
 export type {
