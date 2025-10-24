@@ -67,7 +67,6 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
   const [selectedType, setSelectedType] = useState<ContractType | null>(null)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
-  const [selectedRows, setSelectedRows] = useState<ContractTypeTable[]>([])
 
   const loadContractTypes = async () => {
     try {
@@ -273,10 +272,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         columns={columns as ColumnDef<ContractTypeTable>[]}
         sorting={sorting}
         onSortingChange={setSorting}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
         enableSorting
-        enableSelection
         enablePagination
       />
     )
