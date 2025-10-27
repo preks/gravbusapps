@@ -112,3 +112,9 @@ export const getStatusColorClass = (status: string): string => {
 
   return statusMap[status] || 'gba:bg-muted gba:text-muted-foreground'
 }
+
+export const getTranslatedValue = (localeObject?: {
+  id?: string
+  value?: string
+  translations?: { localeCode?: string; value: string }[]
+}): string => localeObject?.translations?.[0]?.value || localeObject?.value || ''
