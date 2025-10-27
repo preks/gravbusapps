@@ -266,7 +266,7 @@ export const AccountsTable: React.FC<AccountsTableProps> = ({
                         <AppActionButton
                           data-testid={`${DATA_TEST_ID_PREFIX}-update-account-button-${account.id}`}
                           variant="secondary"
-                          contextsArray={[FlowContextName.accountEntity]}
+                          contextsArray={[FlowContextName.customerAccountEntity]}
                           externalContextData={{ accountId: account.id }}
                           prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-account`}
                           accessToken={accessToken}
