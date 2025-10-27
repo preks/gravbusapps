@@ -19,8 +19,8 @@ const DATA_TEST_ID = 'TimeAttendanceData'
 
 // Helper function to get initial tab from URL
 const getInitialTab = (): TimeAttendanceTabs => {
-  if (typeof window !== 'undefined') {
-    const urlParams = new URLSearchParams(window.location.search)
+  if (typeof globalThis.window !== 'undefined') {
+    const urlParams = new URLSearchParams(globalThis.window.location.search)
     const tabParam = urlParams.get('tab')
 
     if (tabParam && Object.values(TimeAttendanceTabs).includes(tabParam as TimeAttendanceTabs)) {
@@ -36,7 +36,7 @@ const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, pref
   useEffect(() => {
     const setTabFromUrl = () => {
       // Check URL query parameter
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       const tabParam = urlParams.get('tab')
 
       if (tabParam && Object.values(TimeAttendanceTabs).includes(tabParam as TimeAttendanceTabs)) {
@@ -45,15 +45,15 @@ const TimeAttendanceData: React.FC<TimeAttendanceDataProps> = ({ className, pref
     }
 
     setTabFromUrl()
-    window.addEventListener('popstate', setTabFromUrl)
+    globalThis.window.addEventListener('popstate', setTabFromUrl)
     return () => {
-      window.removeEventListener('popstate', setTabFromUrl)
+      globalThis.window.removeEventListener('popstate', setTabFromUrl)
     }
   }, [])
 
   const onChangeTab = (value: string) => {
     // Update URL with query parameter
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.window.location.href)
     url.searchParams.set('tab', value)
     history.replaceState(null, '', url.toString())
     setSelectedTab(value as TimeAttendanceTabs)

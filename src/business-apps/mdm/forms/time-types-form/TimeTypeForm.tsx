@@ -59,7 +59,7 @@ const TimeTypeForm: React.FC<TimeTypeFormProps> = ({
   onCancel,
   childAddButton,
   refetch,
-  accessToken: accessToken,
+  accessToken,
   usedCodes = [],
   systemTimeTypes
 }) => {

@@ -137,18 +137,18 @@ const FormWrapperModal = ({
   useEffect(() => {
     if (updateValues && Object.keys(updateValues).length > 0) {
       // Generic approach: iterate through all fields in updateValues
-      Object.entries(updateValues).forEach(([fieldName, value]) => {
+      for (const [fieldName, value] of Object.entries(updateValues)) {
         form.setValue(fieldName, value, { shouldDirty: true, shouldValidate: true })
-      })
+      }
     }
   }, [updateValues, form])
 
   // Reset specific fields when resetFields prop changes
   useEffect(() => {
     if (resetFields && resetFields.length > 0) {
-      resetFields.forEach(fieldName => {
+      for (const fieldName of resetFields) {
         form.setValue(fieldName, '', { shouldDirty: true, shouldValidate: false })
-      })
+      }
       // Clear errors for reset fields
       form.clearErrors(resetFields)
     }
