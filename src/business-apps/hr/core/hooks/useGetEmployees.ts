@@ -15,7 +15,8 @@ export interface Employee {
   jobTitle: string
   organizationalUnit: string
   organizationalUnitId?: string
-  email: string
+  email?: string
+  workEmail?: string
   profilePicture: string
   employmentType?: string
   contractType?: string
@@ -56,6 +57,23 @@ function extractMatrixTeamNames(matrixUnitEmployees: any[] | null | undefined): 
   }
 
   return teamNames
+}
+
+/**
+ * Helper function to extract work email from communications array
+ */
+function extractWorkEmail(communications: any[] | null | undefined): string | undefined {
+  if (!communications || !Array.isArray(communications)) {
+    return undefined
+  }
+
+  const emailComm = communications.find((c: any) => {
+    if (!c.value || c.value.trim() === '') return false
+    const channelValue = c.channel?.value?.toLowerCase() || ''
+    return channelValue.includes('email')
+  })
+
+  return emailComm?.value?.trim() || undefined
 }
 
 // GraphQL query to fetch employee positions with employee and related info
@@ -104,6 +122,13 @@ const EMPLOYEE_POSITION_QUERY = `
             value
           }
           employmentType {
+            value
+          }
+        }
+        communication(where: { _and: [{ isDeleted: { _eq: false } }, { purpose: { _eq: "INTERNAL" } }] }) {
+          id
+          value
+          channel {
             value
           }
         }
@@ -271,6 +296,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         const employeePositions = res.EmployeePosition ?? []
         const newEmployees = employeePositions.map((ep: any) => {
           const workingCondition = ep.employee?.workingCondition?.[0]
+          const workEmail = extractWorkEmail(ep.employee?.communication)
           return {
             id: ep.employeeId,
             userId: ep.userId,
@@ -280,7 +306,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
             jobTitle: ep.jobPosition?.name ?? '',
             organizationalUnit: ep.organizationalUnit?.name ?? '',
             organizationalUnitId: ep.organizationalUnit?.id,
-            email: '', // Email not provided in query, default empty
+            email: workEmail,
+            workEmail: workEmail,
             employmentType: workingCondition?.employmentType?.value ?? '',
             contractType: workingCondition?.contractType?.value ?? '',
             // Extract matrix team names and avoid deeply nested functions
@@ -395,6 +422,7 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
           const employeePositions = res.EmployeePosition ?? []
           const newEmployees = employeePositions.map((ep: any) => {
             const workingCondition = ep.employee?.workingCondition?.[0]
+            const workEmail = extractWorkEmail(ep.employee?.communication)
             return {
               id: ep.employeeId,
               userId: ep.userId,
@@ -404,7 +432,8 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
               jobTitle: ep.jobPosition?.name ?? '',
               organizationalUnit: ep.organizationalUnit?.name ?? '',
               organizationalUnitId: ep.organizationalUnit?.id,
-              email: '', // Email not provided in query, default empty
+              email: workEmail,
+              workEmail: workEmail,
               employmentType: workingCondition?.employmentType?.value ?? '',
               contractType: workingCondition?.contractType?.value ?? '',
               // Extract matrix team names and avoid deeply nested functions

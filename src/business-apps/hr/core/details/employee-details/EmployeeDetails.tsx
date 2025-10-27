@@ -146,6 +146,8 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     return email || employeeData?.additionalProperties?.email || ''
   }
 
+  const hasWorkEmail = !!getBusinessEmail()
+
   const getBusinessPhone = () => {
     const phone = employeeData?.communication?.find(
       (c: any) => (c?.channel?.code === 'Mobile' || c?.channel?.code === 'Phone') && !c?.isDeleted && c?.value
@@ -290,7 +292,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<ChatIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-chat-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
               <Button
                 variant="secondary"
@@ -299,7 +301,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<VideoCallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-video-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
               <Button
                 variant="secondary"
@@ -308,7 +310,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<CallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-audio-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
             </div>
           </div>

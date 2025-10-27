@@ -22,7 +22,8 @@ interface Employee {
   jobTitle: string
   organizationalUnit: string
   siteLocation?: string
-  email: string
+  email?: string
+  workEmail?: string
   profilePicture: string
   employmentType?: string
   contractType?: string
@@ -133,6 +134,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
         onCall={handleCall}
         onVideoCall={handleVideoCall}
         onProfile={handleProfile}
+        hasEmail={!!employee.workEmail}
       />
     </div>
   )
@@ -143,6 +145,7 @@ interface ActionsOverlayProps {
   onCall?: () => void
   onVideoCall?: () => void
   onProfile?: () => void
+  hasEmail?: boolean
 }
 
 /**
@@ -152,7 +155,8 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onChat,
   onCall,
   onVideoCall,
-  onProfile
+  onProfile,
+  hasEmail = false
 }) => (
   <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
     <div className="gba:flex gba:gap-2">
@@ -160,6 +164,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onChat}
+        disabled={!hasEmail}
         aria-label="Chat"
         className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
@@ -169,6 +174,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onCall}
+        disabled={!hasEmail}
         aria-label="Call"
         className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
@@ -178,6 +184,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onVideoCall}
+        disabled={!hasEmail}
         aria-label="Video Call"
         className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
       >
