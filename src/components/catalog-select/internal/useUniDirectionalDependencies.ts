@@ -63,6 +63,81 @@ export interface UseUniDirectionalDependenciesParams {
   locale?: string
 }
 
+// Helper: Handle uni-directional parent-child dependency
+const handleUniDirectionalParentChange = ({
+  config,
+  id,
+  parentValue,
+  childValue,
+  lastParentValue,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  defaultPageSize,
+  locale
+}: any) => {
+  const isInitialLoad = lastParentValue === undefined && parentValue && childValue
+
+  if (isInitialLoad) {
+    // Just filter options, keep child value
+  } else if (childValue) {
+    // User changed parent or parent was cleared - clear child in both cases
+    setFor(id, (prev: any) => (prev ? { ...prev, value: '', search: undefined } : prev))
+  }
+
+  // Refetch child options with new parent filter
+  if (parentValue) {
+    setFor(id, (prev: any) =>
+      prev
+        ? {
+            ...prev,
+            options: [],
+            loading: true,
+            offset: 0,
+            lastFiltersSig: undefined
+          }
+        : prev
+    )
+
+    fetchCatalogEntriesByIdentifier(id, {
+      limit: config.pageSize ?? defaultPageSize,
+      offset: 0,
+      parentEntryId: parentValue
+    })
+      .then((res: any) => {
+        const metaByValue = buildMetaByValue(res.entries)
+        setFor(id, (prev: any) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                options: toOptions(res.entries, locale),
+                total: res.totalCount,
+                offset: res.entries.length,
+                metaByValue: { ...prev.metaByValue, ...metaByValue }
+              }
+            : prev
+        )
+      })
+      .catch((error: any) => {
+        console.error(`[useUniDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
+        setFor(id, (prev: any) => (prev ? { ...prev, loading: false } : prev))
+      })
+  } else {
+    // Parent cleared - reset to prefetched
+    setFor(id, (prev: any) =>
+      prev
+        ? {
+            ...prev,
+            options: prev.prefetchedOptions || [],
+            offset: (prev.prefetchedOptions || []).length,
+            loading: false,
+            lastFiltersSig: undefined
+          }
+        : prev
+    )
+  }
+}
+
 export const useUniDirectionalDependencies = ({
   configs,
   stateById,
@@ -118,71 +193,17 @@ export const useUniDirectionalDependencies = ({
           lastParentValuesRef.current.set(id, parentValue)
         }
 
-        // Determine if this is initial load: first time seeing non-empty parent AND child has value
-        const isInitialLoad = lastParentValue === undefined && parentValue && childValue
-
-        if (isInitialLoad) {
-          // Just filter options, keep child value
-        } else if (childValue) {
-          // User changed parent or parent was cleared - clear child in both cases
-          setFor(id, prev => {
-            if (!prev) return prev
-            return { ...prev, value: '', search: undefined }
-          })
-        }
-
-        // Refetch child options with new parent filter
-        if (parentValue) {
-          setFor(id, prev => {
-            if (!prev) return prev
-            return {
-              ...prev,
-              options: [],
-              loading: true,
-              offset: 0,
-              lastFiltersSig: undefined
-            }
-          })
-
-          fetchCatalogEntriesByIdentifier(id, {
-            limit: config.pageSize ?? defaultPageSize,
-            offset: 0,
-            parentEntryId: parentValue
-          })
-            .then(res => {
-              const metaByValue = buildMetaByValue(res.entries)
-              setFor(id, prev => {
-                if (!prev) return prev
-                return {
-                  ...prev,
-                  loading: false,
-                  options: toOptions(res.entries, locale),
-                  total: res.totalCount,
-                  offset: res.entries.length,
-                  metaByValue: { ...prev.metaByValue, ...metaByValue }
-                }
-              })
-            })
-            .catch(error => {
-              console.error(`[useUniDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
-              setFor(id, prev => {
-                if (!prev) return prev
-                return { ...prev, loading: false }
-              })
-            })
-        } else {
-          // Parent cleared - reset to prefetched
-          setFor(id, prev => {
-            if (!prev) return prev
-            return {
-              ...prev,
-              options: prev.prefetchedOptions || [],
-              offset: (prev.prefetchedOptions || []).length,
-              loading: false,
-              lastFiltersSig: undefined
-            }
-          })
-        }
+        handleUniDirectionalParentChange({
+          config,
+          id,
+          parentValue,
+          childValue,
+          lastParentValue,
+          setFor,
+          fetchCatalogEntriesByIdentifier,
+          defaultPageSize,
+          locale
+        })
       }
     }
   }, [dependencySignature, setFor, fetchCatalogEntriesByIdentifier, defaultPageSize, locale])

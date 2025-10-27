@@ -64,6 +64,156 @@ export interface UseBiDirectionalDependenciesParams {
   locale?: string
 }
 
+// Helper: Handle parent value changes and child clearing logic
+const handleParentChange = ({
+  config,
+  id,
+  parentField,
+  parentValue,
+  childValue,
+  lastParentValue,
+  wasAutoSelected,
+  autoSelectedToCleanup,
+  stateById,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  defaultPageSize,
+  locale
+}: any) => {
+  const isInitialLoad = lastParentValue === undefined && parentValue && childValue
+
+  if (wasAutoSelected) {
+    autoSelectedToCleanup.add(parentField)
+    return
+  }
+
+  if (isInitialLoad) {
+    return // Keep both, just filter options
+  }
+
+  if (parentValue && childValue) {
+    // Both have values but parent changed - clear child
+    setFor(id, (prev: any) => (prev ? { ...prev, value: '', search: undefined } : prev))
+  } else if (!parentValue && childValue) {
+    // Parent is empty but child has value
+    const childMeta = stateById[id]?.metaByValue?.[childValue]
+    const canAutoSelect = childMeta?.parentEntryId || !childMeta
+
+    if (!canAutoSelect) {
+      setFor(id, (prev: any) => (prev ? { ...prev, value: '', search: undefined } : prev))
+    }
+  }
+
+  // Refetch child options with new parent filter
+  if (parentValue && !isInitialLoad) {
+    setFor(id, (prev: any) =>
+      prev
+        ? {
+            ...prev,
+            options: [],
+            loading: true,
+            offset: 0,
+            lastFiltersSig: undefined
+          }
+        : prev
+    )
+
+    fetchCatalogEntriesByIdentifier(id, {
+      limit: config.pageSize ?? defaultPageSize,
+      offset: 0,
+      parentEntryId: parentValue
+    })
+      .then((res: any) => {
+        const metaByValue = buildMetaByValue(res.entries)
+        setFor(id, (prev: any) =>
+          prev
+            ? {
+                ...prev,
+                loading: false,
+                options: toOptions(res.entries, locale),
+                total: res.totalCount,
+                offset: res.entries.length,
+                metaByValue: { ...prev.metaByValue, ...metaByValue }
+              }
+            : prev
+        )
+      })
+      .catch((error: any) => {
+        console.error(`[useBiDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
+        setFor(id, (prev: any) => (prev ? { ...prev, loading: false } : prev))
+      })
+  } else if (!parentValue) {
+    // Parent cleared - reset to prefetched
+    setFor(id, (prev: any) =>
+      prev
+        ? {
+            ...prev,
+            options: prev.prefetchedOptions || [],
+            offset: (prev.prefetchedOptions || []).length,
+            loading: false,
+            lastFiltersSig: undefined
+          }
+        : prev
+    )
+  }
+}
+
+// Helper: Handle child-to-parent auto-selection
+const handleChildToParentAutoSelection = ({
+  id,
+  parentField,
+  childValue,
+  parentValue,
+  parentState,
+  stateById,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  autoSelectedParentsRef,
+  locale
+}: any) => {
+  if (!childValue || parentValue || parentState?.manuallyCleared) return
+
+  const childMeta = stateById[id]?.metaByValue?.[childValue]
+  if (!childMeta?.parentEntryId) return
+
+  autoSelectedParentsRef.current.add(parentField)
+  setFor(parentField, (prev: any) =>
+    prev
+      ? {
+          ...prev,
+          value: childMeta.parentEntryId || '',
+          manuallyCleared: false
+        }
+      : prev
+  )
+
+  // Ensure parent has the option
+  const parentHasOption = stateById[parentField]?.options?.some((opt: any) => opt.value === childMeta.parentEntryId)
+  if (!parentHasOption && childMeta.parentEntryId) {
+    fetchCatalogEntriesByIdentifier(parentField, {
+      limit: 1,
+      offset: 0,
+      entryId: childMeta.parentEntryId
+    })
+      .then((res: any) => {
+        if (res.entries.length > 0) {
+          const parentOption = { value: res.entries[0].id, label: getLocalizedValue(res.entries[0], locale) }
+          setFor(parentField, (prev: any) => {
+            if (!prev) return prev
+            const optionExists = prev.options.some((opt: any) => opt.value === parentOption.value)
+            return {
+              ...prev,
+              options: optionExists ? prev.options : [...prev.options, parentOption]
+            }
+          })
+        }
+      })
+      .catch((error: any) => {
+        console.error(`[useBiDirectionalDependencies] Failed to fetch parent option for ${parentField}:`, error)
+      })
+  }
+}
+
 export const useBiDirectionalDependencies = ({
   configs,
   stateById,
@@ -116,6 +266,7 @@ export const useBiDirectionalDependencies = ({
       const parentValue = stateById[parentField]?.value || ''
       const childValue = stateById[id]?.value || ''
       const lastParentValue = lastParentValuesRef.current.get(id)
+      const parentState = stateById[parentField]
 
       // PART 1: Handle parent changes (Parent → Child filtering)
       if (lastParentValue !== parentValue) {
@@ -125,134 +276,37 @@ export const useBiDirectionalDependencies = ({
         }
 
         const wasAutoSelected = autoSelectedParentsRef.current.has(parentField)
-        // Check if this is initial load: first time seeing non-empty parent AND child has value
-        const isInitialLoad = lastParentValue === undefined && parentValue && childValue
 
-        if (wasAutoSelected) {
-          // Parent was auto-selected by this child - don't clear child, just refetch options
-          autoSelectedToCleanup.add(parentField)
-        } else if (isInitialLoad) {
-          // Keep both, just filter options
-        } else if (parentValue && childValue) {
-          // Both have values but parent changed - clear child
-          setFor(id, prev => {
-            if (!prev) return prev
-            return { ...prev, value: '', search: undefined }
-          })
-        } else if (!parentValue && childValue) {
-          // Parent is empty but child has value
-          // Check if child can auto-select parent (if so, DON'T clear - let auto-select handle it)
-          const childMeta = stateById[id]?.metaByValue?.[childValue]
-          const canAutoSelect = childMeta?.parentEntryId || !childMeta // Has parent OR metadata missing (will be fetched)
-
-          if (!canAutoSelect) {
-            // Parent was cleared and no auto-select possible - clear child too
-            setFor(id, prev => {
-              if (!prev) return prev
-              return { ...prev, value: '', search: undefined }
-            })
-          }
-        }
-
-        // Refetch child options with new parent filter (ONLY if parent actually changed, not on initial load)
-        if (parentValue && !isInitialLoad) {
-          setFor(id, prev => {
-            if (!prev) return prev
-            return {
-              ...prev,
-              options: [],
-              loading: true,
-              offset: 0,
-              lastFiltersSig: undefined
-            }
-          })
-
-          fetchCatalogEntriesByIdentifier(id, {
-            limit: config.pageSize ?? defaultPageSize,
-            offset: 0,
-            parentEntryId: parentValue
-          })
-            .then(res => {
-              const metaByValue = buildMetaByValue(res.entries)
-              setFor(id, prev => {
-                if (!prev) return prev
-                return {
-                  ...prev,
-                  loading: false,
-                  options: toOptions(res.entries, locale),
-                  total: res.totalCount,
-                  offset: res.entries.length,
-                  metaByValue: { ...prev.metaByValue, ...metaByValue }
-                }
-              })
-            })
-            .catch(error => {
-              console.error(`[useBiDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
-              setFor(id, prev => {
-                if (!prev) return prev
-                return { ...prev, loading: false }
-              })
-            })
-        } else {
-          // Parent cleared - reset to prefetched
-          setFor(id, prev => {
-            if (!prev) return prev
-            return {
-              ...prev,
-              options: prev.prefetchedOptions || [],
-              offset: (prev.prefetchedOptions || []).length,
-              loading: false,
-              lastFiltersSig: undefined
-            }
-          })
-        }
+        handleParentChange({
+          config,
+          id,
+          parentField,
+          parentValue,
+          childValue,
+          lastParentValue,
+          wasAutoSelected,
+          autoSelectedToCleanup,
+          stateById,
+          setFor,
+          fetchCatalogEntriesByIdentifier,
+          defaultPageSize,
+          locale
+        })
       }
 
       // PART 2: Handle child changes (Child → Parent auto-selection)
-      const parentState = stateById[parentField]
-
-      if (childValue && !parentValue && !parentState?.manuallyCleared) {
-        const childMeta = stateById[id]?.metaByValue?.[childValue]
-
-        if (childMeta?.parentEntryId) {
-          autoSelectedParentsRef.current.add(parentField)
-          setFor(parentField, prev => {
-            if (!prev) return prev
-            return {
-              ...prev,
-              value: childMeta.parentEntryId || '',
-              manuallyCleared: false
-            }
-          })
-
-          // Ensure parent has the option
-          const parentHasOption = stateById[parentField]?.options?.some(opt => opt.value === childMeta.parentEntryId)
-          if (!parentHasOption) {
-            fetchCatalogEntriesByIdentifier(parentField, {
-              limit: 1,
-              offset: 0,
-              entryId: childMeta.parentEntryId!
-            })
-              .then(res => {
-                if (res.entries.length > 0) {
-                  const parentOption = { value: res.entries[0].id, label: getLocalizedValue(res.entries[0], locale) }
-                  setFor(parentField, prev => {
-                    if (!prev) return prev
-                    // Avoid duplicates
-                    const optionExists = prev.options.some(opt => opt.value === parentOption.value)
-                    return {
-                      ...prev,
-                      options: optionExists ? prev.options : [...prev.options, parentOption]
-                    }
-                  })
-                }
-              })
-              .catch(error => {
-                console.error(`[useBiDirectionalDependencies] Failed to fetch parent option for ${parentField}:`, error)
-              })
-          }
-        }
-      }
+      handleChildToParentAutoSelection({
+        id,
+        parentField,
+        childValue,
+        parentValue,
+        parentState,
+        stateById,
+        setFor,
+        fetchCatalogEntriesByIdentifier,
+        autoSelectedParentsRef,
+        locale
+      })
 
       // Reset manuallyCleared when user actively selects child
       if (childValue && parentState?.manuallyCleared) {

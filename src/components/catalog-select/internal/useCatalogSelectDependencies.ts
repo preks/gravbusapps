@@ -53,6 +53,85 @@ export interface UseCatalogSelectDependenciesParams {
   locale?: string
 }
 
+// Helper: Handle external filter change for a single config
+const handleExternalFilterChange = async ({
+  id,
+  filter,
+  externalValue,
+  config,
+  stateById,
+  setFor,
+  fetchCatalogEntriesByIdentifier,
+  defaultPageSize,
+  locale
+}: {
+  id: string
+  filter: { from: string; on: string }
+  externalValue: string | null
+  config: CatalogSelectConfig
+  stateById: Record<string, any>
+  setFor: (id: string, updater: (prev: any) => any) => void
+  fetchCatalogEntriesByIdentifier: any
+  defaultPageSize: number
+  locale?: string
+}) => {
+  // Clear child when external filter changes
+  const childState = stateById[id]
+  if (childState?.value !== '') {
+    setFor(id, prev => (prev ? { ...prev, value: '', search: undefined } : prev))
+  }
+
+  // Refetch with new external filter
+  if (externalValue) {
+    setFor(id, prev =>
+      prev
+        ? {
+            ...prev,
+            options: [],
+            loading: true,
+            offset: 0,
+            lastFiltersSig: undefined
+          }
+        : prev
+    )
+
+    try {
+      const res = await fetchCatalogEntriesByIdentifier(id, {
+        limit: config.pageSize ?? defaultPageSize,
+        offset: 0,
+        [filter.on === 'type' ? 'typeEquals' : filter.on]: externalValue
+      })
+
+      setFor(id, prev =>
+        prev
+          ? {
+              ...prev,
+              loading: false,
+              options: toOptions(res.entries, locale),
+              total: res.totalCount,
+              offset: res.entries.length
+            }
+          : prev
+      )
+    } catch {
+      setFor(id, prev => (prev ? { ...prev, loading: false } : prev))
+    }
+  } else {
+    // External filter cleared - reset to prefetched
+    setFor(id, prev =>
+      prev
+        ? {
+            ...prev,
+            options: prev.prefetchedOptions || [],
+            offset: (prev.prefetchedOptions || []).length,
+            loading: false,
+            lastFiltersSig: undefined
+          }
+        : prev
+    )
+  }
+}
+
 export const useCatalogSelectDependencies = ({
   configs,
   stateById,
@@ -100,68 +179,17 @@ export const useCatalogSelectDependencies = ({
         if (lastExternalValue !== externalValue) {
           lastExternalValuesRef.current.set(`${id}_${filter.from}`, externalValue)
 
-          // Clear child when external filter changes
-          const childState = stateById[id]
-          if (childState?.value !== '') {
-            setFor(id, prev => {
-              if (!prev) return prev
-              return { ...prev, value: '', search: undefined }
-            })
-          }
-
-          // Refetch with new external filter
-          if (externalValue) {
-            setFor(id, prev => {
-              if (!prev) return prev
-              return {
-                ...prev,
-                options: [],
-                loading: true,
-                offset: 0,
-                lastFiltersSig: undefined
-              }
-            })
-
-            const fetchWithExternalFilter = async () => {
-              try {
-                const res = await fetchCatalogEntriesByIdentifier(id, {
-                  limit: config.pageSize ?? defaultPageSize,
-                  offset: 0,
-                  [filter.on === 'type' ? 'typeEquals' : filter.on]: externalValue
-                })
-
-                setFor(id, prev => {
-                  if (!prev) return prev
-                  return {
-                    ...prev,
-                    loading: false,
-                    options: toOptions(res.entries, locale),
-                    total: res.totalCount,
-                    offset: res.entries.length
-                  }
-                })
-              } catch {
-                setFor(id, prev => {
-                  if (!prev) return prev
-                  return { ...prev, loading: false }
-                })
-              }
-            }
-
-            fetchWithExternalFilter()
-          } else {
-            // External filter cleared - reset to prefetched
-            setFor(id, prev => {
-              if (!prev) return prev
-              return {
-                ...prev,
-                options: prev.prefetchedOptions || [],
-                offset: (prev.prefetchedOptions || []).length,
-                loading: false,
-                lastFiltersSig: undefined
-              }
-            })
-          }
+          handleExternalFilterChange({
+            id,
+            filter,
+            externalValue,
+            config,
+            stateById,
+            setFor,
+            fetchCatalogEntriesByIdentifier,
+            defaultPageSize,
+            locale
+          })
         }
       }
     }
