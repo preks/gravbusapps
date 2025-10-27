@@ -14,19 +14,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
-import { toOptions } from './catalogSelectUtils'
-
-// Helper: Build metadata from entries
-const buildMetaByValue = (entries: CatalogEntry[]): Record<string, { parentEntryId?: string; type?: string }> => {
-  const meta: Record<string, { parentEntryId?: string; type?: string }> = {}
-  for (const entry of entries) {
-    meta[entry.id] = {
-      parentEntryId: entry.parentEntryId,
-      type: entry.type
-    }
-  }
-  return meta
-}
+import { fetchFilteredOptionsWithParent, resetToPrefetchedOptions, clearChildValue } from './dependencyHelpers'
 
 type State = {
   value: string
@@ -78,63 +66,27 @@ const handleUniDirectionalParentChange = ({
   const isInitialLoad = lastParentValue === undefined && parentValue && childValue
 
   if (isInitialLoad) {
-    // Just filter options, keep child value
-  } else if (childValue) {
-    // User changed parent or parent was cleared - clear child in both cases
-    setFor(id, (prev: any) => (prev ? { ...prev, value: '', search: undefined } : prev))
+    return // Just filter options, keep child value
+  }
+
+  if (childValue) {
+    clearChildValue({ id, setFor })
   }
 
   // Refetch child options with new parent filter
   if (parentValue) {
-    setFor(id, (prev: any) =>
-      prev
-        ? {
-            ...prev,
-            options: [],
-            loading: true,
-            offset: 0,
-            lastFiltersSig: undefined
-          }
-        : prev
-    )
-
-    fetchCatalogEntriesByIdentifier(id, {
-      limit: config.pageSize ?? defaultPageSize,
-      offset: 0,
-      parentEntryId: parentValue
+    fetchFilteredOptionsWithParent({
+      id,
+      parentValue,
+      config,
+      defaultPageSize,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      locale,
+      errorContext: 'useUniDirectionalDependencies'
     })
-      .then((res: any) => {
-        const metaByValue = buildMetaByValue(res.entries)
-        setFor(id, (prev: any) =>
-          prev
-            ? {
-                ...prev,
-                loading: false,
-                options: toOptions(res.entries, locale),
-                total: res.totalCount,
-                offset: res.entries.length,
-                metaByValue: { ...prev.metaByValue, ...metaByValue }
-              }
-            : prev
-        )
-      })
-      .catch((error: any) => {
-        console.error(`[useUniDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
-        setFor(id, (prev: any) => (prev ? { ...prev, loading: false } : prev))
-      })
   } else {
-    // Parent cleared - reset to prefetched
-    setFor(id, (prev: any) =>
-      prev
-        ? {
-            ...prev,
-            options: prev.prefetchedOptions || [],
-            offset: (prev.prefetchedOptions || []).length,
-            loading: false,
-            lastFiltersSig: undefined
-          }
-        : prev
-    )
+    resetToPrefetchedOptions({ id, setFor })
   }
 }
 

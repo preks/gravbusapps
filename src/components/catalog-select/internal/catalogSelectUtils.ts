@@ -64,6 +64,9 @@ export const buildEntryMeta = (entries: CatalogEntry[]): Record<string, EntryMet
   return meta
 }
 
+// Alias for backward compatibility
+export const buildMetaByValue = buildEntryMeta
+
 export const buildFiltersSignature = (filters: ActiveFilters): string => {
   return JSON.stringify({
     p: filters.parentEntryId || null,

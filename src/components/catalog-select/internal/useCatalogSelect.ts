@@ -305,21 +305,21 @@ export const useCatalogSelect = (
             entryId: value
           })
 
-          if (res.entries.length > 0) {
-            const entry = res.entries[0]
-            const option = { value: entry.id, label: getLocalizedValue(entry, locale) }
-            const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
+          if (res.entries.length === 0) return
 
-            setFor(cfg.id, prev => {
-              if (!prev) return prev
-              const optionExists = prev.options.some(opt => opt.value === option.value)
-              return {
-                ...prev,
-                options: optionExists ? prev.options : [...prev.options, option],
-                metaByValue: { ...prev.metaByValue, [entry.id]: meta }
-              }
-            })
-          }
+          const entry = res.entries[0]
+          const option = { value: entry.id, label: getLocalizedValue(entry, locale) }
+          const meta = { parentEntryId: entry.parentEntryId, type: entry.type }
+
+          setFor(cfg.id, prev => {
+            if (!prev) return prev
+            const optionExists = prev.options.some(opt => opt.value === option.value)
+            return {
+              ...prev,
+              options: optionExists ? prev.options : [...prev.options, option],
+              metaByValue: { ...prev.metaByValue, [entry.id]: meta }
+            }
+          })
         } catch {
           // Ignore fetch errors
         }

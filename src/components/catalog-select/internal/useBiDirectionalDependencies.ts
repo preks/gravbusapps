@@ -15,19 +15,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
-import { toOptions, getLocalizedValue } from './catalogSelectUtils'
-
-// Helper: Build metadata from entries
-const buildMetaByValue = (entries: CatalogEntry[]): Record<string, { parentEntryId?: string; type?: string }> => {
-  const meta: Record<string, { parentEntryId?: string; type?: string }> = {}
-  for (const entry of entries) {
-    meta[entry.id] = {
-      parentEntryId: entry.parentEntryId,
-      type: entry.type
-    }
-  }
-  return meta
-}
+import { getLocalizedValue } from './catalogSelectUtils'
+import { fetchFilteredOptionsWithParent, resetToPrefetchedOptions, clearChildValue } from './dependencyHelpers'
 
 type State = {
   value: string
@@ -92,69 +81,31 @@ const handleParentChange = ({
   }
 
   if (parentValue && childValue) {
-    // Both have values but parent changed - clear child
-    setFor(id, (prev: any) => (prev ? { ...prev, value: '', search: undefined } : prev))
+    clearChildValue({ id, setFor })
   } else if (!parentValue && childValue) {
     // Parent is empty but child has value
     const childMeta = stateById[id]?.metaByValue?.[childValue]
     const canAutoSelect = childMeta?.parentEntryId || !childMeta
 
     if (!canAutoSelect) {
-      setFor(id, (prev: any) => (prev ? { ...prev, value: '', search: undefined } : prev))
+      clearChildValue({ id, setFor })
     }
   }
 
   // Refetch child options with new parent filter
   if (parentValue && !isInitialLoad) {
-    setFor(id, (prev: any) =>
-      prev
-        ? {
-            ...prev,
-            options: [],
-            loading: true,
-            offset: 0,
-            lastFiltersSig: undefined
-          }
-        : prev
-    )
-
-    fetchCatalogEntriesByIdentifier(id, {
-      limit: config.pageSize ?? defaultPageSize,
-      offset: 0,
-      parentEntryId: parentValue
+    fetchFilteredOptionsWithParent({
+      id,
+      parentValue,
+      config,
+      defaultPageSize,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      locale,
+      errorContext: 'useBiDirectionalDependencies'
     })
-      .then((res: any) => {
-        const metaByValue = buildMetaByValue(res.entries)
-        setFor(id, (prev: any) =>
-          prev
-            ? {
-                ...prev,
-                loading: false,
-                options: toOptions(res.entries, locale),
-                total: res.totalCount,
-                offset: res.entries.length,
-                metaByValue: { ...prev.metaByValue, ...metaByValue }
-              }
-            : prev
-        )
-      })
-      .catch((error: any) => {
-        console.error(`[useBiDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
-        setFor(id, (prev: any) => (prev ? { ...prev, loading: false } : prev))
-      })
   } else if (!parentValue) {
-    // Parent cleared - reset to prefetched
-    setFor(id, (prev: any) =>
-      prev
-        ? {
-            ...prev,
-            options: prev.prefetchedOptions || [],
-            offset: (prev.prefetchedOptions || []).length,
-            loading: false,
-            lastFiltersSig: undefined
-          }
-        : prev
-    )
+    resetToPrefetchedOptions({ id, setFor })
   }
 }
 
@@ -169,7 +120,9 @@ const handleChildToParentAutoSelection = ({
   setFor,
   fetchCatalogEntriesByIdentifier,
   autoSelectedParentsRef,
-  locale
+  locale,
+  config,
+  defaultPageSize
 }: any) => {
   if (!childValue || parentValue || parentState?.manuallyCleared) return
 
@@ -211,6 +164,20 @@ const handleChildToParentAutoSelection = ({
       .catch((error: any) => {
         console.error(`[useBiDirectionalDependencies] Failed to fetch parent option for ${parentField}:`, error)
       })
+  }
+
+  // After auto-selecting parent, filter child options by that parent
+  if (childMeta.parentEntryId) {
+    fetchFilteredOptionsWithParent({
+      id,
+      parentValue: childMeta.parentEntryId,
+      config,
+      defaultPageSize,
+      setFor,
+      fetchCatalogEntriesByIdentifier,
+      locale,
+      errorContext: 'useBiDirectionalDependencies'
+    })
   }
 }
 
@@ -305,7 +272,9 @@ export const useBiDirectionalDependencies = ({
         setFor,
         fetchCatalogEntriesByIdentifier,
         autoSelectedParentsRef,
-        locale
+        locale,
+        config,
+        defaultPageSize
       })
 
       // Reset manuallyCleared when user actively selects child

@@ -165,6 +165,34 @@ const buildSearchableText = (baseEntry: BaseCatalogEntry): string => {
   return (searchableFields as string[]).join(' ').toLowerCase()
 }
 
+// Helper: Process single translation entry
+const processTranslationEntry = (
+  translation: any,
+  valueTranslations: Record<string, string>,
+  descriptionTranslations: Record<string, string>,
+  additionalValue1Translations: Record<string, string>,
+  additionalValue2Translations: Record<string, string>,
+  additionalValue3Translations: Record<string, string>
+) => {
+  if (!translation.localeCode) return
+
+  if (translation.value) {
+    valueTranslations[translation.localeCode] = translation.value
+  }
+  if (translation.objectValue?.description) {
+    descriptionTranslations[translation.localeCode] = translation.objectValue.description
+  }
+  if (translation.additionalValue1) {
+    additionalValue1Translations[translation.localeCode] = translation.additionalValue1
+  }
+  if (translation.additionalValue2) {
+    additionalValue2Translations[translation.localeCode] = translation.additionalValue2
+  }
+  if (translation.additionalValue3) {
+    additionalValue3Translations[translation.localeCode] = translation.additionalValue3
+  }
+}
+
 // Helper: Transform translations array to separate fields
 const transformTranslations = (baseEntry: BaseCatalogEntry) => {
   const valueTranslations: Record<string, string> = {}
@@ -175,23 +203,14 @@ const transformTranslations = (baseEntry: BaseCatalogEntry) => {
 
   if (baseEntry.translations && Array.isArray(baseEntry.translations)) {
     for (const translation of baseEntry.translations) {
-      if (!translation.localeCode) continue
-
-      if (translation.value) {
-        valueTranslations[translation.localeCode] = translation.value
-      }
-      if (translation.objectValue?.description) {
-        descriptionTranslations[translation.localeCode] = translation.objectValue.description
-      }
-      if (translation.additionalValue1) {
-        additionalValue1Translations[translation.localeCode] = translation.additionalValue1
-      }
-      if (translation.additionalValue2) {
-        additionalValue2Translations[translation.localeCode] = translation.additionalValue2
-      }
-      if (translation.additionalValue3) {
-        additionalValue3Translations[translation.localeCode] = translation.additionalValue3
-      }
+      processTranslationEntry(
+        translation,
+        valueTranslations,
+        descriptionTranslations,
+        additionalValue1Translations,
+        additionalValue2Translations,
+        additionalValue3Translations
+      )
     }
   }
 
