@@ -188,7 +188,8 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
           preValue: roundData.preValue?.toString() || '',
           investmentVolume: roundData.investmentVolume?.toString() || '',
           roundSharePercentage: roundData.roundSharePercentage?.toString() || '',
-          currencyRef: roundData.currency?.id || 'Currency:v1:EUR'
+          currencyRef: roundData.currency?.id || 'Currency:v1:EUR',
+          version: roundData.version || 0
         }
 
         // Round data loaded
@@ -201,7 +202,9 @@ const EquityInvestmentRoundForm: React.FC<EquityInvestmentRoundFormProps> = ({
           investmentVolume: existingData.investmentVolume,
           roundSharePercentage: existingData.roundSharePercentage,
           currencyRef: existingData.currencyRef,
-          equityInvestment: finalEquityInvestmentId
+          equityInvestment: finalEquityInvestmentId,
+          id: existingData.id,
+          version: existingData.version
         })
       }
     } catch {
