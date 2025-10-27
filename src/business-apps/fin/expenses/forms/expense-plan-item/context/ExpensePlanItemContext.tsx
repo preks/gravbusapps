@@ -94,6 +94,8 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
   const [expenseRuleError, setExpenseRuleError] = useState<string | null>(null)
   const [rerunRule, setRerunRule] = useState<boolean>(false)
   const [itemValues, setItemValues] = useState<{ id: string; version: string | number } | null>(null)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [userCostCenter, setUserCostCenter] = useState<string>('')
 
   const [generalDataResponse, setGeneralDataResponse] = useState<any>(null)
   const [catalogueDataResponse, setCatalogueDataResponse] = useState<any>(null)
@@ -104,7 +106,7 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
 
   useEffect(() => {
     fetchInitialData()
-  }, [accessToken, userInfo, employeeRuleId, firstRunVariable, rerunRule])
+  }, [accessToken, userInfo, employeeRuleId, rerunRule])
 
   useEffect(() => {
     if (!accessToken || !generalDataResponse || !catalogueDataResponse || expenseRuleError) {
@@ -311,20 +313,6 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
     }
   }
 
-  /**
-   * Initializes first-run data (cost centers and currencies)
-   */
-  const initializeFirstRunData = async (catalogueData: any): Promise<void> => {
-    if (firstRunVariable || !catalogueData?.data) return
-
-    const employeePosition = catalogueData?.data?.EmployeePosition || []
-    const structureId = employeePosition[0]?.structureId || ''
-
-    await fetchAndSetCostCenters(structureId, employeePosition)
-    processCurrencies(catalogueData)
-    setFirstRunVariable(true)
-  }
-
   const fetchInitialData = async () => {
     try {
       // Early validation
@@ -344,7 +332,15 @@ export const ExpensePlanItemProvider: React.FC<ExpensePlanItemProviderProps> = (
       // Fetch catalogue data and initialize if needed
       if (rerunRule === false) {
         const catalogueData = await fetchCatalogueData(employeeIdValue)
-        await initializeFirstRunData(catalogueData)
+
+        if (firstRunVariable === false && catalogueData?.data) {
+          const employeePosition = catalogueData?.data?.EmployeePosition || []
+          const structureId = employeePosition[0]?.structureId || ''
+
+          await fetchAndSetCostCenters(structureId, employeePosition)
+          processCurrencies(catalogueData)
+          setFirstRunVariable(true)
+        }
       }
 
       setRerunRule(false)

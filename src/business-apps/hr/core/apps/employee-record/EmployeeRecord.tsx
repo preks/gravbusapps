@@ -15,7 +15,8 @@ import {
   PiChatCircle,
   PiCalendar,
   PiGraduationCap,
-  PiClockCounterClockwise
+  PiClockCounterClockwise,
+  PiReceipt
 } from 'react-icons/pi'
 
 // Tab components
@@ -28,6 +29,7 @@ import FeedbackTab from './components/tabs/FeedbackTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
 import ChangeLogTab from './components/tabs/ChangeLogTab'
+import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -46,7 +48,8 @@ const TAB_KEYS = {
   feedback: 'feedback',
   absences: 'absences',
   skills: 'skills',
-  changeLog: 'changeLog'
+  changeLog: 'changeLog',
+  serviceRequests: 'serviceRequests'
 }
 
 // Helper to read URL parameters
@@ -429,7 +432,25 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
               )
             }
           ]
-        : [])
+        : []),
+      {
+        key: TAB_KEYS.serviceRequests,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiReceipt style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Service Requests</span>
+          </div>
+        ),
+        children: (
+          <ServiceRequestsTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      }
     ]
     // ONLY when not viewing own profile
     return allTabs.filter(tab => {
@@ -440,12 +461,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      // If not viewing own profile and tab is employment, documents, absences, or changeLog, check permissions
+      // If not viewing own profile and tab is employment, documents, absences, changeLog, or serviceRequests, check permissions
       if (
         tabKey === TAB_KEYS.employment ||
         tabKey === TAB_KEYS.documents ||
         tabKey === TAB_KEYS.absences ||
-        tabKey === TAB_KEYS.changeLog
+        tabKey === TAB_KEYS.changeLog ||
+        tabKey === TAB_KEYS.serviceRequests
       ) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true

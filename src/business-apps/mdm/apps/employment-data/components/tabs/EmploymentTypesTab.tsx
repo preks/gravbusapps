@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Input, Card, Spinner, Icon, DataTable, CardContent, Badge } from '@newwork/nw-design-system'
+import { Button, Input, Card, Spinner, Icon, DataTable, CardContent, Badge, toast } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useUserLocale } from '@/common/locale/useUserLocale'
@@ -20,7 +20,6 @@ import {
 } from '@phosphor-icons/react'
 import { ColumnDef, SortingState } from '@tanstack/react-table'
 import { useGetEmploymentTypesData } from '../../queries/EmploymentTypesQueries'
-import { toast } from 'sonner'
 import {
   EMPLOYMENT_TYPE_CATALOG,
   EMPLOYMENT_TYPE_VERSION
@@ -60,8 +59,6 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
   const [selectedType, setSelectedType] = useState<EmploymentType | null>(null)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
-
-  const [selectedRows, setSelectedRows] = useState<any[]>([])
 
   const loadEmploymentTypes = async () => {
     try {
@@ -275,10 +272,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         columns={columns as ColumnDef<(typeof dataTable)[number]>[]}
         sorting={sorting}
         onSortingChange={setSorting}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
         enableSorting
-        enableSelection
         enablePagination
       />
     )

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { InvestmentFormValues, SelectOption, InvestmentContextState } from '../types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useEmployeePositions } from '../hooks/useEmployeePositions'
+import { useEmployeeSearch, EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { useEmployeeById, EmployeeByIdData } from '../hooks/useEmployeeById'
 import { useGetInvestmentAccounts } from '@/common/data/investment'
 import { useInvestmentGroups } from '../hooks/useInvestmentGroupCatalog'
@@ -35,7 +35,7 @@ interface InvestmentFormContextValue extends InvestmentContextState {
   currentEmployeeError: string | null
 
   // Employee positions (already searchable)
-  employeePositions: SelectOption[]
+  employeePositions: EmployeeLiteOption[]
   employeePositionsLoading: boolean
   employeePositionsError: string | null
   employeePositionsHasMore: boolean
@@ -150,8 +150,8 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     if (initialValues.investment?.investmentGroup) {
       investment.investmentGroup = initialValues.investment.investmentGroup
     }
-    if (initialValues.investment?.ownerEmployee) {
-      investment.ownerEmployee = initialValues.investment.ownerEmployee
+    if (initialValues.investment?.ownerEmployeeId) {
+      investment.ownerEmployeeId = initialValues.investment.ownerEmployeeId
     }
     if (initialValues.investment?.investmentStatus) {
       investment.investmentStatus = initialValues.investment.investmentStatus
@@ -258,26 +258,20 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
   // Ref to track if auto-selection has been done
   const autoSelectionDone = useRef(false)
 
-  // Employee positions hook
+  // Employee search hook
   const {
-    employeePositions: employeePositionData,
+    employees: employeePositionData,
     loading: employeePositionsLoading,
     error: employeePositionsError,
     hasMore: employeePositionsHasMore,
-    searchEmployees: searchEmployeePositions,
+    search: searchEmployeePositions,
     loadMore: loadMoreEmployeePositions
-  } = useEmployeePositions({ accessToken: businessAppContext.accessToken })
+  } = useEmployeeSearch(businessAppContext.accessToken)
 
   // Current employee hook - for loading the owner's information
   const ownerEmployeeForFetch = React.useMemo(() => {
-    const ownerEmployee = formValues.investment.ownerEmployee
-    // Handle null explicitly (typeof null === 'object' in JavaScript)
-    if (ownerEmployee === null || ownerEmployee === undefined) {
-      return undefined
-    }
-    const result = typeof ownerEmployee === 'object' ? ownerEmployee.id || undefined : ownerEmployee || undefined
-    return result
-  }, [formValues.investment.ownerEmployee])
+    return formValues.investment.ownerEmployeeId || undefined
+  }, [formValues.investment.ownerEmployeeId])
 
   const {
     employee: currentEmployee,
@@ -372,9 +366,16 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     },
     [
       investmentCatalogData,
-      formValues.investment.investmentGroup,
-      formValues.investment.investmentType,
-      formValues.liquidFundInvestment
+      // Extract IDs to prevent infinite loop from object reference changes
+      typeof formValues.investment.investmentGroup === 'object'
+        ? formValues.investment.investmentGroup?.id
+        : formValues.investment.investmentGroup,
+      typeof formValues.investment.investmentType === 'object'
+        ? formValues.investment.investmentType?.id
+        : formValues.investment.investmentType,
+      typeof formValues.liquidFundInvestment?.investmentLiquidFundType === 'object'
+        ? formValues.liquidFundInvestment?.investmentLiquidFundType?.id
+        : formValues.liquidFundInvestment?.investmentLiquidFundType
     ]
   )
 
@@ -456,18 +457,15 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
       return
     }
 
-    const ownerEmployee = formValues.investment.ownerEmployee
-    // Extract ID from object or use string directly
-    const ownerIdValue = typeof ownerEmployee === 'object' && ownerEmployee ? ownerEmployee.id : ownerEmployee
-
-    const isOwnerEmpty = !ownerIdValue || (typeof ownerIdValue === 'string' && ownerIdValue.trim() === '')
+    const ownerEmployeeId = formValues.investment.ownerEmployeeId
+    const isOwnerEmpty = !ownerEmployeeId || ownerEmployeeId.trim() === ''
 
     if (businessAppContext.userInfo?.employeeDetails?.employeeId && isOwnerEmpty) {
       setFormValuesState(prev => ({
         ...prev,
         investment: {
           ...prev.investment,
-          ownerEmployee: { id: businessAppContext.userInfo?.employeeDetails?.employeeId || '' } as any
+          ownerEmployeeId: businessAppContext.userInfo?.employeeDetails?.employeeId || ''
         }
       }))
     }
@@ -481,25 +479,18 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     const positions = [...employeePositionData]
 
     // If we have current user employee data and it's not already in the list, add it at the top
-    if (currentUserEmployee && currentUserEmployeeId && !positions.some(emp => emp.value === currentUserEmployeeId)) {
-      const currentUserPosition: SelectOption = {
+    if (currentUserEmployee && currentUserEmployeeId && !positions.some(emp => emp.id === currentUserEmployeeId)) {
+      const currentUserPosition: EmployeeLiteOption = {
         id: currentUserEmployeeId,
-        value: currentUserEmployeeId,
-        label:
+        displayName:
           currentUserEmployee.employee?.displayName ||
           `${currentUserEmployee.firstName || ''} ${currentUserEmployee.lastName || ''}`.trim(),
-        name:
-          currentUserEmployee.employee?.displayName ||
-          `${currentUserEmployee.firstName || ''} ${currentUserEmployee.lastName || ''}`.trim(),
-        extraInfo: {
-          picture: currentUserEmployee.employee?.picture || null,
-          pictureThumbnail: currentUserEmployee.employee?.pictureThumbnail || null,
-          jobPosition: currentUserEmployee.jobPosition?.name || 'No Position',
-          organizationalUnit: currentUserEmployee.organizationalUnit?.name || 'No Unit',
-          department: currentUserEmployee.organizationalUnit?.name || 'No Department',
-          position: currentUserEmployee.jobPosition?.name || 'No Position',
-          userId: currentUserEmployee.employee?.userId || null
-        }
+        firstName: currentUserEmployee.firstName || undefined,
+        lastName: currentUserEmployee.lastName || undefined,
+        userId: currentUserEmployee.employee?.userId || undefined,
+        pictureThumbnail: currentUserEmployee.employee?.pictureThumbnail || undefined,
+        organizationalUnitName: currentUserEmployee.organizationalUnit?.name || undefined,
+        jobPositionName: currentUserEmployee.jobPosition?.name || undefined
       }
 
       // Add current user at the beginning of the list
@@ -507,35 +498,33 @@ export const InvestmentFormProvider: React.FC<InvestmentFormProviderProps> = ({
     }
 
     // Ensure current owner (loaded from form) is present as an option
-    const ownerEmployeeId =
-      typeof formValues.investment.ownerEmployee === 'object'
-        ? formValues.investment.ownerEmployee?.id
-        : formValues.investment.ownerEmployee
+    const ownerEmployeeId = formValues.investment.ownerEmployeeId
 
-    if (currentEmployee && ownerEmployeeId && !positions.some(emp => emp.value === ownerEmployeeId)) {
+    if (currentEmployee && ownerEmployeeId && !positions.some(emp => emp.id === ownerEmployeeId)) {
       const ownerDisplayName =
         currentEmployee.employee?.displayName ||
         `${currentEmployee.firstName || ''} ${currentEmployee.lastName || ''}`.trim()
-      const ownerOption: SelectOption = {
+      const ownerOption: EmployeeLiteOption = {
         id: ownerEmployeeId,
-        value: ownerEmployeeId,
-        label: ownerDisplayName,
-        name: ownerDisplayName,
-        extraInfo: {
-          picture: currentEmployee.employee?.picture || null,
-          pictureThumbnail: currentEmployee.employee?.pictureThumbnail || null,
-          jobPosition: currentEmployee.jobPosition?.name || 'No Position',
-          organizationalUnit: currentEmployee.organizationalUnit?.name || 'No Unit',
-          department: currentEmployee.organizationalUnit?.name || 'No Department',
-          position: currentEmployee.jobPosition?.name || 'No Position',
-          userId: currentEmployee.employee?.userId || null
-        }
+        displayName: ownerDisplayName,
+        firstName: currentEmployee.firstName || undefined,
+        lastName: currentEmployee.lastName || undefined,
+        userId: currentEmployee.employee?.userId || undefined,
+        pictureThumbnail: currentEmployee.employee?.pictureThumbnail || undefined,
+        organizationalUnitName: currentEmployee.organizationalUnit?.name || undefined,
+        jobPositionName: currentEmployee.jobPosition?.name || undefined
       }
       positions.unshift(ownerOption)
     }
 
     return positions
-  }, [employeePositionData, currentUserEmployee, currentUserEmployeeId])
+  }, [
+    employeePositionData,
+    currentUserEmployee,
+    currentUserEmployeeId,
+    currentEmployee,
+    formValues.investment.ownerEmployeeId
+  ])
 
   // Validation is handled by zod in AppActionForm; treat context as always valid
   const isFormValid = useMemo(() => true, [])

@@ -7,23 +7,9 @@ const catalogEntrySchema = z.union([
   z.string().min(1),
   z
     .object({
-      id: z.string(),
+      id: z.string().min(1),
       code: z.string().optional(),
       value: z.string().optional()
-    })
-    .passthrough(),
-  z.null()
-])
-
-// Employee reference schema - accepts either string ID, employee object, or null (for clearing)
-const employeeRefSchema = z.union([
-  z.string().min(1),
-  z
-    .object({
-      id: z.string(),
-      firstName: z.string().optional(),
-      lastName: z.string().optional(),
-      displayName: z.string().optional()
     })
     .passthrough(),
   z.null()
@@ -34,7 +20,7 @@ const accountRefSchema = z.union([
   z.string().min(1),
   z
     .object({
-      id: z.string(),
+      id: z.string().min(1),
       name: z.string().optional()
     })
     .passthrough(),
@@ -54,9 +40,7 @@ const baseInvestmentSchema = z
         investmentGroup: catalogEntrySchema.optional().refine(val => val !== null && val !== undefined, {
           message: 'Investment group is required'
         }),
-        ownerEmployee: employeeRefSchema.optional().refine(val => val !== null && val !== undefined, {
-          message: 'Investment owner is required'
-        }),
+        ownerEmployeeId: z.string().min(1, 'Investment owner is required'),
         investmentStatus: catalogEntrySchema.optional(),
         code: z.string().optional(),
         currency: catalogEntrySchema
@@ -123,7 +107,7 @@ export const createDynamicInvestmentSchema = (formFieldsDefinition?: FormFieldsD
     for (const group of formFieldsDefinition.formFields) {
       for (const field of group.fields) {
         // Use full property path
-        const fieldName = getPropertyName(field.property, field.type)
+        const fieldName = getPropertyName(field.property)
 
         // Determine which nested object this field belongs to
         const parts = fieldName.split('.')

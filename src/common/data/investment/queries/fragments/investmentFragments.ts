@@ -119,8 +119,8 @@ export const EQUITY_INVESTMENT = `
         code
     }
     
-    # Investment rounds
-    equityInvestmentRound {
+    # Investment rounds (only active, non-deleted rounds)
+    equityInvestmentRound(where: { isDeleted: { _eq: false } }, orderBy: { year: DESC_NULLS_LAST }) {
         id
         name
         year
@@ -136,8 +136,8 @@ export const EQUITY_INVESTMENT = `
         ${AUDIT_FIELDS}
     }
     
-    # Investment reports
-    equityInvestmentReport {
+    # Investment reports (only active, non-deleted reports)
+    equityInvestmentReport(where: { isDeleted: { _eq: false } }, orderBy: { date: DESC_NULLS_LAST }) {
         id
         date
         marketValue
@@ -199,8 +199,8 @@ export const REAL_ESTATE_INVESTMENT = `
         ${CATALOG_ENTRY}
     }
     
-    # Investment reports
-    realEstateInvestmentReport {
+    # Investment reports (only active, non-deleted reports)
+    realEstateInvestmentReport(where: { isDeleted: { _eq: false } }, orderBy: { date: DESC_NULLS_LAST }) {
         id
         date
         actualAnnualExpenses
@@ -261,8 +261,8 @@ export const LIQUID_FUND_INVESTMENT = `
         ${CATALOG_ENTRY}
     }
     
-    # Investment reports
-    liquidFundInvestmentReport {
+    # Investment reports (only active, non-deleted reports)
+    liquidFundInvestmentReport(where: { isDeleted: { _eq: false } }, orderBy: { date: DESC_NULLS_LAST }) {
         id
         date
         interestRate

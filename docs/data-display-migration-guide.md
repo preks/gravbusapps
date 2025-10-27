@@ -945,7 +945,7 @@ The `actions` prop supports two approaches: **standard dropdown actions** (array
 **With notifications:**
 
 ```tsx
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 ;<DataTable
   actions={[
     {
@@ -1229,7 +1229,7 @@ onClick={(e) => {
 **✅ DO: Use toast notifications for user feedback**
 
 ```tsx
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 
 toast.success('Action completed', {
   description: 'Details about what happened'

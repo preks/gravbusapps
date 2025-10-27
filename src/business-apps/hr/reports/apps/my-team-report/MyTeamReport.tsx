@@ -16,7 +16,7 @@ import { PiUsersThree, PiUsers, PiCalendar } from 'react-icons/pi'
 import { CalendarOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 
 export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessAppContextProps) => {
   const { accessToken, userInfo } = props
@@ -64,8 +64,20 @@ export const MyTeamReport: React.FC<BusinessAppContextProps> = (props: BusinessA
     useTeamReportFilters(
       [...new Set(allEmployees.map((e: Employee) => e.jobPosition).filter((p): p is string => !!p))],
       [...new Set(allEmployees.map((e: Employee) => e.location).filter((l): l is string => !!l))],
-      [...new Set(allEmployees.map((e: Employee) => e.employmentType).filter((t): t is string => !!t))],
-      [...new Set(allEmployees.map((e: Employee) => e.contractType).filter((t): t is string => !!t))]
+      [
+        ...new Set(
+          allEmployees
+            .map((e: Employee) => (e.employmentType ? getCatalogValue(e.employmentType) : ''))
+            .filter((t): t is string => !!t)
+        )
+      ],
+      [
+        ...new Set(
+          allEmployees
+            .map((e: Employee) => (e.contractType ? getCatalogValue(e.contractType) : ''))
+            .filter((t): t is string => !!t)
+        )
+      ]
     )
 
   const matchesKpi = useCallback(

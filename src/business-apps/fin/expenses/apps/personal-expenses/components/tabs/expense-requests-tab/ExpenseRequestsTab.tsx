@@ -65,7 +65,11 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     const token = selectedFilters.find(f => f.startsWith('currency:'))
     return token ? token.substring('currency:'.length) : undefined
   }, [selectedFilters])
-  const { currencyStats } = useExpenseCurrencies(contextProps, selectedFilters, setFilters)
+  const { currencyStats, initialized: currenciesInitialized } = useExpenseCurrencies(
+    contextProps,
+    selectedFilters,
+    setFilters
+  )
 
   // Helper function to get current month date range
   // Removed local getCurrentMonthRange; card strategy handles current month range
@@ -117,6 +121,9 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
 
   // Only fetch when filters, page, pageSize, or sorting changes
   useEffect(() => {
+    // Avoid duplicate initial queries: wait until currency preselection flow completes
+    if (!currenciesInitialized) return
+
     if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
       fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder)
     }
@@ -128,7 +135,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     sortField,
     sortOrder,
     contextProps.accessToken,
-    contextProps.userInfo?.employeeDetails?.employeeId
+    contextProps.userInfo?.employeeDetails?.employeeId,
+    currenciesInitialized
   ])
 
   // Process completion event listener to refresh data
@@ -137,7 +145,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       try {
         if (event.detail?.resolution === 'success') {
           // Refresh expense requests data after successful process completion
-          if (contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
+          if (currenciesInitialized && contextProps.accessToken && contextProps.userInfo?.employeeDetails?.employeeId) {
             fetchItems(memoizedFilters, currentPage, pageSize, sortField, sortOrder)
           }
 
@@ -191,6 +199,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
         {...contextProps}
         currencyCode={selectedCurrencyRef?.split(':').pop() || 'EUR'}
         {...({ selectedCurrencyRef } as any)}
+        {...({ currencyInitialized: currenciesInitialized } as any)}
         onWidgetClick={handleWidgetClick}
         activeWidgetKey={activeWidget || undefined}
       />

@@ -55,6 +55,7 @@ export interface TaskSegmentProps {
 
   // Entity selection
   showEntitySelection?: boolean
+  requireEntity?: boolean
   entities?: Array<{
     id: string
     name: string
@@ -124,6 +125,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   fetchPriorityOptions,
   fetchStatusOptions,
   showEntitySelection = false,
+  requireEntity = false,
   entities = [],
   entitiesLoading = false,
   onEntitySearch,
@@ -359,7 +361,10 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           name="dueDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{deadlineLabel}</FormLabel>
+              <FormLabel>
+                {deadlineLabel}
+                <span className="gba:text-destructive">*</span>
+              </FormLabel>
               <FormControl>
                 <Input
                   className="gba:w-full"
@@ -541,7 +546,10 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{entityLabel || 'Related Entity'}</FormLabel>
+              <FormLabel>
+                {entityLabel || 'Related Entity'}
+                {requireEntity && <span className="gba:text-destructive">*</span>}
+              </FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entitySelectOptions as any}
@@ -563,6 +571,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   loading={Boolean(entitiesLoading)}
                   onLoadMore={onEntityLoadMore}
                   hasMore={Boolean(entitiesHasMore)}
+                  placeholder="Search..."
                   data-testid={`${dataTestId}-entity`}
                 />
               </FormControl>
