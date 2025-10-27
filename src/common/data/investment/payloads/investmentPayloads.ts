@@ -219,7 +219,10 @@ export const buildInvestmentPayload = (
     ...(investment.code && { code: investment.code }),
     ...(investment.isin && { isin: investment.isin }),
     ...(investment.investmentGroup?.id && { investmentGroupRef: investment.investmentGroup.id }),
-    ...(investment.ownerEmployee?.id && { ownerEmployee: investment.ownerEmployee.id }),
+    // NOTE: ownerEmployee is optional - if not provided, backend uses logged-in user
+    // Only include if explicitly set and different from current user
+    // Commenting out to avoid backend EmployeeReferenceEntity persistence issues
+    // ...(investment.ownerEmployee?.id && { ownerEmployee: investment.ownerEmployee.id }),
     ...(investment.initialInvestmentAmount && {
       initialInvestmentAmount: toNumber(investment.initialInvestmentAmount)
     }),
