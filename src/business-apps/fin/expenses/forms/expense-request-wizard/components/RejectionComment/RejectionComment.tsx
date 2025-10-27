@@ -33,7 +33,7 @@ const RejectionComment: React.FC<RejectionCommentProps> = ({ isRequest = true, c
     try {
       const inputDate = new Date(commentDate)
       return `${formatDate(inputDate, 'date.long')} - ${formatDate(inputDate, 'time.short')}`
-    } catch (error) {
+    } catch {
       const inputDate = new Date(commentDate)
       const day = String(inputDate.getDate()).padStart(2, '0')
       const month = String(inputDate.getMonth() + 1).padStart(2, '0')
@@ -60,7 +60,7 @@ const RejectionComment: React.FC<RejectionCommentProps> = ({ isRequest = true, c
     : ''
 
   return (
-    <div className="gba:bg-[#f8d8e4] gba:p-5 gba:rounded" data-testid="rejection-comment-container">
+    <div className="gba:bg-destructive-secondary gba:p-5 gba:rounded" data-testid="rejection-comment-container">
       <div className="gba:flex gba:items-center gba:mb-4">
         <Avatar src={getAvatarSrc()} size={32} data-testid="rejection-comment-avatar">
           {!comment.authorEmployee?.pictureThumbnail && authorName.charAt(0)}

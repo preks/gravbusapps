@@ -678,7 +678,7 @@ export const setByExternalCustomComponent = (
         isAbroad
       }))
     }
-  } catch (error) {
+  } catch {
     showToast(
       getTranslationFromI18nKeyAndLabel(
         'lowcoder:modify_expense_request.error_prefill_trip_data',
@@ -727,7 +727,7 @@ export const setLocalitiesDefault = (
       }))
     }
     setLocationsAreSynced(true)
-  } catch (error) {}
+  } catch {}
 }
 
 export const getLatestRejectComment = (expenseRequestData: any) => {

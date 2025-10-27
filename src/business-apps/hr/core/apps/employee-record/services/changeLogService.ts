@@ -1,4 +1,4 @@
-import { ChangeLogEntry, ChangeLogFilters } from '../components/tabs/ChangeLogTab'
+import { ChangeLogEntry } from '../components/tabs/ChangeLogTab'
 import { env } from '@/common/env/EnvUtils'
 import ChangeLogDataTransformer from './changeLogDataTransformer'
 import ChangeLogVisibilityRules from './changeLogVisibilityRules'
@@ -29,21 +29,17 @@ export class ChangeLogService {
   /**
    * Fetch change log entries from FLOW audit system
    */
-  async fetchChangeLogEntries(
-    filters?: ChangeLogFilters,
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<ChangeLogApiResponse> {
+  async fetchChangeLogEntries(limit: number = 50): Promise<ChangeLogApiResponse> {
     try {
       // First try to get data from FLOW audit API
-      const auditResponse = await this.fetchFromFlowAudit(filters, limit, offset)
-      
+      const auditResponse = await this.fetchFromFlowAudit()
+
       if (auditResponse.entries.length > 0) {
         return auditResponse
       }
 
       // Fallback to version comparison approach
-      return await this.fetchFromVersionComparison(filters, limit, offset)
+      return await this.fetchFromVersionComparison(limit)
     } catch (error) {
       console.error('Error fetching change log entries:', error)
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -54,11 +50,7 @@ export class ChangeLogService {
   /**
    * Fetch data from FLOW audit system
    */
-  private async fetchFromFlowAudit(
-    _filters?: ChangeLogFilters,
-    _limit: number = 50,
-    _offset: number = 0
-  ): Promise<ChangeLogApiResponse> {
+  private async fetchFromFlowAudit(): Promise<ChangeLogApiResponse> {
     // FLOW audit system is not available in the current schema
     // Return empty data to trigger the fallback to version comparison
     return {
@@ -71,11 +63,7 @@ export class ChangeLogService {
   /**
    * Fetch data using version comparison approach
    */
-  private async fetchFromVersionComparison(
-    _filters?: ChangeLogFilters,
-    limit: number = 50,
-    _offset: number = 0
-  ): Promise<ChangeLogApiResponse> {
+  private async fetchFromVersionComparison(limit: number = 50): Promise<ChangeLogApiResponse> {
     try {
       // Use the predefined GraphQL query
       const query = CHANGE_LOG_QUERIES.GET_EMPLOYEE_CHANGE_LOG
@@ -95,7 +83,7 @@ export class ChangeLogService {
         const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') || '', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${this.config.accessToken}`,
+            Authorization: `Bearer ${this.config.accessToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -112,7 +100,7 @@ export class ChangeLogService {
         }
 
         data = await response.json()
-        
+
         if (data.errors) {
           throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`)
         }
@@ -126,7 +114,7 @@ export class ChangeLogService {
       // Transform the data to ChangeLogEntry format
       const employeeData = this.graphqlClient ? data?.Employee?.[0] : data.data?.Employee?.[0]
       const entries = ChangeLogDataTransformer.transformEmployeeData(employeeData)
-      
+
       return {
         entries,
         totalCount: entries.length,
@@ -139,13 +127,12 @@ export class ChangeLogService {
     }
   }
 
-
   /**
    * Export change log data as CSV
    */
-  async exportChangeLog(filters?: ChangeLogFilters): Promise<Blob> {
-    const response = await this.fetchChangeLogEntries(filters, 10000, 0) // Large limit for export
-    
+  async exportChangeLog(): Promise<Blob> {
+    const response = await this.fetchChangeLogEntries(10000) // Large limit for export
+
     const csvContent = [
       ['Field Name', 'Category', 'Previous Value', 'New Value', 'Timestamp', 'Changed By', 'Change Origin'],
       ...response.entries.map(entry => [
@@ -157,8 +144,10 @@ export class ChangeLogService {
         entry.changedBy.userName,
         entry.changeOrigin.flowName
       ])
-    ].map(row => row.join(',')).join('\n')
-    
+    ]
+      .map(row => row.join(','))
+      .join('\n')
+
     return new Blob([csvContent], { type: 'text/csv' })
   }
 
@@ -181,18 +170,21 @@ export class ChangeLogService {
  * Factory function to create ChangeLogService instance
  */
 export const createChangeLogService = (
-  config: Omit<ChangeLogServiceConfig, 'baseUrl'> & { 
-    baseUrl?: string 
+  config: Omit<ChangeLogServiceConfig, 'baseUrl'> & {
+    baseUrl?: string
   },
   graphqlClient?: any
 ): ChangeLogService => {
   // Get base URL from environment or use provided one
   const baseUrl = config.baseUrl || 'https://newwork-dev.newwork.com'
-  
-  return new ChangeLogService({
-    ...config,
-    baseUrl
-  }, graphqlClient)
+
+  return new ChangeLogService(
+    {
+      ...config,
+      baseUrl
+    },
+    graphqlClient
+  )
 }
 
 export default ChangeLogService

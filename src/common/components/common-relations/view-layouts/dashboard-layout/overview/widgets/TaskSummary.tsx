@@ -26,11 +26,7 @@ export interface TaskSummaryProps {
   source?: 'investments' | 'customer-relations'
 }
 
-export const TaskSummary: React.FC<TaskSummaryProps> = ({
-  tasks,
-  moduleColor: _moduleColor = 'default',
-  source = 'investments'
-}) => {
+export const TaskSummary: React.FC<TaskSummaryProps> = ({ tasks, source = 'investments' }) => {
   // Navigation handler for task clicks
   const handleTaskClick = useCallback(
     (task: TaskItem) => {

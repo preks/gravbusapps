@@ -40,7 +40,7 @@ export const useExpenseRequestTransfer = (
 
         refetchData?.()
         clearSelection?.()
-      } catch (error) {
+      } catch {
         console.error('Error starting process:', error)
         showToast(
           getTranslationFromI18nKeyAndLabel(
@@ -81,7 +81,7 @@ export const useExpenseRequestTransfer = (
         refetchData?.()
 
         clearSelection?.()
-      } catch (error) {
+      } catch {
         console.error('Error starting bulk process:', error)
         showToast(
           getTranslationFromI18nKeyAndLabel(

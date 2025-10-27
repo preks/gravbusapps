@@ -208,7 +208,11 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
   // Adapter function for DataFilter component
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
-      selected ? addFilter(filterId) : removeFilter(filterId)
+      if (selected) {
+        addFilter(filterId)
+      } else {
+        removeFilter(filterId)
+      }
     },
     [addFilter, removeFilter]
   )
@@ -480,7 +484,7 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
       {/* Main content with tabs */}
       <div className="gba:task-management-content" data-testid="task-management-tabs">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="gba:w-full">
-          <TabsList className="gba:bg-white gba:border gba:mb-6">
+          <TabsList className="gba:bg-hsl(var(--background)) gba:border gba:mb-6">
             <TabsTrigger value="my" data-testid="my-tasks-tab">
               <UserOutlined className="gba:mr-2" />
               My Tasks

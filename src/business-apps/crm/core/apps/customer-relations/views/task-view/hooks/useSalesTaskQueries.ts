@@ -87,10 +87,7 @@ export const useSalesTaskQueries = ({ accessToken }: UseSalesTaskQueriesProps): 
   )
 
   const fetchHistoricalStatistics = useCallback(
-    async (
-      daysAgo: number = 30,
-      filterVariables?: SalesTaskQueryVariables
-    ): Promise<HistoricalTaskStatisticsResponse> => {
+    async (filterVariables?: SalesTaskQueryVariables): Promise<HistoricalTaskStatisticsResponse> => {
       const { query, variables: queryVariables } = GET_HISTORICAL_TASK_STATISTICS(filterVariables)
       try {
         const result = await graphqlClient.request<HistoricalTaskStatisticsResponse>(query, queryVariables)

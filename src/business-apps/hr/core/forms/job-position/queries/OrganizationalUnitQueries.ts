@@ -1,5 +1,3 @@
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-
 export interface QueryVariablesOrganizationalUnit {
   structureId: string
   offset?: number

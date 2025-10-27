@@ -43,12 +43,8 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   onTimeFilterChange,
   visibleLines,
   onToggleLineVisibility,
-  formatXAxisLabel,
-  formatTooltip,
-  moduleColor = 'default'
+  formatXAxisLabel
 }) => {
-  // Remove unused variable warning
-  const _ = moduleColor
   const timeFilterOptions = [
     { key: 'month' as TimeFilter, label: 'Last Month' },
     { key: 'quarter' as TimeFilter, label: 'Last Quarter' },

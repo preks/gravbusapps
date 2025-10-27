@@ -16,7 +16,8 @@ import {
   PiChatCircle,
   PiCalendar,
   PiGraduationCap,
-  PiClockCounterClockwise
+  PiClockCounterClockwise,
+  PiReceipt
 } from 'react-icons/pi'
 
 // Tab components
@@ -30,8 +31,10 @@ import FeedbackTab from './components/tabs/FeedbackTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
 import ChangeLogTab from './components/tabs/ChangeLogTab'
+import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
 
 /**
  * Employee Record Module
@@ -48,7 +51,8 @@ const TAB_KEYS = {
   feedback: 'feedback',
   absences: 'absences',
   skills: 'skills',
-  changeLog: 'changeLog'
+  changeLog: 'changeLog',
+  serviceRequests: 'serviceRequests'
 }
 
 // Helper to read URL parameters
@@ -163,6 +167,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
+  const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
+  const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
 
   // Update URL when active tab changes
   useEffect(() => {
@@ -364,25 +370,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         )
       },
       {
-        key: TAB_KEYS.feedback,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiChatCircle className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">Feedback</span>
-          </div>
-        ),
-        children: (
-          <FeedbackTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-            employeeFeedback={feedback ?? []}
-          />
-        )
-      },
-      {
         key: TAB_KEYS.absences,
         label: (
           <div className="gba:flex gba:items-center gba:gap-2">
@@ -419,22 +406,67 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
+      ...(feedbackTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.feedback,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiChatCircle className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">Feedback</span>
+                </div>
+              ),
+              children: (
+                <FeedbackTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                  employeeFeedback={feedback ?? []}
+                />
+              )
+            }
+          ]
+        : []),
+      ...(changeLogTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.changeLog,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiClockCounterClockwise className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">Change Log</span>
+                </div>
+              ),
+              children: (
+                <ChangeLogTab
+                  employeeId={employeeIdToShow}
+                  employeeName={employee?.displayName || 'Employee'}
+                  userRole={'employee'}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  additionalData={additionalData}
+                />
+              )
+            }
+          ]
+        : []),
       {
-        key: TAB_KEYS.changeLog,
+        key: TAB_KEYS.serviceRequests,
         label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiClockCounterClockwise className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">Change Log</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiReceipt style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Service Requests</span>
           </div>
         ),
         children: (
-          <ChangeLogTab
-            employeeId={employeeIdToShow}
-            employeeName={employee?.displayName || 'Employee'}
-            userRole={'employee'}
+          <ServiceRequestsTab
+            employee={employee}
             accessToken={accessToken}
+            employeeId={employeeIdToShow}
             userInfo={userInfo}
-            additionalData={additionalData}
+            isSelfView={isSelfView}
           />
         )
       }
@@ -448,13 +480,14 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      // If not viewing own profile and tab is employment, compensation, documents, absences, or changeLog, check permissions
+      // If not viewing own profile and tab is employment, compensation, documents, absences, changeLog, or serviceRequests, check permissions
       if (
         tabKey === TAB_KEYS.employment ||
         tabKey === TAB_KEYS.compensation ||
         tabKey === TAB_KEYS.documents ||
         tabKey === TAB_KEYS.absences ||
-        tabKey === TAB_KEYS.changeLog
+        tabKey === TAB_KEYS.changeLog ||
+        tabKey === TAB_KEYS.serviceRequests
       ) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true

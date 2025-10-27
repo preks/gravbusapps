@@ -1,10 +1,7 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  StructuralAnalysisResponse,
-  StructuralAnalysisQueryVariables
-} from '../components/views/structural-analysis/types/structuralTypes'
+import { StructuralAnalysisQueryVariables } from '../components/views/structural-analysis/types/structuralTypes'
 
 export interface OrganizationalUnitRelationshipResponse {
   id: string

@@ -1,3 +1,5 @@
+import { FileInfo } from '@/common/types/FileTypes'
+
 export interface TaskEmployee {
   id: string
   firstName: string
@@ -14,6 +16,14 @@ export interface TaskReference {
   id: string
   name: string
   description?: string
+}
+
+export interface TaskDocument {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  fileInfo?: FileInfo
 }
 
 export interface Task {
@@ -33,6 +43,7 @@ export interface Task {
   version?: number
   createdBy?: string
   creatorEmployee?: TaskEmployee
+  documents?: TaskDocument[]
   rawSalesTask?: any // Legacy field for backwards compatibility
 }
 

@@ -54,6 +54,21 @@ export const GET_SALES_TASKS = (variables: SalesTaskQueryVariables): { query: st
           id
           name
         }
+        creatorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          pictureThumbnail
+        }
+        documents(where: { isDeleted: { _eq: false } }) {
+          id
+          name
+          file
+          fileInfo
+          mimeType
+          fileSize
+        }
         recordState
       }
     }
@@ -129,6 +144,21 @@ export const GET_SALES_TASKS_WITH_COUNT = (variables: SalesTaskQueryVariables): 
         opportunity {
           id
           name
+        }
+        creatorEmployee {
+          id
+          firstName
+          lastName
+          displayName
+          pictureThumbnail
+        }
+        documents(where: { isDeleted: { _eq: false } }) {
+          id
+          name
+          file
+          fileInfo
+          mimeType
+          fileSize
         }
         recordState
       }

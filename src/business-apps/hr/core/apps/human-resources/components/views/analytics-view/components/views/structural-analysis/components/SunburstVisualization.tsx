@@ -37,7 +37,7 @@ const SunburstTooltip: React.FC<any> = ({ active, payload }) => {
 }
 
 // Transform hierarchical data to sunburst format with proper unique keys
-const transformToSunburstFormat = (node: SunburstNode, parentPath = 'root', index = 0): any => {
+const transformToSunburstFormat = (node: SunburstNode, index = 0): any => {
   // Create a unique name that includes the ID to prevent duplicates
   // Recharts uses the 'name' property as the key, so we need to make names unique
   const uniqueName = node.id ? `${node.name} (${node.id})` : `${node.name} (${index}-${node.level})`
@@ -52,7 +52,7 @@ const transformToSunburstFormat = (node: SunburstNode, parentPath = 'root', inde
     key: uniqueId, // Ensure unique key for React rendering
     fill: node.color || node.fill, // Preserve color information
     color: node.color, // Keep original color property
-    children: node.children?.map((child, childIndex) => transformToSunburstFormat(child, uniqueId, childIndex)) || []
+    children: node.children?.map((child, childIndex) => transformToSunburstFormat(child, childIndex)) || []
   }
 
   return result

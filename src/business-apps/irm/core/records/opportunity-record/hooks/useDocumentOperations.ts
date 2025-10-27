@@ -1,6 +1,6 @@
 import { useCallback } from 'react'
 // Modal removed - using state-based confirmation dialogs instead
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'

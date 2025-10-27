@@ -176,7 +176,7 @@ const ChangeBankAccountContent: React.FC<BusinessAppContextProps> = ({ userInfo 
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="change-bank-account-form-container"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6"/>
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
 
       <div
         className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-bank-account']]:!pt-0"

@@ -4,12 +4,12 @@
  * ✅ CONNECTED TO REAL DATABASE TABLES:
  * - EmployeeWorkingCondition (monthly_gross_salary, annually_gross_salary, stock_options)
  * - CompensationBand
- *
- * 🔄 TODO: Create these database tables:
- * - EmployeeBonus
- * - EmployeeBenefit
- * - EmployeePayslip
+ * - EmployeeBonus (bonus payments tracking)
+ * - EmployeeBenefit (employee benefits and perks)
+ * - EmployeePayslip (monthly payslip records)
  */
+
+import { CompensationStatus, BenefitStatus, PayslipStatus } from './compensationEnums'
 
 /**
  * Catalog Entry Interface (used for currency, pay frequency, etc.)
@@ -58,41 +58,50 @@ export interface EmployeeCompensation {
 
 /**
  * Employee Bonus Interface
- * 🔄 TODO: Create EmployeeBonus table with these fields
+ * ✅ CONNECTED TO REAL DATABASE: EmployeeBonus table
  */
 export interface EmployeeBonus {
   id: string
   employeeId: string
   bonusType: CatalogEntry
+  employeeBonusTypeRef: string
   amount: number
   currency: CatalogEntry
+  currencyRef: string
   paymentDate: string
   fiscalYear: number
-  status: string // 'Pending', 'Approved', 'Paid', 'Cancelled'
+  status: CompensationStatus | string // CompensationStatus enum values
   description: string
   notes: string
 }
 
 /**
  * Employee Benefit Interface
- * 🔄 TODO: Create EmployeeBenefit table with these fields
+ * ✅ CONNECTED TO REAL DATABASE: EmployeeBenefit table
  */
 export interface EmployeeBenefit {
   id: string
   employeeId: string
   benefitType: CatalogEntry
-  provider: string
-  monetaryValue: number
+  benefitTypeRef: string
+  benefitProvider: CatalogEntry
+  benefitProviderRef: string
+  yearlyAmount: number
+  monthlyAmount: number
+  employeeYearlyContribution: number
+  employeeMonthlyContribution: number
   currency: CatalogEntry
+  currencyRef: string
   startDate: string
   endDate: string | null
-  status: string // 'Active', 'Inactive', 'Pending'
+  status: CompensationStatus | string // Approval status: CompensationStatus enum
+  benefitStatus: BenefitStatus | string // Benefit status: ACTIVE_BENEFIT, INACTIVE_BENEFIT
   notes: string
 }
 
 /**
  * Employee Payslip Interface
- * 🔄 TODO: Create EmployeePayslip table with these fields
+ * ✅ CONNECTED TO REAL DATABASE: EmployeePayslip table
  */
 export interface EmployeePayslip {
   id: string
@@ -102,10 +111,11 @@ export interface EmployeePayslip {
   grossAmount: number
   netAmount: number
   currency: CatalogEntry
-  status: 'Generated' | 'Paid' | 'Void'
+  currencyRef: string
+  status: PayslipStatus | string // PayslipStatus enum values
   documentUrl?: string // URL to download PDF
   fiscalYear: number
-  monthName: string // "December 2023" for display
+  monthName: string // "December 2023" for display (computed field)
 }
 
 /**

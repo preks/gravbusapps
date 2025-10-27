@@ -28,9 +28,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
   Button,
-  Spinner
+  Spinner,
+  toast
 } from '@newwork/nw-design-system'
-import { toast } from 'sonner'
 import ComponentShowcase from './ComponentShowcase'
 
 /**

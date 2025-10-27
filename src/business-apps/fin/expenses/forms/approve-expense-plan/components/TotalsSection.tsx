@@ -44,7 +44,7 @@ const TotalsSection: React.FC<TotalsSectionProps> = ({
                 'Not Reimbursable Amount'
               )}
             </div>
-            <div className="gba:text-md gba:font-semibold gba:text-[#A2519A]">
+            <div className="gba:text-md gba:font-semibold gba:text-primary">
               {formatCurrency(nonReimbursableAmount, currencyCode)}
             </div>
           </div>
@@ -54,7 +54,7 @@ const TotalsSection: React.FC<TotalsSectionProps> = ({
             <div className="gba:text-md gba:text-foreground">
               {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.reimbursable', 'Reimbursable amount')}
             </div>
-            <div className="gba:text-md gba:font-semibold gba:text-[#0ab874]">
+            <div className="gba:text-md gba:font-semibold gba:text-success">
               {formatCurrency(reimbursableAmount, currencyCode)}
             </div>
           </div>
@@ -73,7 +73,7 @@ const TotalsSection: React.FC<TotalsSectionProps> = ({
               <div className="gba:text-md gba:text-foreground">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:approve_expense_plan.advance_payment', 'Advance Payment')}
               </div>
-              <div className="gba:text-md gba:font-semibold gba:text-[#A2519A]">
+              <div className="gba:text-md gba:font-semibold gba:text-primary">
                 {formatCurrency(advancePaymentAmount, currencyCode)}
               </div>
             </div>

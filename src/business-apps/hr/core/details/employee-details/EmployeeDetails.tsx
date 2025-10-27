@@ -24,7 +24,7 @@ import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
 
 export interface EmployeeDetailsProps extends BusinessAppContextProps {
   employeeId: string
-  employeeData?: any // Optional - if provided, skip data fetching
+  employeeData?: any
 }
 
 interface ProfileInfoItemProps {
@@ -139,12 +139,27 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     return supervisor.displayName || `${supervisor.firstName} ${supervisor.lastName}`.trim() || 'Not assigned'
   }
 
-  const getBusinessEmail = () => {
-    const email = employeeData?.communication?.find(
-      (c: any) => c?.channel?.code === 'e-mail' && !c?.isDeleted && c?.value
-    )?.value
-    return email || employeeData?.additionalProperties?.email || ''
+  const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
+    if (!communications || !Array.isArray(communications)) {
+      return undefined
+    }
+
+    const emailComm = communications.find((c: any) => {
+      if (!c.value || c.value.trim() === '') return false
+      const channelValue = c.channel?.value?.toLowerCase() || ''
+      return channelValue.includes('email')
+    })
+
+    return emailComm?.value?.trim() || undefined
   }
+
+  const getBusinessEmail = () => {
+    // Use the same extraction logic as in EmployeeCard
+    const email = extractWorkEmail(employeeData?.communication)
+    return email || ''
+  }
+
+  const hasWorkEmail = !!getBusinessEmail()
 
   const getBusinessPhone = () => {
     const phone = employeeData?.communication?.find(
@@ -253,14 +268,14 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                   ? undefined
                   : `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
               }
-              // @ts-ignore - Type issue in gravity-ui-catalog for contentType
+              // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
               contentType={employeeData.pictureThumbnail ? 'image' : 'initials'}
               alt={`${employeeData.firstName} ${employeeData.lastName}`}
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               size="xl"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               shape="circle"
-              // @ts-ignore - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
+              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
               appearance="gradient"
               style={{ width: '100px', height: '100px', fontSize: '3rem' }}
             />
@@ -290,7 +305,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<ChatIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-chat-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
               <Button
                 variant="secondary"
@@ -299,7 +314,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<VideoCallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-video-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
               <Button
                 variant="secondary"
@@ -308,7 +323,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 icon={<CallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-audio-button"
-                disabled={!employeeData.additionalProperties?.userId}
+                disabled={!hasWorkEmail}
               />
             </div>
           </div>

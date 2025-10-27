@@ -1,11 +1,12 @@
 'use client'
 
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
 import { CompensationData } from '../../../types/compensationTypes'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
 import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
 import TotalRewardsCard from './TotalRewardsCard'
+import { getBenefitStatusLabel, getBenefitStatusVariant } from '../../../types/compensationEnums'
 
 interface CurrentCompensationViewProps {
   compensationData: CompensationData
@@ -120,18 +121,18 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({ compe
                 >
                   <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
                     <h4 className="gba:font-semibold gba:text-foreground">{benefit.benefitType.value}</h4>
-                    {benefit.status === 'Active' && (
-                      <span className="gba:px-2 gba:py-1 gba:text-xs gba:rounded gba:bg-success-secondary/50 gba:text-success-secondary-foreground">
-                        Active
-                      </span>
-                    )}
+                    <Badge variant={getBenefitStatusVariant(benefit.benefitStatus)}>
+                      {getBenefitStatusLabel(benefit.benefitStatus)}
+                    </Badge>
                   </div>
-                  {benefit.provider && (
-                    <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">Provider: {benefit.provider}</div>
+                  {benefit.benefitProvider?.value && (
+                    <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                      Provider: {benefit.benefitProvider.value}
+                    </div>
                   )}
-                  {benefit.monetaryValue && (
+                  {benefit.yearlyAmount && (
                     <div className="gba:text-sm gba:font-medium gba:text-foreground">
-                      Value: {formatCurrency(benefit.monetaryValue, benefit.currency?.code || 'EUR')} / year
+                      Value: {formatCurrency(benefit.yearlyAmount, benefit.currency?.code || 'EUR')} / year
                     </div>
                   )}
                   {benefit.notes && (

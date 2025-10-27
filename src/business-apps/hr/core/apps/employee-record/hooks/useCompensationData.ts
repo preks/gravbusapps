@@ -3,12 +3,17 @@ import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   GET_EMPLOYEE_COMPENSATION_DATA,
   GET_EMPLOYEE_COMPENSATION_HISTORY,
-  getMockBonuses,
-  getMockBenefits,
-  getMockPayslips,
   getMockGrowthData
 } from '../queries/compensationQueries'
-import { CompensationData, CompensationHistoryData, EmployeeCompensation } from '../types/compensationTypes'
+import {
+  CompensationData,
+  CompensationHistoryData,
+  EmployeeCompensation,
+  EmployeeBonus,
+  EmployeeBenefit,
+  EmployeePayslip
+} from '../types/compensationTypes'
+import { isCompensationStatusActive, isBenefitActive } from '../types/compensationEnums'
 
 /**
  * Custom hook to fetch and manage employee compensation data
@@ -16,11 +21,17 @@ import { CompensationData, CompensationHistoryData, EmployeeCompensation } from 
  * ✅ CONNECTED TO REAL DATABASE:
  * - Fetches salary data from EmployeeWorkingCondition table
  * - Fetches compensation bands from CompensationBand table
+ * - Fetches bonuses from EmployeeBonus table (with CompensationStatus enum)
+ * - Fetches benefits from EmployeeBenefit table (with BenefitStatus enum)
+ * - Fetches payslips from EmployeePayslip table (with PayslipStatus enum)
+ *
+ * ✅ STATUS HANDLING:
+ * - Bonuses: PENDING_COMPENSATION, APPROVED_COMPENSATION (counted in YTD)
+ * - Benefits: ACTIVE_BENEFIT (counted as active)
+ * - Payslips: All valid status values displayed
  *
  * 🔄 USING MOCK DATA FOR:
- * - Bonuses (until EmployeeBonus table is created)
- * - Benefits (until EmployeeBenefit table is created)
- * - Payslips (until EmployeePayslip table is created)
+ * - Growth timeline (until EmployeeCareerMilestone table is created)
  *
  * @param employeeId - The employee ID to fetch compensation data for
  * @param accessToken - Access token for API authentication
@@ -35,6 +46,10 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
 
   const fetchCompensationData = useCallback(async () => {
     if (!employeeId || !accessToken) {
+      console.log('[useCompensationData] Missing employeeId or accessToken:', {
+        employeeId,
+        accessToken: !!accessToken
+      })
       setLoading(false)
       return
     }
@@ -43,10 +58,14 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
       setLoading(true)
       setError(null)
 
+      console.log('[useCompensationData] Fetching compensation data for employee:', employeeId)
+
       // ✅ FETCH REAL DATA from EmployeeWorkingCondition
       const result = await graphqlClient.request<any>(GET_EMPLOYEE_COMPENSATION_DATA, {
         employeeId
       })
+
+      console.log('[useCompensationData] GraphQL Response:', JSON.stringify(result, null, 2))
 
       // Extract working condition data
       const workingCondition = result?.EmployeeWorkingCondition?.[0]
@@ -101,34 +120,85 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
           }
         : null
 
-      // 🔄 TODO: Replace with real data when EmployeeBonus table is created
-      // For now, use mock bonuses
-      const mockBonuses = getMockBonuses()
+      // ✅ Extract bonuses from GraphQL response
+      console.log('[useCompensationData] Raw EmployeeBonus data:', result?.EmployeeBonus)
+      const bonuses: EmployeeBonus[] = (result?.EmployeeBonus || []).map((bonus: any) => ({
+        id: bonus.id,
+        employeeId: bonus.employeeId,
+        bonusType: bonus.employeeBonusType || { id: '', value: 'Unknown' },
+        employeeBonusTypeRef: bonus.employeeBonusTypeRef,
+        amount: bonus.amount,
+        currency: bonus.currency || { id: 'EUR', code: 'EUR', value: 'Euro' },
+        currencyRef: bonus.currencyRef,
+        paymentDate: bonus.paymentDate,
+        fiscalYear: bonus.fiscalYear,
+        status: bonus.status,
+        description: bonus.description || '',
+        notes: bonus.notes || ''
+      }))
+      console.log('[useCompensationData] Processed bonuses:', bonuses.length, bonuses)
 
-      // 🔄 TODO: Replace with real data when EmployeeBenefit table is created
-      // For now, use mock benefits
-      const mockBenefits = getMockBenefits()
+      // ✅ Extract benefits from GraphQL response
+      console.log('[useCompensationData] Raw EmployeeBenefit data:', result?.EmployeeBenefit)
+      const benefits: EmployeeBenefit[] = (result?.EmployeeBenefit || []).map((benefit: any) => ({
+        id: benefit.id,
+        employeeId: benefit.employeeId,
+        benefitType: benefit.benefitType || { id: '', value: 'Unknown' },
+        benefitTypeRef: benefit.benefitTypeRef,
+        benefitProvider: benefit.benefitProvider || { id: '', value: 'Unknown' },
+        benefitProviderRef: benefit.benefitProviderRef,
+        yearlyAmount: benefit.yearlyAmount,
+        monthlyAmount: benefit.monthlyAmount,
+        employeeYearlyContribution: benefit.employeeYearlyContribution,
+        employeeMonthlyContribution: benefit.employeeMonthlyContribution,
+        currency: benefit.currency || { id: 'EUR', code: 'EUR', value: 'Euro' },
+        currencyRef: benefit.currencyRef,
+        startDate: benefit.startDate,
+        endDate: benefit.endDate,
+        status: benefit.status,
+        benefitStatus: benefit.benefitStatus,
+        notes: benefit.notes || ''
+      }))
+      console.log('[useCompensationData] Processed benefits:', benefits.length, benefits)
 
       // Calculate total bonuses for current year (YTD)
+      // ✅ UPDATED: Now includes PENDING_COMPENSATION and APPROVED_COMPENSATION
       const currentYear = new Date().getFullYear()
-      const totalBonusesYTD = mockBonuses
-        .filter(bonus => {
-          const bonusYear = new Date(bonus.paymentDate).getFullYear()
-          return bonusYear === currentYear && (bonus.status === 'Paid' || bonus.status === 'Approved')
+      console.log('[useCompensationData] Current year:', currentYear)
+
+      const ytdBonuses = bonuses.filter(bonus => {
+        const bonusYear = new Date(bonus.paymentDate).getFullYear()
+        const isActive = isCompensationStatusActive(bonus.status)
+        console.log('[useCompensationData] Bonus filter check:', {
+          bonusId: bonus.id,
+          bonusYear,
+          currentYear,
+          status: bonus.status,
+          isActive,
+          amount: bonus.amount,
+          included: bonusYear === currentYear && isActive
         })
-        .reduce((sum, bonus) => sum + bonus.amount, 0)
+        return bonusYear === currentYear && isActive
+      })
+
+      const totalBonusesYTD = ytdBonuses.reduce((sum, bonus) => sum + bonus.amount, 0)
+      console.log('[useCompensationData] YTD bonuses:', ytdBonuses.length, 'Total amount:', totalBonusesYTD)
 
       // Count active benefits
-      const activeBenefitsCount = mockBenefits.filter(benefit => benefit.status === 'Active').length
+      // ✅ UPDATED: Now uses ACTIVE_BENEFIT enum value
+      const activeBenefitsCount = benefits.filter(benefit => isBenefitActive(benefit.benefitStatus)).length
+      console.log('[useCompensationData] Active benefits count:', activeBenefitsCount)
 
       // Set current compensation data
-      setCompensationData({
+      const finalCompensationData = {
         currentCompensation,
         totalBonusesYTD,
         activeBenefitsCount,
-        bonuses: mockBonuses,
-        benefits: mockBenefits
-      })
+        bonuses,
+        benefits
+      }
+      console.log('[useCompensationData] Final compensation data:', finalCompensationData)
+      setCompensationData(finalCompensationData)
 
       // ✅ FETCH COMPENSATION HISTORY from EmployeeWorkingCondition
       const historyResult = await graphqlClient.request<any>(GET_EMPLOYEE_COMPENSATION_HISTORY, {
@@ -149,11 +219,47 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         monthlyGrossSalary: wc.monthlyGrossSalary
       }))
 
-      // 🔄 TODO: Replace with real bonus history when EmployeeBonus table is created
-      const bonusHistory = mockBonuses
+      // ✅ REAL DATA: Extract bonus history from GraphQL response
+      const bonusHistory: EmployeeBonus[] = (historyResult?.EmployeeBonus || []).map((bonus: any) => ({
+        id: bonus.id,
+        employeeId: bonus.employeeId,
+        bonusType: bonus.employeeBonusType || { id: '', value: 'Unknown' },
+        employeeBonusTypeRef: bonus.employeeBonusTypeRef,
+        amount: bonus.amount,
+        currency: bonus.currency || { id: 'EUR', code: 'EUR', value: 'Euro' },
+        currencyRef: bonus.currencyRef,
+        paymentDate: bonus.paymentDate,
+        fiscalYear: bonus.fiscalYear,
+        status: bonus.status,
+        description: bonus.description || '',
+        notes: bonus.notes || ''
+      }))
 
-      // 🔄 TODO: Replace with real payslip history when EmployeePayslip table is created
-      const payslipHistory = getMockPayslips()
+      // ✅ REAL DATA: Extract payslip history from GraphQL response with computed monthName
+      const payslipHistory: EmployeePayslip[] = (historyResult?.EmployeePayslip || []).map((payslip: any) => {
+        // Compute monthName from payPeriod (format: "YYYY-MM")
+        let monthName = ''
+        if (payslip.payPeriod) {
+          const [year, month] = payslip.payPeriod.split('-')
+          const date = new Date(parseInt(year), parseInt(month) - 1, 1)
+          monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        }
+
+        return {
+          id: payslip.id,
+          employeeId: payslip.employeeId,
+          payPeriod: payslip.payPeriod,
+          paymentDate: payslip.paymentDate,
+          grossAmount: payslip.grossAmount,
+          netAmount: payslip.netAmount,
+          currency: payslip.currency || { id: 'EUR', code: 'EUR', value: 'Euro' },
+          currencyRef: payslip.currencyRef,
+          status: payslip.status,
+          documentUrl: payslip.documentUrl,
+          fiscalYear: payslip.fiscalYear,
+          monthName
+        }
+      })
 
       // 🔄 TODO: Replace with real growth data when EmployeeCareerMilestone table is created
       const growthData = getMockGrowthData()
@@ -166,13 +272,19 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         growthData
       })
     } catch (err) {
-      console.error('Error fetching compensation data:', err)
+      console.error('[useCompensationData] ERROR fetching compensation data:', err)
+      console.error('[useCompensationData] Error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined,
+        errorObject: err
+      })
       setError(err instanceof Error ? err.message : 'Failed to fetch compensation data')
 
       // Set empty data on error
       setCompensationData(null)
       setHistoryData(null)
     } finally {
+      console.log('[useCompensationData] Fetch complete, loading set to false')
       setLoading(false)
     }
   }, [employeeId, accessToken, graphqlClient])

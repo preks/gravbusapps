@@ -17,7 +17,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  toast
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu'
@@ -26,7 +27,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from 'sonner'
 import {
   Eye,
   MoreHorizontal,
@@ -1430,40 +1430,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
     return actions
   }, [selectedDocument, downloadActionProps, customActions, accessToken, apiConfig])
 
-  // Close menu when clicking outside or pressing Escape
-  useEffect(() => {
-    if (!menuOpen) return
-
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-
-      // Check if click is on the menu content or trigger button
-      const isMenuClick = menuMountEl && menuMountEl.contains(target)
-      const isTriggerClick = target.closest('[data-testid*="-actions-"]')
-
-      if (!isMenuClick && !isTriggerClick) {
-        setMenuOpen(false)
-      }
-    }
-
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setMenuOpen(false)
-      }
-    }
-
-    // Add listeners after a brief delay to avoid immediate closure
-    const timeoutId = setTimeout(() => {
-      document.addEventListener('click', handleClickOutside, true)
-      document.addEventListener('keydown', handleEscapeKey)
-    }, 100)
-
-    return () => {
-      clearTimeout(timeoutId)
-      document.removeEventListener('click', handleClickOutside, true)
-      document.removeEventListener('keydown', handleEscapeKey)
-    }
-  }, [menuOpen, menuMountEl])
+  // Note: Outside clicks and Escape handling are managed by ActionMenu via onOpenChange
 
   // Cleanup mount element when menu closes
   useEffect(() => {

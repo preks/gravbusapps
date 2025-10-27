@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge } from '@newwork/nw-design-system'
+import { Button, Card, CardContent, Input, Spinner, DataTable, Icon, Badge, toast } from '@newwork/nw-design-system'
 import {
   EyeIcon,
   ArrowsDownUpIcon,
@@ -20,7 +20,6 @@ import { DeleteButton } from '../../../generic-components/delete-button/DeleteBu
 import ContractTypeForm from '@/business-apps/mdm/forms/contract-type-form/ContractTypeForm'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { useGetContractTypesData } from '../../queries/ContractTypesQueries'
-import { toast } from 'sonner'
 import {
   CONTRACT_TYPE_CATALOG,
   CONTRACT_TYPE_VERSION
@@ -67,7 +66,6 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
   const [selectedType, setSelectedType] = useState<ContractType | null>(null)
   const [isDrawerVisible, setIsDrawerVisible] = useState(false)
   const [sorting, setSorting] = useState<SortingState>([])
-  const [selectedRows, setSelectedRows] = useState<ContractTypeTable[]>([])
 
   const loadContractTypes = async () => {
     try {
@@ -273,10 +271,7 @@ const ContractTypesTab: React.FC<ContractTypesTabProps> = ({ accessToken, prefix
         columns={columns as ColumnDef<ContractTypeTable>[]}
         sorting={sorting}
         onSortingChange={setSorting}
-        selectedRows={selectedRows}
-        onSelectionChange={setSelectedRows}
         enableSorting
-        enableSelection
         enablePagination
       />
     )

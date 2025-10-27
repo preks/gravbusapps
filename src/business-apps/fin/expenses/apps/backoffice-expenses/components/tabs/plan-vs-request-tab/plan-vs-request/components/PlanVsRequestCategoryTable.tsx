@@ -40,7 +40,9 @@ export const PlanVsRequestCategoryTable: React.FC<PlanVsRequestCategoryTableProp
   return (
     <Card data-testid="details-list">
       <CardHeader>
-        <CardTitle>{getTranslationFromI18nKeyAndLabel('lowcoder:cards.category_breakdown', 'Category Breakdown')}</CardTitle>
+        <CardTitle>
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.category_breakdown', 'Category Breakdown')}
+        </CardTitle>
         <div className="gba:text-sm gba:text-muted-foreground gba:mt-2" data-testid="category-totals">
           {getTranslationFromI18nKeyAndLabel('lowcoder:cards.previous_total', 'Previous Total')}:{' '}
           {formatCurrency(breakdownTotals.prev)} {' | '}

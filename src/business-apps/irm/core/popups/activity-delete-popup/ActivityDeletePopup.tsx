@@ -106,7 +106,7 @@ const ActivityDeletePopup: React.FC<ActivityDeletePopupProps> = ({ initialValues
     loadActivity()
   }, [activityId, props.accessToken, graphqlClient])
 
-  const handleSubmit = async (_formData: ActivityDeletePopupValues) => {
+  const handleSubmit = async () => {
     if (!activity) {
       throw new Error(getTranslationFromI18nKeyAndLabel('activity.delete.error.noData', 'Activity data not loaded'))
     }
@@ -122,7 +122,7 @@ const ActivityDeletePopup: React.FC<ActivityDeletePopupProps> = ({ initialValues
     return deletePayload
   }
 
-  const validateForm = (_formData: ActivityDeletePopupValues): string[] | null => {
+  const validateForm = (): string[] | null => {
     if (!activity) {
       return [getTranslationFromI18nKeyAndLabel('activity.delete.error.noData', 'Activity data not loaded')]
     }

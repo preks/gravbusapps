@@ -20,10 +20,7 @@ export interface UseTaskReferenceCountsReturn {
   refetch: () => void
 }
 
-export const useTaskReferenceCounts = ({
-  accessToken,
-  sourceApp
-}: UseTaskReferenceCountsProps): UseTaskReferenceCountsReturn => {
+export const useTaskReferenceCounts = ({ accessToken }: UseTaskReferenceCountsProps): UseTaskReferenceCountsReturn => {
   const [counts, setCounts] = useState<ReferenceTypeCounts>({
     opportunity: 0,
     account: 0,

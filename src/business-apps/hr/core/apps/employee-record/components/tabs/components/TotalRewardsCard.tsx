@@ -52,7 +52,7 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ compensationData, l
 
     const baseSalary = currentCompensation?.baseSalary || 0
     const bonuses = totalBonusesYTD || 0
-    const benefitsValue = benefits.reduce((sum, benefit) => sum + (benefit.monetaryValue || 0), 0)
+    const benefitsValue = benefits.reduce((sum, benefit) => sum + (benefit.yearlyAmount || 0), 0)
     const stockOptions = currentCompensation?.stockOptions || 0
 
     const total = baseSalary + bonuses + benefitsValue + stockOptions

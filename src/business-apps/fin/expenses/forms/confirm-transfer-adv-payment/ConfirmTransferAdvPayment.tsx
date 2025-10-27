@@ -15,8 +15,7 @@ import ActionButtons from './components/ActionButtons'
 const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
   additionalData,
   accessToken,
-  userInfo,
-  ...contextProps
+  userInfo
 }) => {
   const [paymentData, setPaymentData] = useState<AdvancePaymentData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -47,7 +46,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
       }
 
       return date.toISOString()
-    } catch (error) {
+    } catch {
       return new Date().toISOString()
     }
   }
@@ -147,7 +146,7 @@ const ConfirmTransferAdvPaymentContent: React.FC<BusinessAppContextProps> = ({
           }
         })
       )
-    } catch (error) {
+    } catch {
       setError('Failed to confirm payment. Please try again.')
     } finally {
       setIsLoading(false)

@@ -177,7 +177,14 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
             `${(salesTask.creatorEmployee.firstName || 'U').charAt(0)}${(salesTask.creatorEmployee.lastName || 'U').charAt(0)}`.toUpperCase(),
           avatar: salesTask.creatorEmployee.pictureThumbnail || undefined
         }
-      : undefined
+      : undefined,
+    documents: salesTask.documents?.map(doc => ({
+      id: doc.id,
+      name: doc.name,
+      mimeType: doc.mimeType,
+      fileSize: doc.fileSize,
+      fileInfo: doc.fileInfo
+    }))
   }
 }
 
@@ -193,8 +200,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
     createdBefore,
     sortField,
     sortOrder,
-    accessToken,
-    sourceApp
+    accessToken
   } = props
 
   // State
@@ -207,7 +213,7 @@ export const useTaskListData = (props: UseTaskListDataProps): UseTaskListDataRet
   const [hasMore, setHasMore] = useState(false)
 
   // GraphQL queries
-  const { fetchSalesTasks, fetchSalesTasksCount, fetchSalesTasksWithCount } = useSalesTaskQueries({ accessToken })
+  const { fetchSalesTasksWithCount } = useSalesTaskQueries({ accessToken })
 
   // Refs to track the latest props
   const propsRef = useRef(props)

@@ -2,22 +2,22 @@ export class ChangeLogVisibilityRules {
   /**
    * Apply visibility rules based on user role and field category
    */
-  static applyVisibilityRules(fieldChange: any, audit: any, userRole: string): boolean {
+  static applyVisibilityRules(fieldChange: any, userRole: string): boolean {
     const fieldCategory = fieldChange.fieldCategory
 
     switch (fieldCategory) {
       case 'financial':
         // Financial data only visible to HR managers and admins
         return userRole === 'admin' || userRole === 'hr_manager'
-        
+
       case 'org':
         // Organizational data visible to HR and managers
         return ['admin', 'hr_manager', 'manager'].includes(userRole)
-        
+
       case 'working':
         // Working conditions visible to HR and managers
         return ['admin', 'hr_manager', 'manager'].includes(userRole)
-        
+
       case 'personal':
       case 'address':
       case 'skills':
@@ -26,7 +26,7 @@ export class ChangeLogVisibilityRules {
       case 'emergency':
         // These are generally visible to the employee
         return true
-        
+
       default:
         // Default to visible for unknown categories
         return true
@@ -36,16 +36,16 @@ export class ChangeLogVisibilityRules {
   /**
    * Apply masking rules for sensitive data
    */
-  static applyMaskingRules(fieldChange: any, audit: any, userRole: string): boolean {
-    const isVisible = this.applyVisibilityRules(fieldChange, audit, userRole)
-    
+  static applyMaskingRules(fieldChange: any, userRole: string): boolean {
+    const isVisible = this.applyVisibilityRules(fieldChange, userRole)
+
     // If not visible, mask the data
     if (!isVisible) return true
-    
+
     // Additional masking rules for sensitive fields
     const sensitiveFields = ['iban', 'taxNumber', 'socialSecurityNumber', 'bankName']
     const fieldName = fieldChange.fieldName.toLowerCase()
-    
+
     return sensitiveFields.some(sensitive => fieldName.includes(sensitive))
   }
 
@@ -54,8 +54,15 @@ export class ChangeLogVisibilityRules {
    */
   static getAvailableFieldCategories(userRole: string): string[] {
     const allCategories = [
-      'personal', 'address', 'org', 'working', 
-      'financial', 'skills', 'performance', 'absence', 'emergency'
+      'personal',
+      'address',
+      'org',
+      'working',
+      'financial',
+      'skills',
+      'performance',
+      'absence',
+      'emergency'
     ]
 
     // Filter based on user role
@@ -67,9 +74,7 @@ export class ChangeLogVisibilityRules {
         return allCategories.filter(cat => cat !== 'financial')
       case 'employee':
       default:
-        return allCategories.filter(cat => 
-          !['financial', 'org', 'working'].includes(cat)
-        )
+        return allCategories.filter(cat => !['financial', 'org', 'working'].includes(cat))
     }
   }
 
@@ -78,7 +83,7 @@ export class ChangeLogVisibilityRules {
    */
   static getAvailableChangeActors(): string[] {
     const allActors = ['user', 'ai', 'system']
-    
+
     // All users can see all actor types
     return allActors
   }

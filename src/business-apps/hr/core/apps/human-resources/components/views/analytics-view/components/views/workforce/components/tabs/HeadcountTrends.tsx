@@ -15,7 +15,7 @@ import {
 } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
 import { PiFileText, PiFilePdf } from 'react-icons/pi'
-import { BusinessAppContextProps } from '../../../../../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import HeadcountStatistics from '../components/HeadcountStatistics'
 import HeadcountTrendsChart from '../components/HeadcountTrendsChart'
 import HiresAndDeparturesChart from '../components/HiresAndDeparturesChart'
@@ -24,15 +24,13 @@ import { useHeadcountTrendsData } from '../../../../../hooks/useHeadcountTrendsD
 
 const { Title, Text } = Typography
 
-interface HeadcountTrendsProps extends BusinessAppContextProps {}
-
 interface TableData {
   period: string
   value: number
   change?: number
 }
 
-const HeadcountTrends: React.FC<HeadcountTrendsProps> = context => {
+const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
 

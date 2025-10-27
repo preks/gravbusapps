@@ -174,7 +174,6 @@ export const calculateOrganizationalLevels = (roots: OrganizationalNode[]): void
  * Map employees to countries based on site locations
  */
 export const mapEmployeesToCountries = (
-  relationships: OrganizationalUnitRelationship[],
   siteLocations: SiteLocation[],
   employeeSiteLocations: EmployeeSiteLocation[]
 ): Map<string, { country: string; countryName: string }> => {
@@ -657,10 +656,7 @@ const getNodeColor = (
 /**
  * Calculate hierarchy statistics
  */
-export const calculateHierarchyStatistics = (
-  nodes: Map<string, OrganizationalNode>,
-  roots: OrganizationalNode[]
-): HierarchyStatistics => {
+export const calculateHierarchyStatistics = (nodes: Map<string, OrganizationalNode>): HierarchyStatistics => {
   let totalEmployees = 0
   let maxLevels = 0
   const countries = new Set<string>()
@@ -718,11 +714,7 @@ export const processHierarchyData = (
   calculateOrganizationalLevels(roots)
 
   // Map employees to countries
-  const employeeCountryMap = mapEmployeesToCountries(
-    data.OrganizationalUnitRelationship,
-    data.SiteLocation,
-    data.EmployeeSiteLocation
-  )
+  const employeeCountryMap = mapEmployeesToCountries(data.SiteLocation, data.EmployeeSiteLocation)
 
   // Map employees to companies
   const employeeCompanyMap = mapEmployeesToCompanies(data.EmployeeCompany)
@@ -752,7 +744,7 @@ export const processHierarchyData = (
   const sunburstData = buildSunburstData(nodes, colorMap, 'location')
 
   // Calculate statistics
-  const statistics = calculateHierarchyStatistics(nodes, roots)
+  const statistics = calculateHierarchyStatistics(nodes)
 
   return { nodes, sunburstData, statistics, colorMap }
 }

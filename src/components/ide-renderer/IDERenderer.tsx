@@ -124,12 +124,11 @@ export const IDERenderer: React.FC<IDERendererProps> = ({
     return (
       <Dialog open={dialogVisible} onOpenChange={open => !open && handleDialogClose()}>
         <DialogContent
-          className="gba:max-w-[553px] gba:w-[553px] gba:flex gba:flex-col"
+          className="gba:max-w-[553px] gba:w-[553px] gba:flex gba:flex-col gba:bg-background"
           style={{
             height: selectedApp.type === 'form' ? 'calc(100vh - 120px)' : 'auto',
             overflow: selectedApp.type === 'form' ? 'auto' : 'visible',
-            justifyContent: 'flex-start',
-            backgroundColor: '#FFFFFF'
+            justifyContent: 'flex-start'
           }}
         >
           <DialogHeader>

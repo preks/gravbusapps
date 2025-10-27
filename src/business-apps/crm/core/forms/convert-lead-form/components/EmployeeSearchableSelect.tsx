@@ -15,11 +15,11 @@ import {
 import { PiMagnifyingGlass } from 'react-icons/pi'
 
 // Custom debounce utility
-const debounce = (func: Function, delay: number) => {
+const debounce = <T extends (...args: any[]) => any>(func: T, delay: number) => {
   let timeoutId: NodeJS.Timeout
-  return (...args: any[]) => {
+  return (...args: Parameters<T>) => {
     clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => func.apply(null, args), delay)
+    timeoutId = setTimeout(() => func(...args), delay)
   }
 }
 
@@ -150,7 +150,6 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
         // More generous threshold for scroll detection (50px from bottom)
         const threshold = 50
         const isNearBottom = scrollTop + clientHeight >= scrollHeight - threshold
-        const distanceFromBottom = scrollHeight - (scrollTop + clientHeight)
 
         if (isNearBottom && hasMore && !loading && onLoadMore) {
           onLoadMore()
@@ -208,12 +207,6 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
     }
   }, [isOpen])
 
-  // Create display value for selected employee
-  const getDisplayValue = () => {
-    if (!displayOption) return placeholder
-    return displayOption?.name || 'Unknown Employee'
-  }
-
   // Custom employee option renderer
   const EmployeeSelectItem: React.FC<{ employee: SelectOption }> = ({ employee }) => (
     <div className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:w-full">
@@ -225,7 +218,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
             alt={employee?.name || 'Employee'}
           />
         ) : null}
-        <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold gba:text-xs">
+        <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-hsl(var(--background)) gba:font-semibold gba:text-xs">
           {employee?.name
             ?.split(' ')
             .map((n: string) => n[0])
@@ -250,7 +243,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
       {cachedSelectedOption &&
         (cachedSelectedOption.value === employee.value || cachedSelectedOption.id === employee.id) && (
           <div className="gba:w-4 gba:h-4 gba:bg-blue-500 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-            <div className="gba:w-1.5 gba:h-1.5 gba:bg-white gba:rounded-full"></div>
+            <div className="gba:w-1.5 gba:h-1.5 gba:bg-hsl(var(--background)) gba:rounded-full"></div>
           </div>
         )}
     </div>
@@ -272,7 +265,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
           data-testid={dataTestId}
           open={isOpen}
         >
-          <SelectTrigger className="gba:w-full gba:max-w-full gba:border-gray-300 gba:bg-white gba:min-h-[60px]">
+          <SelectTrigger className="gba:w-full gba:max-w-full gba:border-gray-300 gba:bg-hsl(var(--background)) gba:min-h-[60px]">
             <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:overflow-hidden">
               {displayOption ? (
                 <>
@@ -284,7 +277,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
                         alt={displayOption?.name || 'Employee'}
                       />
                     ) : null}
-                    <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white gba:font-semibold gba:text-xs">
+                    <AvatarFallback className="gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-hsl(var(--background)) gba:font-semibold gba:text-xs">
                       {displayOption?.name
                         ?.split(' ')
                         .map((n: string) => n[0])
@@ -311,7 +304,7 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
           </SelectTrigger>
           <SelectContent className="gba:w-full gba:max-h-80 gba:overflow-hidden" ref={listRef}>
             {/* Search Input */}
-            <div className="gba:sticky gba:top-0 gba:z-10 gba:bg-white gba:border-b gba:border-gray-200 gba:p-2">
+            <div className="gba:sticky gba:top-0 gba:z-10 gba:bg-hsl(var(--background)) gba:border-b gba:border-gray-200 gba:p-2">
               <div className="gba:relative">
                 <PiMagnifyingGlass
                   size={16}
@@ -340,9 +333,9 @@ const EmployeeSearchableSelect: React.FC<EmployeeSearchableSelectProps> = ({
                     width: '100%',
                     height: '44px',
                     outline: 'none',
-                    backgroundColor: 'white',
                     boxSizing: 'border-box'
                   }}
+                  className="gba:bg-background"
                 />
               </div>
             </div>

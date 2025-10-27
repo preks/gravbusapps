@@ -45,7 +45,6 @@ interface AccountSectionProps extends Partial<BusinessAppContextProps> {
 }
 
 const AccountSection: React.FC<AccountSectionProps> = ({
-  accountId,
   accountData,
   account,
   accounts,

@@ -89,6 +89,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       workspace
       version
       pictureThumbnail
+      userId
       additionalProperties
       skills(where: {isDeleted: {_eq: false}}) {
         level
@@ -419,6 +420,7 @@ export interface Employee {
   workspace: string
   version: number
   pictureThumbnail: string
+  userId?: string
   skills: EmployeeSkill[]
   additionalProperties: {
     email: string

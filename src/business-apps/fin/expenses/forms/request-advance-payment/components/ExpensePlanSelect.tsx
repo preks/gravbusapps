@@ -21,7 +21,7 @@ const ExpensePlanSelect: React.FC<ExpensePlanSelectProps> = ({
           'lowcoder:create_expense_request.initial_expense_plan_select_label',
           'Expense Plan'
         )}
-        <span className="gba:text-[#707070]"> *</span>
+        <span className="gba:text-muted-foreground"> *</span>
       </label>
       {plans.length > 0 ? (
         <Select value={value} onValueChange={onChange} data-testid="request-advance-payment-expense-plan-select">

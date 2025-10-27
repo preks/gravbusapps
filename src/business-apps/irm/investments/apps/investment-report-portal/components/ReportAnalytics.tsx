@@ -102,36 +102,40 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ reports, inves
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileText size={20} style={{ color: '#3f8600' }} />
+              <FileText size={20} className="gba:text-success" />
               {getTranslationFromI18nKeyAndLabel('analytics.totalReports', 'Total Reports')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ fontSize: '24px', fontWeight: '600', color: '#3f8600' }}>{totalReports}</div>
+            <div className="gba:text-success" style={{ fontSize: '24px', fontWeight: '600' }}>
+              {totalReports}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <TrendUp size={20} style={{ color: '#1890ff' }} />
+              <TrendUp size={20} className="gba:text-primary" />
               {getTranslationFromI18nKeyAndLabel('analytics.totalInvestments', 'Total Investments')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ fontSize: '24px', fontWeight: '600', color: '#1890ff' }}>{totalInvestments}</div>
+            <div className="gba:text-primary" style={{ fontSize: '24px', fontWeight: '600' }}>
+              {totalInvestments}
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CurrencyDollar size={20} style={{ color: '#722ed1' }} />
+              <CurrencyDollar size={20} className="gba:text-accent" />
               {getTranslationFromI18nKeyAndLabel('analytics.totalMarketValue', 'Total Market Value')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ fontSize: '24px', fontWeight: '600', color: '#722ed1' }}>
+            <div className="gba:text-accent" style={{ fontSize: '24px', fontWeight: '600' }}>
               {new Intl.NumberFormat('en-US', {
                 style: 'currency',
                 currency: 'USD',
@@ -145,12 +149,12 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ reports, inves
         <Card>
           <CardHeader>
             <CardTitle style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <CurrencyDollar size={20} style={{ color: '#fa8c16' }} />
+              <CurrencyDollar size={20} className="gba:text-warning" />
               {getTranslationFromI18nKeyAndLabel('analytics.averageMarketValue', 'Avg Market Value')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ fontSize: '24px', fontWeight: '600', color: '#fa8c16' }}>
+            <div className="gba:text-warning" style={{ fontSize: '24px', fontWeight: '600' }}>
               {new Intl.NumberFormat('en-US', {
                 style: 'currency',
                 currency: 'USD',
@@ -179,9 +183,9 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ reports, inves
                 <Line
                   type="monotone"
                   dataKey="count"
-                  stroke="#1890ff"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={2}
-                  dot={{ fill: '#1890ff', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -202,7 +206,7 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ reports, inves
                 <XAxis dataKey="type" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="count" fill="#52c41a" />
+                <Bar dataKey="count" fill="hsl(var(--success))" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -223,7 +227,7 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ reports, inves
                   labelLine={false}
                   label={({ scope, count }) => `${scope}: ${count}`}
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill="hsl(var(--primary))"
                   dataKey="count"
                 >
                   {scopeChartData.map((entry, index) => (
@@ -261,9 +265,9 @@ export const ReportAnalytics: React.FC<ReportAnalyticsProps> = ({ reports, inves
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke="#722ed1"
+                  stroke="hsl(var(--accent))"
                   strokeWidth={2}
-                  dot={{ fill: '#722ed1', strokeWidth: 2, r: 4 }}
+                  dot={{ fill: 'hsl(var(--accent))', strokeWidth: 2, r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>

@@ -146,11 +146,10 @@ export const RecordSummary: React.FC<RecordSummaryProps> = ({
                 {/* Badge positioned at very top right of card */}
                 <Badge
                   variant="secondary"
-                  className="gba:absolute gba:-top-2 gba:right-2 gba:text-xs gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded-full gba:leading-none gba:z-10"
+                  className={`gba:absolute gba:-top-2 gba:right-2 gba:text-xs gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded-full gba:leading-none gba:z-10 gba:border-none`}
                   style={{
                     backgroundColor: entityInfo.color,
-                    color: 'white',
-                    border: 'none',
+                    color: 'var(--nw-color-background)',
                     boxShadow: `0 1px 3px ${entityInfo.color}40`
                   }}
                 >

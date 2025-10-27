@@ -17,19 +17,20 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
-  Calendar,
-  User,
-  ArrowSquareOut,
-  Flag,
-  Tag,
-  CheckCircle,
-  Link,
-  CalendarPlus,
-  ClockCounterClockwise,
-  TextAlignLeft,
+  CalendarIcon,
+  UserIcon,
+  ArrowSquareOutIcon,
+  FlagIcon,
+  TagIcon,
+  CheckCircleIcon,
+  LinkIcon,
+  CalendarPlusIcon,
+  ClockCounterClockwiseIcon,
+  TextAlignLeftIcon,
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
-import { Task, TaskReference } from './types'
+import { Task, TaskReference, TaskDocument } from './types'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
@@ -85,6 +86,21 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
+  const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
+
   // Determine if task is overdue based on timing type
   const getTaskDate = () => {
     return task.timingType?.toUpperCase() === 'SCHEDULED' && task.scheduleDate ? task.scheduleDate : task.dueDate
@@ -127,7 +143,11 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
             <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">Details</CardTitle>
           </CardHeader>
           <CardContent className="gba:space-y-1">
-            <FieldRow icon={CheckCircle} label="Status" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-status-field`}>
+            <FieldRow
+              icon={CheckCircleIcon}
+              label="Status"
+              testId={`${dataTestId || DATA_TEST_ID_PREFIX}-status-field`}
+            >
               <Badge variant={getTaskStatusBadgeVariant(task.status)}>
                 {task.status === 'in_progress'
                   ? 'In Progress'
@@ -140,7 +160,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
               )}
             </FieldRow>
 
-            <FieldRow icon={User} label="Assignee" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-field`}>
+            <FieldRow icon={UserIcon} label="Assignee" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-assignee-field`}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div
@@ -160,26 +180,26 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
                       </AvatarFallback>
                     </Avatar>
                     <span className="gba:text-sm gba:font-medium">{task.assignedTo.displayName}</span>
-                    <ArrowSquareOut size={12} className="gba:text-muted-foreground" />
+                    <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>View employee profile</TooltipContent>
               </Tooltip>
             </FieldRow>
 
-            <FieldRow icon={Flag} label="Priority" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-priority-field`}>
+            <FieldRow icon={FlagIcon} label="Priority" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-priority-field`}>
               <Badge variant={getTaskPriorityBadgeVariant(task.priority)}>
                 {task.priority.charAt(0).toUpperCase() + task.priority.slice(1).toLowerCase()}
               </Badge>
             </FieldRow>
 
-            <FieldRow icon={Tag} label="Type" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-type-field`}>
+            <FieldRow icon={TagIcon} label="Type" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-type-field`}>
               <Badge variant={getTaskTypeBadgeVariant(task.type)}>
                 {task.type.charAt(0).toUpperCase() + task.type.slice(1).toLowerCase()}
               </Badge>
             </FieldRow>
 
-            <FieldRow icon={Link} label="Reference" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-field`}>
+            <FieldRow icon={LinkIcon} label="Reference" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-reference-field`}>
               {task.reference ? (
                 buildReferenceUrl ? (
                   <Tooltip>
@@ -197,7 +217,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
                             {task.reference.type.charAt(0).toUpperCase() + task.reference.type.slice(1)}
                           </Badge>
                           <span className="gba:text-sm gba:font-medium gba:truncate">{task.reference.name}</span>
-                          <ArrowSquareOut size={12} className="gba:text-muted-foreground gba:shrink-0" />
+                          <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground gba:shrink-0" />
                         </div>
                       </div>
                     </TooltipTrigger>
@@ -221,7 +241,11 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
               )}
             </FieldRow>
 
-            <FieldRow icon={User} label="Created By" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-created-by-field`}>
+            <FieldRow
+              icon={UserIcon}
+              label="Created By"
+              testId={`${dataTestId || DATA_TEST_ID_PREFIX}-created-by-field`}
+            >
               {task.creatorEmployee ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -256,7 +280,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
                           `${task.creatorEmployee.firstName || ''} ${task.creatorEmployee.lastName || ''}`.trim() ||
                           'Unknown'}
                       </span>
-                      <ArrowSquareOut size={12} className="gba:text-muted-foreground" />
+                      <ArrowSquareOutIcon size={12} className="gba:text-muted-foreground" />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>View employee profile</TooltipContent>
@@ -271,7 +295,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
             {/* Show either Due Date or Scheduled Date based on timing type */}
             {task.timingType?.toUpperCase() === 'SCHEDULED' ? (
               <FieldRow
-                icon={CalendarPlus}
+                icon={CalendarPlusIcon}
                 label="Scheduled"
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-schedule-date-field`}
               >
@@ -282,7 +306,11 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
                 </span>
               </FieldRow>
             ) : (
-              <FieldRow icon={Calendar} label="Due Date" testId={`${dataTestId || DATA_TEST_ID_PREFIX}-due-date-field`}>
+              <FieldRow
+                icon={CalendarIcon}
+                label="Due Date"
+                testId={`${dataTestId || DATA_TEST_ID_PREFIX}-due-date-field`}
+              >
                 <span
                   className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}
                 >
@@ -294,7 +322,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
             <Separator className="gba:my-4" />
 
             <FieldRow
-              icon={ClockCounterClockwise}
+              icon={ClockCounterClockwiseIcon}
               label="Created"
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-created-field`}
             >
@@ -303,7 +331,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
 
             {task.description && (
               <FieldRow
-                icon={TextAlignLeft}
+                icon={TextAlignLeftIcon}
                 label="Description"
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-description-field`}
               >
@@ -313,6 +341,45 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
           </CardContent>
         </Card>
 
+        {task.documents && task.documents.length > 0 && (
+          <Card data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-documents-card`}>
+            <CardHeader className="gba:pb-3">
+              <CardTitle className="gba:text-base gba:font-medium gba:text-muted-foreground">
+                Documents ({task.documents.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="gba:space-y-2">
+                {task.documents.map(doc => {
+                  const FileIcon = getFileIcon(doc.mimeType)
+                  return (
+                    <button
+                      type="button"
+                      key={doc.id}
+                      onClick={e => handleDocumentClick(doc, e)}
+                      className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:text-left gba:bg-muted gba:rounded-lg gba:hover:bg-accent gba:transition-colors gba:group"
+                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:bg-background gba:rounded gba:shrink-0">
+                        <FileIcon size={14} weight="bold" />
+                      </div>
+                      <div className="gba:flex-1 gba:min-w-0">
+                        <div className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{doc.name}</div>
+                        {doc.mimeType && (
+                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{doc.mimeType}</div>
+                        )}
+                      </div>
+                      <ArrowSquareOutIcon
+                        size={16}
+                        className="gba:text-muted-foreground gba:shrink-0 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity"
+                      />
+                    </button>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <div className="gba:h-4" />
       </div>
     </ScrollArea>

@@ -31,7 +31,7 @@ export class WorkflowStatusService {
         const storage = new Map(Object.entries(parsed)) as Map<string, WorkflowStatus[]>
 
         // Ensure all workflows have proper step structure
-        for (const [opportunityId, workflows] of storage.entries()) {
+        for (const [, workflows] of storage.entries()) {
           for (const workflow of workflows as WorkflowStatus[]) {
             if (!workflow.steps || workflow.steps.length === 0) {
               console.warn(`Workflow ${workflow.id} has no steps, adding default steps`)
@@ -287,7 +287,7 @@ export class WorkflowStatusService {
       }
 
       // Start one workflow per template
-      for (const [templateId, conditionItems] of templateGroups) {
+      for (const [templateId] of templateGroups) {
         const executionParams = this.prepareWorkflowExecutionParams(
           opportunityId,
           condition,
@@ -624,7 +624,7 @@ export class WorkflowStatusService {
       console.log(`Current storage before update:`, storage)
 
       // Find the workflow and update the step status
-      for (const [opportunityId, workflows] of storage.entries()) {
+      for (const [, workflows] of storage.entries()) {
         const workflow = workflows.find(w => w.id === workflowId)
         if (workflow) {
           console.log(`Found workflow ${workflowId}:`, workflow)
@@ -673,12 +673,12 @@ export class WorkflowStatusService {
   /**
    * Get available tasks for a user (for manual approval interface)
    */
-  static async getAvailableTasks(userId: string, accessToken: string): Promise<WorkflowStatus[]> {
+  static async getAvailableTasks(): Promise<WorkflowStatus[]> {
     try {
       const storage = this.getWorkflowStorage()
       const availableWorkflows: WorkflowStatus[] = []
 
-      for (const [opportunityId, workflows] of storage.entries()) {
+      for (const [, workflows] of storage.entries()) {
         for (const workflow of workflows) {
           if (workflow.status === 'RUNNING') {
             // Filter steps that are available for this user

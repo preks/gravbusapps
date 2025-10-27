@@ -85,7 +85,6 @@ export const LeadStatistics: React.FC<LeadStatisticsProps> = ({ onRefreshReady, 
   useEffect(() => {
     loadStatistics()
     // Run once on mount; hooks are memoized with useCallback
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Pass the refresh function to parent component
