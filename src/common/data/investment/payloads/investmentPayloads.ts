@@ -219,10 +219,13 @@ export const buildInvestmentPayload = (
     ...(investment.code && { code: investment.code }),
     ...(investment.isin && { isin: investment.isin }),
     ...(investment.investmentGroup?.id && { investmentGroupRef: investment.investmentGroup.id }),
-    // NOTE: ownerEmployee is optional - if not provided, backend uses logged-in user
-    // Only include if explicitly set and different from current user
-    // Commenting out to avoid backend EmployeeReferenceEntity persistence issues
-    // ...(investment.ownerEmployee?.id && { ownerEmployee: investment.ownerEmployee.id }),
+    // Try sending ownerEmployeeId as string instead of ownerEmployee object to avoid EmployeeReferenceEntity issues
+    // Form uses ownerEmployeeId field, extract from either ownerEmployeeId (string) or ownerEmployee.id (object)
+    ...((investment as any).ownerEmployeeId
+      ? { ownerEmployeeId: (investment as any).ownerEmployeeId }
+      : investment.ownerEmployee?.id
+        ? { ownerEmployeeId: investment.ownerEmployee.id }
+        : {}),
     ...(investment.initialInvestmentAmount && {
       initialInvestmentAmount: toNumber(investment.initialInvestmentAmount)
     }),
