@@ -5,13 +5,21 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export type TimeEntry = {
   id: string
-  dateISO: string
-  start?: string
-  end?: string
-  breakMinutes?: number
-  totalMinutes?: number
+  // clockin table fields
+  attendanceDateISO: string // LocalDate formatted as ISO string for UI
+  startTimeISO?: string // Instant
+  endTimeISO?: string // Instant
+  recordedTime?: string // Text like "8h"
+  breakTime?: string // Text like "0h 30m"
+  effectiveTime?: string // Text like "7h 30m"
+  plannedTime?: string // Text like "8h"
+  differenceTime?: string // Text like "-30m" or "-1h"
+  manualOverride?: boolean
   notes?: string
-  status: 'approved' | 'pending' | 'rejected' | 'open'
+  // optional external workflow status (kept for UI badge if available)
+  status?: 'approved' | 'pending' | 'rejected' | 'open'
+  // derived for internal calculations (not rendered directly)
+  totalMinutes?: number
 }
 
 export type SortDirection = 'asc' | 'desc'
@@ -33,7 +41,7 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
   const [error, setError] = useState<string | null>(null)
 
   // Search removed per requirements
-  const [sortKey, setSortKey] = useState<keyof TimeEntry>('dateISO')
+  const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -51,6 +59,16 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))
   }, [])
 
+  // very small helper to parse duration text like "7h 30m" or "0h" into minutes
+  const parseDurationToMinutes = (text?: string): number => {
+    if (!text) return 0
+    const hMatch = text.match(/(\d+)\s*h/i)
+    const mMatch = text.match(/(\d+)\s*m/i)
+    const h = hMatch ? parseInt(hMatch[1], 10) : 0
+    const m = mMatch ? parseInt(mMatch[1], 10) : 0
+    return h * 60 + m
+  }
+
   const loadMock = useCallback(async () => {
     setError(null)
     await new Promise(r => setTimeout(r, 120))
@@ -61,13 +79,43 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
       const id = `${d.toISOString().slice(0, 10)}-${i}`
       const isWeekend = d.getDay() === 0 || d.getDay() === 6
       if (isWeekend) {
-        return { id, dateISO: d.toISOString(), status: 'approved', notes: 'Weekend', totalMinutes: 0, breakMinutes: 0 }
+        return {
+          id,
+          attendanceDateISO: d.toISOString(),
+          status: 'approved',
+          notes: 'Weekend',
+          recordedTime: '0h',
+          breakTime: '0h',
+          effectiveTime: '0h',
+          plannedTime: '0h',
+          differenceTime: '0h',
+          manualOverride: false,
+          totalMinutes: 0
+        }
       }
-      const start = '09:00'
-      const end = '17:00'
-      const breakMinutes = 30
-      const totalMinutes = 7 * 60
-      return { id, dateISO: d.toISOString(), start, end, breakMinutes, totalMinutes, notes: '', status: 'approved' }
+      const startTimeISO = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0).toISOString()
+      const endTimeISO = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17, 0).toISOString()
+      const recordedTime = '8h'
+      const breakTime = '0h 30m'
+      const effectiveTime = '7h 30m'
+      const plannedTime = '8h'
+      const differenceTime = '-30m'
+      const totalMinutes = parseDurationToMinutes(effectiveTime)
+      return {
+        id,
+        attendanceDateISO: d.toISOString(),
+        startTimeISO,
+        endTimeISO,
+        recordedTime,
+        breakTime,
+        effectiveTime,
+        plannedTime,
+        differenceTime,
+        manualOverride: false,
+        notes: '',
+        status: 'approved',
+        totalMinutes
+      }
     })
 
     // Persist as the base dataset for the selected month (no search filtering)
@@ -79,22 +127,38 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
   }, [loadMock])
 
   const clockIn = useCallback(async () => {
+    setError(null)
     setIsSubmitting(true)
+    const now = new Date()
+    const todayKey = now.toISOString().slice(0, 10)
+    const hasClockInToday = allEntries.some(e => {
+      const key = new Date(e.attendanceDateISO).toISOString().slice(0, 10)
+      return key === todayKey && Boolean(e.startTimeISO)
+    })
+    if (hasClockInToday) {
+      setIsSubmitting(false)
+      setError('You cannot clock in more than once on the same day.')
+      return
+    }
     await new Promise(r => setTimeout(r, 200))
     setIsClockedIn(true)
-    setClockInSince(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))
+    setClockInSince(now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))
     setIsSubmitting(false)
     // Add an open entry for now (only if within visible month)
-    const now = new Date()
     const sameMonth = now.getFullYear() === currentMonth.getFullYear() && now.getMonth() === currentMonth.getMonth()
     if (sameMonth) {
       const id = `manual-${now.toISOString()}`
       const newEntry: TimeEntry = {
         id,
-        dateISO: now.toISOString(),
-        start: now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+        attendanceDateISO: now.toISOString(),
+        startTimeISO: now.toISOString(),
         status: 'open',
-        breakMinutes: 0,
+        recordedTime: '0h',
+        breakTime: '0h',
+        effectiveTime: '0h',
+        plannedTime: '8h',
+        differenceTime: '0h',
+        manualOverride: true,
         totalMinutes: 0,
         notes: 'Clocked in'
       }
@@ -111,19 +175,20 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
     // Close the latest open entry and compute totals
     setAllEntries(prev => {
       const now = new Date()
-      const endLabel = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
-      const openIndex = prev.findIndex(e => e.status === 'open' && !e.end)
+      const openIndex = prev.findIndex(e => e.status === 'open' && !e.endTimeISO)
       if (openIndex === -1) {
         return prev
       }
       const open = prev[openIndex]
-      const startParts = (open.start || '00:00').split(':').map(Number)
-      const startDate = new Date(now)
-      startDate.setHours(startParts[0] || 0, startParts[1] || 0, 0, 0)
+      const startDate = new Date(open.startTimeISO || now)
       const minutes = Math.max(0, Math.round((now.getTime() - startDate.getTime()) / 60000))
+      const effectiveTime = `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ''}`
       const updated: TimeEntry = {
         ...open,
-        end: endLabel,
+        endTimeISO: now.toISOString(),
+        recordedTime: `${Math.floor((now.getTime() - startDate.getTime()) / 3600000)}h`,
+        effectiveTime,
+        differenceTime: '0h',
         totalMinutes: minutes,
         status: 'approved'
       }

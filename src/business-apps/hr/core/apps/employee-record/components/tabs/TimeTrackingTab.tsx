@@ -55,7 +55,7 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
   // Compare visible entries against requirements and collect deficits
   const deficits = React.useMemo(() => {
     return (entries || []).reduce<{ date: string; workedMins: number; requiredMins: number }[]>((acc, e) => {
-      const date = new Date(e.dateISO)
+      const date = new Date(e.attendanceDateISO)
       const req = dailyRequirementsMins[date.getDay()] || 0
       const worked = e.totalMinutes || 0
       if (req > 0 && worked < req) {
