@@ -74,11 +74,13 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
   // Collect all external keys needed from registered configs
   const externalKeys = useMemo(() => {
     const keys = new Set<string>()
-    allConfigs.forEach(cfg => {
-      cfg.filterField?.forEach(filter => {
-        keys.add(filter.from)
-      })
-    })
+    for (const cfg of allConfigs) {
+      if (cfg.filterField) {
+        for (const filter of cfg.filterField) {
+          keys.add(filter.from)
+        }
+      }
+    }
     return Array.from(keys)
   }, [allConfigs])
 
@@ -95,18 +97,18 @@ export const CatalogSelectProvider = <TFormValues extends FieldValues = FieldVal
     // Subscribe to form changes for external keys
     const subscription = activeForm.watch(values => {
       const newValues: Record<string, string | null> = {}
-      externalKeys.forEach(key => {
+      for (const key of externalKeys) {
         newValues[key] = ((values as any)[key] as string) || null
-      })
+      }
       setExternalValues(newValues)
     })
 
     // Initialize with current values
     const currentValues = activeForm.getValues()
     const initialValues: Record<string, string | null> = {}
-    externalKeys.forEach(key => {
+    for (const key of externalKeys) {
       initialValues[key] = ((currentValues as any)[key] as string) || null
-    })
+    }
     setExternalValues(initialValues)
 
     return () => subscription.unsubscribe()

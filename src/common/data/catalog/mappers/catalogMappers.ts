@@ -17,23 +17,33 @@ export const toTranslationsArray = (entryData: Partial<CatalogEntry>): CatalogEn
 
   // Collect all locale codes from all translation fields
   if (entryData.valueTranslations) {
-    Object.keys(entryData.valueTranslations).forEach(locale => locales.add(locale))
+    for (const locale of Object.keys(entryData.valueTranslations)) {
+      locales.add(locale)
+    }
   }
   if (entryData.descriptionTranslations) {
-    Object.keys(entryData.descriptionTranslations).forEach(locale => locales.add(locale))
+    for (const locale of Object.keys(entryData.descriptionTranslations)) {
+      locales.add(locale)
+    }
   }
   if (entryData.additionalValue1Translations) {
-    Object.keys(entryData.additionalValue1Translations).forEach(locale => locales.add(locale))
+    for (const locale of Object.keys(entryData.additionalValue1Translations)) {
+      locales.add(locale)
+    }
   }
   if (entryData.additionalValue2Translations) {
-    Object.keys(entryData.additionalValue2Translations).forEach(locale => locales.add(locale))
+    for (const locale of Object.keys(entryData.additionalValue2Translations)) {
+      locales.add(locale)
+    }
   }
   if (entryData.additionalValue3Translations) {
-    Object.keys(entryData.additionalValue3Translations).forEach(locale => locales.add(locale))
+    for (const locale of Object.keys(entryData.additionalValue3Translations)) {
+      locales.add(locale)
+    }
   }
 
   // Build translation objects for each locale
-  locales.forEach(localeCode => {
+  for (const localeCode of locales) {
     const translation: Partial<CatalogEntryTranslation> = {
       localeCode,
       value: entryData.valueTranslations?.[localeCode] || '',
@@ -50,7 +60,7 @@ export const toTranslationsArray = (entryData: Partial<CatalogEntry>): CatalogEn
     }
 
     translations.push(translation as CatalogEntryTranslation)
-  })
+  }
 
   return translations.length > 0 ? translations : undefined
 }
@@ -172,7 +182,7 @@ export const toCatalogEntry = (
   const additionalValue3Translations: Record<string, string> = {}
 
   if (baseEntry.translations && Array.isArray(baseEntry.translations)) {
-    baseEntry.translations.forEach(translation => {
+    for (const translation of baseEntry.translations) {
       if (translation.localeCode) {
         if (translation.value) {
           valueTranslations[translation.localeCode] = translation.value
@@ -191,7 +201,7 @@ export const toCatalogEntry = (
           additionalValue3Translations[translation.localeCode] = translation.additionalValue3
         }
       }
-    })
+    }
   }
 
   const entry: CatalogEntry = {

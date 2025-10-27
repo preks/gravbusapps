@@ -43,12 +43,12 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
   const [nameTranslations, setNameTranslations] = useState<Record<string, string>>(() => {
     const translations: Record<string, string> = {}
     if (data.children && Array.isArray(data.children)) {
-      data.children.forEach(child => {
+      for (const child of data.children) {
         const locale = child.defaultLocale || 'en'
         if (child.name) {
           translations[locale] = child.name
         }
-      })
+      }
     }
     return translations
   })
@@ -56,12 +56,12 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
   const [descriptionTranslations, setDescriptionTranslations] = useState<Record<string, string>>(() => {
     const translations: Record<string, string> = {}
     if (data.children && Array.isArray(data.children)) {
-      data.children.forEach(child => {
+      for (const child of data.children) {
         const locale = child.defaultLocale || 'en'
         if (child.description) {
           translations[locale] = child.description
         }
-      })
+      }
     }
     return translations
   })

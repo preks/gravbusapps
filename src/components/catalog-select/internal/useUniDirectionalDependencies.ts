@@ -16,6 +16,18 @@ import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
 import { toOptions } from './catalogSelectUtils'
 
+// Helper: Build metadata from entries
+const buildMetaByValue = (entries: CatalogEntry[]): Record<string, { parentEntryId?: string; type?: string }> => {
+  const meta: Record<string, { parentEntryId?: string; type?: string }> = {}
+  for (const entry of entries) {
+    meta[entry.id] = {
+      parentEntryId: entry.parentEntryId,
+      type: entry.type
+    }
+  }
+  return meta
+}
+
 type State = {
   value: string
   loading: boolean
@@ -91,9 +103,9 @@ export const useUniDirectionalDependencies = ({
       return !isBiDirectional // Only uni-directional
     })
 
-    uniDirectionalConfigs.forEach(config => {
+    for (const config of uniDirectionalConfigs) {
       const { id, parentField } = config
-      if (!parentField) return
+      if (!parentField) continue
 
       const parentValue = stateById[parentField]?.value || ''
       const lastParentValue = lastParentValuesRef.current.get(id)
@@ -111,14 +123,8 @@ export const useUniDirectionalDependencies = ({
 
         if (isInitialLoad) {
           // Just filter options, keep child value
-        } else if (parentValue && childValue) {
-          // User changed parent - clear child
-          setFor(id, prev => {
-            if (!prev) return prev
-            return { ...prev, value: '', search: undefined }
-          })
-        } else if (!parentValue && childValue) {
-          // Parent was cleared - clear child too
+        } else if (childValue) {
+          // User changed parent or parent was cleared - clear child in both cases
           setFor(id, prev => {
             if (!prev) return prev
             return { ...prev, value: '', search: undefined }
@@ -138,22 +144,13 @@ export const useUniDirectionalDependencies = ({
             }
           })
 
-          const fetchFiltered = async () => {
-            try {
-              const res = await fetchCatalogEntriesByIdentifier(id, {
-                limit: config.pageSize ?? defaultPageSize,
-                offset: 0,
-                parentEntryId: parentValue
-              })
-
-              const metaByValue: Record<string, { parentEntryId?: string; type?: string }> = {}
-              res.entries.forEach(entry => {
-                metaByValue[entry.id] = {
-                  parentEntryId: entry.parentEntryId,
-                  type: entry.type
-                }
-              })
-
+          fetchCatalogEntriesByIdentifier(id, {
+            limit: config.pageSize ?? defaultPageSize,
+            offset: 0,
+            parentEntryId: parentValue
+          })
+            .then(res => {
+              const metaByValue = buildMetaByValue(res.entries)
               setFor(id, prev => {
                 if (!prev) return prev
                 return {
@@ -162,19 +159,17 @@ export const useUniDirectionalDependencies = ({
                   options: toOptions(res.entries, locale),
                   total: res.totalCount,
                   offset: res.entries.length,
-                  metaByValue: { ...(prev.metaByValue || {}), ...metaByValue }
+                  metaByValue: { ...prev.metaByValue, ...metaByValue }
                 }
               })
-            } catch (error) {
+            })
+            .catch(error => {
               console.error(`[useUniDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
               setFor(id, prev => {
                 if (!prev) return prev
                 return { ...prev, loading: false }
               })
-            }
-          }
-
-          fetchFiltered()
+            })
         } else {
           // Parent cleared - reset to prefetched
           setFor(id, prev => {
@@ -189,7 +184,7 @@ export const useUniDirectionalDependencies = ({
           })
         }
       }
-    })
+    }
   }, [dependencySignature, setFor, fetchCatalogEntriesByIdentifier, defaultPageSize, locale])
 }
 

@@ -17,6 +17,18 @@ import type { CatalogEntry } from '@/common/data/catalog/types/catalogTypes'
 import type { CatalogSelectConfig } from './useCatalogSelect'
 import { toOptions, getLocalizedValue } from './catalogSelectUtils'
 
+// Helper: Build metadata from entries
+const buildMetaByValue = (entries: CatalogEntry[]): Record<string, { parentEntryId?: string; type?: string }> => {
+  const meta: Record<string, { parentEntryId?: string; type?: string }> = {}
+  for (const entry of entries) {
+    meta[entry.id] = {
+      parentEntryId: entry.parentEntryId,
+      type: entry.type
+    }
+  }
+  return meta
+}
+
 type State = {
   value: string
   loading: boolean
@@ -97,9 +109,9 @@ export const useBiDirectionalDependencies = ({
       return isBiDirectional
     })
 
-    biDirectionalConfigs.forEach(config => {
+    for (const config of biDirectionalConfigs) {
       const { id, parentField } = config
-      if (!parentField) return
+      if (!parentField) continue
 
       const parentValue = stateById[parentField]?.value || ''
       const childValue = stateById[id]?.value || ''
@@ -119,28 +131,26 @@ export const useBiDirectionalDependencies = ({
         if (wasAutoSelected) {
           // Parent was auto-selected by this child - don't clear child, just refetch options
           autoSelectedToCleanup.add(parentField)
-        } else {
-          if (isInitialLoad) {
-            // Keep both, just filter options
-          } else if (parentValue && childValue) {
-            // Both have values but parent changed - clear child
+        } else if (isInitialLoad) {
+          // Keep both, just filter options
+        } else if (parentValue && childValue) {
+          // Both have values but parent changed - clear child
+          setFor(id, prev => {
+            if (!prev) return prev
+            return { ...prev, value: '', search: undefined }
+          })
+        } else if (!parentValue && childValue) {
+          // Parent is empty but child has value
+          // Check if child can auto-select parent (if so, DON'T clear - let auto-select handle it)
+          const childMeta = stateById[id]?.metaByValue?.[childValue]
+          const canAutoSelect = childMeta?.parentEntryId || !childMeta // Has parent OR metadata missing (will be fetched)
+
+          if (!canAutoSelect) {
+            // Parent was cleared and no auto-select possible - clear child too
             setFor(id, prev => {
               if (!prev) return prev
               return { ...prev, value: '', search: undefined }
             })
-          } else if (!parentValue && childValue) {
-            // Parent is empty but child has value
-            // Check if child can auto-select parent (if so, DON'T clear - let auto-select handle it)
-            const childMeta = stateById[id]?.metaByValue?.[childValue]
-            const canAutoSelect = childMeta?.parentEntryId || !childMeta // Has parent OR metadata missing (will be fetched)
-
-            if (!canAutoSelect) {
-              // Parent was cleared and no auto-select possible - clear child too
-              setFor(id, prev => {
-                if (!prev) return prev
-                return { ...prev, value: '', search: undefined }
-              })
-            }
           }
         }
 
@@ -157,22 +167,13 @@ export const useBiDirectionalDependencies = ({
             }
           })
 
-          const fetchFiltered = async () => {
-            try {
-              const res = await fetchCatalogEntriesByIdentifier(id, {
-                limit: config.pageSize ?? defaultPageSize,
-                offset: 0,
-                parentEntryId: parentValue
-              })
-
-              const metaByValue: Record<string, { parentEntryId?: string; type?: string }> = {}
-              res.entries.forEach(entry => {
-                metaByValue[entry.id] = {
-                  parentEntryId: entry.parentEntryId,
-                  type: entry.type
-                }
-              })
-
+          fetchCatalogEntriesByIdentifier(id, {
+            limit: config.pageSize ?? defaultPageSize,
+            offset: 0,
+            parentEntryId: parentValue
+          })
+            .then(res => {
+              const metaByValue = buildMetaByValue(res.entries)
               setFor(id, prev => {
                 if (!prev) return prev
                 return {
@@ -181,19 +182,17 @@ export const useBiDirectionalDependencies = ({
                   options: toOptions(res.entries, locale),
                   total: res.totalCount,
                   offset: res.entries.length,
-                  metaByValue: { ...(prev.metaByValue || {}), ...metaByValue }
+                  metaByValue: { ...prev.metaByValue, ...metaByValue }
                 }
               })
-            } catch (error) {
+            })
+            .catch(error => {
               console.error(`[useBiDirectionalDependencies] Failed to fetch filtered options for ${id}:`, error)
               setFor(id, prev => {
                 if (!prev) return prev
                 return { ...prev, loading: false }
               })
-            }
-          }
-
-          fetchFiltered()
+            })
         } else {
           // Parent cleared - reset to prefetched
           setFor(id, prev => {
@@ -229,14 +228,12 @@ export const useBiDirectionalDependencies = ({
           // Ensure parent has the option
           const parentHasOption = stateById[parentField]?.options?.some(opt => opt.value === childMeta.parentEntryId)
           if (!parentHasOption) {
-            const fetchParentOption = async () => {
-              try {
-                const res = await fetchCatalogEntriesByIdentifier(parentField, {
-                  limit: 1,
-                  offset: 0,
-                  entryId: childMeta.parentEntryId!
-                })
-
+            fetchCatalogEntriesByIdentifier(parentField, {
+              limit: 1,
+              offset: 0,
+              entryId: childMeta.parentEntryId!
+            })
+              .then(res => {
                 if (res.entries.length > 0) {
                   const parentOption = { value: res.entries[0].id, label: getLocalizedValue(res.entries[0], locale) }
                   setFor(parentField, prev => {
@@ -249,11 +246,10 @@ export const useBiDirectionalDependencies = ({
                     }
                   })
                 }
-              } catch (error) {
+              })
+              .catch(error => {
                 console.error(`[useBiDirectionalDependencies] Failed to fetch parent option for ${parentField}:`, error)
-              }
-            }
-            fetchParentOption()
+              })
           }
         }
       }
@@ -265,12 +261,12 @@ export const useBiDirectionalDependencies = ({
           return { ...prev, manuallyCleared: false }
         })
       }
-    })
+    }
 
     // Cleanup auto-selected parents
-    autoSelectedToCleanup.forEach(parentId => {
+    for (const parentId of autoSelectedToCleanup) {
       autoSelectedParentsRef.current.delete(parentId)
-    })
+    }
   }, [dependencySignature, setFor, fetchCatalogEntriesByIdentifier, defaultPageSize, locale])
 }
 

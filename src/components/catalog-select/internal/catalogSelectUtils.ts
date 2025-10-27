@@ -55,12 +55,12 @@ export const toOptions = (entries: CatalogEntry[], locale?: string) =>
 
 export const buildEntryMeta = (entries: CatalogEntry[]): Record<string, EntryMeta> => {
   const meta: Record<string, EntryMeta> = {}
-  entries.forEach(e => {
+  for (const e of entries) {
     meta[e.id] = {
       parentEntryId: e.parentEntryId,
       type: e.type
     }
-  })
+  }
   return meta
 }
 

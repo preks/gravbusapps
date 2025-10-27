@@ -88,12 +88,12 @@ export const useCatalogSelectDependencies = ({
 
   // Handle external filter dependencies (e.g., pipelineType → pipelineStage)
   useEffect(() => {
-    configs.forEach(config => {
+    for (const config of configs) {
       const { id, filterField } = config
 
-      if (!filterField) return
+      if (!filterField) continue
 
-      filterField.forEach(filter => {
+      for (const filter of filterField) {
         const externalValue = externalValues?.[filter.from] || null
         const lastExternalValue = lastExternalValuesRef.current.get(`${id}_${filter.from}`)
 
@@ -163,8 +163,8 @@ export const useCatalogSelectDependencies = ({
             })
           }
         }
-      })
-    })
+      }
+    }
   }, [
     configs
       .filter(c => c.filterField)
