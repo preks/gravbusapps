@@ -3,6 +3,7 @@ import { FileText, Upload as UploadIcon, X, AlertCircle } from 'lucide-react'
 import { Button, Alert, AlertDescription } from '@newwork/nw-design-system'
 import { QuickTaskUploadFile } from './types'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatFileSize } from '@/common/utils/fileUtils'
 
 export interface QuickTaskFileUploadProps {
   value: QuickTaskUploadFile[]
@@ -135,13 +136,6 @@ export const QuickTaskFileUpload: React.FC<QuickTaskFileUploadProps> = ({
   }, [disabled])
 
   const canAddMoreFiles = value.length < maxFiles
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
 
   // Determine border color based on state
   const getBorderColor = () => {
