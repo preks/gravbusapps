@@ -29,6 +29,8 @@ export interface OverviewData {
   totalPipelineValue: number
   totalRevenue: number
   totalLeadCount: number
+  availableCurrencies: string[]
+  selectedCurrency: string
   recentRecords: Array<{
     id: string
     name: string
@@ -83,10 +85,194 @@ export interface UseOverviewDataReturn {
   refetch: () => void
 }
 
+// Helper function to extract and sort currencies
+const extractCurrencies = (opportunities: any[]): string[] => {
+  const availableCurrencies = new Set<string>()
+  for (const opp of opportunities) {
+    if (opp.currencyRef) {
+      const currency = extractCurrencyCode(opp.currencyRef)
+      availableCurrencies.add(currency)
+    }
+  }
+
+  return Array.from(availableCurrencies).sort((a, b) => {
+    if (a === 'EUR') return -1
+    if (b === 'EUR') return 1
+    return a.localeCompare(b)
+  })
+}
+
+// Helper function to calculate funnel data
+const calculateFunnelData = (filteredOpportunities: any[]) => {
+  const stageMapping = {
+    DISCOVERY: 'Discovery',
+    QUALIFICATION: 'Qualification',
+    NEGOTIATION: 'Negotiation',
+    CLOSED_WON: 'Closed Won',
+    CLOSED_LOST: 'Closed Lost'
+  }
+
+  const stageOrder = ['DISCOVERY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST']
+  const stageColors = [
+    'var(--nw-offline)',
+    'var(--nw-info)',
+    'var(--nw-warning)',
+    'var(--nw-success)',
+    'var(--nw-destructive)'
+  ]
+
+  const standardizedStageGroups = new Map<string, { count: number; value: number }>()
+  let totalPipelineValue = 0
+  let totalRevenue = 0
+
+  // Initialize all stages with zero counts
+  stageOrder.forEach(stageCode => {
+    standardizedStageGroups.set(stageCode, { count: 0, value: 0 })
+  })
+
+  for (const opp of filteredOpportunities) {
+    const amount = opp.estimatedAmount || 0
+    totalPipelineValue += amount
+
+    const alternativeCode = opp.salesPipelineStage?.alternativeCode
+    let stageCode = 'DISCOVERY'
+
+    if (alternativeCode && stageMapping[alternativeCode as keyof typeof stageMapping]) {
+      stageCode = alternativeCode
+    } else if (opp.opportunityStatus?.code === 'WON' || opp.status === 'Won') {
+      stageCode = 'CLOSED_WON'
+      totalRevenue += amount
+    } else if (opp.opportunityStatus?.code === 'LOST' || opp.status === 'Lost') {
+      stageCode = 'CLOSED_LOST'
+    }
+
+    const group = standardizedStageGroups.get(stageCode)!
+    group.count += 1
+    group.value += amount
+  }
+
+  const totalOpportunities = filteredOpportunities.length
+  const aggregatedFunnel = stageOrder
+    .map((stageCode, index) => {
+      const data = standardizedStageGroups.get(stageCode)!
+      return {
+        stage: stageMapping[stageCode as keyof typeof stageMapping],
+        count: data.count,
+        value: data.value,
+        percentage: totalOpportunities > 0 ? Math.round((data.count / totalOpportunities) * 100) : 0,
+        color: stageColors[index]
+      }
+    })
+    .filter(stage => stage.count > 0)
+
+  return { aggregatedFunnel, totalPipelineValue, totalRevenue }
+}
+
+// Helper function to process lead sources with quality metrics
+const processLeadSourcesWithQuality = (openLeads: any[], allOpportunities: any[]) => {
+  const sourceGroups = new Map<string, { leadCount: number; recentLeads: any[]; revenue: number }>()
+
+  for (const lead of openLeads) {
+    const source = lead.leadSource?.value || 'NETWORK'
+    const existing = sourceGroups.get(source) || { leadCount: 0, recentLeads: [], revenue: 0 }
+    existing.leadCount += 1
+    existing.recentLeads.push(lead)
+    sourceGroups.set(source, existing)
+  }
+
+  const opportunitySourceConversions = new Map<string, { count: number; revenue: number }>()
+
+  for (const [source, sourceData] of sourceGroups) {
+    let conversionCount = 0
+    let revenue = 0
+
+    switch (source.toLowerCase()) {
+      case 'events':
+        conversionCount = sourceData.leadCount > 0 ? Math.max(1, Math.floor(sourceData.leadCount * 0.3)) : 0
+        break
+      case 'paid ads':
+        conversionCount = sourceData.leadCount > 2 ? Math.floor(sourceData.leadCount * 0.15) : 0
+        break
+      case 'network':
+      case 'referral':
+        conversionCount = sourceData.leadCount > 0 ? Math.max(1, Math.floor(sourceData.leadCount * 0.4)) : 0
+        break
+      default:
+        conversionCount = sourceData.leadCount > 1 ? Math.floor(sourceData.leadCount * 0.2) : 0
+    }
+
+    if (allOpportunities.length > 0) {
+      const avgOpportunityValue =
+        allOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0) / allOpportunities.length
+      revenue = conversionCount * avgOpportunityValue
+    }
+
+    opportunitySourceConversions.set(source, { count: conversionCount, revenue })
+  }
+
+  const totalLeadCount = Array.from(sourceGroups.values()).reduce((sum, s) => sum + s.leadCount, 0)
+  const sourceColors = [
+    'var(--nw-color-primary-500)',
+    'var(--nw-color-success-500)',
+    'var(--nw-color-warning-500)',
+    'var(--nw-color-info-500)',
+    'var(--nw-color-destructive-500)',
+    'var(--nw-color-accent-500)',
+    'var(--nw-color-secondary-500)'
+  ]
+
+  const revenueBySource = Array.from(sourceGroups.entries())
+    .map(([source, sourceData], index) => {
+      const conversions = opportunitySourceConversions.get(source) || { count: 0, revenue: 0 }
+      const conversionRate = sourceData.leadCount > 0 ? Math.round((conversions.count / sourceData.leadCount) * 100) : 0
+      const recentCount = sourceData.recentLeads.filter(
+        lead => new Date(lead.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      ).length
+
+      let qualityLevel: 'high' | 'medium' | 'low' = 'medium'
+      let qualityIndicator = '📈'
+      let qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.growing', 'Growing')
+
+      if (conversionRate >= 50) {
+        qualityLevel = 'high'
+        qualityIndicator = '⭐'
+        qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.high', 'High conversion')
+      } else if (conversionRate <= 10 && sourceData.leadCount > 1) {
+        qualityLevel = 'low'
+        qualityIndicator = '⚠️'
+        qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.low', 'Low conversion')
+      } else if (recentCount > 0) {
+        qualityIndicator = '📈'
+        qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.growing', 'Growing')
+      } else if (sourceData.leadCount === 0) {
+        qualityIndicator = '💤'
+        qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.inactive', 'Inactive')
+      }
+
+      return {
+        source,
+        value: sourceData.leadCount,
+        count: sourceData.leadCount,
+        percentage: totalLeadCount > 0 ? Math.round((sourceData.leadCount / totalLeadCount) * 100) : 0,
+        color: sourceColors[index % sourceColors.length],
+        qualityLevel,
+        qualityIndicator,
+        qualityText,
+        conversionRate: Math.round(conversionRate),
+        recentCount,
+        revenue: conversions.revenue
+      }
+    })
+    .sort((a, b) => b.value - a.value)
+
+  return { revenueBySource, totalLeadCount }
+}
+
 export const useOverviewData = (
   context: BusinessAppContextProps,
   pipelines: PipelineInfo[],
-  dateRange: DateRange
+  dateRange: DateRange,
+  selectedCurrency?: string
 ): UseOverviewDataReturn => {
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -141,199 +327,22 @@ export const useOverviewData = (
       // Flatten all opportunities from all pipelines
       const allOpportunities = opportunityArrays.flat()
 
-      // Data loaded successfully
+      // Extract and sort currencies
+      const currencies = extractCurrencies(allOpportunities)
 
-      // Get all pipeline stages for funnel calculation
-      const allStages = new Map<string, any>()
-      for (const pipeline of pipelines) {
-        try {
-          const stages = await fetchPipelineStages(pipeline.ref)
-
-          stages.forEach((stage: any) => {
-            allStages.set(stage.code, stage)
+      // Filter opportunities by currency if specified
+      const filteredOpportunities = selectedCurrency
+        ? allOpportunities.filter((opp: any) => {
+            const oppCurrency = extractCurrencyCode(opp.currencyRef || '')
+            return oppCurrency === selectedCurrency
           })
-        } catch {
-          // Failed to fetch stages for this pipeline
-        }
-      }
+        : allOpportunities
 
-      // Calculate aggregated funnel data from all opportunities using standardized stages
-      const standardizedStageGroups = new Map<string, { count: number; value: number }>()
-      let totalPipelineValue = 0
-      let totalRevenue = 0
+      // Calculate funnel data
+      const { aggregatedFunnel, totalPipelineValue, totalRevenue } = calculateFunnelData(filteredOpportunities)
 
-      // Define the standardized stage mapping and order
-      const stageMapping = {
-        DISCOVERY: 'Discovery',
-        QUALIFICATION: 'Qualification',
-        NEGOTIATION: 'Negotiation',
-        CLOSED_WON: 'Closed Won',
-        CLOSED_LOST: 'Closed Lost'
-      }
-
-      const stageOrder = ['DISCOVERY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST']
-      const stageColors = [
-        'var(--nw-offline)',
-        'var(--nw-info)',
-        'var(--nw-warning)',
-        'var(--nw-success)',
-        'var(--nw-destructive)'
-      ]
-
-      // Initialize all stages with zero counts
-      stageOrder.forEach(stageCode => {
-        standardizedStageGroups.set(stageCode, { count: 0, value: 0 })
-      })
-
-      allOpportunities.forEach((opp: any) => {
-        const amount = opp.estimatedAmount || 0
-        totalPipelineValue += amount
-
-        // Get the alternative code from the pipeline stage
-        const alternativeCode = opp.salesPipelineStage?.alternativeCode
-
-        // Determine stage based on alternative code or fallback logic
-        let stageCode = 'DISCOVERY' // Default fallback
-
-        if (alternativeCode && stageMapping[alternativeCode as keyof typeof stageMapping]) {
-          stageCode = alternativeCode
-        } else if (opp.opportunityStatus?.code === 'WON' || opp.status === 'Won') {
-          stageCode = 'CLOSED_WON'
-          totalRevenue += amount
-        } else if (opp.opportunityStatus?.code === 'LOST' || opp.status === 'Lost') {
-          stageCode = 'CLOSED_LOST'
-        }
-
-        const group = standardizedStageGroups.get(stageCode)!
-        group.count += 1
-        group.value += amount
-      })
-
-      // Convert to funnel data in the specified order with human-readable labels
-      const totalOpportunities = allOpportunities.length
-      const aggregatedFunnel = stageOrder
-        .map((stageCode, index) => {
-          const data = standardizedStageGroups.get(stageCode)!
-          return {
-            stage: stageMapping[stageCode as keyof typeof stageMapping],
-            count: data.count,
-            value: data.value,
-            percentage: totalOpportunities > 0 ? Math.round((data.count / totalOpportunities) * 100) : 0,
-            color: stageColors[index]
-          }
-        })
-        .filter(stage => stage.count > 0) // Only show stages with data
-
-      // Funnel data calculated successfully
-
-      // Calculate lead counts and quality metrics by source
-      const sourceGroups = new Map<string, { leadCount: number; recentLeads: any[]; revenue: number }>()
-
-      // Process open leads by source
-      openLeads.forEach((lead: any) => {
-        const source = lead.leadSource?.value || 'NETWORK'
-        const existing = sourceGroups.get(source) || { leadCount: 0, recentLeads: [], revenue: 0 }
-        existing.leadCount += 1
-        existing.recentLeads.push(lead)
-        sourceGroups.set(source, existing)
-      })
-
-      // For now, use simple mock conversion data since we don't have lead source tracking to opportunities
-      // In a real scenario, you'd track the original lead source through the conversion process
-      const opportunitySourceConversions = new Map<string, { count: number; revenue: number }>()
-
-      // Mock realistic conversion rates based on typical industry patterns
-      sourceGroups.forEach((sourceData, source) => {
-        let conversionCount = 0
-        let revenue = 0
-
-        // Apply realistic conversion rates based on source type
-        // Use Math.ceil for small numbers to ensure some conversions when we have leads
-        switch (source.toLowerCase()) {
-          case 'events':
-            conversionCount = sourceData.leadCount > 0 ? Math.max(1, Math.floor(sourceData.leadCount * 0.3)) : 0 // At least 1 if we have leads
-            break
-          case 'paid ads':
-            conversionCount = sourceData.leadCount > 2 ? Math.floor(sourceData.leadCount * 0.15) : 0 // Only convert if we have >2 leads
-            break
-          case 'network':
-          case 'referral':
-            conversionCount = sourceData.leadCount > 0 ? Math.max(1, Math.floor(sourceData.leadCount * 0.4)) : 0
-            break
-          default:
-            conversionCount = sourceData.leadCount > 1 ? Math.floor(sourceData.leadCount * 0.2) : 0
-        }
-
-        // Estimate revenue proportionally from total opportunities
-        if (allOpportunities.length > 0) {
-          const avgOpportunityValue =
-            allOpportunities.reduce((sum, opp) => sum + (opp.estimatedAmount || 0), 0) / allOpportunities.length
-          revenue = conversionCount * avgOpportunityValue
-        }
-
-        opportunitySourceConversions.set(source, { count: conversionCount, revenue })
-      })
-
-      // Calculate quality indicators for each source
-      const totalLeadCount = Array.from(sourceGroups.values()).reduce((sum, s) => sum + s.leadCount, 0)
-
-      // Define colors for different sources using design tokens
-      const sourceColors = [
-        'var(--nw-color-primary-500)',
-        'var(--nw-color-success-500)',
-        'var(--nw-color-warning-500)',
-        'var(--nw-color-info-500)',
-        'var(--nw-color-destructive-500)',
-        'var(--nw-color-accent-500)',
-        'var(--nw-color-secondary-500)'
-      ]
-
-      const revenueBySource = Array.from(sourceGroups.entries())
-        .map(([source, sourceData], index) => {
-          const conversions = opportunitySourceConversions.get(source) || { count: 0, revenue: 0 }
-          const conversionRate =
-            sourceData.leadCount > 0 ? Math.round((conversions.count / sourceData.leadCount) * 100) : 0
-          const recentCount = sourceData.recentLeads.filter(
-            lead => new Date(lead.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-          ).length
-
-          // Determine quality level
-          let qualityLevel: 'high' | 'medium' | 'low' = 'medium'
-          let qualityIndicator = '📈'
-          let qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.growing', 'Growing')
-
-          if (conversionRate >= 50) {
-            qualityLevel = 'high'
-            qualityIndicator = '⭐'
-            qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.high', 'High conversion')
-          } else if (conversionRate <= 10 && sourceData.leadCount > 1) {
-            qualityLevel = 'low'
-            qualityIndicator = '⚠️'
-            qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.low', 'Low conversion')
-          } else if (recentCount > 0) {
-            qualityIndicator = '📈'
-            qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.growing', 'Growing')
-          } else if (sourceData.leadCount === 0) {
-            qualityIndicator = '💤'
-            qualityText = getTranslationFromI18nKeyAndLabel('investment.quality.inactive', 'Inactive')
-          }
-
-          return {
-            source,
-            value: sourceData.leadCount,
-            count: sourceData.leadCount,
-            percentage: totalLeadCount > 0 ? Math.round((sourceData.leadCount / totalLeadCount) * 100) : 0,
-            color: sourceColors[index % sourceColors.length],
-            // Quality indicators
-            qualityLevel,
-            qualityIndicator,
-            qualityText,
-            conversionRate: Math.round(conversionRate),
-            recentCount,
-            revenue: conversions.revenue
-          }
-        })
-        .sort((a, b) => b.value - a.value)
+      // Process lead sources with quality metrics
+      const { revenueBySource, totalLeadCount } = processLeadSourcesWithQuality(openLeads, allOpportunities)
 
       // Create recent records from opportunities and leads
       const recentRecords = [
@@ -474,7 +483,9 @@ export const useOverviewData = (
         recentRecords,
         keyDeals,
         todaysActivities: processedTodaysActivities,
-        activeTasks: processedTodaysTasks
+        activeTasks: processedTodaysTasks,
+        availableCurrencies: currencies,
+        selectedCurrency: selectedCurrency || 'EUR'
       }
 
       setOverviewData(realOverviewData)
@@ -489,6 +500,7 @@ export const useOverviewData = (
     context.accessToken,
     pipelines,
     dateRange,
+    selectedCurrency,
     fetchPipelineOpportunities,
     fetchRecentLeads,
     fetchSalesActivities,

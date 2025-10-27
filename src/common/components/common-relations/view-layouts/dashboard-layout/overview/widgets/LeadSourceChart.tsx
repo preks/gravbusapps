@@ -1,7 +1,12 @@
 import React, { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@newwork/nw-design-system'
-import { getQualityLevelBadgeVariant } from '@/common/utils/badgeUtils'
 import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Badge,
+  IconAvatar,
   ChartConfig,
   ChartContainer,
   ChartTooltip,
@@ -9,7 +14,9 @@ import {
   ChartLegend,
   ChartLegendContent
 } from '@newwork/nw-design-system'
+import { getQualityLevelBadgeVariant } from '@/common/utils/badgeUtils'
 import { PieChart, Pie } from 'recharts'
+import { ChartDonutIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface LeadSourceItem {
@@ -46,7 +53,7 @@ const toKey = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '')
 
-export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLeads }) => {
+export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLeads, moduleColor = 'default' }) => {
   const dataKey = 'leads'
   const nameKey = 'source'
 
@@ -65,10 +72,10 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLe
     const config: Record<string, { label?: string }> = {
       [dataKey]: {}
     }
-    items.forEach(item => {
+    for (const item of items) {
       const key = toKey(item.source)
       config[key] = { label: item.source }
-    })
+    }
     return config as ChartConfig
   }, [items])
 
@@ -90,6 +97,7 @@ export const LeadSourceChart: React.FC<LeadSourceChartProps> = ({ items, totalLe
   return (
     <Card className="gba:h-full gba:flex gba:flex-col">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
+        <IconAvatar icon={ChartDonutIcon} variant={moduleColor as any} size="md" decorative={true} />
         <div>
           <CardTitle>
             {getTranslationFromI18nKeyAndLabel('leadSources.monthlyOpenLeads', 'Lead Sources - Monthly Open Leads')}
