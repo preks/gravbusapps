@@ -15,7 +15,7 @@ import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { Employee } from '../hooks/useGetEmployeesReport'
 import { SortConfig } from '../utils/sortUtils'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel, formatDate, getCatalogValue } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 dayjs.extend(weekday)
@@ -291,13 +291,17 @@ export const TeamReportTable: React.FC<TeamReportTableProps> = ({
                   className="gba:py-8 gba:px-6"
                   data-testid={`${DATA_TEST_ID_PREFIX}-employment-type-cell-${record.id}`}
                 >
-                  <span className="gba:text-sm">{record.employmentType || '-'}</span>
+                  <span className="gba:text-sm">
+                    {record.employmentType ? getCatalogValue(record.employmentType) : '-'}
+                  </span>
                 </TableCell>
                 <TableCell
                   className="gba:py-8 gba:px-6"
                   data-testid={`${DATA_TEST_ID_PREFIX}-contract-type-cell-${record.id}`}
                 >
-                  <span className="gba:text-sm">{record.contractType || '-'}</span>
+                  <span className="gba:text-sm">
+                    {record.contractType ? getCatalogValue(record.contractType) : '-'}
+                  </span>
                 </TableCell>
                 <TableCell
                   className="gba:py-8 gba:px-6"

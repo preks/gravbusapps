@@ -12,6 +12,8 @@ export interface OverviewData {
     percentage: number
     color: string
   }>
+  availableCurrencies: string[]
+  selectedCurrency: string
   revenueBySource: Array<{
     source: string
     value: number
@@ -64,10 +66,117 @@ export interface UseOverviewDataReturn {
   refetch: () => void
 }
 
+// Helper function to extract and sort currencies
+const extractCurrencies = (opportunities: any[]): string[] => {
+  const availableCurrencies = new Set<string>()
+  for (const opp of opportunities) {
+    if (opp.currencyRef) {
+      const currency = extractCurrencyCode(opp.currencyRef)
+      availableCurrencies.add(currency)
+    }
+  }
+
+  return Array.from(availableCurrencies).sort((a, b) => {
+    if (a === 'EUR') return -1
+    if (b === 'EUR') return 1
+    return a.localeCompare(b)
+  })
+}
+
+// Helper function to calculate funnel data
+const calculateFunnelData = (filteredOpportunities: any[]) => {
+  const stageMapping = {
+    DISCOVERY: 'Discovery',
+    QUALIFICATION: 'Qualification',
+    NEGOTIATION: 'Negotiation',
+    CLOSED_WON: 'Closed Won',
+    CLOSED_LOST: 'Closed Lost'
+  }
+
+  const stageOrder = ['DISCOVERY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST']
+  const stageColors = [
+    'var(--nw-offline)',
+    'var(--nw-info)',
+    'var(--nw-warning)',
+    'var(--nw-success)',
+    'var(--nw-destructive)'
+  ]
+
+  const standardizedStageGroups = new Map<string, { count: number; value: number }>()
+  let totalPipelineValue = 0
+
+  // Initialize all stages with zero counts
+  stageOrder.forEach(stageCode => {
+    standardizedStageGroups.set(stageCode, { count: 0, value: 0 })
+  })
+
+  for (const opp of filteredOpportunities) {
+    const amount = opp.estimatedAmount || 0
+    totalPipelineValue += amount
+
+    const alternativeCode = opp.salesPipelineStage?.alternativeCode
+    let stageCode = 'DISCOVERY'
+
+    if (alternativeCode && stageMapping[alternativeCode as keyof typeof stageMapping]) {
+      stageCode = alternativeCode
+    } else if (opp.status === 'Won') {
+      stageCode = 'CLOSED_WON'
+    } else if (opp.status === 'Lost') {
+      stageCode = 'CLOSED_LOST'
+    }
+
+    const group = standardizedStageGroups.get(stageCode)!
+    group.count += 1
+    group.value += amount
+  }
+
+  const totalOpportunities = filteredOpportunities.length
+  const aggregatedFunnel = stageOrder
+    .map((stageCode, index) => {
+      const data = standardizedStageGroups.get(stageCode)!
+      return {
+        stage: stageMapping[stageCode as keyof typeof stageMapping],
+        count: data.count,
+        value: data.value,
+        percentage: totalOpportunities > 0 ? Math.round((data.count / totalOpportunities) * 100) : 0,
+        color: stageColors[index]
+      }
+    })
+    .filter(stage => stage.count > 0)
+
+  return { aggregatedFunnel, totalPipelineValue }
+}
+
+// Helper function to process lead sources
+const processLeadSources = (openLeads: any[]) => {
+  const sourceGroups = new Map<string, number>()
+
+  openLeads.forEach((lead: any) => {
+    const source = lead.leadSource?.value || 'NETWORK'
+    sourceGroups.set(source, (sourceGroups.get(source) || 0) + 1)
+  })
+
+  const totalLeadCount = Array.from(sourceGroups.values()).reduce((sum, count) => sum + count, 0)
+  const sourceColors = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#f5222d', '#13c2c2', '#eb2f96']
+
+  const revenueBySource = Array.from(sourceGroups.entries())
+    .map(([source, count], index) => ({
+      source,
+      value: count,
+      count: count,
+      percentage: totalLeadCount > 0 ? Math.round((count / totalLeadCount) * 100) : 0,
+      color: sourceColors[index % sourceColors.length]
+    }))
+    .sort((a, b) => b.value - a.value)
+
+  return { revenueBySource, totalLeadCount }
+}
+
 export const useOverviewData = (
   context: BusinessAppContextProps,
   pipelines: PipelineInfo[],
-  dateRange: DateRange
+  dateRange: DateRange,
+  selectedCurrency?: string
 ): UseOverviewDataReturn => {
   const [overviewData, setOverviewData] = useState<OverviewData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -122,113 +231,22 @@ export const useOverviewData = (
       // Flatten all opportunities from all pipelines
       const allOpportunities = opportunityArrays.flat()
 
-      // Data loaded successfully
+      // Extract and sort currencies
+      const currencies = extractCurrencies(allOpportunities)
 
-      // Get all pipeline stages for funnel calculation
-      const allStages = new Map<string, any>()
-      for (const pipeline of pipelines) {
-        try {
-          const stages = await fetchPipelineStages(pipeline.ref)
-
-          stages.forEach((stage: any) => {
-            allStages.set(stage.code, stage)
+      // Filter opportunities by selected currency
+      const filteredOpportunities = selectedCurrency
+        ? allOpportunities.filter((opp: any) => {
+            const oppCurrency = extractCurrencyCode(opp.currencyRef || '')
+            return oppCurrency === selectedCurrency
           })
-        } catch {
-          // Failed to fetch stages for this pipeline
-        }
-      }
+        : allOpportunities
 
-      // Calculate aggregated funnel data from all opportunities using standardized stages
-      const standardizedStageGroups = new Map<string, { count: number; value: number }>()
-      let totalPipelineValue = 0
+      // Calculate funnel data
+      const { aggregatedFunnel, totalPipelineValue } = calculateFunnelData(filteredOpportunities)
 
-      // Define the standardized stage mapping and order
-      const stageMapping = {
-        DISCOVERY: 'Discovery',
-        QUALIFICATION: 'Qualification',
-        NEGOTIATION: 'Negotiation',
-        CLOSED_WON: 'Closed Won',
-        CLOSED_LOST: 'Closed Lost'
-      }
-
-      const stageOrder = ['DISCOVERY', 'QUALIFICATION', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST']
-      const stageColors = [
-        'var(--nw-offline)',
-        'var(--nw-info)',
-        'var(--nw-warning)',
-        'var(--nw-success)',
-        'var(--nw-destructive)'
-      ]
-
-      // Initialize all stages with zero counts
-      stageOrder.forEach(stageCode => {
-        standardizedStageGroups.set(stageCode, { count: 0, value: 0 })
-      })
-
-      allOpportunities.forEach((opp: any) => {
-        const amount = opp.estimatedAmount || 0
-        totalPipelineValue += amount
-
-        // Get the alternative code from the pipeline stage
-        const alternativeCode = opp.salesPipelineStage?.alternativeCode
-
-        // Determine stage based on alternative code or fallback logic
-        let stageCode = 'DISCOVERY' // Default fallback
-
-        if (alternativeCode && stageMapping[alternativeCode as keyof typeof stageMapping]) {
-          stageCode = alternativeCode
-        } else if (opp.status === 'Won') {
-          stageCode = 'CLOSED_WON'
-        } else if (opp.status === 'Lost') {
-          stageCode = 'CLOSED_LOST'
-        }
-
-        const group = standardizedStageGroups.get(stageCode)!
-        group.count += 1
-        group.value += amount
-      })
-
-      // Convert to funnel data in the specified order with human-readable labels
-      const totalOpportunities = allOpportunities.length
-      const aggregatedFunnel = stageOrder
-        .map((stageCode, index) => {
-          const data = standardizedStageGroups.get(stageCode)!
-          return {
-            stage: stageMapping[stageCode as keyof typeof stageMapping],
-            count: data.count,
-            value: data.value,
-            percentage: totalOpportunities > 0 ? Math.round((data.count / totalOpportunities) * 100) : 0,
-            color: stageColors[index]
-          }
-        })
-        .filter(stage => stage.count > 0) // Only show stages with data
-
-      // Funnel data calculated successfully
-
-      // Calculate lead counts by source from open leads
-      const sourceGroups = new Map<string, number>()
-
-      openLeads.forEach((lead: any) => {
-        const source = lead.leadSource?.value || 'NETWORK'
-        sourceGroups.set(source, (sourceGroups.get(source) || 0) + 1)
-      })
-
-      // Lead source data calculated successfully
-
-      const totalLeadCount = Array.from(sourceGroups.values()).reduce((sum, count) => sum + count, 0)
-
-      // Define colors for different sources
-      const sourceColors = ['#1890ff', '#52c41a', '#fa8c16', '#722ed1', '#f5222d', '#13c2c2', '#eb2f96']
-
-      const revenueBySource = Array.from(sourceGroups.entries())
-        .map(([source, count], index) => ({
-          source,
-          value: count, // Now value represents lead count, not revenue
-          count: count, // Keep count for backwards compatibility
-          percentage: totalLeadCount > 0 ? Math.round((count / totalLeadCount) * 100) : 0,
-          color: sourceColors[index % sourceColors.length]
-        }))
-        .sort((a, b) => b.value - a.value)
+      // Process lead sources
+      const { revenueBySource, totalLeadCount } = processLeadSources(openLeads)
 
       // Create recent records from opportunities and leads
       const recentRecords = [
@@ -246,8 +264,8 @@ export const useOverviewData = (
         }))
       ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
-      // Create key deals from top opportunities
-      const keyDeals = allOpportunities
+      // Create key deals from top opportunities (using filtered opportunities)
+      const keyDeals = filteredOpportunities
         .filter((opp: any) => opp.estimatedAmount > 0)
         .sort((a: any, b: any) => (b.estimatedAmount || 0) - (a.estimatedAmount || 0))
         .slice(0, 6)
@@ -316,6 +334,8 @@ export const useOverviewData = (
 
       const realOverviewData: OverviewData = {
         aggregatedFunnel,
+        availableCurrencies: currencies,
+        selectedCurrency: selectedCurrency || 'EUR',
         revenueBySource,
         totalPipelineValue,
         totalRevenue: totalLeadCount, // Use total lead count instead of revenue
@@ -337,6 +357,7 @@ export const useOverviewData = (
     context.accessToken,
     pipelines,
     dateRange,
+    selectedCurrency,
     fetchPipelineOpportunities,
     fetchRecentLeads,
     fetchSalesActivities,
