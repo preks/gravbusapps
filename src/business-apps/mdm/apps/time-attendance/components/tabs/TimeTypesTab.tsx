@@ -24,7 +24,6 @@ import {
   PlusIcon,
   EyeSlashIcon,
   TrashIcon,
-  ArrowsDownUpIcon,
   EyeIcon,
   PencilSimpleLineIcon,
   WarningIcon
@@ -77,20 +76,32 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
 
   const dataTable = useMemo(() => filteredTimeTypes.map(project => project), [filteredTimeTypes])
 
+  // Helper function to create sortable header
+  const createSortableHeader = useCallback((label: string) => {
+    return ({ column }: { column: any }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
+      >
+        {label}
+      </Button>
+    )
+  }, [])
+
+  // Generate headers from configuration
+  const getHeader = useCallback(
+    (i18nKey: string, fallback: string) => {
+      return createSortableHeader(getTranslationFromI18nKeyAndLabel(i18nKey, fallback))
+    },
+    [createSortableHeader]
+  )
+
   const renderTimeTypesTable = () => {
     const columns: ColumnDef<TransformedTimeType>[] = [
       {
         accessorKey: 'code',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.code.label', 'Code')}
-            <ArrowsDownUpIcon className="gba:ml-2 gba:h-4 gba:w-4" />
-          </Button>
-        ),
+        header: getHeader('master-data:forms.capability.fields.code.label', 'Code'),
         enableSorting: true,
         enableColumnFilter: true,
         cell: ({ getValue }) => {
@@ -100,15 +111,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
       },
       {
         accessorKey: 'name',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            {getTranslationFromI18nKeyAndLabel('master-data:forms.capability.fields.name.label', 'Name')}
-          </Button>
-        ),
+        header: getHeader('master-data:forms.capability.fields.name.label', 'Name'),
         enableSorting: false,
         cell: ({ getValue }) => {
           const name = getValue()
@@ -121,15 +124,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
       },
       {
         accessorKey: 'type',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            {getTranslationFromI18nKeyAndLabel('master-data:forms.department.fields.type.label', 'Type')}
-          </Button>
-        ),
+        header: getHeader('master-data:forms.department.fields.type.label', 'Type'),
         enableSorting: false,
         cell: ({ getValue }) => {
           const type = getValue() as 'System' | 'Custom' | 'Unknown'
@@ -138,15 +133,7 @@ export const TimeTypesTab: React.FC<TimeTypesProps> = ({ accessToken, prefixData
       },
       {
         accessorKey: 'visible',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="gba:h-auto gba:p-0 gba:font-semibold gba:hover:bg-transparent gba:justify-start"
-          >
-            {getTranslationFromI18nKeyAndLabel('flow:flow_launcher.visibility', 'Visibility')}
-          </Button>
-        ),
+        header: getHeader('flow:flow_launcher.visibility', 'Visibility'),
         enableSorting: false,
         cell: ({ getValue }) => {
           const visibility = getValue()

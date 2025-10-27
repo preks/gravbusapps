@@ -19,7 +19,7 @@ const DATA_TEST_ID = 'TimeAttendanceData'
 
 // Helper function to get initial tab from URL
 const getInitialTab = (): TimeAttendanceTabs => {
-  if (typeof globalThis.window !== 'undefined') {
+  if (globalThis.window !== undefined) {
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const tabParam = urlParams.get('tab')
 

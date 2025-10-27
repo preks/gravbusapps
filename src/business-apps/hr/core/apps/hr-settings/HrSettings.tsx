@@ -43,7 +43,7 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
     <PageLayout
       headerIcon={<PiUsersThreeDuotone color="var(--nw-decorative)" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
-      className={`${className ? className : ''} gba:!overflow-y-visible`}
+      className={`${className ?? ''} gba:!overflow-y-visible`}
       pageHeaderRight={
         <Input
           prefix={<RiSearchLine className="gba:text-muted-foreground" />}
