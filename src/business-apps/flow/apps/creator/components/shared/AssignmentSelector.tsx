@@ -227,7 +227,7 @@ const FieldBadges: React.FC<FieldBadgesProps> = ({
     if (mapping.fallbackId && mapping.fallbackName) {
       const teammate = teammates.find(t => t[mapping.fallbackId!] === entityId)
       if (teammate) {
-        const name = teammate[mapping.fallbackName!] as string
+        const name = String(teammate[mapping.fallbackName!] || '')
         return name || entityId
       }
     }
