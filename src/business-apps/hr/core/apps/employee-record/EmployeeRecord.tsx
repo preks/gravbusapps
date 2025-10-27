@@ -28,7 +28,6 @@ import FeedbackTab from './components/tabs/FeedbackTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
 import ChangeLogTab from './components/tabs/ChangeLogTab'
-// import TimeTrackingTab from '@/business-apps/hr/core/apps/employee-record/components/tabs/TimeTrackingTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
@@ -41,7 +40,6 @@ import { useFeature } from '@/common/hooks/useFeature'
 const TAB_KEYS = {
   summary: 'summary',
   details: 'details',
-  timeTracking: 'timeTracking',
   employment: 'employment',
   documents: 'documents',
   performance: 'performance',
@@ -165,9 +163,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId()
   const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
   const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
-  // const timeTrackingTabFeatureFlag = useFeature('dev.employee-record.timetracking.enabled')
 
-  // const timeTrackingTabFeatureFlag = true
   // Update URL when active tab changes
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -444,7 +440,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      // If not viewing own profile and tab is employment, documents, absences, timeTracking, or changeLog, check permissions
+      // If not viewing own profile and tab is employment, documents, absences, or changeLog, check permissions
       if (
         tabKey === TAB_KEYS.employment ||
         tabKey === TAB_KEYS.documents ||
