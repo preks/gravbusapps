@@ -24,7 +24,7 @@ import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
 
 export interface EmployeeDetailsProps extends BusinessAppContextProps {
   employeeId: string
-  employeeData?: any // Optional - if provided, skip data fetching
+  employeeData?: any
 }
 
 interface ProfileInfoItemProps {
@@ -139,11 +139,24 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     return supervisor.displayName || `${supervisor.firstName} ${supervisor.lastName}`.trim() || 'Not assigned'
   }
 
+  const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
+    if (!communications || !Array.isArray(communications)) {
+      return undefined
+    }
+
+    const emailComm = communications.find((c: any) => {
+      if (!c.value || c.value.trim() === '') return false
+      const channelValue = c.channel?.value?.toLowerCase() || ''
+      return channelValue.includes('email')
+    })
+
+    return emailComm?.value?.trim() || undefined
+  }
+
   const getBusinessEmail = () => {
-    const email = employeeData?.communication?.find(
-      (c: any) => c?.channel?.code === 'e-mail' && !c?.isDeleted && c?.value
-    )?.value
-    return email || employeeData?.additionalProperties?.email || ''
+    // Use the same extraction logic as in EmployeeCard
+    const email = extractWorkEmail(employeeData?.communication)
+    return email || ''
   }
 
   const hasWorkEmail = !!getBusinessEmail()

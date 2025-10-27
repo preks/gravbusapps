@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useState, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
@@ -306,28 +304,24 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
             jobTitle: ep.jobPosition?.name ?? '',
             organizationalUnit: ep.organizationalUnit?.name ?? '',
             organizationalUnitId: ep.organizationalUnit?.id,
-            email: workEmail,
             workEmail: workEmail,
             employmentType: workingCondition?.employmentType?.value ?? '',
             contractType: workingCondition?.contractType?.value ?? '',
-            // Extract matrix team names and avoid deeply nested functions
             matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
             profilePicture: ep.employee?.pictureThumbnail ?? ''
           }
         })
-        // For infinite scroll: Clear data if filters changed, otherwise append
         if (shouldClearData || employees.length === 0) {
-          setEmployees(newEmployees) // Replace data for filter changes or initial load
-          setShouldClearData(false) // Reset the flag
+          setEmployees(newEmployees)
+          setShouldClearData(false)
         } else {
-          setEmployees((prev: Employee[]) => [...prev, ...newEmployees]) // Append for infinite scroll
+          setEmployees((prev: Employee[]) => [...prev, ...newEmployees])
         }
 
         setTotal(res.EmployeePositionAggregate.aggregate.count)
         setOffset(prev => prev + EMPLOYEES_PER_PAGE)
         setHasMore(newEmployees.length === EMPLOYEES_PER_PAGE)
         setLoading(false)
-        // Mark initial load as complete after first successful load
         if (isInitialLoad) {
           setIsInitialLoad(false)
         }
@@ -380,13 +374,9 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
 
       const pageOffset = (page - 1) * pageSize
 
-      // Only show loading for true initial load (when component first mounts)
       if (isInitialLoad && employees.length === 0) {
         setLoading(true)
       }
-      // For pagination and filter changes: no loading indicator - seamless UX
-
-      // Dynamically build the where filter
       const where = {
         ...(alpha ? { lastName: { _ilike: alphaFilter } } : {}),
         ...(search
@@ -400,7 +390,6 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
         ...matrixTeamObj
       }
 
-      // Build order by condition (matches AccountList pattern)
       const orderBy: any = {}
       if (sortField && sortField.trim() !== '' && sortOrder) {
         buildSortCondition(sortField, sortOrder, orderBy)
@@ -432,23 +421,19 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
               jobTitle: ep.jobPosition?.name ?? '',
               organizationalUnit: ep.organizationalUnit?.name ?? '',
               organizationalUnitId: ep.organizationalUnit?.id,
-              email: workEmail,
               workEmail: workEmail,
               employmentType: workingCondition?.employmentType?.value ?? '',
               contractType: workingCondition?.contractType?.value ?? '',
-              // Extract matrix team names and avoid deeply nested functions
               matrixTeams: extractMatrixTeamNames(ep.matrixUnitEmployees),
               profilePicture: ep.employee?.pictureThumbnail ?? ''
             }
           })
 
-          // For pagination, replace the employees array with just the current page
           setEmployees(newEmployees)
           setTotal(res.EmployeePositionAggregate.aggregate.count)
           setOffset(pageOffset)
           setHasMore(newEmployees.length === pageSize)
           setLoading(false)
-          // Mark initial load as complete after first successful load
           if (isInitialLoad) {
             setIsInitialLoad(false)
           }
@@ -476,7 +461,6 @@ export function useGetEmployees(filters: EmployeeFilters & { accessToken: string
     ]
   )
 
-  // Initial load effect - trigger loadMore when filters change or on mount
   useEffect(() => {
     if (client && (employees.length === 0 || shouldClearData) && !loading) {
       loadMore()
