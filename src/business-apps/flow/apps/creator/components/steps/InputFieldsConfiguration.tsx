@@ -160,11 +160,18 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({ step, te
             return (
               <div
                 key={`input-${input.id || index}`}
+                role="button"
+                tabIndex={0}
                 draggable
                 onDragStart={() => handleDragStart(index)}
                 onDragOver={handleDragOver}
                 onDrop={e => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                  }
+                }}
                 className={`gba:space-y-2 gba:p-3 gba:border gba:rounded gba:cursor-move ${
                   isDragging ? 'gba:opacity-50 gba:bg-gray-200' : 'gba:bg-gray-50'
                 }`}

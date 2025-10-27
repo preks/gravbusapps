@@ -53,6 +53,6 @@ export const useEmployeeDirectory = (accessToken: string): UseEmployeeDirectoryR
     users,
     loading,
     error,
-    refetch: fetchUsers
+    refetch: () => void fetchUsers()
   }
 }

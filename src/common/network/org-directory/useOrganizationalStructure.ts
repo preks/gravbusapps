@@ -77,6 +77,6 @@ export const useOrganizationalStructure = (accessToken: string): UseOrganization
     matrixTeams,
     loading,
     error,
-    refetch: fetchStructure
+    refetch: () => void fetchStructure()
   }
 }

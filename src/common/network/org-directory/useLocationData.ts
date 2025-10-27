@@ -59,6 +59,6 @@ export const useLocationData = (accessToken: string): UseLocationDataResult => {
     siteLocations,
     loading,
     error,
-    refetch: fetchLocationData
+    refetch: () => void fetchLocationData()
   }
 }

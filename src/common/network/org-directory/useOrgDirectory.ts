@@ -96,6 +96,6 @@ export const useOrgDirectory = (accessToken: string): UseOrgDirectoryResult => {
     data,
     loading,
     error,
-    refetch: fetchAllData
+    refetch: () => void fetchAllData()
   }
 }

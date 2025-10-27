@@ -19,8 +19,7 @@ import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTr
 import { useMockData } from '../../../../providers/MockDataProvider'
 import { useOrgDirectory } from '@/common/network/org-directory'
 
-// TODO: Remove mock data completely once all phases are implemented and tested
-// Set to false to use real GraphQL API, true for mock data during development
+// Mock data can be enabled via MockDataProvider for development/testing
 const USE_MOCK_DATA = false
 
 interface AssignmentSelectorProps {
@@ -386,14 +385,14 @@ const FieldSelector: React.FC<FieldSelectorProps> = ({
         }
         // Fallback: extract from teammates
         const locationMap = new Map<string, EntityItem>()
-        teammates.forEach(t => {
+        for (const t of teammates) {
           if (t.siteLocationId && t.siteLocationName) {
             locationMap.set(t.siteLocationId, {
               id: t.siteLocationId,
               name: t.siteLocationName
             })
           }
-        })
+        }
         return Array.from(locationMap.values())
       }
       case 'capabilities':
@@ -564,7 +563,8 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
       const mockTeammates: EntityItem[] = []
 
       // Create teammates from users with additional organizational data
-      mockData.users.forEach((user: any, index: number) => {
+      for (let index = 0; index < mockData.users.length; index++) {
+        const user = mockData.users[index]
         const deptIndex = index % mockData.departments.length
         const companyIndex = index % mockData.companies.length
         const locationIndex = index % mockData.locations.length
@@ -585,7 +585,7 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
           siteLocationId: mockData.locations[locationIndex].id,
           siteLocationName: mockData.locations[locationIndex].name
         })
-      })
+      }
 
       return mockTeammates
     }

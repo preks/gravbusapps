@@ -76,6 +76,6 @@ export const useBusinessData = (accessToken: string): UseBusinessDataResult => {
     costCenters,
     loading,
     error,
-    refetch: fetchBusinessData
+    refetch: () => void fetchBusinessData()
   }
 }

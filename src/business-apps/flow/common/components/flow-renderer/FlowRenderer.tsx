@@ -64,9 +64,8 @@ const StepNode = ({ data }: { data: any }) => {
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       draggable={data.mode === 'edit'}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
@@ -76,12 +75,6 @@ const StepNode = ({ data }: { data: any }) => {
         data.selected ? 'gba:shadow-md gba:scale-105' : ''
       } ${isDragOver ? 'gba:opacity-50 gba:border-blue-400 gba:bg-blue-100' : ''}`}
       onClick={() => data?.onSelect?.(data.index)}
-      onKeyDown={e => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          data?.onSelect?.(data.index)
-        }
-      }}
     >
       {/* Properly positioned handles for center connections */}
       <Handle
@@ -166,7 +159,7 @@ const StepNode = ({ data }: { data: any }) => {
       >
         {data.index + 1}
       </div>
-    </div>
+    </button>
   )
 }
 

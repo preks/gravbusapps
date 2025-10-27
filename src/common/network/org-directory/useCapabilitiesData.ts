@@ -59,6 +59,6 @@ export const useCapabilitiesData = (accessToken: string): UseCapabilitiesDataRes
     capabilities,
     loading,
     error,
-    refetch: fetchCapabilitiesData
+    refetch: () => void fetchCapabilitiesData()
   }
 }
