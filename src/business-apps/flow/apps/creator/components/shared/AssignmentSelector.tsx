@@ -22,6 +22,29 @@ import { useOrgDirectory } from '@/common/network/org-directory'
 // Mock data can be enabled via MockDataProvider for development/testing
 const USE_MOCK_DATA = false
 
+// Helper function to find entity by ID in a list
+const findEntityById = (list: Array<{ id: string; name: string }>, id: string): string | null => {
+  const entity = list.find(item => item.id === id)
+  return entity ? entity.name : null
+}
+
+// Helper function to extract unique entities from teammates
+const extractFromTeammates = (
+  teammates: EntityItem[],
+  idField: keyof EntityItem,
+  nameField: keyof EntityItem
+): EntityItem[] => {
+  const map = new Map<string, EntityItem>()
+  for (const t of teammates) {
+    const id = t[idField] as string
+    const name = t[nameField] as string
+    if (id && name) {
+      map.set(id, { id, name })
+    }
+  }
+  return Array.from(map.values())
+}
+
 interface AssignmentSelectorProps {
   value?: TaskAssignment
   onChange: (assignment: TaskAssignment) => void
@@ -175,70 +198,41 @@ const FieldBadges: React.FC<FieldBadgesProps> = ({
   const resolveEntityName = (dataSource: string, entityId: string): string => {
     if (entityId === ANY_SELECTOR) return 'Any'
 
-    switch (dataSource) {
-      case 'users':
-        const user = teammates.find(t => t.id === entityId)
-        return user ? user.name : entityId
-      case 'departments':
-        // Use real organizational units data
-        if (organizationalUnits.length > 0) {
-          const ou = organizationalUnits.find(ou => ou.id === entityId)
-          return ou ? ou.name : entityId
-        }
-        // Fallback: extract from teammates
-        const dept = teammates.find(t => t.organizationalUnitId === entityId)
-        return dept ? dept.organizationalUnitName || entityId : entityId
-      case 'matrixTeams':
-        // Use real matrix teams data
-        if (matrixTeams.length > 0) {
-          const team = matrixTeams.find(t => t.id === entityId)
-          return team ? team.name : entityId
-        }
-        // Fallback: extract from teammates
-        const matrixTeam = teammates.find(t => t.matrixUnitId === entityId)
-        return matrixTeam ? matrixTeam.matrixUnitName || entityId : entityId
-      case 'companies': {
-        // Use real companies data
-        if (companies.length > 0) {
-          const company = companies.find(c => c.id === entityId)
-          return company ? company.name : entityId
-        }
-        // Fallback: extract from teammates
-        const companyFromTeam = teammates.find(t => t.companyId === entityId)
-        return companyFromTeam ? companyFromTeam.companyName || entityId : entityId
-      }
-      case 'costCenters': {
-        // Use real cost centers data
-        if (costCenters.length > 0) {
-          const costCenter = costCenters.find(cc => cc.id === entityId)
-          return costCenter ? costCenter.name : entityId
-        }
-        // Fallback: extract from teammates
-        const ccFromTeam = teammates.find(t => t.costCenterId === entityId)
-        return ccFromTeam ? ccFromTeam.costCenterName || entityId : entityId
-      }
-      case 'locations': {
-        // Use real site locations data
-        if (siteLocations.length > 0) {
-          const location = siteLocations.find(loc => loc.id === entityId)
-          return location ? location.name : entityId
-        }
-        // Fallback: extract from teammates
-        const locationFromTeam = teammates.find(t => t.siteLocationId === entityId)
-        return locationFromTeam ? locationFromTeam.siteLocationName || entityId : entityId
-      }
-      case 'capabilities': {
-        // Use real capabilities data
-        if (capabilities.length > 0) {
-          const capability = capabilities.find(cap => cap.id === entityId)
-          return capability ? capability.name : entityId
-        }
-        // No fallback for capabilities - they don't exist in teammates data
-        return entityId
-      }
-      default:
-        return entityId
+    // Define data source mappings with primary source and fallback teammate fields
+    const sourceMappings: Record<
+      string,
+      { primary: Array<{ id: string; name: string }>; fallbackId?: keyof EntityItem; fallbackName?: keyof EntityItem }
+    > = {
+      users: { primary: teammates },
+      departments: {
+        primary: organizationalUnits,
+        fallbackId: 'organizationalUnitId',
+        fallbackName: 'organizationalUnitName'
+      },
+      matrixTeams: { primary: matrixTeams, fallbackId: 'matrixUnitId', fallbackName: 'matrixUnitName' },
+      companies: { primary: companies, fallbackId: 'companyId', fallbackName: 'companyName' },
+      costCenters: { primary: costCenters, fallbackId: 'costCenterId', fallbackName: 'costCenterName' },
+      locations: { primary: siteLocations, fallbackId: 'siteLocationId', fallbackName: 'siteLocationName' },
+      capabilities: { primary: capabilities }
     }
+
+    const mapping = sourceMappings[dataSource]
+    if (!mapping) return entityId
+
+    // Try primary data source
+    const primaryName = findEntityById(mapping.primary, entityId)
+    if (primaryName) return primaryName
+
+    // Try fallback from teammates
+    if (mapping.fallbackId && mapping.fallbackName) {
+      const teammate = teammates.find(t => t[mapping.fallbackId!] === entityId)
+      if (teammate) {
+        const name = teammate[mapping.fallbackName!] as string
+        return name || entityId
+      }
+    }
+
+    return entityId
   }
 
   if (!values || values.length === 0) {
@@ -309,105 +303,54 @@ const FieldSelector: React.FC<FieldSelectorProps> = ({
 
   // Get data source for the field from real data or teammates
   const getDataSource = (): EntityItem[] => {
-    switch (config.dataSource) {
-      case 'users':
-        return teammates.map(t => ({ id: t.id, name: t.name }))
-      case 'departments':
-        // Use real organizational units data (filtered to departments only)
-        if (organizationalUnits.length > 0) {
-          return organizationalUnits
-            .filter(ou => ou.type === 'DEPARTMENT' || !ou.type) // Include units without type
-            .map(ou => ({ id: ou.id, name: ou.name }))
-        }
-        // Fallback: extract from teammates data
-        const deptMap = new Map<string, EntityItem>()
-        teammates.forEach(t => {
-          if (t.organizationalUnitId && t.organizationalUnitName) {
-            deptMap.set(t.organizationalUnitId, {
-              id: t.organizationalUnitId,
-              name: t.organizationalUnitName
-            })
-          }
-        })
-        return Array.from(deptMap.values())
-      case 'matrixTeams':
-        // Use real matrix teams data
-        if (matrixTeams.length > 0) {
-          return matrixTeams.map(team => ({ id: team.id, name: team.name }))
-        }
-        // Fallback: extract from teammates data
-        const matrixMap = new Map<string, EntityItem>()
-        teammates.forEach(t => {
-          if (t.matrixUnitId && t.matrixUnitName) {
-            matrixMap.set(t.matrixUnitId, {
-              id: t.matrixUnitId,
-              name: t.matrixUnitName
-            })
-          }
-        })
-        return Array.from(matrixMap.values())
-      case 'companies':
-        // Use real companies data
-        if (companies.length > 0) {
-          return companies.map(company => ({ id: company.id, name: company.name }))
-        }
-        // Fallback: extract from teammates
-        const companyMap = new Map<string, EntityItem>()
-        teammates.forEach(t => {
-          if (t.companyId && t.companyName) {
-            companyMap.set(t.companyId, {
-              id: t.companyId,
-              name: t.companyName
-            })
-          }
-        })
-        return Array.from(companyMap.values())
-      case 'costCenters':
-        // Use real cost centers data
-        if (costCenters.length > 0) {
-          return costCenters.map(cc => ({ id: cc.id, name: cc.name }))
-        }
-        // Fallback: extract from teammates
-        const costCenterMap = new Map<string, EntityItem>()
-        teammates.forEach(t => {
-          if (t.costCenterId && t.costCenterName) {
-            costCenterMap.set(t.costCenterId, {
-              id: t.costCenterId,
-              name: t.costCenterName
-            })
-          }
-        })
-        return Array.from(costCenterMap.values())
-      case 'locations': {
-        // Use real site locations data
-        if (siteLocations.length > 0) {
-          return siteLocations.map(loc => ({ id: loc.id, name: loc.name }))
-        }
-        // Fallback: extract from teammates
-        const locationMap = new Map<string, EntityItem>()
-        for (const t of teammates) {
-          if (t.siteLocationId && t.siteLocationName) {
-            locationMap.set(t.siteLocationId, {
-              id: t.siteLocationId,
-              name: t.siteLocationName
-            })
-          }
-        }
-        return Array.from(locationMap.values())
+    // Define data source mappings with primary source and fallback teammate fields
+    const sourceMappings: Record<
+      string,
+      {
+        primary: Array<{ id: string; name: string; type?: string }>
+        filter?: (item: any) => boolean
+        fallbackId?: keyof EntityItem
+        fallbackName?: keyof EntityItem
+        mockFallback?: boolean
       }
-      case 'capabilities':
-        // Use real capabilities data
-        if (capabilities.length > 0) {
-          return capabilities.map(cap => ({ id: cap.id, name: cap.name }))
-        }
-        // Fallback: use mock capabilities if available
-        if (mockData) {
-          return mockData.capabilities.map((cap: any) => ({ id: cap.id, name: cap.name }))
-        }
-        return []
-      default:
-        return []
+    > = {
+      users: { primary: teammates },
+      departments: {
+        primary: organizationalUnits,
+        filter: (ou: any) => ou.type === 'DEPARTMENT' || !ou.type,
+        fallbackId: 'organizationalUnitId',
+        fallbackName: 'organizationalUnitName'
+      },
+      matrixTeams: { primary: matrixTeams, fallbackId: 'matrixUnitId', fallbackName: 'matrixUnitName' },
+      companies: { primary: companies, fallbackId: 'companyId', fallbackName: 'companyName' },
+      costCenters: { primary: costCenters, fallbackId: 'costCenterId', fallbackName: 'costCenterName' },
+      locations: { primary: siteLocations, fallbackId: 'siteLocationId', fallbackName: 'siteLocationName' },
+      capabilities: { primary: capabilities, mockFallback: true }
     }
+
+    const mapping = sourceMappings[config.dataSource]
+    if (!mapping) return []
+
+    // Use primary data source if available
+    if (mapping.primary.length > 0) {
+      let data = mapping.primary.map(item => ({ id: item.id, name: item.name }))
+      if (mapping.filter) {
+        data = mapping.primary.filter(mapping.filter).map(item => ({ id: item.id, name: item.name }))
+      }
+      return data
+    }
+
+    // Use fallback from teammates
+    if (mapping.fallbackId && mapping.fallbackName) {
+      return extractFromTeammates(teammates, mapping.fallbackId, mapping.fallbackName)
+    }
+
+    // Use mock data fallback for capabilities
+    if (mapping.mockFallback && mockData) {
+      return mockData.capabilities.map((cap: any) => ({ id: cap.id, name: cap.name }))
+    }
+
+    return []
   }
 
   // Filter entities based on search query
