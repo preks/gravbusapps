@@ -16,9 +16,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-  toast
+  SelectValue
 } from '@newwork/nw-design-system'
+import { toast } from 'sonner'
 import { AlertTriangle, RefreshCw, Play } from 'lucide-react'
 import { MockDataProvider } from '../../providers/MockDataProvider'
 import { TemplateCard, LaunchConfiguration, EmptyState, SimulationWizard } from './components'

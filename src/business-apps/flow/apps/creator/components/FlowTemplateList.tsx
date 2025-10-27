@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
 import {
@@ -17,6 +17,8 @@ import {
   Badge
 } from '@newwork/nw-design-system'
 import { Plus } from 'lucide-react'
+import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { CatalogEntry } from '@/common/types/CatalogTypes'
 
 interface FlowTemplateListProps {
   templates: FlowTemplate[]
@@ -37,9 +39,90 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
   templates,
   onCreateNew,
   onEdit,
+  onTemplateSelect,
+  selectedTemplate,
   searchTerm = '',
+  accessToken = '',
   'data-testid': testId = 'flow-template-list'
 }) => {
+  const catalogClient = useCatalogManagerClient(accessToken)
+  const [catalogMap, setCatalogMap] = useState<Record<string, string>>({})
+
+  // Parse catalog reference to extract identifier, version, and code
+  const parseCatalogReference = (
+    catalogRef: string
+  ): { catalogIdentifier: string; version: string; code: string } | null => {
+    const parts = catalogRef.split(':')
+    if (parts.length !== 3) return null
+    return {
+      catalogIdentifier: parts[0],
+      version: parts[1],
+      code: parts[2]
+    }
+  }
+
+  // Load all catalog entries based on templates (apps and service categories)
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      if (!accessToken || templates.length === 0) return
+
+      // Collect unique catalog references from all templates
+      const catalogRefsSet = new Set<string>()
+      templates.forEach(template => {
+        // Add app catalog references
+        if (template.tags?.app) {
+          const parsed = parseCatalogReference(template.tags.app)
+          if (parsed) {
+            catalogRefsSet.add(`${parsed.catalogIdentifier}:${parsed.version}`)
+          }
+        }
+        // Add service category catalog references
+        const serviceCategory = template.tags?.serviceCategory
+        if (serviceCategory) {
+          const categoryValue = Array.isArray(serviceCategory) ? serviceCategory[0] : serviceCategory
+          const parsed = parseCatalogReference(categoryValue)
+          if (parsed) {
+            catalogRefsSet.add(`${parsed.catalogIdentifier}:${parsed.version}`)
+          }
+        }
+      })
+
+      // Load catalog entries for each unique catalog reference
+      const allCatalogMap: Record<string, string> = {}
+
+      for (const catalogRef of catalogRefsSet) {
+        try {
+          const [catalogIdentifier, version] = catalogRef.split(':')
+          const response = await catalogClient.getCatalogEntriesList(
+            { catalogIdentifier, version },
+            {
+              limit: 100,
+              includeChildCatalogEntries: true,
+              returnTotalRecords: true
+            }
+          )
+
+          // Map each entry using the full catalog reference format
+          ;(response.data || []).forEach((entry: CatalogEntry) => {
+            const catalogValue = `${catalogIdentifier}:${version}:${entry.code}`
+            allCatalogMap[catalogValue] = entry.value || entry.code || entry.id
+          })
+        } catch (err) {
+          console.error(`Error loading catalog ${catalogRef}:`, err)
+        }
+      }
+
+      setCatalogMap(allCatalogMap)
+    }
+
+    loadCatalogs()
+  }, [accessToken, templates, catalogClient])
+
+  // Resolve catalog entry name from catalog value
+  const resolveCatalogName = (catalogValue: string): string => {
+    return catalogMap[catalogValue] || catalogValue
+  }
+
   return (
     <>
       <Card className="gba:w-full" data-testid={testId}>
@@ -91,8 +174,8 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
                   <TableHead data-testid={`${testId}-header-name`}>
                     {getTranslationFromI18nKeyAndLabel('flow.creator.templateName', 'Name')}
                   </TableHead>
-                  <TableHead className="gba:max-w-md" data-testid={`${testId}-header-description`}>
-                    {getTranslationFromI18nKeyAndLabel('flow.creator.templateDescription', 'Description')}
+                  <TableHead data-testid={`${testId}-header-service-category`}>
+                    {getTranslationFromI18nKeyAndLabel('flow.creator.serviceCategory', 'Category and App')}
                   </TableHead>
                   <TableHead data-testid={`${testId}-header-steps`}>
                     {getTranslationFromI18nKeyAndLabel('flow.creator.templateSteps', 'Steps')}
@@ -101,26 +184,88 @@ export const FlowTemplateList: React.FC<FlowTemplateListProps> = ({
               </TableHeader>
 
               <TableBody>
-                {templates.map((template, index) => (
-                  <TableRow
-                    key={template.id || index}
-                    data-testid={`${testId}-row-${index}`}
-                    className="hover:gba:bg-gray-50 gba:cursor-pointer"
-                    onClick={() => onEdit(template)}
-                  >
-                    <TableCell className="gba:font-medium" data-testid={`${testId}-title-${index}`}>
-                      {template.name || 'Untitled Definition'}
-                    </TableCell>
-                    <TableCell className="gba:max-w-md gba:truncate" data-testid={`${testId}-description-${index}`}>
-                      {(template.description || 'No description').length > 100
-                        ? `${(template.description || 'No description').substring(0, 100)}...`
-                        : template.description || 'No description'}
-                    </TableCell>
-                    <TableCell data-testid={`${testId}-steps-${index}`}>
-                      <Badge variant="outline">{template.steps?.length || 0} steps</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {templates.map((template, index) => {
+                  const isSelected = selectedTemplate?.id === template.id
+                  return (
+                    <TableRow
+                      key={template.id || index}
+                      data-testid={`${testId}-row-${index}`}
+                      className={`hover:gba:bg-gray-50 gba:cursor-pointer ${isSelected ? 'gba:bg-blue-50' : ''}`}
+                      onClick={() => onEdit(template)}
+                    >
+                      <TableCell data-testid={`${testId}-title-${index}`} className="gba:max-w-xl gba:w-full">
+                        <div className="gba:space-y-1 gba:w-full">
+                          {/* Template Name */}
+                          <div className="gba:font-medium gba:break-words gba:whitespace-normal">
+                            {template.name || 'Untitled Definition'}
+                          </div>
+
+                          {/* Description */}
+                          {template.description && (
+                            <div className="gba:text-xs gba:text-gray-600 gba:break-words gba:whitespace-normal">
+                              {template.description}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell data-testid={`${testId}-service-category-${index}`}>
+                        <div className="gba:space-y-1.5">
+                          {/* Service Category */}
+                          {template.tags?.serviceCategory && (
+                            <div>
+                              <Badge variant="secondary" className="gba:font-medium">
+                                {resolveCatalogName(
+                                  Array.isArray(template.tags.serviceCategory)
+                                    ? template.tags.serviceCategory[0]
+                                    : template.tags.serviceCategory
+                                )}
+                              </Badge>
+                            </div>
+                          )}
+
+                          {/* Application */}
+                          {template.tags?.app && (
+                            <div className="gba:flex gba:items-center gba:gap-1">
+                              <svg
+                                className="gba:w-3 gba:h-3 gba:text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
+                                />
+                              </svg>
+                              <span className="gba:text-xs gba:text-gray-600">
+                                {resolveCatalogName(template.tags.app)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Show dash if both are missing */}
+                          {!template.tags?.serviceCategory && !template.tags?.app && (
+                            <span className="gba:text-gray-400 gba:text-sm">-</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell data-testid={`${testId}-steps-${index}`}>
+                        <Badge
+                          variant={isSelected ? 'default' : 'outline'}
+                          className="gba:cursor-pointer hover:gba:bg-blue-100"
+                          onClick={e => {
+                            e.stopPropagation() // Prevent row click (edit action)
+                            onTemplateSelect?.(template)
+                          }}
+                        >
+                          {template.steps?.length || 0} steps
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}
