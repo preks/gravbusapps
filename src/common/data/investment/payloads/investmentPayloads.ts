@@ -219,12 +219,12 @@ export const buildInvestmentPayload = (
     ...(investment.code && { code: investment.code }),
     ...(investment.isin && { isin: investment.isin }),
     ...(investment.investmentGroup?.id && { investmentGroupRef: investment.investmentGroup.id }),
-    // Try sending ownerEmployeeId as string instead of ownerEmployee object to avoid EmployeeReferenceEntity issues
+    // Send ownerEmployee as string UUID (backend expects "ownerEmployee" field name with UUID string value)
     // Form uses ownerEmployeeId field, extract from either ownerEmployeeId (string) or ownerEmployee.id (object)
     ...((investment as any).ownerEmployeeId
-      ? { ownerEmployeeId: (investment as any).ownerEmployeeId }
+      ? { ownerEmployee: (investment as any).ownerEmployeeId }
       : investment.ownerEmployee?.id
-        ? { ownerEmployeeId: investment.ownerEmployee.id }
+        ? { ownerEmployee: investment.ownerEmployee.id }
         : {}),
     ...(investment.initialInvestmentAmount && {
       initialInvestmentAmount: toNumber(investment.initialInvestmentAmount)
