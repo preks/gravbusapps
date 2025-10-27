@@ -52,7 +52,10 @@ export const generateKpiCards = (allEmployees: Employee[], averageTenureFormatte
     {
       key: 'external',
       label: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.external', 'External'),
-      subLabel: getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.workers', 'Workers'),
+      subLabel:
+        externalEmployees.length > 1
+          ? getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.workers', 'Workers')
+          : getTranslationFromI18nKeyAndLabel('lowcoder:team_report_kpi.worker', 'Worker'),
       value: externalEmployees.length,
       iconName: 'CheckOutlined',
       shouldShow: externalEmployees.length > 0
