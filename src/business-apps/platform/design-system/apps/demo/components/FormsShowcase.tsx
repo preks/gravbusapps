@@ -25,9 +25,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Combobox
+  Combobox,
+  toast
 } from '@newwork/nw-design-system'
-import { toast } from 'sonner'
 import ComponentShowcase from './ComponentShowcase'
 
 /**

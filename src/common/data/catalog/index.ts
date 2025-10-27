@@ -6,6 +6,9 @@
 // Types
 export * from './types/catalogTypes'
 
+// Mappers
+export { toCatalog, toCatalogEntry, toTranslationsArray, prepareCatalogEntryForApi } from './mappers/catalogMappers'
+
 // Hooks
 export { default as useCatalogs } from './hooks/useCatalogs'
 export { default as useCatalog } from './hooks/useCatalog'

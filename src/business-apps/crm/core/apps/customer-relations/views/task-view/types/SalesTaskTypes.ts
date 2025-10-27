@@ -43,6 +43,13 @@ export interface SalesTask {
     pictureThumbnail?: string
     picture?: string
   }
+  creatorEmployee?: {
+    id: string
+    firstName?: string
+    lastName?: string
+    displayName?: string
+    pictureThumbnail?: string
+  }
   account?: {
     id: string
     name?: string
@@ -62,5 +69,13 @@ export interface SalesTask {
     id: string
     name?: string
   }
+  documents?: {
+    id: string
+    name: string
+    file?: string
+    fileInfo?: any
+    mimeType?: string
+    fileSize?: number
+  }[]
   recordState?: string
 }
