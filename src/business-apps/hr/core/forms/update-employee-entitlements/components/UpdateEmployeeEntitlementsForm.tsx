@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
 import { useUpdateEmployeeEntitlementsContext } from '../context/UpdateEmployeeEntitlementsContext'
+import UpdateEntitlementModal from './UpdateEntitlementModal'
 import {
   Select,
   SelectContent,
@@ -17,9 +18,7 @@ import {
   TableRow,
   Button,
   Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
+  DialogContent
 } from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
 
@@ -36,7 +35,9 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
     activeEmployeeId,
     fixedEmployeeName,
     entitlements,
-    absenceTypes
+    absenceTypes,
+    reload,
+    accessToken
   } = useUpdateEmployeeEntitlementsContext()
   const effectiveValue = activeEmployeeId || selectedEmployeeId
 
@@ -50,6 +51,25 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
   const pageSize = 5
   const [page, setPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedLine, setSelectedLine] = useState<any | null>(null)
+  const allowedTypeIds = useMemo(() => new Set((absenceTypes || []).map((t: any) => t.id)), [absenceTypes])
+
+  const canOpenRow = (row: any) => allowedTypeIds.has(row?.type?.id)
+  const openModalForRow = (row: any) => {
+    if (!canOpenRow(row)) return
+    setSelectedLine({
+      id: row.id,
+      version: row.version,
+      employeeId: row.employeeId,
+      type: row.type,
+      typeRef: row?.type?.id,
+      available: row.available,
+      pending: row.pending,
+      approved: row.approved,
+      total: row.total
+    })
+    setIsModalOpen(true)
+  }
 
   const isEmployeeSelectionMissing = !selectedEmployeeId
   // Keep enabled to allow viewing options even when fixed
@@ -177,7 +197,10 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
                 size="sm"
                 data-testid="mileageRuleModal_btnAddDetail"
                 disabled={isAddDisabled}
-                onClick={() => setIsModalOpen(true)}
+                onClick={() => {
+                  setSelectedLine(null)
+                  setIsModalOpen(true)
+                }}
               >
                 <PlusIcon className="gba:h-4 gba:w-4" />
                 <span className="gba:ml-2">
@@ -225,50 +248,47 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
                         key={row.id}
                         data-testid={`entitlements-table-row-${row.id}`}
                         className="gba:cursor-pointer gba:hover:bg-accent"
-                        onClick={() => {
-                          console.log('row', row)
-                          setIsModalOpen(true)
-                        }}
+                        onClick={() => openModalForRow(row)}
                         tabIndex={0}
                         onKeyDown={e => {
                           if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault()
-                            setIsModalOpen(true)
+                            openModalForRow(row)
                           }
                         }}
                       >
                         <TableCell
                           data-testid={`entitlements-type-${row.id}`}
                           className="gba:cursor-pointer"
-                          onClick={() => setIsModalOpen(true)}
+                          onClick={() => openModalForRow(row)}
                         >
                           {getCatalogValue(row.type)}
                         </TableCell>
                         <TableCell
                           data-testid={`entitlements-total-${row.id}`}
                           className="gba:cursor-pointer"
-                          onClick={() => setIsModalOpen(true)}
+                          onClick={() => openModalForRow(row)}
                         >
                           {row.total ?? 0}
                         </TableCell>
                         <TableCell
                           data-testid={`entitlements-pending-${row.id}`}
                           className="gba:cursor-pointer"
-                          onClick={() => setIsModalOpen(true)}
+                          onClick={() => openModalForRow(row)}
                         >
                           {row.pending ?? 0}
                         </TableCell>
                         <TableCell
                           data-testid={`entitlements-approved-${row.id}`}
                           className="gba:cursor-pointer"
-                          onClick={() => setIsModalOpen(true)}
+                          onClick={() => openModalForRow(row)}
                         >
                           {row.approved ?? 0}
                         </TableCell>
                         <TableCell
                           data-testid={`entitlements-remaining-${row.id}`}
                           className="gba:cursor-pointer"
-                          onClick={() => setIsModalOpen(true)}
+                          onClick={() => openModalForRow(row)}
                         >
                           {remaining}
                         </TableCell>
@@ -306,15 +326,27 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
               </div>
             </div>
 
-            {/* Empty modal placeholder */}
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+            {/* Modal */}
+            <Dialog
+              open={isModalOpen}
+              onOpenChange={open => {
+                setIsModalOpen(open)
+                if (!open) setSelectedLine(null)
+              }}
+            >
               <DialogContent data-testid="mileageRuleModal_modalExpenses">
-                <DialogHeader>
-                  <DialogTitle>
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
-                  </DialogTitle>
-                </DialogHeader>
-                {/* Content TBD */}
+                <UpdateEntitlementModal
+                  isOpen={isModalOpen}
+                  onClose={() => setIsModalOpen(false)}
+                  selectedLine={selectedLine}
+                  absenceTypes={absenceTypes}
+                  employeeId={effectiveValue}
+                  accessToken={accessToken}
+                  year={currentYear}
+                  onSuccess={async () => {
+                    await reload()
+                  }}
+                />
               </DialogContent>
             </Dialog>
           </div>

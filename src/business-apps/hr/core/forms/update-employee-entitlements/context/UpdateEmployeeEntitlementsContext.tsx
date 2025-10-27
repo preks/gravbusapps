@@ -26,6 +26,7 @@ export interface UpdateEmployeeEntitlementsContextState {
   loading: boolean
   error: string | null
   reload: () => Promise<void>
+  accessToken: string
 }
 
 const UpdateEmployeeEntitlementsContext = createContext<UpdateEmployeeEntitlementsContextState | undefined>(undefined)
@@ -166,7 +167,8 @@ export function UpdateEmployeeEntitlementsProvider({
         absenceTypes,
         loading,
         error,
-        reload
+        reload,
+        accessToken
       }}
     >
       {children}
