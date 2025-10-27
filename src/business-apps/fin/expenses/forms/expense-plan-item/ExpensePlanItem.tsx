@@ -76,7 +76,7 @@ const ExpensePlanItem: React.FC<BusinessAppContextProps & ExpensePlanItemProps> 
         if (onClose) {
           onClose(true)
         }
-      } catch (error) {
+      } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(
             'lowcoder:expense_summary_request.no_expense_items',

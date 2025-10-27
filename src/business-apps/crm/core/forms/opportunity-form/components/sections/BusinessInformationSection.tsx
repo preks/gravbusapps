@@ -6,7 +6,6 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 
 const { Title } = Typography
 const { Option } = Select
-const { TextArea } = Input
 
 interface BusinessInformationSectionProps {
   prefixDataTestId: string
@@ -105,8 +104,8 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
       {/* Header */}
       <div
         onClick={toggleCollapse}
+        className="gba:bg-gradient-to-br gba:from-warning-secondary gba:to-warning"
         style={{
-          background: 'linear-gradient(135deg, #fff7e6 0%, #ffec99 100%)',
           padding: '16px 20px',
           cursor: 'pointer',
           display: 'flex',
@@ -117,7 +116,7 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'BusinessInformationSection-Header')}
       >
-        <Title level={5} style={{ margin: 0, color: '#8c4400' }}>
+        <Title level={5} style={{ margin: 0 }} className="gba:text-warning-foreground">
           Business Information
         </Title>
         {isCollapsed ? <RightOutlined /> : <DownOutlined />}
@@ -205,12 +204,12 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             {formValues.addresses.map((address, index) => (
               <div
                 key={index}
+                className="gba:bg-muted"
                 style={{
                   border: '1px solid #f0f0f0',
                   borderRadius: '6px',
                   padding: '16px',
-                  marginBottom: '12px',
-                  backgroundColor: '#fafafa'
+                  marginBottom: '12px'
                 }}
               >
                 <div
@@ -318,12 +317,12 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             {formValues.communicationChannels.map((channel, index) => (
               <div
                 key={index}
+                className="gba:bg-muted"
                 style={{
                   border: '1px solid #f0f0f0',
                   borderRadius: '6px',
                   padding: '16px',
-                  marginBottom: '12px',
-                  backgroundColor: '#fafafa'
+                  marginBottom: '12px'
                 }}
               >
                 <div
@@ -405,12 +404,12 @@ const BusinessInformationSection: React.FC<BusinessInformationSectionProps> = ({
             {formValues.tags.map((tag, index) => (
               <div
                 key={index}
+                className="gba:bg-muted"
                 style={{
                   border: '1px solid #f0f0f0',
                   borderRadius: '6px',
                   padding: '16px',
-                  marginBottom: '12px',
-                  backgroundColor: '#fafafa'
+                  marginBottom: '12px'
                 }}
               >
                 <div

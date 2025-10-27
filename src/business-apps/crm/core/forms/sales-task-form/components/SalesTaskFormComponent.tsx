@@ -697,7 +697,7 @@ const SalesTaskFormComponent: React.FC = () => {
                         className="gba:w-full"
                       />
                       {showEmployeeDropdown && (
-                        <div className="gba:absolute gba:z-50 gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1 gba:max-h-64 gba:overflow-y-auto">
+                        <div className="gba:absolute gba:z-50 gba:w-full gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1 gba:max-h-64 gba:overflow-y-auto">
                           {employees.length > 0 ? (
                             employees.map(employee => (
                               <div
@@ -805,7 +805,7 @@ const SalesTaskFormComponent: React.FC = () => {
                           className="gba:w-full"
                         />
                         {showEntityDropdown && entitySearchTerm.length >= 2 && (
-                          <div className="gba:absolute gba:z-50 gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1 gba:max-h-64 gba:overflow-y-auto">
+                          <div className="gba:absolute gba:z-50 gba:w-full gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1 gba:max-h-64 gba:overflow-y-auto">
                             {entities.length > 0 ? (
                               entities.map(entity => (
                                 <div
@@ -840,7 +840,7 @@ const SalesTaskFormComponent: React.FC = () => {
                           </div>
                         )}
                         {showEntityDropdown && entitySearchTerm.length < 2 && entitySearchTerm.length > 0 && (
-                          <div className="gba:absolute gba:z-50 gba:w-full gba:bg-white gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1">
+                          <div className="gba:absolute gba:z-50 gba:w-full gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-md gba:shadow-lg gba:mt-1">
                             <div className="gba:p-3 gba:text-sm gba:text-gray-500 gba:text-center">
                               Type at least 2 characters to search...
                             </div>

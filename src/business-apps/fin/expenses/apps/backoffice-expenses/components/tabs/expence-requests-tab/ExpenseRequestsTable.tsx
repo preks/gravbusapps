@@ -28,9 +28,9 @@ import {
   Separator,
   Badge,
   Card,
-  CardContent
+  CardContent,
+  toast
 } from '@newwork/nw-design-system'
-import { toast } from 'sonner'
 import { PiArrowUp, PiArrowDown, PiDownload, PiFileXls } from 'react-icons/pi'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
@@ -506,7 +506,10 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
             >
               <SelectTrigger data-testid="expense-requests-currency-select" className="gba:border-border">
                 <SelectValue
-                  placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.all_currencies', 'All Currencies')}
+                  placeholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:team_expenses_page.all_currencies',
+                    'All Currencies'
+                  )}
                 />
               </SelectTrigger>
               <SelectContent>
@@ -1264,7 +1267,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       }
 
       return allExpenses
-    } catch (error) {
+    } catch {
       console.error('[EXPORT] Error fetching all expense requests:', error)
       throw error
     }
@@ -1358,7 +1361,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         toast.success('Export Successful', {
           description: `Exported ${formattedData.length} expense requests to CSV`
         })
-      } catch (error) {
+      } catch {
         console.error('[EXPORT CSV] Error during export:', error)
         toast.error('Export Failed', {
           description: 'Failed to export CSV: ' + (error instanceof Error ? error.message : String(error))
@@ -1407,7 +1410,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         toast.success('Export Successful', {
           description: `Exported ${formattedData.length} expense requests to Excel`
         })
-      } catch (error) {
+      } catch {
         console.error('[EXPORT EXCEL] Error during export:', error)
         toast.error('Export Failed', {
           description: 'Failed to export Excel: ' + (error instanceof Error ? error.message : String(error))
@@ -1463,7 +1466,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
       )}
 
       <DataContainer
-        contentBackground="white"
+        contentBackground="background"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:employee_list.flows_button.expense_requests',

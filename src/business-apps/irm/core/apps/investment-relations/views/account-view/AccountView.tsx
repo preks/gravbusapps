@@ -217,7 +217,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
         if (event.type === 'com.newwork.process.continue' && event.detail?.payload) {
           loadData()
         }
-      } catch (err) {
+      } catch {
         // Silently handle errors in process event handling
       }
     }

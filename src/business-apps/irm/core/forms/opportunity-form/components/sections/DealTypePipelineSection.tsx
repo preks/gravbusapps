@@ -40,7 +40,6 @@ const DealTypePipelineSection: React.FC = () => {
   // Handle pipeline changes: load stages for new pipeline
   useEffect(() => {
     const currentPipeline = formValues.pipeline
-    const previousPipeline = previousPipelineRef.current
 
     if (currentPipeline && refetchStages) {
       refetchStages(currentPipeline)

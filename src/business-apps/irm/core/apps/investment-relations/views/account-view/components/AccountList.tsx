@@ -44,8 +44,6 @@ export interface AccountListProps extends BusinessAppContextProps {
 export const AccountList: React.FC<AccountListProps> = ({
   accounts,
   searchTerm,
-  onSearchChange,
-  isLoading = false,
   totalCount,
   currentPage,
   pageSize,
@@ -53,7 +51,6 @@ export const AccountList: React.FC<AccountListProps> = ({
   onSort,
   sortField,
   sortOrder,
-  onClearFilters,
   visibleColumns = ['actions', 'account', 'contact', 'location', 'industry', 'legalForm', 'owner', 'created'],
   ...context
 }) => {

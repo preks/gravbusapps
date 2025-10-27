@@ -41,7 +41,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
     return (
       <div
         className="gba:p-6 gba:rounded-lg gba:shadow-md"
-        style={{ backgroundColor: '#ffffff' }}
+        style={{ backgroundColor: 'hsl(var(--background))' }}
         data-testid="top-performers-error-container"
       >
         <Alert variant="destructive" data-testid="top-performers-error-alert">
@@ -120,7 +120,7 @@ const CampaignTopPerformers: React.FC<CampaignTopPerformersProps> = ({
             key={performer.employeeId}
             className="gba:p-4 gba:rounded-lg gba:border gba:border-gray-200"
             style={{
-              backgroundColor: '#fff',
+              backgroundColor: 'hsl(var(--background))',
               boxShadow: 'var(--shadow-md)'
             }}
             data-testid={`top-performer-${index}`}

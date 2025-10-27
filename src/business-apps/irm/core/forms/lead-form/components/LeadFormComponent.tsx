@@ -14,7 +14,6 @@ const prefixDataTestId = 'LeadForm'
 const LeadFormComponent: React.FC = () => {
   const {
     formValues,
-    onSubmit,
     onCancel,
     isLoading,
     error,

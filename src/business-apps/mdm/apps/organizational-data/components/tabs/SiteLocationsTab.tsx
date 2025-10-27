@@ -15,7 +15,11 @@ import {
   AlertTitle,
   AlertDescription,
   Icon,
-  Spinner
+  Spinner,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent
 } from '@newwork/nw-design-system'
 import {
   ArrowsDownUpIcon,
@@ -30,7 +34,7 @@ import {
   ClockIcon,
   PlusIcon
 } from '@phosphor-icons/react'
-import { ColumnDef } from '@tanstack/react-table'
+import { ColumnDef, SortingState } from '@tanstack/react-table'
 import CardTabHeaderComponent from '../../../generic-components/card'
 import SheetWrapperComponent from '../../../generic-components/sheet-wrapper/SheetWrapperComponent'
 import { VerticalTableProps } from '../../../generic-components/table/VerticalTable'
@@ -69,6 +73,8 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
   const [drawerVisible, setDrawerVisible] = useState(false)
   const [accordionValue, setAccordionValue] = useState<string | string[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [employeeSorting, setEmployeeSorting] = useState<SortingState>([])
+  const [costCenterSorting, setCostCenterSorting] = useState<SortingState>([])
 
   const filteredLocations = siteLocations.filter(
     location =>
@@ -275,23 +281,40 @@ const SiteLocationsTab: React.FC<SiteLocationsTabProps> = context => {
     ]
 
     return (
-      <DataTable
-        defaultDataSetId="site-locations"
-        dataSets={[
-          {
-            id: 'employees',
-            label: `Employees (${location.employeeCount})`,
-            data: employeeDataTable(location.employees),
-            columns: employeeColumns
-          },
-          {
-            id: 'cost-centers',
-            label: `Cost Centers (${location.costCenterCount})`,
-            data: costCenterDataTable(location.costCenters),
-            columns: costCenterColumns
-          }
-        ]}
-      />
+      <Tabs defaultValue="employees" className="gba:w-full">
+        <TabsList className="gba:grid gba:w-full gba:grid-cols-2">
+          <TabsTrigger value="employees" data-testid={`${dataTestId}-employees-tab`}>
+            Employees ({location.employeeCount})
+          </TabsTrigger>
+          <TabsTrigger value="cost-centers" data-testid={`${dataTestId}-cost-centers-tab`}>
+            Cost Centers ({location.costCenterCount})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="employees" className="gba:mt-4">
+          <DataTable
+            data={employeeDataTable(location.employees)}
+            columns={employeeColumns}
+            enableSorting
+            enablePagination
+            data-testid={`${dataTestId}-employees-table`}
+            sorting={employeeSorting}
+            onSortingChange={setEmployeeSorting}
+          />
+        </TabsContent>
+
+        <TabsContent value="cost-centers" className="gba:mt-4">
+          <DataTable
+            data={costCenterDataTable(location.costCenters)}
+            columns={costCenterColumns}
+            enableSorting
+            enablePagination
+            data-testid={`${dataTestId}-cost-centers-table`}
+            sorting={costCenterSorting}
+            onSortingChange={setCostCenterSorting}
+          />
+        </TabsContent>
+      </Tabs>
     )
   }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { DateRange, PipelineInfo } from '../types/dashboardTypes'
+import { PipelineInfo } from '../types/dashboardTypes'
 import { useDashboardQueries } from '../queries/DashboardQueries'
 
 export interface UseSalesDashboardReturn {
@@ -11,7 +11,7 @@ export interface UseSalesDashboardReturn {
   lastUpdated: Date | null
 }
 
-export const useSalesDashboard = (context: BusinessAppContextProps, dateRange: DateRange): UseSalesDashboardReturn => {
+export const useSalesDashboard = (context: BusinessAppContextProps): UseSalesDashboardReturn => {
   const [pipelines, setPipelines] = useState<PipelineInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

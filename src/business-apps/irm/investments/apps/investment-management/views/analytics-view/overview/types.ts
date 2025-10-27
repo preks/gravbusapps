@@ -1,4 +1,5 @@
-export interface InvestmentSummary {}
+// Placeholder for investment summary data structure
+export type InvestmentSummary = Record<string, unknown>
 
 export interface InvestmentPortfolioKPIs {
   totalPortfolioValue: number
@@ -14,4 +15,5 @@ export interface InvestmentQueryVariables {
   orderBy?: any
 }
 
-export interface InvestmentPortfolioResponse {}
+// Placeholder for investment portfolio response structure
+export type InvestmentPortfolioResponse = Record<string, unknown>

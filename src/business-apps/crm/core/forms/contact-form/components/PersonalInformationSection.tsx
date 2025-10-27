@@ -33,7 +33,6 @@ const PersonalInformationSection: React.FC = () => {
     // Academic Titles
     academicTitles,
     academicTitlesLoading,
-    academicTitlesError,
     academicTitlesHasMore,
     academicTitlesNeedsMoreData,
     academicTitlesDisplayCount,
@@ -44,7 +43,6 @@ const PersonalInformationSection: React.FC = () => {
     // Languages
     languages,
     languagesLoading,
-    languagesError,
     languagesHasMore,
     languagesNeedsMoreData,
     languagesDisplayCount,
@@ -116,9 +114,8 @@ const PersonalInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-success-secondary gba:to-success"
         style={{
-          background: 'linear-gradient(to right, #bbf7d0, #6ee7b7)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -129,12 +126,6 @@ const PersonalInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #86efac, #34d399)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #bbf7d0, #6ee7b7)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'PersonalInfoToggle')}
       >
@@ -153,7 +144,7 @@ const PersonalInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -180,7 +171,7 @@ const PersonalInformationSection: React.FC = () => {
                 onOpenChange={setIsAcademicTitleOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'AcademicTitleSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -212,7 +203,7 @@ const PersonalInformationSection: React.FC = () => {
                 onOpenChange={setIsLanguageOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'LanguageSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -244,7 +235,7 @@ const PersonalInformationSection: React.FC = () => {
               type="date"
               value={formValues.birthDate}
               onChange={e => setFormValues({ birthDate: e.target.value })}
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'BirthDateInput')}
             />
           </div>
@@ -258,7 +249,7 @@ const PersonalInformationSection: React.FC = () => {
               value={formValues.pictureUrl}
               onChange={e => setFormValues({ pictureUrl: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'PictureUrlInput')}
             />
           </div>
@@ -273,7 +264,7 @@ const PersonalInformationSection: React.FC = () => {
                 value={formValues.linkedinUrl}
                 onChange={e => setFormValues({ linkedinUrl: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'LinkedinUrlInput')}
               />
             </div>
@@ -286,7 +277,7 @@ const PersonalInformationSection: React.FC = () => {
                 value={formValues.xingUrl}
                 onChange={e => setFormValues({ xingUrl: e.target.value })}
                 placeholder="Please Enter..."
-                className="gba:border-gray-300 gba:bg-white"
+                className="gba:border-gray-300 gba:bg-hsl(var(--background))"
                 data-testid={formatDataTestId(prefixDataTestId, 'XingUrlInput')}
               />
             </div>
@@ -301,7 +292,7 @@ const PersonalInformationSection: React.FC = () => {
               onChange={e => setFormValues({ bio: e.target.value })}
               placeholder="Please Enter..."
               rows={3}
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'BioTextarea')}
             />
           </div>

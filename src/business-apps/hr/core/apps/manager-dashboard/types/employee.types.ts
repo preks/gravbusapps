@@ -5,6 +5,9 @@ export interface EmployeePosition {
     name: string
   }
   supervisorEmployeeId?: string
+  organizationalUnit?: {
+    name: string
+  }
 }
 
 export interface WorkingCondition {
@@ -33,7 +36,8 @@ export interface AbsenceType {
 
 // Base Employee type from GraphQL responses
 export interface Employee {
-  id: string
+  id?: string
+  fullName?: string
   firstName: string
   lastName: string
   birthDate?: string
@@ -61,6 +65,9 @@ export interface ExpenseRequest {
   status?: string
   employeeId?: string
   category?: string
+  employee?: Employee
+  totalAmount?: number
+  createdAt?: string
 }
 
 export interface ExpensePlan {
@@ -73,6 +80,10 @@ export interface ExpensePlan {
   description?: string
   status?: string
   employeeId?: string
+  employee?: Employee
+  createdAt?: string
+  totalAmount?: number
+  planDate?: string
 }
 
 export interface LeaveRequest {
@@ -85,6 +96,8 @@ export interface LeaveRequest {
   type?: AbsenceType
   reason?: string
   comments?: string
+  employee?: Employee
+  createdAt?: string
 }
 
 // Approval Request Response Types
@@ -110,6 +123,27 @@ export interface PersonalDataChangeTaskRaw {
   due?: string
   assignee?: string
   processInstanceId?: string
+  creatorName?: string
+  createdDate?: string
+  startDate?: string
+  started?: string
+  lastUpdate?: string
+  creatorUserId?: string
+  creator?: string
+  createdBy?: string
+  dueDate?: string
+  description?: string
+  processId?: string
+  referenceName?: string
+  processDefinitionName?: string
+  processDefinitionKey?: string
+  processName?: string
+  taskId?: string
+  taskDescription?: string
+  actualOwner?: string
+  assigneeNames?: string[]
+  priority?: number
+  instanceId?: string
 }
 
 // Employee Absence Types
@@ -130,10 +164,13 @@ export interface EmployeeAbsenceResponse {
 
 // Matrix Team Member Types
 export interface MatrixUnitMembership {
+  role?: string
+  percentage?: number
   matrixUnitId: string
   employeeId: string
   matrixUnit: {
     value: string
+    name: string
   }
 }
 

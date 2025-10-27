@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
-import { Employee, EmployeeResponse, WorkCommunication } from '../types/employee.types'
+import { Employee, WorkCommunication } from '../types/employee.types'
 
 export interface TeamBirthday {
   id: string
@@ -100,7 +100,6 @@ export const useTeamBirthdays = ({
 
       if (response?.Employee) {
         const today = dayjs()
-        const endDate = today.add(daysAhead, 'day')
 
         const birthdaysWithCalculations: TeamBirthday[] = response.Employee.map((employee: Employee) => {
           const birthDate = dayjs(employee.birthDate)

@@ -444,7 +444,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
           <span className="gba:text-sm">Columns</span>
         </Button>
         {isOpen && (
-          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50">
+          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50">
             {columnConfig.map(column => (
               <label
                 key={column.id}
@@ -935,7 +935,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: {
                     accountId
                   },
@@ -952,7 +952,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: {
                     accountId,
                     createFolder: true
@@ -1038,7 +1038,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
         ) : viewMode === 'icon' ? (
           // TREE VIEW - Hierarchical tree view like Windows Explorer
           <div className="gba:w-full">
-            <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
+            <div className="gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
               {/* Table Header */}
               <div className="gba:flex gba:items-center gba:py-3 gba:px-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
                 <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
@@ -1193,7 +1193,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           accountId,
                                           ...(node.folderId ? { parentDocument: node.folderId } : {})
@@ -1214,7 +1214,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           accountId,
                                           createFolder: true,
@@ -1376,7 +1376,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                 </div>
                 <DragOverlay dropAnimation={{ duration: 180, easing: 'ease-in-out' }}>
                   {activeDragItem ? (
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-white gba:border gba:rounded gba:shadow-md gba:backdrop-blur-sm gba:bg-opacity-90">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-hsl(var(--background)) gba:border gba:rounded gba:shadow-md gba:backdrop-blur-sm gba:bg-opacity-90">
                       <div className="gba:text-blue-600">
                         {activeDragItem.itemType === 'document' ? (
                           getFileIcon(activeDragItem.mimeType)
@@ -1418,7 +1418,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                 onClick: () =>
                   startProcess({
                     domain: 'customer-relations',
-                    processName: 'saveCrmDocument',
+                    processName: 'createCrmDocument',
                     payload: {
                       accountId
                     },
@@ -1435,7 +1435,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
             }}
             dataBody={
               <div className="gba:w-full">
-                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
+                <div className="gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
                   {/* Enhanced Table Header */}
                   <div className="gba:flex gba:items-center gba:p-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
                     <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
@@ -1486,7 +1486,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }
                     {documentsWithFilters.map(document => (
                       <div
                         key={document.id}
-                        className="gba:flex gba:items-center gba:p-4 gba:bg-white gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
+                        className="gba:flex gba:items-center gba:p-4 gba:bg-hsl(var(--background)) gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
                         data-testid={`document-list-${document.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">

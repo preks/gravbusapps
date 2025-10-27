@@ -30,7 +30,6 @@ const CompanyInformationSection: React.FC = () => {
     // Legal Forms
     legalForms,
     legalFormsLoading,
-    legalFormsError,
     legalFormsHasMore,
     legalFormsNeedsMoreData,
     legalFormsDisplayCount,
@@ -41,7 +40,6 @@ const CompanyInformationSection: React.FC = () => {
     // Industries
     industries,
     industriesLoading,
-    industriesError,
     industriesHasMore,
     industriesNeedsMoreData,
     industriesDisplayCount,
@@ -110,9 +108,8 @@ const CompanyInformationSection: React.FC = () => {
       <Button
         variant="ghost"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm"
+        className="gba:w-full gba:px-4 gba:py-2 gba:transition-colors gba:flex gba:items-center gba:justify-between gba:text-left gba:rounded-lg gba:text-sm gba:bg-gradient-to-r gba:from-accent-secondary gba:to-accent"
         style={{
-          background: 'linear-gradient(to right, #ddd6fe, #c4b5fd)',
           transition: 'all 0.3s ease',
           border: '0',
           borderWidth: '0',
@@ -123,12 +120,6 @@ const CompanyInformationSection: React.FC = () => {
           outlineStyle: 'none',
           boxShadow: 'none',
           borderRadius: '12px'
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #c4b5fd, #a78bfa)'
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.background = 'linear-gradient(to right, #ddd6fe, #c4b5fd)'
         }}
         data-testid={formatDataTestId(prefixDataTestId, 'CompanyInfoToggle')}
       >
@@ -147,7 +138,7 @@ const CompanyInformationSection: React.FC = () => {
 
       {isExpanded && (
         <CardContent
-          className="gba:space-y-6 gba:bg-white gba:border-0 gba:p-4 gba:mt-0"
+          className="gba:space-y-6 gba:bg-hsl(var(--background)) gba:border-0 gba:p-4 gba:mt-0"
           style={{
             border: '0',
             borderWidth: '0',
@@ -167,7 +158,7 @@ const CompanyInformationSection: React.FC = () => {
                 onOpenChange={setIsLegalFormOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'LegalFormSelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -210,7 +201,7 @@ const CompanyInformationSection: React.FC = () => {
                 onOpenChange={setIsIndustryOpen}
                 data-testid={formatDataTestId(prefixDataTestId, 'IndustrySelect')}
               >
-                <SelectTrigger className="gba:border-gray-300 gba:bg-white">
+                <SelectTrigger className="gba:border-gray-300 gba:bg-hsl(var(--background))">
                   <SelectValue placeholder="Please Select..." />
                 </SelectTrigger>
                 <SelectContent
@@ -254,7 +245,7 @@ const CompanyInformationSection: React.FC = () => {
               value={formValues.website}
               onChange={e => setFormValues({ website: e.target.value })}
               placeholder="Please Enter..."
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'WebsiteInput')}
             />
           </div>
@@ -268,7 +259,7 @@ const CompanyInformationSection: React.FC = () => {
               onChange={e => setFormValues({ description: e.target.value })}
               placeholder="Please Enter..."
               rows={4}
-              className="gba:border-gray-300 gba:bg-white"
+              className="gba:border-gray-300 gba:bg-hsl(var(--background))"
               data-testid={formatDataTestId(prefixDataTestId, 'DescriptionTextarea')}
             />
           </div>

@@ -28,10 +28,7 @@ export interface AccountRelationshipInsightsProps {
   moduleColor?: string
 }
 
-export const AccountRelationshipInsights: React.FC<AccountRelationshipInsightsProps> = ({
-  data,
-  moduleColor = 'default'
-}) => {
+export const AccountRelationshipInsights: React.FC<AccountRelationshipInsightsProps> = ({ data }) => {
   const industryInsights = (data?.accountsByIndustry || []).slice(0, 5).map((industry, index) => ({
     category: industry.industry,
     count: industry.count,

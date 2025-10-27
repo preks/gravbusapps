@@ -119,7 +119,7 @@ export const ExpensePlanProvider: React.FC<BusinessAppContextProps & { children:
       if (selectedCostCenter === '' && userCostCenters.length > 0 && userCostCenters[0].id) {
         setSelectedCostCenter(userCostCenters[0].id)
       }
-    } catch (error) {
+    } catch {
       showToast(t('lowcoder:create_expense_type_item.process_error_data_fetch', 'Error fetching data'), 'error')
     } finally {
       setLoading(false)

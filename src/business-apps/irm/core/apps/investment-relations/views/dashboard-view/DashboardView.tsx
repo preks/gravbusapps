@@ -19,16 +19,13 @@ export interface DashboardViewProps extends BusinessAppContextProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRange, moduleColor, ...context }) => {
   const [activeTab] = useState<string>('overview')
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>(pipelines.length > 0 ? pipelines[0].id : '')
+  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
-  const { overviewData, isLoading, error, refetch } = useOverviewData(context, pipelines, dateRange)
+  const { overviewData, isLoading, error, refetch } = useOverviewData(context, pipelines, dateRange, selectedCurrency)
 
   const selectedPipeline = pipelines.find(p => p.id === selectedPipelineId)
 
-  const {
-    pipelineData,
-    isLoading: pipelineLoading,
-    error: pipelineError
-  } = usePipelineData(context, selectedPipeline || null, dateRange)
+  const { pipelineData } = usePipelineData(context, selectedPipeline || null, dateRange)
 
   const handlePipelineChange = (pipelineId: string) => {
     setSelectedPipelineId(pipelineId)
@@ -93,6 +90,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
         overviewData
           ? {
               aggregatedFunnel: overviewData.aggregatedFunnel,
+              availableCurrencies: overviewData.availableCurrencies,
+              selectedCurrency: overviewData.selectedCurrency,
+              onCurrencyChange: setSelectedCurrency,
               revenueBySource: overviewData.revenueBySource,
               totalRevenue: overviewData.totalRevenue,
               totalLeadCount: overviewData.totalLeadCount,

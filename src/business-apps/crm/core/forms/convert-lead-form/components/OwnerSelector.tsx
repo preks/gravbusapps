@@ -166,7 +166,7 @@ const OwnerSelector: React.FC<OwnerSelectorProps> = ({
 
   return (
     <div
-      className="gba:bg-white gba:border gba:border-gray-300 gba:rounded-lg gba:p-4 gba:flex gba:items-center gba:justify-between gba:min-h-[60px] gba:transition-colors gba:hover:border-gray-400"
+      className="gba:bg-hsl(var(--background)) gba:border gba:border-gray-300 gba:rounded-lg gba:p-4 gba:flex gba:items-center gba:justify-between gba:min-h-[60px] gba:transition-colors gba:hover:border-gray-400"
       data-testid={dataTestId || formatDataTestId(prefixDataTestId, 'Container')}
     >
       {selectedEmployee ? (

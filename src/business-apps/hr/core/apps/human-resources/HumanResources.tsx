@@ -8,12 +8,11 @@ import { JobPositionList } from './components/views/job-position-view/JobPositio
 import { HrAnalyticsView } from './components/views/analytics-view/HrAnalyticsView'
 import { InsightsView } from './components/views/insights-view/InsightsView'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const moduleColor = MODULE_COLORS.HR
 
-export interface HumanResourcesProps extends BusinessAppContextProps {}
-
-export const HumanResources: React.FC<HumanResourcesProps> = context => {
+export const HumanResources: React.FC<BusinessAppContextProps> = context => {
   const viewOptions = [
     {
       key: 'employees',
@@ -43,9 +42,11 @@ export const HumanResources: React.FC<HumanResourcesProps> = context => {
       key: 'insights',
       icon: <LightbulbIcon />,
       label: 'Insights',
-      title: 'HR Insights',
-      description:
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_insights.title', 'HR Insights'),
+      description: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:hr_insights.description',
         'Next 30 days Key employee events and milestones including birthdays, anniversaries, new hires, probation periods, and terminations.'
+      )
     }
   ]
 

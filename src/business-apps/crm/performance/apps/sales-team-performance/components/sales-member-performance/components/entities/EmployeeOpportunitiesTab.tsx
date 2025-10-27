@@ -25,10 +25,7 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
     getFilters,
     addFilter,
     removeFilter,
-    clearAllFilters,
-    createdAfter,
-    createdBefore,
-    handleDateRangeChange
+    clearAllFilters
   } = useOpportunityFilters({ accessToken })
 
   // Pagination and sorting
@@ -91,7 +88,6 @@ export const EmployeeOpportunitiesTab: React.FC<EmployeeOpportunitiesTabProps> =
   // Initial and reactive data loading
   useEffect(() => {
     loadPage(currentPage, pageSize, additionalFilters)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId, accessToken, search, sortField, sortOrder, currentPage, pageSize, JSON.stringify(additionalFilters)])
 
   // Report total to parent

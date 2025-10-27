@@ -33,7 +33,6 @@ interface ContactSectionProps extends Partial<BusinessAppContextProps> {
 }
 
 const ContactSection: React.FC<ContactSectionProps> = ({
-  contactId,
   contact,
   contacts,
   className = '',

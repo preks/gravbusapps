@@ -1,7 +1,15 @@
 import React, { useState, useEffect, SetStateAction, Dispatch, useRef, useCallback, useMemo } from 'react'
-import { Dialog, DialogContent, DialogTrigger, Button, Form, DialogTitle, Alert } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  Button,
+  Form,
+  DialogTitle,
+  Alert,
+  toast
+} from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
-import { toast } from 'sonner'
 import { cn } from '@/common/utils/cn'
 
 export interface FormMessage {

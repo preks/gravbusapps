@@ -3,6 +3,7 @@
 import type { CatalogEntry, BaseEntity } from '@/common/network/graphql/commonTypes'
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type { ContactType, AddressType } from './customerEnums'
+import type { FileInfo } from '@/common/types/FileTypes'
 
 // Forward declarations for reference types to avoid circular dependencies
 export interface CustomerAccountRef {
@@ -53,7 +54,7 @@ export interface CustomerDocumentRef {
   id: string
   name?: string
   file?: string
-  fileInfo?: any // JSONB field containing file metadata
+  fileInfo?: FileInfo
   mimeType?: string
   fileSize?: number
 }

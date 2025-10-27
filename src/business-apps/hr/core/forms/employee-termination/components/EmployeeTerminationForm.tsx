@@ -108,7 +108,7 @@ export const EmployeeTerminationForm: React.FC = () => {
         }}
       >
         <div className="gba:flex-1 gba:flex gba:flex-col gba:justify-between">
-          <div className=" gba:pt-4">
+          <div>
             <div className="gba:flex gba:items-center gba:mb-6">
               {loading ? (
                 <div className="gba:flex gba:items-center gba:gap-2">

@@ -431,7 +431,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
           <span className="gba:text-sm">Columns</span>
         </Button>
         {isOpen && (
-          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50">
+          <div className="gba:absolute gba:top-full gba:right-0 gba:mt-1 gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg gba:p-2 gba:min-w-[200px] gba:z-50">
             {columnConfig.map(column => (
               <label
                 key={column.id}
@@ -862,7 +862,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: { leadId },
                   builderType: 'NATIVE_SCREEN'
                 })
@@ -877,7 +877,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
               onClick={() =>
                 startProcess({
                   domain: 'customer-relations',
-                  processName: 'saveCrmDocument',
+                  processName: 'createCrmDocument',
                   payload: { leadId, createFolder: true },
                   builderType: 'NATIVE_SCREEN'
                 })
@@ -960,7 +960,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
         ) : viewMode === 'icon' ? (
           // TREE VIEW with DnD and folder/file actions
           <div className="gba:w-full">
-            <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
+            <div className="gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
               <div className="gba:flex gba:items-center gba:py-3 gba:px-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
                 <div className="gba:flex gba:items-center gba:flex-1 gba:min-w-0">
                   <div className="gba:w-6"></div>
@@ -1120,7 +1120,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           leadId,
                                           ...(node.folderId ? { parentDocument: node.folderId } : {})
@@ -1141,7 +1141,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                                       e.stopPropagation()
                                       startProcess({
                                         domain: 'customer-relations',
-                                        processName: 'saveCrmDocument',
+                                        processName: 'createCrmDocument',
                                         payload: {
                                           leadId,
                                           createFolder: true,
@@ -1301,7 +1301,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                 </div>
                 <DragOverlay>
                   {activeDragItem ? (
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-white gba:border gba:rounded gba:shadow-md">
+                    <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-hsl(var(--background)) gba:border gba:rounded gba:shadow-md">
                       <div className="gba:text-blue-600">
                         {activeDragItem.itemType === 'document' ? (
                           getFileIcon(activeDragItem.mimeType)
@@ -1343,7 +1343,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                 onClick: () =>
                   startProcess({
                     domain: 'customer-relations',
-                    processName: 'saveCrmDocument',
+                    processName: 'createCrmDocument',
                     payload: { leadId },
                     builderType: 'NATIVE_SCREEN'
                   }),
@@ -1358,7 +1358,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
             }}
             dataBody={
               <div className="gba:w-full">
-                <div className="gba:bg-white gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
+                <div className="gba:bg-hsl(var(--background)) gba:border gba:border-gray-200 gba:rounded-lg gba:overflow-hidden">
                   {/* Enhanced Table Header */}
                   <div className="gba:flex gba:items-center gba:p-4 gba:bg-gray-50 gba:border-b gba:border-gray-200 gba:font-medium gba:text-sm gba:text-gray-700">
                     <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">
@@ -1409,7 +1409,7 @@ export const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context })
                     {documentsWithFilters.map(document => (
                       <div
                         key={document.id}
-                        className="gba:flex gba:items-center gba:p-4 gba:bg-white gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
+                        className="gba:flex gba:items-center gba:p-4 gba:bg-hsl(var(--background)) gba:border-b gba:border-gray-200 gba:hover:bg-gray-50 gba:transition-colors"
                         data-testid={`document-list-${document.id}`}
                       >
                         <div className="gba:flex gba:items-center gba:gap-4 gba:flex-1 gba:min-w-0">

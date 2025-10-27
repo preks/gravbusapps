@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 
 export interface PipelineOption {
   id: string
@@ -42,7 +41,6 @@ export const usePipelineCatalogs = (
 
   const catalogClient = useCatalogManagerClient(context.accessToken)
   const graphqlClient = useGraphQLClient(context.accessToken)
-  const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
 
   const loadPipelines = useCallback(async () => {
     if (!context.accessToken) {

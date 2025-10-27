@@ -171,7 +171,7 @@ const ApprovalTable: React.FC<ApprovalTableProps> = ({
         dataTestIdPrefix={dataTestIdPrefix}
       />
 
-      <div className="gba:border gba:border-border gba:rounded-md gba:bg-white">
+      <div className="gba:border gba:border-border gba:rounded-md gba:bg-background">
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${dataTestIdPrefix}-table`} className="gba:w-full">
             <TableHeader className="gba:sticky gba:top-0 gba:bg-muted gba:z-10 gba:border-b gba:border-border">

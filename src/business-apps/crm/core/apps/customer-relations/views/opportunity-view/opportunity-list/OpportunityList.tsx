@@ -288,7 +288,11 @@ const OpportunityList: React.FC<OpportunityListProps> = context => {
         dataFilterProps={{
           filterGroups: visibleFilterGroups,
           onFilterChange: (filterId: string, selected: boolean) => {
-            selected ? opportunityFilters.addFilter(filterId) : opportunityFilters.removeFilter(filterId)
+            if (selected) {
+              opportunityFilters.addFilter(filterId)
+            } else {
+              opportunityFilters.removeFilter(filterId)
+            }
           }
         }}
         dataBody={
