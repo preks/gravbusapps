@@ -507,7 +507,7 @@ const InvestmentLeadRecordContent: React.FC<LeadRecordContentProps> = ({ leadId,
                     activitiesError: sectionsError,
                     onReloadActivities: loadSectionData,
                     activitySectionActionProps: {
-                      contextsArray: [FlowContextName.createInvestmentActivity],
+                      contextsArray: [FlowContextName.investmentCreateActivity],
                       externalContextData: { leadId },
                       prefixDataTestId: 'lead-activities'
                     },
