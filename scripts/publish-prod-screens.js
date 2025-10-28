@@ -1028,13 +1028,13 @@ async function publishScreen(screenPath, options = {}) {
   }
 
   await renameFilesWithBuildNumber(buildOutputDir, PUBLISH_VERSION)
-  const buildTargets = options.targets && options.targets.length > 0 ? options.targets : [PRIMARY_TARGET]
-  for (const t of buildTargets) {
-    if (!t.azure) continue
+  const azureTargets =
+    options.azureTargets && options.azureTargets.length > 0 ? options.azureTargets : [PRIMARY_TARGET.azure]
+  for (const target of azureTargets) {
     try {
-      await uploadDirectory(buildOutputDir, azureDestinationPath, t.azure)
+      await uploadDirectory(buildOutputDir, azureDestinationPath, target)
     } catch (err) {
-      err.targetLabel = t.label || 'unknown'
+      err.targetLabel = target.label || 'unknown'
       throw err
     }
   }
@@ -1091,12 +1091,11 @@ async function publishScreen(screenPath, options = {}) {
     }
 
     // Upload the CSS files to all targets
-    for (const t of buildTargets) {
-      if (!t.azure) continue
+    for (const target of azureTargets) {
       try {
-        await uploadDirectory(buildOutputDir, azureDestinationPath, t.azure)
+        await uploadDirectory(buildOutputDir, azureDestinationPath, target)
       } catch (err) {
-        err.targetLabel = t.label || 'unknown'
+        err.targetLabel = target.label || 'unknown'
         throw err
       }
     }
