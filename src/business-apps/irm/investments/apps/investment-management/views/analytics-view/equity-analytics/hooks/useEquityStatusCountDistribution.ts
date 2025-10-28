@@ -60,6 +60,6 @@ export const useEquityStatusCountDistribution = (
     statusCountDistribution,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

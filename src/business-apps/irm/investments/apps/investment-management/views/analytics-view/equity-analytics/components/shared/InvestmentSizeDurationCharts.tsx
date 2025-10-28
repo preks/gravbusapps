@@ -120,7 +120,7 @@ export const InvestmentSizeChart: React.FC<InvestmentSizeChartProps> = ({
                 </Pie>
                 <ChartTooltip
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
+                    if (active && payload?.length) {
                       const dataPoint = payload[0].payload
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -250,7 +250,7 @@ export const InvestmentDurationChart: React.FC<InvestmentDurationChartProps> = (
                 </Pie>
                 <ChartTooltip
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
+                    if (active && payload?.length) {
                       const dataPoint = payload[0].payload
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">

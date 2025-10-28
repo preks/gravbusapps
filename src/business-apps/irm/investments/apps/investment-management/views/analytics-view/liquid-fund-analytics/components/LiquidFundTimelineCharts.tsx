@@ -129,7 +129,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                             <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
@@ -263,7 +263,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                             <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>

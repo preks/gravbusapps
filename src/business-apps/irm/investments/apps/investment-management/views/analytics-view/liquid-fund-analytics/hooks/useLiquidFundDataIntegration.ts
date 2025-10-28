@@ -67,6 +67,6 @@ export const useLiquidFundDataIntegration = (context: BusinessAppContextProps): 
     investments,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

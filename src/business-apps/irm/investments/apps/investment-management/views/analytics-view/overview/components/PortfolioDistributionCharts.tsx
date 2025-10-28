@@ -229,7 +229,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     </Pie>
                     <ChartTooltip
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
+                        if (active && payload?.length) {
                           const data = payload[0]
                           const groupKey = data.payload.name
                           const total = groupCountData.reduce((sum, item) => sum + item.count, 0)
@@ -330,7 +330,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     </Pie>
                     <ChartTooltip
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
+                        if (active && payload?.length) {
                           const data = payload[0]
                           const groupKey = data.payload.name
                           const total = groupAmountData.reduce((sum, item) => sum + item.totalAmount, 0)
@@ -439,7 +439,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     </Pie>
                     <ChartTooltip
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
+                        if (active && payload?.length) {
                           const data = payload[0]
                           const statusKey = data.payload.name
                           const total = statusCountData.reduce((sum: number, item: any) => sum + item.count, 0)
@@ -540,7 +540,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     </Pie>
                     <ChartTooltip
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
+                        if (active && payload?.length) {
                           const data = payload[0]
                           const statusKey = data.payload.name
                           const total = statusAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
@@ -638,7 +638,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     </Pie>
                     <ChartTooltip
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
+                        if (active && payload?.length) {
                           const data = payload[0]
                           const currencyKey = data.payload.name
                           const total = currencyCountData.reduce((sum: number, item: any) => sum + item.count, 0)
@@ -731,7 +731,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                     </Pie>
                     <ChartTooltip
                       content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
+                        if (active && payload?.length) {
                           const data = payload[0]
                           const currencyKey = data.payload.name
                           const total = currencyAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)

@@ -59,6 +59,6 @@ export const useEquityInvestmentDuration = (
     investmentDurationData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

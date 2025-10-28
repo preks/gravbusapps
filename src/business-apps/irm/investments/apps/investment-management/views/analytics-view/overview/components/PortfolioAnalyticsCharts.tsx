@@ -164,7 +164,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                     />
                     <ChartTooltip
                       content={({ active, payload, label }) => {
-                        if (active && payload && payload.length) {
+                        if (active && payload?.length) {
                           const data = payload[0]
                           return (
                             <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -263,7 +263,7 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                             <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>

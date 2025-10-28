@@ -68,7 +68,7 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
         currencies.add(currencyCode)
       }
     }
-    const currencyArray = Array.from(currencies).sort()
+    const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
     // Ensure at least the default currency is available
     return currencyArray.length > 0 ? currencyArray : ['EUR']
   }, [liquidFundInvestments])

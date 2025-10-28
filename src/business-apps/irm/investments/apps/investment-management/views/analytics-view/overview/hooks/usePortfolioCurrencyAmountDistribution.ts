@@ -53,6 +53,6 @@ export const usePortfolioCurrencyAmountDistribution = (
     data,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

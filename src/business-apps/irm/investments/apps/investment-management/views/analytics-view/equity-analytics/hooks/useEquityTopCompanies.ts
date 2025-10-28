@@ -56,6 +56,6 @@ export const useEquityTopCompanies = (
     topCompanies,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

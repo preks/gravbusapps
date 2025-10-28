@@ -86,6 +86,6 @@ export const useEquityPerformanceData = (
     concentrationData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

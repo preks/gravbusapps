@@ -134,7 +134,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         const countEntry = payload.find(p => p.dataKey === 'count')
                         const totalEntry = payload.find(p => p.dataKey === 'total')
 
@@ -242,7 +242,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         const totalInvestedEntry = payload.find(p => p.dataKey === 'total')
                         const marketValueEntry = payload.find(p => p.dataKey === 'totalMarketValue')
 

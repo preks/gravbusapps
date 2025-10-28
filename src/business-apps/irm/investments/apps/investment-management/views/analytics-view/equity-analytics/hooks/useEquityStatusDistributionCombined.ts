@@ -68,6 +68,6 @@ export const useEquityStatusDistributionCombined = (
     statusAmountDistribution,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

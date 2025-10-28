@@ -50,7 +50,7 @@ export const useEquityTimelineAggregate = (
       const { yearlyData } = await fetchTimelineAggregate(yearsCount, currency)
 
       // Extract unique investment types
-      const uniqueTypes = Array.from(new Set(yearlyData.map(d => d.investmentType))).sort()
+      const uniqueTypes = Array.from(new Set(yearlyData.map(d => d.investmentType))).sort((a, b) => a.localeCompare(b))
       setInvestmentTypes(uniqueTypes)
 
       // Get last N years
@@ -117,6 +117,6 @@ export const useEquityTimelineAggregate = (
     investmentTypes,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

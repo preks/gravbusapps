@@ -56,6 +56,6 @@ export const useEquityStakeVsAmount = (
     stakeVsAmountData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

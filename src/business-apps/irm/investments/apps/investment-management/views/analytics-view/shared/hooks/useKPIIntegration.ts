@@ -156,7 +156,7 @@ export function useKPIIntegration<T>(
     previous,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }
 

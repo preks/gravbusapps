@@ -56,6 +56,6 @@ export const useEquityConcentrationByRole = (
     concentrationData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

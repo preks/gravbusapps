@@ -119,7 +119,7 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
             </Pie>
             <ChartTooltip
               content={({ active, payload }) => {
-                if (active && payload && payload.length) {
+                if (active && payload?.length) {
                   const dataPoint = payload[0]
 
                   return (

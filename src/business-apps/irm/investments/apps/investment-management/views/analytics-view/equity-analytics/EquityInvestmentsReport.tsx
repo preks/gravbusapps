@@ -1,9 +1,21 @@
 import React, { useState, useCallback, useEffect } from 'react'
-import { Button, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@newwork/nw-design-system'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
-import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { Spinner } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
+import {
+  Button,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Spinner,
+  Badge
+} from '@newwork/nw-design-system'
 import { TrendingUp, BarChart, PieChart } from 'lucide-react'
 import { WidgetGroup } from '@/components/widget-group'
 import { DollarCircleOutlined, CalendarOutlined, LineChartOutlined, TeamOutlined } from '@ant-design/icons'

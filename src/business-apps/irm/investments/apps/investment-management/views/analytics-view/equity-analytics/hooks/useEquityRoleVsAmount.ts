@@ -56,6 +56,6 @@ export const useEquityRoleVsAmount = (
     roleVsAmountData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

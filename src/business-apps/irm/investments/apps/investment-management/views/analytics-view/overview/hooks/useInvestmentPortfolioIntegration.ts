@@ -198,6 +198,6 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     previousKpis,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

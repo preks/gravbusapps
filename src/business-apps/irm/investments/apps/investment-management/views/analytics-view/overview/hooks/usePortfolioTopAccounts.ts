@@ -58,6 +58,6 @@ export const usePortfolioTopAccounts = (
     accounts,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

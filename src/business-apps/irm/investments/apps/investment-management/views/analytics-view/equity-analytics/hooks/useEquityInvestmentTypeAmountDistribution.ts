@@ -56,6 +56,6 @@ export const useEquityInvestmentTypeAmountDistribution = (
     investmentTypesAmount,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

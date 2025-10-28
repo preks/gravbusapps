@@ -106,7 +106,7 @@ export function extractAvailableCurrencies<T>(investments: T[], currencyGetter: 
     }
   }
 
-  return Array.from(currencies).sort()
+  return Array.from(currencies).sort((a, b) => a.localeCompare(b))
 }
 
 /**

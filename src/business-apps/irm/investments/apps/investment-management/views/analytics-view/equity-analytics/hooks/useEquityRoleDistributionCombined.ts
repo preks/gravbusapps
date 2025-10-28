@@ -68,6 +68,6 @@ export const useEquityRoleDistributionCombined = (
     roleAmountDistribution,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

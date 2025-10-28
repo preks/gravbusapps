@@ -69,7 +69,7 @@ export const useLiquidFundCorrelationData = (
     correlationData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }
 
@@ -122,6 +122,6 @@ export const useLiquidFundPerformanceByType = (
     performanceByTypeData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

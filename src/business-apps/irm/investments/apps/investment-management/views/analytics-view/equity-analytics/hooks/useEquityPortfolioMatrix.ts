@@ -86,6 +86,6 @@ export const useEquityPortfolioMatrix = (
     portfolioMatrixData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

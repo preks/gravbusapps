@@ -56,6 +56,6 @@ export const useRealEstatePropertyValueVsRent = (
     data,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

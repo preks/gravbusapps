@@ -72,6 +72,6 @@ export const useEquityInvestmentTypeDistributionCombined = (
     investmentTypeAmountDistribution,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

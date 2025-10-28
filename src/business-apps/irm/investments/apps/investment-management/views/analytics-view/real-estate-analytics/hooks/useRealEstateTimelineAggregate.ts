@@ -71,6 +71,6 @@ export const useRealEstateTimelineAggregate = (
     performanceData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

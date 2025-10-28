@@ -60,6 +60,6 @@ export const useEquityStakeTypeCountDistribution = (
     stakeTypeCountDistribution,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

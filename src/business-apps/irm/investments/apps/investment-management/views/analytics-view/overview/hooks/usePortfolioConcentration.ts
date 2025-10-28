@@ -57,6 +57,6 @@ export const usePortfolioConcentration = (
     concentrationData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

@@ -180,7 +180,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                 </Pie>
                 <ChartTooltip
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
+                    if (active && payload?.length) {
                       const data = payload[0]
                       const total = filteredTypeCountData.reduce((sum: number, item: any) => sum + item.count, 0)
                       const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
@@ -267,7 +267,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                 </Pie>
                 <ChartTooltip
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
+                    if (active && payload?.length) {
                       const data = payload[0]
                       const total = filteredTypeData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
                       const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
@@ -446,7 +446,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                 </Pie>
                 <ChartTooltip
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
+                    if (active && payload?.length) {
                       const data = payload[0]
                       const total = filteredStatusData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
                       const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0

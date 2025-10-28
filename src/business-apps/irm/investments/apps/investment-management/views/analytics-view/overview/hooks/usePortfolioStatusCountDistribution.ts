@@ -54,6 +54,6 @@ export const usePortfolioStatusCountDistribution = (
     data,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

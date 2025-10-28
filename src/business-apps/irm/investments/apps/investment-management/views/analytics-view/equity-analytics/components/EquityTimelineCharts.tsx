@@ -167,7 +167,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         // Separate investment types from trend line
                         const investmentTypes = payload.filter(
                           entry => entry.dataKey !== 'total' && (entry.value as number) > 0
@@ -320,7 +320,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                   <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
                   <ChartTooltip
                     content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         const data = payload[0].payload
 
                         return (
@@ -442,7 +442,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                             <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>

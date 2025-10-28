@@ -56,6 +56,6 @@ export const useEquityInvestmentSize = (
     investmentSizeData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

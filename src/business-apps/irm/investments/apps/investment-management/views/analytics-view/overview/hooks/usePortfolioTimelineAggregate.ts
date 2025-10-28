@@ -134,6 +134,6 @@ export const usePortfolioTimelineAggregate = (
     investmentGroups,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

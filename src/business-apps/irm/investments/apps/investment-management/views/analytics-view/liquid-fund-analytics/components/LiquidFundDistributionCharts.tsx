@@ -125,33 +125,33 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
   // Chart configs - MUST be at top level (before any conditional rendering)
   const investmentTypeCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    investmentTypeCountData.forEach((item: any) => {
+    for (const item of investmentTypeCountData) {
       config[item.name] = { label: item.investmentType }
-    })
+    }
     return config
   }, [investmentTypeCountData])
 
   const investmentTypeAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    investmentTypeAmountData.forEach((item: any) => {
+    for (const item of investmentTypeAmountData) {
       config[item.name] = { label: item.investmentType }
-    })
+    }
     return config
   }, [investmentTypeAmountData])
 
   const liquidFundTypeCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    liquidFundTypeCountData.forEach((item: any) => {
+    for (const item of liquidFundTypeCountData) {
       config[item.name] = { label: item.liquidFundType }
-    })
+    }
     return config
   }, [liquidFundTypeCountData])
 
   const liquidFundTypeAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    liquidFundTypeAmountData.forEach((item: any) => {
+    for (const item of liquidFundTypeAmountData) {
       config[item.name] = { label: item.liquidFundType }
-    })
+    }
     return config
   }, [liquidFundTypeAmountData])
 
@@ -217,7 +217,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   </Pie>
                   <ChartTooltip
                     content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         const data = payload[0]
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -297,7 +297,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   </Pie>
                   <ChartTooltip
                     content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         const data = payload[0]
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -385,7 +385,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   </Pie>
                   <ChartTooltip
                     content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         const data = payload[0]
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -465,7 +465,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                   </Pie>
                   <ChartTooltip
                     content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
+                      if (active && payload?.length) {
                         const data = payload[0]
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">

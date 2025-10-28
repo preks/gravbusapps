@@ -77,6 +77,6 @@ export const useLiquidFundInvestmentTypeDistribution = (
     amountData,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

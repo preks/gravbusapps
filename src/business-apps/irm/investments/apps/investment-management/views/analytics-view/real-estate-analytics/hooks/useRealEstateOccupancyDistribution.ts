@@ -59,6 +59,6 @@ export const useRealEstateOccupancyDistribution = (
     data,
     isLoading,
     error,
-    refetch: loadData
+    refetch: () => void loadData()
   }
 }

@@ -40,9 +40,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
       const params: Record<string, string> = {}
 
       // Preserve existing query parameters
-      currentUrl.searchParams.forEach((value, key) => {
+      for (const [key, value] of currentUrl.searchParams.entries()) {
         params[key] = value
-      })
+      }
 
       // Update the analytics tab parameter
       params.analyticsTab = tab

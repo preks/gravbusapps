@@ -53,7 +53,7 @@ export const useGetEquityAvailableCurrencies = (context: BusinessAppContextProps
         }
       })
 
-      const currencyArray = Array.from(currencies).sort()
+      const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
       // Return currencies or default to EUR if none found
       return currencyArray.length > 0 ? currencyArray : ['EUR']
     } catch (error) {
