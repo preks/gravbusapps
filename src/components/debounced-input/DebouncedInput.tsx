@@ -82,7 +82,7 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
         <Input
           ref={ref}
           type={type}
-          className={`${icon ? 'gba:pl-10' : ''} ${className}`}
+          className={`${icon ? 'gba:!pl-10' : ''} ${className}`}
           placeholder={placeholder}
           value={localValue}
           onChange={handleChange}
