@@ -124,7 +124,11 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
         </div>
       </div>
 
-      {error && <Alert variant="destructive">{error}</Alert>}
+      {error && (
+        <Alert variant="destructive" className="gba:w-full gba:whitespace-normal gba:inline-block">
+          {error}
+        </Alert>
+      )}
       {/* Working hours guideline */}
       {/* Working hours breakdown removed per request */}
       {deficits.length > 0 && (

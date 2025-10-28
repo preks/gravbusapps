@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { employeeAttendanceMonthlyQuery } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
+import {
+  employeeAttendanceMonthlyQuery,
+  employeeAttendanceForDateQuery
+} from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 
@@ -178,17 +181,20 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const today = now.toISOString().slice(0, 10)
       const isoNow = now.toISOString()
 
-      // Prevent duplicate clock-in if there's an open or already closed entry for today
-      const hasOpenToday = allEntries.some(e => toDateString(new Date(e.attendanceDateISO)) === today && !e.endTimeISO)
-      const hasClosedToday = allEntries.some(
-        e => toDateString(new Date(e.attendanceDateISO)) === today && Boolean(e.endTimeISO)
-      )
+      // Server-verified check: query today's attendance rows
+      const todayRows = await graphqlClient.request<any>(employeeAttendanceForDateQuery, {
+        employeeId,
+        date: today
+      })
+      const rowsToday = todayRows?.EmployeeAttendance ?? []
+      const hasOpenToday = rowsToday.some((r: any) => r.startTime && !r.endTime)
+      const hasClosedToday = rowsToday.some((r: any) => r.startTime && r.endTime)
       if (isClockedIn || hasOpenToday || hasClosedToday) {
-        setIsSubmitting(false)
-        setError(
-          hasOpenToday ? 'You already have an open clock-in today.' : 'You already recorded attendance for today.'
-        )
-        return
+        // setIsSubmitting(false)
+        // setError(
+        //   hasOpenToday ? 'You already have an open clock-in today.' : 'You already recorded attendance for today.'
+        // )
+        // return
       }
 
       const client = new EmployeeTimeClient()

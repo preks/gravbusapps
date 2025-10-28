@@ -37,3 +37,21 @@ export const employeeAttendanceMonthlyQuery = `
     }
   }
 `
+
+// Fetch attendance rows for an exact date (today check)
+export const employeeAttendanceForDateQuery = `
+  query GetEmployeeAttendanceForDate($employeeId: uuid!, $date: date!) {
+    EmployeeAttendance(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+        attendanceDate: { _eq: $date }
+      }
+      orderBy: { startTime: DESC }
+    ) {
+      id
+      startTime
+      endTime
+    }
+  }
+`
