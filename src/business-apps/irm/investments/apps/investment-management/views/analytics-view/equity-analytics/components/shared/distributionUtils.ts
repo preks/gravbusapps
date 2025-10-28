@@ -121,7 +121,7 @@ export const calculateInvestmentSizeRanges = (
   })
 
   // Ensure data is sorted by minValue for consistent legend display
-  return rangeData.sort((a, b) => a.minValue! - b.minValue!)
+  return rangeData.sort((a, b) => (a.minValue || 0) - (b.minValue || 0))
 }
 
 /**
@@ -196,5 +196,5 @@ export const calculateInvestmentDurationRanges = (investments: EquityInvestmentS
   })
 
   // Ensure data is sorted by minValue for consistent legend display
-  return rangeData.sort((a, b) => a.minValue! - b.minValue!)
+  return rangeData.sort((a, b) => (a.minValue || 0) - (b.minValue || 0))
 }

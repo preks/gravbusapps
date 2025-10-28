@@ -130,7 +130,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                         return (
                           <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                             <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                            {payload.map((entry, index) => {
+                            {payload.map(entry => {
                               let properLabel = ''
                               let formattedValue = ''
                               let dotColor = ''
@@ -146,7 +146,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                               }
 
                               return (
-                                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
                                   <div
                                     className="gba:w-3 gba:h-3 gba:rounded-full"
                                     style={{ backgroundColor: dotColor }}

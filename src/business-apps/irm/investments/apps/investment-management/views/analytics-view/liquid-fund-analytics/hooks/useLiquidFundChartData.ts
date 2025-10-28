@@ -16,7 +16,7 @@ export const useLiquidFundChartData = (liquidFundInvestments: LiquidFundInvestme
       .filter(fund => fund.liquidFundInvestment?.maturityDate)
       .map(fund => ({
         name: fund.displayName,
-        maturityYear: dayjs(fund.liquidFundInvestment!.maturityDate!).year(),
+        maturityYear: dayjs(fund.liquidFundInvestment?.maturityDate || new Date()).year(),
         value: fund.investment.investmentMarketValue || fund.investment.bookValue || 0,
         isNearMaturity: fund.isNearMaturity
       }))

@@ -69,7 +69,7 @@ export const useCurrencySync = (
 /**
  * @hook useMultipleCurrencySync
  * @description Helper hook for managing multiple currency states that all sync with a master currency.
- * Useful when a component has multiple charts, each needing their own currency filter.
+ * This hook manages an array of currency states internally instead of calling hooks in a loop.
  *
  * @param {string} masterCurrency - The master currency to sync with
  * @param {number} count - Number of currency states to create
@@ -90,11 +90,34 @@ export const useMultipleCurrencySync = (
   masterCurrency: string,
   count: number
 ): Array<[string, (value: string) => void]> => {
-  const currencies: Array<[string, (value: string) => void]> = []
+  // Initialize array of currencies with master currency
+  const [currencies, setCurrencies] = useState<string[]>(() => Array(count).fill(masterCurrency))
+  const isFirstRender = useRef(true)
+  const prevMasterCurrency = useRef<string>(masterCurrency)
 
-  for (let i = 0; i < count; i++) {
-    currencies.push(useCurrencySync(masterCurrency))
-  }
+  // Sync all currencies with master when it changes
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      prevMasterCurrency.current = masterCurrency
+      return
+    }
 
-  return currencies
+    if (prevMasterCurrency.current !== masterCurrency) {
+      setCurrencies(Array(count).fill(masterCurrency))
+      prevMasterCurrency.current = masterCurrency
+    }
+  }, [masterCurrency, count])
+
+  // Create setter functions for each currency
+  const setters = currencies.map((_, index) => (value: string) => {
+    setCurrencies(prev => {
+      const newCurrencies = [...prev]
+      newCurrencies[index] = value
+      return newCurrencies
+    })
+  })
+
+  // Return array of [currency, setCurrency] tuples
+  return currencies.map((currency, index) => [currency, setters[index]])
 }

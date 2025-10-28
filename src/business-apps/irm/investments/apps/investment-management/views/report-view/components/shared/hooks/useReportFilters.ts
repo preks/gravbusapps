@@ -119,7 +119,9 @@ export const useReportFilters = (initialColumns?: ColumnConfig[]): UseReportFilt
   const handleAvailableCurrenciesUpdate = useCallback((currencies: string[]) => {
     setAvailableCurrencies(prev => {
       const updated = new Set(prev)
-      currencies.forEach(id => updated.add(id))
+      for (const id of currencies) {
+        updated.add(id)
+      }
       return updated
     })
   }, [])

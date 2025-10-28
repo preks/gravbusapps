@@ -132,11 +132,15 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
                         <span className="gba:font-medium gba:text-gray-700">{dataPoint.payload.type}</span>
                       </div>
                       <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                        {valueType === 'count'
-                          ? `${dataPoint.value} investments`
-                          : formatCurrency && currency
-                            ? formatCurrency(dataPoint.value as number, currency)
-                            : dataPoint.value}
+                        {(() => {
+                          if (valueType === 'count') {
+                            return `${dataPoint.value} investments`
+                          }
+                          if (formatCurrency && currency) {
+                            return formatCurrency(dataPoint.value as number, currency)
+                          }
+                          return dataPoint.value
+                        })()}
                       </div>
                     </div>
                   )

@@ -73,10 +73,10 @@ function calculateTimelineData(investments: EquityInvestmentSummary[]) {
   }
 
   // Calculate YoY change for each year
-  yearlyData.forEach((entry, index) => {
+  for (const [index, entry] of yearlyData.entries()) {
     if (index === 0) {
       entry.yoyLabel = '0%'
-      return
+      continue
     }
 
     const currentTotal = entry.total || 0
@@ -90,7 +90,7 @@ function calculateTimelineData(investments: EquityInvestmentSummary[]) {
     } else {
       entry.yoyLabel = '0%'
     }
-  })
+  }
 
   return {
     data: yearlyData,

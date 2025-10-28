@@ -4,8 +4,12 @@ import { InvestmentPortfolioKPIs, InvestmentQueryVariables } from '../types'
 import { useGetInvestments } from '@/common/data/investment/hooks/useInvestments'
 import { useGetPortfolioKPIs } from '../queries/PortfolioKPIQueries'
 import type { Investment as CentralInvestment } from '@/common/data/investment/types'
-import { safeCurrencyExtraction, calculateInvestmentDuration } from '../../shared/utils'
-import { getInvestmentStatusColor, getRiskLevelColor } from '../../shared/utils'
+import {
+  safeCurrencyExtraction,
+  calculateInvestmentDuration,
+  getInvestmentStatusColor,
+  getRiskLevelColor
+} from '../../shared/utils'
 
 export interface EnhancedInvestmentSummary {
   id: string

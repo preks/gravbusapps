@@ -80,10 +80,10 @@ export const useEquityTimelineAggregate = (
       })
 
       // Calculate YoY change for each year
-      chartData.forEach((entry, index) => {
+      for (const [index, entry] of chartData.entries()) {
         if (index === 0) {
           entry.yoyLabel = '0%'
-          return
+          continue
         }
 
         const currentTotal = entry.total || 0
@@ -97,7 +97,7 @@ export const useEquityTimelineAggregate = (
         } else {
           entry.yoyLabel = '0%'
         }
-      })
+      }
 
       setTimelineData(chartData)
     } catch (err) {

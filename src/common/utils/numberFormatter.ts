@@ -24,12 +24,12 @@ import { getCurrentActiveUserLocale, formatNumberFunction as formatNumberWithMas
  * formatAmount(1500000000000)  → "1.5T"  (supports trillions)
  */
 export const formatAmount = (value: number | null | undefined, decimals: number = 1): string => {
-  if (value === null || value === undefined || !isFinite(value as number)) {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return '0'
   }
 
-  const abs = Math.abs(value as number)
-  const sign = (value as number) < 0 ? '-' : ''
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
 
   if (abs >= 1_000_000_000_000) {
     return `${sign}${(abs / 1_000_000_000_000).toFixed(decimals)}T`

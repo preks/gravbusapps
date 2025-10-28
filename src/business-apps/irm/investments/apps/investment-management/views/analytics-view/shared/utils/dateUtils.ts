@@ -273,10 +273,5 @@ export function getDateRange(
         start: now.subtract(1, 'year').startOf('year').toDate(),
         end: now.subtract(1, 'year').endOf('year').toDate()
       }
-    default:
-      return {
-        start: now.startOf('day').toDate(),
-        end: now.endOf('day').toDate()
-      }
   }
 }
