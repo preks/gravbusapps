@@ -1523,7 +1523,12 @@ async function main() {
       console.log(`   ✅ Screen built and uploaded successfully`)
     } catch (error) {
       console.error(`   ❌ Error building/uploading ${screen}: ${error.message}`)
-      failedScreens.push({ screen, error: error.message, stage: 'build_upload' })
+      failedScreens.push({
+        screen,
+        error: error.message,
+        stage: 'build_upload',
+        target: error.targetLabel || 'unknown'
+      })
     }
   }
 
@@ -1571,6 +1576,7 @@ async function main() {
       console.log(`\n🔄 COMPREHENSIVE SYNC FAILURES (${syncFailures.length}):`)
       syncFailures.forEach((failure, index) => {
         console.log(`\n${index + 1}. Screen: ${failure.screen}`)
+        console.log(`   Target: ${failure.target || 'unknown'}`)
         console.log(`   Stage: ${failure.stage}`)
         console.log(`   Error: ${failure.error}`)
         console.log(`   ${'─'.repeat(40)}`)
@@ -1581,6 +1587,7 @@ async function main() {
       console.log(`\n🔨 BUILD/UPLOAD FAILURES (${buildFailures.length}):`)
       buildFailures.forEach((failure, index) => {
         console.log(`\n${syncFailures.length + index + 1}. Screen: ${failure.screen}`)
+        console.log(`   Target: ${failure.target || 'unknown'}`)
         console.log(`   Stage: ${failure.stage}`)
         console.log(`   Error: ${failure.error}`)
         console.log(`   ${'─'.repeat(40)}`)
