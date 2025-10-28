@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   employeeAttendanceMonthlyQuery,
@@ -298,11 +298,19 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const hasOpenToday = rowsToday.some((r: any) => r.startTime && !r.endTime)
       const hasClosedToday = rowsToday.some((r: any) => r.startTime && r.endTime)
       if (isClockedIn || hasOpenToday || hasClosedToday) {
-        // setIsSubmitting(false)
-        // setError(
-        //   hasOpenToday ? 'You already have an open clock-in today.' : 'You already recorded attendance for today.'
-        // )
-        // return
+        setIsSubmitting(false)
+        setError(
+          hasOpenToday
+            ? getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.open_clock_in_today',
+                'You already have an open clock-in today.'
+              )
+            : getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.already_recorded_today',
+                'You already recorded attendance for today.'
+              )
+        )
+        return
       }
 
       const client = new EmployeeTimeClient()
