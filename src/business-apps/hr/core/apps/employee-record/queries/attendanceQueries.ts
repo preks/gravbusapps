@@ -38,6 +38,32 @@ export const employeeAttendanceMonthlyQuery = `
   }
 `
 
+// Fetch all attendance rows for a month (no pagination) to compute totals client-side
+export const employeeAttendanceMonthlyAllQuery = `
+  query GetEmployeeAttendanceAll(
+    $employeeId: uuid!
+    $dateFrom: date!
+    $dateTo: date!
+  ) {
+    EmployeeAttendance(
+      where: {
+        employeeId: { _eq: $employeeId }
+        isDeleted: { _eq: false }
+        attendanceDate: { _gte: $dateFrom, _lte: $dateTo }
+      }
+      orderBy: { attendanceDate: ASC, startTime: ASC }
+    ) {
+      id
+      attendanceDate
+      effectiveTime
+      breakTime
+      plannedTime
+      recordedTime
+      version
+    }
+  }
+`
+
 // Fetch attendance rows for an exact date (today check)
 export const employeeAttendanceForDateQuery = `
   query GetEmployeeAttendanceForDate($employeeId: uuid!, $date: date!) {
@@ -52,6 +78,51 @@ export const employeeAttendanceForDateQuery = `
       id
       startTime
       endTime
+    }
+  }
+`
+
+// Employment region lookup for a given employee (to resolve regionId for holiday catalogs)
+export const employeeRegionLookupQuery = `
+  query GetEmployeeRegion($employeeId: uuid!, $activeUserLocale: String!) {
+    employee: Employee(where: { isDeleted: { _eq: false }, id: { _eq: $employeeId } }) {
+      id
+      workingCondition {
+        region {
+          id
+          value
+          translations(where: { localeCode: { _eq: $activeUserLocale } }) { value }
+          catalog { defaultLocale }
+        }
+      }
+    }
+  }
+`
+
+// Holidays catalog entries for an Employment Region
+export const employmentRegionHolidaysQuery = `
+  query GetEmploymentRegionHolidays($activeUserLocale: String!, $regionId:String!) {
+    holidays: CatalogEntry(
+      where: {
+        catalog: { version: { _eq: "v1" }, identifier: { _eq: "EmploymentRegionHoliday" } }
+        additionalValue2: { _eq:  $regionId }
+      }
+      orderBy: { value: ASC }
+    ) {
+      id
+      value
+      code
+      alternativeCode
+      additionalValue1
+      additionalValue2
+      additionalValue3
+      objectValue
+      translations(where: { localeCode: { _eq: $activeUserLocale } }) {
+        value
+      }
+      catalog {
+        defaultLocale
+      }
     }
   }
 `

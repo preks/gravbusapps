@@ -5,7 +5,10 @@ import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   employeeAttendanceMonthlyQuery,
-  employeeAttendanceForDateQuery
+  employeeAttendanceForDateQuery,
+  employeeAttendanceMonthlyAllQuery,
+  employeeRegionLookupQuery,
+  employmentRegionHolidaysQuery
 } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
@@ -66,6 +69,10 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [allEntries, setAllEntries] = useState<TimeEntry[]>([])
   const [totalCount, setTotalCount] = useState(0)
+  // monthly totals (minutes)
+  const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
+  const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
+  const [monthlyWorkedUntilYesterdayMinutes, setMonthlyWorkedUntilYesterdayMinutes] = useState(0)
 
   const prevMonth = useCallback(() => {
     setPage(1)
@@ -114,6 +121,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   }
 
   const toDateString = (d: Date) => d.toISOString().slice(0, 10)
+  const toLocalDateKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
   const mapAttendanceToEntry = (row: any): TimeEntry => {
     // GraphQL returns ISO values already; ensure strings
@@ -128,7 +137,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       startTimeISO: startIso,
       endTimeISO: endIso,
       recordedTime: row.recordedTime,
-      breakTime: row.breakTime,
+      breakTime: '1h',
       effectiveTime: row.effectiveTime,
       plannedTime: row.plannedTime,
       differenceTime: row.differenceTime,
@@ -167,6 +176,98 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
         ? new Date(mostRecent.startTime).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
         : null
     )
+
+    // Resolve region holidays and build a set of holiday dates for current month
+    const activeLocale = locale || 'en-US'
+    let holidayDateSet = new Set<string>()
+    try {
+      const regionRes = await graphqlClient.request<any>(employeeRegionLookupQuery, {
+        employeeId,
+        activeUserLocale: activeLocale
+      })
+      const regionCode: string | undefined = regionRes?.employee?.[0]?.workingCondition?.[0]?.region?.id
+      if (regionCode) {
+        const holidaysRes = await graphqlClient.request<any>(employmentRegionHolidaysQuery, {
+          activeUserLocale: activeLocale,
+          regionId: regionCode
+        })
+        const holidays: any[] = holidaysRes?.holidays || []
+        const monthIndex = currentMonth.getMonth()
+        const year = currentMonth.getFullYear()
+        const yearStr = String(year)
+        // First, filter by year using additionalValue3
+        const holidaysForYear = holidays.filter(h => String(h?.additionalValue3 ?? '') === yearStr)
+        const dates: string[] = holidaysForYear
+          .map(h => String(h?.alternativeCode ?? h?.code ?? ''))
+          .map(code => {
+            // Codes come as YYYYMMDD, e.g., 20251010
+            const parts = code.match(/^(\d{4})(\d{2})(\d{2})$/)
+            if (!parts) return null
+            const y = parseInt(parts[1], 10)
+            const m = parseInt(parts[2], 10) // 1-12
+            const d = parseInt(parts[3], 10)
+            if (y !== year || m !== monthIndex + 1) return null
+            if (Number.isNaN(d) || d < 1 || d > 31) return null
+            const date = new Date(year, monthIndex, d)
+            if (date.getMonth() !== monthIndex || date.getFullYear() !== year) return null
+            return toLocalDateKey(date)
+          })
+          .filter((v: string | null): v is string => Boolean(v))
+        holidayDateSet = new Set(dates)
+      }
+    } catch (e) {
+      // ignore holiday fetch errors for now
+      console.error(e)
+    }
+
+    // Compute monthly required totals based on working hours pattern, excluding holidays
+    const computeRequiredMinutesForRange = (from: Date, to: Date) => {
+      let acc = 0
+      const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate())
+      const end = new Date(to.getFullYear(), to.getMonth(), to.getDate())
+      while (cursor <= end) {
+        const key = toLocalDateKey(cursor)
+        if (!holidayDateSet.has(key)) {
+          acc += getPlannedMinutesForDate(cursor.toISOString())
+        }
+        cursor.setDate(cursor.getDate() + 1)
+      }
+      return acc
+    }
+
+    const monthRequired = computeRequiredMinutesForRange(monthStart, monthEnd)
+    setMonthlyRequiredMinutes(monthRequired)
+
+    // until yesterday (inclusive)
+    const today = new Date()
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1)
+    const untilDate = yesterday < monthStart ? monthStart : yesterday > monthEnd ? monthEnd : yesterday
+    const monthRequiredUntilYesterday =
+      untilDate < monthStart ? 0 : computeRequiredMinutesForRange(monthStart, untilDate)
+    setMonthlyRequiredUntilYesterdayMinutes(monthRequiredUntilYesterday)
+
+    // Fetch all rows for the month to compute worked minutes until yesterday
+    const allRes = await graphqlClient.request<any>(employeeAttendanceMonthlyAllQuery, {
+      employeeId,
+      dateFrom: toDateString(monthStart),
+      dateTo: toDateString(monthEnd)
+    })
+    const allRows: any[] = allRes?.EmployeeAttendance ?? []
+    // Use today's local date as the upper bound and exclude it (strictly <)
+    const todayLocal = new Date()
+    const untilDay = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(
+      todayLocal.getDate()
+    ).padStart(2, '0')}`
+    const workedUntilYesterday = allRows.reduce((acc: number, r: any) => {
+      const rowDay = String(r.attendanceDate) // format YYYY-MM-DD
+      if (rowDay < untilDay) {
+        const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
+        const recorded = parseDurationToMinutes(r?.recordedTime ? String(r.recordedTime) : undefined)
+        return acc + (effective > 0 ? effective : recorded)
+      }
+      return acc
+    }, 0)
+    setMonthlyWorkedUntilYesterdayMinutes(workedUntilYesterday)
   }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale])
 
   useEffect(() => {
@@ -207,7 +308,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           attendanceDate: today,
           startTime: isoNow,
           recordedTime: '0h',
-          breakTime: '0h',
+          breakTime: '1h',
           effectiveTime: '0h',
           plannedTime: '8h',
           differenceTime: '0h',
@@ -249,8 +350,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const recordedMs = Math.max(0, now.getTime() - start.getTime())
       const recordedMinutes = Math.max(0, Math.round(recordedMs / 60000))
       const plannedMinutes = getPlannedMinutesForDate(mostRecent.attendanceDateISO)
-      // parse existing break time on the record if present
-      const breakMinutes = parseDurationToMinutes(mostRecent.breakTime)
+      // hardcoded 1h break
+      const breakMinutes = 60
       const effectiveMinutes = recordedMinutes + breakMinutes
       const diffMs = effectiveMinutes * 60000 - plannedMinutes * 60000
       const diffMinutes = diffMs === 0 ? 0 : Math.sign(diffMs) * Math.ceil(Math.abs(diffMs) / 60000)
@@ -262,6 +363,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           endTime: isoNow,
           recordedTime: formatMinutes(recordedMinutes),
           effectiveTime: formatMinutes(effectiveMinutes),
+          breakTime: formatMinutes(breakMinutes),
           plannedTime: formatMinutes(plannedMinutes),
           differenceTime: formatMinutes(diffMinutes),
           notes: 'Clock-out'
@@ -310,6 +412,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     sortKey,
     sortDir,
     paginationInfo,
+    monthlyRequiredMinutes,
+    monthlyRequiredUntilYesterdayMinutes,
+    monthlyWorkedUntilYesterdayMinutes,
     // actions
     setSort: (key: keyof TimeEntry, dir: SortDirection) => {
       setPage(1)

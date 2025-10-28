@@ -51,6 +51,7 @@ export class EmployeeTimeClient extends RestClient {
       version: number
       endTime?: string
       recordedTime?: string
+      breakTime?: string
       effectiveTime?: string
       plannedTime?: string
       differenceTime?: string

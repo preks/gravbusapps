@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { Button, Card, Alert } from '@newwork/nw-design-system'
+import { WidgetGroup, type WidgetItem } from '@/components/widget-group'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from './hooks/useTimeTrackingData'
@@ -32,46 +33,18 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
     nextMonth,
     setPageSize,
     clockIn,
-    clockOut
+    clockOut,
+    monthlyRequiredMinutes,
+    monthlyRequiredUntilYesterdayMinutes,
+    monthlyWorkedUntilYesterdayMinutes
   } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
 
-  // Build daily working-hour requirements (minutes) from employee working hours
-  const dailyRequirementsMins: number[] = React.useMemo(() => {
-    const wh = employee?.workingHours?.[0]
-    if (!wh) return [0, 0, 0, 0, 0, 0, 0]
-    const toMin = (h?: number) => (typeof h === 'number' ? Math.max(0, Math.round(h * 60)) : 0)
-    // JS getDay(): 0=Sun ... 6=Sat
-    return [
-      toMin(wh?.sundayHours),
-      toMin(wh?.mondayHours),
-      toMin(wh?.tuesdayHours),
-      toMin(wh?.wednesdayHours),
-      toMin(wh?.thursdayHours),
-      toMin(wh?.fridayHours),
-      toMin(wh?.saturdayHours)
-    ]
-  }, [employee?.workingHours])
-
-  // Not displayed, but used for deficit computation
-
-  // Compare visible entries against requirements and collect deficits
-  const deficits = React.useMemo(() => {
-    return (entries || []).reduce<{ date: string; workedMins: number; requiredMins: number }[]>((acc, e) => {
-      const date = new Date(e.attendanceDateISO)
-      const req = dailyRequirementsMins[date.getDay()] || 0
-      const worked = e.totalMinutes || 0
-      if (req > 0 && worked < req) {
-        acc.push({
-          date: date.toLocaleDateString(locale),
-          workedMins: worked,
-          requiredMins: req
-        })
-      }
-      return acc
-    }, [])
-  }, [entries, dailyRequirementsMins, locale])
-
-  const [showDeficits, setShowDeficits] = React.useState(false)
+  // deficits card removed per request
+  const fmt = (m: number) => {
+    const hours = Math.floor(Math.abs(m) / 60)
+    const sign = m < 0 ? '-' : ''
+    return `${sign}${hours}h`
+  }
 
   return (
     <div className="gba:time-tracking-tab gba:space-y-6" data-testid="time-tracking-tab-container">
@@ -142,52 +115,72 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
           {error}
         </Alert>
       )}
-      {/* Working hours guideline */}
-      {/* Working hours breakdown removed per request */}
-      {deficits.length > 0 && (
-        <Card className="gba:p-6 gba:cursor-pointer" onClick={() => setShowDeficits(v => !v)}>
-          <div className="gba:flex gba:items-start gba:justify-between">
-            <div className="gba:mt-2 gba:text-2xl gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.deficits.title', 'You have less worked time')}
-            </div>
-            <div className="gba:bg-warning-secondary gba:text-warning gba:text-sm gba:px-3 gba:py-1 gba:rounded-full">
-              {deficits.length}{' '}
-              {deficits.length === 1
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.day', 'day')
-                : getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.common.days', 'days')}
-            </div>
-          </div>
-          <div className="gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:time_tracking.deficits.description',
-              'Days with worked time below required hours (visible range)'
-            )}
-          </div>
-          {showDeficits && (
-            <div className="gba:mt-3 gba:space-y-2" style={{ maxWidth: 300 }}>
-              {deficits.map(d => {
-                const fmt = (m: number) => `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ''}`
-                const pct = d.requiredMins > 0 ? Math.round((d.workedMins / d.requiredMins) * 1000) / 10 : 0
-                return (
-                  <div key={d.date} className="gba:grid gba:grid-cols-3 gba:items-center">
-                    <div className="gba:text-foreground gba:text-sm">{d.date}</div>
-                    <div className="gba:text-base gba:font-semibold gba:text-center">{fmt(d.workedMins)}</div>
-                    <div className="gba:text-muted-foreground gba:text-xs gba:text-right">{pct}%</div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-          {!showDeficits && (
-            <div className="gba:text-xs gba:text-muted-foreground gba:mt-2">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:time_tracking.deficits.click_to_view',
-                'Click to view details'
-              )}
-            </div>
-          )}
-        </Card>
-      )}
+      {/* Monthly summary */}
+      <div>
+        <div className="gba:text-lg gba:font-semibold gba:mb-2">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.summary.title', 'Monthly summary')}
+        </div>
+        {(() => {
+          const missingMinutes = Math.max(0, monthlyRequiredUntilYesterdayMinutes - monthlyWorkedUntilYesterdayMinutes)
+          const widgets: WidgetItem[] = [
+            {
+              key: 'required-month',
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.required_month',
+                'Required this month'
+              ),
+              value: fmt(monthlyRequiredMinutes),
+              description: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.required_month_desc',
+                'Total required hours'
+              ),
+              valueIsString: true
+            },
+            {
+              key: 'required-until-today',
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.required_until_today',
+                'Required until today'
+              ),
+              value: fmt(monthlyRequiredUntilYesterdayMinutes),
+              description: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.required_until_today_desc',
+                'Target up to yesterday'
+              ),
+              valueIsString: true
+            },
+            {
+              key: 'worked-until-today',
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.worked_until_today',
+                'Worked until today'
+              ),
+              value: fmt(monthlyWorkedUntilYesterdayMinutes),
+              description: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.worked_until_today_desc',
+                'Logged up to yesterday'
+              ),
+              valueIsString: true
+            },
+            {
+              key: 'missing-hours',
+              title: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.missing_vs_required',
+                'Missing vs required'
+              ),
+              value: fmt(missingMinutes),
+              description: getTranslationFromI18nKeyAndLabel(
+                'lowcoder:time_tracking.summary.missing_vs_required_desc',
+                'Hours needed to reach target'
+              ),
+              valueIsString: true
+            }
+          ]
+
+          return <WidgetGroup widgets={widgets} data-testid="time-tracking-monthly-summary" />
+        })()}
+      </div>
+      {/* deficits card removed */}
 
       <Card className="gba:p-4">
         <div className="gba:flex gba:items-center gba:justify-start gba:mb-3">
