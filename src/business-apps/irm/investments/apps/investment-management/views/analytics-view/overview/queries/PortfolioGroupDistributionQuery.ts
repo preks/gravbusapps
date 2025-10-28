@@ -92,9 +92,8 @@ export const useGetDistinctGroups = (context: BusinessAppContextProps) => {
         })
 
       return await pendingRequest
-    } catch (error) {
+    } finally {
       pendingRequest = null
-      throw error
     }
   }, [graphqlClient])
 
@@ -206,13 +205,9 @@ export const buildGroupCountDistributionQuery = (groups: string[], currency: str
       return []
     }
 
-    try {
-      const query = BUILD_GROUP_COUNT_DISTRIBUTION_QUERY(groups, currency)
-      const result = await graphqlClient.request(query)
-      return parseGroupDistributionResponse(result, groups, false)
-    } catch (error) {
-      throw error
-    }
+    const query = BUILD_GROUP_COUNT_DISTRIBUTION_QUERY(groups, currency)
+    const result = await graphqlClient.request(query)
+    return parseGroupDistributionResponse(result, groups, false)
   }
 }
 

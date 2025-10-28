@@ -44,31 +44,27 @@ export const useGetStakeVsAmountData = (context: BusinessAppContextProps) => {
 
   const fetchStakeVsAmountData = useCallback(
     async (currency: string): Promise<StakeVsAmountData[]> => {
-      try {
-        const result = await graphqlClient.request<{
-          Investment: Array<{
-            id: string
-            name: string | null
-            code: string | null
-            stakePercentage: number | null
-            totalInvestmentAmount: number | null
-          }>
-        }>(BUILD_STAKE_VS_AMOUNT_QUERY(currency))
+      const result = await graphqlClient.request<{
+        Investment: Array<{
+          id: string
+          name: string | null
+          code: string | null
+          stakePercentage: number | null
+          totalInvestmentAmount: number | null
+        }>
+      }>(BUILD_STAKE_VS_AMOUNT_QUERY(currency))
 
-        // Transform data
-        const stakeVsAmountData: StakeVsAmountData[] = result.Investment.filter(
-          inv => inv.stakePercentage && inv.totalInvestmentAmount
-        ).map(inv => ({
-          id: inv.id,
-          company: inv.name || inv.code || 'Unknown',
-          stake: inv.stakePercentage!,
-          investmentAmount: inv.totalInvestmentAmount!
-        }))
+      // Transform data
+      const stakeVsAmountData: StakeVsAmountData[] = result.Investment.filter(
+        inv => inv.stakePercentage && inv.totalInvestmentAmount
+      ).map(inv => ({
+        id: inv.id,
+        company: inv.name || inv.code || 'Unknown',
+        stake: inv.stakePercentage!,
+        investmentAmount: inv.totalInvestmentAmount!
+      }))
 
-        return stakeVsAmountData
-      } catch (error) {
-        throw error
-      }
+      return stakeVsAmountData
     },
     [graphqlClient]
   )

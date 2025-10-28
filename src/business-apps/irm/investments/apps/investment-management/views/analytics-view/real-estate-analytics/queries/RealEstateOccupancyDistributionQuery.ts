@@ -96,15 +96,11 @@ export const fetchOccupancyDistribution = async (
   graphqlClient: any,
   currency: string
 ): Promise<OccupancyDistributionData[]> => {
-  try {
-    const query = BUILD_OCCUPANCY_DISTRIBUTION_QUERY(currency)
+  const query = BUILD_OCCUPANCY_DISTRIBUTION_QUERY(currency)
 
-    const result = await graphqlClient.request(query)
+  const result = await graphqlClient.request(query)
 
-    return parseOccupancyDistributionResponse(result)
-  } catch (error) {
-    throw error
-  }
+  return parseOccupancyDistributionResponse(result)
 }
 
 /**

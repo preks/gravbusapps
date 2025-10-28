@@ -112,62 +112,58 @@ export const useGetLiquidFundInvestmentTypeDistribution = (context: BusinessAppC
 
   const fetchInvestmentTypeDistribution = useCallback(
     async (currency: string | null = null): Promise<InvestmentTypeDistributionResult> => {
-      try {
-        // Step 1: Fetch distinct investment types
-        const distinctResult = await graphqlClient.request<{
-          Investment: Array<{
-            investmentTypeRef: string | null
-            investmentType: {
-              id: string
-              code: string | null
-              value: string | null
-            } | null
-          }>
-        }>(GET_DISTINCT_INVESTMENT_TYPES_QUERY)
+      // Step 1: Fetch distinct investment types
+      const distinctResult = await graphqlClient.request<{
+        Investment: Array<{
+          investmentTypeRef: string | null
+          investmentType: {
+            id: string
+            code: string | null
+            value: string | null
+          } | null
+        }>
+      }>(GET_DISTINCT_INVESTMENT_TYPES_QUERY)
 
-        const distinctTypes = distinctResult.Investment.map(inv => inv.investmentType?.value).filter(
-          (type): type is string => !!type
-        )
+      const distinctTypes = distinctResult.Investment.map(inv => inv.investmentType?.value).filter(
+        (type): type is string => !!type
+      )
 
-        if (distinctTypes.length === 0) {
-          return {
-            distinctTypes: [],
-            countByType: new Map(),
-            amountByType: new Map()
-          }
-        }
-
-        // Step 2: Fetch combined count + amount data for all types in ONE query
-        const combinedQuery = buildCombinedInvestmentTypeQuery(distinctTypes, currency)
-
-        const aggregateResult = await graphqlClient.request<Record<string, any>>(combinedQuery)
-
-        // Step 3: Parse results and build maps
-        const countByType = new Map<string, number>()
-        const amountByType = new Map<string, number>()
-
-        distinctTypes.forEach((type, index) => {
-          const aliasName = `type_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
-
-          // Extract count
-          const countData = aggregateResult[`${aliasName}_count`]
-          const count = countData?.aggregate?.count || 0
-          countByType.set(type, count)
-
-          // Extract amount (prioritize investmentMarketValue, fallback to totalInvestmentAmount)
-          const amountData = aggregateResult[`${aliasName}_amount`]
-          const marketValue = amountData?.aggregate?.sum?.investmentMarketValue || 0
-          const investmentAmount = amountData?.aggregate?.sum?.totalInvestmentAmount || 0
-          const totalAmount = marketValue || investmentAmount
-          amountByType.set(type, totalAmount)
-        })
+      if (distinctTypes.length === 0) {
         return {
-          distinctTypes,
-          countByType,
-          amountByType
+          distinctTypes: [],
+          countByType: new Map(),
+          amountByType: new Map()
         }
-      } catch (error) {
-        throw error
+      }
+
+      // Step 2: Fetch combined count + amount data for all types in ONE query
+      const combinedQuery = buildCombinedInvestmentTypeQuery(distinctTypes, currency)
+
+      const aggregateResult = await graphqlClient.request<Record<string, any>>(combinedQuery)
+
+      // Step 3: Parse results and build maps
+      const countByType = new Map<string, number>()
+      const amountByType = new Map<string, number>()
+
+      distinctTypes.forEach((type, index) => {
+        const aliasName = `type_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+
+        // Extract count
+        const countData = aggregateResult[`${aliasName}_count`]
+        const count = countData?.aggregate?.count || 0
+        countByType.set(type, count)
+
+        // Extract amount (prioritize investmentMarketValue, fallback to totalInvestmentAmount)
+        const amountData = aggregateResult[`${aliasName}_amount`]
+        const marketValue = amountData?.aggregate?.sum?.investmentMarketValue || 0
+        const investmentAmount = amountData?.aggregate?.sum?.totalInvestmentAmount || 0
+        const totalAmount = marketValue || investmentAmount
+        amountByType.set(type, totalAmount)
+      })
+      return {
+        distinctTypes,
+        countByType,
+        amountByType
       }
     },
     [graphqlClient]

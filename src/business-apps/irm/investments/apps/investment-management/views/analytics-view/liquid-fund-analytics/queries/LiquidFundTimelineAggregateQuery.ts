@@ -191,32 +191,28 @@ export const fetchLiquidFundTimelineData = async (
   // Get last 5 years including current year
   const years = getLastNYears(5)
 
-  try {
-    if (isPerformanceChart) {
-      // Performance Timeline: Fetch count + totalInvestmentAmount only
-      const query = BUILD_PERFORMANCE_TIMELINE_QUERY(currency, years, queryName)
+  if (isPerformanceChart) {
+    // Performance Timeline: Fetch count + totalInvestmentAmount only
+    const query = BUILD_PERFORMANCE_TIMELINE_QUERY(currency, years, queryName)
 
-      const result = await graphqlClient.request(query)
+    const result = await graphqlClient.request(query)
 
-      const performanceData = parsePerformanceAggregateResponse(result, years)
-      // For performance chart, we don't need value trends data
-      const valueTrendsData: YearlyValueData[] = []
+    const performanceData = parsePerformanceAggregateResponse(result, years)
+    // For performance chart, we don't need value trends data
+    const valueTrendsData: YearlyValueData[] = []
 
-      return { performanceData, valueTrendsData }
-    } else {
-      // Value Trends: Fetch sum fields only (no count)
-      const query = BUILD_VALUE_TRENDS_QUERY(currency, years, queryName)
+    return { performanceData, valueTrendsData }
+  } else {
+    // Value Trends: Fetch sum fields only (no count)
+    const query = BUILD_VALUE_TRENDS_QUERY(currency, years, queryName)
 
-      const result = await graphqlClient.request(query)
+    const result = await graphqlClient.request(query)
 
-      const valueTrendsData = parseValueTrendsAggregateResponse(result, years)
-      // For value trends chart, we don't need performance data
-      const performanceData: YearlyPerformanceData[] = []
+    const valueTrendsData = parseValueTrendsAggregateResponse(result, years)
+    // For value trends chart, we don't need performance data
+    const performanceData: YearlyPerformanceData[] = []
 
-      return { performanceData, valueTrendsData }
-    }
-  } catch (error) {
-    throw error
+    return { performanceData, valueTrendsData }
   }
 }
 

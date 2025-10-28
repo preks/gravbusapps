@@ -44,50 +44,46 @@ export const useGetConcentrationData = (context: BusinessAppContextProps) => {
 
   const fetchConcentrationData = useCallback(
     async (currency: string): Promise<ConcentrationData[]> => {
-      try {
-        const result = await graphqlClient.request<{
-          Investment: Array<{
-            id: string
-            investmentMarketValue: number | null
-            investmentRole: Array<{
-              investmentRole: {
-                value: string | null
-              } | null
-            }>
+      const result = await graphqlClient.request<{
+        Investment: Array<{
+          id: string
+          investmentMarketValue: number | null
+          investmentRole: Array<{
+            investmentRole: {
+              value: string | null
+            } | null
           }>
-        }>(BUILD_CONCENTRATION_QUERY(currency))
+        }>
+      }>(BUILD_CONCENTRATION_QUERY(currency))
 
-        // Transform concentration data (group by role)
-        const roleGroups: Record<string, { count: number; totalValuation: number; valuations: number[] }> = {}
+      // Transform concentration data (group by role)
+      const roleGroups: Record<string, { count: number; totalValuation: number; valuations: number[] }> = {}
 
-        result.Investment.forEach(inv => {
-          const roles = inv.investmentRole || []
-          const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
+      result.Investment.forEach(inv => {
+        const roles = inv.investmentRole || []
+        const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
 
-          if (!roleGroups[role]) {
-            roleGroups[role] = {
-              count: 0,
-              totalValuation: 0,
-              valuations: []
-            }
+        if (!roleGroups[role]) {
+          roleGroups[role] = {
+            count: 0,
+            totalValuation: 0,
+            valuations: []
           }
+        }
 
-          roleGroups[role].count += 1
-          roleGroups[role].totalValuation += inv.investmentMarketValue || 0
-          roleGroups[role].valuations.push(inv.investmentMarketValue || 0)
-        })
+        roleGroups[role].count += 1
+        roleGroups[role].totalValuation += inv.investmentMarketValue || 0
+        roleGroups[role].valuations.push(inv.investmentMarketValue || 0)
+      })
 
-        const concentrationData: ConcentrationData[] = Object.entries(roleGroups).map(([role, data]) => ({
-          role,
-          count: data.count,
-          totalValuation: data.totalValuation,
-          averageValuation: data.totalValuation / data.count
-        }))
+      const concentrationData: ConcentrationData[] = Object.entries(roleGroups).map(([role, data]) => ({
+        role,
+        count: data.count,
+        totalValuation: data.totalValuation,
+        averageValuation: data.totalValuation / data.count
+      }))
 
-        return concentrationData
-      } catch (error) {
-        throw error
-      }
+      return concentrationData
     },
     [graphqlClient]
   )

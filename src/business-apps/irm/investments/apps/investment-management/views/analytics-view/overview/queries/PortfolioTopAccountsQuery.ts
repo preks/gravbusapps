@@ -104,61 +104,57 @@ export const fetchTopAccounts = async (
   limit: number = 10,
   currency?: string
 ): Promise<TopAccountsQueryResult> => {
-  try {
-    // Step 1: Get all distinct accounts
-    const distinctResult = await graphqlClient.request<{
-      Investment: Array<{
-        investmentAccountId: string
-        investmentAccount: {
-          id: string
-          name: string
-        }
-      }>
-    }>(GET_DISTINCT_ACCOUNTS_QUERY)
-
-    const accounts: AccountInfo[] = distinctResult.Investment.filter(inv => inv.investmentAccount).map(inv => ({
-      accountId: inv.investmentAccountId,
-      accountName: inv.investmentAccount.name || 'Unknown Account'
-    }))
-
-    if (accounts.length === 0) {
-      return { accounts: [] }
-    }
-
-    // Step 2: Build and execute aggregate query for all accounts
-    const aggregateQuery = BUILD_ACCOUNT_AGGREGATE_QUERY(
-      accounts.map(a => a.accountId),
-      currency
-    )
-
-    const aggregateResult = await graphqlClient.request<Record<string, AggregateResult>>(aggregateQuery)
-
-    // Step 3: Process results and map to accounts
-    const accountData: TopAccountData[] = accounts.map(account => {
-      const sanitizedId = account.accountId.replace(/[^a-zA-Z0-9_]/g, '_')
-      const key = `account_${sanitizedId}`
-      const aggregate = aggregateResult[key]
-
-      const marketValue = aggregate?.aggregate?.sum?.investmentMarketValue || 0
-      const investmentAmount = aggregate?.aggregate?.sum?.totalInvestmentAmount || 0
-      const totalValue = marketValue || investmentAmount
-
-      return {
-        accountId: account.accountId,
-        accountName: account.accountName,
-        totalValue,
-        investmentCount: aggregate?.aggregate?.count || 0
+  // Step 1: Get all distinct accounts
+  const distinctResult = await graphqlClient.request<{
+    Investment: Array<{
+      investmentAccountId: string
+      investmentAccount: {
+        id: string
+        name: string
       }
-    })
+    }>
+  }>(GET_DISTINCT_ACCOUNTS_QUERY)
 
-    // Step 4: Sort by total value descending and get top N
-    const topAccounts = accountData
-      .filter(a => a.totalValue > 0) // Only include accounts with value
-      .sort((a, b) => b.totalValue - a.totalValue)
-      .slice(0, limit)
+  const accounts: AccountInfo[] = distinctResult.Investment.filter(inv => inv.investmentAccount).map(inv => ({
+    accountId: inv.investmentAccountId,
+    accountName: inv.investmentAccount.name || 'Unknown Account'
+  }))
 
-    return { accounts: topAccounts }
-  } catch (error) {
-    throw error
+  if (accounts.length === 0) {
+    return { accounts: [] }
   }
+
+  // Step 2: Build and execute aggregate query for all accounts
+  const aggregateQuery = BUILD_ACCOUNT_AGGREGATE_QUERY(
+    accounts.map(a => a.accountId),
+    currency
+  )
+
+  const aggregateResult = await graphqlClient.request<Record<string, AggregateResult>>(aggregateQuery)
+
+  // Step 3: Process results and map to accounts
+  const accountData: TopAccountData[] = accounts.map(account => {
+    const sanitizedId = account.accountId.replace(/[^a-zA-Z0-9_]/g, '_')
+    const key = `account_${sanitizedId}`
+    const aggregate = aggregateResult[key]
+
+    const marketValue = aggregate?.aggregate?.sum?.investmentMarketValue || 0
+    const investmentAmount = aggregate?.aggregate?.sum?.totalInvestmentAmount || 0
+    const totalValue = marketValue || investmentAmount
+
+    return {
+      accountId: account.accountId,
+      accountName: account.accountName,
+      totalValue,
+      investmentCount: aggregate?.aggregate?.count || 0
+    }
+  })
+
+  // Step 4: Sort by total value descending and get top N
+  const topAccounts = accountData
+    .filter(a => a.totalValue > 0) // Only include accounts with value
+    .sort((a, b) => b.totalValue - a.totalValue)
+    .slice(0, limit)
+
+  return { accounts: topAccounts }
 }

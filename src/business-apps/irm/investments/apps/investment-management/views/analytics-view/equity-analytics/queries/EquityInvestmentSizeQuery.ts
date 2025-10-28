@@ -115,38 +115,34 @@ export const useGetInvestmentSizeData = (context: BusinessAppContextProps) => {
 
   const fetchInvestmentSizeData = useCallback(
     async (currency: string): Promise<InvestmentSizeRangeData[]> => {
-      try {
-        const query = BUILD_INVESTMENT_SIZE_QUERY(currency)
-        const result = await graphqlClient.request<InvestmentSizeQueryResult>(query)
+      const query = BUILD_INVESTMENT_SIZE_QUERY(currency)
+      const result = await graphqlClient.request<InvestmentSizeQueryResult>(query)
 
-        // Get total count for percentage calculation
-        const totalCount = result.total.aggregate.count
+      // Get total count for percentage calculation
+      const totalCount = result.total.aggregate.count
 
-        if (totalCount === 0) {
-          return []
-        }
-
-        // Transform aggregate results into chart data
-        const sizeData: InvestmentSizeRangeData[] = SIZE_RANGES.map((range, index) => {
-          const rangeKey = `range_${index}` as keyof InvestmentSizeQueryResult
-          const aggregateData = result[rangeKey] as AggregateResult
-          const count = aggregateData.aggregate.count
-          const totalAmount = aggregateData.aggregate.sum?.totalInvestmentAmount || 0
-
-          return {
-            range: range.label,
-            minValue: range.min,
-            maxValue: range.max,
-            count,
-            totalAmount,
-            percentage: totalCount > 0 ? (count / totalCount) * 100 : 0
-          }
-        })
-
-        return sizeData
-      } catch (error) {
-        throw error
+      if (totalCount === 0) {
+        return []
       }
+
+      // Transform aggregate results into chart data
+      const sizeData: InvestmentSizeRangeData[] = SIZE_RANGES.map((range, index) => {
+        const rangeKey = `range_${index}` as keyof InvestmentSizeQueryResult
+        const aggregateData = result[rangeKey] as AggregateResult
+        const count = aggregateData.aggregate.count
+        const totalAmount = aggregateData.aggregate.sum?.totalInvestmentAmount || 0
+
+        return {
+          range: range.label,
+          minValue: range.min,
+          maxValue: range.max,
+          count,
+          totalAmount,
+          percentage: totalCount > 0 ? (count / totalCount) * 100 : 0
+        }
+      })
+
+      return sizeData
     },
     [graphqlClient]
   )

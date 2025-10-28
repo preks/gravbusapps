@@ -163,28 +163,24 @@ export const buildStatusCountDistributionQuery = (
       return []
     }
 
-    try {
-      const query = BUILD_STATUS_COUNT_DISTRIBUTION_QUERY(statuses, currency)
-      const result = await graphqlClient.request(query)
+    const query = BUILD_STATUS_COUNT_DISTRIBUTION_QUERY(statuses, currency)
+    const result = await graphqlClient.request(query)
 
-      // Transform results
-      const distribution = statuses
-        .map(status => {
-          const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
-          const key = `status_${sanitizedRef}`
-          const count = result[key]?.aggregate?.count || 0
+    // Transform results
+    const distribution = statuses
+      .map(status => {
+        const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
+        const key = `status_${sanitizedRef}`
+        const count = result[key]?.aggregate?.count || 0
 
-          return {
-            status: status.statusValue,
-            count
-          }
-        })
-        .filter(item => item.count > 0)
+        return {
+          status: status.statusValue,
+          count
+        }
+      })
+      .filter(item => item.count > 0)
 
-      return distribution
-    } catch (error) {
-      throw error
-    }
+    return distribution
   }
 }
 
@@ -201,28 +197,24 @@ export const buildStatusAmountDistributionQuery = (
       return []
     }
 
-    try {
-      const query = BUILD_STATUS_AMOUNT_DISTRIBUTION_QUERY(statuses, currency)
-      const result = await graphqlClient.request(query)
+    const query = BUILD_STATUS_AMOUNT_DISTRIBUTION_QUERY(statuses, currency)
+    const result = await graphqlClient.request(query)
 
-      // Transform results
-      const distribution = statuses
-        .map(status => {
-          const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
-          const key = `status_${sanitizedRef}`
-          const totalAmount = result[key]?.aggregate?.sum?.totalInvestmentAmount || 0
+    // Transform results
+    const distribution = statuses
+      .map(status => {
+        const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
+        const key = `status_${sanitizedRef}`
+        const totalAmount = result[key]?.aggregate?.sum?.totalInvestmentAmount || 0
 
-          return {
-            status: status.statusValue,
-            totalAmount
-          }
-        })
-        .filter(item => item.totalAmount > 0)
+        return {
+          status: status.statusValue,
+          totalAmount
+        }
+      })
+      .filter(item => item.totalAmount > 0)
 
-      return distribution
-    } catch (error) {
-      throw error
-    }
+    return distribution
   }
 }
 

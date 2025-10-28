@@ -152,28 +152,24 @@ export const buildCurrencyCountDistributionQuery = (
       return []
     }
 
-    try {
-      const query = BUILD_CURRENCY_COUNT_DISTRIBUTION_QUERY(currencies)
-      const result = await graphqlClient.request(query)
+    const query = BUILD_CURRENCY_COUNT_DISTRIBUTION_QUERY(currencies)
+    const result = await graphqlClient.request(query)
 
-      // Transform results
-      const distribution = currencies
-        .map(currency => {
-          const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
-          const key = `currency_${sanitizedCode}`
-          const count = result[key]?.aggregate?.count || 0
+    // Transform results
+    const distribution = currencies
+      .map(currency => {
+        const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
+        const key = `currency_${sanitizedCode}`
+        const count = result[key]?.aggregate?.count || 0
 
-          return {
-            currency: currency.currencyCode,
-            count
-          }
-        })
-        .filter(item => item.count > 0)
+        return {
+          currency: currency.currencyCode,
+          count
+        }
+      })
+      .filter(item => item.count > 0)
 
-      return distribution
-    } catch (error) {
-      throw error
-    }
+    return distribution
   }
 }
 
@@ -189,28 +185,24 @@ export const buildCurrencyAmountDistributionQuery = (
       return []
     }
 
-    try {
-      const query = BUILD_CURRENCY_AMOUNT_DISTRIBUTION_QUERY(currencies)
-      const result = await graphqlClient.request(query)
+    const query = BUILD_CURRENCY_AMOUNT_DISTRIBUTION_QUERY(currencies)
+    const result = await graphqlClient.request(query)
 
-      // Transform results
-      const distribution = currencies
-        .map(currency => {
-          const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
-          const key = `currency_${sanitizedCode}`
-          const totalAmount = result[key]?.aggregate?.sum?.totalInvestmentAmount || 0
+    // Transform results
+    const distribution = currencies
+      .map(currency => {
+        const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
+        const key = `currency_${sanitizedCode}`
+        const totalAmount = result[key]?.aggregate?.sum?.totalInvestmentAmount || 0
 
-          return {
-            currency: currency.currencyCode,
-            totalAmount
-          }
-        })
-        .filter(item => item.totalAmount > 0)
+        return {
+          currency: currency.currencyCode,
+          totalAmount
+        }
+      })
+      .filter(item => item.totalAmount > 0)
 
-      return distribution
-    } catch (error) {
-      throw error
-    }
+    return distribution
   }
 }
 

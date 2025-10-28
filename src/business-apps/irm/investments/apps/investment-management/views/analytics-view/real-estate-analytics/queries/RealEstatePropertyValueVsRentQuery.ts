@@ -73,15 +73,11 @@ export const fetchPropertyValueVsRent = async (
   graphqlClient: any,
   currency: string
 ): Promise<PropertyValueVsRentData[]> => {
-  try {
-    const query = BUILD_PROPERTY_VALUE_VS_RENT_QUERY(currency)
+  const query = BUILD_PROPERTY_VALUE_VS_RENT_QUERY(currency)
 
-    const result = await graphqlClient.request(query)
+  const result = await graphqlClient.request(query)
 
-    return parsePropertyValueVsRentResponse(result)
-  } catch (error) {
-    throw error
-  }
+  return parsePropertyValueVsRentResponse(result)
 }
 
 /**

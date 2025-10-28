@@ -85,42 +85,38 @@ export const useGetEquityStakeTypeAmountDistribution = (context: BusinessAppCont
 
   const fetchStakeTypeAmountDistribution = useCallback(
     async (currency: string): Promise<StakeTypeAmountDistributionData[]> => {
-      try {
-        // Step 1: Get ALL distinct stake types using shared query
-        const stakeTypesInfo = await fetchDistinctStakeTypes()
+      // Step 1: Get ALL distinct stake types using shared query
+      const stakeTypesInfo = await fetchDistinctStakeTypes()
 
-        if (stakeTypesInfo.length === 0) {
-          return []
-        }
-
-        // Step 2: Get ALL amount aggregates in a SINGLE query with aliases
-        const aggregateQuery = BUILD_ALL_STAKE_TYPES_AMOUNT_QUERY(stakeTypesInfo, currency)
-        const aggregateResult = await graphqlClient.request<AllStakeTypesAmountResponse>(aggregateQuery)
-
-        // Helper to create alias (same logic as in query builder)
-        const createAlias = (stakeTypeRef: string) => {
-          return `stakeType_${stakeTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
-        }
-
-        // Step 3: Parse results and map back to stake types
-        const amountData: StakeTypeAmountDistributionData[] = stakeTypesInfo
-          .map(stakeType => {
-            const amountAlias = createAlias(stakeType.stakeTypeRef)
-            const totalAmount = aggregateResult[amountAlias]?.aggregate?.sum?.totalInvestmentAmount || 0
-
-            return {
-              stakeTypeId: stakeType.stakeTypeId,
-              stakeTypeCode: stakeType.stakeTypeCode,
-              stakeTypeValue: stakeType.stakeTypeValue,
-              totalAmount
-            }
-          })
-          .sort((a, b) => b.totalAmount - a.totalAmount)
-
-        return amountData
-      } catch (error) {
-        throw error
+      if (stakeTypesInfo.length === 0) {
+        return []
       }
+
+      // Step 2: Get ALL amount aggregates in a SINGLE query with aliases
+      const aggregateQuery = BUILD_ALL_STAKE_TYPES_AMOUNT_QUERY(stakeTypesInfo, currency)
+      const aggregateResult = await graphqlClient.request<AllStakeTypesAmountResponse>(aggregateQuery)
+
+      // Helper to create alias (same logic as in query builder)
+      const createAlias = (stakeTypeRef: string) => {
+        return `stakeType_${stakeTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+      }
+
+      // Step 3: Parse results and map back to stake types
+      const amountData: StakeTypeAmountDistributionData[] = stakeTypesInfo
+        .map(stakeType => {
+          const amountAlias = createAlias(stakeType.stakeTypeRef)
+          const totalAmount = aggregateResult[amountAlias]?.aggregate?.sum?.totalInvestmentAmount || 0
+
+          return {
+            stakeTypeId: stakeType.stakeTypeId,
+            stakeTypeCode: stakeType.stakeTypeCode,
+            stakeTypeValue: stakeType.stakeTypeValue,
+            totalAmount
+          }
+        })
+        .sort((a, b) => b.totalAmount - a.totalAmount)
+
+      return amountData
     },
     [graphqlClient, fetchDistinctStakeTypes]
   )

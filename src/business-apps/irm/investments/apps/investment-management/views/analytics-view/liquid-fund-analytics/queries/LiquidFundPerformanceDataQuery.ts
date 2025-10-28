@@ -133,42 +133,38 @@ export const fetchCorrelationData = async (
   graphqlClient: any,
   currency: string
 ): Promise<InterestRateCorrelationData[]> => {
-  try {
-    const query = BUILD_CORRELATION_QUERY(currency)
+  const query = BUILD_CORRELATION_QUERY(currency)
 
-    interface InvestmentResponse {
-      Investment: Array<{
-        id: string
-        name: string
-        code: string | null
-        totalInvestmentAmount: number
-        liquidFundInvestment: Array<{
-          interestRate: number
-          investmentLiquidFundType: {
-            value: string
-          } | null
-        }>
+  interface InvestmentResponse {
+    Investment: Array<{
+      id: string
+      name: string
+      code: string | null
+      totalInvestmentAmount: number
+      liquidFundInvestment: Array<{
+        interestRate: number
+        investmentLiquidFundType: {
+          value: string
+        } | null
       }>
-    }
-
-    const result = (await graphqlClient.request(query)) as InvestmentResponse
-
-    const correlationData: InterestRateCorrelationData[] = result.Investment.filter(
-      (inv: (typeof result.Investment)[0]) => inv.liquidFundInvestment && inv.liquidFundInvestment.length > 0
-    ).map((inv: (typeof result.Investment)[0]) => {
-      const liquidFund = inv.liquidFundInvestment[0]
-      return {
-        interestRate: liquidFund.interestRate,
-        investmentAmount: inv.totalInvestmentAmount,
-        fundName: inv.name || inv.code || 'Unknown',
-        fundType: liquidFund.investmentLiquidFundType?.value || 'Unknown'
-      }
-    })
-
-    return correlationData
-  } catch (error) {
-    throw error
+    }>
   }
+
+  const result = (await graphqlClient.request(query)) as InvestmentResponse
+
+  const correlationData: InterestRateCorrelationData[] = result.Investment.filter(
+    (inv: (typeof result.Investment)[0]) => inv.liquidFundInvestment && inv.liquidFundInvestment.length > 0
+  ).map((inv: (typeof result.Investment)[0]) => {
+    const liquidFund = inv.liquidFundInvestment[0]
+    return {
+      interestRate: liquidFund.interestRate,
+      investmentAmount: inv.totalInvestmentAmount,
+      fundName: inv.name || inv.code || 'Unknown',
+      fundType: liquidFund.investmentLiquidFundType?.value || 'Unknown'
+    }
+  })
+
+  return correlationData
 }
 
 /**
@@ -178,60 +174,56 @@ export const fetchPerformanceByType = async (
   graphqlClient: any,
   currency: string
 ): Promise<PerformanceByTypeData[]> => {
-  try {
-    // Step 1: Get distinct fund types
-    interface DistinctTypesResponse {
-      LiquidFundInvestment: Array<{
-        investmentLiquidFundTypeRef: string | null
-        investmentLiquidFundType: {
-          id: string
-          code: string | null
-          value: string | null
-        } | null
-      }>
-    }
-
-    const distinctResult = (await graphqlClient.request(GET_DISTINCT_LIQUID_FUND_TYPES_QUERY)) as DistinctTypesResponse
-
-    const types = distinctResult.LiquidFundInvestment.filter(
-      (item: (typeof distinctResult.LiquidFundInvestment)[0]) => item.investmentLiquidFundType?.value
-    ).map((item: (typeof distinctResult.LiquidFundInvestment)[0]) => item.investmentLiquidFundType!.value!)
-
-    if (types.length === 0) {
-      return []
-    }
-
-    // Step 2: Build and execute combined aggregate query
-    const query = BUILD_PERFORMANCE_BY_TYPE_QUERY(currency, types)
-    const result = await graphqlClient.request(query)
-
-    // Step 3: Parse results
-    const performanceData: PerformanceByTypeData[] = []
-
-    types.forEach((type: string, index: number) => {
-      const aliasName = `type_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
-      const investmentAggregate = result[aliasName]
-      const interestAggregate = result[`${aliasName}_interest`]
-
-      const count = investmentAggregate?.aggregate?.count || 0
-      const totalAmount = investmentAggregate?.aggregate?.sum?.totalInvestmentAmount || 0
-      const avgInterestRate = interestAggregate?.aggregate?.avg?.interestRate || 0
-
-      if (count > 0) {
-        performanceData.push({
-          fundType: type,
-          averageInterestRate: avgInterestRate,
-          averageInvestmentAmount: totalAmount / count,
-          count,
-          name: type.toLowerCase().replace(/\s+/g, '')
-        })
-      }
-    })
-
-    return performanceData
-  } catch (error) {
-    throw error
+  // Step 1: Get distinct fund types
+  interface DistinctTypesResponse {
+    LiquidFundInvestment: Array<{
+      investmentLiquidFundTypeRef: string | null
+      investmentLiquidFundType: {
+        id: string
+        code: string | null
+        value: string | null
+      } | null
+    }>
   }
+
+  const distinctResult = (await graphqlClient.request(GET_DISTINCT_LIQUID_FUND_TYPES_QUERY)) as DistinctTypesResponse
+
+  const types = distinctResult.LiquidFundInvestment.filter(
+    (item: (typeof distinctResult.LiquidFundInvestment)[0]) => item.investmentLiquidFundType?.value
+  ).map((item: (typeof distinctResult.LiquidFundInvestment)[0]) => item.investmentLiquidFundType!.value!)
+
+  if (types.length === 0) {
+    return []
+  }
+
+  // Step 2: Build and execute combined aggregate query
+  const query = BUILD_PERFORMANCE_BY_TYPE_QUERY(currency, types)
+  const result = await graphqlClient.request(query)
+
+  // Step 3: Parse results
+  const performanceData: PerformanceByTypeData[] = []
+
+  types.forEach((type: string, index: number) => {
+    const aliasName = `type_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    const investmentAggregate = result[aliasName]
+    const interestAggregate = result[`${aliasName}_interest`]
+
+    const count = investmentAggregate?.aggregate?.count || 0
+    const totalAmount = investmentAggregate?.aggregate?.sum?.totalInvestmentAmount || 0
+    const avgInterestRate = interestAggregate?.aggregate?.avg?.interestRate || 0
+
+    if (count > 0) {
+      performanceData.push({
+        fundType: type,
+        averageInterestRate: avgInterestRate,
+        averageInvestmentAmount: totalAmount / count,
+        count,
+        name: type.toLowerCase().replace(/\s+/g, '')
+      })
+    }
+  })
+
+  return performanceData
 }
 
 /**

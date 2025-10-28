@@ -50,56 +50,52 @@ export const useGetRoleVsAmountData = (context: BusinessAppContextProps) => {
 
   const fetchRoleVsAmountData = useCallback(
     async (currency: string): Promise<RoleVsAmountData[]> => {
-      try {
-        const result = await graphqlClient.request<{
-          Investment: Array<{
-            id: string
-            name: string | null
-            code: string | null
-            totalInvestmentAmount: number | null
-            investmentRole: Array<{
-              investmentRole: {
-                id: string
-                code: string | null
-                value: string | null
-              } | null
-            }>
+      const result = await graphqlClient.request<{
+        Investment: Array<{
+          id: string
+          name: string | null
+          code: string | null
+          totalInvestmentAmount: number | null
+          investmentRole: Array<{
+            investmentRole: {
+              id: string
+              code: string | null
+              value: string | null
+            } | null
           }>
-        }>(BUILD_ROLE_VS_AMOUNT_QUERY(currency))
+        }>
+      }>(BUILD_ROLE_VS_AMOUNT_QUERY(currency))
 
-        // Transform data
-        const roleVsAmountData: RoleVsAmountData[] = result.Investment.filter(
-          inv => inv.totalInvestmentAmount && inv.investmentRole && inv.investmentRole.length > 0
-        ).map(inv => {
-          const roles = inv.investmentRole || []
-          const roleValue = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : ''
-          const roleCode = roles.length > 0 && roles[0]?.investmentRole?.code ? roles[0].investmentRole.code : ''
+      // Transform data
+      const roleVsAmountData: RoleVsAmountData[] = result.Investment.filter(
+        inv => inv.totalInvestmentAmount && inv.investmentRole && inv.investmentRole.length > 0
+      ).map(inv => {
+        const roles = inv.investmentRole || []
+        const roleValue = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : ''
+        const roleCode = roles.length > 0 && roles[0]?.investmentRole?.code ? roles[0].investmentRole.code : ''
 
-          // Map role to score for visualization (1=Follow-on, 2=Co-Investor, 3=Lead)
-          let roleScore = 2 // Default to Co-Investor
-          const roleLower = (roleValue || roleCode || '').toLowerCase()
+        // Map role to score for visualization (1=Follow-on, 2=Co-Investor, 3=Lead)
+        let roleScore = 2 // Default to Co-Investor
+        const roleLower = (roleValue || roleCode || '').toLowerCase()
 
-          if (roleLower.includes('follow') || roleLower.includes('follower')) {
-            roleScore = 1
-          } else if (roleLower.includes('lead') || roleLower.includes('leader')) {
-            roleScore = 3
-          } else if (roleLower.includes('co-invest') || roleLower.includes('coinvest')) {
-            roleScore = 2
-          }
+        if (roleLower.includes('follow') || roleLower.includes('follower')) {
+          roleScore = 1
+        } else if (roleLower.includes('lead') || roleLower.includes('leader')) {
+          roleScore = 3
+        } else if (roleLower.includes('co-invest') || roleLower.includes('coinvest')) {
+          roleScore = 2
+        }
 
-          return {
-            id: inv.id,
-            company: inv.name || inv.code || 'Unknown',
-            role: roleValue || roleCode || 'Co-Investor',
-            roleScore,
-            investmentAmount: inv.totalInvestmentAmount!
-          }
-        })
+        return {
+          id: inv.id,
+          company: inv.name || inv.code || 'Unknown',
+          role: roleValue || roleCode || 'Co-Investor',
+          roleScore,
+          investmentAmount: inv.totalInvestmentAmount!
+        }
+      })
 
-        return roleVsAmountData
-      } catch (error) {
-        throw error
-      }
+      return roleVsAmountData
     },
     [graphqlClient]
   )

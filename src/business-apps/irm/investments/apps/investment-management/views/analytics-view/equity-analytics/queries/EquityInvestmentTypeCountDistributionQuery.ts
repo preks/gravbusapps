@@ -86,42 +86,38 @@ export const useGetEquityInvestmentTypeCountDistribution = (context: BusinessApp
 
   const fetchInvestmentTypeCountDistribution = useCallback(
     async (currency?: string): Promise<InvestmentTypeCountDistributionData[]> => {
-      try {
-        // Step 1: Get ALL distinct investment types using shared query
-        const investmentTypesInfo = await fetchDistinctInvestmentTypes()
+      // Step 1: Get ALL distinct investment types using shared query
+      const investmentTypesInfo = await fetchDistinctInvestmentTypes()
 
-        if (investmentTypesInfo.length === 0) {
-          return []
-        }
-
-        // Step 2: Get ALL count aggregates in a SINGLE query with aliases
-        const aggregateQuery = BUILD_ALL_INVESTMENT_TYPES_COUNT_QUERY(investmentTypesInfo, currency)
-        const aggregateResult = await graphqlClient.request<AllInvestmentTypesCountResponse>(aggregateQuery)
-
-        // Helper to create alias (same logic as in query builder)
-        const createAlias = (investmentTypeRef: string) => {
-          return `investmentType_${investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
-        }
-
-        // Step 3: Parse results and map back to investment types
-        const countData: InvestmentTypeCountDistributionData[] = investmentTypesInfo
-          .map(investmentType => {
-            const countAlias = createAlias(investmentType.investmentTypeRef)
-            const count = aggregateResult[countAlias]?.aggregate?.count || 0
-
-            return {
-              investmentTypeId: investmentType.investmentTypeId,
-              investmentTypeCode: investmentType.investmentTypeCode,
-              investmentTypeValue: investmentType.investmentTypeValue,
-              count
-            }
-          })
-          .sort((a, b) => b.count - a.count)
-
-        return countData
-      } catch (error) {
-        throw error
+      if (investmentTypesInfo.length === 0) {
+        return []
       }
+
+      // Step 2: Get ALL count aggregates in a SINGLE query with aliases
+      const aggregateQuery = BUILD_ALL_INVESTMENT_TYPES_COUNT_QUERY(investmentTypesInfo, currency)
+      const aggregateResult = await graphqlClient.request<AllInvestmentTypesCountResponse>(aggregateQuery)
+
+      // Helper to create alias (same logic as in query builder)
+      const createAlias = (investmentTypeRef: string) => {
+        return `investmentType_${investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+      }
+
+      // Step 3: Parse results and map back to investment types
+      const countData: InvestmentTypeCountDistributionData[] = investmentTypesInfo
+        .map(investmentType => {
+          const countAlias = createAlias(investmentType.investmentTypeRef)
+          const count = aggregateResult[countAlias]?.aggregate?.count || 0
+
+          return {
+            investmentTypeId: investmentType.investmentTypeId,
+            investmentTypeCode: investmentType.investmentTypeCode,
+            investmentTypeValue: investmentType.investmentTypeValue,
+            count
+          }
+        })
+        .sort((a, b) => b.count - a.count)
+
+      return countData
     },
     [graphqlClient, fetchDistinctInvestmentTypes]
   )

@@ -85,42 +85,38 @@ export const useGetEquityStatusAmountDistribution = (context: BusinessAppContext
 
   const fetchStatusAmountDistribution = useCallback(
     async (currency: string): Promise<StatusAmountDistributionData[]> => {
-      try {
-        // Step 1: Get ALL distinct statuses using shared query
-        const statusesInfo = await fetchDistinctStatuses()
+      // Step 1: Get ALL distinct statuses using shared query
+      const statusesInfo = await fetchDistinctStatuses()
 
-        if (statusesInfo.length === 0) {
-          return []
-        }
-
-        // Step 2: Get ALL amount aggregates in a SINGLE query with aliases
-        const aggregateQuery = BUILD_ALL_STATUSES_AMOUNT_QUERY(statusesInfo, currency)
-        const aggregateResult = await graphqlClient.request<AllStatusesAmountResponse>(aggregateQuery)
-
-        // Helper to create alias (same logic as in query builder)
-        const createAlias = (statusRef: string) => {
-          return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
-        }
-
-        // Step 3: Parse results and map back to statuses
-        const amountData: StatusAmountDistributionData[] = statusesInfo
-          .map(status => {
-            const amountAlias = createAlias(status.statusRef)
-            const totalAmount = aggregateResult[amountAlias]?.aggregate?.sum?.totalInvestmentAmount || 0
-
-            return {
-              statusId: status.statusId,
-              statusCode: status.statusCode,
-              statusValue: status.statusValue,
-              totalAmount
-            }
-          })
-          .sort((a, b) => b.totalAmount - a.totalAmount)
-
-        return amountData
-      } catch (error) {
-        throw error
+      if (statusesInfo.length === 0) {
+        return []
       }
+
+      // Step 2: Get ALL amount aggregates in a SINGLE query with aliases
+      const aggregateQuery = BUILD_ALL_STATUSES_AMOUNT_QUERY(statusesInfo, currency)
+      const aggregateResult = await graphqlClient.request<AllStatusesAmountResponse>(aggregateQuery)
+
+      // Helper to create alias (same logic as in query builder)
+      const createAlias = (statusRef: string) => {
+        return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+      }
+
+      // Step 3: Parse results and map back to statuses
+      const amountData: StatusAmountDistributionData[] = statusesInfo
+        .map(status => {
+          const amountAlias = createAlias(status.statusRef)
+          const totalAmount = aggregateResult[amountAlias]?.aggregate?.sum?.totalInvestmentAmount || 0
+
+          return {
+            statusId: status.statusId,
+            statusCode: status.statusCode,
+            statusValue: status.statusValue,
+            totalAmount
+          }
+        })
+        .sort((a, b) => b.totalAmount - a.totalAmount)
+
+      return amountData
     },
     [graphqlClient, fetchDistinctStatuses]
   )

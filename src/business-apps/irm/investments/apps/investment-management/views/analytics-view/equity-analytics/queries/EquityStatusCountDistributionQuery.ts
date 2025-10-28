@@ -86,42 +86,38 @@ export const useGetEquityStatusCountDistribution = (context: BusinessAppContextP
 
   const fetchStatusCountDistribution = useCallback(
     async (currency?: string): Promise<StatusCountDistributionData[]> => {
-      try {
-        // Step 1: Get ALL distinct statuses using shared query
-        const statusesInfo = await fetchDistinctStatuses()
+      // Step 1: Get ALL distinct statuses using shared query
+      const statusesInfo = await fetchDistinctStatuses()
 
-        if (statusesInfo.length === 0) {
-          return []
-        }
-
-        // Step 2: Get ALL count aggregates in a SINGLE query with aliases
-        const aggregateQuery = BUILD_ALL_STATUSES_COUNT_QUERY(statusesInfo, currency)
-        const aggregateResult = await graphqlClient.request<AllStatusesCountResponse>(aggregateQuery)
-
-        // Helper to create alias (same logic as in query builder)
-        const createAlias = (statusRef: string) => {
-          return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
-        }
-
-        // Step 3: Parse results and map back to statuses
-        const countData: StatusCountDistributionData[] = statusesInfo
-          .map(status => {
-            const countAlias = createAlias(status.statusRef)
-            const count = aggregateResult[countAlias]?.aggregate?.count || 0
-
-            return {
-              statusId: status.statusId,
-              statusCode: status.statusCode,
-              statusValue: status.statusValue,
-              count
-            }
-          })
-          .sort((a, b) => b.count - a.count)
-
-        return countData
-      } catch (error) {
-        throw error
+      if (statusesInfo.length === 0) {
+        return []
       }
+
+      // Step 2: Get ALL count aggregates in a SINGLE query with aliases
+      const aggregateQuery = BUILD_ALL_STATUSES_COUNT_QUERY(statusesInfo, currency)
+      const aggregateResult = await graphqlClient.request<AllStatusesCountResponse>(aggregateQuery)
+
+      // Helper to create alias (same logic as in query builder)
+      const createAlias = (statusRef: string) => {
+        return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+      }
+
+      // Step 3: Parse results and map back to statuses
+      const countData: StatusCountDistributionData[] = statusesInfo
+        .map(status => {
+          const countAlias = createAlias(status.statusRef)
+          const count = aggregateResult[countAlias]?.aggregate?.count || 0
+
+          return {
+            statusId: status.statusId,
+            statusCode: status.statusCode,
+            statusValue: status.statusValue,
+            count
+          }
+        })
+        .sort((a, b) => b.count - a.count)
+
+      return countData
     },
     [graphqlClient, fetchDistinctStatuses]
   )

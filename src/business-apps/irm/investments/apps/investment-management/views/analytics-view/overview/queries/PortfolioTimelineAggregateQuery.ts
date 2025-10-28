@@ -291,8 +291,6 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
           }
 
           return resultData
-        } catch (error) {
-          throw error
         } finally {
           // Clear pending request
           delete pendingAggregateRequests[cacheKey]

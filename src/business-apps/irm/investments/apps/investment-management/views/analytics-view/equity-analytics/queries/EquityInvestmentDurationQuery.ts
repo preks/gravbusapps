@@ -114,36 +114,32 @@ export const useGetInvestmentDurationData = (context: BusinessAppContextProps) =
 
   const fetchInvestmentDurationData = useCallback(
     async (currency: string): Promise<InvestmentDurationRangeData[]> => {
-      try {
-        const query = BUILD_INVESTMENT_DURATION_QUERY(currency)
-        const result = await graphqlClient.request<InvestmentDurationQueryResult>(query)
+      const query = BUILD_INVESTMENT_DURATION_QUERY(currency)
+      const result = await graphqlClient.request<InvestmentDurationQueryResult>(query)
 
-        // Get total count for percentage calculation
-        const totalCount = result.total.aggregate.count
+      // Get total count for percentage calculation
+      const totalCount = result.total.aggregate.count
 
-        if (totalCount === 0) {
-          return []
-        }
-
-        // Transform aggregate results into chart data
-        const durationData: InvestmentDurationRangeData[] = DURATION_RANGES.map((range, index) => {
-          const rangeKey = `range_${index}` as keyof InvestmentDurationQueryResult
-          const aggregateData = result[rangeKey] as AggregateResult
-          const count = aggregateData.aggregate.count
-
-          return {
-            range: range.label,
-            minYears: range.minYears,
-            maxYears: range.maxYears,
-            count,
-            percentage: totalCount > 0 ? (count / totalCount) * 100 : 0
-          }
-        })
-
-        return durationData
-      } catch (error) {
-        throw error
+      if (totalCount === 0) {
+        return []
       }
+
+      // Transform aggregate results into chart data
+      const durationData: InvestmentDurationRangeData[] = DURATION_RANGES.map((range, index) => {
+        const rangeKey = `range_${index}` as keyof InvestmentDurationQueryResult
+        const aggregateData = result[rangeKey] as AggregateResult
+        const count = aggregateData.aggregate.count
+
+        return {
+          range: range.label,
+          minYears: range.minYears,
+          maxYears: range.maxYears,
+          count,
+          percentage: totalCount > 0 ? (count / totalCount) * 100 : 0
+        }
+      })
+
+      return durationData
     },
     [graphqlClient]
   )

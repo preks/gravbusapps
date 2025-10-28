@@ -127,110 +127,106 @@ export const useGetEquityPerformanceData = (context: BusinessAppContextProps) =>
 
   const fetchPerformanceData = useCallback(
     async (currency: string): Promise<PerformanceDataResult> => {
-      try {
-        // Fetch all three queries in parallel
-        const [stakeVsAmountResult, roleVsAmountResult, concentrationResult] = await Promise.all([
-          graphqlClient.request<{
-            Investment: Array<{
-              id: string
-              name: string | null
-              code: string | null
-              stakePercentage: number | null
-              totalInvestmentAmount: number | null
+      // Fetch all three queries in parallel
+      const [stakeVsAmountResult, roleVsAmountResult, concentrationResult] = await Promise.all([
+        graphqlClient.request<{
+          Investment: Array<{
+            id: string
+            name: string | null
+            code: string | null
+            stakePercentage: number | null
+            totalInvestmentAmount: number | null
+          }>
+        }>(BUILD_STAKE_VS_AMOUNT_QUERY(currency)),
+
+        graphqlClient.request<{
+          Investment: Array<{
+            id: string
+            name: string | null
+            code: string | null
+            totalInvestmentAmount: number | null
+            investmentRole: Array<{
+              investmentRole: {
+                id: string
+                code: string | null
+                value: string | null
+              } | null
             }>
-          }>(BUILD_STAKE_VS_AMOUNT_QUERY(currency)),
+          }>
+        }>(BUILD_ROLE_VS_AMOUNT_QUERY(currency)),
 
-          graphqlClient.request<{
-            Investment: Array<{
-              id: string
-              name: string | null
-              code: string | null
-              totalInvestmentAmount: number | null
-              investmentRole: Array<{
-                investmentRole: {
-                  id: string
-                  code: string | null
-                  value: string | null
-                } | null
-              }>
+        graphqlClient.request<{
+          Investment: Array<{
+            id: string
+            investmentMarketValue: number | null
+            investmentRole: Array<{
+              investmentRole: {
+                value: string | null
+              } | null
             }>
-          }>(BUILD_ROLE_VS_AMOUNT_QUERY(currency)),
+          }>
+        }>(BUILD_CONCENTRATION_QUERY(currency))
+      ])
 
-          graphqlClient.request<{
-            Investment: Array<{
-              id: string
-              investmentMarketValue: number | null
-              investmentRole: Array<{
-                investmentRole: {
-                  value: string | null
-                } | null
-              }>
-            }>
-          }>(BUILD_CONCENTRATION_QUERY(currency))
-        ])
+      const stakeVsAmountData: StakeVsAmountData[] = stakeVsAmountResult.Investment.filter(
+        inv => inv.stakePercentage && inv.totalInvestmentAmount
+      ).map(inv => ({
+        id: inv.id,
+        company: inv.name || inv.code || 'Unknown',
+        stake: inv.stakePercentage!,
+        investmentAmount: inv.totalInvestmentAmount!
+      }))
 
-        const stakeVsAmountData: StakeVsAmountData[] = stakeVsAmountResult.Investment.filter(
-          inv => inv.stakePercentage && inv.totalInvestmentAmount
-        ).map(inv => ({
-          id: inv.id,
-          company: inv.name || inv.code || 'Unknown',
-          stake: inv.stakePercentage!,
-          investmentAmount: inv.totalInvestmentAmount!
-        }))
+      // Transform role vs amount data
+      const roleVsAmountData: RoleVsAmountData[] = roleVsAmountResult.Investment.filter(
+        inv => inv.totalInvestmentAmount
+      ).map(inv => {
+        const roles = inv.investmentRole || []
+        const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
 
-        // Transform role vs amount data
-        const roleVsAmountData: RoleVsAmountData[] = roleVsAmountResult.Investment.filter(
-          inv => inv.totalInvestmentAmount
-        ).map(inv => {
-          const roles = inv.investmentRole || []
-          const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
-
-          // Map role to score for visualization (simple default)
-          const roleScore = 3 // Default to Lead Investor score
-
-          return {
-            id: inv.id,
-            company: inv.name || inv.code || 'Unknown',
-            role,
-            roleScore,
-            investmentAmount: inv.totalInvestmentAmount!
-          }
-        })
-
-        // Transform concentration data (group by role)
-        const roleGroups: Record<string, { count: number; totalValuation: number; valuations: number[] }> = {}
-
-        concentrationResult.Investment.forEach(inv => {
-          const roles = inv.investmentRole || []
-          const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
-
-          if (!roleGroups[role]) {
-            roleGroups[role] = {
-              count: 0,
-              totalValuation: 0,
-              valuations: []
-            }
-          }
-
-          roleGroups[role].count += 1
-          roleGroups[role].totalValuation += inv.investmentMarketValue || 0
-          roleGroups[role].valuations.push(inv.investmentMarketValue || 0)
-        })
-
-        const concentrationData: ConcentrationData[] = Object.entries(roleGroups).map(([role, data]) => ({
-          role,
-          count: data.count,
-          totalValuation: data.totalValuation,
-          averageValuation: data.totalValuation / data.count
-        }))
+        // Map role to score for visualization (simple default)
+        const roleScore = 3 // Default to Lead Investor score
 
         return {
-          stakeVsAmountData,
-          roleVsAmountData,
-          concentrationData
+          id: inv.id,
+          company: inv.name || inv.code || 'Unknown',
+          role,
+          roleScore,
+          investmentAmount: inv.totalInvestmentAmount!
         }
-      } catch (error) {
-        throw error
+      })
+
+      // Transform concentration data (group by role)
+      const roleGroups: Record<string, { count: number; totalValuation: number; valuations: number[] }> = {}
+
+      concentrationResult.Investment.forEach(inv => {
+        const roles = inv.investmentRole || []
+        const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
+
+        if (!roleGroups[role]) {
+          roleGroups[role] = {
+            count: 0,
+            totalValuation: 0,
+            valuations: []
+          }
+        }
+
+        roleGroups[role].count += 1
+        roleGroups[role].totalValuation += inv.investmentMarketValue || 0
+        roleGroups[role].valuations.push(inv.investmentMarketValue || 0)
+      })
+
+      const concentrationData: ConcentrationData[] = Object.entries(roleGroups).map(([role, data]) => ({
+        role,
+        count: data.count,
+        totalValuation: data.totalValuation,
+        averageValuation: data.totalValuation / data.count
+      }))
+
+      return {
+        stakeVsAmountData,
+        roleVsAmountData,
+        concentrationData
       }
     },
     [graphqlClient]

@@ -50,31 +50,27 @@ export const useGetEquityTopCompanies = (context: BusinessAppContextProps) => {
 
   const fetchTopCompanies = useCallback(
     async (currency: string, limit: number = 10): Promise<TopCompaniesResult> => {
-      try {
-        const query = BUILD_TOP_COMPANIES_QUERY(currency, limit)
+      const query = BUILD_TOP_COMPANIES_QUERY(currency, limit)
 
-        const result = await graphqlClient.request<{
-          Investment: Array<{
-            id: string
-            name: string | null
-            code: string | null
-            investmentMarketValue: number | null
-          }>
-        }>(query)
+      const result = await graphqlClient.request<{
+        Investment: Array<{
+          id: string
+          name: string | null
+          code: string | null
+          investmentMarketValue: number | null
+        }>
+      }>(query)
 
-        // Transform to chart data format
-        const companies: TopCompanyData[] = result.Investment.filter(
-          inv => inv.investmentMarketValue && inv.investmentMarketValue > 0
-        ).map(inv => ({
-          id: inv.id,
-          company: inv.name || inv.code || 'Unknown',
-          valuation: inv.investmentMarketValue || 0
-        }))
+      // Transform to chart data format
+      const companies: TopCompanyData[] = result.Investment.filter(
+        inv => inv.investmentMarketValue && inv.investmentMarketValue > 0
+      ).map(inv => ({
+        id: inv.id,
+        company: inv.name || inv.code || 'Unknown',
+        valuation: inv.investmentMarketValue || 0
+      }))
 
-        return { companies }
-      } catch (error) {
-        throw error
-      }
+      return { companies }
     },
     [graphqlClient]
   )

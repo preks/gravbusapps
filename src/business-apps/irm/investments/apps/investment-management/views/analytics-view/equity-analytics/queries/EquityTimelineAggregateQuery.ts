@@ -120,62 +120,58 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
 
   const fetchTimelineAggregate = useCallback(
     async (yearsCount: number = 5, currency?: string): Promise<TimelineAggregateResult> => {
-      try {
-        // Step 1: Fetch distinct investment types
-        const investmentTypesResult = await graphqlClient.request<{
-          Investment: Array<{
-            investmentTypeRef: string
-            investmentType: { value: string } | null
-          }>
-        }>(GET_DISTINCT_INVESTMENT_TYPES_QUERY)
+      // Step 1: Fetch distinct investment types
+      const investmentTypesResult = await graphqlClient.request<{
+        Investment: Array<{
+          investmentTypeRef: string
+          investmentType: { value: string } | null
+        }>
+      }>(GET_DISTINCT_INVESTMENT_TYPES_QUERY)
 
-        const investmentTypes: InvestmentTypeInfo[] = investmentTypesResult.Investment.filter(
-          inv => inv.investmentType?.value && inv.investmentTypeRef
-        ).map(inv => ({
-          investmentTypeRef: inv.investmentTypeRef,
-          investmentTypeValue: inv.investmentType!.value
-        }))
+      const investmentTypes: InvestmentTypeInfo[] = investmentTypesResult.Investment.filter(
+        inv => inv.investmentType?.value && inv.investmentTypeRef
+      ).map(inv => ({
+        investmentTypeRef: inv.investmentTypeRef,
+        investmentTypeValue: inv.investmentType!.value
+      }))
 
-        if (investmentTypes.length === 0) {
-          return { yearlyData: [] }
-        }
-
-        // Step 2: Get last N years
-        const years = getLastNYears(yearsCount)
-
-        // Step 3: Build and execute optimized aggregate query
-        const query = BUILD_TIMELINE_AGGREGATE_QUERY(
-          years,
-          investmentTypes.map(t => t.investmentTypeRef),
-          currency
-        )
-
-        const aggregateResult = await graphqlClient.request<Record<string, any>>(query)
-
-        // Step 4: Parse results and build timeline data
-        const yearlyData: TimelineYearData[] = []
-
-        years.forEach(year => {
-          investmentTypes.forEach(type => {
-            const alias = `year_${year}_type_${type.investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}`
-            const aggregateData = aggregateResult[alias]
-            const totalAmount = aggregateData?.aggregate?.sum?.totalInvestmentAmount || 0
-
-            // Only add if there's data
-            if (totalAmount > 0) {
-              yearlyData.push({
-                year,
-                investmentType: type.investmentTypeValue,
-                totalAmount
-              })
-            }
-          })
-        })
-
-        return { yearlyData }
-      } catch (error) {
-        throw error
+      if (investmentTypes.length === 0) {
+        return { yearlyData: [] }
       }
+
+      // Step 2: Get last N years
+      const years = getLastNYears(yearsCount)
+
+      // Step 3: Build and execute optimized aggregate query
+      const query = BUILD_TIMELINE_AGGREGATE_QUERY(
+        years,
+        investmentTypes.map(t => t.investmentTypeRef),
+        currency
+      )
+
+      const aggregateResult = await graphqlClient.request<Record<string, any>>(query)
+
+      // Step 4: Parse results and build timeline data
+      const yearlyData: TimelineYearData[] = []
+
+      years.forEach(year => {
+        investmentTypes.forEach(type => {
+          const alias = `year_${year}_type_${type.investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}`
+          const aggregateData = aggregateResult[alias]
+          const totalAmount = aggregateData?.aggregate?.sum?.totalInvestmentAmount || 0
+
+          // Only add if there's data
+          if (totalAmount > 0) {
+            yearlyData.push({
+              year,
+              investmentType: type.investmentTypeValue,
+              totalAmount
+            })
+          }
+        })
+      })
+
+      return { yearlyData }
     },
     [graphqlClient]
   )

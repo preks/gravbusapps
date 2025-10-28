@@ -86,42 +86,38 @@ export const useGetEquityStakeTypeCountDistribution = (context: BusinessAppConte
 
   const fetchStakeTypeCountDistribution = useCallback(
     async (currency?: string): Promise<StakeTypeCountDistributionData[]> => {
-      try {
-        // Step 1: Get ALL distinct stake types using shared query
-        const stakeTypesInfo = await fetchDistinctStakeTypes()
+      // Step 1: Get ALL distinct stake types using shared query
+      const stakeTypesInfo = await fetchDistinctStakeTypes()
 
-        if (stakeTypesInfo.length === 0) {
-          return []
-        }
-
-        // Step 2: Get ALL count aggregates in a SINGLE query with aliases
-        const aggregateQuery = BUILD_ALL_STAKE_TYPES_COUNT_QUERY(stakeTypesInfo, currency)
-        const aggregateResult = await graphqlClient.request<AllStakeTypesCountResponse>(aggregateQuery)
-
-        // Helper to create alias (same logic as in query builder)
-        const createAlias = (stakeTypeRef: string) => {
-          return `stakeType_${stakeTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
-        }
-
-        // Step 3: Parse results and map back to stake types
-        const countData: StakeTypeCountDistributionData[] = stakeTypesInfo
-          .map(stakeType => {
-            const countAlias = createAlias(stakeType.stakeTypeRef)
-            const count = aggregateResult[countAlias]?.aggregate?.count || 0
-
-            return {
-              stakeTypeId: stakeType.stakeTypeId,
-              stakeTypeCode: stakeType.stakeTypeCode,
-              stakeTypeValue: stakeType.stakeTypeValue,
-              count
-            }
-          })
-          .sort((a, b) => b.count - a.count)
-
-        return countData
-      } catch (error) {
-        throw error
+      if (stakeTypesInfo.length === 0) {
+        return []
       }
+
+      // Step 2: Get ALL count aggregates in a SINGLE query with aliases
+      const aggregateQuery = BUILD_ALL_STAKE_TYPES_COUNT_QUERY(stakeTypesInfo, currency)
+      const aggregateResult = await graphqlClient.request<AllStakeTypesCountResponse>(aggregateQuery)
+
+      // Helper to create alias (same logic as in query builder)
+      const createAlias = (stakeTypeRef: string) => {
+        return `stakeType_${stakeTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+      }
+
+      // Step 3: Parse results and map back to stake types
+      const countData: StakeTypeCountDistributionData[] = stakeTypesInfo
+        .map(stakeType => {
+          const countAlias = createAlias(stakeType.stakeTypeRef)
+          const count = aggregateResult[countAlias]?.aggregate?.count || 0
+
+          return {
+            stakeTypeId: stakeType.stakeTypeId,
+            stakeTypeCode: stakeType.stakeTypeCode,
+            stakeTypeValue: stakeType.stakeTypeValue,
+            count
+          }
+        })
+        .sort((a, b) => b.count - a.count)
+
+      return countData
     },
     [graphqlClient, fetchDistinctStakeTypes]
   )

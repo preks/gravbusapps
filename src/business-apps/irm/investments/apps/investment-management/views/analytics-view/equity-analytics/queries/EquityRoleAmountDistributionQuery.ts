@@ -85,42 +85,38 @@ export const useGetEquityRoleAmountDistribution = (context: BusinessAppContextPr
 
   const fetchRoleAmountDistribution = useCallback(
     async (currency: string): Promise<RoleAmountDistributionData[]> => {
-      try {
-        // Step 1: Get ALL distinct roles using shared query
-        const rolesInfo = await fetchDistinctRoles()
+      // Step 1: Get ALL distinct roles using shared query
+      const rolesInfo = await fetchDistinctRoles()
 
-        if (rolesInfo.length === 0) {
-          return []
-        }
-
-        // Step 2: Get ALL amount aggregates in a SINGLE query with aliases
-        const aggregateQuery = BUILD_ALL_ROLES_AMOUNT_QUERY(rolesInfo, currency)
-        const aggregateResult = await graphqlClient.request<AllRolesAmountResponse>(aggregateQuery)
-
-        // Helper to create alias (same logic as in query builder)
-        const createAlias = (roleRef: string) => {
-          return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
-        }
-
-        // Step 3: Parse results and map back to roles
-        const amountData: RoleAmountDistributionData[] = rolesInfo
-          .map(role => {
-            const amountAlias = createAlias(role.roleRef)
-            const totalAmount = aggregateResult[amountAlias]?.aggregate?.sum?.totalInvestmentAmount || 0
-
-            return {
-              roleId: role.roleId,
-              roleCode: role.roleCode,
-              roleValue: role.roleValue,
-              totalAmount
-            }
-          })
-          .sort((a, b) => b.totalAmount - a.totalAmount)
-
-        return amountData
-      } catch (error) {
-        throw error
+      if (rolesInfo.length === 0) {
+        return []
       }
+
+      // Step 2: Get ALL amount aggregates in a SINGLE query with aliases
+      const aggregateQuery = BUILD_ALL_ROLES_AMOUNT_QUERY(rolesInfo, currency)
+      const aggregateResult = await graphqlClient.request<AllRolesAmountResponse>(aggregateQuery)
+
+      // Helper to create alias (same logic as in query builder)
+      const createAlias = (roleRef: string) => {
+        return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+      }
+
+      // Step 3: Parse results and map back to roles
+      const amountData: RoleAmountDistributionData[] = rolesInfo
+        .map(role => {
+          const amountAlias = createAlias(role.roleRef)
+          const totalAmount = aggregateResult[amountAlias]?.aggregate?.sum?.totalInvestmentAmount || 0
+
+          return {
+            roleId: role.roleId,
+            roleCode: role.roleCode,
+            roleValue: role.roleValue,
+            totalAmount
+          }
+        })
+        .sort((a, b) => b.totalAmount - a.totalAmount)
+
+      return amountData
     },
     [graphqlClient, fetchDistinctRoles]
   )

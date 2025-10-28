@@ -207,30 +207,26 @@ export const fetchRealEstateTimelineData = async (
   // Get last 5 years including current year
   const years = getLastNYears(5)
 
-  try {
-    if (isTimelineChart) {
-      // Timeline: Fetch count + totalInvestmentAmount
-      const query = BUILD_TIMELINE_QUERY(currency, years, queryName)
+  if (isTimelineChart) {
+    // Timeline: Fetch count + totalInvestmentAmount
+    const query = BUILD_TIMELINE_QUERY(currency, years, queryName)
 
-      const result = await graphqlClient.request(query)
+    const result = await graphqlClient.request(query)
 
-      const timelineData = parseTimelineAggregateResponse(result, years)
-      const performanceData: YearlyPerformanceData[] = []
+    const timelineData = parseTimelineAggregateResponse(result, years)
+    const performanceData: YearlyPerformanceData[] = []
 
-      return { timelineData, performanceData }
-    } else {
-      // Performance: Fetch property values and occupancy rates
-      const query = BUILD_PERFORMANCE_QUERY(currency, years, queryName)
+    return { timelineData, performanceData }
+  } else {
+    // Performance: Fetch property values and occupancy rates
+    const query = BUILD_PERFORMANCE_QUERY(currency, years, queryName)
 
-      const result = await graphqlClient.request(query)
+    const result = await graphqlClient.request(query)
 
-      const performanceData = parsePerformanceAggregateResponse(result, years)
-      const timelineData: YearlyTimelineData[] = []
+    const performanceData = parsePerformanceAggregateResponse(result, years)
+    const timelineData: YearlyTimelineData[] = []
 
-      return { timelineData, performanceData }
-    }
-  } catch (error) {
-    throw error
+    return { timelineData, performanceData }
   }
 }
 
