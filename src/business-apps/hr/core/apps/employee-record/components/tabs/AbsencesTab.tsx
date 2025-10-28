@@ -25,8 +25,16 @@ import AbsenceCalendar from './components/AbsenceCalendar'
 import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
+import { Button, Dialog, DialogContent } from '@newwork/nw-design-system'
+import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
 
-const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEntitlement, accessToken, shownTab }) => {
+const AbsencesTab: React.FC<AbsencesTabProps> = ({
+  employee,
+  employeeAbsenceEntitlement,
+  accessToken,
+  shownTab,
+  userInfo
+}) => {
   const [activeTab, setActiveTab] = useState<string>(shownTab ?? 'calendar')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -35,6 +43,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
   const [currentDate, setCurrentDate] = useState(dayjs())
   const [selectedStartDate, setSelectedStartDate] = useState<dayjs.Dayjs | null>(null)
   const [selectedEndDate, setSelectedEndDate] = useState<dayjs.Dayjs | null>(null)
+  const [isEntitlementsModalOpen, setIsEntitlementsModalOpen] = useState(false)
+  const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
+  const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
 
   const { absenceList, entitlements, loading, error, refetch } = useAbsenceData(
     employee?.id,
@@ -53,6 +64,31 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
     const interval = setInterval(checkLocale, 1000)
     return () => clearInterval(interval)
   }, [currentLocale])
+
+  // Fetch user groups/roles to detect all-hr-backoffice
+  useEffect(() => {
+    const fetchUserGroups = async () => {
+      try {
+        if (!userInfo?.id || !accessToken) return
+        const url = `https://dev.newwork.com/usermanagement/api/v1/users/${userInfo.id}/groups`
+        const res = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        })
+        if (!res.ok) return
+        const json = await res.json()
+        const arr = Array.isArray(json?.data) ? json.data : []
+        const has = arr.some((g: any) => String(g?.name || '').toLowerCase() === 'all-hr-backoffice')
+        setHasHrBackoffice(has)
+      } catch {
+        // ignore errors, default to false
+      } finally {
+        setIsFetchingGroups(false)
+      }
+    }
+    fetchUserGroups()
+  }, [userInfo?.id, accessToken])
 
   const onTabChange = (key: string) => {
     setActiveTab(key)
@@ -184,24 +220,35 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
           </div>
 
           <div>
-            <AppActionMenu
-              data-testid="employee-absence-request-button"
-              contextsArray={[FlowContextName.employeeAbsenceRecord]}
-              externalContextData={{
-                employeeId: employee.id,
-                absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
-                flowType: 'vacation',
-                startDate: selectedStartDate?.format('YYYY-MM-DD'),
-                endDate: selectedEndDate?.format('YYYY-MM-DD')
-              }}
-              prefixDataTestId="employee-absence-request"
-              accessToken={accessToken}
-            >
-              <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
-                <PiPencilSimple className="gba:h-5 gba:w-5" />
-                {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
-              </div>
-            </AppActionMenu>
+            {isFetchingGroups ? null : hasHrBackoffice ? (
+              <Button
+                variant="default"
+                size="sm"
+                data-testid="employee-entitlements-update-button"
+                onClick={() => setIsEntitlementsModalOpen(true)}
+              >
+                {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.add_entitlements', 'Add Entitlement')}
+              </Button>
+            ) : (
+              <AppActionMenu
+                data-testid="employee-absence-request-button"
+                contextsArray={[FlowContextName.employeeAbsenceRecord]}
+                externalContextData={{
+                  employeeId: employee.id,
+                  absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type?.id,
+                  flowType: 'vacation',
+                  startDate: selectedStartDate?.format('YYYY-MM-DD'),
+                  endDate: selectedEndDate?.format('YYYY-MM-DD')
+                }}
+                prefixDataTestId="employee-absence-request"
+                accessToken={accessToken}
+              >
+                <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                  <PiPencilSimple className="gba:h-5 gba:w-5" />
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.request_absence', 'Request Absence')}
+                </div>
+              </AppActionMenu>
+            )}
           </div>
         </div>
       )}
@@ -255,6 +302,18 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({ employee, employeeAbsenceEnti
           </div>
         )}
       </div>
+
+      {/* Entitlements Modal for HR Backoffice */}
+      <Dialog open={isEntitlementsModalOpen} onOpenChange={open => setIsEntitlementsModalOpen(open)}>
+        <DialogContent data-testid="employee-entitlements-update-modal">
+          <UpdateEmployeeEntitlements
+            accessToken={accessToken}
+            additionalData={{ employeeId: employee?.id }}
+            onCancel={() => setIsEntitlementsModalOpen(false)}
+            onSubmit={() => setIsEntitlementsModalOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

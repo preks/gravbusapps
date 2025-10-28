@@ -24,6 +24,7 @@ interface UpdateEntitlementModalProps {
   accessToken: string
   year: number
   onSuccess: () => Promise<void>
+  existingEntitlementTypeIds?: string[]
 }
 
 const normalizeInteger = (value: string): string => {
@@ -42,7 +43,8 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   employeeId,
   accessToken,
   year,
-  onSuccess
+  onSuccess,
+  existingEntitlementTypeIds
 }) => {
   const isFromTable = Boolean(selectedLine && selectedLine.id)
 
@@ -50,6 +52,12 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
   const [total, setTotal] = useState<number>(0)
   const [pending, setPending] = useState<number>(0)
   const [approved, setApproved] = useState<number>(0)
+  const [initialState, setInitialState] = useState<{
+    typeRef: string
+    total: number
+    pending: number
+    approved: number
+  } | null>(null)
 
   const selectTriggerRef = useRef<HTMLButtonElement | null>(null)
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null)
@@ -65,6 +73,12 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     setPending(Number(selectedLine?.pending ?? 0))
     setApproved(Number(selectedLine?.approved ?? 0))
     setTouchedType(false)
+    setInitialState({
+      typeRef: defaultType,
+      total: Number(selectedLine?.total ?? 0),
+      pending: Number(selectedLine?.pending ?? 0),
+      approved: Number(selectedLine?.approved ?? 0)
+    })
   }, [isOpen, selectedLine])
 
   // Manage initial focus when modal opens
@@ -136,7 +150,17 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
     onClose()
   }
 
-  const isSubmitDisabled = !absenceTypeRef || hasAvailableError
+  const hasChangesComparedToInitial = useMemo(() => {
+    if (!initialState) return true
+    return (
+      initialState.typeRef !== absenceTypeRef ||
+      initialState.total !== total ||
+      initialState.pending !== pending ||
+      initialState.approved !== approved
+    )
+  }, [initialState, absenceTypeRef, total, pending, approved])
+
+  const isSubmitDisabled = !absenceTypeRef || hasAvailableError || !hasChangesComparedToInitial
 
   return (
     <div data-testid="hcm_createHrAbsence_mainContainer" className="gba:flex gba:flex-col gba:gap-4">
@@ -168,15 +192,22 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
                 )}
               />
             </SelectTrigger>
-            {absenceTypes?.length > 0 && (
-              <SelectContent>
-                {absenceTypes.map(item => (
-                  <SelectItem key={item.id} value={item.id} data-testid={`absence-type-option-${item.id}`}>
-                    {getCatalogValue(item)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            )}
+            {(() => {
+              const selectableTypes = (() => {
+                if (!!selectedLine?.type?.id) return absenceTypes || []
+                const existingIds = new Set((existingEntitlementTypeIds || []).filter(Boolean))
+                return (absenceTypes || []).filter(item => !existingIds.has(item.id))
+              })()
+              return selectableTypes.length > 0 ? (
+                <SelectContent>
+                  {selectableTypes.map(item => (
+                    <SelectItem key={item.id} value={item.id} data-testid={`absence-type-option-${item.id}`}>
+                      {getCatalogValue(item)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              ) : null
+            })()}
           </Select>
         </div>
         {typeError && (

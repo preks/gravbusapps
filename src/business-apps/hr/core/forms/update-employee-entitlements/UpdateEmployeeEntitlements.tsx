@@ -6,8 +6,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UpdateEmployeeEntitlementsProvider } from './context/UpdateEmployeeEntitlementsContext'
 import UpdateEmployeeEntitlementsForm from './components/UpdateEmployeeEntitlementsForm'
 
-export const UpdateEmployeeEntitlements: React.FC<BusinessAppContextProps> = props => {
-  const { accessToken, additionalData, userInfo } = props
+export const UpdateEmployeeEntitlements: React.FC<
+  BusinessAppContextProps & { onSubmit?: () => void | Promise<void>; onCancel?: () => void | Promise<void> }
+> = props => {
+  const { accessToken, additionalData, userInfo, onSubmit, onCancel } = props
   const employeeId = useMemo(() => {
     return (
       additionalData?.employeeId ||
@@ -24,12 +26,12 @@ export const UpdateEmployeeEntitlements: React.FC<BusinessAppContextProps> = pro
 
   return (
     <div
-      className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0"
+      className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0"
       data-testid="mileageRuleModal_containerCreateMileageRule"
     >
       <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
       <UpdateEmployeeEntitlementsProvider accessToken={accessToken} userInfo={userInfo} employeeId={employeeId}>
-        <UpdateEmployeeEntitlementsForm />
+        <UpdateEmployeeEntitlementsForm onSubmit={onSubmit} onCancel={onCancel} />
       </UpdateEmployeeEntitlementsProvider>
     </div>
   )

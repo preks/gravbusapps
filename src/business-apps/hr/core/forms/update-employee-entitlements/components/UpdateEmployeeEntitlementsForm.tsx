@@ -18,13 +18,20 @@ import {
   TableRow,
   Button,
   Dialog,
-  DialogContent
+  DialogContent,
+  DialogTitle,
+  Spinner
 } from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
 
 type UpdateEmployeeEntitlementsFormValues = Record<string, unknown>
 
-const UpdateEmployeeEntitlementsForm: React.FC = () => {
+interface UpdateEmployeeEntitlementsFormProps {
+  onSubmit?: () => void | Promise<void>
+  onCancel?: () => void | Promise<void>
+}
+
+const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormProps> = ({ onSubmit, onCancel }) => {
   const {
     employees,
     selectedEmployeeId,
@@ -87,6 +94,17 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
   const currentItems = (entitlements || []).slice((page - 1) * pageSize, page * pageSize)
 
+  // Until data is loaded from the query, render only a loading state (no fields)
+  if (loading) {
+    return (
+      <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
+        <div className="gba:flex gba:flex-1 gba:min-h-[300px] gba:items-center gba:justify-center">
+          <Spinner size="lg" data-testid="update-employee-entitlements-loading" />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[400px] gba:p-0 gba:[&>div[data-testid='update-employee-entitlements-form']]:!pt-0">
       <AppActionForm
@@ -95,14 +113,7 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
         formData={{}}
         submitEventType="pse_save"
         cancelEventType="pse_abort"
-        submitButtonTestId="mileageRuleModal_btnSave"
-        cancelButtonTestId="mileageRuleModal_btnDiscard"
-        submitButtonText={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
-          'Update'
-        )}
-        cancelButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.cancel', 'Cancel')}
-        isSubmitDisabled={isEmployeeSelectionMissing}
+        disableFormSubmission
         data-testid="update-employee-entitlements-form"
         onSubmit={async () => ({ event: 'pse_save' })}
       >
@@ -335,6 +346,12 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
               }}
             >
               <DialogContent data-testid="mileageRuleModal_modalExpenses">
+                <DialogTitle className="gba:sr-only">
+                  {getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:entitlements.update_entitlements',
+                    'Update Entitlements'
+                  )}
+                </DialogTitle>
                 <UpdateEntitlementModal
                   isOpen={isModalOpen}
                   onClose={() => setIsModalOpen(false)}
@@ -343,6 +360,7 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
                   employeeId={effectiveValue}
                   accessToken={accessToken}
                   year={currentYear}
+                  existingEntitlementTypeIds={(entitlements || []).map((e: any) => e?.type?.id).filter(Boolean)}
                   onSuccess={async () => {
                     await reload()
                   }}
@@ -350,6 +368,36 @@ const UpdateEmployeeEntitlementsForm: React.FC = () => {
               </DialogContent>
             </Dialog>
           </div>
+        </div>
+        {/* Custom Actions to mirror UpdateEntitlementModal */}
+        <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-6">
+          <Button
+            variant="secondary"
+            data-testid="hcm_createHrAbsence_cancelButton"
+            onClick={() => {
+              if (onCancel) {
+                void Promise.resolve(onCancel())
+              }
+            }}
+          >
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.cancel', 'Cancel')}
+          </Button>
+          <Button
+            variant="default"
+            data-testid="hcm_createHrAbsence_submitButton"
+            disabled={isEmployeeSelectionMissing}
+            onClick={() => {
+              if (isEmployeeSelectionMissing) return
+              if (onSubmit) {
+                void Promise.resolve(onSubmit())
+              }
+            }}
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.btn_update',
+              'Update'
+            )}
+          </Button>
         </div>
       </AppActionForm>
     </div>
