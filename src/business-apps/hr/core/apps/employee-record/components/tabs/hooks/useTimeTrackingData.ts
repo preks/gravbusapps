@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { employeeAttendanceMonthlyQuery } from '@/business-apps/hr/core/apps/employee-record/queries/attendanceQueries'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { EmployeeTimeClient } from '@/common/network/employee-time/EmployeeTimeClient'
 
 export type TimeEntry = {
   id: string
+  version?: number
   // clockin table fields
   attendanceDateISO: string // LocalDate formatted as ISO string for UI
   startTimeISO?: string // Instant
@@ -24,12 +29,22 @@ export type TimeEntry = {
 
 export type SortDirection = 'asc' | 'desc'
 
-export interface UseTimeTrackingDataOptions {
+export interface UseTimeTrackingDataOptions extends Pick<BusinessAppContextProps, 'accessToken'> {
   employeeId: string
+  workingHours?: {
+    sundayHours?: number
+    mondayHours?: number
+    tuesdayHours?: number
+    wednesdayHours?: number
+    thursdayHours?: number
+    fridayHours?: number
+    saturdayHours?: number
+  }
 }
 
-export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) => {
+export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: UseTimeTrackingDataOptions) => {
   const locale = getCurrentActiveUserLocale()
+  const graphqlClient = useGraphQLClient(accessToken)
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     const d = new Date()
@@ -41,7 +56,7 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
   const [error, setError] = useState<string | null>(null)
 
   // Search removed per requirements
-  const [sortKey, setSortKey] = useState<keyof TimeEntry>('attendanceDateISO')
+  const [sortKey, setSortKey] = useState<keyof TimeEntry>('startTimeISO')
   const [sortDir, setSortDir] = useState<SortDirection>('desc')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -69,134 +84,193 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
     return h * 60 + m
   }
 
-  const loadMock = useCallback(async () => {
+  const formatMinutes = (minutes: number): string => {
+    const sign = minutes < 0 ? '-' : ''
+    const abs = Math.abs(minutes)
+    const h = Math.floor(abs / 60)
+    const m = abs % 60
+    if (m === 0) return `${sign}${h}h`
+    return `${sign}${h}h ${m}m`
+  }
+
+  const getPlannedMinutesForDate = (dateIso: string): number => {
+    if (!workingHours) return 0
+    const d = new Date(dateIso)
+    const day = d.getDay() // 0..6
+    const hoursByDay = [
+      workingHours.sundayHours,
+      workingHours.mondayHours,
+      workingHours.tuesdayHours,
+      workingHours.wednesdayHours,
+      workingHours.thursdayHours,
+      workingHours.fridayHours,
+      workingHours.saturdayHours
+    ]
+    const hours = hoursByDay[day] ?? 0
+    return typeof hours === 'number' ? Math.max(0, Math.round(hours * 60)) : 0
+  }
+
+  const toDateString = (d: Date) => d.toISOString().slice(0, 10)
+
+  const mapAttendanceToEntry = (row: any): TimeEntry => {
+    // GraphQL returns ISO values already; ensure strings
+    const startIso = row.startTime ? String(row.startTime) : undefined
+    const endIso = row.endTime ? String(row.endTime) : undefined
+    // Effective, planned, difference, break are returned as strings, keep them
+    const totalMinutes = parseDurationToMinutes(row.effectiveTime)
+    return {
+      id: row.id,
+      version: row.version,
+      attendanceDateISO: new Date(row.attendanceDate).toISOString(),
+      startTimeISO: startIso,
+      endTimeISO: endIso,
+      recordedTime: row.recordedTime,
+      breakTime: row.breakTime,
+      effectiveTime: row.effectiveTime,
+      plannedTime: row.plannedTime,
+      differenceTime: row.differenceTime,
+      manualOverride: Boolean(row.manualOverride),
+      notes: row.notes ?? '',
+      status: 'approved',
+      totalMinutes
+    }
+  }
+
+  const loadFromGraphql = useCallback(async () => {
     setError(null)
-    await new Promise(r => setTimeout(r, 120))
+    const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+    const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+    const variables = {
+      employeeId,
+      dateFrom: toDateString(monthStart),
+      dateTo: toDateString(monthEnd),
+      limit: pageSize,
+      offset: (page - 1) * pageSize
+    }
 
-    const base = new Date(currentMonth)
-    const list: TimeEntry[] = Array.from({ length: 22 }).map((_, i) => {
-      const d = new Date(base.getFullYear(), base.getMonth(), i + 1)
-      const id = `${d.toISOString().slice(0, 10)}-${i}`
-      const isWeekend = d.getDay() === 0 || d.getDay() === 6
-      if (isWeekend) {
-        return {
-          id,
-          attendanceDateISO: d.toISOString(),
-          status: 'approved',
-          notes: 'Weekend',
-          recordedTime: '0h',
-          breakTime: '0h',
-          effectiveTime: '0h',
-          plannedTime: '0h',
-          differenceTime: '0h',
-          manualOverride: false,
-          totalMinutes: 0
-        }
-      }
-      const startTimeISO = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0).toISOString()
-      const endTimeISO = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 17, 0).toISOString()
-      const recordedTime = '8h'
-      const breakTime = '0h 30m'
-      const effectiveTime = '7h 30m'
-      const plannedTime = '8h'
-      const differenceTime = '-30m'
-      const totalMinutes = parseDurationToMinutes(effectiveTime)
-      return {
-        id,
-        attendanceDateISO: d.toISOString(),
-        startTimeISO,
-        endTimeISO,
-        recordedTime,
-        breakTime,
-        effectiveTime,
-        plannedTime,
-        differenceTime,
-        manualOverride: false,
-        notes: '',
-        status: 'approved',
-        totalMinutes
-      }
-    })
-
-    // Persist as the base dataset for the selected month (no search filtering)
+    const result = await graphqlClient.request<any>(employeeAttendanceMonthlyQuery, variables)
+    const rows = result?.EmployeeAttendance ?? []
+    const list: TimeEntry[] = rows.map(mapAttendanceToEntry)
     setAllEntries(list)
-  }, [currentMonth, locale, employeeId])
+    const count = result?.EmployeeAttendance_aggregate?.aggregate?.count ?? list.length
+    setTotalCount(count)
+
+    // derive open state from most recent row (ordered by startTime desc)
+    const mostRecent = rows[0]
+    const open = Boolean(mostRecent?.startTime) && !mostRecent?.endTime
+    setIsClockedIn(open)
+    setClockInSince(
+      open && mostRecent?.startTime
+        ? new Date(mostRecent.startTime).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+        : null
+    )
+  }, [graphqlClient, employeeId, currentMonth, page, pageSize, locale])
 
   useEffect(() => {
-    loadMock().catch(() => setError('Failed to load time entries'))
-  }, [loadMock])
+    loadFromGraphql().catch(() => setError('Failed to load time entries'))
+  }, [loadFromGraphql])
 
   const clockIn = useCallback(async () => {
     setError(null)
     setIsSubmitting(true)
-    const now = new Date()
-    const todayKey = now.toISOString().slice(0, 10)
-    const hasClockInToday = allEntries.some(e => {
-      const key = new Date(e.attendanceDateISO).toISOString().slice(0, 10)
-      return key === todayKey && Boolean(e.startTimeISO)
-    })
-    if (hasClockInToday) {
-      setIsSubmitting(false)
-      setError('You cannot clock in more than once on the same day.')
-      return
-    }
-    await new Promise(r => setTimeout(r, 200))
-    setIsClockedIn(true)
-    setClockInSince(now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))
-    setIsSubmitting(false)
-    // Add an open entry for now (only if within visible month)
-    const sameMonth = now.getFullYear() === currentMonth.getFullYear() && now.getMonth() === currentMonth.getMonth()
-    if (sameMonth) {
-      const id = `manual-${now.toISOString()}`
-      const newEntry: TimeEntry = {
-        id,
-        attendanceDateISO: now.toISOString(),
-        startTimeISO: now.toISOString(),
-        status: 'open',
-        recordedTime: '0h',
-        breakTime: '0h',
-        effectiveTime: '0h',
-        plannedTime: '8h',
-        differenceTime: '0h',
-        manualOverride: true,
-        totalMinutes: 0,
-        notes: 'Clocked in'
+    try {
+      const now = new Date()
+      const today = now.toISOString().slice(0, 10)
+      const isoNow = now.toISOString()
+
+      // Prevent duplicate clock-in if there's an open or already closed entry for today
+      const hasOpenToday = allEntries.some(e => toDateString(new Date(e.attendanceDateISO)) === today && !e.endTimeISO)
+      const hasClosedToday = allEntries.some(
+        e => toDateString(new Date(e.attendanceDateISO)) === today && Boolean(e.endTimeISO)
+      )
+      if (isClockedIn || hasOpenToday || hasClosedToday) {
+        setIsSubmitting(false)
+        setError(
+          hasOpenToday ? 'You already have an open clock-in today.' : 'You already recorded attendance for today.'
+        )
+        return
       }
-      setAllEntries(prev => [newEntry, ...prev])
+
+      const client = new EmployeeTimeClient()
+      if (accessToken) client.setAccessToken(accessToken)
+
+      await client.createEmployeeAttendance({
+        employeeAttendance: {
+          version: 0,
+          employeeAttendanceTypeRef: 'EmployeeAttendanceType:v1:WORKING_DAY',
+          attendanceDate: today,
+          startTime: isoNow,
+          recordedTime: '0h',
+          breakTime: '0h',
+          effectiveTime: '0h',
+          plannedTime: '8h',
+          differenceTime: '0h',
+          manualOverride: false,
+          notes: 'Clock-in',
+          employee: employeeId
+        }
+      })
+
+      setIsClockedIn(true)
+      setClockInSince(now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }))
+
+      // Refresh current page
+      await loadFromGraphql()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Clock-in failed')
+    } finally {
+      setIsSubmitting(false)
     }
-  }, [locale])
+  }, [accessToken, employeeId, locale, loadFromGraphql])
 
   const clockOut = useCallback(async () => {
     setIsSubmitting(true)
-    await new Promise(r => setTimeout(r, 200))
-    setIsClockedIn(false)
-    setClockInSince(null)
-    setIsSubmitting(false)
-    // Close the latest open entry and compute totals
-    setAllEntries(prev => {
+    try {
       const now = new Date()
-      const openIndex = prev.findIndex(e => e.status === 'open' && !e.endTimeISO)
-      if (openIndex === -1) {
-        return prev
+      const isoNow = now.toISOString()
+
+      // Most recent record is first; must be open (no endTime)
+      const mostRecent = allEntries[0]
+      if (!mostRecent || mostRecent.endTimeISO) {
+        setIsSubmitting(false)
+        return
       }
-      const open = prev[openIndex]
-      const startDate = new Date(open.startTimeISO || now)
-      const minutes = Math.max(0, Math.round((now.getTime() - startDate.getTime()) / 60000))
-      const effectiveTime = `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ''}`
-      const updated: TimeEntry = {
-        ...open,
-        endTimeISO: now.toISOString(),
-        recordedTime: `${Math.floor((now.getTime() - startDate.getTime()) / 3600000)}h`,
-        effectiveTime,
-        differenceTime: '0h',
-        totalMinutes: minutes,
-        status: 'approved'
-      }
-      const copy = [...prev]
-      copy[openIndex] = updated
-      return copy
-    })
-  }, [locale])
+
+      const client = new EmployeeTimeClient()
+      if (accessToken) client.setAccessToken(accessToken)
+
+      const start = new Date(mostRecent.startTimeISO as string)
+      const recordedMs = Math.max(0, now.getTime() - start.getTime())
+      const recordedMinutes = Math.max(0, Math.round(recordedMs / 60000))
+      const plannedMinutes = getPlannedMinutesForDate(mostRecent.attendanceDateISO)
+      // parse existing break time on the record if present
+      const breakMinutes = parseDurationToMinutes(mostRecent.breakTime)
+      const effectiveMinutes = recordedMinutes + breakMinutes
+      const diffMs = effectiveMinutes * 60000 - plannedMinutes * 60000
+      const diffMinutes = diffMs === 0 ? 0 : Math.sign(diffMs) * Math.ceil(Math.abs(diffMs) / 60000)
+
+      await client.updateEmployeeAttendance({
+        employeeAttendance: {
+          id: mostRecent.id,
+          version: typeof mostRecent.version === 'number' ? mostRecent.version : 0,
+          endTime: isoNow,
+          recordedTime: formatMinutes(recordedMinutes),
+          effectiveTime: formatMinutes(effectiveMinutes),
+          plannedTime: formatMinutes(plannedMinutes),
+          differenceTime: formatMinutes(diffMinutes),
+          notes: 'Clock-out'
+        }
+      })
+
+      setIsClockedIn(false)
+      setClockInSince(null)
+      await loadFromGraphql()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Clock-out failed')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [accessToken, allEntries, loadFromGraphql])
 
   // Derive displayed entries from allEntries + controls
   useEffect(() => {
@@ -206,11 +280,9 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
       const cmp = String(va ?? '').localeCompare(String(vb ?? ''))
       return sortDir === 'asc' ? cmp : -cmp
     })
-    // No search filtering
-    setTotalCount(sorted.length)
-    const startIdx = (page - 1) * pageSize
-    setEntries(sorted.slice(startIdx, startIdx + pageSize))
-  }, [allEntries, sortKey, sortDir, page, pageSize, locale])
+    // Server-side pagination used; just set received page
+    setEntries(sorted)
+  }, [allEntries, sortKey, sortDir, locale])
 
   const paginationInfo = useMemo(() => {
     const start = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
@@ -238,7 +310,7 @@ export const useTimeTrackingData = ({ employeeId }: UseTimeTrackingDataOptions) 
       setSortKey(key)
       setSortDir(dir)
     },
-    setPage,
+    setPage: (p: number) => setPage(p),
     setPageSize: (s: number) => {
       setPage(1)
       setPageSize(s)

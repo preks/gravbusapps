@@ -27,11 +27,16 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
     isSubmitting,
     error,
     entries,
+    totalCount,
+    page,
+    pageSize,
     prevMonth,
     nextMonth,
+    setPage,
+    setPageSize,
     clockIn,
     clockOut
-  } = useTimeTrackingData({ employeeId })
+  } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
 
   // Build daily working-hour requirements (minutes) from employee working hours
   const dailyRequirementsMins: number[] = React.useMemo(() => {
@@ -168,11 +173,11 @@ const TimeTrackingTab: React.FC<TimeTrackingTabProps> = ({ employee, accessToken
         <TimeEntriesTable
           entries={entries}
           locale={locale}
-          page={1}
-          pageSize={10}
-          totalCount={entries.length}
-          onPageChange={() => {}}
-          onPageSizeChange={() => {}}
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
         />
       </Card>
 
