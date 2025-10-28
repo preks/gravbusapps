@@ -393,7 +393,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
   const activityActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createInvestmentActivity],
+      contextsArray: [FlowContextName.investmentCreateActivity],
       externalContextData: {
         opportunityId,
         opportunity: opportunityId,

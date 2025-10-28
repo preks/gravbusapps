@@ -381,7 +381,7 @@ export const OpportunityView: React.FC<OpportunityViewProps> = context => {
               },
               actions: (
                 <AppAction
-                  contextsArray={[FlowContextName.createInvestmentOpportunity]}
+                  contextsArray={[FlowContextName.investmentCreateOpportunity]}
                   accessToken={accessToken}
                   data-testid="add-opportunity-action"
                   emptyStateBehavior="hide"
