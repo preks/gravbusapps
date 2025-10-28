@@ -35,6 +35,69 @@ const CHART_COLORS = [
   '#ffa500'
 ]
 
+// Helper function to calculate timeline data for equity investments
+function calculateTimelineData(investments: EquityInvestmentSummary[]) {
+  const currentYear = dayjs().year()
+  const startYear = currentYear - 4
+  const years = Array.from({ length: 5 }, (_, i) => (startYear + i).toString())
+
+  // Collect all unique investment types
+  const investmentTypes = new Set<string>()
+  for (const equity of investments) {
+    const type = equity.investment.investmentType?.value || 'Unknown'
+    investmentTypes.add(type)
+  }
+
+  // Initialize data structure with all years
+  const yearlyData = years.map(year => {
+    const entry: any = { year, total: 0 }
+    for (const type of investmentTypes) {
+      entry[type] = 0
+    }
+    return entry
+  })
+
+  // Group investments by year and type
+  for (const equity of investments.filter(equity => equity.investment.acquisitionDate)) {
+    const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
+    const type = equity.investment.investmentType?.value || 'Unknown'
+    const amount = equity.investment.totalInvestmentAmount || 0
+
+    if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
+      const yearEntry = yearlyData.find(item => item.year === year)
+      if (yearEntry) {
+        yearEntry[type] = (yearEntry[type] || 0) + amount
+        yearEntry.total = (yearEntry.total || 0) + amount
+      }
+    }
+  }
+
+  // Calculate YoY change for each year
+  yearlyData.forEach((entry, index) => {
+    if (index === 0) {
+      entry.yoyLabel = '0%'
+      return
+    }
+
+    const currentTotal = entry.total || 0
+    const previousTotal = yearlyData[index - 1].total || 0
+
+    if (previousTotal > 0) {
+      const yoyChange = ((currentTotal - previousTotal) / previousTotal) * 100
+      entry.yoyLabel = `${yoyChange >= 0 ? '+' : ''}${yoyChange.toFixed(1)}%`
+    } else if (currentTotal > 0) {
+      entry.yoyLabel = '+100%'
+    } else {
+      entry.yoyLabel = '0%'
+    }
+  })
+
+  return {
+    data: yearlyData,
+    types: Array.from(investmentTypes)
+  }
+}
+
 interface EquityTimelineChartsProps {
   rawInvestments: EquityInvestmentSummary[]
   masterCurrency: string
@@ -108,66 +171,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
   const filteredEquityTimelineData = useMemo(() => {
     // Filter investments by selected currency
     const currencyFilteredInvestments = rawInvestments.filter(equity => equity.currencyCode === timelineCurrency)
-
-    // Calculate the last 5 years
-    const currentYear = dayjs().year()
-    const startYear = currentYear - 4
-    const years = Array.from({ length: 5 }, (_, i) => (startYear + i).toString())
-
-    // Collect all unique investment types
-    const investmentTypes = new Set<string>()
-    for (const equity of currencyFilteredInvestments) {
-      const type = equity.investment.investmentType?.value || 'Unknown'
-      investmentTypes.add(type)
-    }
-
-    // Initialize data structure with all years
-    const yearlyData = years.map(year => {
-      const entry: any = { year, total: 0 }
-      for (const type of investmentTypes) {
-        entry[type] = 0
-      }
-      return entry
-    })
-
-    // Group investments by year and type
-    for (const equity of currencyFilteredInvestments.filter(equity => equity.investment.acquisitionDate)) {
-      const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
-      const type = equity.investment.investmentType?.value || 'Unknown'
-      const amount = equity.investment.totalInvestmentAmount || 0
-
-      if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
-        const yearEntry = yearlyData.find(item => item.year === year)
-        if (yearEntry) {
-          yearEntry[type] = (yearEntry[type] || 0) + amount
-          yearEntry.total = (yearEntry.total || 0) + amount
-        }
-      }
-    }
-
-    // Calculate YoY change for each year
-    for (let index = 0; index < yearlyData.length; index++) {
-      const entry = yearlyData[index]
-      if (index > 0) {
-        const currentTotal = entry.total || 0
-        const previousTotal = yearlyData[index - 1].total || 0
-        if (previousTotal > 0) {
-          const yoyChange = ((currentTotal - previousTotal) / previousTotal) * 100
-          entry.yoyLabel = `${yoyChange >= 0 ? '+' : ''}${yoyChange.toFixed(1)}%`
-        } else if (currentTotal > 0) {
-          entry.yoyLabel = '+100%'
-        } else {
-          entry.yoyLabel = '0%'
-        }
-      } else {
-        entry.yoyLabel = '0%'
-      }
-    }
-
-    return {
-      data: yearlyData,
-      types: Array.from(investmentTypes)
-    }
+    return calculateTimelineData(currencyFilteredInvestments)
   }, [rawInvestments, timelineCurrency])
 
   // Recalculate top companies data based on selected currency

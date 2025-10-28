@@ -80,23 +80,24 @@ export const useEquityTimelineAggregate = (
       })
 
       // Calculate YoY change for each year
-      for (let index = 0; index < chartData.length; index++) {
-        const entry = chartData[index]
-        if (index > 0) {
-          const currentTotal = entry.total || 0
-          const previousTotal = chartData[index - 1].total || 0
-          if (previousTotal > 0) {
-            const yoyChange = ((currentTotal - previousTotal) / previousTotal) * 100
-            entry.yoyLabel = `${yoyChange >= 0 ? '+' : ''}${yoyChange.toFixed(1)}%`
-          } else if (currentTotal > 0) {
-            entry.yoyLabel = '+100%'
-          } else {
-            entry.yoyLabel = '0%'
-          }
+      chartData.forEach((entry, index) => {
+        if (index === 0) {
+          entry.yoyLabel = '0%'
+          return
+        }
+
+        const currentTotal = entry.total || 0
+        const previousTotal = chartData[index - 1].total || 0
+
+        if (previousTotal > 0) {
+          const yoyChange = ((currentTotal - previousTotal) / previousTotal) * 100
+          entry.yoyLabel = `${yoyChange >= 0 ? '+' : ''}${yoyChange.toFixed(1)}%`
+        } else if (currentTotal > 0) {
+          entry.yoyLabel = '+100%'
         } else {
           entry.yoyLabel = '0%'
         }
-      }
+      })
 
       setTimelineData(chartData)
     } catch (err) {

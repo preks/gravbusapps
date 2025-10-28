@@ -207,9 +207,9 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   dataKey="value"
                   nameKey="name"
                 >
-                  {filteredTypeCountData.map((entry: any, index: number) => {
+                  {filteredTypeCountData.map((entry: any) => {
                     const key = entry.type.toLowerCase().replaceAll(/\s+/g, '')
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
                 <ChartTooltip
@@ -294,9 +294,9 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   dataKey="value"
                   nameKey="name"
                 >
-                  {filteredTypeData.map((entry: any, index: number) => {
+                  {filteredTypeData.map((entry: any) => {
                     const key = entry.type.toLowerCase().replaceAll(/\s+/g, '')
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
                 <ChartTooltip
@@ -386,9 +386,9 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   dataKey="value"
                   nameKey="name"
                 >
-                  {filteredStatusCountData.map((entry: any, index: number) => {
+                  {filteredStatusCountData.map((entry: any) => {
                     const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
                 <ChartTooltip content={renderStatusCountTooltip} />
@@ -449,9 +449,9 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   dataKey="value"
                   nameKey="name"
                 >
-                  {filteredStatusData.map((entry: any, index: number) => {
+                  {filteredStatusData.map((entry: any) => {
                     const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
                 <ChartTooltip

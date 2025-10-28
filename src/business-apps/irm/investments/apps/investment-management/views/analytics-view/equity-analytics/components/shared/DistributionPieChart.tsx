@@ -112,9 +112,9 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
               dataKey="value"
               nameKey="name"
             >
-              {data.map((entry: any, index: number) => {
+              {data.map((entry: any) => {
                 const key = entry.type.toLowerCase().replaceAll(/\s+/g, '')
-                return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
               })}
             </Pie>
             <ChartTooltip

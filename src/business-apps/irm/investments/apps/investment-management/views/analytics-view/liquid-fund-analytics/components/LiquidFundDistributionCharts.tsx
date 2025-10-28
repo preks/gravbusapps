@@ -212,8 +212,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                       dataKey="count"
                       nameKey="name"
                     >
-                      {investmentTypeCountData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                      {investmentTypeCountData.map((entry: any) => (
+                        <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
                     <ChartTooltip
@@ -301,8 +301,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                       dataKey="totalAmount"
                       nameKey="name"
                     >
-                      {investmentTypeAmountData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                      {investmentTypeAmountData.map((entry: any) => (
+                        <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
                     <ChartTooltip
@@ -398,8 +398,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                       dataKey="count"
                       nameKey="name"
                     >
-                      {liquidFundTypeCountData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                      {liquidFundTypeCountData.map((entry: any) => (
+                        <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
                     <ChartTooltip
@@ -487,8 +487,8 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                       dataKey="totalAmount"
                       nameKey="name"
                     >
-                      {liquidFundTypeAmountData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={`var(--color-${entry.name})`} />
+                      {liquidFundTypeAmountData.map((entry: any) => (
+                        <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
                     <ChartTooltip

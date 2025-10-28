@@ -113,9 +113,9 @@ export const InvestmentSizeChart: React.FC<InvestmentSizeChartProps> = ({
                   dataKey="value"
                   nameKey="name"
                 >
-                  {data.map((_entry: any, index: number) => {
+                  {data.map((entry: any, index: number) => {
                     const key = `range${index}`
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    return <Cell key={`cell-${entry.type}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
                 <ChartTooltip
@@ -243,9 +243,9 @@ export const InvestmentDurationChart: React.FC<InvestmentDurationChartProps> = (
                   dataKey="value"
                   nameKey="name"
                 >
-                  {data.map((_entry: any, index: number) => {
+                  {data.map((entry: any, index: number) => {
                     const key = `duration${index}`
-                    return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                    return <Cell key={`cell-${entry.type}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
                 <ChartTooltip

@@ -222,9 +222,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       dataKey="value"
                       nameKey="name"
                     >
-                      {groupCountData.map((entry: any, index: number) => {
+                      {groupCountData.map((entry: any) => {
                         const key = entry.group.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
                     <ChartTooltip
@@ -323,9 +323,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       dataKey="value"
                       nameKey="name"
                     >
-                      {groupAmountData.map((entry: any, index: number) => {
+                      {groupAmountData.map((entry: any) => {
                         const key = entry.group.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
                     <ChartTooltip
@@ -432,9 +432,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       dataKey="value"
                       nameKey="name"
                     >
-                      {statusCountData.map((entry: any, index: number) => {
+                      {statusCountData.map((entry: any) => {
                         const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
                     <ChartTooltip
@@ -533,9 +533,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       dataKey="value"
                       nameKey="name"
                     >
-                      {statusAmountData.map((entry: any, index: number) => {
+                      {statusAmountData.map((entry: any) => {
                         const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
                     <ChartTooltip
@@ -631,9 +631,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       dataKey="value"
                       nameKey="name"
                     >
-                      {currencyCountData.map((entry: any, index: number) => {
+                      {currencyCountData.map((entry: any) => {
                         const key = entry.currency.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
                     <ChartTooltip
@@ -724,9 +724,9 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       dataKey="value"
                       nameKey="name"
                     >
-                      {currencyAmountData.map((entry: any, index: number) => {
+                      {currencyAmountData.map((entry: any) => {
                         const key = entry.currency.toLowerCase().replaceAll(/\s+/g, '')
-                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                        return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
                     <ChartTooltip

@@ -58,7 +58,8 @@ function formatTimeUnit(value: number, unit: string, format: 'short' | 'long', s
   if (format === 'short') {
     return `${value}${shortForm}`
   }
-  return `${value} ${value === 1 ? unit : `${unit}s`}`
+  const unitText = value === 1 ? unit : `${unit}s`
+  return `${value} ${unitText}`
 }
 
 /**

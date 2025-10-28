@@ -2,6 +2,23 @@ import { useMemo } from 'react'
 import dayjs from 'dayjs'
 import { EquityInvestmentSummary } from '../../shared/types'
 
+// Helper function to calculate YoY change
+function calculateYoyChange(currentTotal: number, previousTotal: number): { yoyChange: number; yoyLabel: string } {
+  if (previousTotal === 0) {
+    // Avoid division by zero
+    return {
+      yoyChange: currentTotal > 0 ? 100 : 0,
+      yoyLabel: currentTotal > 0 ? '+100%' : '0%'
+    }
+  }
+  const change = ((currentTotal - previousTotal) / previousTotal) * 100
+  const sign = change > 0 ? '+' : ''
+  return {
+    yoyChange: change,
+    yoyLabel: `${sign}${change.toFixed(1)}%`
+  }
+}
+
 // Helper function to calculate equity timeline data
 function calculateEquityTimelineData(equityInvestments: EquityInvestmentSummary[]) {
   // Calculate the last 5 years (current year + 4 previous years)
@@ -52,17 +69,9 @@ function calculateEquityTimelineData(equityInvestments: EquityInvestmentSummary[
       entry.yoyChange = null
       entry.yoyLabel = ''
     } else {
-      const previousTotal = yearlyData[index - 1].total
-      if (previousTotal === 0) {
-        // Avoid division by zero
-        entry.yoyChange = entry.total > 0 ? 100 : 0
-        entry.yoyLabel = entry.total > 0 ? '+100%' : '0%'
-      } else {
-        const change = ((entry.total - previousTotal) / previousTotal) * 100
-        entry.yoyChange = change
-        const sign = change > 0 ? '+' : ''
-        entry.yoyLabel = `${sign}${change.toFixed(1)}%`
-      }
+      const { yoyChange, yoyLabel } = calculateYoyChange(entry.total, yearlyData[index - 1].total)
+      entry.yoyChange = yoyChange
+      entry.yoyLabel = yoyLabel
     }
   }
 
