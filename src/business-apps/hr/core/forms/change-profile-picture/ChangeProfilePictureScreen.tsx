@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Spinner, AvatarUpload } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -12,11 +12,11 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 const prefixDataTestId = 'ChangeProfilePictureScreen'
 
 const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true)
   const [currentVersion, setCurrentVersion] = useState<number | null>(null)
-  const [fetchedPicture, setFetchedPicture] = useState<string | null>(null)
+  const [changedFile, setChangedFile] = useState<File | null>(null)
+  const onChangeExecutionsRef = useRef<number>(0)
 
   const currentImageUrl = useMemo(() => {
     const avatar = (additionalData as any)?.psi_taskPayload?.avatarUrl
@@ -39,7 +39,6 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
         if (!cancelled) {
           if (res.thumbnail) {
             setPreviewUrl(res.thumbnail)
-            setFetchedPicture(res.thumbnail)
           }
           if (typeof res.version === 'number') setCurrentVersion(res.version)
         }
@@ -55,28 +54,11 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     }
   }, [userInfo?.employeeDetails?.employeeId, accessToken])
 
-  const handleAvatarChange = (file: File | null) => {
-    if (file?.size === selectedFile?.size) return
-    setSelectedFile(file)
-    if (file) {
-      const reader = new FileReader()
-      setIsImageLoading(true)
-      reader.onload = () => {
-        setPreviewUrl(typeof reader.result === 'string' ? reader.result : null)
-        setIsImageLoading(false)
-      }
-      reader.readAsDataURL(file)
-    } else {
-      setPreviewUrl(null)
-      setIsImageLoading(false)
-    }
-  }
-
   const imageSrc = previewUrl || currentImageUrl || undefined
 
   const validateForm = () => {
     // Require uploading a new file; existing preview/current image is not sufficient
-    const hasNewUpload = Boolean(selectedFile)
+    const hasNewUpload = Boolean(changedFile)
     if (!hasNewUpload) {
       return [
         getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.required', 'Please upload a profile picture.')
@@ -87,20 +69,27 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
 
   const handlePreSubmit = async () => {
     const employeeId = userInfo?.employeeDetails?.employeeId
-    if (!employeeId || !selectedFile) return {}
+    if (!employeeId || !changedFile) return {}
 
     try {
       const pathParams = { accessScope: 'public' } as const
       const appName = 'userProfile'
       const folderPath = `/pics/${employeeId}`
 
-      const uploadResponse = await fileClient.uploadFile(selectedFile, pathParams, { appName, folderPath })
+      const uploadResponse = await fileClient.uploadFile(changedFile, pathParams, { appName, folderPath })
 
-      const thumbnailBase64 = previewUrl
-        ? previewUrl.includes(',')
-          ? previewUrl.split(',').pop() || ''
-          : previewUrl
-        : ''
+      // FileReader result is set asynchronously, so previewPicture will always be null here.
+      // Fix: Return a Promise from handlePreSubmit and resolve after FileReader loads.
+      const thumbnailBase64 = await new Promise<string>(resolve => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = typeof reader.result === 'string' ? reader.result : ''
+          // Extract base64 portion if present (after the comma)
+          const base64 = result.includes(',') ? result.split(',').pop() || '' : result
+          resolve(base64)
+        }
+        reader.readAsDataURL(changedFile)
+      })
 
       const employeePictureChange = {
         id: employeeId,
@@ -134,7 +123,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       // Disable submit until a new file is selected
-      isSubmitDisabled={!selectedFile || imageSrc === fetchedPicture}
+      isSubmitDisabled={!changedFile || onChangeExecutionsRef.current < 2}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       submitButtonTestId="flw_changePicture_btnSubmit"
@@ -192,7 +181,10 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
                   'lowcoder:profile_picture_form.upload',
                   'Upload Picture'
                 )}
-                onChange={handleAvatarChange}
+                onChange={file => {
+                  onChangeExecutionsRef.current += 1
+                  setChangedFile(file)
+                }}
                 data-testid="flw_changePicture_avatarUpload"
                 className="gba:w-full"
                 fallback={
@@ -203,7 +195,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
               />
             )}
           </div>
-          {!selectedFile && !imageSrc && (
+          {!changedFile && (
             <div
               className="gba:text-destructive gba:text-sm gba:mt-2"
               data-testid={formatDataTestId(prefixDataTestId, 'ValidationMessage')}
