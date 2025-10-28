@@ -401,7 +401,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
         if (existingForm && existingForm.id) {
           // Strict LOWCODER form detection → delete and recreate
           if (isLowcoderScreen(existingForm)) {
-            console.log('   🔎 LOWCODER form detected and confirmed – deleting before recreation')
+            console.log('   🔎 LOWCODER form detected - deleting before recreation')
             await deleteScreenInScreenManagement(existingForm.id, target.services.screenManagementApi, oauthConfig)
 
             // Fetch dev screen for namespace
@@ -647,7 +647,7 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
         if (existingScreen && existingScreen.id) {
           // Strict LOWCODER screen detection → delete and recreate
           if (isLowcoderScreen(existingScreen)) {
-            console.log('   🔎 LOWCODER screen detected and confirmed – deleting before recreation')
+            console.log('   🔎 LOWCODER screen detected - deleting before recreation')
             await deleteScreenInScreenManagement(existingScreen.id, target.services.screenManagementApi, oauthConfig)
 
             // Fetch dev screen for namespace

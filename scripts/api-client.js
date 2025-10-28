@@ -921,20 +921,25 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
     if (existingProdScreen) {
       // Strict LOWCODER detection and deletion
       if (isLowcoderScreen(existingProdScreen)) {
-        console.log('   🔎 LOWCODER screen detected and confirmed – deleting before recreation')
+        console.log('   🔎 LOWCODER screen detected - deleting before recreation')
         await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
 
+        // Build minimal creation payload without reusing dev ID to avoid server-side conflicts
         const recreatePayload = {
-          ...devScreen,
-          // Overwrite namespace with source (dev) namespace explicitly
+          name: devScreen.name,
+          screenKey: devScreen.screenKey,
           namespaceId: devScreen.namespaceId,
           namespaceCode: devScreen.namespaceCode,
           namespaceDescription: devScreen.namespaceDescription,
+          type: 'SCREEN',
           screenComponents: {
-            ...devScreen.screenComponents,
+            appName: devScreen.screenComponents?.appName || devScreen.name,
             builderType: 'NATIVE_SCREEN',
+            key: devScreen.screenKey,
+            name: devScreen.name,
+            flowIcon: devScreen.screenComponents?.flowIcon || '',
             formDefinition: {
-              ...devScreen.screenComponents.formDefinition,
+              componentPath: devScreen.screenComponents?.formDefinition?.componentPath,
               version: buildVersion
             },
             release: 'true'
@@ -942,6 +947,8 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
         }
 
         try {
+          // short delay to let deletion complete server-side
+          await new Promise(r => setTimeout(r, 300))
           await axios.post(`${prodScreenManagementApi}/screen`, recreatePayload, {
             headers: {
               accept: 'application/json',
@@ -993,7 +1000,25 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
         console.log('   🔁 Update failed due to namespace mismatch → deleting and recreating')
         try {
           await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
-          await axios.post(`${prodScreenManagementApi}/screen`, updateData, {
+          // Create without reusing dev ID or extra metadata
+          const createPayload = {
+            name: updateData.name,
+            screenKey: updateData.screenKey,
+            namespaceId: updateData.namespaceId,
+            namespaceCode: updateData.namespaceCode,
+            namespaceDescription: updateData.namespaceDescription,
+            type: 'SCREEN',
+            screenComponents: {
+              appName: updateData.screenComponents?.appName || updateData.name,
+              builderType: 'NATIVE_SCREEN',
+              key: updateData.screenComponents?.key || updateData.screenKey,
+              name: updateData.screenComponents?.name || updateData.name,
+              flowIcon: updateData.screenComponents?.flowIcon || '',
+              formDefinition: updateData.screenComponents?.formDefinition,
+              release: 'true'
+            }
+          }
+          await axios.post(`${prodScreenManagementApi}/screen`, createPayload, {
             headers: {
               accept: 'application/json',
               authorization: `Bearer ${accessToken}`,
