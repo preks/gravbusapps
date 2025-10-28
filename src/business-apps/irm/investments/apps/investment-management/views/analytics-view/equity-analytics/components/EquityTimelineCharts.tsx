@@ -132,107 +132,118 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
           </div>
         </CardHeader>
         <CardContent>
-          {timelineLoading ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
-              <div className="gba:text-gray-500 gba:text-lg">Loading timeline data...</div>
-              <div className="gba:text-gray-400 gba:text-sm">Check console for debug info</div>
-            </div>
-          ) : timelineError ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
-              <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading timeline</div>
-              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{timelineError}</div>
-              <div className="gba:text-gray-400 gba:text-xs">Check console for details</div>
-            </div>
-          ) : aggregatedTimelineData.length === 0 ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-gray-500 gba:text-lg">No timeline data available for {timelineCurrency}</div>
-            </div>
-          ) : (
-            <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
-              <ComposedChart data={aggregatedTimelineData} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
-                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={value => formatCurrency(value, timelineCurrency).replace(/[€$£¥]/g, '')}
-                />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      // Separate investment types from trend line
-                      const investmentTypes = payload.filter(
-                        entry => entry.dataKey !== 'total' && (entry.value as number) > 0
-                      )
-                      const totalEntry = payload.find(entry => entry.dataKey === 'total')
-                      const total = (totalEntry?.value as number) || 0
+          {(() => {
+            if (timelineLoading) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                  <div className="gba:text-gray-500 gba:text-lg">Loading timeline data...</div>
+                  <div className="gba:text-gray-400 gba:text-sm">Check console for debug info</div>
+                </div>
+              )
+            }
+            if (timelineError) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                  <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading timeline</div>
+                  <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{timelineError}</div>
+                  <div className="gba:text-gray-400 gba:text-xs">Check console for details</div>
+                </div>
+              )
+            }
+            if (aggregatedTimelineData.length === 0) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                  <div className="gba:text-gray-500 gba:text-lg">No timeline data available for {timelineCurrency}</div>
+                </div>
+              )
+            }
+            return (
+              <ChartContainer config={chartConfig} className="gba:h-[400px] gba:w-full">
+                <ComposedChart data={aggregatedTimelineData} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
+                  <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value => formatCurrency(value, timelineCurrency).replace(/[€$£¥]/g, '')}
+                  />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        // Separate investment types from trend line
+                        const investmentTypes = payload.filter(
+                          entry => entry.dataKey !== 'total' && (entry.value as number) > 0
+                        )
+                        const totalEntry = payload.find(entry => entry.dataKey === 'total')
+                        const total = (totalEntry?.value as number) || 0
 
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-semibold gba:text-gray-800">{label}</div>
-                          {investmentTypes.map((entry, index) => (
-                            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: entry.fill }}
-                              />
-                              <span className="gba:font-medium gba:text-gray-600">{entry.name}:</span>
-                              <span className="gba:font-semibold gba:text-gray-800">
-                                {formatCurrency(entry.value as number, timelineCurrency)}
-                              </span>
-                            </div>
-                          ))}
-                          <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <span className="gba:font-semibold gba:text-gray-700">Total:</span>
-                              <span className="gba:font-bold gba:text-gray-900">
-                                {formatCurrency(total, timelineCurrency)}
-                              </span>
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-semibold gba:text-gray-800">{label}</div>
+                            {investmentTypes.map((entry, index) => (
+                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: entry.fill }}
+                                />
+                                <span className="gba:font-medium gba:text-gray-600">{entry.name}:</span>
+                                <span className="gba:font-semibold gba:text-gray-800">
+                                  {formatCurrency(entry.value as number, timelineCurrency)}
+                                </span>
+                              </div>
+                            ))}
+                            <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
+                              <div className="gba:flex gba:items-center gba:gap-2">
+                                <span className="gba:font-semibold gba:text-gray-700">Total:</span>
+                                <span className="gba:font-bold gba:text-gray-900">
+                                  {formatCurrency(total, timelineCurrency)}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                {aggregatedInvestmentTypes.map((type, index) => {
-                  const isLastType = index === aggregatedInvestmentTypes.length - 1
-                  return (
-                    <Bar
-                      key={type}
-                      dataKey={type}
-                      name={type}
-                      stackId="investments"
-                      fill={CHART_COLORS[index % CHART_COLORS.length]}
-                      radius={isLastType ? [4, 4, 0, 0] : undefined}
-                    >
-                      {isLastType && (
-                        <LabelList
-                          dataKey="yoyLabel"
-                          position="top"
-                          offset={15}
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            fill: 'var(--nw-color-foreground)'
-                          }}
-                          formatter={(value: any) => value || ''}
-                        />
-                      )}
-                    </Bar>
-                  )
-                })}
-                <Line
-                  type="monotone"
-                  dataKey="total"
-                  name="trend"
-                  stroke="var(--color-trend)"
-                  strokeWidth={3}
-                  dot={{ fill: 'var(--color-trend)', r: 4 }}
-                />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  {aggregatedInvestmentTypes.map((type, index) => {
+                    const isLastType = index === aggregatedInvestmentTypes.length - 1
+                    return (
+                      <Bar
+                        key={type}
+                        dataKey={type}
+                        name={type}
+                        stackId="investments"
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                        radius={isLastType ? [4, 4, 0, 0] : undefined}
+                      >
+                        {isLastType && (
+                          <LabelList
+                            dataKey="yoyLabel"
+                            position="top"
+                            offset={15}
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              fill: 'var(--nw-color-foreground)'
+                            }}
+                            formatter={(value: any) => value || ''}
+                          />
+                        )}
+                      </Bar>
+                    )
+                  })}
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    name="trend"
+                    stroke="var(--color-trend)"
+                    strokeWidth={3}
+                    dot={{ fill: 'var(--color-trend)', r: 4 }}
+                  />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
 
@@ -257,95 +268,106 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
           </div>
         </CardHeader>
         <CardContent>
-          {portfolioMatrixLoading ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
-              <div className="gba:text-center">
-                <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
-                <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading portfolio matrix data...</p>
-              </div>
-            </div>
-          ) : portfolioMatrixError ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
-              <div className="gba:text-center gba:text-destructive">
-                <p className="gba:font-medium">Error loading portfolio matrix</p>
-                <p className="gba:text-sm gba:mt-2">{portfolioMatrixError}</p>
-              </div>
-            </div>
-          ) : portfolioMatrixData.length === 0 ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
-              <p className="gba:text-muted-foreground">
-                No portfolio matrix data available for {portfolioMatrixCurrency}
-              </p>
-            </div>
-          ) : (
-            <ChartContainer config={portfolioMatrixChartConfig} className="gba:h-[450px] gba:w-full">
-              <ScatterChart data={portfolioMatrixData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-                <XAxis
-                  type="number"
-                  dataKey="duration"
-                  name="Years Invested"
-                  tick={{ fontSize: 12 }}
-                  label={{ value: 'Years invested', position: 'insideBottom', offset: -10 }}
-                  domain={[0, 'auto']}
-                />
-                <YAxis
-                  type="number"
-                  dataKey="moic"
-                  name="MOIC"
-                  tick={{ fontSize: 12 }}
-                  label={{ value: 'MOIC', angle: -90, position: 'insideLeft' }}
-                  domain={[0, 'auto']}
-                />
-                <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload
+          {(() => {
+            if (portfolioMatrixLoading) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
+                  <div className="gba:text-center">
+                    <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary gba:mx-auto" />
+                    <p className="gba:mt-4 gba:text-sm gba:text-muted-foreground">Loading portfolio matrix data...</p>
+                  </div>
+                </div>
+              )
+            }
+            if (portfolioMatrixError) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
+                  <div className="gba:text-center gba:text-destructive">
+                    <p className="gba:font-medium">Error loading portfolio matrix</p>
+                    <p className="gba:text-sm gba:mt-2">{portfolioMatrixError}</p>
+                  </div>
+                </div>
+              )
+            }
+            if (portfolioMatrixData.length === 0) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[450px]">
+                  <p className="gba:text-muted-foreground">
+                    No portfolio matrix data available for {portfolioMatrixCurrency}
+                  </p>
+                </div>
+              )
+            }
+            return (
+              <ChartContainer config={portfolioMatrixChartConfig} className="gba:h-[450px] gba:w-full">
+                <ScatterChart data={portfolioMatrixData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <XAxis
+                    type="number"
+                    dataKey="duration"
+                    name="Years Invested"
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Years invested', position: 'insideBottom', offset: -10 }}
+                    domain={[0, 'auto']}
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="moic"
+                    name="MOIC"
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'MOIC', angle: -90, position: 'insideLeft' }}
+                    domain={[0, 'auto']}
+                  />
+                  <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
+                  <ChartTooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload
 
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.company}</div>
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                            />
-                            <span className="gba:font-medium">Investment Amount:</span>
-                            <span className="gba:font-semibold">
-                              {formatCurrency(data.investmentAmount, portfolioMatrixCurrency)}
-                            </span>
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.company}</div>
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                              />
+                              <span className="gba:font-medium">Investment Amount:</span>
+                              <span className="gba:font-semibold">
+                                {formatCurrency(data.investmentAmount, portfolioMatrixCurrency)}
+                              </span>
+                            </div>
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                              />
+                              <span className="gba:font-medium">Years Invested:</span>
+                              <span className="gba:font-semibold">{data.duration} years</span>
+                            </div>
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <div
+                                className="gba:w-3 gba:h-3 gba:rounded-full"
+                                style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+                              />
+                              <span className="gba:font-medium">MOIC:</span>
+                              <span className="gba:font-semibold">{data.moic}x</span>
+                            </div>
                           </div>
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                            />
-                            <span className="gba:font-medium">Years Invested:</span>
-                            <span className="gba:font-semibold">{data.duration} years</span>
-                          </div>
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                            />
-                            <span className="gba:font-medium">MOIC:</span>
-                            <span className="gba:font-semibold">{data.moic}x</span>
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <Scatter
-                  name="portfoliomatrix"
-                  data={portfolioMatrixData}
-                  fill="var(--color-portfoliomatrix)"
-                  opacity={0.6}
-                />
-              </ScatterChart>
-            </ChartContainer>
-          )}
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Scatter
+                    name="portfoliomatrix"
+                    data={portfolioMatrixData}
+                    fill="var(--color-portfoliomatrix)"
+                    opacity={0.6}
+                  />
+                </ScatterChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
 
@@ -370,81 +392,94 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
           </div>
         </CardHeader>
         <CardContent>
-          {topCompaniesLoading ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
-              <div className="gba:text-gray-500 gba:text-lg">Loading top companies...</div>
-              <div className="gba:text-gray-400 gba:text-sm">Check console for debug info</div>
-            </div>
-          ) : topCompaniesError ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
-              <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading top companies</div>
-              <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">{topCompaniesError}</div>
-              <div className="gba:text-gray-400 gba:text-xs">Check console for details</div>
-            </div>
-          ) : topCompaniesData.length === 0 ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-gray-500 gba:text-lg">
-                No companies with valuations found for {topCompaniesCurrency}
-              </div>
-            </div>
-          ) : (
-            <ChartContainer config={topCompaniesChartConfig} className="gba:h-[400px] gba:w-full">
-              <ComposedChart data={topCompaniesData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-                <XAxis
-                  dataKey="company"
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                  interval={0}
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={value => {
-                    // Truncate company names longer than 15 characters
-                    return value.length > 15 ? `${value.substring(0, 15)}...` : value
-                  }}
-                />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replace(/[€$£¥]/g, '')}
-                />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                          {payload.map((entry, index) => {
-                            let formattedValue = ''
-                            let properLabel = ''
-                            let dotColor = ''
+          {(() => {
+            if (topCompaniesLoading) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                  <div className="gba:text-gray-500 gba:text-lg">Loading top companies...</div>
+                  <div className="gba:text-gray-400 gba:text-sm">Check console for debug info</div>
+                </div>
+              )
+            }
+            if (topCompaniesError) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-2">
+                  <div className="gba:text-destructive gba:text-lg gba:font-semibold">Error loading top companies</div>
+                  <div className="gba:text-destructive gba:text-sm gba:max-w-xl gba:text-center">
+                    {topCompaniesError}
+                  </div>
+                  <div className="gba:text-gray-400 gba:text-xs">Check console for details</div>
+                </div>
+              )
+            }
+            if (topCompaniesData.length === 0) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                  <div className="gba:text-gray-500 gba:text-lg">
+                    No companies with valuations found for {topCompaniesCurrency}
+                  </div>
+                </div>
+              )
+            }
+            return (
+              <ChartContainer config={topCompaniesChartConfig} className="gba:h-[400px] gba:w-full">
+                <ComposedChart data={topCompaniesData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                  <XAxis
+                    dataKey="company"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    interval={0}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={value => {
+                      // Truncate company names longer than 15 characters
+                      return value.length > 15 ? `${value.substring(0, 15)}...` : value
+                    }}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replace(/[€$£¥]/g, '')}
+                  />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+                            {payload.map((entry, index) => {
+                              let formattedValue = ''
+                              let properLabel = ''
+                              let dotColor = ''
 
-                            if (entry.dataKey === 'valuation') {
-                              formattedValue = formatCurrency(entry.value as number, topCompaniesCurrency)
-                              properLabel = 'Valuation'
-                              dotColor = 'var(--color-valuation)'
-                            }
+                              if (entry.dataKey === 'valuation') {
+                                formattedValue = formatCurrency(entry.value as number, topCompaniesCurrency)
+                                properLabel = 'Valuation'
+                                dotColor = 'var(--color-valuation)'
+                              }
 
-                            return (
-                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: dotColor }}
-                                />
-                                <span className="gba:font-medium">{properLabel}:</span>
-                                <span className="gba:font-semibold">{formattedValue}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar dataKey="valuation" name="valuation" fill="var(--color-valuation)" radius={[4, 4, 0, 0]} />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                              return (
+                                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                  <div
+                                    className="gba:w-3 gba:h-3 gba:rounded-full"
+                                    style={{ backgroundColor: dotColor }}
+                                  />
+                                  <span className="gba:font-medium">{properLabel}:</span>
+                                  <span className="gba:font-semibold">{formattedValue}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar dataKey="valuation" name="valuation" fill="var(--color-valuation)" radius={[4, 4, 0, 0]} />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
     </>
