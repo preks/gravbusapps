@@ -84,14 +84,20 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))
   }, [])
 
-  // very small helper to parse duration text like "7h 30m" or "0h" into minutes
+  // very small helper to parse duration text like "7h 30m" or "0h" into minutes (no backtracking)
   const parseDurationToMinutes = (text?: string): number => {
     if (!text) return 0
-    const hMatch = text.match(/(\d+)\s*h/i)
-    const mMatch = text.match(/(\d+)\s*m/i)
-    const h = hMatch ? parseInt(hMatch[1], 10) : 0
-    const m = mMatch ? parseInt(mMatch[1], 10) : 0
-    return h * 60 + m
+    let hours = 0
+    let minutes = 0
+    const tokens = String(text).trim().split(/\s+/)
+    for (const token of tokens) {
+      if (/^\d+h$/i.test(token)) {
+        hours = parseInt(token.slice(0, -1), 10) || 0
+      } else if (/^\d+m$/i.test(token)) {
+        minutes = parseInt(token.slice(0, -1), 10) || 0
+      }
+    }
+    return hours * 60 + minutes
   }
 
   const formatMinutes = (minutes: number): string => {
@@ -201,7 +207,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
           .map(h => String(h?.alternativeCode ?? h?.code ?? ''))
           .map(code => {
             // Codes come as YYYYMMDD, e.g., 20251010
-            const parts = code.match(/^(\d{4})(\d{2})(\d{2})$/)
+            const dateCodeRegex = /^(\d{4})(\d{2})(\d{2})$/
+            const parts = dateCodeRegex.exec(code)
             if (!parts) return null
             const y = parseInt(parts[1], 10)
             const m = parseInt(parts[2], 10) // 1-12
@@ -212,7 +219,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
             if (date.getMonth() !== monthIndex || date.getFullYear() !== year) return null
             return toLocalDateKey(date)
           })
-          .filter((v: string | null): v is string => Boolean(v))
+          .filter(Boolean) as string[]
         holidayDateSet = new Set(dates)
       }
     } catch (e) {
@@ -262,8 +269,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       const rowDay = String(r.attendanceDate) // format YYYY-MM-DD
       if (rowDay < untilDay) {
         const effective = parseDurationToMinutes(r?.effectiveTime ? String(r.effectiveTime) : undefined)
-        const recorded = parseDurationToMinutes(r?.recordedTime ? String(r.recordedTime) : undefined)
-        return acc + (effective > 0 ? effective : recorded)
+        // Only count effective time; ignore recorded time entirely
+        return acc + Math.max(0, effective)
       }
       return acc
     }, 0)
