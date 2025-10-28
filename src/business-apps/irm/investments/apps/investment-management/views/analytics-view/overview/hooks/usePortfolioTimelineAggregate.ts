@@ -52,7 +52,9 @@ export const usePortfolioTimelineAggregate = (
     try {
       const { yearlyData } = await fetchTimelineAggregate(yearsCount, currency)
       // Extract unique investment groups
-      const uniqueGroups = Array.from(new Set(yearlyData.map(d => d.investmentGroup))).sort()
+      const uniqueGroups = Array.from(new Set(yearlyData.map(d => d.investmentGroup))).sort((a, b) =>
+        a.localeCompare(b)
+      )
       setInvestmentGroups(uniqueGroups)
 
       // Get last N years
@@ -60,7 +62,7 @@ export const usePortfolioTimelineAggregate = (
       const years = Array.from({ length: yearsCount }, (_, i) => (currentYear - yearsCount + 1 + i).toString())
 
       // Helper function to create chart key from group name
-      const getChartKey = (groupName: string) => groupName.toLowerCase().replace(/\s+/g, '')
+      const getChartKey = (groupName: string) => groupName.toLowerCase().replaceAll(/\s+/g, '')
 
       // Build timeline chart data
       const chartData: PortfolioTimelineChartData[] = years.map(year => {
@@ -73,31 +75,31 @@ export const usePortfolioTimelineAggregate = (
         }
 
         // Initialize all investment groups to 0 using chart keys
-        uniqueGroups.forEach(group => {
+        for (const group of uniqueGroups) {
           const chartKey = getChartKey(group)
           entry[chartKey] = 0
           entry[`${chartKey}_count`] = 0
           entry[`${chartKey}_marketValue`] = 0
-        })
+        }
 
         // Fill in actual values from yearlyData using chart keys
-        yearlyData
-          .filter(d => d.year === year)
-          .forEach(d => {
-            const chartKey = getChartKey(d.investmentGroup)
-            entry[chartKey] = d.totalAmount
-            entry[`${chartKey}_count`] = d.count
-            entry[`${chartKey}_marketValue`] = d.marketValue
-            entry.total += d.totalAmount
-            entry.totalMarketValue += d.marketValue
-            entry.count += d.count
-          })
+        const filteredYearlyData = yearlyData.filter(d => d.year === year)
+        for (const d of filteredYearlyData) {
+          const chartKey = getChartKey(d.investmentGroup)
+          entry[chartKey] = d.totalAmount
+          entry[`${chartKey}_count`] = d.count
+          entry[`${chartKey}_marketValue`] = d.marketValue
+          entry.total += d.totalAmount
+          entry.totalMarketValue += d.marketValue
+          entry.count += d.count
+        }
 
         return entry
       })
 
       // Calculate YoY change for each year
-      chartData.forEach((entry, index) => {
+      for (let index = 0; index < chartData.length; index++) {
+        const entry = chartData[index]
         if (index > 0) {
           const currentTotal = entry.total || 0
           const previousTotal = chartData[index - 1].total || 0
@@ -112,7 +114,7 @@ export const usePortfolioTimelineAggregate = (
         } else {
           entry.yoyLabel = '0%'
         }
-      })
+      }
 
       setTimelineData(chartData)
     } catch (err) {

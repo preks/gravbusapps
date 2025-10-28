@@ -56,7 +56,7 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     data.forEach((item: any) => {
-      const key = item.type.toLowerCase().replace(/\s+/g, '')
+      const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.type }
     })
     return config
@@ -66,7 +66,7 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
   const chartData = useMemo(() => {
     return data.map((item: any) => ({
       ...item,
-      name: item.type.toLowerCase().replace(/\s+/g, ''),
+      name: item.type.toLowerCase().replaceAll(/\s+/g, ''),
       value: valueType === 'count' ? item.count : item.totalAmount
     }))
   }, [data, valueType])
@@ -113,7 +113,7 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
               nameKey="name"
             >
               {data.map((entry: any, index: number) => {
-                const key = entry.type.toLowerCase().replace(/\s+/g, '')
+                const key = entry.type.toLowerCase().replaceAll(/\s+/g, '')
                 return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
               })}
             </Pie>

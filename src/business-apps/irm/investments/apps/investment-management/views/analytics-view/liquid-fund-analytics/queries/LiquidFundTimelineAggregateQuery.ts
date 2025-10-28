@@ -42,7 +42,7 @@ const BUILD_PERFORMANCE_TIMELINE_QUERY = (currency: string, years: string[], que
     .map(year => {
       const alias = `year_${year}`
       const startDate = `${year}-01-01`
-      const endDate = `${Number.parseInt(year) + 1}-01-01`
+      const endDate = `${Number.Number.parseInt(year) + 1}-01-01`
 
       return `
       ${alias}: InvestmentAggregate(
@@ -85,7 +85,7 @@ const BUILD_VALUE_TRENDS_QUERY = (currency: string, years: string[], queryName: 
     .map(year => {
       const alias = `year_${year}`
       const startDate = `${year}-01-01`
-      const endDate = `${Number.parseInt(year) + 1}-01-01`
+      const endDate = `${Number.Number.parseInt(year) + 1}-01-01`
 
       return `
       ${alias}: InvestmentAggregate(

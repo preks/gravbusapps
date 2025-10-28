@@ -37,7 +37,7 @@ export const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadi
 export const createChartConfig = (data: any[]) => {
   const config: any = {}
   data.forEach((entry, index) => {
-    const key = entry.name.toLowerCase().replace(/\s+/g, '')
+    const key = entry.name.toLowerCase().replaceAll(/\s+/g, '')
     config[key] = {
       label: entry.name,
       color: CHART_COLORS[index % CHART_COLORS.length]

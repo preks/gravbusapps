@@ -158,7 +158,9 @@ export const PortfolioAnalyticsCharts: React.FC<PortfolioAnalyticsChartsProps> =
                     />
                     <YAxis
                       tick={{ fontSize: 12 }}
-                      tickFormatter={value => formatCurrencyCompact(value, accountValueCurrency).replace(/[€$£¥]/g, '')}
+                      tickFormatter={value =>
+                        formatCurrencyCompact(value, accountValueCurrency).replaceAll(/[€$£¥]/g, '')
+                      }
                     />
                     <ChartTooltip
                       content={({ active, payload, label }) => {

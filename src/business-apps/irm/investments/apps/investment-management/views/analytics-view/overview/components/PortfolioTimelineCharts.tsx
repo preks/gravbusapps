@@ -128,7 +128,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                     orientation="right"
                     tick={{ fontSize: 12 }}
                     tickFormatter={value =>
-                      formatCurrencyCompact(value, performanceCurrencyFilter).replace(/[€$£¥]/g, '')
+                      formatCurrencyCompact(value, performanceCurrencyFilter).replaceAll(/[€$£¥]/g, '')
                     }
                     label={{ value: 'Amount', angle: 90, position: 'insideRight' }}
                   />
@@ -238,7 +238,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                   <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
+                    tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replaceAll(/[€$£¥]/g, '')}
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {

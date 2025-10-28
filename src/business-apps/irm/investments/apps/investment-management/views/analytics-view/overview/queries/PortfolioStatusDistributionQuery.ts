@@ -90,7 +90,7 @@ const BUILD_STATUS_COUNT_DISTRIBUTION_QUERY = (
 ): string => {
   const statusAggregates = statuses
     .map(status => {
-      const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
+      const sanitizedRef = status.statusRef.replaceAll(/\W/g, '_')
       const currencyCondition = currency === 'All Currencies' ? '' : `currency: { code: { _eq: "${currency}" } }`
 
       return `
@@ -124,7 +124,7 @@ const BUILD_STATUS_AMOUNT_DISTRIBUTION_QUERY = (
 ): string => {
   const statusAggregates = statuses
     .map(status => {
-      const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
+      const sanitizedRef = status.statusRef.replaceAll(/\W/g, '_')
 
       return `
       status_${sanitizedRef}: InvestmentAggregate(
@@ -169,7 +169,7 @@ export const buildStatusCountDistributionQuery = (
     // Transform results
     const distribution = statuses
       .map(status => {
-        const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
+        const sanitizedRef = status.statusRef.replaceAll(/\W/g, '_')
         const key = `status_${sanitizedRef}`
         const count = result[key]?.aggregate?.count || 0
 
@@ -203,7 +203,7 @@ export const buildStatusAmountDistributionQuery = (
     // Transform results
     const distribution = statuses
       .map(status => {
-        const sanitizedRef = status.statusRef.replace(/[^a-zA-Z0-9_]/g, '_')
+        const sanitizedRef = status.statusRef.replaceAll(/\W/g, '_')
         const key = `status_${sanitizedRef}`
         const totalAmount = result[key]?.aggregate?.sum?.totalInvestmentAmount || 0
 

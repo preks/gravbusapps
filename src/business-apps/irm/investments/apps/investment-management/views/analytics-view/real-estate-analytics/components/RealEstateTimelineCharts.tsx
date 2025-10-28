@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@newwork/nw-design-system'
 import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
   ChartContainer,
   ChartTooltip,
   ChartLegend,

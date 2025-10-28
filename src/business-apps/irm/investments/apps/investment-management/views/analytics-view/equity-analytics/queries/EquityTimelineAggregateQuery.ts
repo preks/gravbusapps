@@ -39,7 +39,7 @@ const BUILD_TIMELINE_AGGREGATE_QUERY = (years: string[], investmentTypes: string
       '{ isDeleted: { _eq: false } }',
       '{ investmentGroup: { id: { _eq: "InvestmentGroup:v1:EQUITY" } } }',
       currency ? `{ currency: { code: { _eq: "${currency}" } } }` : '',
-      `{ acquisitionDate: { _gte: "${year}-01-01", _lt: "${parseInt(year) + 1}-01-01" } }`,
+      `{ acquisitionDate: { _gte: "${year}-01-01", _lt: "${Number.parseInt(year) + 1}-01-01" } }`,
       `{ investmentTypeRef: { _eq: "${investmentTypeRef}" } }`
     ]
       .filter(Boolean)

@@ -59,12 +59,12 @@ const parseOccupancyDistributionResponse = (data: any): OccupancyDistributionDat
 
   // Initialize range map
   const rangeMap = new Map<string, { count: number; totalValue: number }>()
-  OCCUPANCY_RANGES.forEach(range => {
+  for (const range of OCCUPANCY_RANGES) {
     rangeMap.set(range.label, { count: 0, totalValue: 0 })
-  })
+  }
 
   // Group investments by occupancy ranges
-  data.Investment.forEach((inv: any) => {
+  for (const inv of data.Investment) {
     const occupancyRate = inv.realEstateInvestment?.[0]?.occupancyPercent || 0
     const marketValue = inv.investmentMarketValue || 0
 
@@ -77,7 +77,7 @@ const parseOccupancyDistributionResponse = (data: any): OccupancyDistributionDat
         entry.totalValue += marketValue
       }
     }
-  })
+  }
 
   // Convert to array
   const distributionData: OccupancyDistributionData[] = OCCUPANCY_RANGES.map(range => ({

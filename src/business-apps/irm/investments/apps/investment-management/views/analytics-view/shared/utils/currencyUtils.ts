@@ -188,7 +188,7 @@ export function getCurrencySymbol(currencyCode: string, locale: string = 'en-US'
       maximumFractionDigits: 0
     })
       .format(0)
-      .replace(/\d/g, '')
+      .replaceAll(/\d/g, '')
       .trim()
   } catch {
     return currencyCode

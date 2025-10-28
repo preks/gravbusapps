@@ -156,7 +156,7 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
           const amount = equity.investment.totalInvestmentAmount || 0
 
           // Only include data from the last 5 years
-          if (parseInt(year) >= startYear && parseInt(year) <= currentYear) {
+          if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
             const yearEntry = yearlyData.find(item => item.year === year)
             if (yearEntry) {
               // Add amount to the specific type

@@ -113,7 +113,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
           location:
             `${realEstateInvestment.country?.value || ''}, ${realEstateInvestment.region?.value || ''}`
               .trim()
-              .replace(/^,\s*|,\s*$/g, '') || 'Unknown Location'
+              .replaceAll(/^,\s*|,\s*$/g, '') || 'Unknown Location'
         }
       })
   }, [])

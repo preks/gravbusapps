@@ -38,7 +38,7 @@ const BUILD_TIMELINE_QUERY = (currency: string, years: string[], queryName: stri
     .map(year => {
       const alias = `year_${year}`
       const startDate = `${year}-01-01`
-      const endDate = `${parseInt(year) + 1}-01-01`
+      const endDate = `${Number.parseInt(year) + 1}-01-01`
 
       return `
       ${alias}: InvestmentAggregate(
@@ -78,7 +78,7 @@ const BUILD_PERFORMANCE_QUERY = (currency: string, years: string[], queryName: s
     .map(year => {
       const alias = `year_${year}`
       const startDate = `${year}-01-01`
-      const endDate = `${parseInt(year) + 1}-01-01`
+      const endDate = `${Number.parseInt(year) + 1}-01-01`
 
       return `
       ${alias}: InvestmentAggregate(
@@ -136,7 +136,7 @@ const parseTimelineAggregateResponse = (data: any, years: string[]): YearlyTimel
   const yearlyData: YearlyTimelineData[] = []
 
   // Extract data from aliases in chronological order
-  years.forEach(year => {
+  for (const year of years) {
     const key = `year_${year}`
     if (data[key]) {
       const aggregate = data[key].aggregate
@@ -151,17 +151,17 @@ const parseTimelineAggregateResponse = (data: any, years: string[]): YearlyTimel
         cumulativeTotalInvested: 0 // Will calculate after
       })
     }
-  })
+  }
 
   // Calculate cumulative values
   let cumulativeCount = 0
   let cumulativeAmount = 0
-  yearlyData.forEach(item => {
+  for (const item of yearlyData) {
     cumulativeCount += item.investmentCount
     cumulativeAmount += item.totalInvestmentAmount
     item.cumulativeInvestments = cumulativeCount
     item.cumulativeTotalInvested = cumulativeAmount
-  })
+  }
 
   return yearlyData
 }
@@ -173,7 +173,7 @@ const parsePerformanceAggregateResponse = (data: any, years: string[]): YearlyPe
   const yearlyData: YearlyPerformanceData[] = []
 
   // Extract data from aliases in chronological order
-  years.forEach(year => {
+  for (const year of years) {
     const investmentKey = `year_${year}`
     const occupancyKey = `year_${year}_occupancy`
 
@@ -190,7 +190,7 @@ const parsePerformanceAggregateResponse = (data: any, years: string[]): YearlyPe
         averageOccupancyRate
       })
     }
-  })
+  }
 
   return yearlyData
 }

@@ -106,7 +106,7 @@ export const useGetDistinctGroups = (context: BusinessAppContextProps) => {
 const BUILD_GROUP_COUNT_DISTRIBUTION_QUERY = (groups: string[], currency: string): string => {
   const groupAliases = groups
     .map(group => {
-      const alias = group.replace(/[^a-zA-Z0-9]/g, '_')
+      const alias = group.replaceAll(/[^a-zA-Z0-9]/g, '_')
       const currencyCondition = currency === 'All Currencies' ? '' : `{ currency: { code: { _eq: "${currency}" } } }`
 
       return `
@@ -115,7 +115,7 @@ const BUILD_GROUP_COUNT_DISTRIBUTION_QUERY = (groups: string[], currency: string
           _and: [
             { isDeleted: { _eq: false } }
             { investmentGroup: { value: { _eq: "${group}" } } }
-            ${currencyCondition ? currencyCondition : ''}
+            ${currencyCondition || ''}
           ]
         }
       ) {
@@ -139,7 +139,7 @@ const BUILD_GROUP_COUNT_DISTRIBUTION_QUERY = (groups: string[], currency: string
 const BUILD_GROUP_AMOUNT_DISTRIBUTION_QUERY = (groups: string[], currency: string): string => {
   const groupAliases = groups
     .map(group => {
-      const alias = group.replace(/[^a-zA-Z0-9]/g, '_')
+      const alias = group.replaceAll(/[^a-zA-Z0-9]/g, '_')
 
       return `
       ${alias}: InvestmentAggregate(
@@ -178,7 +178,7 @@ const parseGroupDistributionResponse = (
 ): GroupDistributionData[] => {
   return groups
     .map(group => {
-      const alias = group.replace(/[^a-zA-Z0-9]/g, '_')
+      const alias = group.replaceAll(/[^a-zA-Z0-9]/g, '_')
       const aggregate = data[alias]?.aggregate
 
       return {

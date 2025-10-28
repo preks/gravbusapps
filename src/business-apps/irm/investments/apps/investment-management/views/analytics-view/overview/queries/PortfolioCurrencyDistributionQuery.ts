@@ -86,7 +86,7 @@ export const useGetDistinctCurrencies = (context: BusinessAppContextProps) => {
 const BUILD_CURRENCY_COUNT_DISTRIBUTION_QUERY = (currencies: Array<{ currencyCode: string }>): string => {
   const currencyAggregates = currencies
     .map(currency => {
-      const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
+      const sanitizedCode = currency.currencyCode.replaceAll(/\W/g, '_')
 
       return `
       currency_${sanitizedCode}: InvestmentAggregate(
@@ -115,7 +115,7 @@ const BUILD_CURRENCY_COUNT_DISTRIBUTION_QUERY = (currencies: Array<{ currencyCod
 const BUILD_CURRENCY_AMOUNT_DISTRIBUTION_QUERY = (currencies: Array<{ currencyCode: string }>): string => {
   const currencyAggregates = currencies
     .map(currency => {
-      const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
+      const sanitizedCode = currency.currencyCode.replaceAll(/\W/g, '_')
 
       return `
       currency_${sanitizedCode}: InvestmentAggregate(
@@ -158,7 +158,7 @@ export const buildCurrencyCountDistributionQuery = (
     // Transform results
     return currencies
       .map(currency => {
-        const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
+        const sanitizedCode = currency.currencyCode.replaceAll(/\W/g, '_')
         const key = `currency_${sanitizedCode}`
         const count = result[key]?.aggregate?.count || 0
 
@@ -189,7 +189,7 @@ export const buildCurrencyAmountDistributionQuery = (
     // Transform results
     return currencies
       .map(currency => {
-        const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
+        const sanitizedCode = currency.currencyCode.replaceAll(/\W/g, '_')
         const key = `currency_${sanitizedCode}`
         const totalAmount = result[key]?.aggregate?.sum?.totalInvestmentAmount || 0
 

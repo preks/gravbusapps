@@ -39,7 +39,7 @@ const BUILD_PORTFOLIO_TIMELINE_QUERY = (years: string[], investmentGroups: strin
     const conditions = [
       '{ isDeleted: { _eq: false } }',
       currency ? `{ currency: { code: { _eq: "${currency}" } } }` : '',
-      `{ acquisitionDate: { _gte: "${year}-01-01", _lt: "${parseInt(year) + 1}-01-01" } }`,
+      `{ acquisitionDate: { _gte: "${year}-01-01", _lt: "${Number.parseInt(year) + 1}-01-01" } }`,
       `{ investmentGroupRef: { _eq: "${investmentGroupRef}" } }`
     ]
       .filter(Boolean)
@@ -52,7 +52,7 @@ const BUILD_PORTFOLIO_TIMELINE_QUERY = (years: string[], investmentGroups: strin
 
   // Create alias name that's GraphQL-safe
   const createAlias = (year: string, investmentGroupRef: string) => {
-    return `year_${year}_group_${investmentGroupRef.replace(/[^a-zA-Z0-9]/g, '_')}`
+    return `year_${year}_group_${investmentGroupRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}`
   }
 
   // Generate aggregate queries for each year+group combination
@@ -248,23 +248,26 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
           // Step 4: Transform result into structured data
           const yearlyData: PortfolioTimelineYearData[] = []
 
-          Object.entries(result).forEach(([key, value]) => {
+          // Helper: Find group info by encoded reference (extracted to reduce nesting)
+          const findGroupByEncodedRef = (encodedRef: string) =>
+            investmentGroups.find(g => g.investmentGroupRef.replaceAll(/\W/g, '_') === encodedRef)
+
+          const aliasPattern = /year_(\d+)_group_(.+)/
+          for (const [key, value] of Object.entries(result)) {
             // Parse alias: year_2021_group_InvestmentGroup_v1_EQUITY
-            const match = key.match(/year_(\d+)_group_(.+)/)
+            const match = aliasPattern.exec(key)
             if (!match) {
-              return
+              continue
             }
 
             const year = match[1]
             const groupRefEncoded = match[2]
 
             // Find the matching group info
-            const groupInfo = investmentGroups.find(
-              g => g.investmentGroupRef.replace(/[^a-zA-Z0-9]/g, '_') === groupRefEncoded
-            )
+            const groupInfo = findGroupByEncodedRef(groupRefEncoded)
 
             if (!groupInfo) {
-              return
+              continue
             }
 
             if (value.aggregate) {
@@ -277,7 +280,7 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
               }
               yearlyData.push(dataPoint)
             }
-          })
+          }
 
           const resultData = { yearlyData }
 

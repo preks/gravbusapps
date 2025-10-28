@@ -51,7 +51,7 @@ const buildCombinedLiquidFundTypeQuery = (types: string[], currency: string | nu
   const typeAliases = types
     .map((type, index) => {
       // Sanitize type name for GraphQL alias (remove spaces, special chars)
-      const aliasName = `liquidfundtype_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+      const aliasName = `liquidfundtype_${index}_${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '_')}`
 
       const currencyCondition = currency ? `{ currency: { code: { _eq: "${currency}" } } }` : ''
 
@@ -142,7 +142,7 @@ export const useGetLiquidFundTypeDistribution = (context: BusinessAppContextProp
       const amountByType = new Map<string, number>()
 
       distinctTypes.forEach((type, index) => {
-        const aliasName = `liquidfundtype_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+        const aliasName = `liquidfundtype_${index}_${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '_')}`
 
         // Extract count
         const countData = aggregateResult[`${aliasName}_count`]

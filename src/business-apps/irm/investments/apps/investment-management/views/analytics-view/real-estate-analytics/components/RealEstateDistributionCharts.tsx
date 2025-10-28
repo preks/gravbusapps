@@ -149,7 +149,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
                 filteredTypeCountData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '')
+                  const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.type }
                 })
                 return config
@@ -159,7 +159,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <PieChart>
                 <Pie
                   data={filteredTypeCountData.map((item: any) => {
-                    const key = item.type.toLowerCase().replace(/\s+/g, '')
+                    const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
                     return {
                       ...item,
                       name: key,
@@ -174,7 +174,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   nameKey="name"
                 >
                   {filteredTypeCountData.map((entry: any, index: number) => {
-                    const key = entry.type.toLowerCase().replace(/\s+/g, '')
+                    const key = entry.type.toLowerCase().replaceAll(/\s+/g, '')
                     return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
@@ -236,7 +236,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
                 filteredTypeData.forEach((item: any) => {
-                  const key = item.type.toLowerCase().replace(/\s+/g, '')
+                  const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.type }
                 })
                 return config
@@ -246,7 +246,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <PieChart>
                 <Pie
                   data={filteredTypeData.map((item: any) => {
-                    const key = item.type.toLowerCase().replace(/\s+/g, '')
+                    const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
                     return {
                       ...item,
                       name: key,
@@ -261,7 +261,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   nameKey="name"
                 >
                   {filteredTypeData.map((entry: any, index: number) => {
-                    const key = entry.type.toLowerCase().replace(/\s+/g, '')
+                    const key = entry.type.toLowerCase().replaceAll(/\s+/g, '')
                     return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
@@ -328,7 +328,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
                 filteredStatusCountData.forEach((item: any) => {
-                  const key = item.status.toLowerCase().replace(/\s+/g, '')
+                  const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.status }
                 })
                 return config
@@ -338,7 +338,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <PieChart>
                 <Pie
                   data={filteredStatusCountData.map((item: any) => {
-                    const key = item.status.toLowerCase().replace(/\s+/g, '')
+                    const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                     return {
                       ...item,
                       name: key,
@@ -353,13 +353,13 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   nameKey="name"
                 >
                   {filteredStatusCountData.map((entry: any, index: number) => {
-                    const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                    const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
                     return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
                 <ChartTooltip
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
+                    if (active && payload?.length) {
                       const data = payload[0]
                       const total = filteredStatusCountData.reduce((sum: number, item: any) => sum + item.count, 0)
                       const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
@@ -415,7 +415,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
                 filteredStatusData.forEach((item: any) => {
-                  const key = item.status.toLowerCase().replace(/\s+/g, '')
+                  const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.status }
                 })
                 return config
@@ -425,7 +425,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
               <PieChart>
                 <Pie
                   data={filteredStatusData.map((item: any) => {
-                    const key = item.status.toLowerCase().replace(/\s+/g, '')
+                    const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                     return {
                       ...item,
                       name: key,
@@ -440,7 +440,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   nameKey="name"
                 >
                   {filteredStatusData.map((entry: any, index: number) => {
-                    const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                    const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
                     return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>

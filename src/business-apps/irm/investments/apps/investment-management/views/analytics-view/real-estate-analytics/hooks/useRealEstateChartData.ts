@@ -162,7 +162,7 @@ export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestme
       .filter(property => property.realEstateInvestment?.buildingYear)
       .reduce((acc, property) => {
         const year = property.realEstateInvestment?.buildingYear || ''
-        const decade = Math.floor(parseInt(year) / 10) * 10
+        const decade = Math.floor(Number.parseInt(year) / 10) * 10
         const yearRange = `${decade}s`
         const existing = acc.find((item: BuildingYearDataItem) => item.yearRange === yearRange)
         const propertyValue = property.investment.investmentMarketValue || 0
@@ -238,7 +238,7 @@ export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestme
     // Occupancy Data (grouped by occupancy rate ranges)
     const occupancyRanges = ['0-25%', '26-50%', '51-75%', '76-100%']
     const occupancyData = occupancyRanges.map(range => {
-      const [min, max] = range.split('-').map(r => parseInt(r.replace('%', '')))
+      const [min, max] = range.split('-').map(r => Number.parseInt(r.replace('%', '')))
       const propertiesInRange = realEstateInvestments.filter(property => {
         const occupancy = property.occupancyRate || 0
         return occupancy >= min && occupancy <= max

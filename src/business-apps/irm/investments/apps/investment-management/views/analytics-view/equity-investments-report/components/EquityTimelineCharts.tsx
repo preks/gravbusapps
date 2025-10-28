@@ -138,7 +138,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
         const type = equity.investment.investmentType?.value || 'Unknown'
         const amount = equity.investment.totalInvestmentAmount || 0
 
-        if (parseInt(year) >= startYear && parseInt(year) <= currentYear) {
+        if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
           const yearEntry = yearlyData.find(item => item.year === year)
           if (yearEntry) {
             yearEntry[type] = (yearEntry[type] || 0) + amount

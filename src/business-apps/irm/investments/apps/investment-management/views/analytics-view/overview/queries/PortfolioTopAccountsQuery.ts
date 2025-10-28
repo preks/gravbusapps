@@ -46,7 +46,7 @@ export const GET_DISTINCT_ACCOUNTS_QUERY = `
 export const BUILD_ACCOUNT_AGGREGATE_QUERY = (accountIds: string[], currency?: string) => {
   const aliases = accountIds
     .map(accountId => {
-      const sanitizedId = accountId.replace(/[^a-zA-Z0-9_]/g, '_')
+      const sanitizedId = accountId.replaceAll(/\W/g, '_')
 
       // Build where conditions
       const conditions = ['isDeleted: { _eq: false }', `investmentAccountId: { _eq: "${accountId}" }`]
@@ -134,7 +134,7 @@ export const fetchTopAccounts = async (
 
   // Step 3: Process results and map to accounts
   const accountData: TopAccountData[] = accounts.map(account => {
-    const sanitizedId = account.accountId.replace(/[^a-zA-Z0-9_]/g, '_')
+    const sanitizedId = account.accountId.replaceAll(/\W/g, '_')
     const key = `account_${sanitizedId}`
     const aggregate = aggregateResult[key]
 

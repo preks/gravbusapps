@@ -57,7 +57,7 @@ const BUILD_CORRELATION_QUERY = (currency: string): string => {
 const BUILD_PERFORMANCE_BY_TYPE_QUERY = (currency: string, types: string[]): string => {
   const typeAggregates = types
     .map((type, index) => {
-      const aliasName = `type_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+      const aliasName = `type_${index}_${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '_')}`
 
       return `
       ${aliasName}: InvestmentAggregate(
@@ -204,7 +204,7 @@ export const fetchPerformanceByType = async (
   const performanceData: PerformanceByTypeData[] = []
 
   types.forEach((type: string, index: number) => {
-    const aliasName = `type_${index}_${type.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    const aliasName = `type_${index}_${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '_')}`
     const investmentAggregate = result[aliasName]
     const interestAggregate = result[`${aliasName}_interest`]
 
@@ -218,7 +218,7 @@ export const fetchPerformanceByType = async (
         averageInterestRate: avgInterestRate,
         averageInvestmentAmount: totalAmount / count,
         count,
-        name: type.toLowerCase().replace(/\s+/g, '')
+        name: type.toLowerCase().replaceAll(/\s+/g, '')
       })
     }
   })

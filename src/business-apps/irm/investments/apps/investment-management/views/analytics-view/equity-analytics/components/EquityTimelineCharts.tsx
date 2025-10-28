@@ -86,9 +86,9 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
   // Create dynamic chart config for all investment types plus trendline
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    aggregatedInvestmentTypes.forEach(type => {
+    for (const type of aggregatedInvestmentTypes) {
       config[type] = { label: type }
-    })
+    }
     config.trend = { label: 'Trend' }
     return config
   }, [aggregatedInvestmentTypes])
@@ -163,7 +163,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                   <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrency(value, timelineCurrency).replace(/[€$£¥]/g, '')}
+                    tickFormatter={value => formatCurrency(value, timelineCurrency).replaceAll(/[€$£¥]/g, '')}
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {
@@ -438,7 +438,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                   />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replace(/[€$£¥]/g, '')}
+                    tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replaceAll(/[€$£¥]/g, '')}
                   />
                   <ChartTooltip
                     content={({ active, payload, label }) => {

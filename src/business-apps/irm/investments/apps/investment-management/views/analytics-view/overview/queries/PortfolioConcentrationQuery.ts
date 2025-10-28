@@ -43,7 +43,7 @@ export const GET_DISTINCT_GROUPS_QUERY = `
 export const BUILD_CONCENTRATION_QUERY = (groupIds: string[], currency?: string) => {
   const aliases = groupIds
     .map(groupId => {
-      const sanitizedId = groupId.replace(/[^a-zA-Z0-9_]/g, '_')
+      const sanitizedId = groupId.replaceAll(/\W/g, '_')
 
       // Build where conditions
       const conditions = ['isDeleted: { _eq: false }', `investmentGroup: { id: { _eq: "${groupId}" } }`]
@@ -128,7 +128,7 @@ export const fetchConcentrationData = async (
 
   // Step 3: Process results and calculate metrics
   const concentrationData: ConcentrationData[] = groups.map(group => {
-    const sanitizedId = group.groupId.replace(/[^a-zA-Z0-9_]/g, '_')
+    const sanitizedId = group.groupId.replaceAll(/\W/g, '_')
     const key = `group_${sanitizedId}`
     const aggregate = aggregateResult[key]
 

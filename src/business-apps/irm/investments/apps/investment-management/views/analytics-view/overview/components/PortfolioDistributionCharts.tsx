@@ -100,7 +100,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const groupCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of groupCountData) {
-      const key = item.group.toLowerCase().replace(/\s+/g, '')
+      const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.group }
     }
     return config
@@ -109,7 +109,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const groupAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of groupAmountData) {
-      const key = item.group.toLowerCase().replace(/\s+/g, '')
+      const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.group }
     }
     return config
@@ -118,7 +118,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const statusCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of statusCountData) {
-      const key = item.status.toLowerCase().replace(/\s+/g, '')
+      const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.status }
     }
     return config
@@ -127,7 +127,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const statusAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of statusAmountData) {
-      const key = item.status.toLowerCase().replace(/\s+/g, '')
+      const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.status }
     }
     return config
@@ -136,7 +136,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const currencyCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of currencyCountData) {
-      const key = item.currency.toLowerCase().replace(/\s+/g, '')
+      const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.currency }
     }
     return config
@@ -145,7 +145,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   const currencyAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     for (const item of currencyAmountData) {
-      const key = item.currency.toLowerCase().replace(/\s+/g, '')
+      const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.currency }
     }
     return config
@@ -208,7 +208,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={groupCountData.map((item: any) => {
-                        const key = item.group.toLowerCase().replace(/\s+/g, '')
+                        const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -223,7 +223,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       nameKey="name"
                     >
                       {groupCountData.map((entry: any, index: number) => {
-                        const key = entry.group.toLowerCase().replace(/\s+/g, '')
+                        const key = entry.group.toLowerCase().replaceAll(/\s+/g, '')
                         return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
@@ -309,7 +309,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={groupAmountData.map((item: any) => {
-                        const key = item.group.toLowerCase().replace(/\s+/g, '')
+                        const key = item.group.toLowerCase().replaceAll(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -324,7 +324,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       nameKey="name"
                     >
                       {groupAmountData.map((entry: any, index: number) => {
-                        const key = entry.group.toLowerCase().replace(/\s+/g, '')
+                        const key = entry.group.toLowerCase().replaceAll(/\s+/g, '')
                         return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
@@ -418,7 +418,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={statusCountData.map((item: any) => {
-                        const key = item.status.toLowerCase().replace(/\s+/g, '')
+                        const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -433,7 +433,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       nameKey="name"
                     >
                       {statusCountData.map((entry: any, index: number) => {
-                        const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                        const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
                         return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
@@ -519,7 +519,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={statusAmountData.map((item: any) => {
-                        const key = item.status.toLowerCase().replace(/\s+/g, '')
+                        const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -534,7 +534,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       nameKey="name"
                     >
                       {statusAmountData.map((entry: any, index: number) => {
-                        const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                        const key = entry.status.toLowerCase().replaceAll(/\s+/g, '')
                         return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
@@ -617,7 +617,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={currencyCountData.map((item: any) => {
-                        const key = item.currency.toLowerCase().replace(/\s+/g, '')
+                        const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -632,7 +632,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       nameKey="name"
                     >
                       {currencyCountData.map((entry: any, index: number) => {
-                        const key = entry.currency.toLowerCase().replace(/\s+/g, '')
+                        const key = entry.currency.toLowerCase().replaceAll(/\s+/g, '')
                         return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>
@@ -710,7 +710,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                   <PieChart>
                     <Pie
                       data={currencyAmountData.map((item: any) => {
-                        const key = item.currency.toLowerCase().replace(/\s+/g, '')
+                        const key = item.currency.toLowerCase().replaceAll(/\s+/g, '')
                         return {
                           ...item,
                           name: key,
@@ -725,7 +725,7 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
                       nameKey="name"
                     >
                       {currencyAmountData.map((entry: any, index: number) => {
-                        const key = entry.currency.toLowerCase().replace(/\s+/g, '')
+                        const key = entry.currency.toLowerCase().replaceAll(/\s+/g, '')
                         return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                       })}
                     </Pie>

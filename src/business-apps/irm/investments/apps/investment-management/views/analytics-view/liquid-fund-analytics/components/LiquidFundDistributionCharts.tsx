@@ -91,7 +91,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     return investmentTypeCountDataRaw.map(item => ({
       investmentType: item.type,
       count: item.count,
-      name: item.type.toLowerCase().replace(/\s+/g, '')
+      name: item.type.toLowerCase().replaceAll(/\s+/g, '')
     }))
   }, [investmentTypeCountDataRaw])
 
@@ -100,7 +100,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     return investmentTypeAmountDataRaw.map(item => ({
       investmentType: item.type,
       totalAmount: item.totalAmount,
-      name: item.type.toLowerCase().replace(/\s+/g, '')
+      name: item.type.toLowerCase().replaceAll(/\s+/g, '')
     }))
   }, [investmentTypeAmountDataRaw])
 
@@ -109,7 +109,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     return liquidFundTypeCountDataRaw.map(item => ({
       liquidFundType: item.type,
       count: item.count,
-      name: item.type.toLowerCase().replace(/\s+/g, '')
+      name: item.type.toLowerCase().replaceAll(/\s+/g, '')
     }))
   }, [liquidFundTypeCountDataRaw])
 
@@ -118,7 +118,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     return liquidFundTypeAmountDataRaw.map(item => ({
       liquidFundType: item.type,
       totalAmount: item.totalAmount,
-      name: item.type.toLowerCase().replace(/\s+/g, '')
+      name: item.type.toLowerCase().replaceAll(/\s+/g, '')
     }))
   }, [liquidFundTypeAmountDataRaw])
 
