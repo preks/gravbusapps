@@ -40,10 +40,6 @@ export const getEmployeeFullName = (employee: Employee): string => {
   // Fallback to constructing name from parts if displayName is not available
   const parts = []
 
-  if (employee.academicTitleRef) {
-    parts.push(employee.academicTitleRef)
-  }
-
   if (employee.firstName) {
     parts.push(employee.firstName)
   }
