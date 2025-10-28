@@ -62,7 +62,7 @@ export const useLiquidFundCorrelationData = (
   }, [context.accessToken, currency, fetchCorrelationData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {
@@ -115,7 +115,7 @@ export const useLiquidFundPerformanceByType = (
   }, [context.accessToken, currency, fetchPerformanceByTypeData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

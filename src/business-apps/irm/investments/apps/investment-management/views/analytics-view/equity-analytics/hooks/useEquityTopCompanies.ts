@@ -49,7 +49,7 @@ export const useEquityTopCompanies = (
   }, [context.accessToken, currency, limit, fetchTopCompanies])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

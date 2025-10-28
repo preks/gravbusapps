@@ -39,7 +39,7 @@ const BUILD_ALL_STAKE_TYPES_COUNT_QUERY = (stakeTypes: StakeTypeInfo[], currency
 
   // Create a safe alias name from stakeTypeRef (remove special chars)
   const createAlias = (stakeTypeRef: string) => {
-    return `stakeType_${stakeTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+    return `stakeType_${stakeTypeRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_count`
   }
 
   // Build count aggregates for all stake types
@@ -99,7 +99,7 @@ export const useGetEquityStakeTypeCountDistribution = (context: BusinessAppConte
 
       // Helper to create alias (same logic as in query builder)
       const createAlias = (stakeTypeRef: string) => {
-        return `stakeType_${stakeTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+        return `stakeType_${stakeTypeRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_count`
       }
 
       // Step 3: Parse results and map back to stake types

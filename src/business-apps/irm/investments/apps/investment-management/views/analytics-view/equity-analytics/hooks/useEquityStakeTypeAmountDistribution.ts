@@ -53,7 +53,7 @@ export const useEquityStakeTypeAmountDistribution = (
   }, [context.accessToken, currency, fetchStakeTypeAmountDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

@@ -69,7 +69,7 @@ export const useLiquidFundInvestmentTypeDistribution = (
   }, [context.accessToken, currency, fetchInvestmentTypeDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

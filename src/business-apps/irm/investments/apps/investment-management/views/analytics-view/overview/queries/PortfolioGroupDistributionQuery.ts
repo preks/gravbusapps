@@ -61,35 +61,29 @@ export const useGetDistinctGroups = (context: BusinessAppContextProps) => {
       const query = GET_DISTINCT_GROUPS()
 
       // Store the promise so other concurrent calls can wait for it
-      pendingRequest = graphqlClient
-        .request(query)
-        .then((result: any) => {
-          if (!isMountedRef.current) {
-            throw new Error('Component unmounted')
-          }
+      pendingRequest = graphqlClient.request(query).then((result: any) => {
+        if (!isMountedRef.current) {
+          throw new Error('Component unmounted')
+        }
 
-          if (!result.Investment || !Array.isArray(result.Investment)) {
-            groupsCache = []
-            cacheTimestamp = Date.now()
-            pendingRequest = null
-            return []
-          }
-
-          const groups = result.Investment.filter((inv: any) => inv.investmentGroup?.value).map(
-            (inv: any) => inv.investmentGroup.value
-          )
-
-          // Update cache
-          groupsCache = groups
+        if (!result.Investment || !Array.isArray(result.Investment)) {
+          groupsCache = []
           cacheTimestamp = Date.now()
           pendingRequest = null
+          return []
+        }
 
-          return groups
-        })
-        .catch(error => {
-          pendingRequest = null
-          throw error
-        })
+        const groups = result.Investment.filter((inv: any) => inv.investmentGroup?.value).map(
+          (inv: any) => inv.investmentGroup.value
+        )
+
+        // Update cache
+        groupsCache = groups
+        cacheTimestamp = Date.now()
+        pendingRequest = null
+
+        return groups
+      })
 
       return await pendingRequest
     } finally {
@@ -220,13 +214,9 @@ export const buildGroupAmountDistributionQuery = (groups: string[], currency: st
       return []
     }
 
-    try {
-      const query = BUILD_GROUP_AMOUNT_DISTRIBUTION_QUERY(groups, currency)
-      const result = await graphqlClient.request(query)
-      return parseGroupDistributionResponse(result, groups, true)
-    } catch (error) {
-      throw error
-    }
+    const query = BUILD_GROUP_AMOUNT_DISTRIBUTION_QUERY(groups, currency)
+    const result = await graphqlClient.request(query)
+    return parseGroupDistributionResponse(result, groups, true)
   }
 }
 

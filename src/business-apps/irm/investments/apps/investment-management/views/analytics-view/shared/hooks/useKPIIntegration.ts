@@ -147,7 +147,7 @@ export function useKPIIntegration<T>(
    */
   useEffect(() => {
     if (context.accessToken) {
-      loadData()
+      void loadData()
     }
   }, [context.accessToken, ...dependencies])
 

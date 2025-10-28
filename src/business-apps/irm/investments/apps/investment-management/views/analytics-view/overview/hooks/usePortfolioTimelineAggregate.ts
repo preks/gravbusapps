@@ -124,7 +124,7 @@ export const usePortfolioTimelineAggregate = (
   }, [context.accessToken, yearsCount, currency, fetchTimelineAggregate])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [context.accessToken, yearsCount, currency])
 
   return {

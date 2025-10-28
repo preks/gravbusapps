@@ -49,7 +49,7 @@ export const useEquityConcentrationByRole = (
   }, [context.accessToken, currency, fetchConcentrationData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

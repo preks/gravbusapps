@@ -54,7 +54,7 @@ export const useEquityRoleCountDistribution = (
   }, [context.accessToken, currency, fetchRoleCountDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

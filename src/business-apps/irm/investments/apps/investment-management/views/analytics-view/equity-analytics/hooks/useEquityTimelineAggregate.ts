@@ -109,7 +109,7 @@ export const useEquityTimelineAggregate = (
   }, [context.accessToken, yearsCount, currency, fetchTimelineAggregate])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

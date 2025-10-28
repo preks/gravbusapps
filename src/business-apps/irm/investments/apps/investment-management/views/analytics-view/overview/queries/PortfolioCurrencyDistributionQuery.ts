@@ -156,7 +156,7 @@ export const buildCurrencyCountDistributionQuery = (
     const result = await graphqlClient.request(query)
 
     // Transform results
-    const distribution = currencies
+    return currencies
       .map(currency => {
         const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
         const key = `currency_${sanitizedCode}`
@@ -168,8 +168,6 @@ export const buildCurrencyCountDistributionQuery = (
         }
       })
       .filter(item => item.count > 0)
-
-    return distribution
   }
 }
 
@@ -189,7 +187,7 @@ export const buildCurrencyAmountDistributionQuery = (
     const result = await graphqlClient.request(query)
 
     // Transform results
-    const distribution = currencies
+    return currencies
       .map(currency => {
         const sanitizedCode = currency.currencyCode.replace(/[^a-zA-Z0-9_]/g, '_')
         const key = `currency_${sanitizedCode}`
@@ -201,8 +199,6 @@ export const buildCurrencyAmountDistributionQuery = (
         }
       })
       .filter(item => item.totalAmount > 0)
-
-    return distribution
   }
 }
 

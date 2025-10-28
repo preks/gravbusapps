@@ -95,7 +95,7 @@ export const useEquityAvailableCurrencies = (context: BusinessAppContextProps): 
 
   useEffect(() => {
     if (context.accessToken) {
-      loadAvailableCurrencies()
+      void loadAvailableCurrencies()
     }
   }, [context.accessToken, loadAvailableCurrencies])
 

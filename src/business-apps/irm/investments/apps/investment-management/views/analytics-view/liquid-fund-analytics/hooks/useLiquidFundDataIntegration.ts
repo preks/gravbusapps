@@ -59,7 +59,7 @@ export const useLiquidFundDataIntegration = (context: BusinessAppContextProps): 
   // Load data on mount and when access token changes
   useEffect(() => {
     if (context.accessToken) {
-      loadData()
+      void loadData()
     }
   }, [context.accessToken, loadData])
 

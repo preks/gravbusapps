@@ -60,7 +60,7 @@ export const useEquityRoleDistributionCombined = (
   }, [context.accessToken, countCurrency, amountCurrency, fetchCombinedRoleDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

@@ -77,7 +77,7 @@ export const useEquityPerformanceData = (
   }, [context.accessToken, stakeAmountCurrency, roleAmountCurrency, concentrationCurrency, fetchPerformanceData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

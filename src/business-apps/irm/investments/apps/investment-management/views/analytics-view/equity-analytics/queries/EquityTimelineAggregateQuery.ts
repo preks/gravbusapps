@@ -52,7 +52,7 @@ const BUILD_TIMELINE_AGGREGATE_QUERY = (years: string[], investmentTypes: string
 
   // Create alias name that's GraphQL-safe
   const createAlias = (year: string, investmentTypeRef: string) => {
-    return `year_${year}_type_${investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}`
+    return `year_${year}_type_${investmentTypeRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}`
   }
 
   // Generate aggregate queries for each year+type combination
@@ -156,7 +156,7 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
 
       years.forEach(year => {
         investmentTypes.forEach(type => {
-          const alias = `year_${year}_type_${type.investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}`
+          const alias = `year_${year}_type_${type.investmentTypeRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}`
           const aggregateData = aggregateResult[alias]
           const totalAmount = aggregateData?.aggregate?.sum?.totalInvestmentAmount || 0
 

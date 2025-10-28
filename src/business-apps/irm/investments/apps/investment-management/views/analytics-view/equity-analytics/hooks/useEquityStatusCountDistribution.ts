@@ -53,7 +53,7 @@ export const useEquityStatusCountDistribution = (
   }, [context.accessToken, currency, fetchStatusCountDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

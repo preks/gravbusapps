@@ -165,7 +165,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
   // Load data on mount and when access token or selected currency changes
   useEffect(() => {
     if (props.accessToken) {
-      loadData()
+      void loadData()
     }
   }, [props.accessToken, selectedCurrency, loadData])
 

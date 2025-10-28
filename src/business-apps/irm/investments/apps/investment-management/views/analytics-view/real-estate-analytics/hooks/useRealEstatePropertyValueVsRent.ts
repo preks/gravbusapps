@@ -49,7 +49,7 @@ export const useRealEstatePropertyValueVsRent = (
   }, [context.accessToken, currency, fetchData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [currency, loadData])
 
   return {

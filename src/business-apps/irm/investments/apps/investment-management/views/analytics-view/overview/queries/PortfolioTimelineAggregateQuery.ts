@@ -276,9 +276,6 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
                 count: value.aggregate.count || 0
               }
               yearlyData.push(dataPoint)
-
-              if (dataPoint.count > 0 || dataPoint.totalAmount > 0) {
-              }
             }
           })
 

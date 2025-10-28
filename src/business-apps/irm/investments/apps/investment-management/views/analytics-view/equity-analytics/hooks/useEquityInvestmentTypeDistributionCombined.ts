@@ -64,7 +64,7 @@ export const useEquityInvestmentTypeDistributionCombined = (
   }, [context.accessToken, countCurrency, amountCurrency, fetchCombinedInvestmentTypeDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

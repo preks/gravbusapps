@@ -49,7 +49,7 @@ const buildCountQuery = (roles: RoleInfo[], currency?: string): string => {
   }
 
   const createAlias = (roleRef: string) => {
-    return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+    return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_count`
   }
 
   const countAggregates = roles
@@ -93,7 +93,7 @@ const buildAmountQuery = (roles: RoleInfo[], currency: string): string => {
   }
 
   const createAlias = (roleRef: string) => {
-    return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+    return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
   }
 
   const amountAggregates = roles
@@ -200,7 +200,7 @@ export const useEquityRoleDistribution = (
 
       // Step 3: Parse count results
       const createCountAlias = (roleRef: string) => {
-        return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+        return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_count`
       }
 
       const countData: RoleCountDistributionData[] = rolesInfo
@@ -219,7 +219,7 @@ export const useEquityRoleDistribution = (
 
       // Step 4: Parse amount results
       const createAmountAlias = (roleRef: string) => {
-        return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+        return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
       }
 
       const amountData: RoleAmountDistributionData[] = amountCurrency
@@ -249,7 +249,7 @@ export const useEquityRoleDistribution = (
   }, [context.accessToken, countCurrency, amountCurrency, fetchDistinctRoles, graphqlClient])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

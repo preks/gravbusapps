@@ -50,7 +50,7 @@ export const usePortfolioConcentration = (
   }, [graphqlClient, currency, accessToken])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [accessToken, currency])
 
   return {

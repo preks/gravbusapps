@@ -79,7 +79,7 @@ export const useEquityPortfolioMatrix = (
   }, [context.accessToken, currency, fetchPortfolioMatrix])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

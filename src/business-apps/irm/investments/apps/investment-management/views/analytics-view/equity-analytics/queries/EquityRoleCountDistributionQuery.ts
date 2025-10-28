@@ -39,7 +39,7 @@ const BUILD_ALL_ROLES_COUNT_QUERY = (roles: RoleInfo[], currency?: string): stri
 
   // Create a safe alias name from roleRef (remove special chars)
   const createAlias = (roleRef: string) => {
-    return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+    return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_count`
   }
 
   // Build count aggregates for all roles
@@ -99,7 +99,7 @@ export const useGetEquityRoleCountDistribution = (context: BusinessAppContextPro
 
       // Helper to create alias (same logic as in query builder)
       const createAlias = (roleRef: string) => {
-        return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_count`
+        return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_count`
       }
 
       // Step 3: Parse results and map back to roles

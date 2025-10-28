@@ -51,7 +51,7 @@ export const usePortfolioTopAccounts = (
   }, [graphqlClient, currency, limit, accessToken])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [accessToken, currency, limit])
 
   return {

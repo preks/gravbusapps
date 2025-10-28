@@ -63,7 +63,7 @@ export const useRealEstateTimelineAggregate = (
   }, [context.accessToken, currency, queryName, fetchTimelineData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [currency, queryName, loadData])
 
   return {

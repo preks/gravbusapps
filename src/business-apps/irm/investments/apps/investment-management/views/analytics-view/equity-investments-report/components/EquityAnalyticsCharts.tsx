@@ -264,7 +264,11 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
                 domain={[0, 4]}
                 ticks={[1, 2, 3]}
                 tick={{ fontSize: 12 }}
-                tickFormatter={value => (value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead')}
+                tickFormatter={value => {
+                  if (value === 1) return 'Follow-on'
+                  if (value === 2) return 'Co-Investor'
+                  return 'Lead'
+                }}
               />
               <YAxis
                 type="number"
@@ -278,7 +282,12 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = ({
                   if (active && payload && payload.length) {
                     const data = payload[0].payload // Get the actual data point
                     const roleValue = data.role
-                    const roleLabel = roleValue === 1 ? 'Follow-on' : roleValue === 2 ? 'Co-Investor' : 'Lead'
+                    let roleLabel = 'Lead'
+                    if (roleValue === 1) {
+                      roleLabel = 'Follow-on'
+                    } else if (roleValue === 2) {
+                      roleLabel = 'Co-Investor'
+                    }
 
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">

@@ -128,7 +128,7 @@ export const useGetInvestmentSizeData = (context: BusinessAppContextProps) => {
       // Transform aggregate results into chart data
       const sizeData: InvestmentSizeRangeData[] = SIZE_RANGES.map((range, index) => {
         const rangeKey = `range_${index}` as keyof InvestmentSizeQueryResult
-        const aggregateData = result[rangeKey] as AggregateResult
+        const aggregateData = result[rangeKey]
         const count = aggregateData.aggregate.count
         const totalAmount = aggregateData.aggregate.sum?.totalInvestmentAmount || 0
 

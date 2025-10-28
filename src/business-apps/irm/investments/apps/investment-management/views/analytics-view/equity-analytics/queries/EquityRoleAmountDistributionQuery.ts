@@ -34,7 +34,7 @@ const BUILD_ALL_ROLES_AMOUNT_QUERY = (roles: RoleInfo[], currency: string): stri
 
   // Create a safe alias name from roleRef (remove special chars)
   const createAlias = (roleRef: string) => {
-    return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+    return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
   }
 
   // Build amount aggregates for all roles
@@ -98,7 +98,7 @@ export const useGetEquityRoleAmountDistribution = (context: BusinessAppContextPr
 
       // Helper to create alias (same logic as in query builder)
       const createAlias = (roleRef: string) => {
-        return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+        return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
       }
 
       // Step 3: Parse results and map back to roles

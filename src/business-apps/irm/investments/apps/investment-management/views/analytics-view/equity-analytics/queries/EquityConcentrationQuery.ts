@@ -59,7 +59,7 @@ export const useGetConcentrationData = (context: BusinessAppContextProps) => {
       // Transform concentration data (group by role)
       const roleGroups: Record<string, { count: number; totalValuation: number; valuations: number[] }> = {}
 
-      result.Investment.forEach(inv => {
+      for (const inv of result.Investment) {
         const roles = inv.investmentRole || []
         const role = roles.length > 0 && roles[0]?.investmentRole?.value ? roles[0].investmentRole.value : 'Unknown'
 
@@ -74,7 +74,7 @@ export const useGetConcentrationData = (context: BusinessAppContextProps) => {
         roleGroups[role].count += 1
         roleGroups[role].totalValuation += inv.investmentMarketValue || 0
         roleGroups[role].valuations.push(inv.investmentMarketValue || 0)
-      })
+      }
 
       const concentrationData: ConcentrationData[] = Object.entries(roleGroups).map(([role, data]) => ({
         role,

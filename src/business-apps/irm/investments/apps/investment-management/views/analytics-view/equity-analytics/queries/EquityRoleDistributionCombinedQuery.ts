@@ -95,7 +95,7 @@ const BUILD_ALL_ROLES_AGGREGATE_QUERY = (
 
   // Create a safe alias name from roleRef (remove special chars)
   const createAlias = (roleRef: string, suffix: string) => {
-    return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
+    return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
   }
 
   // Build count aggregates for all roles
@@ -206,7 +206,7 @@ export const useGetEquityRoleDistributionCombined = (context: BusinessAppContext
 
         // Helper to create alias (same logic as in query builder)
         const createAlias = (roleRef: string, suffix: string) => {
-          return `role_${roleRef.replace(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
+          return `role_${roleRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
         }
 
         // Step 3: Parse results and map back to roles

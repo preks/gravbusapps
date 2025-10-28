@@ -60,7 +60,7 @@ export const useEquityStakeTypeDistributionCombined = (
   }, [context.accessToken, countCurrency, amountCurrency, fetchCombinedStakeTypeDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

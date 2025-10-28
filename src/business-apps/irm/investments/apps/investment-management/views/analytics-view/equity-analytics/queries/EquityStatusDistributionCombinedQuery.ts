@@ -92,7 +92,7 @@ const BUILD_ALL_STATUSES_AGGREGATE_QUERY = (
 
   // Create a safe alias name from statusRef (remove special chars)
   const createAlias = (statusRef: string, suffix: string) => {
-    return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
+    return `status_${statusRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
   }
 
   // Build count aggregates for all statuses
@@ -203,7 +203,7 @@ export const useGetEquityStatusDistributionCombined = (context: BusinessAppConte
 
         // Helper to create alias (same logic as in query builder)
         const createAlias = (statusRef: string, suffix: string) => {
-          return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
+          return `status_${statusRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_${suffix}`
         }
 
         // Step 3: Parse results and map back to statuses

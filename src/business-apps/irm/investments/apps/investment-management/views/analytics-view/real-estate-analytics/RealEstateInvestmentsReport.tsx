@@ -143,7 +143,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
   // Load data on mount and when access token changes
   useEffect(() => {
     if (props.accessToken) {
-      loadData()
+      void loadData()
     }
   }, [props.accessToken, loadData])
 

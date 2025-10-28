@@ -63,7 +63,7 @@ export const useLiquidFundTimelineAggregate = (
   }, [context.accessToken, currency, queryName, fetchTimelineData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

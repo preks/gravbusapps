@@ -42,7 +42,7 @@ const BUILD_PERFORMANCE_TIMELINE_QUERY = (currency: string, years: string[], que
     .map(year => {
       const alias = `year_${year}`
       const startDate = `${year}-01-01`
-      const endDate = `${parseInt(year) + 1}-01-01`
+      const endDate = `${Number.parseInt(year) + 1}-01-01`
 
       return `
       ${alias}: InvestmentAggregate(
@@ -85,7 +85,7 @@ const BUILD_VALUE_TRENDS_QUERY = (currency: string, years: string[], queryName: 
     .map(year => {
       const alias = `year_${year}`
       const startDate = `${year}-01-01`
-      const endDate = `${parseInt(year) + 1}-01-01`
+      const endDate = `${Number.parseInt(year) + 1}-01-01`
 
       return `
       ${alias}: InvestmentAggregate(
@@ -122,7 +122,7 @@ const parsePerformanceAggregateResponse = (data: any, years: string[]): YearlyPe
   const yearlyData: YearlyPerformanceData[] = []
 
   // Extract data from aliases in chronological order
-  years.forEach(year => {
+  for (const year of years) {
     const key = `year_${year}`
     if (data[key]) {
       const aggregate = data[key].aggregate
@@ -138,17 +138,17 @@ const parsePerformanceAggregateResponse = (data: any, years: string[]): YearlyPe
         cumulativeTotalInvested: 0 // Will calculate after
       })
     }
-  })
+  }
 
   // Calculate cumulative values
   let cumulativeCount = 0
   let cumulativeAmount = 0
-  yearlyData.forEach(item => {
+  for (const item of yearlyData) {
     cumulativeCount += item.investmentCount
     cumulativeAmount += item.totalInvestmentAmount
     item.cumulativeInvestments = cumulativeCount
     item.cumulativeTotalInvested = cumulativeAmount
-  })
+  }
 
   return yearlyData
 }
@@ -160,7 +160,7 @@ const parseValueTrendsAggregateResponse = (data: any, years: string[]): YearlyVa
   const yearlyData: YearlyValueData[] = []
 
   // Extract data from aliases in chronological order
-  years.forEach(year => {
+  for (const year of years) {
     const key = `year_${year}`
     if (data[key]) {
       const aggregate = data[key].aggregate
@@ -173,7 +173,7 @@ const parseValueTrendsAggregateResponse = (data: any, years: string[]): YearlyVa
         totalMarketValue
       })
     }
-  })
+  }
 
   return yearlyData
 }

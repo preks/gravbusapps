@@ -127,7 +127,7 @@ export const useGetInvestmentDurationData = (context: BusinessAppContextProps) =
       // Transform aggregate results into chart data
       const durationData: InvestmentDurationRangeData[] = DURATION_RANGES.map((range, index) => {
         const rangeKey = `range_${index}` as keyof InvestmentDurationQueryResult
-        const aggregateData = result[rangeKey] as AggregateResult
+        const aggregateData = result[rangeKey]
         const count = aggregateData.aggregate.count
 
         return {

@@ -49,7 +49,7 @@ export const useEquityRoleVsAmount = (
   }, [context.accessToken, currency, fetchRoleVsAmountData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

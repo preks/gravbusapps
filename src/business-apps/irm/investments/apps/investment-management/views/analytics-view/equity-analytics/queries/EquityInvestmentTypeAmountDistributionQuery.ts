@@ -34,7 +34,7 @@ const BUILD_ALL_INVESTMENT_TYPES_AMOUNT_QUERY = (investmentTypes: InvestmentType
 
   // Create a safe alias name from investmentTypeRef (remove special chars)
   const createAlias = (investmentTypeRef: string) => {
-    return `investmentType_${investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+    return `investmentType_${investmentTypeRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
   }
 
   // Build amount aggregates for all investment types
@@ -98,7 +98,7 @@ export const useGetEquityInvestmentTypeAmountDistribution = (context: BusinessAp
 
       // Helper to create alias (same logic as in query builder)
       const createAlias = (investmentTypeRef: string) => {
-        return `investmentType_${investmentTypeRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+        return `investmentType_${investmentTypeRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
       }
 
       // Step 3: Parse results and map back to investment types

@@ -49,7 +49,7 @@ export const useEquityInvestmentSize = (
   }, [context.accessToken, currency, fetchInvestmentSizeData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

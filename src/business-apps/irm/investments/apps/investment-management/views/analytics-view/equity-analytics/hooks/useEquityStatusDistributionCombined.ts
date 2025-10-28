@@ -60,7 +60,7 @@ export const useEquityStatusDistributionCombined = (
   }, [context.accessToken, countCurrency, amountCurrency, fetchCombinedStatusDistribution])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
   return {

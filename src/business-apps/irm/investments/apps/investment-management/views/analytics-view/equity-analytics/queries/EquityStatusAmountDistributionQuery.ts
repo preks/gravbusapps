@@ -34,7 +34,7 @@ const BUILD_ALL_STATUSES_AMOUNT_QUERY = (statuses: StatusInfo[], currency: strin
 
   // Create a safe alias name from statusRef (remove special chars)
   const createAlias = (statusRef: string) => {
-    return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+    return `status_${statusRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
   }
 
   // Build amount aggregates for all statuses
@@ -98,7 +98,7 @@ export const useGetEquityStatusAmountDistribution = (context: BusinessAppContext
 
       // Helper to create alias (same logic as in query builder)
       const createAlias = (statusRef: string) => {
-        return `status_${statusRef.replace(/[^a-zA-Z0-9]/g, '_')}_amount`
+        return `status_${statusRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}_amount`
       }
 
       // Step 3: Parse results and map back to statuses

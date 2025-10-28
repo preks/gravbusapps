@@ -164,7 +164,7 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: st
             const acquisitionDate = new Date(inv.acquisitionDate!)
 
             // Validate date is valid
-            if (isNaN(acquisitionDate.getTime())) {
+            if (Number.isNaN(acquisitionDate.getTime())) {
               return null
             }
 
@@ -182,7 +182,7 @@ export const useGetEquityKPIs = (context: BusinessAppContextProps, currency?: st
 
             return durationInDays
           })
-          .filter(duration => duration !== null) as number[] // Remove invalid entries
+          .filter((duration): duration is number => duration !== null) // Remove invalid entries
 
         if (durations.length === 0) {
           return 0

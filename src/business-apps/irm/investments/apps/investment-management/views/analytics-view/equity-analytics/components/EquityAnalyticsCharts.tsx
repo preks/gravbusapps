@@ -220,7 +220,11 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                   domain={[0, 4]}
                   ticks={[1, 2, 3]}
                   tick={{ fontSize: 12 }}
-                  tickFormatter={value => (value === 1 ? 'Follow-on' : value === 2 ? 'Co-Investor' : 'Lead')}
+                  tickFormatter={value => {
+                    if (value === 1) return 'Follow-on'
+                    if (value === 2) return 'Co-Investor'
+                    return 'Lead'
+                  }}
                 />
                 <YAxis
                   type="number"

@@ -188,7 +188,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
 
   useEffect(() => {
     if (context.accessToken) {
-      loadData()
+      void loadData()
     }
   }, [context.accessToken, selectedCurrency])
 

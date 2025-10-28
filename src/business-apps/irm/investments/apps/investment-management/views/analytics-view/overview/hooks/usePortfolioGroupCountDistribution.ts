@@ -49,7 +49,7 @@ export const usePortfolioGroupCountDistribution = (
   }, [context.accessToken, currency, fetchData])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [context.accessToken, currency])
 
   return {

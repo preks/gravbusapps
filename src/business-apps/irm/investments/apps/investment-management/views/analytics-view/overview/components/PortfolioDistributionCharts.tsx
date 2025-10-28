@@ -99,55 +99,55 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
   // Pre-compute chart configs (must be outside conditional rendering)
   const groupCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    groupCountData.forEach((item: any) => {
+    for (const item of groupCountData) {
       const key = item.group.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.group }
-    })
+    }
     return config
   }, [groupCountData])
 
   const groupAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    groupAmountData.forEach((item: any) => {
+    for (const item of groupAmountData) {
       const key = item.group.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.group }
-    })
+    }
     return config
   }, [groupAmountData])
 
   const statusCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    statusCountData.forEach((item: any) => {
+    for (const item of statusCountData) {
       const key = item.status.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.status }
-    })
+    }
     return config
   }, [statusCountData])
 
   const statusAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    statusAmountData.forEach((item: any) => {
+    for (const item of statusAmountData) {
       const key = item.status.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.status }
-    })
+    }
     return config
   }, [statusAmountData])
 
   const currencyCountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    currencyCountData.forEach((item: any) => {
+    for (const item of currencyCountData) {
       const key = item.currency.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.currency }
-    })
+    }
     return config
   }, [currencyCountData])
 
   const currencyAmountChartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    currencyAmountData.forEach((item: any) => {
+    for (const item of currencyAmountData) {
       const key = item.currency.toLowerCase().replace(/\s+/g, '')
       config[key] = { label: item.currency }
-    })
+    }
     return config
   }, [currencyAmountData])
 
