@@ -177,7 +177,14 @@ const transformSalesTaskToTask = (salesTask: SalesTask): Task | null => {
             `${(salesTask.creatorEmployee.firstName || 'U').charAt(0)}${(salesTask.creatorEmployee.lastName || 'U').charAt(0)}`.toUpperCase(),
           avatar: salesTask.creatorEmployee.pictureThumbnail || undefined
         }
-      : undefined
+      : undefined,
+    documents: salesTask.documents?.map(doc => ({
+      id: doc.id,
+      name: doc.name,
+      mimeType: doc.mimeType,
+      fileSize: doc.fileSize,
+      fileInfo: doc.fileInfo
+    }))
   }
 }
 

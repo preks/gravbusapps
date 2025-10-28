@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { toast } from 'sonner'
 import { Form } from 'antd'
 import {
   Card,
@@ -12,7 +11,8 @@ import {
   Button as DesignButton,
   Separator,
   Spinner,
-  Toaster
+  Toaster,
+  toast
 } from '@newwork/nw-design-system'
 import SearchableSelect from './components/SearchableSelect'
 import AccountSection from './components/AccountSection'

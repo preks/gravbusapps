@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import {
   Input,
   FormField,
@@ -26,7 +26,6 @@ const getInvestmentTypeName = (group: string): string => {
   if (!group) return 'Investment'
 
   const groupCode = group.split(':').pop() || group
-
   switch (groupCode) {
     case 'LIQUID_FUND':
       return 'Liquid Fund'
@@ -116,17 +115,15 @@ const InvestmentSegment: React.FC = () => {
     loadCurrencies()
   }, [loadCurrencies])
 
-  const assigneeOptions = useMemo(
-    () =>
-      (employeePositions || []).map(emp => ({
-        id: emp.id,
-        displayName: emp.label,
-        pictureThumbnail: emp.extraInfo?.pictureThumbnail,
-        organizationalUnitName: emp.extraInfo?.organizationalUnit,
-        jobPositionName: emp.extraInfo?.jobPosition
-      })),
-    [employeePositions]
-  )
+  // Prime assignee search when empty
+  useEffect(() => {
+    if (searchEmployeePositions && (employeePositions?.length || 0) === 0) {
+      searchEmployeePositions('')
+    }
+  }, [searchEmployeePositions, employeePositions?.length])
+
+  // employeePositions is already in the correct EmployeeOption format from useEmployeeSearch
+  const assigneeOptions = employeePositions || []
 
   // Get dynamic investment type name
   const investmentGroupId =
@@ -153,42 +150,28 @@ const InvestmentSegment: React.FC = () => {
         {/* Owner Selection */}
         <FormField
           control={control as any}
-          name="investment.ownerEmployee"
-          render={({ field }) => {
-            const displayValue =
-              field.value && typeof field.value === 'object' ? field.value.id || '' : field.value || ''
-            return (
-              <FormItem>
-                <FormLabel>
-                  {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)}{' '}
-                  <span className="gba:text-destructive">*</span>
-                </FormLabel>
-                <FormControl>
-                  <EmployeeSelect
-                    employees={assigneeOptions}
-                    value={displayValue}
-                    onValueChange={(value: string) => {
-                      if (value) {
-                        field.onChange({ id: value } as any)
-                      } else {
-                        field.onChange(null)
-                      }
-                    }}
-                    onSearch={searchEmployeePositions}
-                    loading={Boolean(employeePositionsLoading)}
-                    onLoadMore={loadMoreEmployeePositions}
-                    hasMore={Boolean(employeePositionsHasMore)}
-                    placeholder={getTranslationFromI18nKeyAndLabel(
-                      'investment.form.selectTypeOwner',
-                      `Select ${investmentTypeName.toLowerCase()} owner`
-                    )}
-                    data-testid={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )
-          }}
+          name="investment.ownerEmployeeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                {getTranslationFromI18nKeyAndLabel('investment.form.typeOwner', `${investmentTypeName} Owner`)}{' '}
+                <span className="gba:text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <EmployeeSelect
+                  employees={assigneeOptions as any}
+                  value={field.value || ''}
+                  onValueChange={(v: string | null) => field.onChange(v)}
+                  onSearch={searchEmployeePositions}
+                  loading={Boolean(employeePositionsLoading)}
+                  onLoadMore={loadMoreEmployeePositions}
+                  hasMore={Boolean(employeePositionsHasMore)}
+                  data-testid={formatDataTestId(prefixDataTestId, 'OwnerSelect')}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
 
         {/* Investment Name and Currency Row */}
@@ -284,7 +267,7 @@ const InvestmentSegment: React.FC = () => {
                     // Store as object if value exists, undefined if cleared
                     field.onChange(value ? ({ id: value } as any) : undefined)
                   }}
-                  options={accounts}
+                  options={accounts as any}
                   placeholder={getTranslationFromI18nKeyAndLabel('investment.form.selectAccount', 'Select account...')}
                   searchPlaceholder="Search accounts..."
                   emptyText="No accounts found"
@@ -308,10 +291,7 @@ const InvestmentSegment: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setAccountsError(null)
-                        loadAccounts(accountSearchTerm, false)
-                      }}
+                      onClick={() => searchAccounts('')}
                       data-testid={formatDataTestId(prefixDataTestId, 'account-retry-button')}
                     >
                       {getTranslationFromI18nKeyAndLabel('common.retry', 'Retry')}

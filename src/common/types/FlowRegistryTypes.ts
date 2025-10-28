@@ -1,4 +1,12 @@
 export enum FlowContextName {
+  // Intranet
+  articleEntity = 'contentEntity',
+  articleCreate = 'contentCreate',
+  articleUpdate = 'contentUpdate',
+  articleDelete = 'contentDelete',
+  contentLikeUpdate = 'contentLikeUpdate',
+  contentCommentCreate = 'contentCommentCreate',
+
   // Human Resources
   employeeEntity = 'employeeEntity',
   jobPositionEntity = 'jobPositionEntity',
@@ -11,19 +19,16 @@ export enum FlowContextName {
   customerLeadCreate = 'customerLeadCreate',
 
   /// Customer Accounts
-  accountEntity = 'customerAccountEntity', // TODO: Obsolete
-  customerAccountEntity = 'customerAccountEntity', // TODO: Check
+  customerAccountEntity = 'customerAccountEntity',
   customerAccountCreate = 'customerAccountCreate', // TODO: Replace startProcess
   customerAccountUpdate = 'customerAccountUpdate', // TODO: Replace startProcess
 
   /// Customer Contacts
-  contactEntity = 'customerContactEntity', // TODO: Rename
   customerContactEntity = 'customerContactEntity',
   customerContactCreate = 'customerContactCreate', // TODO: Replace startProcess
   customerContactUpdate = 'customerContactUpdate', // TODO: Replace startProcess
 
   /// Customer Opportunities
-  opportunityEntity = 'customerOpportunityEntity', // TODO: Obsolete
   customerOpportunityEntity = 'customerOpportunityEntity',
   customerOpportunityCreate = 'customerOpportunityCreate', // TODO: Replace startProcess
   customerOpportunityUpdate = 'customerOpportunityUpdate', // TODO: Replace startProcess
@@ -103,7 +108,6 @@ export enum FlowContextName {
   investmentDocumentDelete = 'investmentDocumentDelete',
 
   /// Investments
-  createInvestment = 'investmentCreate', // TODO: Obsolete
   investmentCreate = 'investmentCreate', // TODO: Replace startProcess
   investmentEntity = 'investmentEntity',
   investmentTileUpdate = 'investmentTileUpdate',
