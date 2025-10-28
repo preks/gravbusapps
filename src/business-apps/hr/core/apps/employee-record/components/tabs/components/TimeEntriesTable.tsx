@@ -2,15 +2,13 @@
 
 import React from 'react'
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, Badge } from '@newwork/nw-design-system'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { TimeEntry } from '../hooks/useTimeTrackingData'
 
 export interface TimeEntriesTableProps {
   entries: TimeEntry[]
   locale: string
-  page: number
   pageSize: number
-  totalCount: number
-  onPageChange: (p: number) => void
   onPageSizeChange: (s: number) => void
 }
 
@@ -32,24 +30,30 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Start</TableHead>
-            <TableHead>End</TableHead>
-            <TableHead>Recorded</TableHead>
-            <TableHead>Break</TableHead>
-            <TableHead>Effective</TableHead>
-            <TableHead>Planned</TableHead>
-            <TableHead>Diff</TableHead>
-            <TableHead>Manual</TableHead>
-            <TableHead>Notes</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.date', 'Date')}</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.start', 'Start')}</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.end', 'End')}</TableHead>
+            <TableHead>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.recorded', 'Recorded')}
+            </TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.break', 'Break')}</TableHead>
+            <TableHead>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.effective', 'Effective')}
+            </TableHead>
+            <TableHead>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.planned', 'Planned')}
+            </TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.diff', 'Diff')}</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.manual', 'Manual')}</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.notes', 'Notes')}</TableHead>
+            <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.status', 'Status')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {entries.length === 0 ? (
             <TableRow>
               <TableCell colSpan={11} className="gba:text-muted-foreground">
-                No entries
+                {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.table.empty', 'No entries')}
               </TableCell>
             </TableRow>
           ) : (
@@ -70,7 +74,11 @@ export const TimeEntriesTable: React.FC<TimeEntriesTableProps> = props => {
                 <TableCell data-testid={`time-tracking-table-planned-cell-${e.id}`}>{e.plannedTime ?? '-'}</TableCell>
                 <TableCell data-testid={`time-tracking-table-diff-cell-${e.id}`}>{e.differenceTime ?? '-'}</TableCell>
                 <TableCell data-testid={`time-tracking-table-manual-cell-${e.id}`}>
-                  <Badge variant={e.manualOverride ? 'warning' : 'secondary'}>{e.manualOverride ? 'Yes' : 'No'}</Badge>
+                  <Badge variant={e.manualOverride ? 'warning' : 'secondary'}>
+                    {e.manualOverride
+                      ? getTranslationFromI18nKeyAndLabel('common.yes', 'Yes')
+                      : getTranslationFromI18nKeyAndLabel('common.no', 'No')}
+                  </Badge>
                 </TableCell>
                 <TableCell data-testid={`time-tracking-table-notes-cell-${e.id}`}>{e.notes ?? ''}</TableCell>
                 <TableCell data-testid={`time-tracking-table-status-cell-${e.id}`}>
