@@ -347,7 +347,8 @@ async function addScreenConfigToScreenManagement(
   customUrlPath,
   buildNumber = '',
   apiEndpoint = null,
-  oauthConfig = {}
+  oauthConfig = {},
+  options = {}
 ) {
   const generatedId = uuidv4()
 
@@ -357,16 +358,16 @@ async function addScreenConfigToScreenManagement(
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
 
     // Use new helper functions for proper screen naming and key generation
-    const name = formatScreenNameFromPath(customUrlPath)
-    const screenKey = generateScreenKeyFromPath(customUrlPath)
+    const name = options.nameOverride || formatScreenNameFromPath(customUrlPath)
+    const screenKey = options.screenKeyOverride || generateScreenKeyFromPath(customUrlPath)
 
     const payload = {
-      id: generatedId,
+      id: options.idOverride || generatedId,
       name: name,
       screenKey: screenKey,
-      namespaceCode: 'nw_dev',
-      namespaceId: '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
-      namespaceDescription: 'nw_dev',
+      namespaceCode: options.namespace?.namespaceCode || 'nw_dev',
+      namespaceId: options.namespace?.namespaceId || '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
+      namespaceDescription: options.namespace?.namespaceDescription || 'nw_dev',
       type: 'SCREEN',
       screenComponents: {
         appName: name,
@@ -614,7 +615,8 @@ async function addFormAsLandingScreen(
   azureDestinationPath,
   buildNumber = '',
   apiEndpoint = null,
-  oauthConfig = {}
+  oauthConfig = {},
+  options = {}
 ) {
   const generatedId = uuidv4()
 
@@ -624,15 +626,15 @@ async function addFormAsLandingScreen(
     const screenManagementApi = apiEndpoint || process.env.NEXT_PUBLIC_SCREEN_MANAGEMENT_SERVICE_API
 
     const name = camelCaseToNaturalLanguageWithWhiteSpaces(processName)
-    const screenKey = `frm_${processName}`
+    const screenKey = options.screenKeyOverride || `frm_${processName}`
 
     const payload = {
-      id: generatedId,
+      id: options.idOverride || generatedId,
       name: name,
       screenKey: screenKey,
-      namespaceCode: 'nw_dev',
-      namespaceId: '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
-      namespaceDescription: 'nw_dev',
+      namespaceCode: options.namespace?.namespaceCode || 'nw_dev',
+      namespaceId: options.namespace?.namespaceId || '1e6e2926-33f1-4dfb-a3b8-d535602d06b0',
+      namespaceDescription: options.namespace?.namespaceDescription || 'nw_dev',
       type: 'SCREEN',
       screenComponents: {
         appName: name,
@@ -919,45 +921,39 @@ async function syncScreenFromDevToProd(devScreen, prodScreenManagementApi, prodO
     if (existingProdScreen) {
       // Strict LOWCODER detection and deletion
       if (isLowcoderScreen(existingProdScreen)) {
-        const confirmExisting = await getScreenByKey(devScreen.screenKey, prodScreenManagementApi, prodOauthConfig)
-        if (confirmExisting && isLowcoderScreen(confirmExisting)) {
-          console.log('   🔎 LOWCODER detected and confirmed – deleting before recreation')
-          await deleteScreenInScreenManagement(confirmExisting.id, prodScreenManagementApi, prodOauthConfig)
+        console.log('   🔎 LOWCODER screen detected and confirmed – deleting before recreation')
+        await deleteScreenInScreenManagement(existingProdScreen.id, prodScreenManagementApi, prodOauthConfig)
 
-          const recreatePayload = {
-            ...devScreen,
-            // Overwrite namespace with source (dev) namespace explicitly
-            namespaceId: devScreen.namespaceId,
-            namespaceCode: devScreen.namespaceCode,
-            namespaceDescription: devScreen.namespaceDescription,
-            screenComponents: {
-              ...devScreen.screenComponents,
-              builderType: 'NATIVE_SCREEN',
-              formDefinition: {
-                ...devScreen.screenComponents.formDefinition,
-                version: buildVersion
-              },
-              release: 'true'
+        const recreatePayload = {
+          ...devScreen,
+          // Overwrite namespace with source (dev) namespace explicitly
+          namespaceId: devScreen.namespaceId,
+          namespaceCode: devScreen.namespaceCode,
+          namespaceDescription: devScreen.namespaceDescription,
+          screenComponents: {
+            ...devScreen.screenComponents,
+            builderType: 'NATIVE_SCREEN',
+            formDefinition: {
+              ...devScreen.screenComponents.formDefinition,
+              version: buildVersion
+            },
+            release: 'true'
+          }
+        }
+
+        try {
+          await axios.post(`${prodScreenManagementApi}/screen`, recreatePayload, {
+            headers: {
+              accept: 'application/json',
+              authorization: `Bearer ${accessToken}`,
+              'content-type': 'application/json'
             }
-          }
-
-          try {
-            await axios.post(`${prodScreenManagementApi}/screen`, recreatePayload, {
-              headers: {
-                accept: 'application/json',
-                authorization: `Bearer ${accessToken}`,
-                'content-type': 'application/json'
-              }
-            })
-            console.log(`   ✅ Screen recreated in prod as NATIVE_SCREEN: ${devScreen.screenKey}`)
-            return { success: true, operation: 'create', screenId: devScreen.id }
-          } catch (error) {
-            console.error(`   ❌ Failed to recreate screen in prod: ${error.message}`)
-            return { success: false, operation: 'create', error: error.message }
-          }
-        } else {
-          console.log('   ⏩ Skipping deletion: detection not confirmed')
-          // proceed with update path
+          })
+          console.log(`   ✅ Screen recreated in prod as NATIVE_SCREEN: ${devScreen.screenKey}`)
+          return { success: true, operation: 'create', screenId: devScreen.id }
+        } catch (error) {
+          console.error(`   ❌ Failed to recreate screen in prod: ${error.message}`)
+          return { success: false, operation: 'create', error: error.message }
         }
       }
 

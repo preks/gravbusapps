@@ -399,58 +399,53 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
         const existingForm = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
 
         if (existingForm && existingForm.id) {
-          // Strict LOWCODER detection → delete and recreate
+          // Strict LOWCODER form detection → delete and recreate
           if (isLowcoderScreen(existingForm)) {
-            const confirm = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
-            if (confirm && isLowcoderScreen(confirm)) {
-              console.log('   🔎 LOWCODER form detected and confirmed – deleting before recreation')
-              await deleteScreenInScreenManagement(confirm.id, target.services.screenManagementApi, oauthConfig)
+            console.log('   🔎 LOWCODER form detected and confirmed – deleting before recreation')
+            await deleteScreenInScreenManagement(existingForm.id, target.services.screenManagementApi, oauthConfig)
 
-              // Fetch dev screen for namespace
-              const devForm = await getScreenByKey(screenKey)
-              const ns = devForm
-                ? {
-                    namespaceId: devForm.namespaceId,
-                    namespaceCode: devForm.namespaceCode,
-                    namespaceDescription: devForm.namespaceDescription
-                  }
-                : null
+            // Fetch dev screen for namespace
+            const devForm = await getScreenByKey(screenKey)
+            const ns = devForm
+              ? {
+                  namespaceId: devForm.namespaceId,
+                  namespaceCode: devForm.namespaceCode,
+                  namespaceDescription: devForm.namespaceDescription
+                }
+              : null
 
-              if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-                const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-                const result = await addScreenConfigToScreenManagement(
-                  azureDestinationPath,
-                  customUrlPath,
-                  PUBLISH_VERSION,
-                  target.services.screenManagementApi,
-                  oauthConfig,
-                  ns ? { namespace: ns, idOverride: devForm?.id } : {}
-                )
-                if (result.success) {
-                  console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
-                  return { success: true, operation: 'recreate' }
-                }
-                console.error(`❌ Form screen recreation failed`)
-                return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
-              } else {
-                // Use landing screen creation (cannot override namespace via current helper)
-                const result = await addFormAsLandingScreen(
-                  processName,
-                  azureDestinationPath,
-                  PUBLISH_VERSION,
-                  target.services.screenManagementApi,
-                  oauthConfig,
-                  ns ? { namespace: ns, idOverride: devForm?.id } : {}
-                )
-                if (result.success) {
-                  console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
-                  return { success: true, operation: 'recreate' }
-                }
-                console.error(`❌ Form screen recreation failed`)
-                return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
+            if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+              const customUrlPath = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
+              const result = await addScreenConfigToScreenManagement(
+                azureDestinationPath,
+                customUrlPath,
+                PUBLISH_VERSION,
+                target.services.screenManagementApi,
+                oauthConfig,
+                ns ? { namespace: ns, idOverride: devForm?.id } : {}
+              )
+              if (result.success) {
+                console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
+                return { success: true, operation: 'recreate' }
               }
+              console.error(`❌ Form screen recreation failed`)
+              return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
             } else {
-              console.log('   ⏩ Skipping deletion: detection not confirmed')
+              // Use landing screen creation (cannot override namespace via current helper)
+              const result = await addFormAsLandingScreen(
+                processName,
+                azureDestinationPath,
+                PUBLISH_VERSION,
+                target.services.screenManagementApi,
+                oauthConfig,
+                ns ? { namespace: ns, idOverride: devForm?.id } : {}
+              )
+              if (result.success) {
+                console.log(`✅ Form screen recreated successfully with ID: ${result.id}`)
+                return { success: true, operation: 'recreate' }
+              }
+              console.error(`❌ Form screen recreation failed`)
+              return { success: false, operation: 'recreate', error: 'Form screen recreation failed' }
             }
           }
 
@@ -650,49 +645,44 @@ async function handleScreenManagement(screenPath, azureDestinationPath, resource
         const existingScreen = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
 
         if (existingScreen && existingScreen.id) {
-          // Strict LOWCODER detection → delete and recreate
+          // Strict LOWCODER screen detection → delete and recreate
           if (isLowcoderScreen(existingScreen)) {
-            const confirm = await getScreenByKey(screenKey, target.services.screenManagementApi, oauthConfig)
-            if (confirm && isLowcoderScreen(confirm)) {
-              console.log('   🔎 LOWCODER screen detected and confirmed – deleting before recreation')
-              await deleteScreenInScreenManagement(confirm.id, target.services.screenManagementApi, oauthConfig)
+            console.log('   🔎 LOWCODER screen detected and confirmed – deleting before recreation')
+            await deleteScreenInScreenManagement(existingScreen.id, target.services.screenManagementApi, oauthConfig)
 
-              // Fetch dev screen for namespace
-              const devScreen = await getScreenByKey(screenKey)
-              const ns = devScreen
-                ? {
-                    namespaceId: devScreen.namespaceId,
-                    namespaceCode: devScreen.namespaceCode,
-                    namespaceDescription: devScreen.namespaceDescription
-                  }
-                : null
+            // Fetch dev screen for namespace
+            const devScreen = await getScreenByKey(screenKey)
+            const ns = devScreen
+              ? {
+                  namespaceId: devScreen.namespaceId,
+                  namespaceCode: devScreen.namespaceCode,
+                  namespaceDescription: devScreen.namespaceDescription
+                }
+              : null
 
-              // Generate custom URL path for screen creation
-              let customUrlPathForCreation
-              if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
-                customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
-              } else {
-                customUrlPathForCreation = `apps/${azureDestinationPath}`
-              }
-
-              const result = await addScreenConfigToScreenManagement(
-                azureDestinationPath,
-                customUrlPathForCreation,
-                PUBLISH_VERSION,
-                target.services.screenManagementApi,
-                oauthConfig,
-                ns ? { namespace: ns, idOverride: devScreen?.id } : {}
-              )
-
-              if (result.success) {
-                console.log(`✅ Screen recreated successfully with ID: ${result.id}`)
-                return { success: true, operation: 'recreate' }
-              }
-              console.error(`❌ Screen recreation failed`)
-              return { success: false, operation: 'recreate', error: 'Screen recreation failed' }
+            // Generate custom URL path for screen creation
+            let customUrlPathForCreation
+            if (resourceUrlInfo && resourceUrlInfo.resourceUrl) {
+              customUrlPathForCreation = resourceUrlInfo.resourceUrl.url.replace(/^\/platform\//, '')
             } else {
-              console.log('   ⏩ Skipping deletion: detection not confirmed')
+              customUrlPathForCreation = `apps/${azureDestinationPath}`
             }
+
+            const result = await addScreenConfigToScreenManagement(
+              azureDestinationPath,
+              customUrlPathForCreation,
+              PUBLISH_VERSION,
+              target.services.screenManagementApi,
+              oauthConfig,
+              ns ? { namespace: ns, idOverride: devScreen?.id } : {}
+            )
+
+            if (result.success) {
+              console.log(`✅ Screen recreated successfully with ID: ${result.id}`)
+              return { success: true, operation: 'recreate' }
+            }
+            console.error(`❌ Screen recreation failed`)
+            return { success: false, operation: 'recreate', error: 'Screen recreation failed' }
           }
 
           // Screen exists, update it (overwrite namespace from dev)
