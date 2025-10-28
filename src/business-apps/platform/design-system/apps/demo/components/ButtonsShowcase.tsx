@@ -1,6 +1,5 @@
-import { Button, ActionButton, Toggle, ToggleGroup, ToggleGroupItem } from '@newwork/nw-design-system'
+import { Button, ActionButton, Toggle, ToggleGroup, ToggleGroupItem, toast } from '@newwork/nw-design-system'
 import { Star, Heart, Bell, House, Gear, User } from '@phosphor-icons/react'
-import { toast } from 'sonner'
 import ComponentShowcase from './ComponentShowcase'
 
 /**

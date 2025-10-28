@@ -2,6 +2,17 @@ import { useEffect, useState, useCallback } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+export interface CatalogEntry {
+  value: string
+  objectValue?: any
+  translations?: Array<{
+    id?: string
+    value: string
+    objectValue?: any
+    localeCode: string
+  }>
+}
+
 export interface Employee {
   startDate?: string
   exitDate?: string | null
@@ -17,8 +28,8 @@ export interface Employee {
   }
   email: string
   profilePicture: string
-  employmentType?: string
-  contractType?: string
+  employmentType?: CatalogEntry
+  contractType?: CatalogEntry
 }
 
 const EMPLOYEE_POSITION_QUERY = `
@@ -60,9 +71,19 @@ const EMPLOYEE_POSITION_QUERY = `
         workingCondition {
           contractType {
             value
+            objectValue
+          	translations {
+              value
+              localeCode
+          	}
           }
           employmentType {
             value
+            objectValue
+            translations {
+              value
+              localeCode
+          	}
           }
           hireDate
           exitDate
@@ -155,8 +176,8 @@ export function useGetEmployeesReport({
               id: ep.siteLocation?.id
             },
             email: '',
-            employmentType: workingCondition?.employmentType?.value ?? '',
-            contractType: workingCondition?.contractType?.value ?? '',
+            employmentType: workingCondition?.employmentType || undefined,
+            contractType: workingCondition?.contractType || undefined,
             profilePicture: ep.employee?.pictureThumbnail ?? '',
             startDate,
             exitDate,

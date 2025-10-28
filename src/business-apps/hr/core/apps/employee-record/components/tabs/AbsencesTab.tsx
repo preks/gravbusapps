@@ -65,7 +65,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     return () => clearInterval(interval)
   }, [currentLocale])
 
-  // Fetch user groups/roles to detect all-hr-backoffice
+  // Fetch user groups/roles to detect all-hr-backoffice, should be replaced with roles in the future
   useEffect(() => {
     const fetchUserGroups = async () => {
       try {

@@ -201,7 +201,7 @@ export const ContactsTable: React.FC<ContactsTableProps> = ({
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-contact-button-${contact.id}`}
                         variant="secondary"
-                        contextsArray={[FlowContextName.contactEntity]}
+                        contextsArray={[FlowContextName.customerContactEntity]}
                         externalContextData={{ contactId: contact.id }}
                         prefixDataTestId={`${DATA_TEST_ID_PREFIX}-update-contact`}
                         accessToken={accessToken}

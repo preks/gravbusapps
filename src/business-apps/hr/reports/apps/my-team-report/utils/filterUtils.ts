@@ -1,5 +1,6 @@
 import dayjs from 'dayjs'
 import { Employee } from '../hooks/useGetEmployeesReport'
+import { getCatalogValue } from '@/common/utils/windowUtils'
 
 const filterBySearch = (employees: Employee[], search: string): Employee[] => {
   if (!search) return employees
@@ -74,10 +75,14 @@ const filterBySelectedFilters = (employees: Employee[], selectedFilters: string[
             return values.includes(employee.jobPosition || '')
           case 'location':
             return values.includes(employee.location || '')
-          case 'employmentType':
-            return values.includes(employee.employmentType || '')
-          case 'contractType':
-            return values.includes(employee.contractType || '')
+          case 'employmentType': {
+            const value = employee.employmentType ? getCatalogValue(employee.employmentType) : ''
+            return values.includes(value)
+          }
+          case 'contractType': {
+            const value = employee.contractType ? getCatalogValue(employee.contractType) : ''
+            return values.includes(value)
+          }
           default:
             return true
         }

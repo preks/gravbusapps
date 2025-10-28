@@ -8,7 +8,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 
 // Use the actual investment document type
 type Document = InvestmentDocument
@@ -62,7 +62,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
             code: doc.documentGroup.code
           }
         : null,
-      file: doc.file,
+      file: doc.file || doc?.fileInfo?.fileId,
       mimeType: doc.mimeType,
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,

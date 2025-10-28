@@ -519,7 +519,7 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
                 ),
                 actions: (
                   <AppAction
-                    contextsArray={[FlowContextName.createCustomerTask]}
+                    contextsArray={[FlowContextName.customerTaskCreate]}
                     accessToken={accessToken}
                     data-testid="add-task-action"
                     emptyStateBehavior="hide"
@@ -589,7 +589,7 @@ export const TaskView: React.FC<TaskViewProps> = (props: TaskViewProps) => {
                 ),
                 actions: (
                   <AppAction
-                    contextsArray={[FlowContextName.createCustomerTask]}
+                    contextsArray={[FlowContextName.customerTaskCreate]}
                     accessToken={accessToken}
                     data-testid="add-task-action"
                     emptyStateBehavior="hide"

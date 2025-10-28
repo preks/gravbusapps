@@ -28,9 +28,9 @@ import {
   Separator,
   Badge,
   Card,
-  CardContent
+  CardContent,
+  toast
 } from '@newwork/nw-design-system'
-import { toast } from 'sonner'
 import { PiArrowUp, PiArrowDown, PiDownload, PiFileXls } from 'react-icons/pi'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'

@@ -8,7 +8,7 @@ import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import DocumentSection from '@/common/components/common-relations/record-sections/document-section/DocumentSection'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from 'sonner'
+import { toast } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 // Use the actual investment document type
@@ -79,7 +79,7 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
             code: doc.documentGroup.code
           }
         : null,
-      file: doc.file,
+      file: doc.file || (doc as any)?.fileInfo?.fileId,
       mimeType: doc.mimeType,
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,
