@@ -215,8 +215,7 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
 
       // If there's already a pending request for this key, return it (promise deduplication)
       // This handles concurrent requests for the same currency
-      // @ts-expect-error - Necessary for promise deduplication with concurrent requests
-      if (pendingAggregateRequests[cacheKey]) {
+      if (pendingAggregateRequests[cacheKey] !== undefined) {
         return pendingAggregateRequests[cacheKey]
       }
 
@@ -248,10 +247,6 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
           // Step 4: Transform result into structured data
           const yearlyData: PortfolioTimelineYearData[] = []
 
-          // Helper: Find group info by encoded reference (extracted to reduce nesting)
-          const findGroupByEncodedRef = (encodedRef: string) =>
-            investmentGroups.find(g => g.investmentGroupRef.replaceAll(/\W/g, '_') === encodedRef)
-
           const aliasPattern = /year_(\d+)_group_(.+)/
           for (const [key, value] of Object.entries(result)) {
             // Parse alias: year_2021_group_InvestmentGroup_v1_EQUITY
@@ -263,8 +258,10 @@ export const useGetPortfolioTimelineAggregate = (context: BusinessAppContextProp
             const year = match[1]
             const groupRefEncoded = match[2]
 
-            // Find the matching group info
-            const groupInfo = findGroupByEncodedRef(groupRefEncoded)
+            // Find the matching group info by encoded reference
+            const groupInfo = investmentGroups.find(
+              g => g.investmentGroupRef.replaceAll(/\W/g, '_') === groupRefEncoded
+            )
 
             if (!groupInfo) {
               continue

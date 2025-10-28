@@ -27,6 +27,48 @@ interface PortfolioTimelineChartsProps extends BusinessAppContextProps {
   availableCurrencies: string[]
 }
 
+interface TimelineTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  currencyFilter: string
+}
+
+const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, label, currencyFilter }) => {
+  if (active && payload?.length) {
+    const totalInvestedEntry = payload.find(p => p.dataKey === 'total')
+    const marketValueEntry = payload.find(p => p.dataKey === 'totalMarketValue')
+
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+        {totalInvestedEntry && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: 'var(--color-total)' }} />
+            <span className="gba:font-medium">Total Invested Amount:</span>
+            <span className="gba:font-semibold">
+              {formatCurrencyCompact(totalInvestedEntry.value as number, currencyFilter)}
+            </span>
+          </div>
+        )}
+        {marketValueEntry && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div
+              className="gba:w-3 gba:h-3 gba:rounded-full"
+              style={{ backgroundColor: 'var(--color-totalmarketvalue)' }}
+            />
+            <span className="gba:font-medium">Total Market Value:</span>
+            <span className="gba:font-semibold">
+              {formatCurrencyCompact(marketValueEntry.value as number, currencyFilter)}
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  }
+  return null
+}
+
 export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = props => {
   const { masterCurrency, availableCurrencies } = props
 
@@ -241,43 +283,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                     tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replaceAll(/[€$£¥]/g, '')}
                   />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        const totalInvestedEntry = payload.find(p => p.dataKey === 'total')
-                        const marketValueEntry = payload.find(p => p.dataKey === 'totalMarketValue')
-
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                            {totalInvestedEntry && (
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: 'var(--color-total)' }}
-                                />
-                                <span className="gba:font-medium">Total Invested Amount:</span>
-                                <span className="gba:font-semibold">
-                                  {formatCurrencyCompact(totalInvestedEntry.value as number, valueCurrencyFilter)}
-                                </span>
-                              </div>
-                            )}
-                            {marketValueEntry && (
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: 'var(--color-totalmarketvalue)' }}
-                                />
-                                <span className="gba:font-medium">Total Market Value:</span>
-                                <span className="gba:font-semibold">
-                                  {formatCurrencyCompact(marketValueEntry.value as number, valueCurrencyFilter)}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => <TimelineTooltip {...props} currencyFilter={valueCurrencyFilter} />}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Line

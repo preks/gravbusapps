@@ -20,6 +20,35 @@ export interface PortfolioTimelineAggregateIntegration {
 }
 
 /**
+ * Helper: Calculate YoY percentage change label
+ */
+function calculateYoYLabel(currentTotal: number, previousTotal: number): string {
+  if (previousTotal > 0) {
+    const yoyChange = ((currentTotal - previousTotal) / previousTotal) * 100
+    return `${yoyChange >= 0 ? '+' : ''}${yoyChange.toFixed(1)}%`
+  } else if (currentTotal > 0) {
+    return '+100%'
+  }
+  return '0%'
+}
+
+/**
+ * Helper: Apply YoY calculations to chart data
+ */
+function applyYoYCalculations(chartData: PortfolioTimelineChartData[]): void {
+  for (let index = 0; index < chartData.length; index++) {
+    const entry = chartData[index]
+    if (index > 0) {
+      const currentTotal = entry.total || 0
+      const previousTotal = chartData[index - 1].total || 0
+      entry.yoyLabel = calculateYoYLabel(currentTotal, previousTotal)
+    } else {
+      entry.yoyLabel = '0%'
+    }
+  }
+}
+
+/**
  * Hook to fetch and process portfolio timeline aggregate data
  * Groups by investment group (Equity, Liquid Fund, Real Estate)
  */
@@ -98,23 +127,7 @@ export const usePortfolioTimelineAggregate = (
       })
 
       // Calculate YoY change for each year
-      for (let index = 0; index < chartData.length; index++) {
-        const entry = chartData[index]
-        if (index > 0) {
-          const currentTotal = entry.total || 0
-          const previousTotal = chartData[index - 1].total || 0
-          if (previousTotal > 0) {
-            const yoyChange = ((currentTotal - previousTotal) / previousTotal) * 100
-            entry.yoyLabel = `${yoyChange >= 0 ? '+' : ''}${yoyChange.toFixed(1)}%`
-          } else if (currentTotal > 0) {
-            entry.yoyLabel = '+100%'
-          } else {
-            entry.yoyLabel = '0%'
-          }
-        } else {
-          entry.yoyLabel = '0%'
-        }
-      }
+      applyYoYCalculations(chartData)
 
       setTimelineData(chartData)
     } catch (err) {

@@ -23,6 +23,34 @@ interface RealEstateDistributionChartsProps {
   availableCurrencies: string[]
 }
 
+interface StatusCountTooltipProps {
+  active?: boolean
+  payload?: any[]
+  filteredData: any[]
+}
+
+const StatusCountTooltip: React.FC<StatusCountTooltipProps> = ({ active, payload, filteredData }) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    const total = filteredData.reduce((sum: number, item: any) => sum + item.count, 0)
+    const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{data.payload.status}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} properties</div>
+        <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
+      </div>
+    )
+  }
+  return null
+}
+
 export const RealEstateDistributionCharts: React.FC<RealEstateDistributionChartsProps> = ({
   rawInvestments,
   masterCurrency,
@@ -148,10 +176,10 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             <ChartContainer
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
-                filteredTypeCountData.forEach((item: any) => {
+                for (const item of filteredTypeCountData) {
                   const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.type }
-                })
+                }
                 return config
               }, [filteredTypeCountData])}
               className="gba:h-[300px] gba:w-full"
@@ -327,10 +355,10 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             <ChartContainer
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
-                filteredStatusCountData.forEach((item: any) => {
+                for (const item of filteredStatusCountData) {
                   const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.status }
-                })
+                }
                 return config
               }, [filteredStatusCountData])}
               className="gba:h-[300px] gba:w-full"
@@ -358,29 +386,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   })}
                 </Pie>
                 <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload?.length) {
-                      const data = payload[0]
-                      const total = filteredStatusCountData.reduce((sum: number, item: any) => sum + item.count, 0)
-                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium gba:text-gray-700">{data.payload.status}</span>
-                          </div>
-                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} properties</div>
-                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-                            {percentage.toFixed(1)}% of total
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
+                  content={props => <StatusCountTooltip {...props} filteredData={filteredStatusCountData} />}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
