@@ -71,13 +71,13 @@ export function createChartConfig(
   const config: Record<string, { label: string; color: string }> = {}
   let colorIndex = 0
 
-  Object.keys(items).forEach(key => {
+  for (const key of Object.keys(items)) {
     const item = items[key]
     config[key] = {
       label: item.label,
       color: item.color || getChartColor(colorIndex++)
     }
-  })
+  }
 
   return config
 }

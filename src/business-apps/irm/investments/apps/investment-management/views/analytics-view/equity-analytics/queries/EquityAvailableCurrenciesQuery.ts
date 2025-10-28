@@ -42,7 +42,7 @@ export const useGetEquityAvailableCurrencies = (context: BusinessAppContextProps
 
       // Extract unique currency codes
       const currencies = new Set<string>()
-      result.Investment.forEach(inv => {
+      for (const inv of result.Investment) {
         if (inv.currency?.code) {
           // Extract currency code from "Currency:v1:EUR" format
           const parts = inv.currency.code.split(':')
@@ -51,7 +51,7 @@ export const useGetEquityAvailableCurrencies = (context: BusinessAppContextProps
             currencies.add(currencyCode)
           }
         }
-      })
+      }
 
       const currencyArray = Array.from(currencies).sort((a, b) => a.localeCompare(b))
       // Return currencies or default to EUR if none found

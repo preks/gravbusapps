@@ -58,9 +58,9 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
     const filtered = rawInvestments.filter(inv => inv.currencyCode === buildingYearCurrencyFilter)
     // Group by building year ranges
     const yearRangeMap = new Map()
-    filtered.forEach(inv => {
+    for (const inv of filtered) {
       const year = inv.realEstateInvestment?.buildingYear
-      if (!year) return
+      if (!year) continue
       const rangeStart = Math.floor(year / 10) * 10
       const rangeLabel = `${rangeStart}-${rangeStart + 9}`
       if (!yearRangeMap.has(rangeLabel)) {
@@ -69,7 +69,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
       const entry = yearRangeMap.get(rangeLabel)
       entry.totalValue += inv.realEstateInvestment?.propertyValue || 0
       entry.count += 1
-    })
+    }
     return Array.from(yearRangeMap.values())
       .map(entry => ({
         yearRange: entry.yearRange,

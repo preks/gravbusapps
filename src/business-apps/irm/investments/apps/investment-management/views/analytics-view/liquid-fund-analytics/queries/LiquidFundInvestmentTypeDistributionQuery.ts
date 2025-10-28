@@ -145,7 +145,7 @@ export const useGetLiquidFundInvestmentTypeDistribution = (context: BusinessAppC
       const countByType = new Map<string, number>()
       const amountByType = new Map<string, number>()
 
-      distinctTypes.forEach((type, index) => {
+      for (const [index, type] of distinctTypes.entries()) {
         const aliasName = `type_${index}_${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '_')}`
 
         // Extract count
@@ -159,7 +159,7 @@ export const useGetLiquidFundInvestmentTypeDistribution = (context: BusinessAppC
         const investmentAmount = amountData?.aggregate?.sum?.totalInvestmentAmount || 0
         const totalAmount = marketValue || investmentAmount
         amountByType.set(type, totalAmount)
-      })
+      }
       return {
         distinctTypes,
         countByType,

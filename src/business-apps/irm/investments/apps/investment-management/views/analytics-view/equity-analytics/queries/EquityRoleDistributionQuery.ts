@@ -73,7 +73,7 @@ export const useGetEquityRoleDistribution = (context: BusinessAppContextProps) =
       // Count roles manually (since GraphQL doesn't support groupBy with count)
       const roleCounts = new Map<string, RoleDistributionData>()
 
-      result.InvestmentRole.forEach(item => {
+      for (const item of result.InvestmentRole) {
         if (item.investmentRole && item.investmentRoleRef) {
           const existing = roleCounts.get(item.investmentRoleRef)
           if (existing) {
@@ -87,7 +87,7 @@ export const useGetEquityRoleDistribution = (context: BusinessAppContextProps) =
             })
           }
         }
-      })
+      }
 
       // Convert to array and sort by count descending
       return Array.from(roleCounts.values()).sort((a, b) => b.count - a.count)

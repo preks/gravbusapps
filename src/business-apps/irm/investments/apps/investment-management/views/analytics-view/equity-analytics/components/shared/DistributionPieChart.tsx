@@ -55,10 +55,10 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
   // Generate chart configuration
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    data.forEach((item: any) => {
+    for (const item of data) {
       const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
       config[key] = { label: item.type }
-    })
+    }
     return config
   }, [data])
 

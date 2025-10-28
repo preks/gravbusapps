@@ -203,7 +203,7 @@ export const fetchPerformanceByType = async (
   // Step 3: Parse results
   const performanceData: PerformanceByTypeData[] = []
 
-  types.forEach((type: string, index: number) => {
+  for (const [index, type] of types.entries()) {
     const aliasName = `type_${index}_${type.toLowerCase().replaceAll(/[^a-z0-9]/g, '_')}`
     const investmentAggregate = result[aliasName]
     const interestAggregate = result[`${aliasName}_interest`]
@@ -221,7 +221,7 @@ export const fetchPerformanceByType = async (
         name: type.toLowerCase().replaceAll(/\s+/g, '')
       })
     }
-  })
+  }
 
   return performanceData
 }

@@ -100,7 +100,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
 
     const dataMap = new Map()
 
-    filteredFunds.forEach(fund => {
+    for (const fund of filteredFunds) {
       const date = dayjs(fund.investment.acquisitionDate).format('YYYY-MM')
       const totalInvestmentAmount = fund.investment.totalInvestmentAmount || 0
       const marketValue = fund.investment.investmentMarketValue || 0
@@ -116,7 +116,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
           totalMarketValue: marketValue
         })
       }
-    })
+    }
 
     return Array.from(dataMap.values()).sort((a, b) => a.date.localeCompare(b.date))
   }, [rawLiquidFunds, valueCurrencyFilter])

@@ -2,6 +2,76 @@ import { useMemo } from 'react'
 import dayjs from 'dayjs'
 import { EquityInvestmentSummary } from '../../shared/types'
 
+// Helper function to calculate equity timeline data
+function calculateEquityTimelineData(equityInvestments: EquityInvestmentSummary[]) {
+  // Calculate the last 5 years (current year + 4 previous years)
+  const currentYear = dayjs().year()
+  const startYear = currentYear - 4
+  const years = Array.from({ length: 5 }, (_, i) => (startYear + i).toString())
+
+  // First, collect all unique investment types
+  const investmentTypes = new Set<string>()
+  for (const equity of equityInvestments) {
+    const type = equity.investment.investmentType?.value || 'Unknown'
+    investmentTypes.add(type)
+  }
+
+  // Initialize data structure with all years
+  const yearlyData = years.map(year => {
+    const entry: any = { year, total: 0 }
+    // Initialize all types to 0 for this year
+    for (const type of investmentTypes) {
+      entry[type] = 0
+    }
+    return entry
+  })
+
+  // Group investments by year and type
+  for (const equity of equityInvestments.filter(equity => equity.investment.acquisitionDate)) {
+    const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
+    const type = equity.investment.investmentType?.value || 'Unknown'
+    const amount = equity.investment.totalInvestmentAmount || 0
+
+    // Only include data from the last 5 years
+    if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
+      const yearEntry = yearlyData.find(item => item.year === year)
+      if (yearEntry) {
+        // Add amount to the specific type
+        yearEntry[type] = (yearEntry[type] || 0) + amount
+        // Update total for trendline
+        yearEntry.total = (yearEntry.total || 0) + amount
+      }
+    }
+  }
+
+  // Calculate YoY change for each year
+  for (let index = 0; index < yearlyData.length; index++) {
+    const entry = yearlyData[index]
+    if (index === 0) {
+      // First year has no previous year
+      entry.yoyChange = null
+      entry.yoyLabel = ''
+    } else {
+      const previousTotal = yearlyData[index - 1].total
+      if (previousTotal === 0) {
+        // Avoid division by zero
+        entry.yoyChange = entry.total > 0 ? 100 : 0
+        entry.yoyLabel = entry.total > 0 ? '+100%' : '0%'
+      } else {
+        const change = ((entry.total - previousTotal) / previousTotal) * 100
+        entry.yoyChange = change
+        const sign = change > 0 ? '+' : ''
+        entry.yoyLabel = `${sign}${change.toFixed(1)}%`
+      }
+    }
+  }
+
+  return {
+    data: yearlyData,
+    types: Array.from(investmentTypes)
+  }
+}
+
 export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[]) => {
   return useMemo(() => {
     // Investment role distribution data (using GraphQL investmentRole field)
@@ -124,75 +194,7 @@ export const useEquityChartData = (equityInvestments: EquityInvestmentSummary[])
     }, [] as any[])
 
     // NEW: Equity Investment Performance Timeline - showing total investment amounts by type over time (yearly)
-    const equityTimelineData = (() => {
-      // Calculate the last 5 years (current year + 4 previous years)
-      const currentYear = dayjs().year()
-      const startYear = currentYear - 4
-      const years = Array.from({ length: 5 }, (_, i) => (startYear + i).toString())
-
-      // First, collect all unique investment types
-      const investmentTypes = new Set<string>()
-      equityInvestments.forEach(equity => {
-        const type = equity.investment.investmentType?.value || 'Unknown'
-        investmentTypes.add(type)
-      })
-
-      // Initialize data structure with all years
-      const yearlyData = years.map(year => {
-        const entry: any = { year, total: 0 }
-        // Initialize all types to 0 for this year
-        investmentTypes.forEach(type => {
-          entry[type] = 0
-        })
-        return entry
-      })
-
-      // Group investments by year and type
-      equityInvestments
-        .filter(equity => equity.investment.acquisitionDate)
-        .forEach(equity => {
-          const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
-          const type = equity.investment.investmentType?.value || 'Unknown'
-          const amount = equity.investment.totalInvestmentAmount || 0
-
-          // Only include data from the last 5 years
-          if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
-            const yearEntry = yearlyData.find(item => item.year === year)
-            if (yearEntry) {
-              // Add amount to the specific type
-              yearEntry[type] = (yearEntry[type] || 0) + amount
-              // Update total for trendline
-              yearEntry.total = (yearEntry.total || 0) + amount
-            }
-          }
-        })
-
-      // Calculate YoY change for each year
-      yearlyData.forEach((entry, index) => {
-        if (index === 0) {
-          // First year has no previous year
-          entry.yoyChange = null
-          entry.yoyLabel = ''
-        } else {
-          const previousTotal = yearlyData[index - 1].total
-          if (previousTotal === 0) {
-            // Avoid division by zero
-            entry.yoyChange = entry.total > 0 ? 100 : 0
-            entry.yoyLabel = entry.total > 0 ? '+100%' : '0%'
-          } else {
-            const change = ((entry.total - previousTotal) / previousTotal) * 100
-            entry.yoyChange = change
-            const sign = change > 0 ? '+' : ''
-            entry.yoyLabel = `${sign}${change.toFixed(1)}%`
-          }
-        }
-      })
-
-      return {
-        data: yearlyData,
-        types: Array.from(investmentTypes)
-      }
-    })()
+    const equityTimelineData = calculateEquityTimelineData(equityInvestments)
 
     // NEW: Stake vs Investment Amount Correlation (Scatter Plot)
     const stakeVsInvestmentAmountData = equityInvestments

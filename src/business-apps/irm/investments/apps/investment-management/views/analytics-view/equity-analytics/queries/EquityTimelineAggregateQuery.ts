@@ -154,8 +154,8 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
       // Step 4: Parse results and build timeline data
       const yearlyData: TimelineYearData[] = []
 
-      years.forEach(year => {
-        investmentTypes.forEach(type => {
+      for (const year of years) {
+        for (const type of investmentTypes) {
           const alias = `year_${year}_type_${type.investmentTypeRef.replaceAll(/[^a-zA-Z0-9]/g, '_')}`
           const aggregateData = aggregateResult[alias]
           const totalAmount = aggregateData?.aggregate?.sum?.totalInvestmentAmount || 0
@@ -168,8 +168,8 @@ export const useGetEquityTimelineAggregate = (context: BusinessAppContextProps) 
               totalAmount
             })
           }
-        })
-      })
+        }
+      }
 
       return { yearlyData }
     },

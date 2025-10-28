@@ -53,6 +53,14 @@ export function calculateInvestmentDuration(acquisitionDate: string | null, exit
   return end.diff(start, 'day')
 }
 
+// Helper function to format time unit
+function formatTimeUnit(value: number, unit: string, format: 'short' | 'long', shortForm: string): string {
+  if (format === 'short') {
+    return `${value}${shortForm}`
+  }
+  return `${value} ${value === 1 ? unit : `${unit}s`}`
+}
+
 /**
  * @function formatDuration
  * @description Formats a duration in days to a human-readable string.
@@ -90,36 +98,20 @@ export function formatDuration(
   const parts: string[] = []
 
   if (years > 0) {
-    if (format === 'short') {
-      parts.push(`${years}y`)
-    } else {
-      parts.push(`${years} ${years === 1 ? 'year' : 'years'}`)
-    }
+    parts.push(formatTimeUnit(years, 'year', format, 'y'))
   }
 
   if (months > 0) {
-    if (format === 'short') {
-      parts.push(`${months}m`)
-    } else {
-      parts.push(`${months} ${months === 1 ? 'month' : 'months'}`)
-    }
+    parts.push(formatTimeUnit(months, 'month', format, 'm'))
   }
 
   if (showDays && remainingDays > 0) {
-    if (format === 'short') {
-      parts.push(`${remainingDays}d`)
-    } else {
-      parts.push(`${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}`)
-    }
+    parts.push(formatTimeUnit(remainingDays, 'day', format, 'd'))
   }
 
   if (parts.length === 0) {
     // Less than a month
-    if (format === 'short') {
-      return `${days}d`
-    } else {
-      return `${days} ${days === 1 ? 'day' : 'days'}`
-    }
+    return formatTimeUnit(days, 'day', format, 'd')
   }
 
   return format === 'short' ? parts.join(' ') : parts.join(', ')

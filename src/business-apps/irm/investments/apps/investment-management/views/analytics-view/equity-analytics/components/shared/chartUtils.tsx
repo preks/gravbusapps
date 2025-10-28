@@ -36,12 +36,12 @@ export const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadi
 // Chart configuration helpers
 export const createChartConfig = (data: any[]) => {
   const config: any = {}
-  data.forEach((entry, index) => {
+  for (const [index, entry] of data.entries()) {
     const key = entry.name.toLowerCase().replaceAll(/\s+/g, '')
     config[key] = {
       label: entry.name,
       color: CHART_COLORS[index % CHART_COLORS.length]
     }
-  })
+  }
   return config
 }

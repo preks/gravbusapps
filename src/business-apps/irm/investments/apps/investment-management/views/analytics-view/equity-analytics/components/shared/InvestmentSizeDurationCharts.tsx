@@ -40,10 +40,10 @@ export const InvestmentSizeChart: React.FC<InvestmentSizeChartProps> = ({
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     // Create config with explicit order to maintain sort
-    data.forEach((item: any, index: number) => {
+    for (const [index, item] of data.entries()) {
       const key = `range${index}`
       config[key] = { label: item.type }
-    })
+    }
     return config
   }, [data])
 
@@ -170,10 +170,10 @@ export const InvestmentDurationChart: React.FC<InvestmentDurationChartProps> = (
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
     // Create config with explicit order to maintain sort
-    data.forEach((item: any, index: number) => {
+    for (const [index, item] of data.entries()) {
       const key = `duration${index}`
       config[key] = { label: item.type }
-    })
+    }
     return config
   }, [data])
 

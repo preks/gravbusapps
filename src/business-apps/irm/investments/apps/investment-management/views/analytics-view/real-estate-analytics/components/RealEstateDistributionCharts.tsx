@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -128,6 +128,12 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
         return acc
       }, [] as any[])
   }, [rawInvestments, statusCountCurrency])
+
+  // Memoized tooltip renderer to prevent component definition inside render
+  const renderStatusCountTooltip = useCallback(
+    (tooltipProps: any) => <StatusCountTooltip {...tooltipProps} filteredData={filteredStatusCountData} />,
+    [filteredStatusCountData]
+  )
 
   // Filter data based on selected currency for Status Total Amount chart
   const filteredStatusData = useMemo(() => {
@@ -263,10 +269,10 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             <ChartContainer
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
-                filteredTypeData.forEach((item: any) => {
+                for (const item of filteredTypeData) {
                   const key = item.type.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.type }
-                })
+                }
                 return config
               }, [filteredTypeData])}
               className="gba:h-[300px] gba:w-full"
@@ -385,9 +391,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip
-                  content={props => <StatusCountTooltip {...props} filteredData={filteredStatusCountData} />}
-                />
+                <ChartTooltip content={renderStatusCountTooltip} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -420,10 +424,10 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
             <ChartContainer
               config={useMemo(() => {
                 const config: Record<string, { label: string }> = {}
-                filteredStatusData.forEach((item: any) => {
+                for (const item of filteredStatusData) {
                   const key = item.status.toLowerCase().replaceAll(/\s+/g, '')
                   config[key] = { label: item.status }
-                })
+                }
                 return config
               }, [filteredStatusData])}
               className="gba:h-[300px] gba:w-full"

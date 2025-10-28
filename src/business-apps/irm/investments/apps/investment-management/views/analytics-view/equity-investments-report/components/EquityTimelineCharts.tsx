@@ -116,39 +116,38 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
 
     // Collect all unique investment types
     const investmentTypes = new Set<string>()
-    currencyFilteredInvestments.forEach(equity => {
+    for (const equity of currencyFilteredInvestments) {
       const type = equity.investment.investmentType?.value || 'Unknown'
       investmentTypes.add(type)
-    })
+    }
 
     // Initialize data structure with all years
     const yearlyData = years.map(year => {
       const entry: any = { year, total: 0 }
-      investmentTypes.forEach(type => {
+      for (const type of investmentTypes) {
         entry[type] = 0
-      })
+      }
       return entry
     })
 
     // Group investments by year and type
-    currencyFilteredInvestments
-      .filter(equity => equity.investment.acquisitionDate)
-      .forEach(equity => {
-        const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
-        const type = equity.investment.investmentType?.value || 'Unknown'
-        const amount = equity.investment.totalInvestmentAmount || 0
+    for (const equity of currencyFilteredInvestments.filter(equity => equity.investment.acquisitionDate)) {
+      const year = dayjs(equity.investment.acquisitionDate).format('YYYY')
+      const type = equity.investment.investmentType?.value || 'Unknown'
+      const amount = equity.investment.totalInvestmentAmount || 0
 
-        if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
-          const yearEntry = yearlyData.find(item => item.year === year)
-          if (yearEntry) {
-            yearEntry[type] = (yearEntry[type] || 0) + amount
-            yearEntry.total = (yearEntry.total || 0) + amount
-          }
+      if (Number.parseInt(year) >= startYear && Number.parseInt(year) <= currentYear) {
+        const yearEntry = yearlyData.find(item => item.year === year)
+        if (yearEntry) {
+          yearEntry[type] = (yearEntry[type] || 0) + amount
+          yearEntry.total = (yearEntry.total || 0) + amount
         }
-      })
+      }
+    }
 
     // Calculate YoY change for each year
-    yearlyData.forEach((entry, index) => {
+    for (let index = 0; index < yearlyData.length; index++) {
+      const entry = yearlyData[index]
       if (index > 0) {
         const currentTotal = entry.total || 0
         const previousTotal = yearlyData[index - 1].total || 0
@@ -163,7 +162,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
       } else {
         entry.yoyLabel = '0%'
       }
-    })
+    }
 
     return {
       data: yearlyData,
@@ -187,9 +186,9 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
   // Create dynamic chart config for all investment types plus trendline
   const chartConfig = useMemo(() => {
     const config: Record<string, { label: string }> = {}
-    filteredEquityTimelineData.types.forEach(type => {
+    for (const type of filteredEquityTimelineData.types) {
       config[type] = { label: type }
-    })
+    }
     config.trend = { label: 'Trend' }
     return config
   }, [filteredEquityTimelineData.types])

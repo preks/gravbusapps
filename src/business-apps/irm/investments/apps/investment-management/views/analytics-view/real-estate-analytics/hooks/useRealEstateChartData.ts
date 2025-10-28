@@ -129,10 +129,10 @@ export const useRealEstateChartData = (realEstateInvestments: RealEstateInvestme
 
     // Calculate cumulative count
     let runningCount = 0
-    timelineData.forEach((item: TimelineDataItem) => {
+    for (const item of timelineData) {
       runningCount += item.investmentCount
       item.cumulativeInvestments = runningCount
-    })
+    }
 
     // Performance Timeline Data (for performance over time chart)
     const performanceData = realEstateInvestments

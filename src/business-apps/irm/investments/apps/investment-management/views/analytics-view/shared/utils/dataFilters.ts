@@ -148,7 +148,7 @@ export function groupInvestmentsByField<T, K>(
   }
 
   // Calculate aggregated values
-  groups.forEach(group => {
+  for (const group of groups) {
     switch (aggregation) {
       case 'count':
         group.value = group.items.length
@@ -165,7 +165,7 @@ export function groupInvestmentsByField<T, K>(
         }
         break
     }
-  })
+  }
 
   return groups
 }
@@ -213,6 +213,19 @@ export function filterByDateRange<T>(
   })
 }
 
+// Helper function to compare values by type
+function compareValues(valueA: any, valueB: any, direction: 'asc' | 'desc'): number {
+  if (typeof valueA === 'string' && typeof valueB === 'string') {
+    return direction === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA)
+  }
+
+  if (typeof valueA === 'number' && typeof valueB === 'number') {
+    return direction === 'asc' ? valueA - valueB : valueB - valueA
+  }
+
+  return 0
+}
+
 /**
  * @function sortInvestments
  * @description Sorts investments by a specified field and direction.
@@ -246,15 +259,7 @@ export function sortInvestments<T>(
     if (valueA == null) return direction === 'asc' ? 1 : -1
     if (valueB == null) return direction === 'asc' ? -1 : 1
 
-    if (typeof valueA === 'string' && typeof valueB === 'string') {
-      return direction === 'asc' ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA)
-    }
-
-    if (typeof valueA === 'number' && typeof valueB === 'number') {
-      return direction === 'asc' ? valueA - valueB : valueB - valueA
-    }
-
-    return 0
+    return compareValues(valueA, valueB, direction)
   })
 }
 

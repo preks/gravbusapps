@@ -66,23 +66,22 @@ export const useEquityTimelineAggregate = (
         }
 
         // Initialize all investment types to 0
-        uniqueTypes.forEach(type => {
+        for (const type of uniqueTypes) {
           entry[type] = 0
-        })
+        }
 
         // Fill in actual values from yearlyData
-        yearlyData
-          .filter(d => d.year === year)
-          .forEach(d => {
-            entry[d.investmentType] = d.totalAmount
-            entry.total += d.totalAmount
-          })
+        for (const d of yearlyData.filter(d => d.year === year)) {
+          entry[d.investmentType] = d.totalAmount
+          entry.total += d.totalAmount
+        }
 
         return entry
       })
 
       // Calculate YoY change for each year
-      chartData.forEach((entry, index) => {
+      for (let index = 0; index < chartData.length; index++) {
+        const entry = chartData[index]
         if (index > 0) {
           const currentTotal = entry.total || 0
           const previousTotal = chartData[index - 1].total || 0
@@ -97,7 +96,7 @@ export const useEquityTimelineAggregate = (
         } else {
           entry.yoyLabel = '0%'
         }
-      })
+      }
 
       setTimelineData(chartData)
     } catch (err) {

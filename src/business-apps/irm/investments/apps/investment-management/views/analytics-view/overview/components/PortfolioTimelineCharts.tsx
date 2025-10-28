@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -91,6 +91,12 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
     error: valueError,
     refetch: refetchValue
   } = usePortfolioTimelineAggregate(props, 5, valueCurrencyFilter)
+
+  // Memoized tooltip renderers to prevent component definition inside render
+  const renderValueTooltip = useCallback(
+    (tooltipProps: any) => <TimelineTooltip {...tooltipProps} currencyFilter={valueCurrencyFilter} />,
+    [valueCurrencyFilter]
+  )
 
   // Pre-compute chart configs
   const performanceChartConfig = useMemo(
@@ -282,9 +288,7 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
                     tick={{ fontSize: 12 }}
                     tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replaceAll(/[€$£¥]/g, '')}
                   />
-                  <ChartTooltip
-                    content={props => <TimelineTooltip {...props} currencyFilter={valueCurrencyFilter} />}
-                  />
+                  <ChartTooltip content={renderValueTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Line
                     type="monotone"
