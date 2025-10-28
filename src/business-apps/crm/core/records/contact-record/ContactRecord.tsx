@@ -274,7 +274,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   const taskActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: { contactId },
       prefixDataTestId: 'contact-task'
     }),
@@ -283,7 +283,7 @@ const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, 
 
   const approvalActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createCustomerTask],
+      contextsArray: [FlowContextName.customerTaskCreate],
       externalContextData: {
         contactId,
         typeRef: 'SalesTaskType:v1:APPROVAL',
