@@ -60,11 +60,11 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
   // Extract unique currencies from real estate investments
   const availableCurrencies = useMemo(() => {
     const currencies = new Set<string>()
-    realEstateInvestments.forEach(inv => {
+    for (const inv of realEstateInvestments) {
       if (inv.currencyCode) {
         currencies.add(inv.currencyCode)
       }
-    })
+    }
     const currencyArray = Array.from(currencies).sort()
     // Ensure at least the default currency is available
     return currencyArray.length > 0 ? currencyArray : ['EUR']

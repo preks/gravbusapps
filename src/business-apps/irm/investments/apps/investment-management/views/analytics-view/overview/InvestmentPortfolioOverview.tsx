@@ -55,11 +55,11 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
   // Extract unique currencies from investments
   const availableCurrencies = useMemo(() => {
     const currencies = new Set<string>()
-    investments.forEach(inv => {
+    for (const inv of investments) {
       if (inv.currencyCode) {
         currencies.add(inv.currencyCode)
       }
-    })
+    }
     const currencyArray = Array.from(currencies).sort()
     // Ensure at least the default currency is available
     return currencyArray.length > 0 ? currencyArray : ['EUR']

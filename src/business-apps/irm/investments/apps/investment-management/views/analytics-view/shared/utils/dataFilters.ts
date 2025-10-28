@@ -133,7 +133,7 @@ export function groupInvestmentsByField<T, K>(
   const { valueGetter, aggregation = 'count' } = options || {}
   const groups = new Map<K, { items: T[]; value: number }>()
 
-  investments.forEach(investment => {
+  for (const investment of investments) {
     const key = keyGetter(investment)
     const existing = groups.get(key)
 
@@ -145,7 +145,7 @@ export function groupInvestmentsByField<T, K>(
         value: 0
       })
     }
-  })
+  }
 
   // Calculate aggregated values
   groups.forEach(group => {

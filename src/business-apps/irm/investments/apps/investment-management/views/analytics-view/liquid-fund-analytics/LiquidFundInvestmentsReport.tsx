@@ -62,12 +62,12 @@ export const LiquidFundInvestmentsReport: React.FC<LiquidFundInvestmentsReportPr
   // Extract unique currencies from liquid fund investments
   const availableCurrencies = useMemo(() => {
     const currencies = new Set<string>()
-    liquidFundInvestments.forEach(inv => {
+    for (const inv of liquidFundInvestments) {
       const currencyCode = safeCurrencyExtraction(inv.currency)
       if (currencyCode) {
         currencies.add(currencyCode)
       }
-    })
+    }
     const currencyArray = Array.from(currencies).sort()
     // Ensure at least the default currency is available
     return currencyArray.length > 0 ? currencyArray : ['EUR']

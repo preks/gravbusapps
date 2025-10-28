@@ -98,13 +98,13 @@ export const safeCurrencyExtraction = (currency: any): string | null => {
 export function extractAvailableCurrencies<T>(investments: T[], currencyGetter: (item: T) => any): string[] {
   const currencies = new Set<string>()
 
-  investments.forEach(investment => {
+  for (const investment of investments) {
     const currency = currencyGetter(investment)
     const code = safeCurrencyExtraction(currency)
     if (code) {
       currencies.add(code)
     }
-  })
+  }
 
   return Array.from(currencies).sort()
 }
