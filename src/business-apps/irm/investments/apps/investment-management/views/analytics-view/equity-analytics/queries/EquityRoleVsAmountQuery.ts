@@ -82,9 +82,8 @@ export const useGetRoleVsAmountData = (context: BusinessAppContextProps) => {
           roleScore = 1
         } else if (roleLower.includes('lead') || roleLower.includes('leader')) {
           roleScore = 3
-        } else if (roleLower.includes('co-invest') || roleLower.includes('coinvest')) {
-          roleScore = 2
         }
+        // else: roleScore remains 2 (Co-Investor) for all other cases including 'co-invest'/'coinvest'
 
         return {
           id: inv.id,

@@ -129,89 +129,97 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
           </div>
         </CardHeader>
         <CardContent>
-          {timelineLoading ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
-              <Spinner size="large" />
-            </div>
-          ) : timelineError ? (
-            <Alert variant="destructive">
-              <div>Error loading timeline data: {timelineError}</div>
-            </Alert>
-          ) : (
-            <ChartContainer config={timelineConfig} className="gba:h-[400px] gba:w-full">
-              <ComposedChart data={filteredTimelineData}>
-                <XAxis dataKey="year" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                          {payload.map((entry, index) => {
-                            let formattedValue = ''
-                            let properLabel = ''
-                            let dotColor = ''
+          {(() => {
+            if (timelineLoading) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                  <Spinner size="large" />
+                </div>
+              )
+            }
+            if (timelineError) {
+              return (
+                <Alert variant="destructive">
+                  <div>Error loading timeline data: {timelineError}</div>
+                </Alert>
+              )
+            }
+            return (
+              <ChartContainer config={timelineConfig} className="gba:h-[400px] gba:w-full">
+                <ComposedChart data={filteredTimelineData}>
+                  <XAxis dataKey="year" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+                            {payload.map((entry, index) => {
+                              let formattedValue = ''
+                              let properLabel = ''
+                              let dotColor = ''
 
-                            if (entry.dataKey === 'investmentCount') {
-                              formattedValue = `${entry.value}`
-                              properLabel = 'Investment Count'
-                              dotColor = 'var(--color-investmentcount)'
-                            } else if (entry.dataKey === 'totalInvestmentAmount') {
-                              formattedValue = formatCurrencyCompact(entry.value as number, timelineCurrencyFilter)
-                              properLabel = 'Total Investment Amount'
-                              dotColor = 'var(--color-totalinvestmentamount)'
-                            } else if (entry.dataKey === 'cumulativeInvestments') {
-                              formattedValue = `${entry.value}`
-                              properLabel = 'Cumulative Investments'
-                              dotColor = 'var(--color-cumulativeinvestments)'
-                            }
+                              if (entry.dataKey === 'investmentCount') {
+                                formattedValue = `${entry.value}`
+                                properLabel = 'Investment Count'
+                                dotColor = 'var(--color-investmentcount)'
+                              } else if (entry.dataKey === 'totalInvestmentAmount') {
+                                formattedValue = formatCurrencyCompact(entry.value as number, timelineCurrencyFilter)
+                                properLabel = 'Total Investment Amount'
+                                dotColor = 'var(--color-totalinvestmentamount)'
+                              } else if (entry.dataKey === 'cumulativeInvestments') {
+                                formattedValue = `${entry.value}`
+                                properLabel = 'Cumulative Investments'
+                                dotColor = 'var(--color-cumulativeinvestments)'
+                              }
 
-                            return (
-                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: dotColor }}
-                                />
-                                <span className="gba:font-medium">{properLabel}:</span>
-                                <span className="gba:font-semibold">{formattedValue}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar
-                  yAxisId="left"
-                  dataKey="investmentCount"
-                  fill="var(--color-investmentcount)"
-                  name="Investment Count"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="totalInvestmentAmount"
-                  stroke="var(--color-totalinvestmentamount)"
-                  strokeWidth={3}
-                  name="Total Investment Amount"
-                />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="cumulativeInvestments"
-                  stroke="var(--color-cumulativeinvestments)"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  name="Cumulative Investments"
-                />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                              return (
+                                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                  <div
+                                    className="gba:w-3 gba:h-3 gba:rounded-full"
+                                    style={{ backgroundColor: dotColor }}
+                                  />
+                                  <span className="gba:font-medium">{properLabel}:</span>
+                                  <span className="gba:font-semibold">{formattedValue}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="investmentCount"
+                    fill="var(--color-investmentcount)"
+                    name="Investment Count"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="totalInvestmentAmount"
+                    stroke="var(--color-totalinvestmentamount)"
+                    strokeWidth={3}
+                    name="Total Investment Amount"
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="cumulativeInvestments"
+                    stroke="var(--color-cumulativeinvestments)"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    name="Cumulative Investments"
+                  />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
 
@@ -238,78 +246,86 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
           </div>
         </CardHeader>
         <CardContent>
-          {performanceLoading ? (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
-              <Spinner size="large" />
-            </div>
-          ) : performanceError ? (
-            <Alert variant="destructive">
-              <div>Error loading performance data: {performanceError}</div>
-            </Alert>
-          ) : (
-            <ChartContainer config={performanceConfig} className="gba:h-[400px] gba:w-full">
-              <ComposedChart data={filteredPerformanceData}>
-                <XAxis dataKey="year" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                          {payload.map((entry, index) => {
-                            let properLabel = ''
-                            let formattedValue = ''
-                            let dotColor = ''
+          {(() => {
+            if (performanceLoading) {
+              return (
+                <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center">
+                  <Spinner size="large" />
+                </div>
+              )
+            }
+            if (performanceError) {
+              return (
+                <Alert variant="destructive">
+                  <div>Error loading performance data: {performanceError}</div>
+                </Alert>
+              )
+            }
+            return (
+              <ChartContainer config={performanceConfig} className="gba:h-[400px] gba:w-full">
+                <ComposedChart data={filteredPerformanceData}>
+                  <XAxis dataKey="year" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+                            {payload.map((entry, index) => {
+                              let properLabel = ''
+                              let formattedValue = ''
+                              let dotColor = ''
 
-                            if (entry.dataKey === 'averageOccupancyRate') {
-                              properLabel = 'Average Occupancy Rate'
-                              formattedValue = `${(entry.value as number).toFixed(1)}%`
-                              dotColor = 'var(--color-averageoccupancyrate)'
-                            } else if (entry.dataKey === 'totalPropertyValue') {
-                              properLabel = 'Total Property Value'
-                              formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrencyFilter)
-                              dotColor = 'var(--color-totalpropertyvalue)'
-                            }
+                              if (entry.dataKey === 'averageOccupancyRate') {
+                                properLabel = 'Average Occupancy Rate'
+                                formattedValue = `${(entry.value as number).toFixed(1)}%`
+                                dotColor = 'var(--color-averageoccupancyrate)'
+                              } else if (entry.dataKey === 'totalPropertyValue') {
+                                properLabel = 'Total Property Value'
+                                formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrencyFilter)
+                                dotColor = 'var(--color-totalpropertyvalue)'
+                              }
 
-                            return (
-                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: dotColor }}
-                                />
-                                <span className="gba:font-medium">{properLabel}:</span>
-                                <span className="gba:font-semibold">{formattedValue}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="averageOccupancyRate"
-                  stroke="var(--color-averageoccupancyrate)"
-                  strokeWidth={3}
-                  name="Average Occupancy Rate"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="totalPropertyValue"
-                  stroke="var(--color-totalpropertyvalue)"
-                  strokeWidth={3}
-                  name="Total Property Value"
-                />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                              return (
+                                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                  <div
+                                    className="gba:w-3 gba:h-3 gba:rounded-full"
+                                    style={{ backgroundColor: dotColor }}
+                                  />
+                                  <span className="gba:font-medium">{properLabel}:</span>
+                                  <span className="gba:font-semibold">{formattedValue}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="averageOccupancyRate"
+                    stroke="var(--color-averageoccupancyrate)"
+                    strokeWidth={3}
+                    name="Average Occupancy Rate"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="totalPropertyValue"
+                    stroke="var(--color-totalpropertyvalue)"
+                    strokeWidth={3}
+                    name="Total Property Value"
+                  />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
 

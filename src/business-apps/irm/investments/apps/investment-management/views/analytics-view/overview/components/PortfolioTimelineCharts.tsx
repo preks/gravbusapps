@@ -93,89 +93,97 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
           </div>
         </CardHeader>
         <CardContent>
-          {isLoadingPerformance ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-[350px]">
-              <Spinner size="lg" />
-            </div>
-          ) : performanceError ? (
-            <Alert variant="destructive" className="gba:mb-4">
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span>Error loading performance timeline: {performanceError}</span>
-                <Button variant="outline" size="sm" onClick={refetchPerformance}>
-                  Retry
-                </Button>
-              </div>
-            </Alert>
-          ) : (
-            <ChartContainer config={performanceChartConfig} className="gba:h-[350px] gba:w-full">
-              <ComposedChart data={performanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-                <YAxis
-                  yAxisId="left"
-                  tick={{ fontSize: 12 }}
-                  label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
-                />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={value =>
-                    formatCurrencyCompact(value, performanceCurrencyFilter).replace(/[€$£¥]/g, '')
-                  }
-                  label={{ value: 'Amount', angle: 90, position: 'insideRight' }}
-                />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const countEntry = payload.find(p => p.dataKey === 'count')
-                      const totalEntry = payload.find(p => p.dataKey === 'total')
-
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                          {countEntry && (
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-count)' }}
-                              />
-                              <span className="gba:font-medium">Investment Count:</span>
-                              <span className="gba:font-semibold">{countEntry.value}</span>
-                            </div>
-                          )}
-                          {totalEntry && (
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-total)' }}
-                              />
-                              <span className="gba:font-medium">Total Investment Amount:</span>
-                              <span className="gba:font-semibold">
-                                {formatCurrencyCompact(totalEntry.value as number, performanceCurrencyFilter)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )
+          {(() => {
+            if (isLoadingPerformance) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[350px]">
+                  <Spinner size="lg" />
+                </div>
+              )
+            }
+            if (performanceError) {
+              return (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <div className="gba:flex gba:justify-between gba:items-center">
+                    <span>Error loading performance timeline: {performanceError}</span>
+                    <Button variant="outline" size="sm" onClick={refetchPerformance}>
+                      Retry
+                    </Button>
+                  </div>
+                </Alert>
+              )
+            }
+            return (
+              <ChartContainer config={performanceChartConfig} className="gba:h-[350px] gba:w-full">
+                <ComposedChart data={performanceData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: 12 }}
+                    label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value =>
+                      formatCurrencyCompact(value, performanceCurrencyFilter).replace(/[€$£¥]/g, '')
                     }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="total"
-                  stroke="var(--color-total)"
-                  strokeWidth={3}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                    label={{ value: 'Amount', angle: 90, position: 'insideRight' }}
+                  />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const countEntry = payload.find(p => p.dataKey === 'count')
+                        const totalEntry = payload.find(p => p.dataKey === 'total')
+
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+                            {countEntry && (
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: 'var(--color-count)' }}
+                                />
+                                <span className="gba:font-medium">Investment Count:</span>
+                                <span className="gba:font-semibold">{countEntry.value}</span>
+                              </div>
+                            )}
+                            {totalEntry && (
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: 'var(--color-total)' }}
+                                />
+                                <span className="gba:font-medium">Total Investment Amount:</span>
+                                <span className="gba:font-semibold">
+                                  {formatCurrencyCompact(totalEntry.value as number, performanceCurrencyFilter)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" radius={[4, 4, 0, 0]} />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="total"
+                    stroke="var(--color-total)"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
 
@@ -203,87 +211,95 @@ export const PortfolioTimelineCharts: React.FC<PortfolioTimelineChartsProps> = p
           </div>
         </CardHeader>
         <CardContent>
-          {isLoadingValue ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
-              <Spinner size="lg" />
-            </div>
-          ) : valueError ? (
-            <Alert variant="destructive" className="gba:mb-4">
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span>Error loading value trends: {valueError}</span>
-                <Button variant="outline" size="sm" onClick={refetchValue}>
-                  Retry
-                </Button>
-              </div>
-            </Alert>
-          ) : (
-            <ChartContainer config={valueChartConfig} className="gba:h-[300px] gba:w-full">
-              <ComposedChart data={valueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
-                />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      const totalInvestedEntry = payload.find(p => p.dataKey === 'total')
-                      const marketValueEntry = payload.find(p => p.dataKey === 'totalMarketValue')
+          {(() => {
+            if (isLoadingValue) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                  <Spinner size="lg" />
+                </div>
+              )
+            }
+            if (valueError) {
+              return (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <div className="gba:flex gba:justify-between gba:items-center">
+                    <span>Error loading value trends: {valueError}</span>
+                    <Button variant="outline" size="sm" onClick={refetchValue}>
+                      Retry
+                    </Button>
+                  </div>
+                </Alert>
+              )
+            }
+            return (
+              <ChartContainer config={valueChartConfig} className="gba:h-[300px] gba:w-full">
+                <ComposedChart data={valueData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={value => formatCurrencyCompact(value, valueCurrencyFilter).replace(/[€$£¥]/g, '')}
+                  />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        const totalInvestedEntry = payload.find(p => p.dataKey === 'total')
+                        const marketValueEntry = payload.find(p => p.dataKey === 'totalMarketValue')
 
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                          {totalInvestedEntry && (
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-total)' }}
-                              />
-                              <span className="gba:font-medium">Total Invested Amount:</span>
-                              <span className="gba:font-semibold">
-                                {formatCurrencyCompact(totalInvestedEntry.value as number, valueCurrencyFilter)}
-                              </span>
-                            </div>
-                          )}
-                          {marketValueEntry && (
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-totalmarketvalue)' }}
-                              />
-                              <span className="gba:font-medium">Total Market Value:</span>
-                              <span className="gba:font-semibold">
-                                {formatCurrencyCompact(marketValueEntry.value as number, valueCurrencyFilter)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Line
-                  type="monotone"
-                  dataKey="total"
-                  stroke="var(--color-total)"
-                  strokeWidth={3}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="totalMarketValue"
-                  stroke="var(--color-totalmarketvalue)"
-                  strokeWidth={3}
-                  dot={false}
-                  activeDot={{ r: 4 }}
-                />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+                            {totalInvestedEntry && (
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: 'var(--color-total)' }}
+                                />
+                                <span className="gba:font-medium">Total Invested Amount:</span>
+                                <span className="gba:font-semibold">
+                                  {formatCurrencyCompact(totalInvestedEntry.value as number, valueCurrencyFilter)}
+                                </span>
+                              </div>
+                            )}
+                            {marketValueEntry && (
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: 'var(--color-totalmarketvalue)' }}
+                                />
+                                <span className="gba:font-medium">Total Market Value:</span>
+                                <span className="gba:font-semibold">
+                                  {formatCurrencyCompact(marketValueEntry.value as number, valueCurrencyFilter)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Line
+                    type="monotone"
+                    dataKey="total"
+                    stroke="var(--color-total)"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="totalMarketValue"
+                    stroke="var(--color-totalmarketvalue)"
+                    strokeWidth={3}
+                    dot={false}
+                    activeDot={{ r: 4 }}
+                  />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
     </div>

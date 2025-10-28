@@ -180,74 +180,82 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingGroupCount ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
-                <Spinner size="lg" />
-              </div>
-            ) : groupCountError ? (
-              <Alert variant="destructive" className="gba:mb-4">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span>Error loading group count data: {groupCountError}</span>
-                  <button
-                    onClick={refetchGroupCount}
-                    className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </Alert>
-            ) : (
-              <ChartContainer config={groupCountChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={groupCountData.map((item: any) => {
-                      const key = item.group.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: key,
-                        value: item.count,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {groupCountData.map((entry: any, index: number) => {
-                      const key = entry.group.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const groupKey = data.payload.name
-                        const total = groupCountData.reduce((sum, item) => sum + item.count, 0)
-                        const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${groupKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.group}</span>
+            {(() => {
+              if (isLoadingGroupCount) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                    <Spinner size="lg" />
+                  </div>
+                )
+              }
+              if (groupCountError) {
+                return (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span>Error loading group count data: {groupCountError}</span>
+                      <button
+                        onClick={refetchGroupCount}
+                        className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </Alert>
+                )
+              }
+              return (
+                <ChartContainer config={groupCountChartConfig} className="gba:h-[300px] gba:w-full">
+                  <PieChart>
+                    <Pie
+                      data={groupCountData.map((item: any) => {
+                        const key = item.group.toLowerCase().replace(/\s+/g, '')
+                        return {
+                          ...item,
+                          name: key,
+                          value: item.count,
+                          fill: `var(--color-${key})`
+                        }
+                      })}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {groupCountData.map((entry: any, index: number) => {
+                        const key = entry.group.toLowerCase().replace(/\s+/g, '')
+                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                      })}
+                    </Pie>
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0]
+                          const groupKey = data.payload.name
+                          const total = groupCountData.reduce((sum, item) => sum + item.count, 0)
+                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+                          return (
+                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: `var(--color-${groupKey})` }}
+                                />
+                                <span className="gba:font-medium">{data.payload.group}</span>
+                              </div>
+                              <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
+                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
-                            <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
-                            <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
 
@@ -273,76 +281,84 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingGroupAmount ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
-                <Spinner size="lg" />
-              </div>
-            ) : groupAmountError ? (
-              <Alert variant="destructive" className="gba:mb-4">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span>Error loading group amount data: {groupAmountError}</span>
-                  <button
-                    onClick={refetchGroupAmount}
-                    className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </Alert>
-            ) : (
-              <ChartContainer config={groupAmountChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={groupAmountData.map((item: any) => {
-                      const key = item.group.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: key,
-                        value: item.totalAmount,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {groupAmountData.map((entry: any, index: number) => {
-                      const key = entry.group.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const groupKey = data.payload.name
-                        const total = groupAmountData.reduce((sum, item) => sum + item.totalAmount, 0)
-                        const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${groupKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.group}</span>
+            {(() => {
+              if (isLoadingGroupAmount) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                    <Spinner size="lg" />
+                  </div>
+                )
+              }
+              if (groupAmountError) {
+                return (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span>Error loading group amount data: {groupAmountError}</span>
+                      <button
+                        onClick={refetchGroupAmount}
+                        className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </Alert>
+                )
+              }
+              return (
+                <ChartContainer config={groupAmountChartConfig} className="gba:h-[300px] gba:w-full">
+                  <PieChart>
+                    <Pie
+                      data={groupAmountData.map((item: any) => {
+                        const key = item.group.toLowerCase().replace(/\s+/g, '')
+                        return {
+                          ...item,
+                          name: key,
+                          value: item.totalAmount,
+                          fill: `var(--color-${key})`
+                        }
+                      })}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {groupAmountData.map((entry: any, index: number) => {
+                        const key = entry.group.toLowerCase().replace(/\s+/g, '')
+                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                      })}
+                    </Pie>
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0]
+                          const groupKey = data.payload.name
+                          const total = groupAmountData.reduce((sum, item) => sum + item.totalAmount, 0)
+                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+                          return (
+                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: `var(--color-${groupKey})` }}
+                                />
+                                <span className="gba:font-medium">{data.payload.group}</span>
+                              </div>
+                              <div className="gba:text-lg gba:font-semibold">
+                                {formatCurrencyCompact(data.value as number, groupAmountCurrency)}
+                              </div>
+                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
-                            <div className="gba:text-lg gba:font-semibold">
-                              {formatCurrencyCompact(data.value as number, groupAmountCurrency)}
-                            </div>
-                            <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
       </div>
@@ -374,74 +390,82 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingStatusCount ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
-                <Spinner size="lg" />
-              </div>
-            ) : statusCountError ? (
-              <Alert variant="destructive" className="gba:mb-4">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span>Error loading status count data: {statusCountError}</span>
-                  <button
-                    onClick={refetchStatusCount}
-                    className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </Alert>
-            ) : (
-              <ChartContainer config={statusCountChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={statusCountData.map((item: any) => {
-                      const key = item.status.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: key,
-                        value: item.count,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {statusCountData.map((entry: any, index: number) => {
-                      const key = entry.status.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const statusKey = data.payload.name
-                        const total = statusCountData.reduce((sum: number, item: any) => sum + item.count, 0)
-                        const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${statusKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.status}</span>
+            {(() => {
+              if (isLoadingStatusCount) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                    <Spinner size="lg" />
+                  </div>
+                )
+              }
+              if (statusCountError) {
+                return (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span>Error loading status count data: {statusCountError}</span>
+                      <button
+                        onClick={refetchStatusCount}
+                        className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </Alert>
+                )
+              }
+              return (
+                <ChartContainer config={statusCountChartConfig} className="gba:h-[300px] gba:w-full">
+                  <PieChart>
+                    <Pie
+                      data={statusCountData.map((item: any) => {
+                        const key = item.status.toLowerCase().replace(/\s+/g, '')
+                        return {
+                          ...item,
+                          name: key,
+                          value: item.count,
+                          fill: `var(--color-${key})`
+                        }
+                      })}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {statusCountData.map((entry: any, index: number) => {
+                        const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                      })}
+                    </Pie>
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0]
+                          const statusKey = data.payload.name
+                          const total = statusCountData.reduce((sum: number, item: any) => sum + item.count, 0)
+                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+                          return (
+                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: `var(--color-${statusKey})` }}
+                                />
+                                <span className="gba:font-medium">{data.payload.status}</span>
+                              </div>
+                              <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
+                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
-                            <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
-                            <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
 
@@ -467,76 +491,84 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingStatusAmount ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
-                <Spinner size="lg" />
-              </div>
-            ) : statusAmountError ? (
-              <Alert variant="destructive" className="gba:mb-4">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span>Error loading status amount data: {statusAmountError}</span>
-                  <button
-                    onClick={refetchStatusAmount}
-                    className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </Alert>
-            ) : (
-              <ChartContainer config={statusAmountChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={statusAmountData.map((item: any) => {
-                      const key = item.status.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: key,
-                        value: item.totalAmount,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {statusAmountData.map((entry: any, index: number) => {
-                      const key = entry.status.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const statusKey = data.payload.name
-                        const total = statusAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
-                        const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${statusKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.status}</span>
+            {(() => {
+              if (isLoadingStatusAmount) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                    <Spinner size="lg" />
+                  </div>
+                )
+              }
+              if (statusAmountError) {
+                return (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span>Error loading status amount data: {statusAmountError}</span>
+                      <button
+                        onClick={refetchStatusAmount}
+                        className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </Alert>
+                )
+              }
+              return (
+                <ChartContainer config={statusAmountChartConfig} className="gba:h-[300px] gba:w-full">
+                  <PieChart>
+                    <Pie
+                      data={statusAmountData.map((item: any) => {
+                        const key = item.status.toLowerCase().replace(/\s+/g, '')
+                        return {
+                          ...item,
+                          name: key,
+                          value: item.totalAmount,
+                          fill: `var(--color-${key})`
+                        }
+                      })}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {statusAmountData.map((entry: any, index: number) => {
+                        const key = entry.status.toLowerCase().replace(/\s+/g, '')
+                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                      })}
+                    </Pie>
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0]
+                          const statusKey = data.payload.name
+                          const total = statusAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
+                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+                          return (
+                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: `var(--color-${statusKey})` }}
+                                />
+                                <span className="gba:font-medium">{data.payload.status}</span>
+                              </div>
+                              <div className="gba:text-lg gba:font-semibold">
+                                {formatCurrencyCompact(data.value as number, statusAmountCurrency)}
+                              </div>
+                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
-                            <div className="gba:text-lg gba:font-semibold">
-                              {formatCurrencyCompact(data.value as number, statusAmountCurrency)}
-                            </div>
-                            <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
       </div>
@@ -557,74 +589,82 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingCurrencyCount ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
-                <Spinner size="lg" />
-              </div>
-            ) : currencyCountError ? (
-              <Alert variant="destructive" className="gba:mb-4">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span>Error loading currency count data: {currencyCountError}</span>
-                  <button
-                    onClick={refetchCurrencyCount}
-                    className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </Alert>
-            ) : (
-              <ChartContainer config={currencyCountChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={currencyCountData.map((item: any) => {
-                      const key = item.currency.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: key,
-                        value: item.count,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {currencyCountData.map((entry: any, index: number) => {
-                      const key = entry.currency.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const currencyKey = data.payload.name
-                        const total = currencyCountData.reduce((sum: number, item: any) => sum + item.count, 0)
-                        const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${currencyKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.currency}</span>
+            {(() => {
+              if (isLoadingCurrencyCount) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                    <Spinner size="lg" />
+                  </div>
+                )
+              }
+              if (currencyCountError) {
+                return (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span>Error loading currency count data: {currencyCountError}</span>
+                      <button
+                        onClick={refetchCurrencyCount}
+                        className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </Alert>
+                )
+              }
+              return (
+                <ChartContainer config={currencyCountChartConfig} className="gba:h-[300px] gba:w-full">
+                  <PieChart>
+                    <Pie
+                      data={currencyCountData.map((item: any) => {
+                        const key = item.currency.toLowerCase().replace(/\s+/g, '')
+                        return {
+                          ...item,
+                          name: key,
+                          value: item.count,
+                          fill: `var(--color-${key})`
+                        }
+                      })}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {currencyCountData.map((entry: any, index: number) => {
+                        const key = entry.currency.toLowerCase().replace(/\s+/g, '')
+                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                      })}
+                    </Pie>
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0]
+                          const currencyKey = data.payload.name
+                          const total = currencyCountData.reduce((sum: number, item: any) => sum + item.count, 0)
+                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+                          return (
+                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: `var(--color-${currencyKey})` }}
+                                />
+                                <span className="gba:font-medium">{data.payload.currency}</span>
+                              </div>
+                              <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
+                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
-                            <div className="gba:text-lg gba:font-semibold">{data.value} investments</div>
-                            <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
 
@@ -642,76 +682,84 @@ export const PortfolioDistributionCharts: React.FC<PortfolioDistributionChartsPr
             </div>
           </CardHeader>
           <CardContent>
-            {isLoadingCurrencyAmount ? (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
-                <Spinner size="lg" />
-              </div>
-            ) : currencyAmountError ? (
-              <Alert variant="destructive" className="gba:mb-4">
-                <div className="gba:flex gba:justify-between gba:items-center">
-                  <span>Error loading currency amount data: {currencyAmountError}</span>
-                  <button
-                    onClick={refetchCurrencyAmount}
-                    className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                  >
-                    Retry
-                  </button>
-                </div>
-              </Alert>
-            ) : (
-              <ChartContainer config={currencyAmountChartConfig} className="gba:h-[300px] gba:w-full">
-                <PieChart>
-                  <Pie
-                    data={currencyAmountData.map((item: any) => {
-                      const key = item.currency.toLowerCase().replace(/\s+/g, '')
-                      return {
-                        ...item,
-                        name: key,
-                        value: item.totalAmount,
-                        fill: `var(--color-${key})`
-                      }
-                    })}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {currencyAmountData.map((entry: any, index: number) => {
-                      const key = entry.currency.toLowerCase().replace(/\s+/g, '')
-                      return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
-                    })}
-                  </Pie>
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0]
-                        const currencyKey = data.payload.name
-                        const total = currencyAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
-                        const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: `var(--color-${currencyKey})` }}
-                              />
-                              <span className="gba:font-medium">{data.payload.currency}</span>
+            {(() => {
+              if (isLoadingCurrencyAmount) {
+                return (
+                  <div className="gba:flex gba:justify-center gba:items-center gba:h-[300px]">
+                    <Spinner size="lg" />
+                  </div>
+                )
+              }
+              if (currencyAmountError) {
+                return (
+                  <Alert variant="destructive" className="gba:mb-4">
+                    <div className="gba:flex gba:justify-between gba:items-center">
+                      <span>Error loading currency amount data: {currencyAmountError}</span>
+                      <button
+                        onClick={refetchCurrencyAmount}
+                        className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </Alert>
+                )
+              }
+              return (
+                <ChartContainer config={currencyAmountChartConfig} className="gba:h-[300px] gba:w-full">
+                  <PieChart>
+                    <Pie
+                      data={currencyAmountData.map((item: any) => {
+                        const key = item.currency.toLowerCase().replace(/\s+/g, '')
+                        return {
+                          ...item,
+                          name: key,
+                          value: item.totalAmount,
+                          fill: `var(--color-${key})`
+                        }
+                      })}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {currencyAmountData.map((entry: any, index: number) => {
+                        const key = entry.currency.toLowerCase().replace(/\s+/g, '')
+                        return <Cell key={`cell-${index}`} fill={`var(--color-${key})`} />
+                      })}
+                    </Pie>
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0]
+                          const currencyKey = data.payload.name
+                          const total = currencyAmountData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
+                          const percentage = total > 0 ? ((data.value / total) * 100).toFixed(1) : '0'
+                          return (
+                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: `var(--color-${currencyKey})` }}
+                                />
+                                <span className="gba:font-medium">{data.payload.currency}</span>
+                              </div>
+                              <div className="gba:text-lg gba:font-semibold">
+                                {formatCurrencyCompact(data.value as number, data.payload.currency)}
+                              </div>
+                              <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
                             </div>
-                            <div className="gba:text-lg gba:font-semibold">
-                              {formatCurrencyCompact(data.value as number, data.payload.currency)}
-                            </div>
-                            <div className="gba:text-sm gba:text-gray-500">{percentage}% of total</div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <ChartLegend content={<ChartLegendContent />} />
-                </PieChart>
-              </ChartContainer>
-            )}
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <ChartLegend content={<ChartLegendContent />} />
+                  </PieChart>
+                </ChartContainer>
+              )
+            })()}
           </CardContent>
         </Card>
       </div>

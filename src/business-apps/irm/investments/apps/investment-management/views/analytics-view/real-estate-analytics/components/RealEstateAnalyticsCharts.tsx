@@ -83,72 +83,80 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
           </div>
         </CardHeader>
         <CardContent>
-          {isLoadingOccupancy ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-[400px]">
-              <Spinner size="lg" />
-            </div>
-          ) : occupancyError ? (
-            <Alert variant="destructive" className="gba:mb-4">
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span>Error loading occupancy data: {occupancyError}</span>
-                <button
-                  onClick={refetchOccupancy}
-                  className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                >
-                  Retry
-                </button>
-              </div>
-            </Alert>
-          ) : (
-            <ChartContainer config={occupancyConfig}>
-              <ComposedChart data={occupancyData}>
-                <XAxis dataKey="range" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <ChartTooltip
-                  content={({ active, payload, label }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                          {payload.map((entry, index) => {
-                            let properLabel = ''
-                            let formattedValue = ''
-                            let dotColor = ''
+          {(() => {
+            if (isLoadingOccupancy) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[400px]">
+                  <Spinner size="lg" />
+                </div>
+              )
+            }
+            if (occupancyError) {
+              return (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <div className="gba:flex gba:justify-between gba:items-center">
+                    <span>Error loading occupancy data: {occupancyError}</span>
+                    <button
+                      onClick={refetchOccupancy}
+                      className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </Alert>
+              )
+            }
+            return (
+              <ChartContainer config={occupancyConfig}>
+                <ComposedChart data={occupancyData}>
+                  <XAxis dataKey="range" />
+                  <YAxis yAxisId="left" />
+                  <YAxis yAxisId="right" orientation="right" />
+                  <ChartTooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+                            {payload.map((entry, index) => {
+                              let properLabel = ''
+                              let formattedValue = ''
+                              let dotColor = ''
 
-                            if (entry.dataKey === 'count') {
-                              properLabel = 'Property Count'
-                              formattedValue = `${entry.value}`
-                              dotColor = 'var(--color-count)'
-                            } else if (entry.dataKey === 'totalValue') {
-                              properLabel = 'Total Property Value'
-                              formattedValue = formatCurrencyCompact(entry.value as number, occupancyCurrencyFilter)
-                              dotColor = 'var(--color-totalValue)'
-                            }
+                              if (entry.dataKey === 'count') {
+                                properLabel = 'Property Count'
+                                formattedValue = `${entry.value}`
+                                dotColor = 'var(--color-count)'
+                              } else if (entry.dataKey === 'totalValue') {
+                                properLabel = 'Total Property Value'
+                                formattedValue = formatCurrencyCompact(entry.value as number, occupancyCurrencyFilter)
+                                dotColor = 'var(--color-totalValue)'
+                              }
 
-                            return (
-                              <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: dotColor }}
-                                />
-                                <span className="gba:font-medium">{properLabel}:</span>
-                                <span className="gba:font-semibold">{formattedValue}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <ChartLegend content={<ChartLegendContent />} />
-                <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" />
-                <Bar yAxisId="right" dataKey="totalValue" fill="var(--color-totalValue)" opacity={0.8} />
-              </ComposedChart>
-            </ChartContainer>
-          )}
+                              return (
+                                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                  <div
+                                    className="gba:w-3 gba:h-3 gba:rounded-full"
+                                    style={{ backgroundColor: dotColor }}
+                                  />
+                                  <span className="gba:font-medium">{properLabel}:</span>
+                                  <span className="gba:font-semibold">{formattedValue}</span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <ChartLegend content={<ChartLegendContent />} />
+                  <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" />
+                  <Bar yAxisId="right" dataKey="totalValue" fill="var(--color-totalValue)" opacity={0.8} />
+                </ComposedChart>
+              </ChartContainer>
+            )
+          })()}
         </CardContent>
       </Card>
 
@@ -177,75 +185,86 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
           </div>
         </CardHeader>
         <CardContent>
-          {isLoadingPropertyValue ? (
-            <div className="gba:flex gba:justify-center gba:items-center gba:h-[400px]">
-              <Spinner size="lg" />
-            </div>
-          ) : propertyValueError ? (
-            <Alert variant="destructive" className="gba:mb-4">
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <span>Error loading property value data: {propertyValueError}</span>
-                <button
-                  onClick={refetchPropertyValue}
-                  className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
-                >
-                  Retry
-                </button>
+          {(() => {
+            if (isLoadingPropertyValue) {
+              return (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-[400px]">
+                  <Spinner size="lg" />
+                </div>
+              )
+            }
+            if (propertyValueError) {
+              return (
+                <Alert variant="destructive" className="gba:mb-4">
+                  <div className="gba:flex gba:justify-between gba:items-center">
+                    <span>Error loading property value data: {propertyValueError}</span>
+                    <button
+                      onClick={refetchPropertyValue}
+                      className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive gba:text-destructive-foreground gba:rounded gba:hover:bg-destructive/90"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </Alert>
+              )
+            }
+            if (propertyValueVsRentData && propertyValueVsRentData.length > 0) {
+              return (
+                <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
+                  <ScatterChart data={propertyValueVsRentData}>
+                    <XAxis dataKey="propertyValue" name="Property Value" type="number" />
+                    <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload
+                          return (
+                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+                              <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+                                {data.propertyName || 'Property'}
+                              </div>
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: 'var(--color-propertyValue)' }}
+                                />
+                                <span className="gba:font-medium">Property Value:</span>
+                                <span className="gba:font-semibold">
+                                  {formatCurrencyCompact(data.propertyValue, expensesCurrencyFilter)}
+                                </span>
+                              </div>
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <div
+                                  className="gba:w-3 gba:h-3 gba:rounded-full"
+                                  style={{ backgroundColor: 'var(--color-annualExpenses)' }}
+                                />
+                                <span className="gba:font-medium">Annual Net Cold Rent:</span>
+                                <span className="gba:font-semibold">
+                                  {formatCurrencyCompact(data.annualExpenses, expensesCurrencyFilter)}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Scatter dataKey="annualExpenses" fill="var(--color-annualExpenses)" />
+                  </ScatterChart>
+                </ChartContainer>
+              )
+            }
+            return (
+              <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg">
+                <div className="gba:text-center">
+                  <p className="gba:text-gray-500 gba:text-lg gba:mb-2">No Data Available</p>
+                  <p className="gba:text-gray-400 gba:text-sm">
+                    No properties with both annual net cold rent and value data found
+                  </p>
+                </div>
               </div>
-            </Alert>
-          ) : propertyValueVsRentData && propertyValueVsRentData.length > 0 ? (
-            <ChartContainer config={expensesValueConfig} className="gba:h-[400px] gba:w-full">
-              <ScatterChart data={propertyValueVsRentData}>
-                <XAxis dataKey="propertyValue" name="Property Value" type="number" />
-                <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                            {data.propertyName || 'Property'}
-                          </div>
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-propertyValue)' }}
-                            />
-                            <span className="gba:font-medium">Property Value:</span>
-                            <span className="gba:font-semibold">
-                              {formatCurrencyCompact(data.propertyValue, expensesCurrencyFilter)}
-                            </span>
-                          </div>
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: 'var(--color-annualExpenses)' }}
-                            />
-                            <span className="gba:font-medium">Annual Net Cold Rent:</span>
-                            <span className="gba:font-semibold">
-                              {formatCurrencyCompact(data.annualExpenses, expensesCurrencyFilter)}
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <Scatter dataKey="annualExpenses" fill="var(--color-annualExpenses)" />
-              </ScatterChart>
-            </ChartContainer>
-          ) : (
-            <div className="gba:h-[400px] gba:w-full gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-lg">
-              <div className="gba:text-center">
-                <p className="gba:text-gray-500 gba:text-lg gba:mb-2">No Data Available</p>
-                <p className="gba:text-gray-400 gba:text-sm">
-                  No properties with both annual net cold rent and value data found
-                </p>
-              </div>
-            </div>
-          )}
+            )
+          })()}
         </CardContent>
       </Card>
     </div>
