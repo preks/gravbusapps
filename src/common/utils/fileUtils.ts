@@ -45,7 +45,7 @@ export const formatFileSize = (bytes: number | undefined): string => {
   if (!bytes || bytes === 0) return '0 Bytes'
 
   // Validate input is a valid number
-  if (typeof bytes !== 'number' || isNaN(bytes) || bytes < 0) {
+  if (typeof bytes !== 'number' || Number.isNaN(bytes) || bytes < 0) {
     return '0 Bytes'
   }
 
@@ -58,7 +58,7 @@ export const formatFileSize = (bytes: number | undefined): string => {
   const formattedSize = Number.parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2))
 
   // Handle potential NaN from parseFloat
-  if (isNaN(formattedSize)) {
+  if (Number.isNaN(formattedSize)) {
     return '0 Bytes'
   }
 
