@@ -110,7 +110,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
           }
         />
       ) : (
-        <div className="gba:space-y-3" data-testid="inbox-task-list">
+        <div className="gba:space-y-1.5" data-testid="inbox-task-list">
           {filteredTasks.map((task) => (
             <TaskCard 
               key={task.id} 

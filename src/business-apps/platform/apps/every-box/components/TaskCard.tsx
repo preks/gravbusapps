@@ -84,11 +84,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
       onClick={() => onView(task)}
       data-testid={`task-card-${task.id}`}
     >
-      <CardContent className="gba:py-1.5 gba:px-4">
+      <CardContent className="gba:px-4 gba:py-1">
         <div className="gba:flex gba:items-start">
           <div className="gba:flex-1 gba:min-w-0">
             {/* Creator info section */}
-            <div className="gba:flex gba:items-start gba:gap-2" data-testid="task-creator-section">
+            <div className="gba:flex gba:items-center gba:gap-2" data-testid="task-creator-section">
               <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
                 <AvatarImage
                   src={
