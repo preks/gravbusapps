@@ -85,81 +85,79 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
       data-testid={`task-card-${task.id}`}
     >
       <CardContent className="gba:px-4 gba:py-1">
-        <div className="gba:flex gba:items-start">
-          <div className="gba:flex-1 gba:min-w-0">
-            {/* Creator info section */}
-            <div className="gba:flex gba:items-center gba:gap-2" data-testid="task-creator-section">
-              <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
-                <AvatarImage
-                  src={
-                    employeeData?.pictureThumbnail && !employeeData.pictureThumbnail.startsWith('{')
-                      ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
-                      : undefined
-                  }
-                  alt={creatorName}
-                />
-                <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
-                  {getInitials(creatorName)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-shrink-0">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <User className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                  <span className="gba:text-xs gba:font-medium gba:truncate" data-testid="task-creator-name">
-                    {creatorName}
+        <div className="gba:flex gba:items-center gba:gap-4">
+          {/* Left side: Avatar, creator info, task title, source badge */}
+          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0" data-testid="task-creator-section">
+            <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
+              <AvatarImage
+                src={
+                  employeeData?.pictureThumbnail && !employeeData.pictureThumbnail.startsWith('{')
+                    ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
+                    : undefined
+                }
+                alt={creatorName}
+              />
+              <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
+                {getInitials(creatorName)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-shrink-0 gba:leading-none gba:gap-0.5">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <User className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                <span className="gba:text-xs gba:font-medium gba:truncate gba:leading-tight" data-testid="task-creator-name">
+                  {creatorName}
+                </span>
+              </div>
+              {createdAt && (
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                  <span className="gba:text-xs gba:text-muted-foreground gba:leading-tight" data-testid="task-created-at">
+                    {formatDateTime(createdAt)}
                   </span>
                 </div>
-                {createdAt && (
-                  <div className="gba:flex gba:items-center gba:gap-1">
-                    <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                    <span className="gba:text-xs gba:text-muted-foreground" data-testid="task-created-at">
-                      {formatDateTime(createdAt)}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0 gba:self-stretch">
-                <span className="gba:text-base gba:font-semibold gba:truncate gba:px-2" data-testid="task-title">
-                  {taskTitle}
-                </span>
-                <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
-                  {getSourceBadgeText(task.source)}
-                </Badge>
-              </div>
+              )}
             </div>
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+              <span className="gba:text-base gba:font-semibold gba:truncate gba:px-2" data-testid="task-title">
+                {taskTitle}
+              </span>
+              <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
+                {getSourceBadgeText(task.source)}
+              </Badge>
+            </div>
+          </div>
 
+          {/* Right side: Description and due date */}
+          <div className="gba:flex gba:flex-col gba:gap-1 gba:items-end gba:flex-shrink-0">
             {(task.description || task.message) && (
               <p
-                className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2"
+                className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1 gba:max-w-xs gba:text-right"
                 data-testid="task-description"
               >
                 {task.description || task.message}
               </p>
             )}
-
-            <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
-              {task.dueDate && (
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  {overdue || dueSoon ? (
-                    <AlertTriangle className="gba:h-3 gba:w-3" />
-                  ) : (
-                    <Clock className="gba:h-3 gba:w-3" />
-                  )}
-                  <span
-                    className={
-                      overdue
-                        ? 'gba:text-destructive gba:font-semibold'
-                        : dueSoon
-                        ? 'gba:text-warning gba:font-semibold'
-                        : ''
-                    }
-                    data-testid="task-due-date"
-                  >
-                    {overdue ? 'Overdue' : dueSoon ? 'Due soon' : `Due ${formatRelativeTime(task.dueDate)}`}
-                  </span>
-                </div>
-              )}
-            </div>
+            {task.dueDate && (
+              <div className="gba:flex gba:items-center gba:gap-1">
+                {overdue || dueSoon ? (
+                  <AlertTriangle className="gba:h-3 gba:w-3" />
+                ) : (
+                  <Clock className="gba:h-3 gba:w-3" />
+                )}
+                <span
+                  className={`gba:text-xs ${
+                    overdue
+                      ? 'gba:text-destructive gba:font-semibold'
+                      : dueSoon
+                      ? 'gba:text-warning gba:font-semibold'
+                      : 'gba:text-muted-foreground'
+                  }`}
+                  data-testid="task-due-date"
+                >
+                  {overdue ? 'Overdue' : dueSoon ? 'Due soon' : `Due ${formatRelativeTime(task.dueDate)}`}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
