@@ -8,12 +8,11 @@ import {
   Card,
   CardContent,
   Badge,
-  Button,
   Avatar,
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system';
-import { Clock, AlertTriangle, Eye, User } from 'lucide-react';
+import { Clock, AlertTriangle, User } from 'lucide-react';
 import { UnifiedTask } from '../types';
 import {
   formatRelativeTime,
@@ -85,8 +84,8 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
       onClick={() => onView(task)}
       data-testid={`task-card-${task.id}`}
     >
-      <CardContent className="gba:py-2 gba:px-4">
-        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+      <CardContent className="gba:py-1 gba:px-4">
+        <div className="gba:flex gba:items-start">
           <div className="gba:flex-1 gba:min-w-0">
             {/* Creator info section */}
             <div className="gba:flex gba:items-start gba:gap-3 gba:mb-2" data-testid="task-creator-section">
@@ -162,18 +161,6 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
               )}
             </div>
           </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              onView(task);
-            }}
-            data-testid={`task-view-button-${task.id}`}
-          >
-            <Eye className="gba:h-4 gba:w-4" />
-          </Button>
         </div>
       </CardContent>
     </Card>
