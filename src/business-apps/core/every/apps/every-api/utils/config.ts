@@ -12,11 +12,7 @@ export interface EveryApiConfig {
 }
 
 export function getCflowEndpoint(): string {
-  const endpoint = env('NEXT_PUBLIC_CFLOW_ENDPOINT') || env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_ENDPOINT')
-  if (!endpoint) {
-    console.warn('Custom Flow Engine endpoint not configured. Using default.')
-    return 'http://localhost:3000'
-  }
+  const endpoint = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
   return endpoint
 }
 
@@ -45,8 +41,8 @@ export function validateConfig(): { valid: boolean; errors: string[]; warnings: 
   const cflowEndpoint = getCflowEndpoint()
   const flowMetricsEndpoint = getFlowMetricsEndpoint()
 
-  if (!cflowEndpoint || cflowEndpoint === 'http://localhost:3000') {
-    warnings.push('Custom Flow Engine endpoint using default (http://localhost:3000)')
+  if (!cflowEndpoint || cflowEndpoint === 'https://newwork-dev.newwork.com/flow-engine') {
+    warnings.push('Custom Flow Engine endpoint using default (https://newwork-dev.newwork.com/flow-engine)')
   }
 
   if (!flowMetricsEndpoint) {

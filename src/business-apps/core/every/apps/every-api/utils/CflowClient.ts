@@ -65,7 +65,7 @@ export async function fetchCflowUserTasks(
 
   if (!endpoint) {
     throw new Error(
-      'Custom Flow Engine endpoint not configured. Set NEXT_PUBLIC_CFLOW_ENDPOINT or NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_ENDPOINT environment variable.'
+      'Custom Flow Engine endpoint not configured. Set NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL environment variable.'
     )
   }
 
