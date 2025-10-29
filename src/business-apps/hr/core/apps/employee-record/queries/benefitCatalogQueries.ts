@@ -10,6 +10,7 @@
 /**
  * Query to fetch all benefit types from the BenefitType catalog
  * Returns all available benefit options that can be assigned to employees
+ * Includes child providers for each benefit type
  */
 export const GET_BENEFIT_CATALOG = /*sql*/ `
   query GetBenefitCatalog {
@@ -31,6 +32,21 @@ export const GET_BENEFIT_CATALOG = /*sql*/ `
       additionalValue1
       additionalValue2
       additionalValue3
+      childEntries(
+        where: {
+          _and: [
+            { catalog: { identifier: { _eq: "BenefitProvider" } } },
+            { catalog: { version: { _eq: "v1" } } },
+            { isDeleted: { _neq: true } }
+          ]
+        }
+        orderBy: [{ displayOrder: ASC }, { value: ASC }]
+      ) {
+        id
+        value
+        code
+        description
+      }
     }
   }
 `

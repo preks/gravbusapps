@@ -2,6 +2,16 @@ import { CatalogEntry } from './compensationTypes'
 import { BenefitStatus } from './compensationEnums'
 
 /**
+ * Provider entry
+ */
+export interface ProviderEntry {
+  id: string // "BenefitProvider:v1:ALLIANZ"
+  value: string // "Allianz"
+  code: string // "ALLIANZ"
+  description?: string
+}
+
+/**
  * Catalog benefit from BenefitType catalog
  */
 export interface CatalogBenefitEntry {
@@ -13,6 +23,7 @@ export interface CatalogBenefitEntry {
   additionalValue1?: string
   additionalValue2?: string
   additionalValue3?: string
+  childEntries?: ProviderEntry[] // Available providers for this benefit type
 }
 
 /**
@@ -26,6 +37,7 @@ export interface BenefitCatalogItem {
   code: string // "CAR"
   description?: string
   displayOrder: number
+  availableProviders?: ProviderEntry[] // Available providers for this benefit type
 
   // From employee data (if active)
   isActive: boolean // True if employee has this benefit

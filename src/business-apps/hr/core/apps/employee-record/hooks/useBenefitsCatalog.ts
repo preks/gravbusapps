@@ -48,6 +48,7 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
           code: catalogEntry.code,
           description: catalogEntry.description || '',
           displayOrder: catalogEntry.displayOrder,
+          availableProviders: catalogEntry.childEntries || [], // Available providers for this benefit type
 
           // Employee benefit data (if exists)
           isActive,
@@ -58,9 +59,9 @@ export const useBenefitsCatalog = (employeeId: string, accessToken: string) => {
           monthlyAmount: employeeBenefit?.monthlyAmount,
           currency: employeeBenefit?.currency,
           currencyRef: employeeBenefit?.currencyRef,
-          startDate: employeeBenefit?.startDate,
-          endDate: employeeBenefit?.endDate,
-          notes: employeeBenefit?.notes,
+          startDate: employeeBenefit?.startDate ?? undefined,
+          endDate: employeeBenefit?.endDate ?? undefined,
+          notes: employeeBenefit?.notes ?? undefined,
           benefitStatus: employeeBenefit?.benefitStatus as BenefitStatus,
 
           // Action capabilities

@@ -12,9 +12,13 @@ import {
   Input,
   Textarea,
   Alert,
-  AlertDescription
+  AlertDescription,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@newwork/nw-design-system'
-import { CatalogSelect } from '@/components/catalog-select'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BenefitCatalogItem } from '../../../../types/benefitCatalogTypes'
@@ -88,13 +92,15 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
    * Check if form is valid
    */
   const isFormValid = useMemo(() => {
+    const hasProviders = benefit.availableProviders && benefit.availableProviders.length > 0
     return (
+      hasProviders &&
       provider.length > 0 &&
       startDate.length > 0 &&
       justification.trim().length >= 20 &&
       justification.trim().length <= 500
     )
-  }, [provider, startDate, justification])
+  }, [benefit.availableProviders, provider, startDate, justification])
 
   /**
    * Handle form submission
@@ -206,12 +212,29 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
               {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.provider', 'Provider')}{' '}
               <span className="gba:text-destructive">*</span>
             </Label>
-            <CatalogSelect
-              catalogIdentifier="BenefitProvider:v1"
-              value={provider}
-              onValueChange={setProvider}
-              data-testid="request-benefit-provider-select"
-            />
+            {benefit.availableProviders && benefit.availableProviders.length > 0 ? (
+              <Select value={provider} onValueChange={setProvider} disabled={isSubmitting}>
+                <SelectTrigger data-testid="request-benefit-provider-select">
+                  <SelectValue
+                    placeholder={getTranslationFromI18nKeyAndLabel('common.select_provider', 'Select provider')}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {benefit.availableProviders.map(providerOption => (
+                    <SelectItem key={providerOption.id} value={providerOption.id}>
+                      {providerOption.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="gba:text-sm gba:text-muted-foreground gba:p-3 gba:border gba:border-border gba:rounded-md gba:bg-muted">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:compensation.no_providers_available',
+                  'No providers configured for this benefit type'
+                )}
+              </div>
+            )}
           </div>
 
           {/* Expected Yearly Value (Optional) */}
