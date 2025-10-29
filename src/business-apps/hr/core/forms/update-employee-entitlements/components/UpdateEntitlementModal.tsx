@@ -3,6 +3,7 @@ import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, Select
 import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import FormHeader from '../../components/FormHeader'
+import { env } from '@/common/env/EnvUtils'
 
 export interface EntitlementRowLike {
   id?: string
@@ -137,7 +138,8 @@ export const UpdateEntitlementModal: React.FC<UpdateEntitlementModalProps> = ({
       changeMode: 'INSERT'
     }
 
-    await fetch('https://newwork-dev.newwork.com/processes/employee-time/saveEmployeeAbsenceEntitlement', {
+    const processesBase = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT') || ''
+    await fetch(`${processesBase}/employee-time/saveEmployeeAbsenceEntitlement`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

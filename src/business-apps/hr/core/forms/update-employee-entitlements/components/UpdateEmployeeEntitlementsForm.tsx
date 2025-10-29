@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
-import { getTranslationFromI18nKeyAndLabel, getCatalogValue } from '@/common/utils/windowUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useUpdateEmployeeEntitlementsContext } from '../context/UpdateEmployeeEntitlementsContext'
 import UpdateEntitlementModal from './UpdateEntitlementModal'
 import {
@@ -10,12 +10,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
   Button,
   Dialog,
   DialogContent,
@@ -23,6 +17,7 @@ import {
   Spinner
 } from '@newwork/nw-design-system'
 import { PlusIcon } from '@phosphor-icons/react'
+import EntitlementsTable from './EntitlementsTable'
 
 type UpdateEmployeeEntitlementsFormValues = Record<string, unknown>
 
@@ -90,9 +85,7 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
     return types.every((t: any) => firstTypeRefs.has(t.id))
   }, [entitlements, absenceTypes])
 
-  const totalItems = (entitlements || []).length
-  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
-  const currentItems = (entitlements || []).slice((page - 1) * pageSize, page * pageSize)
+  // Pagination handled inside EntitlementsTable
 
   // Until data is loaded from the query, render only a loading state (no fields)
   if (loading) {
@@ -221,121 +214,13 @@ const UpdateEmployeeEntitlementsForm: React.FC<UpdateEmployeeEntitlementsFormPro
             </div>
 
             {/* Entitlements table */}
-            <div className="gba:mb-8">
-              <Table data-testid="entitlements-table">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.type',
-                        'Type'
-                      )}
-                    </TableHead>
-                    <TableHead>
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:initiate_advance_payment.total', 'Total')}
-                    </TableHead>
-                    <TableHead>
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_overview.side_bar.payment_status',
-                        'Pending'
-                      )}
-                    </TableHead>
-                    <TableHead>
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_landing_page.upcoming_approved_badge',
-                        'Approved'
-                      )}
-                    </TableHead>
-                    <TableHead>
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.remaining', 'Remaining')}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentItems.map((row: any) => {
-                    const remaining = Number(row.total || 0) - Number(row.approved || 0) - Number(row.pending || 0)
-                    return (
-                      <TableRow
-                        key={row.id}
-                        data-testid={`entitlements-table-row-${row.id}`}
-                        className="gba:cursor-pointer gba:hover:bg-accent"
-                        onClick={() => openModalForRow(row)}
-                        tabIndex={0}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault()
-                            openModalForRow(row)
-                          }
-                        }}
-                      >
-                        <TableCell
-                          data-testid={`entitlements-type-${row.id}`}
-                          className="gba:cursor-pointer"
-                          onClick={() => openModalForRow(row)}
-                        >
-                          {getCatalogValue(row.type)}
-                        </TableCell>
-                        <TableCell
-                          data-testid={`entitlements-total-${row.id}`}
-                          className="gba:cursor-pointer"
-                          onClick={() => openModalForRow(row)}
-                        >
-                          {row.total ?? 0}
-                        </TableCell>
-                        <TableCell
-                          data-testid={`entitlements-pending-${row.id}`}
-                          className="gba:cursor-pointer"
-                          onClick={() => openModalForRow(row)}
-                        >
-                          {row.pending ?? 0}
-                        </TableCell>
-                        <TableCell
-                          data-testid={`entitlements-approved-${row.id}`}
-                          className="gba:cursor-pointer"
-                          onClick={() => openModalForRow(row)}
-                        >
-                          {row.approved ?? 0}
-                        </TableCell>
-                        <TableCell
-                          data-testid={`entitlements-remaining-${row.id}`}
-                          className="gba:cursor-pointer"
-                          onClick={() => openModalForRow(row)}
-                        >
-                          {remaining}
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-              <div className="gba:flex gba:items-center gba:justify-between gba:mt-3">
-                <div className="gba:text-sm">
-                  {totalItems === 0
-                    ? '0-0 of 0'
-                    : `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, totalItems)} of ${totalItems}`}
-                </div>
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page <= 1}
-                    data-testid="entitlements-prev-page"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:list.previous', 'Previous')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                    data-testid="entitlements-next-page"
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:list.next', 'Next')}
-                  </Button>
-                </div>
-              </div>
-            </div>
+            <EntitlementsTable
+              entitlements={entitlements || []}
+              page={page}
+              setPage={setPage}
+              pageSize={pageSize}
+              onRowClick={openModalForRow}
+            />
 
             {/* Modal */}
             <Dialog

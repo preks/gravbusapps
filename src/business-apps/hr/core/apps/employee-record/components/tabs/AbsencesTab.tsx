@@ -27,6 +27,8 @@ import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
 import { Button, Dialog, DialogContent } from '@newwork/nw-design-system'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
+import { env } from '@/common/env/EnvUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -35,6 +37,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   shownTab,
   userInfo
 }) => {
+  const userManagementClient = useRestClient(env('NEXT_PUBLIC_USERMANAGEMENT_API_URL') || '')
   const [activeTab, setActiveTab] = useState<string>(shownTab ?? 'calendar')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -70,14 +73,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     const fetchUserGroups = async () => {
       try {
         if (!userInfo?.id || !accessToken) return
-        const url = `https://dev.newwork.com/usermanagement/api/v1/users/${userInfo.id}/groups`
-        const res = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
+        const json = await userManagementClient.get<any>(`/users/${userInfo.id}/groups`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
         })
-        if (!res.ok) return
-        const json = await res.json()
         const arr = Array.isArray(json?.data) ? json.data : []
         const has = arr.some((g: any) => String(g?.name || '').toLowerCase() === 'all-hr-backoffice')
         setHasHrBackoffice(has)
