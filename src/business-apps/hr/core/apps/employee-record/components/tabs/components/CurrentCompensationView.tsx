@@ -1,23 +1,30 @@
 'use client'
 
 import React from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Badge } from '@newwork/nw-design-system'
+import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { CompensationData } from '../../../types/compensationTypes'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
 import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
 import TotalRewardsCard from './TotalRewardsCard'
-import { getBenefitStatusLabel, getBenefitStatusVariant } from '../../../types/compensationEnums'
+import BenefitsPerksSection from './BenefitsPerksSection'
 
 interface CurrentCompensationViewProps {
   compensationData: CompensationData
   loading: boolean
+  employeeId: string
+  accessToken: string
 }
 
 /**
  * Current Compensation View Component
  * Displays base salary, bonuses YTD, and benefits information
  */
-const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({ compensationData, loading }) => {
+const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({
+  compensationData,
+  loading,
+  employeeId,
+  accessToken
+}) => {
   // Format currency for display
   const formatCurrency = (amount: number, currencyCode: string = 'EUR'): string => {
     return new Intl.NumberFormat('de-DE', {
@@ -28,7 +35,7 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({ compe
     }).format(amount)
   }
 
-  const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses, benefits } = compensationData
+  const { currentCompensation, totalBonusesYTD, activeBenefitsCount, bonuses } = compensationData
 
   const baseSalary = currentCompensation?.baseSalary || 0
   const currencyCode = currentCompensation?.currency?.code || 'EUR'
@@ -100,50 +107,12 @@ const CurrentCompensationView: React.FC<CurrentCompensationViewProps> = ({ compe
       <TotalRewardsCard compensationData={compensationData} loading={loading} />
 
       {/* Benefits & Perks Section */}
-      <Card data-testid="benefits-section">
-        <CardHeader>
-          <CardTitle>
-            {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.benefits_perks', 'Benefits & Perks')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">Loading benefits...</div>
-          ) : benefits.length === 0 ? (
-            <div className="gba:text-center gba:text-muted-foreground gba:py-8">No active benefits</div>
-          ) : (
-            <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4" data-testid="benefits-list">
-              {benefits.map(benefit => (
-                <div
-                  key={benefit.id}
-                  className="gba:p-4 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:hover:bg-accent gba:transition-colors"
-                  data-testid={`benefit-item-${benefit.id}`}
-                >
-                  <div className="gba:flex gba:justify-between gba:items-start gba:mb-2">
-                    <h4 className="gba:font-semibold gba:text-foreground">{benefit.benefitType.value}</h4>
-                    <Badge variant={getBenefitStatusVariant(benefit.benefitStatus)}>
-                      {getBenefitStatusLabel(benefit.benefitStatus)}
-                    </Badge>
-                  </div>
-                  {benefit.benefitProvider?.value && (
-                    <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                      Provider: {benefit.benefitProvider.value}
-                    </div>
-                  )}
-                  {benefit.yearlyAmount && (
-                    <div className="gba:text-sm gba:font-medium gba:text-foreground">
-                      Value: {formatCurrency(benefit.yearlyAmount, benefit.currency?.code || 'EUR')} / year
-                    </div>
-                  )}
-                  {benefit.notes && (
-                    <div className="gba:text-xs gba:text-muted-foreground gba:mt-2">{benefit.notes}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <BenefitsPerksSection
+        employeeId={employeeId}
+        accessToken={accessToken}
+        loading={loading}
+        currencyCode={currencyCode}
+      />
 
       {/* Compensation Band Info */}
       <Card data-testid="compensation-band-section">
