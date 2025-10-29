@@ -56,7 +56,7 @@ export const useContentEntries = (
             contentEntryTag: entry.contentEntryTag,
             contentDocument: entry.contentDocument,
             contentEntryReaction: entry.contentEntryReaction,
-            childContentEntryAggregate: entry.childContentEntryAggregate
+            descendantContentEntryAggregate: entry.descendantContentEntryAggregate
           })
         )
 

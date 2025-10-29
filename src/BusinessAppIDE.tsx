@@ -51,6 +51,9 @@ const examplePatterns = import.meta.glob('./common/examples/**/index.ts', {
 
 const businessApps: BusinessAppInfo[] = []
 
+// Collect all module pattern paths for parent detection
+const allModulePaths = Object.keys(modulePatterns)
+
 // Build the businessApps array from index.ts files (matching getDynamicEntries logic)
 for (const path in modulePatterns) {
   if (
@@ -101,6 +104,22 @@ for (const path in modulePatterns) {
       continue
     }
 
+    // Check if a parent directory has an index.ts - if yes, this is internal organization, not a separate app
+    const currentDirIndex = pathParts.length - 2 // Index of directory containing index.ts
+    let hasParentIndex = false
+
+    for (let i = currentDirIndex - 1; i >= 2; i--) {
+      const parentPath = pathParts.slice(0, i + 1).join('/') + '/index.ts'
+      if (allModulePaths.includes(parentPath)) {
+        hasParentIndex = true
+        break
+      }
+    }
+
+    if (hasParentIndex) {
+      continue // Skip nested index.ts files
+    }
+
     // Determine the type based on the parent directory
     // Records are treated as apps (full-screen, not dialogs)
     let componentType: 'app' | 'form' | 'popup' | 'window' = 'app'
@@ -140,6 +159,9 @@ for (const path in modulePatterns) {
   }
 }
 
+// Collect all example pattern paths for parent detection
+const allExamplePaths = Object.keys(examplePatterns)
+
 // Build the businessApps array from example index.ts files under ./common/examples
 for (const path in examplePatterns) {
   const pathParts = path.split('/')
@@ -159,6 +181,22 @@ for (const path in examplePatterns) {
   const examplesIndex = pathParts.indexOf('examples')
   if (examplesIndex === -1) {
     continue
+  }
+
+  // Check if a parent directory has an index.ts - if yes, this is internal organization, not a separate app
+  const currentDirIndex = pathParts.length - 2 // Index of directory containing index.ts
+  let hasParentIndex = false
+
+  for (let i = currentDirIndex - 1; i >= examplesIndex; i--) {
+    const parentPath = pathParts.slice(0, i + 1).join('/') + '/index.ts'
+    if (allExamplePaths.includes(parentPath)) {
+      hasParentIndex = true
+      break
+    }
+  }
+
+  if (hasParentIndex) {
+    continue // Skip nested index.ts files
   }
 
   // appName is directory containing index.ts

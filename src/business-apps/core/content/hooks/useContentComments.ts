@@ -26,13 +26,14 @@ export interface UseContentCommentsResult {
 
 /**
  * Build query for content comments
+ * Fetches ALL comments for a root content entry (article)
  */
 const buildContentCommentsQuery = (contentEntryId: string): string => {
   return `
     query getContentComments {
       ContentEntry(
         where: {
-          parentContentEntryId: { _eq: "${contentEntryId}" }
+          rootContentEntryId: { _eq: "${contentEntryId}" }
           role: { _eq: "${ContentRole.COMMENT}" }
           isDeleted: { _eq: false }
         }
@@ -45,7 +46,7 @@ const buildContentCommentsQuery = (contentEntryId: string): string => {
       }
       ContentEntryAggregate(
         where: {
-          parentContentEntryId: { _eq: "${contentEntryId}" }
+          rootContentEntryId: { _eq: "${contentEntryId}" }
           role: { _eq: "${ContentRole.COMMENT}" }
           isDeleted: { _eq: false }
         }

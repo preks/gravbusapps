@@ -32,6 +32,7 @@ export const CONTENT_ENTRY_CORE_FRAGMENT = `
   id
   version
   parentContentEntryId
+  rootContentEntryId
   title
   preview
   content
@@ -207,6 +208,7 @@ export const CONTENT_ENTRY_FULL_FRAGMENT = `
 export const CHILD_CONTENT_ENTRY_FRAGMENT = `
   id
   parentContentEntryId
+  rootContentEntryId
   title
   preview
   content

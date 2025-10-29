@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
 import { MessageCircle, ThumbsUp, Eye } from 'lucide-react'
 import { useContentEntries, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
@@ -11,6 +10,7 @@ import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { QUESTION_CATEGORIES, ALL_TAG, contentGroupMapper, QUESTION } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
+import translations from '../../_i18n'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 interface QuestionViewProps {
@@ -25,7 +25,7 @@ const DEFAULT_PAGE_SIZE = 15
 const NEXT_PAGE_SIZE = 10
 
 const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = false, currentTab = 'questions' }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<{ label: string; checked: boolean }[]>([
@@ -102,7 +102,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
           <AlertDescription>
             {error?.message || String(error)}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              {t('retry')}
+              Retry
             </Button>
           </AlertDescription>
         </Alert>
@@ -119,8 +119,8 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
         <div className="gba:w-full">
           <Banner
             variant={BannerVariant.QUESTION}
-            title={t('question_welcome_title', 'Q&A Forum')}
-            subtitle={t('question_welcome_subtitle', 'Ask questions and share knowledge')}
+            title={t('question-welcome-title')}
+            subtitle={t('question-welcome-subtitle')}
           />
         </div>
       )}
@@ -137,7 +137,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
               />
             </div>
             <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} placeholder={t('search_questions', 'Search questions...')} />
+              <SearchInput onSearch={handleSearch} placeholder="Search questions..." />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
                 externalContextData={{ contentGroup: contentGroupMapper[QUESTION] }}
@@ -146,7 +146,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
                 deferMainContextRequestsUntilClick
                 data-testid="question-view-create-button"
               >
-                <Button>{t('ask_question', 'Ask Question')}</Button>
+                <Button>Ask Question</Button>
               </AppAction>
             </div>
           </div>
@@ -164,7 +164,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
                 <div className="gba:flex gba:flex-col gba:items-center gba:gap-1 gba:min-w-[60px]">
                   <ThumbsUp className="gba:w-5 gba:h-5 gba:text-muted-foreground" />
                   <span className="gba:font-bold gba:text-lg gba:text-foreground">{question.reactionsCount || 0}</span>
-                  <span className="gba:text-xs gba:text-muted-foreground">{t('votes', 'votes')}</span>
+                  <span className="gba:text-xs gba:text-muted-foreground">votes</span>
                 </div>
 
                 <div className="gba:flex-1">
@@ -188,20 +188,14 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
                   <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
                     <div className="gba:flex gba:items-center gba:gap-1">
                       <MessageCircle className="gba:w-4 gba:h-4" />
-                      <span>
-                        {question.commentsCount || 0} {t('answers', 'answers')}
-                      </span>
+                      <span>{question.commentsCount || 0} answers</span>
                     </div>
                     <div className="gba:flex gba:items-center gba:gap-1">
                       <Eye className="gba:w-4 gba:h-4" />
-                      <span>
-                        {question.feedbacksCount || 0} {t('views', 'views')}
-                      </span>
+                      <span>{question.feedbacksCount || 0} views</span>
                     </div>
                     <span>•</span>
-                    <span>
-                      {t('asked_by', 'Asked by')} {question.authorFullName || 'Unknown'}
-                    </span>
+                    <span>Asked by {question.authorFullName || 'Unknown'}</span>
                     {question.createdAtText && (
                       <>
                         <span>•</span>
@@ -224,7 +218,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
               disabled={isLoading}
               data-testid="question-view-load-more"
             >
-              {t('load_more')}
+              Load More
             </Button>
           </div>
         )}
@@ -232,9 +226,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({ accessToken, hideBanner = f
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12 gba:bg-card gba:rounded-lg gba:border gba:border-border">
             <MessageCircle className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
-            <p className="gba:text-muted-foreground">
-              {t('no_questions_found', 'No questions yet. Be the first to ask!')}
-            </p>
+            <p className="gba:text-muted-foreground">No questions yet. Be the first to ask!</p>
           </div>
         )}
       </div>

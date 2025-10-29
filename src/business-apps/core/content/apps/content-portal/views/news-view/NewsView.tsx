@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -12,6 +11,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { NEWS_CATEGORIES, ALL_TAG, contentGroupMapper, NEWS } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../_i18n'
 
 interface NewsViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -31,7 +31,7 @@ const NewsView: React.FC<NewsViewProps> = ({
   allowedReactions,
   reactionCatalogMap
 }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<{ label: string; checked: boolean }[]>([
@@ -101,7 +101,7 @@ const NewsView: React.FC<NewsViewProps> = ({
           <AlertDescription>
             {error?.message || 'An error occurred'}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              {t('retry')}
+              Retry
             </Button>
           </AlertDescription>
         </Alert>
@@ -116,7 +116,7 @@ const NewsView: React.FC<NewsViewProps> = ({
     >
       {!hideBanner && (
         <div className="gba:w-full">
-          <Banner variant={BannerVariant.NEWS} title={t('news_welcome_title')} subtitle={t('news_welcome_subtitle')} />
+          <Banner variant={BannerVariant.NEWS} title={t('news-welcome-title')} subtitle={t('news-welcome-subtitle')} />
         </div>
       )}
 
@@ -124,7 +124,7 @@ const NewsView: React.FC<NewsViewProps> = ({
         {featuredArticles.length > 0 && (
           <>
             <div className="gba:w-full gba:mb-6 gba:py-4">
-              <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">{t('featured_news')}</h2>
+              <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">Featured News</h2>
             </div>
             <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
               {featuredArticles.map(item => (
@@ -166,7 +166,7 @@ const NewsView: React.FC<NewsViewProps> = ({
                 deferMainContextRequestsUntilClick
                 data-testid="news-view-create-button"
               >
-                <Button>{t('create_article', 'Create Article')}</Button>
+                <Button>Create Article</Button>
               </AppAction>
             </div>
           </div>
@@ -198,14 +198,14 @@ const NewsView: React.FC<NewsViewProps> = ({
               disabled={isLoading}
               data-testid="news-view-load-more"
             >
-              {t('load_more')}
+              Load More
             </Button>
           </div>
         )}
 
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12">
-            <p className="gba:text-muted-foreground">{t('no_news_found')}</p>
+            <p className="gba:text-muted-foreground">No news found</p>
           </div>
         )}
       </div>

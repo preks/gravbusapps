@@ -16,8 +16,9 @@ export interface BuildContentEntryPayloadParams {
   contentGroupRef?: string | null
   contentTypeRef?: string | null
 
-  // Parent relation (for comments)
-  parentContentEntryId?: string | null
+  // Relations
+  parentContentEntryId?: string | null // Direct parent (article or parent comment)
+  rootContentEntryId?: string | null // Always the root article (for nested comments)
 
   // Employee relations
   creatorEmployeeId?: string
@@ -61,8 +62,9 @@ export const buildCreateContentEntryPayload = (params: BuildContentEntryPayloadP
       contentGroupRef: params.contentGroupRef || null,
       contentTypeRef: params.contentTypeRef || null,
 
-      // Parent relation (for comments)
+      // Relations (for comments)
       parentContentEntry: params.parentContentEntryId || null,
+      rootContentEntry: params.rootContentEntryId || null,
 
       // Creator
       creatorEmployee: params.creatorEmployeeId,
@@ -113,8 +115,9 @@ export const buildUpdateContentEntryPayload = (params: BuildContentEntryPayloadP
       contentGroupRef: params.contentGroupRef || null,
       contentTypeRef: params.contentTypeRef || null,
 
-      // Parent relation (for comments)
+      // Relations (for comments)
       parentContentEntry: params.parentContentEntryId || null,
+      rootContentEntry: params.rootContentEntryId || null,
 
       // Updater
       updaterEmployee: params.updaterEmployeeId,

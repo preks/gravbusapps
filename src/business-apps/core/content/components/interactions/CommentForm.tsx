@@ -9,7 +9,7 @@ import { buildCreateContentEntryPayload } from '@/common/data/content/payloads'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 
 export interface CommentFormProps {
-  articleId: string // Parent content entry ID
+  articleId: string // Root content entry ID (always the article)
   articleCommentId?: string | null // Parent comment ID (for nested replies)
   accessToken: string
   employeeId: string // Current user's employee ID
@@ -44,7 +44,10 @@ export const CommentForm: React.FC<CommentFormProps> = ({
 
   const transformData = useCallback(
     (formData: CommentFormData) => {
-      // Determine parent: If articleCommentId exists, it's a reply to a comment (nested)
+      // Root is always the article
+      const rootId = articleId
+
+      // Parent: If articleCommentId exists, it's a reply to a comment
       // Otherwise, it's a top-level comment on the article
       const parentId = articleCommentId || articleId
 
@@ -52,6 +55,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
         content: formData.comment,
         role: ContentRole.COMMENT,
         parentContentEntryId: parentId,
+        rootContentEntryId: rootId, // Always the root article
         creatorEmployeeId: employeeId,
         displayCreator: true,
         displayUpdater: false,

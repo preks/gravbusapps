@@ -65,7 +65,7 @@ export const useContentEntry = (
           contentDocument: baseEntry.contentDocument,
           contentEntryReaction: baseEntry.contentEntryReaction,
           childContentEntries: childContentEntry,
-          childContentEntryAggregate: (baseEntry as any).childContentEntryAggregate
+          descendantContentEntryAggregate: (baseEntry as any).descendantContentEntryAggregate
         })
 
         setEntry(mappedEntry)

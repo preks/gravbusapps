@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -9,6 +8,7 @@ import Banner, { BannerVariant } from '../../components/shared/Banner'
 import ContentCarousel from '../../components/shared/ContentCarousel'
 import { contentGroupMapper, INTRANET } from '../../constants/contentConstants'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../_i18n'
 
 interface HomeViewProps extends BusinessAppContextProps {
   onNavigate?: (tab: string) => void
@@ -29,7 +29,7 @@ const HomeView: React.FC<HomeViewProps> = ({
   allowedReactions,
   reactionCatalogMap
 }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -80,10 +80,10 @@ const HomeView: React.FC<HomeViewProps> = ({
 
   const greeting = useMemo(() => {
     const localTimeHours = new Date().getHours()
-    if (localTimeHours >= 5 && localTimeHours < 12) return t('greeting_morning')
-    if (localTimeHours >= 12 && localTimeHours < 18) return t('greeting_afternoon')
-    if (localTimeHours >= 18 && localTimeHours < 22) return t('greeting_evening')
-    return t('greeting_generic')
+    if (localTimeHours >= 5 && localTimeHours < 12) return t('greeting-morning')
+    if (localTimeHours >= 12 && localTimeHours < 18) return t('greeting-afternoon')
+    if (localTimeHours >= 18 && localTimeHours < 22) return t('greeting-evening')
+    return t('greeting-generic')
   }, [t])
 
   const handleSearch = (query: string) => {
@@ -103,7 +103,7 @@ const HomeView: React.FC<HomeViewProps> = ({
           <AlertDescription>
             {error?.message || 'An error occurred'}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              {t('retry')}
+              Retry
             </Button>
           </AlertDescription>
         </Alert>
@@ -120,8 +120,8 @@ const HomeView: React.FC<HomeViewProps> = ({
         <div className="gba:w-full">
           <Banner
             variant={BannerVariant.INTRANET}
-            title={t('intranet_welcome_title')}
-            subtitle={t('intranet_welcome_subtitle')}
+            title={t('intranet-welcome-title')}
+            subtitle={t('intranet-welcome-subtitle')}
           >
             <div className="gba:flex gba:flex-col gba:items-end">
               <span className="gba:text-lg gba:md:text-xl gba:text-white gba:font-medium gba:text-right gba:font-bold">
@@ -140,14 +140,12 @@ const HomeView: React.FC<HomeViewProps> = ({
 
         <div className="gba:w-full gba:flex gba:justify-center gba:mb-8 gba:mt-6">
           <div className="gba:w-full gba:max-w-[80%]">
-            <SearchInput onSearch={handleSearch} placeholder={t('search_intranet')} />
+            <SearchInput onSearch={handleSearch} placeholder="Search Intranet" />
           </div>
         </div>
 
         <div className="gba:mb-6">
-          <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">
-            {t('latest_announcements')}
-          </h2>
+          <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">Latest Announcements</h2>
         </div>
 
         <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
@@ -167,9 +165,7 @@ const HomeView: React.FC<HomeViewProps> = ({
               />
             ))
           ) : (
-            <div className="gba:col-span-2 gba:text-center gba:text-muted-foreground gba:py-8">
-              {t('no_more_articles')}
-            </div>
+            <div className="gba:col-span-2 gba:text-center gba:text-muted-foreground gba:py-8">No more articles</div>
           )}
         </div>
 
@@ -182,14 +178,14 @@ const HomeView: React.FC<HomeViewProps> = ({
               disabled={isLoading}
               data-testid="intranet-view-load-more"
             >
-              {t('load_more')}
+              Load More
             </Button>
           </div>
         )}
 
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12">
-            <p className="gba:text-muted-foreground">{t('no_intranet_found')}</p>
+            <p className="gba:text-muted-foreground">No intranet content found</p>
           </div>
         )}
       </div>

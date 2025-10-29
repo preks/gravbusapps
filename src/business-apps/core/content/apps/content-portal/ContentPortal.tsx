@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { TabSwitch, TabSwitchList, TabSwitchTrigger, TabSwitchContent } from '@newwork/nw-design-system'
-import { useTranslation } from 'react-i18next'
+import { TabSwitch, TabSwitchList, TabSwitchTrigger, TabSwitchContent, useTranslation } from '@newwork/nw-design-system'
 import { Home, Newspaper, BookOpen, FileText, MessageCircleQuestion } from 'lucide-react'
+import translations from './_i18n'
 import NewsView from './views/news-view'
 import HomeView from './views/home-view'
 import KnowledgeView from './views/knowledge-view'
@@ -18,7 +18,7 @@ export interface ContentPortalProps extends BusinessAppContextProps {
 const CATALOG_IDENTIFIER = 'ContentReaction'
 
 const ContentPortal: React.FC<ContentPortalProps> = context => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const { accessToken } = context
   const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken })
   const [allowedReactions, setAllowedReactions] = useState<string[]>([])
@@ -111,10 +111,10 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
   // Determine appropriate greeting for Intranet
   const greeting = useMemo(() => {
     const localTimeHours = new Date().getHours()
-    if (localTimeHours >= 5 && localTimeHours < 12) return t('greeting_morning')
-    if (localTimeHours >= 12 && localTimeHours < 18) return t('greeting_afternoon')
-    if (localTimeHours >= 18 && localTimeHours < 22) return t('greeting_evening')
-    return t('greeting_generic')
+    if (localTimeHours >= 5 && localTimeHours < 12) return t('greeting-morning')
+    if (localTimeHours >= 12 && localTimeHours < 18) return t('greeting-afternoon')
+    if (localTimeHours >= 18 && localTimeHours < 22) return t('greeting-evening')
+    return t('greeting-generic')
   }, [t])
 
   const handleNavigate = (tab: string) => {
@@ -127,8 +127,8 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
       case 'home':
         return {
           variant: BannerVariant.INTRANET,
-          title: t('intranet_welcome_title'),
-          subtitle: t('intranet_welcome_subtitle'),
+          title: t('intranet-welcome-title'),
+          subtitle: t('intranet-welcome-subtitle'),
           children: (
             <div className="gba:flex gba:flex-col gba:items-end">
               <span className="gba:text-lg gba:md:text-xl gba:text-white gba:font-medium gba:text-right gba:font-bold">
@@ -141,32 +141,32 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
       case 'news':
         return {
           variant: BannerVariant.NEWS,
-          title: t('news_welcome_title'),
-          subtitle: t('news_welcome_subtitle')
+          title: t('news-welcome-title'),
+          subtitle: t('news-welcome-subtitle')
         }
       case 'knowledge':
         return {
           variant: BannerVariant.KNOWLEDGE,
-          title: t('knowledge_welcome_title'),
-          subtitle: t('knowledge_welcome_subtitle')
+          title: t('knowledge-welcome-title'),
+          subtitle: t('knowledge-welcome-subtitle')
         }
       case 'documents':
         return {
           variant: BannerVariant.DOCUMENT,
-          title: t('document_welcome_title'),
-          subtitle: t('document_welcome_subtitle')
+          title: t('document-welcome-title'),
+          subtitle: t('document-welcome-subtitle')
         }
       case 'questions':
         return {
           variant: BannerVariant.QUESTION,
-          title: t('question_welcome_title', 'Q&A Forum'),
-          subtitle: t('question_welcome_subtitle', 'Ask questions and share knowledge')
+          title: t('question-welcome-title'),
+          subtitle: t('question-welcome-subtitle')
         }
       default:
         return {
           variant: BannerVariant.INTRANET,
-          title: t('intranet_welcome_title'),
-          subtitle: t('intranet_welcome_subtitle')
+          title: t('intranet-welcome-title'),
+          subtitle: t('intranet-welcome-subtitle')
         }
     }
   }
@@ -216,7 +216,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                 startIcon={<MessageCircleQuestion className="gba:w-4 gba:h-4" />}
                 data-testid="intranet-tab-questions"
               >
-                {t('questions', 'Questions')}
+                {t('questions')}
               </TabSwitchTrigger>
             </TabSwitchList>
           </div>

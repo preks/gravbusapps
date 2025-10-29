@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -12,6 +11,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { DOCUMENT_CATEGORIES, ALL_TAG, contentGroupMapper, DOCUMENT } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../_i18n'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -31,7 +31,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
   allowedReactions,
   reactionCatalogMap
 }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<{ label: string; checked: boolean }[]>([
@@ -95,7 +95,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
           <AlertDescription>
             {error?.message || 'An error occurred'}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              {t('retry')}
+              Retry
             </Button>
           </AlertDescription>
         </Alert>
@@ -112,8 +112,8 @@ const DocumentView: React.FC<DocumentViewProps> = ({
         <div className="gba:w-full">
           <Banner
             variant={BannerVariant.DOCUMENT}
-            title={t('document_welcome_title')}
-            subtitle={t('document_welcome_subtitle')}
+            title={t('document-welcome-title')}
+            subtitle={t('document-welcome-subtitle')}
           />
         </div>
       )}
@@ -130,7 +130,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
               />
             </div>
             <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} placeholder={t('search_documents')} />
+              <SearchInput onSearch={handleSearch} placeholder="Search Documents" />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
                 externalContextData={{ contentGroup: contentGroupMapper[DOCUMENT] }}
@@ -139,7 +139,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                 deferMainContextRequestsUntilClick
                 data-testid="document-view-create-button"
               >
-                <Button>{t('create_article', 'Create Article')}</Button>
+                <Button>Create Document</Button>
               </AppAction>
             </div>
           </div>
@@ -163,7 +163,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
 
           {!isLoading && data.length === 0 && (
             <div className="gba:col-span-3 gba:text-center gba:py-12">
-              <p className="gba:text-muted-foreground">{t('no_documents_found')}</p>
+              <p className="gba:text-muted-foreground">No documents found</p>
             </div>
           )}
         </div>
@@ -177,7 +177,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
               disabled={isLoading}
               data-testid="document-view-load-more"
             >
-              {t('load_more')}
+              Load More
             </Button>
           </div>
         )}

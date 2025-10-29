@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
-import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
@@ -15,6 +14,7 @@ import { KNOWLEDGE_CATEGORIES, ALL_TAG, contentGroupMapper, KNOWLEDGE_BASE } fro
 import { updateTags } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import translations from '../../_i18n'
 
 interface KnowledgeViewProps extends BusinessAppContextProps {
   onNavigate?: (tab: string) => void
@@ -35,7 +35,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   allowedReactions,
   reactionCatalogMap
 }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [categories, setCategories] = useState<{ label: string; checked: boolean }[]>([
@@ -124,7 +124,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
           <AlertDescription>
             {error}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              {t('retry')}
+              Retry
             </Button>
           </AlertDescription>
         </Alert>
@@ -141,8 +141,8 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         <div className="gba:w-full">
           <Banner
             variant={BannerVariant.KNOWLEDGE}
-            title={t('knowledge_welcome_title')}
-            subtitle={t('knowledge_welcome_subtitle')}
+            title={t('knowledge-welcome-title')}
+            subtitle={t('knowledge-welcome-subtitle')}
           />
         </div>
       )}
@@ -159,7 +159,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
               />
             </div>
             <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} />
+              <SearchInput onSearch={handleSearch} placeholder="Search Knowledge Base" />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
                 externalContextData={{ contentGroup: contentGroupMapper[KNOWLEDGE_BASE] }}
@@ -168,7 +168,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 deferMainContextRequestsUntilClick
                 data-testid="knowledge-view-create-button"
               >
-                <Button>{t('create_article', 'Create Article')}</Button>
+                <Button>Create Article</Button>
               </AppAction>
             </div>
           </div>
@@ -207,7 +207,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
 
           {!isLoading && regularArticles.length === 0 && !featuredArticle && (
             <div className="gba:col-span-3 gba:text-center gba:py-12">
-              <p className="gba:text-muted-foreground">{t('no_knowledge_found')}</p>
+              <p className="gba:text-muted-foreground">No knowledge articles found</p>
             </div>
           )}
         </div>
@@ -215,7 +215,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         {hasMore && (
           <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
             <Button variant="default" className="gba:w-56" onClick={loadMore} disabled={isLoading}>
-              {t('load_more')}
+              Load More
             </Button>
           </div>
         )}

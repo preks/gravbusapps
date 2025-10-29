@@ -60,7 +60,7 @@ export const mapBaseToContentEntry = (
     contentDocument?: BaseContentDocument[]
     contentEntryReaction?: BaseContentEntryReaction[]
     childContentEntries?: BaseContentEntry[]
-    childContentEntryAggregate?: { aggregate: { count: number } }
+    descendantContentEntryAggregate?: { aggregate: { count: number } }
   }
 ): ContentEntry => {
   const mapped: ContentEntry = {
@@ -74,9 +74,9 @@ export const mapBaseToContentEntry = (
 
     // Relation counts
     reactionCount: options?.contentEntryReaction?.length || 0,
-    // Use aggregate count if available, otherwise fallback to filtered childContentEntries
+    // Use aggregate count for all descendants (nested comments)
     commentCount:
-      options?.childContentEntryAggregate?.aggregate?.count ??
+      options?.descendantContentEntryAggregate?.aggregate?.count ??
       options?.childContentEntries?.filter(e => e.role === ContentRole.COMMENT).length ??
       0,
 

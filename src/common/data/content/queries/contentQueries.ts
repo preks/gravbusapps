@@ -126,7 +126,7 @@ export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): 
         contentEntryReaction {
           ${CONTENT_ENTRY_REACTION_FRAGMENT}
         }
-        childContentEntryAggregate(
+        descendantContentEntryAggregate(
           where: {
             role: { _eq: "COMMENT" }
             isDeleted: { _eq: false }
@@ -160,7 +160,7 @@ export const buildContentEntryQuery = (id: string): string => {
         }
       ) {
         ${CONTENT_ENTRY_FULL_FRAGMENT}
-        childContentEntryAggregate(
+        descendantContentEntryAggregate(
           where: {
             role: { _eq: "COMMENT" }
             isDeleted: { _eq: false }
