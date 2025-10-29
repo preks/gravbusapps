@@ -180,9 +180,21 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
     setIsEditingTitle(false)
   }
 
+  // useEffect for initial screen setup ONLY
+  const hasInitializedRef = React.useRef(false)
   useEffect(() => {
-    setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
-  }, [expenseRequestData, isTrip, loading, additionalData])
+    if (!loading && expenseRequestData && !hasInitializedRef.current) {
+      setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
+      hasInitializedRef.current = true
+    }
+  }, [loading, expenseRequestData])
+
+  // Listen for process events (Next/Back button clicks) to navigate
+  useEffect(() => {
+    if (hasInitializedRef.current && expenseRequestData) {
+      setInitialScreen(additionalData, expenseRequestData, isTrip, setCurrentScreen, currentScreen)
+    }
+  }, [additionalData])
 
   const navigateToPreviousScreen = () => {
     try {
