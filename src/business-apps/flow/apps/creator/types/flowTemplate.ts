@@ -48,7 +48,7 @@ export interface Link {
 }
 
 export interface AssignmentTarget {
-  userIds?: string[]
+  users?: string[]
   organizationalUnits?: string[]
   matrixTeams?: string[]
   companies?: string[]
