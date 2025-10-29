@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from 'react'
 import { NoteItem } from '@/common/components/common-relations/record-sections/note-section/NoteSection'
-import { Button, Input } from '@newwork/nw-design-system'
+import {
+  Button,
+  Input,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@newwork/nw-design-system'
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import { PiChatCircle } from 'react-icons/pi'
 import { useGetEmployeeNotes } from '../../queries/EmployeeNoteQueries'
 import type { EmployeeNoteData } from '../../queries/EmployeeNoteQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
+import { useEmployeeNoteApi } from '../../hooks/useEmployeeNoteApi'
 
 interface HrNotesTabProps extends BusinessAppContextProps {
   employeeId: string
@@ -18,8 +30,12 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
   const [notes, setNotes] = useState<NoteItem[]>([])
   const [, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [noteToDelete, setNoteToDelete] = useState<NoteItem | null>(null)
 
   const { fetchEmployeeNotes } = useGetEmployeeNotes(props)
+  const { deleteEmployeeNote } = useEmployeeNoteApi(props)
 
   const loadNotes = React.useCallback(async () => {
     if (!employeeId) return
@@ -43,9 +59,6 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
           noteText: note.notes || '',
           createdAt: note.createdAt,
           createdBy: creatorName,
-          reminderAt: null,
-          documents: [],
-          // Store additional data needed for editing
           version: note.version
         }
       })
@@ -61,6 +74,21 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
   useEffect(() => {
     loadNotes()
   }, [loadNotes])
+
+  const filteredNotes = React.useMemo(() => {
+    if (!searchQuery.trim()) {
+      return notes
+    }
+
+    const searchTerm = searchQuery.toLowerCase().trim()
+    return notes.filter(note => {
+      const noteText = (note.noteText || '').toLowerCase()
+      const createdBy = (note.createdBy || '').toLowerCase()
+      const createdAt = new Date(note.createdAt).toLocaleDateString().toLowerCase()
+
+      return noteText.includes(searchTerm) || createdBy.includes(searchTerm) || createdAt.includes(searchTerm)
+    })
+  }, [notes, searchQuery])
 
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
@@ -95,7 +123,6 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
 
   return (
     <div data-testid="hr-notes-tab-container" className="gba:space-y-6">
-      {/* Header Section with Action Buttons */}
       <div className="gba:flex gba:items-start gba:justify-between">
         <div className="gba:space-y-2">
           <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">HR Notes</h2>
@@ -103,7 +130,6 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
             Manage notes and track interactions with {employeeName}
           </p>
         </div>
-        {/* Action Buttons */}
         <div className="gba:flex gba:gap-3">
           <Button
             onClick={() => {
@@ -141,12 +167,11 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
         </div>
       </div>
 
-      {/* Notes Section */}
       <div className="gba:space-y-4 gba:border gba:border-border gba:rounded-lg gba:p-4 gba:bg-card">
         <h3 className="gba:text-lg gba:font-semibold">Notes</h3>
-        {notes.length > 0 ? (
+        {filteredNotes.length > 0 ? (
           <div className="gba:space-y-3">
-            {notes.map(note => (
+            {filteredNotes.map(note => (
               <div
                 key={note.id}
                 className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-4 gba:space-y-2"
@@ -172,7 +197,6 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        // Get version from note - it's stored in the NoteItem but TypeScript doesn't know about it
                         const noteVersion = (note as any).version !== undefined ? (note as any).version : 0
                         startProcess({
                           processName: 'createEmployeeNote',
@@ -190,7 +214,16 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                     >
                       <EditOutlined style={{ fontSize: 18 }} />
                     </Button>
-                    <Button variant="ghost" size="icon" data-testid={`hr-note-delete-${note.id}`}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      data-testid={`hr-note-delete-${note.id}`}
+                      disabled={deletingNoteId === note.id}
+                      onClick={() => {
+                        setNoteToDelete(note)
+                        setDeleteDialogOpen(true)
+                      }}
+                    >
                       <DeleteOutlined style={{ fontSize: 18 }} />
                     </Button>
                   </div>
@@ -198,12 +231,70 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
               </div>
             ))}
           </div>
+        ) : searchQuery.trim() ? (
+          <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+            <p>No notes found matching &quot;{searchQuery}&quot;.</p>
+          </div>
         ) : (
           <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
             <p>No notes yet. Create your first note.</p>
           </div>
         )}
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent data-testid="delete-note-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle data-testid="delete-note-dialog-title">Delete Note</AlertDialogTitle>
+            <AlertDialogDescription data-testid="delete-note-dialog-description">
+              Are you sure you want to delete this note? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteDialogOpen(false)
+                setNoteToDelete(null)
+              }}
+              data-testid="delete-note-dialog-cancel"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!noteToDelete) return
+
+                const noteVersion = (noteToDelete as any).version !== undefined ? (noteToDelete as any).version : 0
+                setDeletingNoteId(noteToDelete.id)
+
+                try {
+                  await deleteEmployeeNote({
+                    employeeNote: {
+                      id: noteToDelete.id,
+                      version: noteVersion,
+                      notes: noteToDelete.noteText,
+                      employee: employeeId
+                    }
+                  })
+                  setDeleteDialogOpen(false)
+                  setNoteToDelete(null)
+                  loadNotes()
+                } catch (error) {
+                  console.error('Error deleting note:', error)
+                  alert('Failed to delete note. Please try again.')
+                } finally {
+                  setDeletingNoteId(null)
+                }
+              }}
+              disabled={deletingNoteId !== null}
+              className="gba:bg-destructive gba:text-destructive-foreground gba:hover:bg-destructive/90"
+              data-testid="delete-note-dialog-confirm"
+            >
+              {deletingNoteId ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

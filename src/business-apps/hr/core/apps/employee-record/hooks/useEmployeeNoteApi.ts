@@ -3,6 +3,7 @@ import {
   EmployeeNoteClient,
   CreateEmployeeNotePayload,
   UpdateEmployeeNotePayload,
+  DeleteEmployeeNotePayload,
   EmployeeNoteResponse
 } from '../services/employeeNoteApi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -28,5 +29,12 @@ export const useEmployeeNoteApi = (context: BusinessAppContextProps) => {
     [client]
   )
 
-  return { createEmployeeNote, updateEmployeeNote }
+  const deleteEmployeeNote = useCallback(
+    async (payload: DeleteEmployeeNotePayload): Promise<EmployeeNoteResponse> => {
+      return await client.deleteEmployeeNote(payload)
+    },
+    [client]
+  )
+
+  return { createEmployeeNote, updateEmployeeNote, deleteEmployeeNote }
 }

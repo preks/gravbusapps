@@ -477,7 +477,6 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     return allTabs.filter(tab => {
       const tabKey = tab.key as string
 
-      // HR Notes tab should never be visible when viewing own profile
       if (tabKey === TAB_KEYS.hrNotes && isSelfView) {
         return false
       }

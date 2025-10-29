@@ -18,6 +18,15 @@ export interface UpdateEmployeeNotePayload {
   }
 }
 
+export interface DeleteEmployeeNotePayload {
+  employeeNote: {
+    id: string
+    version: number
+    notes: string
+    employee: string
+  }
+}
+
 export interface EmployeeNoteResponse {
   employeeNote?: {
     id: string
@@ -81,6 +90,24 @@ export class EmployeeNoteClient extends RestClient {
       })
     } catch (error) {
       console.error('EmployeeNoteClient: Error updating employee note:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Delete an employee note
+   * @param payload - The employee note payload with id, version, notes, and employee
+   * @returns Promise with the deleted employee note response
+   */
+  public async deleteEmployeeNote(payload: DeleteEmployeeNotePayload): Promise<EmployeeNoteResponse> {
+    try {
+      return await this.post<EmployeeNoteResponse>('/employee/deleteEmployeeNote', payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+    } catch (error) {
+      console.error('EmployeeNoteClient: Error deleting employee note:', error)
       throw error
     }
   }
