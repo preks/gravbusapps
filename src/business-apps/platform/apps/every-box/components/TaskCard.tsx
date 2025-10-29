@@ -49,11 +49,12 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
   };
 
   // Get task name/title
-  // For Kogito tasks, prefer nodeName (more descriptive user-facing name)
+  // For Kogito tasks, prefer referenceName (most descriptive with context)
+  // Then fallback to nodeName, title, or name
   // For CFlow tasks, use title or name
-  const taskTitle = task.source === 'kogito' && task.sourceMetadata?.nodeName
-    ? task.sourceMetadata.nodeName
-    : task.title || task.name || 'Untitled Task';
+  const taskTitle = task.source === 'kogito'
+    ? (task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || 'Untitled Task')
+    : (task.title || task.name || 'Untitled Task');
   
   // Get flow name from workflowMeta
   const flowName = task.workflowMeta?.rootWorkflowId || task.flowId;
