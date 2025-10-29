@@ -153,14 +153,13 @@ const AccountFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, contactIds for CREATE
+      // ✅ UPDATED: Create clean payload structure with accountContacts for both CREATE and UPDATE
       const cleanPayload = {
         investmentAccount: {
           ...investmentAccountPayload,
-          accountContacts: isUpdate ? accountContacts : undefined // Only for updates
+          accountContacts: accountContacts // Include for both create and update
         },
-        changeMode: changeMode,
-        contactIds: isUpdate ? undefined : accountContacts.map(ac => ac.contact) // For CREATE mode only
+        changeMode: changeMode
       }
 
       // ✅ FIXED: Create completely isolated payload to prevent context field pollution

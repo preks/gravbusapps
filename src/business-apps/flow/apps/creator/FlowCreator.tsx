@@ -18,6 +18,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  TabsBadge,
   Card,
   CardContent,
   CardHeader,
@@ -27,8 +28,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-  Input
+  SelectValue
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/data-filter/DebouncedInput'
 import {
@@ -103,8 +103,20 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
 
   // AI Creation state
 
-  const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create')
+  // Initialize activeTab from URL hash on mount
+  const getInitialTab = (): 'create' | 'manage' => {
+    if (globalThis.window !== undefined) {
+      const hash = globalThis.location.hash.replace('#', '')
+      if (hash === 'create' || hash === 'manage') {
+        return hash
+      }
+    }
+    return 'create'
+  }
+
+  const [activeTab, setActiveTab] = useState<'create' | 'manage'>(getInitialTab)
   const { resetTemplate } = useFlowTemplateStore()
+
   // Sync with URL hash for deep links (#create, #manage)
   useEffect(() => {
     const applyHash = () => {
@@ -113,7 +125,6 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
         setActiveTab(hash)
       }
     }
-    applyHash()
     const handler = () => applyHash()
     window.addEventListener('hashchange', handler)
     return () => window.removeEventListener('hashchange', handler)
@@ -1540,20 +1551,21 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
               </Card>
             </div>
           ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="gba:w-full">
-              <TabsList className="gba:grid gba:w-full gba:grid-cols-2 gba:mb-6">
-                <TabsTrigger value="create" className="gba:flex gba:items-center gba:gap-2">
-                  <Sparkles className="gba:h-4 gba:w-4" />
+            <Tabs
+              value={activeTab}
+              onValueChange={value => setActiveTab(value as 'create' | 'manage')}
+              className="gba:w-full"
+            >
+              <TabsList className="gba:w-full gba:mb-6">
+                <TabsTrigger value="create" startIcon={<Sparkles />}>
                   Create Flow
                 </TabsTrigger>
-                <TabsTrigger value="manage" className="gba:flex gba:items-center gba:gap-2">
-                  <FileText className="gba:h-4 gba:w-4" />
+                <TabsTrigger
+                  value="manage"
+                  startIcon={<FileText />}
+                  endAdornment={totalCount > 0 ? <TabsBadge variant="secondary">{totalCount}</TabsBadge> : undefined}
+                >
                   Manage Templates
-                  {templates.length > 0 && (
-                    <Badge variant="secondary" className="gba:ml-1">
-                      {templates.length}
-                    </Badge>
-                  )}
                 </TabsTrigger>
               </TabsList>
 
