@@ -112,9 +112,23 @@ export class QuickTaskFlowService {
    */
   private static calculateDueConfig(data: QuickTaskFlowData): { dueDate?: string; dueInMinutes?: number } {
     if (data.dueDate && data.dueDate.trim() !== '') {
+      // Validate YYYY-MM-DD format
+      const dateFormatRegex = /^\d{4}-\d{2}-\d{2}$/
+      if (!dateFormatRegex.test(data.dueDate)) {
+        const dueMinutes = this.calculateDueMinutes(data.priority || 'medium')
+        return { dueInMinutes: dueMinutes }
+      }
+
       // Convert YYYY-MM-DD to ISO date string with end of day time
-      const formattedDueDate = new Date(data.dueDate + 'T23:59:59.999Z').toISOString()
-      return { dueDate: formattedDueDate }
+      const date = new Date(data.dueDate + 'T23:59:59.999Z')
+
+      // Validate the date is valid
+      if (isNaN(date.getTime())) {
+        const dueMinutes = this.calculateDueMinutes(data.priority || 'medium')
+        return { dueInMinutes: dueMinutes }
+      }
+
+      return { dueDate: date.toISOString() }
     } else {
       // Fall back to priority-based minutes
       const dueMinutes = this.calculateDueMinutes(data.priority || 'medium')

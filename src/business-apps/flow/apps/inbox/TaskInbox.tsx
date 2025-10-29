@@ -245,8 +245,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
     }
   }, [])
 
-  const API_BASE =
-    (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine') + '/api'
+  const API_BASE = env('NEXT_PUBLIC_BASE_URL') + '/flow-engine' + '/api'
 
   // Fetch open tasks and stats for selected user
   const fetchUserData = async (userId: string) => {
@@ -494,15 +493,13 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
       // Import required service
       const { QuickTaskFlowService } = await import('../../common/components/flow-quick-task')
 
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
-
       // Execute the quick task using the service method
       await QuickTaskFlowService.executeQuickTask({
         formData: data,
         uploadResults: [], // File upload can be added later if needed
         accessToken,
         initiatorId: userInfo?.id || 'unknown',
-        apiBaseUrl: baseUrl
+        apiBaseUrl: API_BASE.replace('/api', '')
       })
 
       message.success(`Quick Task "${data.title}" created successfully!`)

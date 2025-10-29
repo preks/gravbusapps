@@ -42,8 +42,11 @@ export const useQuickTaskFileUpload = ({
         throw new Error('File service endpoint not configured')
       }
 
+      // Sanitize requestId to remove special characters and prevent path traversal
+      const sanitizedRequestId = requestId ? requestId.replace(/[^a-zA-Z0-9_-]/g, '_') : `temp-${Date.now()}`
+
       // Create folder path for Quick Task documents
-      const folderPath = requestId ? `/quick-tasks/${requestId}/attachments` : `/quick-tasks/temp/${Date.now()}`
+      const folderPath = `/quick-tasks/${sanitizedRequestId}/attachments`
 
       const mimeType = file.type
 
