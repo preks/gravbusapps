@@ -65,6 +65,17 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessTok
   // Fetch employee avatar data
   const { employeeData } = useEmployeeAvatar(accessToken, creatorEmployeeId);
 
+  // Debug logging
+  if (employeeData) {
+    console.log('[TaskCard] Employee data loaded:', {
+      id: employeeData.id,
+      name: `${employeeData.firstName} ${employeeData.lastName}`,
+      hasPicture: !!employeeData.pictureThumbnail,
+      pictureLength: employeeData.pictureThumbnail?.length || 0,
+      pictureStart: employeeData.pictureThumbnail?.substring(0, 50)
+    });
+  }
+
   // Get creator name - prefer fetched data, fallback to metadata
   const creatorName = employeeData 
     ? `${employeeData.firstName} ${employeeData.lastName}`.trim()
@@ -96,7 +107,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessTok
             {/* Creator info section */}
             <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3" data-testid="task-creator-section">
               <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
-                {employeeData?.pictureThumbnail && (
+                {employeeData?.pictureThumbnail && !employeeData.pictureThumbnail.startsWith('{') && (
                   <AvatarImage
                     src={`data:image/jpeg;base64,${employeeData.pictureThumbnail}`}
                     alt={creatorName}
