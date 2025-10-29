@@ -35,6 +35,7 @@ import HrNotesTab from './components/tabs/HrNotesTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
+import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 
 /**
  * Employee Record Module
@@ -44,6 +45,7 @@ import { useFeature } from '@/common/hooks/useFeature'
 const TAB_KEYS = {
   summary: 'summary',
   details: 'details',
+  timeTracking: 'timeTracking',
   employment: 'employment',
   documents: 'documents',
   performance: 'performance',
@@ -169,6 +171,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const activeStructureId = getCurrentActiveStructureId()
   const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
   const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
+  const timeTrackingTabFeatureFlag = useFeature('dev.employee-record.timetracking.enabled')
 
   // Update URL when active tab changes
   useEffect(() => {
@@ -296,6 +299,28 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
+      ...(timeTrackingTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.timeTracking,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiClockCounterClockwise className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">Time Tracking</span>
+                </div>
+              ),
+              children: (
+                <TimeTrackingTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                />
+              )
+            }
+          ]
+        : []),
       {
         key: TAB_KEYS.employment,
         label: (
@@ -493,6 +518,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         tabKey === TAB_KEYS.absences ||
         tabKey === TAB_KEYS.changeLog ||
         tabKey === TAB_KEYS.serviceRequests ||
+        tabKey === TAB_KEYS.timeTracking ||
         tabKey === TAB_KEYS.hrNotes
       ) {
         // Check if user has permission to see this tab

@@ -227,7 +227,7 @@ export const TasksSection: React.FC<TasksSectionProps> = ({ opportunityId, conte
         </div>
         <AppAction
           accessToken={context.accessToken}
-          contextsArray={[FlowContextName.createCustomerTask]}
+          contextsArray={[FlowContextName.customerTaskCreate]}
           externalContextData={{ opportunityId }}
           prefixDataTestId="opportunity-tasks"
           emptyStateBehavior="enable"

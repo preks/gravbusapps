@@ -340,7 +340,7 @@ export const ContactView: React.FC<ContactViewProps> = context => {
           },
           actions: (
             <AppAction
-              contextsArray={[FlowContextName.investmentCreateContact]}
+              contextsArray={[FlowContextName.investmentContactCreate]}
               accessToken={accessToken}
               data-testid="add-contact-action"
               emptyStateBehavior="hide"
