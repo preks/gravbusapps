@@ -47,6 +47,18 @@ function calculateYoyLabel(currentTotal: number, previousTotal: number): string 
   return '0%'
 }
 
+// Helper function for consistent currency formatting
+function formatCurrency(amount: number, currency: string = 'EUR'): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency,
+    notation: 'compact',
+    compactDisplay: 'short',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1
+  }).format(amount)
+}
+
 // Helper function to initialize yearly data structure
 function initializeYearlyData(years: string[], investmentTypes: Set<string>) {
   return years.map(year => {
@@ -281,18 +293,6 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
     setTopCompaniesCurrency(masterCurrency)
     setPortfolioMatrixCurrency(masterCurrency)
   }, [masterCurrency])
-
-  // Helper function for consistent currency formatting
-  const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      notation: 'compact',
-      compactDisplay: 'short',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 1
-    }).format(amount)
-  }
 
   // Portfolio Matrix Data: Size (investment amount), Duration (years invested), MOIC (multiple)
   const portfolioMatrixData = useMemo(() => {
