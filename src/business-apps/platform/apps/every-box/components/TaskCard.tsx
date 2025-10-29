@@ -101,17 +101,17 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                 {getInitials(creatorName)}
               </AvatarFallback>
             </Avatar>
-            <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-shrink-0 gba:leading-none gba:gap-0.5">
-              <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0 gba:flex-shrink-0">
+              <div className="gba:flex gba:items-center gba:gap-1">
                 <User className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                <span className="gba:text-xs gba:font-medium gba:truncate gba:leading-tight" data-testid="task-creator-name">
+                <span className="gba:text-xs gba:font-medium gba:truncate" data-testid="task-creator-name">
                   {creatorName}
                 </span>
               </div>
               {createdAt && (
                 <div className="gba:flex gba:items-center gba:gap-1">
                   <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
-                  <span className="gba:text-xs gba:text-muted-foreground gba:leading-tight" data-testid="task-created-at">
+                  <span className="gba:text-xs gba:text-muted-foreground" data-testid="task-created-at">
                     {formatDateTime(createdAt)}
                   </span>
                 </div>
