@@ -25,15 +25,15 @@ import {
   formatTaskStatus,
   formatPriority
 } from '../utils/taskFormatters';
-import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar';
+import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch';
 
 interface TaskCardProps {
   task: UnifiedTask;
   onView: (task: UnifiedTask) => void;
-  accessToken: string;
+  employeeMap: Map<string, EmployeeAvatarData>;
 }
 
-export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessToken }) => {
+export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeMap }) => {
   const overdue = isOverdue(task.dueDate);
   const dueSoon = isDueSoon(task.dueDate);
 
@@ -48,34 +48,23 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessTok
     }
   };
 
-  // Get task name/title - unified API provides both name and title
-  const taskTitle = task.title || task.name || 'Untitled Task';
+  // Get task name/title
+  // For Kogito tasks, prefer nodeName (more descriptive user-facing name)
+  // For CFlow tasks, use title or name
+  const taskTitle = task.source === 'kogito' && task.sourceMetadata?.nodeName
+    ? task.sourceMetadata.nodeName
+    : task.title || task.name || 'Untitled Task';
   
   // Get flow name from workflowMeta
   const flowName = task.workflowMeta?.rootWorkflowId || task.flowId;
 
-  // Extract creator employee ID from different sources
-  // For Kogito tasks: creatorUserId is the employee ID
-  // For CFlow tasks: check various possible fields for creator ID
-  const creatorEmployeeId = task.sourceMetadata?.creatorUserId || 
-                           task.sourceMetadata?.createdBy ||
-                           task.sourceMetadata?.initiatedBy ||
-                           task.assignment?.assignedTo;
+  // Extract creator user ID from different sources
+  const creatorUserId = task.sourceMetadata?.creatorUserId || 
+                        task.sourceMetadata?.createdBy ||
+                        task.sourceMetadata?.initiatedBy;
 
-  console.log('[TaskCard] Task creator info:', {
-    taskId: task.id,
-    source: task.source,
-    creatorEmployeeId,
-    availableMetadata: {
-      creatorUserId: task.sourceMetadata?.creatorUserId,
-      createdBy: task.sourceMetadata?.createdBy,
-      initiatedBy: task.sourceMetadata?.initiatedBy,
-      assignedTo: task.assignment?.assignedTo
-    }
-  });
-
-  // Fetch employee avatar data
-  const { employeeData } = useEmployeeAvatar(accessToken, creatorEmployeeId);
+  // Get employee data from the batch-fetched map
+  const employeeData = creatorUserId ? employeeMap.get(creatorUserId) : null;
 
   // Get creator name - prefer fetched data, fallback to metadata
   const creatorName = employeeData 

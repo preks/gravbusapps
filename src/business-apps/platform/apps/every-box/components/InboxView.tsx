@@ -13,6 +13,7 @@ import { EmptyState } from './EmptyState';
 import { LoadingSkeleton } from './LoadingSkeleton';
 import { BusinessAppContextProps } from '@/common/BusinessAppContext';
 import { sortTasksByPriority, filterTasksBySearch } from '../utils/taskGrouping';
+import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch';
 
 interface InboxViewProps extends BusinessAppContextProps {
   tasks: UnifiedTask[];
@@ -30,6 +31,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null);
+
+  // Extract all unique user IDs from tasks for batch avatar fetching
+  const userIds = useMemo(() => {
+    const ids = tasks
+      .map(task => 
+        task.sourceMetadata?.creatorUserId || 
+        task.sourceMetadata?.createdBy ||
+        task.sourceMetadata?.initiatedBy
+      )
+      .filter((id): id is string => !!id);
+    return [...new Set(ids)]; // Remove duplicates
+  }, [tasks]);
+
+  // Batch fetch all employee avatars in one request
+  const { employeeMap } = useEmployeeAvatarsBatch(context.accessToken || '', userIds);
 
   // Filter and sort tasks
   const filteredTasks = useMemo(() => {
@@ -100,7 +116,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
               key={task.id} 
               task={task} 
               onView={setSelectedTask} 
-              accessToken={context.accessToken || ''}
+              employeeMap={employeeMap}
             />
           ))}
         </div>
