@@ -90,7 +90,14 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, accessT
         </TabSwitchList>
 
         <TabSwitchContent value="current">
-          {compensationData && <CurrentCompensationView compensationData={compensationData} loading={loading} />}
+          {compensationData && (
+            <CurrentCompensationView
+              compensationData={compensationData}
+              loading={loading}
+              employeeId={empId}
+              accessToken={accessToken}
+            />
+          )}
         </TabSwitchContent>
 
         <TabSwitchContent value="history">
