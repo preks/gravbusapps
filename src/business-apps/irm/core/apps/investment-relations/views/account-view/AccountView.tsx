@@ -380,7 +380,7 @@ export const AccountView: React.FC<AccountViewProps> = context => {
           },
           actions: (
             <AppAction
-              contextsArray={[FlowContextName.investmentCreateAccount]}
+              contextsArray={[FlowContextName.investmentAccountCreate]}
               accessToken={accessToken}
               data-testid="add-account-action"
               emptyStateBehavior="hide"

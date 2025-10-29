@@ -62,7 +62,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
             code: doc.documentGroup.code
           }
         : null,
-      file: doc.file,
+      file: doc.file || doc?.fileInfo?.fileId,
       mimeType: doc.mimeType,
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,
