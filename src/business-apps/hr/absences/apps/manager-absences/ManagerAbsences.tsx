@@ -14,9 +14,7 @@ import { TeamCoverageOptimizerPage } from './components/pages/TeamCoverageOptimi
 import { AbsenceListPage } from './components/pages/AbsenceListPage'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-export interface ManagerAbsencesProps extends BusinessAppContextProps {}
-
-const ManagerAbsences: React.FC<ManagerAbsencesProps> = props => {
+const ManagerAbsences: React.FC<BusinessAppContextProps> = props => {
   const viewOptions = [
     {
       key: 'dashboard',

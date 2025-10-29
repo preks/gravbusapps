@@ -8,7 +8,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  Button,
   Spinner
 } from '@newwork/nw-design-system'
 import { AlertTriangleIcon } from 'lucide-react'
@@ -139,7 +138,7 @@ export const DeleteConfirmPopup: React.FC<DeleteConfirmPopupProps> = ({
           hasHandledRef.current = true
           handleFlowProcessCompletion()
         }
-      } catch (e) {
+      } catch {
         // no-op
       }
     }

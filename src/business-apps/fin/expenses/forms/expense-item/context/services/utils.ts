@@ -25,7 +25,7 @@ export const handleFileUpload = async (files: File[], accessToken: string, aiGro
   try {
     const result = await parseFileUpload(files, accessToken, aiGroupsAndTypes, t)
     return result
-  } catch (error) {
+  } catch {
     showToast(
       t('lowcoder:create_expense_type_item.process_error_receipt_processing', 'Error processing receipt data'),
       'error'

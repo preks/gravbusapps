@@ -1,8 +1,8 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { GET_ADVANCE_PAYMENT_STATISTICS } from '../queries/advancePayments'
-import { env } from '@/common/env/EnvUtils'
+import { GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED } from '../queries/advancePayments'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface AdvancePaymentStatisticsData {
   currentMonthPayments: number
@@ -26,6 +26,7 @@ export const useGetAdvancePaymentStatistics = (
 ): AdvancePaymentStatisticsDataView => {
   const accessToken = context?.accessToken
   const employeeId = context?.userInfo?.employeeDetails?.employeeId
+  const graphqlClient = useGraphQLClient(accessToken || '')
   const [statistics, setStatistics] = useState<AdvancePaymentStatisticsData>({
     currentMonthPayments: 0,
     previousMonthPayments: 0,
@@ -36,6 +37,7 @@ export const useGetAdvancePaymentStatistics = (
   })
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const lastSignatureRef = useRef<string>('')
 
   const fetchStatistics = useCallback(async () => {
     if (!employeeId || !accessToken) {
@@ -44,58 +46,53 @@ export const useGetAdvancePaymentStatistics = (
       return
     }
 
+    const now = dayjs()
+    const currentMonthStart = now.startOf('month').toISOString()
+    const currentMonthEnd = now.endOf('month').toISOString()
+    const previousMonthStart = now.subtract(1, 'month').startOf('month').toISOString()
+    const previousMonthEnd = now.subtract(1, 'month').endOf('month').toISOString()
+
+    // Skip duplicate identical requests
+    const signature = JSON.stringify({
+      employeeId,
+      currencyRef,
+      currentMonthStart,
+      currentMonthEnd,
+      previousMonthStart,
+      previousMonthEnd
+    })
+    if (signature === lastSignatureRef.current) {
+      return
+    }
+    lastSignatureRef.current = signature
+
     setIsLoading(true)
     setError(null)
 
     try {
-      const now = dayjs()
-      const currentMonthStart = now.startOf('month').toISOString()
-      const currentMonthEnd = now.endOf('month').toISOString()
-      const previousMonthStart = now.subtract(1, 'month').startOf('month').toISOString()
-      const previousMonthEnd = now.subtract(1, 'month').endOf('month').toISOString()
+      const data = await graphqlClient.request<any>(GET_ADVANCE_PAYMENT_STATISTICS_CONSOLIDATED, {
+        employeeId,
+        currentStart: currentMonthStart,
+        currentEnd: currentMonthEnd,
+        previousStart: previousMonthStart,
+        previousEnd: previousMonthEnd,
+        currencyRef
+      })
 
-      const fetchMonthData = async (startDate: string, endDate: string) => {
-        const response = await fetch(env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')!, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`
-          },
-          body: JSON.stringify({
-            query: GET_ADVANCE_PAYMENT_STATISTICS,
-            variables: {
-              employeeId,
-              startDate,
-              endDate,
-              currencyRef
-            }
-          })
-        })
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
-        const result = await response.json()
-        if (result.errors) throw new Error(result.errors.map((e: any) => e.message).join(', '))
-
-        const count = result.data?.AdvancePaymentAggregate?.aggregate?.count ?? 0
-        const totalAmount = result.data?.AdvancePaymentAggregate?.aggregate?.sum?.amount ?? 0
-        const pendingCount = result.data?.PendingAdvancePayments?.aggregate?.count ?? 0
-        const approvedCount = result.data?.ApprovedAdvancePayments?.aggregate?.count ?? 0
-
-        return { count, totalAmount, pendingCount, approvedCount }
-      }
-
-      // Fetch current and previous month data in parallel
-      const [currentMonthData, previousMonthData] = await Promise.all([
-        fetchMonthData(currentMonthStart, currentMonthEnd),
-        fetchMonthData(previousMonthStart, previousMonthEnd)
-      ])
+      const currentCount = data?.Current?.aggregate?.count ?? 0
+      const currentAmount = data?.Current?.aggregate?.sum?.amount ?? 0
+      const previousCount = data?.Previous?.aggregate?.count ?? 0
+      const previousAmount = data?.Previous?.aggregate?.sum?.amount ?? 0
+      const pendingCount = data?.PendingAdvancePayments?.aggregate?.count ?? 0
+      const approvedCount = data?.ApprovedAdvancePayments?.aggregate?.count ?? 0
 
       setStatistics({
-        currentMonthPayments: currentMonthData.count,
-        previousMonthPayments: previousMonthData.count,
-        currentMonthAmount: currentMonthData.totalAmount,
-        previousMonthAmount: previousMonthData.totalAmount,
-        pendingPayments: currentMonthData.pendingCount,
-        approvedPayments: currentMonthData.approvedCount
+        currentMonthPayments: currentCount,
+        previousMonthPayments: previousCount,
+        currentMonthAmount: currentAmount,
+        previousMonthAmount: previousAmount,
+        pendingPayments: pendingCount,
+        approvedPayments: approvedCount
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -110,14 +107,14 @@ export const useGetAdvancePaymentStatistics = (
     } finally {
       setIsLoading(false)
     }
-  }, [employeeId, accessToken, currencyRef])
+  }, [employeeId, accessToken, currencyRef, graphqlClient])
 
-  // Automatically fetch statistics when the hook is initialized
+  // Automatically fetch statistics when the hook is initialized or currency changes
   useEffect(() => {
     if (employeeId && accessToken) {
       fetchStatistics()
     }
-  }, [employeeId, accessToken, fetchStatistics])
+  }, [employeeId, accessToken, currencyRef, fetchStatistics])
 
   // Add a timeout to prevent infinite loading
   useEffect(() => {

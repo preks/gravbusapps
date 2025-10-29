@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import quarterOfYear from 'dayjs/plugin/quarterOfYear'
 dayjs.extend(quarterOfYear)
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { GET_EXPENSE_DASHBOARD_BY_EMPLOYEE } from '../queries/expenseDashboard'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -78,13 +78,21 @@ export const useGetExpenseDashboard = (
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const graphqlClient = useGraphQLClient(context?.accessToken || '')
+  const inflightRef = useRef<Map<string, Promise<any>>>(new Map())
 
   useEffect(() => {
     const employeeId = context?.userInfo?.employeeDetails?.employeeId
 
+    // Validate auth; missing currency is not an error (wait for preselect)
     if (!employeeId || !context?.accessToken) {
       setError(new Error('Employee ID or Access Token not found.'))
       setIsLoading(false)
+      return
+    }
+    if (!filters?.currency) {
+      // Keep loading state until currency is available
+      setIsLoading(true)
+      setError(null)
       return
     }
 
@@ -93,12 +101,31 @@ export const useGetExpenseDashboard = (
       setError(null)
       try {
         const now = dayjs()
-        const selectedCurrency = filters?.currency || 'Currency:v1:EUR'
+        const selectedCurrency = filters?.currency
+        if (!selectedCurrency) {
+          throw new Error('Currency is required')
+        }
         const selectedPeriod: 'monthly' | 'quarterly' | 'yearly' = filters?.period || 'monthly'
 
         const variables = buildDashboardVariables(employeeId, selectedCurrency, now, selectedPeriod)
+        const key = JSON.stringify({ employeeId, selectedCurrency, selectedPeriod, date: now.format('YYYY-MM') })
 
-        const data = await graphqlClient.request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
+        // De-duplicate identical in-flight requests (dev StrictMode double run, rapid toggles)
+        if (inflightRef.current.has(key)) {
+          await inflightRef.current.get(key)
+          return
+        }
+
+        const p = graphqlClient
+          .request(GET_EXPENSE_DASHBOARD_BY_EMPLOYEE, variables)
+          .then(res => {
+            return res
+          })
+          .finally(() => {
+            inflightRef.current.delete(key)
+          })
+        inflightRef.current.set(key, p)
+        const data = await p
         const expenseDashboard = transformDashboardResponse(data, selectedPeriod)
         setStats(expenseDashboard as ExpenseDashboard)
       } catch (err) {

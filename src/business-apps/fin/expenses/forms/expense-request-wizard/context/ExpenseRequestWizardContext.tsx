@@ -170,7 +170,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
       // Ensure currentCurrency reflects freshly loaded data (avoid stale value after reload)
       const refreshedCurrencyId = response?.ExpenseRequestByPk?.currency?.id || null
       setCurrentCurrency(refreshedCurrencyId)
-    } catch (error) {
+    } catch {
       showToast(
         t('lowcoder:modify_expense_request.error_fetching_expense_data', 'Error fetching expense data'),
         'error'
@@ -213,7 +213,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
             'error'
           )
         }
-      } catch (error) {
+      } catch {
         setExpenseRuleError(
           t('lowcoder:create_expense_request.error_employee_rule', 'Error fetching employee expense rule')
         )

@@ -75,6 +75,14 @@ export {
   useInvestmentDataIntegration
 } from './hooks'
 
+// Export hook option types for enhanced functionality
+export type {
+  UseGetInvestmentContactsOptions,
+  UseGetInvestmentAccountsOptions,
+  SelectOption,
+  AccountSelectOption
+} from './hooks'
+
 // Report hooks (re-exported from centralized investment-report module)
 // @deprecated Import from '@/common/data/investment-report/hooks' directly in new code.
 export { useGetInvestmentReports, useGetInvestmentReportById } from '@/common/data/investment-report/hooks'

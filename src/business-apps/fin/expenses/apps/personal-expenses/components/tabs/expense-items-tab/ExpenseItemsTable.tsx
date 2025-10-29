@@ -62,7 +62,6 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     filterLabelMap,
     getFilters,
     setFilters,
-    availableStatuses,
     ...contextProps
   } = props
 
@@ -87,7 +86,11 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
 
   const { items, isLoading, error, totalCount, fetchItems } = useGetExpenseItems(contextProps, { autoFetch: false })
 
-  const { currencyStats, selectedCurrencyRef } = useExpenseCurrencies(contextProps, allSelectedFilters, setFilters)
+  const { currencyStats, selectedCurrencyRef, initialized } = useExpenseCurrencies(
+    contextProps,
+    allSelectedFilters,
+    setFilters
+  )
 
   const currencyLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
@@ -108,6 +111,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
   // currency fetching now handled by useExpenseCurrencies
 
   useEffect(() => {
+    if (!initialized) return
     const apiFilters = { ...getFilters(allSelectedFilters) } as ExpenseFilter
     if (selectedCurrencyRef) {
       apiFilters.currencyRef = selectedCurrencyRef
@@ -139,7 +143,8 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
     sortField,
     sortOrder,
     selectedCurrencyRef,
-    props.activeWidgetKey
+    props.activeWidgetKey,
+    initialized
   ])
 
   // Refresh data when tableRefreshTrigger changes (triggered from parent tab)
@@ -519,7 +524,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           }, [currencyStats, filterGroups, allSelectedFilters]),
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
-        contentBackground="white"
+        contentBackground="background"
         dataBody={
           <div className="">
             <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
@@ -554,7 +559,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           )}
                         </TableHead>
                         <TableHead
-                          className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[25%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('title')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-title-header`}
                         >
@@ -567,7 +572,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           </div>
                         </TableHead>
                         <TableHead
-                          className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('expenseDate')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-expense-date-header`}
                         >
@@ -580,7 +585,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           </div>
                         </TableHead>
                         <TableHead
-                          className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('status')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-status-header`}
                         >
@@ -602,7 +607,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                           )}
                         </TableHead>
                         <TableHead
-                          className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                          className="gba:w-[18%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none gba:hover:bg-gray-100"
                           onClick={() => handleSort('reimbursableAmount')}
                           data-testid={`${DATA_TEST_ID_PREFIX}-amount-header`}
                         >
@@ -707,7 +712,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
                                   {(() => {
                                     try {
                                       return formatDate(record.expenseDate, 'date.long') || 'N/A'
-                                    } catch (error) {
+                                    } catch {
                                       return 'N/A'
                                     }
                                   })()}
@@ -883,7 +888,7 @@ const ExpenseItemsTable: React.FC<ExpenseItemsTableProps> = React.memo(props => 
           getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.expense_item_details', 'Expense Item Details')
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedItem?.title || 'Expense Item Details'}

@@ -229,7 +229,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     setExpandedSubModules(newExpanded)
   }
 
-  const renderSubModuleContent = (subModules: Record<string, BusinessAppInfo[]>) => {
+  const renderSubModuleContent = (module: string, subModules: Record<string, BusinessAppInfo[]>) => {
     const subModuleEntries = Object.entries(subModules)
 
     // If only one sub-module and it's 'default', show apps directly
@@ -241,12 +241,13 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     return (
       <div className="gba:w-full gba:space-y-2">
         {subModuleEntries.map(([subModule, apps]) => {
-          const isExpanded = expandedSubModules.has(subModule)
+          const subModuleId = `${module}/${subModule}`
+          const isExpanded = expandedSubModules.has(subModuleId)
           return (
             <div key={subModule} className="gba:bg-secondary gba:rounded gba:mb-2">
               <Button
                 variant="ghost"
-                onClick={() => toggleSubModule(subModule)}
+                onClick={() => toggleSubModule(subModuleId)}
                 className="gba:w-full gba:justify-between gba:px-4 gba:py-2 gba:text-left"
               >
                 <div className="gba:flex gba:items-center gba:gap-2">
@@ -279,7 +280,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     <div data-testid="IDE-StartScreen" className="gba:min-h-full gba:bg-gradient-decorative-1">
       <PageLayout
         variant="display"
-        headerIcon={<SquaresFour color="#000000" />}
+        headerIcon={<SquaresFour className="gba:text-foreground" />}
         headerLabel="Business Applications"
         headerLabelClassName="gba:!text-black"
         className="gba:h-full gba:!bg-transparent gba:!shadow-none gba:!rounded-none"
@@ -289,7 +290,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {exampleItems.items.length > 0 && (
               <div className="gba:mb-8" data-testid="IDE-Examples-Section">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <SquaresFour color="#000000" />
+                  <SquaresFour className="gba:text-foreground" />
                   Examples
                 </h4>
                 <div
@@ -375,7 +376,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {recentlyUsedApps.length > 0 && (
               <div className="gba:mb-8">
                 <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                  <Clock color="#000000" />
+                  <Clock className="gba:text-foreground" />
                   Recently Used
                 </h4>
                 <div className="gba:grid gba:gap-4 gba:grid-cols-5">
@@ -423,7 +424,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
             {/* Module Cards */}
             <div className="gba:mb-4">
               <h4 className="gba:mb-4 gba:flex gba:items-center gba:gap-2 gba:text-black gba:text-lg gba:font-semibold">
-                <AppWindow color="#000000" />
+                <AppWindow className="gba:text-foreground" />
                 All Applications
               </h4>
               {Object.keys(groupedApps).length === 0 ? (
@@ -449,7 +450,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                             <Badge variant="secondary">{totalApps}</Badge>
                           </div>
                           <div className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:max-h-full">
-                            {renderSubModuleContent(subModules)}
+                            {renderSubModuleContent(module, subModules)}
                           </div>
                         </CardContent>
                       </Card>

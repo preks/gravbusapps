@@ -213,7 +213,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       {/* Data Container with floating details */}
       <DataContainer
         key="expense-plans-data-container"
-        contentBackground="white"
+        contentBackground="background"
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,

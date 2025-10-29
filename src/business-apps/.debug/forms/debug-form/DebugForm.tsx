@@ -9,7 +9,7 @@ interface DebugFormProps {
 }
 
 export const DebugForm: React.FC<DebugFormProps> = props => {
-  const { componentName, ...restProps } = props
+  const { componentName } = props
 
   // Get build info if available
   const buildInfo =
@@ -41,7 +41,7 @@ export const DebugForm: React.FC<DebugFormProps> = props => {
       <h2>Props:</h2>
       <pre
         style={{
-          backgroundColor: '#f5f5f5',
+          backgroundColor: 'var(--nw-color-muted)',
           padding: '12px',
           borderRadius: '4px',
           flex: 1,

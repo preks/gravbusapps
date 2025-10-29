@@ -70,9 +70,17 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
     })
 
     // Convert to array and sort by date
+    // Fix: ensure sort is stable and robust, handle potential invalid dates
     return Array.from(dataMap.entries())
-      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-      .map(([_, data]) => data)
+      .sort(([a], [b]) => {
+        const aTime = new Date(a).getTime()
+        const bTime = new Date(b).getTime()
+        if (isNaN(aTime) && isNaN(bTime)) return 0
+        if (isNaN(aTime)) return 1
+        if (isNaN(bTime)) return -1
+        return aTime - bTime
+      })
+      .map(([, data]) => data)
   }, [hiresData, exitsData, netChangeData])
 
   if (isLoading) {
@@ -86,7 +94,7 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
   if (combinedData.length === 0) {
     return (
       <div data-testid={`${dataTestId}-empty`} className="gba:flex gba:justify-center gba:items-center gba:h-full">
-        <p className="gba:text-gray-500">No hires and departures data available</p>
+        <p className="gba:text-muted-foreground">No hires and departures data available</p>
       </div>
     )
   }
@@ -95,45 +103,49 @@ const HiresAndDeparturesChart: React.FC<HiresAndDeparturesChartProps> = ({
     <div data-testid={dataTestId} className="gba:w-full gba:h-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={combinedData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#666" />
-          <YAxis tick={{ fontSize: 12 }} stroke="#666" label={{ value: 'Count', angle: -90, position: 'insideLeft' }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--nw-muted)" />
+          <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="var(--nw-muted-foreground)" />
+          <YAxis
+            tick={{ fontSize: 12 }}
+            stroke="var(--nw-muted-foreground)"
+            label={{ value: 'Count', angle: -90, position: 'insideLeft' }}
+          />
           <Tooltip
             labelFormatter={value => `Month: ${value}`}
             contentStyle={{
-              backgroundColor: 'white',
-              border: '1px solid #d1d5db',
+              backgroundColor: 'var(--nw-card)',
+              border: '1px solid var(--nw-border)',
               borderRadius: '6px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              boxShadow: 'var(--nw-shadow-sm)'
             }}
           />
           <Legend />
           <Line
             type="monotone"
             dataKey="hires"
-            stroke="#52c41a"
+            stroke="var(--nw-success)"
             strokeWidth={2}
             name="New Hires"
-            dot={{ fill: '#52c41a', strokeWidth: 2, r: 3 }}
-            activeDot={{ r: 5, fill: '#52c41a' }}
+            dot={{ fill: 'var(--nw-success)', strokeWidth: 2, r: 3 }}
+            activeDot={{ r: 5, fill: 'var(--nw-success)' }}
           />
           <Line
             type="monotone"
             dataKey="departures"
-            stroke="#ff4d4f"
+            stroke="var(--nw-destructive)"
             strokeWidth={2}
             name="Departures"
-            dot={{ fill: '#ff4d4f', strokeWidth: 2, r: 3 }}
-            activeDot={{ r: 5, fill: '#ff4d4f' }}
+            dot={{ fill: 'var(--nw-destructive)', strokeWidth: 2, r: 3 }}
+            activeDot={{ r: 5, fill: 'var(--nw-destructive)' }}
           />
           <Line
             type="monotone"
             dataKey="netChange"
-            stroke="#1890ff"
+            stroke="var(--nw-chart-4)"
             strokeWidth={3}
             name="Net Change"
-            dot={{ fill: '#1890ff', strokeWidth: 2, r: 4 }}
-            activeDot={{ r: 6, fill: '#1890ff' }}
+            dot={{ fill: 'var(--nw-chart-4)', strokeWidth: 2, r: 4 }}
+            activeDot={{ r: 6, fill: 'var(--nw-chart-4)' }}
             strokeDasharray="5 5"
           />
         </LineChart>

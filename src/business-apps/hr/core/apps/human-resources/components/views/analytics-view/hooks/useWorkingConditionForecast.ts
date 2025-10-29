@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { workingConditionQuery } from '../queries/workingCondition'
-import { BusinessAppContextProps } from '../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 export interface WorkingConditionKpi {
   id: string
@@ -53,7 +53,6 @@ export const useWorkingConditionForecast = (props: BusinessAppContextProps): Wor
       })
       .catch(setError)
       .finally(() => setLoading(false))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.accessToken])
 
   return { data, count, loading, error }

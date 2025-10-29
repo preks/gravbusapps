@@ -6,13 +6,11 @@ import {
   CardTitle,
   Input,
   Label,
-  Textarea,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
   Separator
 } from '@newwork/nw-design-system'
 import { Calendar, User, Settings, Globe, Info, Hash, Tag } from 'lucide-react'
@@ -39,14 +37,34 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
   data,
   onChange,
   isLoading = false,
-  'data-testid': dataTestId = 'CatalogHeaderForm',
-  ...context
+  'data-testid': dataTestId = 'CatalogHeaderForm'
 }) => {
-  const [nameTranslations, setNameTranslations] = useState<Record<string, string>>(
-    data.children?.reduce((acc, child) => ({ ...acc, [child.defaultLocale || 'en']: child.name }), {}) || {}
-  )
+  // Initialize translations from data.children if available
+  const [nameTranslations, setNameTranslations] = useState<Record<string, string>>(() => {
+    const translations: Record<string, string> = {}
+    if (data.children && Array.isArray(data.children)) {
+      for (const child of data.children) {
+        const locale = child.defaultLocale || 'en'
+        if (child.name) {
+          translations[locale] = child.name
+        }
+      }
+    }
+    return translations
+  })
 
-  const [descriptionTranslations, setDescriptionTranslations] = useState<Record<string, string>>({})
+  const [descriptionTranslations, setDescriptionTranslations] = useState<Record<string, string>>(() => {
+    const translations: Record<string, string> = {}
+    if (data.children && Array.isArray(data.children)) {
+      for (const child of data.children) {
+        const locale = child.defaultLocale || 'en'
+        if (child.description) {
+          translations[locale] = child.description
+        }
+      }
+    }
+    return translations
+  })
 
   const handleTranslatableNameChange = (value: string) => {
     onChange('name', value)
@@ -56,9 +74,14 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
     onChange('description', value)
   }
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleDateString()
+  const handleNameTranslationsChange = (translations: Record<string, string>) => {
+    setNameTranslations(translations)
+    onChange('nameTranslations', translations)
+  }
+
+  const handleDescriptionTranslationsChange = (translations: Record<string, string>) => {
+    setDescriptionTranslations(translations)
+    onChange('descriptionTranslations', translations)
   }
 
   const formatDateTime = (dateString?: string) => {
@@ -126,7 +149,7 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
               value={data.name || ''}
               onChange={handleTranslatableNameChange}
               translations={nameTranslations}
-              onTranslationsChange={setNameTranslations}
+              onTranslationsChange={handleNameTranslationsChange}
               placeholder="Enter catalog display name..."
               required={true}
               defaultLanguage={data.defaultLocale || 'en'}
@@ -147,7 +170,7 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
               value={data.description || ''}
               onChange={handleTranslatableDescriptionChange}
               translations={descriptionTranslations}
-              onTranslationsChange={setDescriptionTranslations}
+              onTranslationsChange={handleDescriptionTranslationsChange}
               placeholder="Enter catalog description..."
               defaultLanguage={data.defaultLocale || 'en'}
               data-testid={`${dataTestId}-DescriptionTranslatable`}

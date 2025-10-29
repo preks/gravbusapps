@@ -275,7 +275,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({
           onClick={() => {
             // Navigate to the expense request record page
             const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-              expenseRequestId: selectedItem.id
+              expenseRequestId: selectedItem.id,
+              referrer: '/platform/fin/expenses/personal-expenses?tab=expense-requests'
             })
             navigateTo(url)
           }}

@@ -12,16 +12,23 @@ const buildOverlapWhereVars = (startIso: string, endIso: string) => ({
 })
 
 export const getYearRange = async (client: GraphQLRequester): Promise<{ minYear: number; maxYear: number } | null> => {
+  if (!client || typeof client.request !== 'function') {
+    throw new Error('Invalid client provided to getYearRange')
+  }
+
   const q = `
     query MinMaxYears {
       min: EmployeeAbsence(orderBy: [{ startDate: ASC }], limit: 1, where: { isDeleted: { _eq: false } }) { startDate }
       max: EmployeeAbsence(orderBy: [{ startDate: DESC }], limit: 1, where: { isDeleted: { _eq: false } }) { startDate }
     }
   `
+
   const res: any = await client.request(q)
   const minDate = res?.min?.[0]?.startDate ? new Date(res.min[0].startDate) : null
   const maxDate = res?.max?.[0]?.startDate ? new Date(res.max[0].startDate) : null
+
   if (!minDate || !maxDate) return null
+
   return { minYear: minDate.getUTCFullYear(), maxYear: maxDate.getUTCFullYear() }
 }
 

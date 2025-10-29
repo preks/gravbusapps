@@ -16,6 +16,7 @@ export interface InvestmentOpportunityQueryVariables {
   dealType?: string // Added dealType filtering
   accountIds?: string[]
   accountSearch?: string // Search account by name
+  contactIds?: string[] // Filter by contact IDs
   stageIds?: string[]
   pipelineIds?: string[]
   statusIds?: string[]
@@ -129,6 +130,14 @@ const buildBaseFilters = (variables: InvestmentOpportunityQueryVariables = {}): 
     filters.push({
       account: {
         name: { _ilike: `%${accountSearchTerm}%` }
+      }
+    })
+  }
+
+  if (variables.contactIds?.length) {
+    filters.push({
+      investmentOpportunityContact: {
+        contactId: { _in: variables.contactIds }
       }
     })
   }

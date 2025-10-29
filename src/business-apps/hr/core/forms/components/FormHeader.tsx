@@ -4,12 +4,13 @@ import { Separator } from '@newwork/nw-design-system'
 interface FormHeaderProps {
   title: string
   flowIconUrl: string
+  className?: string
 }
 
-const FormHeader: React.FC<FormHeaderProps> = ({ title, flowIconUrl }) => {
+const FormHeader: React.FC<FormHeaderProps> = ({ title, flowIconUrl, className }) => {
   return (
     <div
-      className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
+      className={`gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px] ${className || ''}`}
       data-testid="hr-form-header-container"
     >
       <div

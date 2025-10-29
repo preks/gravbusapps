@@ -1,6 +1,6 @@
 import React from 'react'
 import dayjs from 'dayjs'
-import { Button } from '@newwork/gravity-ui-catalog'
+import { Button } from '@newwork/nw-design-system'
 import { Spin, Tooltip } from 'antd'
 import { LeftOutlined, RightOutlined } from '@ant-design/icons'
 import { CalendarProps } from '../../../queries/types'
@@ -24,7 +24,7 @@ const getAbsenceTooltipContent = (absence: any) => {
       <div className="gba:font-semibold gba:text-sm gba:mb-2 gba:flex gba:items-center gba:gap-2">
         <div
           className="gba:w-3 gba:h-3 gba:rounded-full"
-          style={{ backgroundColor: absence.statusColor || '#6b7280' }}
+          style={{ backgroundColor: absence.statusColor || 'var(--nw-offline)' }}
         />
         {absence.type}
       </div>
@@ -33,7 +33,7 @@ const getAbsenceTooltipContent = (absence: any) => {
           <span className="gba:font-medium">
             {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}:
           </span>
-          <span style={{ color: absence.statusColor || '#6b7280' }} className="gba:font-medium">
+          <span className="gba:font-medium" style={{ color: absence.statusColor || 'var(--nw-offline)' }}>
             {getAbsenceStatusLabel(absence.originalStatus || absence.status)}
           </span>
         </div>
@@ -61,7 +61,7 @@ const getAbsenceTooltipContent = (absence: any) => {
           </span>
         </div>
         {absence.description && (
-          <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
+          <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-border">
             <div className="gba:font-medium gba:mb-1">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:employee_profile.document_layout.document_table.description',
@@ -69,7 +69,7 @@ const getAbsenceTooltipContent = (absence: any) => {
               )}
               :
             </div>
-            <div className="gba:text-gray-600 gba:break-words">{absence.description}</div>
+            <div className="gba:text-muted-foreground gba:break-words">{absence.description}</div>
           </div>
         )}
       </div>
@@ -98,7 +98,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
 
   if (error) {
     return (
-      <div className="gba:error gba:text-red-500 gba:py-8 gba:text-center">
+      <div className="gba:error gba:text-destructive gba:py-8 gba:text-center">
         {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.error_loading', 'Failed to load absence data.')}
       </div>
     )
@@ -107,10 +107,10 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   return (
     <div className="gba:calendar-content">
       <div
-        className="gba:calendar-view gba:bg-white gba:rounded gba:border gba:shadow-sm"
+        className="gba:calendar-view gba:bg-card gba:rounded gba:border gba:border-border gba:shadow-sm"
         data-testid="absence-calendar-view"
       >
-        <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b">
+        <div className="gba:calendar-header gba:flex gba:justify-between gba:items-center gba:p-4 gba:border-b gba:border-border">
           <div className="gba:calendar-month-year gba:font-medium gba:text-lg">
             {(() => {
               const locale = getCurrentActiveUserLocale()
@@ -161,7 +161,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 weekdays.push(dayjsWithLocale.day(i).format('dddd'))
               }
               return weekdays.map((day: string, index: number) => (
-                <div key={index} className="gba:text-center gba:font-medium gba:text-gray-600 gba:py-2">
+                <div key={index} className="gba:text-center gba:font-medium gba:text-muted-foreground gba:py-2">
                   {day}
                 </div>
               ))
@@ -197,8 +197,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 return (
                   <div
                     key={idx}
-                    className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:rounded 
-                      ${isSelectedStart || isSelectedEnd ? 'gba:bg-blue-200 gba:border-blue-500' : isInSelectedRange ? 'gba:bg-blue-50' : isToday ? 'gba:bg-blue-50 gba:border-blue-300' : 'gba:bg-white'} 
+                    className={`gba:calendar-day gba:p-2 gba:h-16 gba:border gba:border-border gba:rounded 
+                      ${isSelectedStart || isSelectedEnd ? 'gba:bg-info-secondary gba:border-info' : isInSelectedRange ? 'gba:bg-info-secondary/20' : isToday ? 'gba:bg-info-secondary gba:border-info' : 'gba:bg-card'} 
                       ${!isCurrentMonth ? 'gba:opacity-40' : 'gba:cursor-pointer'}`}
                     data-testid={`calendar-day-${currentDay.date()}`}
                     onClick={() => {
@@ -220,8 +220,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   >
                     <div
                       className={`gba:day-number gba:text-right 
-                      ${isSelectedStart || isSelectedEnd ? 'gba:font-bold gba:text-blue-700' : isToday ? 'gba:font-bold gba:text-blue-600' : ''} 
-                      ${!isCurrentMonth ? 'gba:text-gray-400' : ''}`}
+                      ${isSelectedStart || isSelectedEnd ? 'gba:font-bold gba:text-decorative' : isToday ? 'gba:font-bold gba:text-info' : ''} 
+                      ${!isCurrentMonth ? 'gba:text-muted-foreground' : ''}`}
                     >
                       {currentDay.date()}
                     </div>
@@ -254,10 +254,10 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                                   className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1"
                                   style={{
                                     width: segmentWidth,
-                                    backgroundColor: a.statusColor || '#6b7280'
+                                    backgroundColor: a.statusColor || 'var(--nw-offline)'
                                   }}
                                 >
-                                  <span className="gba:text-xs gba:font-medium gba:text-white gba:truncate gba:leading-none gba:absence-segment-text">
+                                  <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
                                     {a.type}
                                   </span>
                                 </div>
@@ -274,28 +274,28 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
         </div>
 
         {/* Status Legend */}
-        <div className="gba:calendar-legend gba:px-4 gba:py-3 gba:border-t gba:bg-gray-50">
+        <div className="gba:calendar-legend gba:px-4 gba:py-3 gba:border-t gba:border-border gba:bg-muted">
           <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap">
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: '#10b981' }} />
+              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-success" />
               <span className="gba:text-xs gba:ml-1">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved')}
               </span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: '#f59e0b' }} />
+              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning" />
               <span className="gba:text-xs gba:ml-1">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval')}
               </span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: '#ef4444' }} />
+              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-destructive" />
               <span className="gba:text-xs gba:ml-1">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected')}
               </span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: '#6b7280' }} />
+              <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-offline" />
               <span className="gba:text-xs gba:ml-1">
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:absences_overview_entry_screen.cancelled_status',
@@ -306,7 +306,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
           </div>
         </div>
 
-        <div className="gba:calendar-footer gba:p-4 gba:border-t gba:text-center gba:text-sm gba:text-gray-500">
+        <div className="gba:calendar-footer gba:p-4 gba:border-t gba:border-border gba:text-center gba:text-sm gba:text-muted-foreground">
           {selectedStartDate && selectedEndDate ? (
             <span data-testid="selected-range">
               {(() => {

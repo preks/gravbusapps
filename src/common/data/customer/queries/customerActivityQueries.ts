@@ -2,7 +2,6 @@
 import {
   CUSTOMER_SALES_ACTIVITY,
   CUSTOMER_ACCOUNT_REF,
-  CUSTOMER_CONTACT_REF,
   CUSTOMER_OPPORTUNITY_REF,
   CUSTOMER_LEAD_REF
 } from './fragments/customerRelationFragments'
@@ -112,6 +111,44 @@ export const GET_CUSTOMER_ACTIVITIES = (variables: CustomerActivityQueryVariable
 
       SalesActivityAggregate(${where}) {
         aggregate { count }
+      }
+    }
+  `
+}
+
+// Get Customer Activity by ID
+export const GET_CUSTOMER_ACTIVITY_BY_ID = (id: string): string => {
+  return `
+    query GetCustomerActivityById {
+      SalesActivity(where: { id: { _eq: "${id}" }, isDeleted: { _eq: false } }) {
+        ${CUSTOMER_SALES_ACTIVITY}
+        
+        # Entity references
+        account { ${CUSTOMER_ACCOUNT_REF} }
+        contact { id code firstName lastName email }
+        lead { ${CUSTOMER_LEAD_REF} }
+        opportunity { ${CUSTOMER_OPPORTUNITY_REF} }
+        
+        # Documents relationship
+        customerDocument(where: { isDeleted: { _eq: false } }) {
+          id
+          version
+          name
+          description
+          file
+          fileSize
+          mimeType
+          documentGroup {
+            id
+            value
+            code
+          }
+          documentType {
+            id
+            value
+            code
+          }
+        }
       }
     }
   `

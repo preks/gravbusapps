@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Card,
   Row,
@@ -13,22 +13,16 @@ import {
   Tag,
   Tabs,
   Statistic,
-  Dropdown,
-  Select,
-  Steps,
-  message
+  Dropdown
 } from 'antd'
 import {
   ArrowLeftOutlined,
   ShoppingCartOutlined,
   UserOutlined,
-  CalendarOutlined,
-  DollarOutlined,
   EnvironmentOutlined,
   PhoneOutlined,
   MailOutlined,
   EyeOutlined,
-  InfoCircleOutlined,
   SettingOutlined,
   MoreOutlined,
   DownOutlined,

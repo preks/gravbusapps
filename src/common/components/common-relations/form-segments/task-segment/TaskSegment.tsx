@@ -14,7 +14,9 @@ import {
   SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectValue
+  SelectValue,
+  FileUpload,
+  type FileMetadata
 } from '@newwork/nw-design-system'
 import { useFormContext } from 'react-hook-form'
 import { z } from 'zod'
@@ -53,6 +55,7 @@ export interface TaskSegmentProps {
 
   // Entity selection
   showEntitySelection?: boolean
+  requireEntity?: boolean
   entities?: Array<{
     id: string
     name: string
@@ -90,6 +93,8 @@ export interface TaskSegmentProps {
 
   // File upload callback (optional convenience)
   onFilesChange?: (files: File[]) => void
+  existingDocuments?: Array<{ id: string; name?: string; version?: number }>
+  onDocumentRemove?: (documentId: string) => void
 
   // New behavior controls
   showType?: boolean
@@ -120,6 +125,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   fetchPriorityOptions,
   fetchStatusOptions,
   showEntitySelection = false,
+  requireEntity = false,
   entities = [],
   entitiesLoading = false,
   onEntitySearch,
@@ -130,6 +136,8 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   assigneesHasMore = false,
   onAssigneeLoadMore,
   onFilesChange,
+  existingDocuments = [],
+  onDocumentRemove,
   entitiesHasMore = false,
   onEntityLoadMore,
   initialEntityFromContext,
@@ -137,18 +145,17 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   staticDefaults,
   'data-testid': dataTestId = 'task-segment'
 }) => {
-  const form = useFormContext<any>()
+  const form = useFormContext()
 
   // Apply static defaults once
   React.useEffect(() => {
     if (!staticDefaults) return
-    Object.entries(staticDefaults).forEach(([key, value]) => {
+    for (const [key, value] of Object.entries(staticDefaults)) {
       if (value !== undefined && (form.getValues(key) === undefined || form.getValues(key) === '')) {
         form.setValue(key as any, value, { shouldValidate: true })
       }
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    }
+  }, [staticDefaults, form])
 
   const typeState = useCatalogOptions({
     accessToken,
@@ -220,7 +227,9 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   )
   const assigneeUserMap = React.useMemo(() => {
     const map = new Map<string, string | undefined>()
-    ;(assignees || []).forEach(a => map.set(a.id, a.userId))
+    for (const a of assignees || []) {
+      map.set(a.id, a.userId)
+    }
     return map
   }, [assignees])
 
@@ -239,6 +248,56 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
     const s = v.replace('Z', '')
     return s.length >= 16 ? s.slice(0, 16) : s
   }, [])
+
+  // Helper: Convert existing documents to FileMetadata format
+  const initialFiles = React.useMemo<FileMetadata[]>(
+    () =>
+      existingDocuments.map(doc => ({
+        id: doc.id,
+        name: doc.name || 'Unnamed Document',
+        size: 0,
+        type: '',
+        url: doc.id
+      })),
+    [existingDocuments]
+  )
+
+  // Helper: Create a stable key for FileUpload
+  const fileUploadKey = React.useMemo(() => existingDocuments.map(d => d.id).join(',') || 'empty', [existingDocuments])
+
+  // Helper: Extract File objects from FileWithPreview
+  const extractNewFiles = React.useCallback((files: any[]): File[] => {
+    return files.map(f => (f.file instanceof File ? f.file : null)).filter((f): f is File => f !== null)
+  }, [])
+
+  // Helper: Check if file ID is in set
+  const isFileIdInSet = React.useCallback((fileId: string, fileIds: Set<string>): boolean => {
+    return fileIds.has(fileId)
+  }, [])
+
+  // Handler: Process file changes
+  const handleFilesChange = React.useCallback(
+    (files: any[]) => {
+      if (!onFilesChange) return
+
+      // Add new files
+      const newFiles = extractNewFiles(files)
+      if (newFiles.length > 0) {
+        onFilesChange(newFiles)
+      }
+
+      // Handle file removal - check which initial files are missing
+      const currentFileIds = new Set(files.map(f => f.id))
+      const removedDocs = initialFiles.filter(initial => !isFileIdInSet(initial.id, currentFileIds))
+
+      if (removedDocs.length > 0 && onDocumentRemove) {
+        for (const doc of removedDocs) {
+          onDocumentRemove(doc.id)
+        }
+      }
+    },
+    [onFilesChange, onDocumentRemove, initialFiles, extractNewFiles, isFileIdInSet]
+  )
 
   // Prime searches when provided but lists are empty
   React.useEffect(() => {
@@ -302,7 +361,10 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           name="dueDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{deadlineLabel}</FormLabel>
+              <FormLabel>
+                {deadlineLabel}
+                <span className="gba:text-destructive">*</span>
+              </FormLabel>
               <FormControl>
                 <Input
                   className="gba:w-full"
@@ -484,7 +546,10 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
           name="relatedEntityId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{entityLabel || 'Related Entity'}</FormLabel>
+              <FormLabel>
+                {entityLabel || 'Related Entity'}
+                {requireEntity && <span className="gba:text-destructive">*</span>}
+              </FormLabel>
               <FormControl>
                 <EntitySelect
                   entities={entitySelectOptions as any}
@@ -506,6 +571,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                   loading={Boolean(entitiesLoading)}
                   onLoadMore={onEntityLoadMore}
                   hasMore={Boolean(entitiesHasMore)}
+                  placeholder="Search..."
                   data-testid={`${dataTestId}-entity`}
                 />
               </FormControl>
@@ -533,21 +599,23 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
       {/* Attach Documents */}
       {uploadFileLabel && onFilesChange && (
         <FormField
-          control={form.control as any}
+          control={form.control}
           name="files"
           render={() => (
             <FormItem>
               <FormLabel>{uploadFileLabel}</FormLabel>
               <FormControl>
-                <Input
-                  type="file"
-                  multiple
-                  className="gba:w-full"
-                  data-testid={`${dataTestId}-attachments`}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const files = Array.from(e.target.files || [])
-                    onFilesChange(files as any)
-                  }}
+                <FileUpload
+                  key={fileUploadKey}
+                  layout="list"
+                  preview="icon"
+                  maxFiles={10}
+                  maxSizeMB={10}
+                  multiple={true}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png"
+                  initialFiles={initialFiles}
+                  onFilesChange={handleFilesChange}
+                  data-testid={`${dataTestId}-file-upload`}
                 />
               </FormControl>
               <FormMessage />

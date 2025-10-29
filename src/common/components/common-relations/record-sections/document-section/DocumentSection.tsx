@@ -17,7 +17,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  toast
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionMenu } from '@/components/app-action-menu'
@@ -26,7 +27,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import { toast } from 'sonner'
 import {
   Eye,
   MoreHorizontal,
@@ -1329,6 +1329,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
   // Handle three-dots click to open custom menu
   const handleActionsButtonClick = (document: DocumentItem, event: React.MouseEvent) => {
+    event.stopPropagation()
     setSelectedDocument(document)
 
     // Create menu mount point relative to the clicked button
@@ -1428,6 +1429,24 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
     return actions
   }, [selectedDocument, downloadActionProps, customActions, accessToken, apiConfig])
+
+  // Note: Outside clicks and Escape handling are managed by ActionMenu via onOpenChange
+
+  // Cleanup mount element when menu closes
+  useEffect(() => {
+    if (!menuOpen && menuMountEl) {
+      // Clean up the mount element after a short delay to allow animations
+      const cleanupTimer = setTimeout(() => {
+        if (menuMountEl.parentElement) {
+          menuMountEl.parentElement.removeChild(menuMountEl)
+        }
+        setMenuMountEl(null)
+        setSelectedDocument(null)
+      }, 150)
+
+      return () => clearTimeout(cleanupTimer)
+    }
+  }, [menuOpen, menuMountEl])
 
   if (isLoading) {
     return (
@@ -1677,13 +1696,19 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
         {/* Custom three dots menu portal */}
         {selectedDocument &&
           menuMountEl &&
+          menuOpen &&
           createPortal(
             <AppActionMenu
               accessToken={accessToken}
               staticFlowData={customMenuActions as any}
               emptyStateBehavior="enable"
               open={menuOpen}
-              onOpenChange={open => setMenuOpen(open)}
+              onOpenChange={open => {
+                setMenuOpen(open)
+                if (!open) {
+                  setSelectedDocument(null)
+                }
+              }}
               prefixDataTestId="document-section"
               data-testid="document-section-action-menu"
             >

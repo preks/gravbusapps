@@ -103,13 +103,13 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
         <div
           className={`${isSelectedPlan ? '' : ''}`}
           style={{
-            borderTop: isSelectedPlan ? 'none' : '2px solid #F7F7F7',
+            borderTop: isSelectedPlan ? 'none' : '2px solid muted',
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
             overflowY: 'auto',
             maxHeight: 'calc(100vh - 10px)',
-            backgroundColor: isSelectedPlan ? 'transparent' : '#F7F7F7',
+            backgroundColor: isSelectedPlan ? 'transparent' : 'muted',
             borderRadius: '4px'
           }}
           data-testid="plan-cards-container"
@@ -128,9 +128,9 @@ const PlanFormContent: React.FC<PlanFormContentProps> = ({ form, planData, onPla
               style={{
                 textAlign: 'center',
                 padding: '24px',
-                color: '#666',
+                color: 'muted-foreground',
                 fontSize: '14px',
-                backgroundColor: 'white',
+                backgroundColor: 'background',
                 borderRadius: '4px',
                 boxShadow: '0 2px 2px rgba(0, 0, 0, 0.05)'
               }}

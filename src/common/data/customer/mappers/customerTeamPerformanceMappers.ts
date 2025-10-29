@@ -4,15 +4,9 @@ import {
   BaseCustomerTeamPerformanceMetrics,
   BaseCustomerActivityPerformance,
   BaseCustomerTeamComparison,
-  BaseCustomerPerformancePeriod,
-  BaseCustomerPerformanceGoal,
-  BaseCustomerTeamPerformanceSummary,
   CustomerTeamPerformanceMetrics,
   CustomerActivityPerformance,
   CustomerTeamComparison,
-  CustomerPerformancePeriod,
-  CustomerPerformanceGoal,
-  CustomerTeamPerformanceSummary,
   TrendIndicator
 } from '../types'
 
@@ -33,11 +27,7 @@ import {
   isCustomerActivityLoggingTimely
 } from '../utils/customerActivityScoring'
 
-import {
-  calculateCustomerPerformanceTrend,
-  compareCustomerPerformanceToTeam,
-  calculateCustomerPercentageChange
-} from '../utils/customerTrendAnalysis'
+import { calculateCustomerPerformanceTrend } from '../utils/customerTrendAnalysis'
 
 /**
  * Transform BaseCustomerTeamPerformanceMetrics to CustomerTeamPerformanceMetrics with computed fields

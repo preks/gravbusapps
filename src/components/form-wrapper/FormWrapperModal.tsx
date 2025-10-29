@@ -1,7 +1,15 @@
 import React, { useState, useEffect, SetStateAction, Dispatch, useRef, useCallback, useMemo } from 'react'
-import { Dialog, DialogContent, DialogTrigger, Button, Form, DialogTitle, Alert } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  Button,
+  Form,
+  DialogTitle,
+  Alert,
+  toast
+} from '@newwork/nw-design-system'
 import { useForm, type Resolver, type UseFormReturn, type FieldValues } from 'react-hook-form'
-import { toast } from 'sonner'
 import { cn } from '@/common/utils/cn'
 
 export interface FormMessage {
@@ -33,6 +41,8 @@ interface FormWrapperModalProps {
   validateForm?: (_formData: FieldValues) => string[] | null
   isSubmitDisabled?: boolean
   preventDuplicateSubmission?: boolean
+  updateValues?: FieldValues
+  resetFields?: string[]
 
   // Error handling
   showErrorMessage?: boolean
@@ -77,6 +87,8 @@ const FormWrapperModal = ({
   validateForm,
   isSubmitDisabled = false,
   preventDuplicateSubmission = true,
+  updateValues,
+  resetFields,
 
   // Error handling
   showErrorMessage = false,
@@ -120,6 +132,27 @@ const FormWrapperModal = ({
       setMessage({ type: 'error', message: errorMessage })
     }
   }, [errorMessage])
+
+  // Update form values when updateValues prop changes
+  useEffect(() => {
+    if (updateValues && Object.keys(updateValues).length > 0) {
+      // Generic approach: iterate through all fields in updateValues
+      for (const [fieldName, value] of Object.entries(updateValues)) {
+        form.setValue(fieldName, value, { shouldDirty: true, shouldValidate: true })
+      }
+    }
+  }, [updateValues, form])
+
+  // Reset specific fields when resetFields prop changes
+  useEffect(() => {
+    if (resetFields && resetFields.length > 0) {
+      for (const fieldName of resetFields) {
+        form.setValue(fieldName, '', { shouldDirty: true, shouldValidate: false })
+      }
+      // Clear errors for reset fields
+      form.clearErrors(resetFields)
+    }
+  }, [resetFields, form])
 
   const handleSubmit = useCallback(
     async (values?: FieldValues) => {

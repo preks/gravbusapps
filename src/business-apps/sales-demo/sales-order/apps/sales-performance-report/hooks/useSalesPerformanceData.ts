@@ -13,14 +13,6 @@ import {
   PRODUCT_CATEGORIES,
   REGIONS
 } from '../types'
-import {
-  getSalesPerformanceKPIs,
-  getSalesPerformanceData,
-  getSalesPipelineData,
-  getFulfillmentData,
-  getProductCategoryPerformance,
-  getRegionalSalesData
-} from '../queries/salesPerformanceQueries'
 
 // Helper function to calculate trend percentage
 const calculateTrend = (current: number, previous: number): number => {

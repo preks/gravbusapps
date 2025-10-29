@@ -35,6 +35,37 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
     new URLSearchParams(window.location.search).get('expenseRequestId') ||
     'bfe6323f-236b-4245-9759-5215a6a97209'
 
+  // Determine the back URL based on referrer or query parameter
+  const getBackUrl = (): string => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const referrerParam = urlParams.get('referrer')
+
+    // If a referrer is explicitly provided in the URL
+    if (referrerParam) {
+      return referrerParam
+    }
+
+    // Check document referrer
+    if (document.referrer) {
+      const referrerUrl = new URL(document.referrer)
+      // If coming from personal-expenses, manager-expenses, or backoffice-expenses
+      if (referrerUrl.pathname.includes('/personal-expenses')) {
+        return '/platform/fin/expenses/personal-expenses?tab=expense-requests'
+      }
+      if (referrerUrl.pathname.includes('/manager-expenses')) {
+        return '/platform/fin/expenses/manager-expenses?tab=expense-requests'
+      }
+      if (referrerUrl.pathname.includes('/backoffice-expenses')) {
+        return '/platform/fin/expenses/backoffice-expenses?tab=expense-requests'
+      }
+    }
+
+    // Default fallback to expenses launcher
+    return '/platform/fin/expenses/expenses-launcher'
+  }
+
+  const backUrl = getBackUrl()
+
   // Helper function to get initial tab from URL or available tabs
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -145,7 +176,12 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpenseRequestItems expenseRequestItems={expenseRequest?.expenseRequestItem || []} />
+      children: (
+        <ExpenseRequestItems
+          expenseRequestItems={expenseRequest?.expenseRequestItem || []}
+          currencyCode={expenseRequest?.currency?.code}
+        />
+      )
     },
 
     // Allowances tab - only show if there are allowances
@@ -338,12 +374,12 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
   if (loading) {
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_records.request.title',
           'Expense Request Record'
         )}
-        headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" />}
+        headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
         contentContainer={
           <div
             className="gba:flex gba:justify-center gba:items-center gba:h-64"
@@ -387,12 +423,12 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel(
           'lowcoder:expense_records.request.title',
           'Expense Request Record'
         )}
-        headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" />}
+        headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
         contentContainer={
           <Alert variant="destructive" data-testid="expense-request-record-error">
             <AlertTitle>{errorTitle}</AlertTitle>
@@ -405,12 +441,12 @@ const ExpenseRequestRecord: React.FC<BusinessAppContextProps> = ({ accessToken, 
 
   return (
     <PageLayout
-      headerIcon={<PiWalletDuotone color="#c92559" />}
+      headerIcon={<PiWalletDuotone className="gba:text-primary" />}
       headerLabel={getTranslationFromI18nKeyAndLabel(
         'lowcoder:expense_records.request.title',
         'Expense Request Record'
       )}
-      headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" />}
+      headerTopLeft={<BackButton dataTestId="expense-request-record-back-button" backUrl={backUrl} />}
       contentContainer={
         <div className="gba:overflow-y-auto gba:overflow-x-hidden" style={{ maxHeight: 'calc(100vh - 160px)' }}>
           <div className="gba:p-3 gba:flex gba:flex-row gba:gap-3" data-testid="expense-request-record-container">

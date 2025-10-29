@@ -8,42 +8,40 @@ import {
   SunburstNode,
   StructuralStatistics,
   Employee,
-  Company,
-  CostCenter,
-  SiteLocation
+  CostCenter
 } from '../types/structuralTypes'
-import {
-  OrganizationalUnitRelationshipResponse,
-  EmployeeSiteLocationResponse,
-  CostCenterResponse,
-  StructuralAnalysisData
-} from '../../../../queries/StructuralAnalysisQueries'
+import { StructuralAnalysisData } from '../../../../queries/StructuralAnalysisQueries'
 
 // Color schemes for visualizations
 export const chartColors = {
   primary: [
-    '#1f77b4',
-    '#ff7f0e',
-    '#2ca02c',
-    '#d62728',
-    '#9467bd',
-    '#8c564b',
-    '#e377c2',
-    '#7f7f7f',
-    '#bcbd22',
-    '#17becf'
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)',
+    'var(--nw-chart-7)',
+    'var(--nw-chart-8)'
   ],
-  depth: ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#c084fc', '#d946ef'],
+  depth: [
+    'var(--nw-chart-1)',
+    'var(--nw-chart-2)',
+    'var(--nw-chart-3)',
+    'var(--nw-chart-4)',
+    'var(--nw-chart-5)',
+    'var(--nw-chart-6)'
+  ],
   status: {
-    optimal: '#10b981',
-    warning: '#f59e0b',
-    critical: '#ef4444'
+    optimal: 'var(--nw-success)',
+    warning: 'var(--nw-warning)',
+    critical: 'var(--nw-destructive)'
   }
 }
 
 // Process organizational relationships to build hierarchical structure
 export const processOrganizationalData = (data: StructuralAnalysisData): OrganizationalNode[] => {
-  const { organizationalUnitRelationships, employeeSiteLocations, costCenters } = data
+  const { organizationalUnitRelationships, costCenters } = data
 
   // Create maps for quick lookup
   const unitMap = new Map<string, OrganizationalNode>()
@@ -360,7 +358,7 @@ const findBottlenecks = (node: OrganizationalNode, allNodes: OrganizationalNode[
 }
 
 // Helper function to generate color shades
-const generateColorShades = (baseColor: string, depth: number, maxDepth: number = 5): string => {
+const generateColorShades = (baseColor: string, depth: number): string => {
   // Convert hex to RGB
   const hex = baseColor.replace('#', '')
   const r = parseInt(hex.substr(0, 2), 16)
@@ -434,7 +432,7 @@ export const generateSunburstData = (nodes: OrganizationalNode[]): SunburstNode 
     level: -1,
     employees: [], // Root has no direct employees
     children: rootChildren,
-    color: '#f8f9fa' // Light gray for root
+    color: 'var(--nw-muted)' // Light gray for root
   }
 }
 
@@ -442,7 +440,6 @@ export const generateSunburstData = (nodes: OrganizationalNode[]): SunburstNode 
 export const calculateStructuralStatistics = (
   nodes: OrganizationalNode[],
   spanData: SpanOfControlData[],
-  depthData: DepthAnalysisData[],
   chainSummary: ReportingChainSummary
 ): StructuralStatistics => {
   const totalEmployees = nodes.reduce((sum, node) => sum + node.employeeCount, 0)

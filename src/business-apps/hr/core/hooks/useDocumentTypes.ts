@@ -18,7 +18,7 @@ const useDocumentTypes = (accessToken: string, moduleFilter?: string, searchTerm
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [allPossibleModules] = useState<string[]>([])
 
-  const handlePageChange = useCallback((page: number, _newPageSize?: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page)
   }, [])
 

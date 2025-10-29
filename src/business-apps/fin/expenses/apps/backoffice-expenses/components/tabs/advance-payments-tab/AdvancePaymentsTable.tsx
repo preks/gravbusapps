@@ -3,7 +3,7 @@
  * Displays a table of advance payments with filtering and view capabilities
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useAdvancePayments } from '../../../hooks/useAdvancePayment'
 import { useDebounce } from '@/common/hooks/useDebounce'
@@ -17,50 +17,35 @@ import {
   TableCell,
   Alert,
   Spinner,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Button,
+  Card,
+  CardContent,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
   Badge
 } from '@newwork/nw-design-system'
-import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
-import ExpenseRequestPagination from '../expence-requests-tab/components/ExpenseRequestPagination'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
 
 import { getAdvancePaymentStatusDisplay } from '../../../utils/utils'
-import AdvancePaymentDetails from './AdvancePaymentDetailsBackoffice'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { formatCurrency } from '../../../utils/currencyUtils'
+import AdvancePaymentDetailsBackoffice from './AdvancePaymentDetailsBackoffice'
+import { formatNumberFunction, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import { useFilterData, type OrganizationalUnit, type Currency } from '../../../hooks/useFilterData'
-
-interface FilterData {
-  organizationalUnits: OrganizationalUnit[]
-  currencies: Currency[]
-  mostUsedCurrency: string | null
-  loading: boolean
-  error: Error | null
-  refetch: () => Promise<void>
-}
 
 interface AdvancePaymentsTableProps extends BusinessAppContextProps {
   search?: string
   onSearchChange?: (search: string) => void
-  isActive?: boolean // ⚡ PERFORMANCE: Only fetch data when tab is active
-  filterData?: FilterData // ⚡ PERFORMANCE: Accept shared filter data from parent
 }
 
 const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
-  const { search, onSearchChange, isActive = true, filterData: propsFilterData, ...context } = props
+  const { search, onSearchChange, ...context } = props
 
   const [searchText, setSearchText] = useState(search || '')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
-  const [sortKey, setSortKey] = useState<string>('createdAt')
-  const [sortDir, setSortDir] = useState<'ASC' | 'DESC'>('DESC')
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -69,12 +54,6 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const [advanceMinFilter, setAdvanceMinFilter] = useState('')
   const [advanceMaxFilter, setAdvanceMaxFilter] = useState('')
   const [reporterFilter, setReporterFilter] = useState('')
-  const [currencyFilter, setCurrencyFilter] = useState('')
-
-  // ⚡ PERFORMANCE: Use filter data from parent if provided, otherwise fetch locally
-  const localFilterData = useFilterData({ accessToken: propsFilterData ? undefined : context.accessToken })
-  const filterData = propsFilterData || localFilterData
-  const { currencies } = filterData
 
   // Reporter search states
   const [reporterSearchText, setReporterSearchText] = useState('')
@@ -83,78 +62,14 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const [reporterSearchLoading, setReporterSearchLoading] = useState(false)
   const [selectedReporters, setSelectedReporters] = useState<string[]>([])
 
-  // Helper to handle reporter selection (reduces nesting)
-  const handleReporterSelection = useCallback(
-    (reporter: string) => {
-      let newSelected: string[]
-      if (selectedReporters.includes(reporter)) {
-        newSelected = selectedReporters.filter(r => r !== reporter)
-      } else {
-        newSelected = [...selectedReporters, reporter]
-      }
-      setSelectedReporters(newSelected)
-      setReporterFilter(newSelected.join(','))
-      setCurrentPage(1)
-    },
-    [selectedReporters]
-  )
-
-  // Helper to get reporter button className (avoids ternary in template)
-  const getReporterButtonClassName = useCallback(
-    (reporter: string): string => {
-      const baseClasses = 'gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-accent gba:transition-colors'
-      if (selectedReporters.includes(reporter)) {
-        return `${baseClasses} gba:bg-accent gba:text-accent-foreground`
-      }
-      return `${baseClasses} gba:text-foreground`
-    },
-    [selectedReporters]
-  )
-
-  // Helper to render reporter dropdown content (eliminates nested ternary at L653)
-  const renderReporterDropdown = useCallback(() => {
-    if (reporterSearchLoading) {
-      return (
-        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.loading_employees', 'Loading employees...')}
-        </div>
-      )
-    }
-
-    if (reporterSearchResults.length === 0) {
-      return (
-        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
-          {getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.no_employees_found', 'No employees found')}
-        </div>
-      )
-    }
-
-    return reporterSearchResults.map(reporter => (
-      <button
-        key={reporter}
-        className={getReporterButtonClassName(reporter)}
-        onClick={() => handleReporterSelection(reporter)}
-        data-testid={`reporter-option-${reporter}`}
-      >
-        {reporter}
-      </button>
-    ))
-  }, [reporterSearchLoading, reporterSearchResults, getReporterButtonClassName, handleReporterSelection])
-
   // Status filter states
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([])
 
   // Selection states
   const [selectedItem, setSelectedItem] = useState<any>(null)
-  const [selectedActionType, setSelectedActionType] = useState<'advance-payment' | 'plan' | 'request'>(
-    'advance-payment'
-  )
 
-  const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses, setOrderBy } =
-    useAdvancePayments({
-      ...context,
-      isActive // ⚡ PERFORMANCE: Only initialize loading state when tab is active
-    })
+  const { payments, totalCount, isLoading, error, fetchPayments, searchReporters, searchStatuses } =
+    useAdvancePayments(context)
 
   // Debounced values using useDebounce hook
   const debouncedSearchText = useDebounce(searchText, 300)
@@ -164,7 +79,8 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
   const handleNavigateToPlanDetails = useCallback((record: any) => {
     if (record.expensePlan?.id) {
       const url = buildPlatformUrl('/platform/fin/expenses/expense-plan-record', {
-        expensePlanId: record.expensePlan.id
+        expensePlanId: record.expensePlan.id,
+        referrer: '/platform/fin/expenses/backoffice-expenses?tab=advance-payments'
       })
       navigateTo(url)
     }
@@ -172,9 +88,11 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   // Navigation handler for request details
   const handleNavigateToRequestDetails = useCallback((record: any) => {
-    if (record.expensePlan?.expenseRequest?.[0]?.id) {
+    const expenseRequest = record.expenseRequest
+    if (expenseRequest?.id) {
       const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-        expenseRequestId: record.expensePlan.expenseRequest[0].id
+        expenseRequestId: expenseRequest.id,
+        referrer: '/platform/fin/expenses/backoffice-expenses?tab=advance-payments'
       })
       navigateTo(url)
     }
@@ -209,22 +127,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     searchReportersDebounced()
   }, [debouncedReporterSearchText, searchReporters])
 
-  // Handle debounced fetch payments - only when active
+  // Handle debounced fetch payments
   useEffect(() => {
-    if (isActive) {
-      fetchPayments({
-        searchTerm: debouncedSearchText,
-        page: currentPage,
-        pageSize: pageSize,
-        status: statusFilter.length > 0 ? statusFilter.join(',') : undefined,
-        amountMin: amountMinFilter,
-        amountMax: amountMaxFilter,
-        advanceMin: advanceMinFilter,
-        advanceMax: advanceMaxFilter,
-        reporter: reporterFilter,
-        currencyRef: currencyFilter
-      })
-    }
+    fetchPayments({
+      searchTerm: debouncedSearchText,
+      page: currentPage,
+      pageSize,
+      status: statusFilter.length > 0 ? statusFilter.join(',') : undefined,
+      amountMin: amountMinFilter,
+      amountMax: amountMaxFilter,
+      advanceMin: advanceMinFilter,
+      advanceMax: advanceMaxFilter,
+      reporter: reporterFilter
+    })
   }, [
     debouncedSearchText,
     currentPage,
@@ -235,9 +150,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     advanceMinFilter,
     advanceMaxFilter,
     reporterFilter,
-    currencyFilter,
-    fetchPayments,
-    isActive
+    fetchPayments
   ])
 
   // Load available statuses from backend
@@ -247,7 +160,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
         const statuses = await searchStatuses()
         setAvailableStatuses(statuses)
       } catch (error) {
-        console.error('[Advance Payments] ❌ Error loading available statuses:', error)
+        console.error('Error loading available statuses:', error)
       }
     }
 
@@ -293,295 +206,63 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
 
   const handleCloseDetails = useCallback(() => {
     setSelectedItem(null)
-    setSelectedActionType('advance-payment')
   }, [])
+
+  // Helper function to handle reporter selection (reduces nesting depth)
+  const handleReporterClick = useCallback(
+    (reporter: string) => {
+      const newSelected = selectedReporters.includes(reporter)
+        ? selectedReporters.filter(r => r !== reporter)
+        : [...selectedReporters, reporter]
+      setSelectedReporters(newSelected)
+      setReporterFilter(newSelected.join(','))
+      setCurrentPage(1)
+    },
+    [selectedReporters]
+  )
+
+  // Helper function to render reporter dropdown content (reduces nested ternary complexity)
+  const renderReporterDropdownContent = useCallback(() => {
+    if (reporterSearchLoading) {
+      return (
+        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:advance_payment_table.loading_reporters',
+            'Loading reporters...'
+          )}
+        </div>
+      )
+    }
+
+    if (reporterSearchResults.length === 0) {
+      return (
+        <div className="gba:p-2 gba:text-sm gba:text-muted-foreground">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.no_reporters_found', 'No reporters found')}
+        </div>
+      )
+    }
+
+    return reporterSearchResults.map(reporter => (
+      <button
+        key={reporter}
+        className={`gba:w-full gba:text-left gba:p-2 gba:text-sm gba:hover:bg-muted gba:transition-colors ${
+          selectedReporters.includes(reporter) ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:text-foreground'
+        }`}
+        onClick={() => handleReporterClick(reporter)}
+        data-testid={`reporter-option-${reporter}`}
+      >
+        {reporter}
+      </button>
+    ))
+  }, [reporterSearchLoading, reporterSearchResults, selectedReporters, handleReporterClick])
 
   // Enhanced table change handler for sorting
-  const handleEnhancedTableChange = (pagination: any, _filters: any, sorter: any) => {
+  const handleEnhancedTableChange = (pagination: any) => {
     setCurrentPage(pagination.current)
     setPageSize(pagination.pageSize)
-    if (sorter?.field && sorter?.order) {
-      const direction: 'ASC' | 'DESC' = sorter.order === 'ascend' ? 'ASC' : 'DESC'
-      setOrderBy([{ [sorter.field]: direction }])
-      setSortKey(sorter.field)
-      setSortDir(direction)
-    }
   }
 
-  const buildOrderBy = useCallback((key: string, dir: 'ASC' | 'DESC'): Array<Record<string, any>> => {
-    switch (key) {
-      case 'title':
-        return [{ expensePlan: { title: dir } }]
-      case 'reporter':
-        // Mirror Expense Requests: firstName, lastName, then id for stability
-        return [
-          { expensePlan: { employee: { firstName: dir } } },
-          { expensePlan: { employee: { lastName: dir } } },
-          { id: dir }
-        ]
-      case 'orgUnit':
-        return [{ expensePlan: { employee: { employeePosition: { organizationalUnit: { name: dir } } } } }]
-      case 'costCenter':
-        return [{ costCenter: { name: dir } }, { expensePlan: { costCenter: { name: dir } } }]
-      case 'paymentMethod':
-        return [{ paymentMethod: dir }]
-      case 'planCode':
-        return [{ expensePlan: { code: dir } }]
-      case 'status':
-        return [{ status: dir }]
-      case 'planTotalAmount':
-        return [{ expensePlan: { totalAmount: dir } }]
-      case 'advanceAmount':
-        return [{ amount: dir }]
-      default:
-        return [{ createdAt: 'DESC' }]
-    }
-  }, [])
-
-  const toggleSort = useCallback(
-    (columnKey: string) => {
-      let nextDir: 'ASC' | 'DESC'
-      if (sortKey === columnKey && sortDir === 'ASC') {
-        nextDir = 'DESC'
-      } else {
-        nextDir = 'ASC'
-      }
-      const nextOrderBy = buildOrderBy(columnKey, nextDir)
-      setOrderBy(nextOrderBy)
-      setSortKey(columnKey)
-      setSortDir(nextDir)
-      setCurrentPage(1)
-      // Refetch is triggered by orderBy change via hook dependency and by page reset
-    },
-    [buildOrderBy, setOrderBy, sortKey, sortDir]
-  )
-
-  // Helper to render sort icon (reduces nested ternary complexity)
-  const renderSortIcon = useCallback(
-    (columnKey: string) => {
-      if (sortKey === columnKey) {
-        return sortDir === 'ASC' ? (
-          <PiArrowUp size={12} className="gba:ml-1" />
-        ) : (
-          <PiArrowDown size={12} className="gba:ml-1" />
-        )
-      }
-      return <span className="gba:ml-1 gba:inline-block gba:w-[12px] gba:h-[12px]" />
-    },
-    [sortKey, sortDir]
-  )
-
-  // Helper to get details title based on action type (reduces nested ternary complexity)
-  const getDetailsTitle = useCallback((item: any, actionType: string): string => {
-    if (actionType === 'advance-payment') {
-      return (
-        item.title ||
-        item.description ||
-        getTranslationFromI18nKeyAndLabel(
-          'lowcoder:advance_payment_table.advance_payment_details',
-          'Advance Payment Details'
-        )
-      )
-    }
-    if (actionType === 'plan') {
-      return (
-        item.expensePlan?.title ||
-        getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.plan_details', 'Plan Details')
-      )
-    }
-    return (
-      item.expensePlan?.expenseRequest?.title ||
-      getTranslationFromI18nKeyAndLabel('lowcoder:confirm_transfer_advance_payment.request_details', 'Request Details')
-    )
-  }, [])
-
-  // Helper to get payment method display (reduces nested ternary complexity)
-  const getPaymentMethodDisplay = useCallback((paymentMethod: string | null | undefined): string => {
-    if (paymentMethod === 'DIRECT_DEPOSIT') {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
-        'Direct Deposit'
-      )
-    }
-    if (paymentMethod) {
-      return getTranslationFromI18nKeyAndLabel(
-        'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
-        'Cash Payment'
-      )
-    }
-    return 'N/A'
-  }, [])
-
-  // Helper to build action buttons configuration (reduces complexity)
-  const buildActionButtons = useCallback(
-    (record: any, hasExpenseRequest: boolean) => {
-      const baseActions = [
-        {
-          category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
-          key: 'view-advance-payment-details',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:advance_payment_table.view_advance_payment_details',
-            'View Advance Payment Details'
-          ),
-          onClick: (e?: React.MouseEvent) => {
-            e?.stopPropagation()
-            setSelectedItem(record)
-            setSelectedActionType('advance-payment')
-          }
-        },
-        {
-          category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
-          key: 'view-plan-details',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
-            'View Plan Details'
-          ),
-          onClick: (e?: React.MouseEvent) => {
-            e?.stopPropagation()
-            handleNavigateToPlanDetails(record)
-          }
-        }
-      ]
-
-      if (hasExpenseRequest) {
-        baseActions.push({
-          category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.navigations', 'Navigations'),
-          key: 'view-request-details',
-          label: getTranslationFromI18nKeyAndLabel(
-            'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
-            'View Request Details'
-          ),
-          onClick: (e?: React.MouseEvent) => {
-            e?.stopPropagation()
-            handleNavigateToRequestDetails(record)
-          }
-        })
-      }
-
-      return baseActions
-    },
-    [handleNavigateToPlanDetails, handleNavigateToRequestDetails]
-  )
-
-  // Helper to render a single payment row (reduces complexity)
-  const renderPaymentRow = useCallback(
-    (record: any) => {
-      const hasExpenseRequest =
-        record.expensePlan &&
-        Array.isArray(record.expensePlan.expenseRequest) &&
-        record.expensePlan.expenseRequest.length > 0 &&
-        record.expensePlan.expenseRequest[0]?.id
-
-      const actionButtons = buildActionButtons(record, hasExpenseRequest)
-
-      return (
-        <TableRow
-          key={record.id}
-          data-testid={`advance-payment-row-${record.id}`}
-          onClick={(event: React.MouseEvent<HTMLTableRowElement>) => {
-            const target = event.target as HTMLElement
-            const isActionButton = target.closest('[data-testid*="actions"]')
-            if (!isActionButton) {
-              setSelectedItem(record)
-            }
-          }}
-          className="gba:cursor-pointer gba:hover:bg-gray-50"
-        >
-          <TableCell className="gba:py-4 gba:px-3">
-            <div className="gba:flex gba:justify-start gba:gap-2">
-              <AppActionButton
-                data-testid={`advance-payment-actions-${record.id}`}
-                size="icon"
-                staticFlowData={actionButtons}
-                prefixDataTestId="advance-payment-actions"
-                accessToken={context.accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
-                onClick={e => e.stopPropagation()}
-              />
-            </div>
-          </TableCell>
-          <TableCell>
-            <div
-              className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
-              title={record.employeeFullName || 'N/A'}
-              data-testid="advance-payment-reporter-cell"
-            >
-              {record.employeeFullName || 'N/A'}
-            </div>
-          </TableCell>
-          <TableCell>
-            <div
-              className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
-              title={record.title || record.description || 'N/A'}
-              data-testid="advance-payment-title-cell"
-            >
-              {record.title || record.description || 'N/A'}
-            </div>
-          </TableCell>
-          <TableCell>
-            <div
-              className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
-              title={record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
-              data-testid="advance-payment-org-unit-cell"
-            >
-              {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
-            </div>
-          </TableCell>
-          <TableCell>
-            <div
-              className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
-              title={record.costCenter?.name || 'N/A'}
-              data-testid="advance-payment-cost-center-cell"
-            >
-              {record.costCenter?.name || 'N/A'}
-            </div>
-          </TableCell>
-          <TableCell>
-            <div
-              className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
-              title={record.expensePlan?.code || 'N/A'}
-              data-testid="advance-payment-plan-id-cell"
-            >
-              {record.expensePlan?.code || 'N/A'}
-            </div>
-          </TableCell>
-          <TableCell className="gba:py-4">
-            <div className="gba:flex gba:items-center gba:justify-center" data-testid="advance-payment-status-cell">
-              <Badge variant={getAdvancePaymentStatusDisplay(record.status || 'N/A').badgeVariant || 'outline'}>
-                {getAdvancePaymentStatusDisplay(record.status || 'N/A').label}
-              </Badge>
-            </div>
-          </TableCell>
-          <TableCell className="gba:text-right">
-            <span data-testid="advance-payment-amount-cell">
-              {formatCurrency(
-                record.expensePlan?.totalAmount ?? 0,
-                record.currency?.code || record.expensePlan?.currency?.code || 'EUR'
-              )}
-            </span>
-          </TableCell>
-          <TableCell className="gba:text-right">
-            <span data-testid="advance-payment-advance-cell">
-              {formatCurrency(record.amount ?? 0, record.currency?.code || record.expensePlan?.currency?.code || 'EUR')}
-            </span>
-          </TableCell>
-          <TableCell>
-            <div
-              className="gba:overflow-hidden gba:text-ellipsis gba:whitespace-nowrap"
-              data-testid="advance-payment-method-cell"
-            >
-              {getPaymentMethodDisplay(record.paymentMethod)}
-            </div>
-          </TableCell>
-        </TableRow>
-      )
-    },
-    [buildActionButtons, context.accessToken, getPaymentMethodDisplay]
-  )
-
-  // Helper to render loading/error/empty states
-  const renderEmptyState = useCallback(() => {
+  const renderDataBody = useCallback(() => {
     if (isLoading && !payments?.length) {
       return (
         <div className="gba:flex gba:justify-center gba:p-8">
@@ -591,12 +272,7 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     }
 
     if (error) {
-      let errorMessage: string
-      if (error instanceof Error) {
-        errorMessage = error.message
-      } else {
-        errorMessage = String(error)
-      }
+      const errorMessage = error instanceof Error ? error.message : String(error)
       return <Alert variant="destructive">{errorMessage}</Alert>
     }
 
@@ -613,26 +289,17 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
       )
     }
 
-    return null
-  }, [isLoading, error, payments])
-
-  const renderDataBody = useCallback(() => {
-    const emptyState = renderEmptyState()
-    if (emptyState) return emptyState
-
     return (
-      <div>
-        <div className="gba:relative" data-testid="advance-payments-container">
+      <Card data-testid="advance-payments-container">
+        <CardContent className="gba:p-0">
           {isLoading && (
-            <div className="gba:absolute gba:inset-0 gba:bg-background/50 gba:flex gba:items-center gba:justify-center gba:z-10">
+            <div className="gba:flex gba:justify-center gba:p-4">
               <Spinner />
             </div>
           )}
-          <div className="gba:overflow-x-auto gba:max-w-full">
-            <Table
-              data-testid="advance-payments-data-table"
-              className="gba:min-w-[1400px] gba:w-full gba:table-fixed gba:[&>thead>tr>th]:!text-left"
-            >
+
+          <div className="gba:overflow-x-auto gba:max-w-full gba:px-6">
+            <Table data-testid="advance-payments-data-table" className="gba:min-w-[1400px] gba:w-full">
               <TableHeader>
                 <TableRow className="gba:border-b gba:bg-muted">
                   <TableHead className="gba:w-[60px] gba:font-semibold gba:text-foreground gba:py-4 gba:px-3">
@@ -641,397 +308,413 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                       'Actions'
                     )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('reporter')}
-                    data-testid="header-sort-reporter"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}
-                      {renderSortIcon('reporter')}
-                    </div>
+                  <TableHead className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:manager_expense_request_list.expense_table.title',
+                      'Title'
+                    )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[18%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('title')}
-                    data-testid="header-sort-title"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.title',
-                        'Title'
-                      )}
-                      {renderSortIcon('title')}
-                    </div>
+                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:manager_expense_request_list.expense_table.reporter',
+                      'Reporter'
+                    )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('orgUnit')}
-                    data-testid="header-sort-orgunit"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
-                        'Org Unit'
-                      )}
-                      {renderSortIcon('orgUnit')}
-                    </div>
+                  <TableHead className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_config_calculation_rule_list.expense_config_expense_assignement_modal.org_unit_label',
+                      'Org Unit'
+                    )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('costCenter')}
-                    data-testid="header-sort-costcenter"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_overview.side_bar.request_cost_center',
-                        'Cost Center'
-                      )}
-                      {renderSortIcon('costCenter')}
-                    </div>
+                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_request_overview.side_bar.request_cost_center',
+                      'Cost Center'
+                    )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('planCode')}
-                    data-testid="header-sort-planId"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
-                      {renderSortIcon('planCode')}
-                    </div>
+                  <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_list_backoffice.plan_id', 'Plan Id')}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[14%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('status')}
-                    data-testid="header-sort-status"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.expense_plan_table.status',
-                        'Status'
-                      )}
-                      {renderSortIcon('status')}
-                    </div>
+                  <TableHead className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_request_list.expense_plan_table.status',
+                      'Status'
+                    )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('planTotalAmount')}
-                    data-testid="header-sort-amount"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:expense_request_list.expense_plan_table.amount',
-                        'Amount'
-                      )}
-                      {renderSortIcon('planTotalAmount')}
-                    </div>
+                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:expense_request_list.expense_plan_table.amount',
+                      'Amount'
+                    )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('advanceAmount')}
-                    data-testid="header-sort-advance"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:manager_expense_request_list.expense_table.advance',
-                        'Advance'
-                      )}
-                      {renderSortIcon('advanceAmount')}
-                    </div>
+                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:text-right">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:manager_expense_request_list.expense_table.advance',
+                      'Advance'
+                    )}
                   </TableHead>
-                  <TableHead
-                    className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer"
-                    onClick={() => toggleSort('paymentMethod')}
-                    data-testid="header-sort-paymentmethod"
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_request.add_request_trip_details.payment_method',
-                        'Payment Method'
-                      )}
-                      {renderSortIcon('paymentMethod')}
-                    </div>
+                  <TableHead className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6">
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.add_request_trip_details.payment_method',
+                      'Payment Method'
+                    )}
                   </TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>{payments.map(renderPaymentRow)}</TableBody>
+              <TableBody>
+                {payments.map((record: any) => {
+                  const hasExpenseRequest =
+                    record.expensePlan &&
+                    Array.isArray(record.expensePlan.expenseRequest) &&
+                    record.expensePlan.expenseRequest.length > 0 &&
+                    record.expensePlan.expenseRequest[0]?.id
+
+                  return (
+                    <TableRow
+                      key={record.id}
+                      onClick={(event: React.MouseEvent<HTMLTableRowElement>) => {
+                        const target = event.target as HTMLElement
+                        const isActionButton = target.closest('[data-testid*="actions"]')
+                        if (!isActionButton) {
+                          setSelectedItem(record)
+                        }
+                      }}
+                      className="gba:cursor-pointer gba:hover:bg-muted"
+                    >
+                      <TableCell className="gba:w-[60px]">
+                        <div
+                          className="gba:flex gba:justify-center gba:items-center"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <AppActionButton
+                            data-testid={`advance-payments-update-button-${record.id}`}
+                            size="icon"
+                            staticFlowData={[
+                              {
+                                category: getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:employee_list.flows_button.navigations',
+                                  'Navigations'
+                                ),
+                                key: 'view-advance-payment-details',
+                                label: getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:advance_payment_table.view_advance_payment_details',
+                                  'View Advance Payment Details'
+                                ),
+                                onClick: (e?: React.MouseEvent) => {
+                                  e?.stopPropagation()
+                                  setSelectedItem(record)
+                                }
+                              },
+                              {
+                                category: getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:employee_list.flows_button.navigations',
+                                  'Navigations'
+                                ),
+                                key: 'view-plan-details',
+                                label: getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:expense_plan_list.expense_plan_flows.view_plan_details',
+                                  'View Plan Details'
+                                ),
+                                onClick: (e?: React.MouseEvent) => {
+                                  e?.stopPropagation()
+                                  handleNavigateToPlanDetails(record)
+                                }
+                              },
+                              ...(hasExpenseRequest
+                                ? [
+                                    {
+                                      category: getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:employee_list.flows_button.navigations',
+                                        'Navigations'
+                                      ),
+                                      key: 'view-request-details',
+                                      label: getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_request_list.modal_list_or_flow_button.view_request_details',
+                                        'View Request Details'
+                                      ),
+                                      onClick: (e?: React.MouseEvent) => {
+                                        e?.stopPropagation()
+                                        handleNavigateToRequestDetails(record)
+                                      }
+                                    }
+                                  ]
+                                : [])
+                            ]}
+                            prefixDataTestId="advance-payments-update"
+                            accessToken={props.accessToken}
+                            emptyStateBehavior="enable"
+                            deferMainContextRequestsUntilClick
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid="advance-payment-title-cell">
+                          {record.title || record.description || 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid="advance-payment-reporter-cell">{record.employeeFullName || 'N/A'}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid="advance-payment-org-unit-cell">
+                          {record.expensePlan?.employee?.employeePosition?.organizationalUnit?.name || 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid="advance-payment-cost-center-cell">{record.costCenter?.name || 'N/A'}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid="advance-payment-plan-id-cell">{record.expensePlan?.code || 'N/A'}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid="advance-payment-status-cell">
+                          {(() => {
+                            const status = getAdvancePaymentStatusDisplay(record.status || 'N/A')
+                            return <Badge variant={(status as any).badgeVariant || 'outline'}>{status.label}</Badge>
+                          })()}
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:text-right">
+                        <span data-testid="advance-payment-amount-cell">
+                          {formatNumberFunction(String(record.expensePlan?.totalAmount ?? '0'))}{' '}
+                          {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                        </span>
+                      </TableCell>
+                      <TableCell className="gba:text-right">
+                        <span data-testid="advance-payment-advance-cell">
+                          {formatNumberFunction(String(record.amount ?? '0'))}{' '}
+                          {record.currency?.code || record.expensePlan?.currency?.code || ''}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div data-testid="advance-payment-method-cell">
+                          {record.paymentMethod === 'DIRECT_DEPOSIT'
+                            ? getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_direct_deposit',
+                                'Direct Deposit'
+                              )
+                            : record.paymentMethod
+                              ? getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:initiate_expense_plan.create_expense_plan.payment_method_select_cash_payment',
+                                  'Cash Payment'
+                                )
+                              : 'N/A'}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
             </Table>
           </div>
-        </div>
 
-        {/* Pagination - Backoffice shared component (matches Expense Requests) */}
-        {totalCount > 0 && (
-          <ExpenseRequestPagination
-            currentPage={currentPage}
-            totalItems={totalCount}
-            pageSize={pageSize}
-            onPageChange={(pagination: any) => handleEnhancedTableChange(pagination, {}, {})}
-          />
-        )}
-      </div>
+          {/* Pagination */}
+          {totalCount > 0 && (
+            <div className="gba:flex gba:justify-between gba:items-center gba:mt-4 gba:px-4">
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {`${(currentPage - 1) * pageSize + 1}-${Math.min(currentPage * pageSize, totalCount)} ${getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.of', 'of')} ${totalCount} ${getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.dashboard_tab.items', 'items')}`}
+              </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEnhancedTableChange({ current: currentPage - 1, pageSize })}
+                  disabled={currentPage <= 1}
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
+                </Button>
+
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  {Array.from({ length: Math.ceil(totalCount / pageSize) }, (_, i) => i + 1)
+                    .filter(
+                      page =>
+                        page === 1 || page === Math.ceil(totalCount / pageSize) || Math.abs(page - currentPage) <= 1
+                    )
+                    .map((page, index, array) => (
+                      <React.Fragment key={page}>
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span className="gba:px-2 gba:text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          variant={page === currentPage ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => handleEnhancedTableChange({ current: page, pageSize })}
+                          className="gba:min-w-[36px]"
+                        >
+                          {page}
+                        </Button>
+                      </React.Fragment>
+                    ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEnhancedTableChange({ current: currentPage + 1, pageSize })}
+                  disabled={currentPage >= Math.ceil(totalCount / pageSize)}
+                >
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     )
-  }, [
-    payments,
-    isLoading,
-    error,
-    totalCount,
-    currentPage,
-    pageSize,
-    handleEnhancedTableChange,
-    renderEmptyState,
-    renderPaymentRow
-  ])
-
-  const renderAdvancePaymentDetails = useMemo(() => {
-    if (!selectedItem) return null
-
-    return <AdvancePaymentDetails payment={selectedItem} accessToken={props.accessToken} userInfo={props.userInfo} />
-  }, [selectedItem, props.accessToken, props.userInfo, selectedActionType])
+  }, [payments, isLoading, error, totalCount, currentPage, pageSize, handleEnhancedTableChange, props.accessToken])
 
   // Filter groups for DataContainer
-  const filterGroups: DataFilterGroup[] = useMemo(() => {
-    return [
-      {
-        id: 'status',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
-        type: 'checkbox',
-        filters: availableStatuses.map(status => ({
-          id: status,
-          label: getAdvancePaymentStatusDisplay(status).label,
-          selected: statusFilter.includes(status)
-        }))
-      },
-      {
-        id: 'reporter',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee'),
-        type: 'custom',
-        customComponent: (
-          <div className="reporter-search-container gba:relative gba:p-2">
-            <input
-              type="text"
-              value={reporterSearchText}
-              onChange={e => {
-                setReporterSearchText(e.target.value)
-                setShowReporterDropdown(true)
-              }}
-              onFocus={() => setShowReporterDropdown(true)}
-              className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_list.search_employee_placeholder',
-                'Search employee...'
-              )}
-              data-testid="reporter-search-input"
-            />
-
-            {/* Dropdown with search results */}
-            {showReporterDropdown && reporterSearchText.trim() && (
-              <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-card gba:border gba:border-border gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
-                {renderReporterDropdown()}
-              </div>
+  const filterGroups: DataFilterGroup[] = [
+    {
+      id: 'status',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status'),
+      type: 'checkbox',
+      filters: availableStatuses.map(status => ({
+        id: status,
+        label: getAdvancePaymentStatusDisplay(status).label,
+        selected: statusFilter.includes(status)
+      }))
+    },
+    {
+      id: 'reporter',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:manager_expense_request_list.expense_table.reporter',
+        'Reporter'
+      ),
+      type: 'custom',
+      customComponent: (
+        <div className="reporter-search-container gba:relative gba:p-2">
+          <input
+            type="text"
+            value={reporterSearchText}
+            onChange={e => {
+              setReporterSearchText(e.target.value)
+              setShowReporterDropdown(true)
+            }}
+            onFocus={() => setShowReporterDropdown(true)}
+            className="gba:h-8 gba:w-full gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:advance_payment_table.search_reporter_placeholder',
+              'Search reporter...'
             )}
-          </div>
-        )
-      },
-      {
-        id: 'amount',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
-        type: 'custom',
-        customComponent: (
-          <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-              <input
-                type="number"
-                value={amountMinFilter}
-                onChange={e => {
-                  setAmountMinFilter(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                placeholder="Min"
-                data-testid="amount-min-filter-input"
-              />
+            data-testid="reporter-search-input"
+          />
+
+          {/* Dropdown with search results */}
+          {showReporterDropdown && reporterSearchText.trim() && (
+            <div className="gba:absolute gba:top-full gba:left-0 gba:right-0 gba:bg-background gba:border gba:border-gray-200 gba:rounded gba:shadow-lg gba:max-h-40 gba:overflow-y-auto gba:z-10">
+              {renderReporterDropdownContent()}
             </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-              <input
-                type="number"
-                value={amountMaxFilter}
-                onChange={e => {
-                  setAmountMaxFilter(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                placeholder="Max"
-                data-testid="amount-max-filter-input"
-              />
-            </div>
-          </div>
-        )
-      },
-      {
-        id: 'advance',
-        title: getTranslationFromI18nKeyAndLabel(
-          'lowcoder:manager_expense_request_list.expense_table.advance',
-          'Advance'
-        ),
-        type: 'custom',
-        customComponent: (
-          <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
-              <input
-                type="number"
-                value={advanceMinFilter}
-                onChange={e => {
-                  setAdvanceMinFilter(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                placeholder="Min"
-                data-testid="advance-min-filter-input"
-              />
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
-              <input
-                type="number"
-                value={advanceMaxFilter}
-                onChange={e => {
-                  setAdvanceMaxFilter(e.target.value)
-                  setCurrentPage(1)
-                }}
-                className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
-                placeholder="Max"
-                data-testid="advance-max-filter-input"
-              />
-            </div>
-          </div>
-        )
-      },
-      {
-        id: 'currency',
-        title: getTranslationFromI18nKeyAndLabel('lowcoder:team_expenses_page.currency', 'Currency'),
-        type: 'custom',
-        customComponent: (
-          <div className="gba:w-56">
-            <Select
-              onValueChange={val => {
-                setCurrencyFilter(val || '')
+          )}
+        </div>
+      )
+    },
+    {
+      id: 'amount',
+      title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.amount', 'Amount'),
+      type: 'custom',
+      customComponent: (
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
+            <input
+              type="number"
+              value={amountMinFilter}
+              onChange={e => {
+                setAmountMinFilter(e.target.value)
                 setCurrentPage(1)
               }}
-              value={currencyFilter || undefined}
-            >
-              <SelectTrigger data-testid="advance-payments-currency-select" className="gba:border-border">
-                <SelectValue
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:expense_request_list.expense_request_filter.all_currencies',
-                    'All Currencies'
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {(currencies || []).map(c => (
-                  <SelectItem
-                    key={c.currencyRef}
-                    value={c.currencyRef}
-                    data-testid={`advance-payments-currency-option-${c.code}`}
-                  >
-                    {c.code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Min"
+              data-testid="amount-min-filter-input"
+            />
           </div>
-        )
-      }
-    ]
-  }, [
-    availableStatuses,
-    statusFilter,
-    reporterSearchText,
-    showReporterDropdown,
-    reporterSearchLoading,
-    reporterSearchResults,
-    selectedReporters,
-    amountMinFilter,
-    amountMaxFilter,
-    advanceMinFilter,
-    advanceMaxFilter,
-    currencies,
-    currencyFilter
-  ])
-
-  // Helper to build selected filters array (avoids nested ternaries)
-  const buildSelectedFilters = useCallback((): string[] => {
-    const filters: string[] = []
-    if (statusFilter.length > 0) filters.push('status')
-    if (reporterFilter) filters.push('reporter')
-    if (amountMinFilter || amountMaxFilter) filters.push('amount')
-    if (advanceMinFilter || advanceMaxFilter) filters.push('advance')
-    if (currencyFilter) filters.push('currency')
-    return filters
-  }, [
-    statusFilter.length,
-    reporterFilter,
-    amountMinFilter,
-    amountMaxFilter,
-    advanceMinFilter,
-    advanceMaxFilter,
-    currencyFilter
-  ])
-
-  const selectedFilters: string[] = buildSelectedFilters()
-
-  const getCurrencyLabel = (currencyRef: string): string => {
-    const currency = currencies?.find(c => c.currencyRef === currencyRef)
-    if (currency) return currency.code
-    return currencyRef
-  }
-
-  // Helper to get status filter label (avoids nested ternary)
-  const getStatusFilterLabel = useCallback((): string => {
-    if (statusFilter.length > 0) {
-      const statusLabels = statusFilter.map(status => getAdvancePaymentStatusDisplay(status).label).join(', ')
-      return `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}: ${statusLabels}`
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
+            <input
+              type="number"
+              value={amountMaxFilter}
+              onChange={e => {
+                setAmountMaxFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Max"
+              data-testid="amount-max-filter-input"
+            />
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'advance',
+      title: getTranslationFromI18nKeyAndLabel(
+        'lowcoder:manager_expense_request_list.expense_table.advance',
+        'Advance'
+      ),
+      type: 'custom',
+      customComponent: (
+        <div className="gba:flex gba:flex-col gba:gap-2 gba:p-2">
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Min</span>
+            <input
+              type="number"
+              value={advanceMinFilter}
+              onChange={e => {
+                setAdvanceMinFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Min"
+              data-testid="advance-min-filter-input"
+            />
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <span className="gba:text-sm gba:text-muted-foreground gba:w-8">Max</span>
+            <input
+              type="number"
+              value={advanceMaxFilter}
+              onChange={e => {
+                setAdvanceMaxFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+              className="gba:h-8 gba:w-[100px] gba:rounded gba:border gba:border-input gba:px-3 gba:py-1 gba:text-sm"
+              placeholder="Max"
+              data-testid="advance-max-filter-input"
+            />
+          </div>
+        </div>
+      )
     }
-    return getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.status_all', 'Status: All')
-  }, [statusFilter])
+  ]
 
-  // Helper to get currency filter label (avoids nested ternary)
-  const getCurrencyFilterLabel = useCallback((): string => {
-    const currencyLabel = getTranslationFromI18nKeyAndLabel(
-      'lowcoder:expense_request_list.expense_request_filter.currency',
-      'Currency'
-    )
-    if (currencyFilter) {
-      return `${currencyLabel}: ${getCurrencyLabel(currencyFilter)}`
-    }
-    return `${currencyLabel}: ${getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_request_filter.all_currencies', 'All')}`
-  }, [currencyFilter, currencies])
+  const selectedFilters: string[] = [
+    ...(statusFilter.length > 0 ? ['status'] : []),
+    ...(reporterFilter ? ['reporter'] : []),
+    ...(amountMinFilter || amountMaxFilter ? ['amount'] : []),
+    ...(advanceMinFilter || advanceMaxFilter ? ['advance'] : [])
+  ]
 
   const filterLabelMap: Record<string, string> = {
-    status: getStatusFilterLabel(),
-    reporter: `${getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.employee', 'Employee')}: ${selectedReporters.join(', ')}`,
+    status:
+      statusFilter.length > 0
+        ? `${getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}: ${statusFilter.map(status => getAdvancePaymentStatusDisplay(status).label).join(', ')}`
+        : getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.status_all', 'Status: All'),
+    reporter: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.reporter_label', 'Reporter:')} ${selectedReporters.join(', ')}`,
     amount: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.amount_label', 'Amount:')} ${amountMinFilter || '0'} - ${amountMaxFilter || '∞'}`,
-    advance: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_label', 'Advance:')} ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`,
-    currency: getCurrencyFilterLabel()
+    advance: `${getTranslationFromI18nKeyAndLabel('lowcoder:advance_payment_table.advance_label', 'Advance:')} ${advanceMinFilter || '0'} - ${advanceMaxFilter || '∞'}`
   }
 
   const handleFilterChange = useCallback(
     (filterId: string, selected: boolean) => {
       // Check if this is a status filter (any of the available statuses)
       if (availableStatuses.includes(filterId)) {
-        let newStatusFilter: string[]
-        if (selected) {
-          newStatusFilter = [...statusFilter, filterId]
-        } else {
-          newStatusFilter = statusFilter.filter(status => status !== filterId)
-        }
+        const newStatusFilter = selected
+          ? [...statusFilter, filterId]
+          : statusFilter.filter(status => status !== filterId)
         setStatusFilter(newStatusFilter)
         setCurrentPage(1)
       }
-      // Currency filter is now handled by Select onValueChange, not here
     },
     [availableStatuses, statusFilter]
   )
@@ -1045,22 +728,19 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
     setAmountMaxFilter('')
     setAdvanceMinFilter('')
     setAdvanceMaxFilter('')
-    setCurrencyFilter('')
     setCurrentPage(1)
   }, [])
 
-  const listAmount = totalCount > 0 ? `${totalCount}` : undefined
-
   return (
-    <div className="gba:-mx-6" data-testid="advance-payments-table-wrapper">
+    <div className="gba:relative gba:w-full gba:h-full gba:-mx-6" data-testid="advance-payments-table-wrapper">
       <DataContainer
-        contentBackground="white"
+        contentBackground="background"
         dataControllerProps={{
           listTitle: getTranslationFromI18nKeyAndLabel(
             'lowcoder:backoffice_expense_landing_page.advance_title',
             'Advance Payments'
           ),
-          listAmount,
+          listAmount: totalCount ? `${totalCount}` : undefined,
           search: searchText,
           setSearch: handleSearchChange,
           placeholder: getTranslationFromI18nKeyAndLabel(
@@ -1077,17 +757,41 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
           onFilterChange: handleFilterChange as (filterId: string, selected: boolean) => void
         }}
         dataBody={renderDataBody()}
-        dataDetails={
-          selectedItem
-            ? {
-                title: getDetailsTitle(selectedItem, selectedActionType),
-                content: renderAdvancePaymentDetails,
-                onClose: handleCloseDetails
-              }
-            : undefined
-        }
-        floatingDetails={true}
       />
+      <Sheet
+        open={!!selectedItem}
+        onOpenChange={open => !open && handleCloseDetails()}
+        title={
+          selectedItem?.title ||
+          selectedItem?.description ||
+          getTranslationFromI18nKeyAndLabel(
+            'lowcoder:advance_payment_table.advance_payment_details',
+            'Advance Payment Details'
+          )
+        }
+      >
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
+          <SheetHeader>
+            <SheetTitle className="gba:text-xl gba:font-semibold gba:text-foreground">
+              {selectedItem?.title ||
+                selectedItem?.description ||
+                getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:advance_payment_table.advance_payment_details',
+                  'Advance Payment Details'
+                )}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="gba:mt-6 gba:overflow-y-auto gba:max-h-[calc(100vh-120px)]">
+            {selectedItem && (
+              <AdvancePaymentDetailsBackoffice
+                payment={selectedItem}
+                accessToken={props.accessToken}
+                userInfo={props.userInfo}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

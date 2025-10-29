@@ -5,9 +5,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useDepartmentMonthlySalaryStack } from '../../../../../hooks/useDepartmentMonthlySalaryStack'
 
-interface DepartmentSalaryStackedBarChartProps extends BusinessAppContextProps {}
-
-const DepartmentSalaryStackedBarChart: React.FC<DepartmentSalaryStackedBarChartProps> = props => {
+const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
   const { data, loading } = useDepartmentMonthlySalaryStack(props, year)
   const departments = data.length > 0 ? data[0].departments : []
@@ -31,7 +29,10 @@ const DepartmentSalaryStackedBarChart: React.FC<DepartmentSalaryStackedBarChartP
     const totalChange = monthData.change
     const totalChangePct = prev && prev.totalSalary ? (totalChange / prev.totalSalary) * 100 : 0
     return (
-      <div className="gba:bg-white gba:shadow-lg gba:rounded gba:p-4" data-testid="department-salary-tooltip">
+      <div
+        className="gba:bg-primary-foreground gba:shadow-lg gba:rounded gba:p-4"
+        data-testid="department-salary-tooltip"
+      >
         <div className="gba:font-semibold gba:text-base gba:mb-2">
           {monthData.month &&
             new Date(monthData.month + '-01').toLocaleString(undefined, { month: 'short', year: 'numeric' })}
@@ -39,7 +40,7 @@ const DepartmentSalaryStackedBarChart: React.FC<DepartmentSalaryStackedBarChartP
         <div className="gba:mb-2">
           <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('total_salary', 'Total Salary')}: </span>
           <span className="gba:font-bold gba:text-lg">${(monthData.totalSalary / 1e6).toFixed(2)}M</span>
-          <span className="gba:text-red-600 gba:ml-2 gba:text-base">
+          <span className="gba:text-destructive gba:ml-2 gba:text-base">
             {totalChange < 0 ? `↓$${Math.abs(totalChange / 1e3).toFixed(0)}K (${totalChangePct.toFixed(1)}%)` : ''}
           </span>
         </div>
@@ -53,8 +54,8 @@ const DepartmentSalaryStackedBarChart: React.FC<DepartmentSalaryStackedBarChartP
               ></span>
               <span className="gba:font-medium gba:mr-2">{dep.name}:</span>
               <span className="gba:mr-2">${(dep.salary / 1e3).toFixed(0)}K</span>
-              <span className="gba:text-gray-500 gba:text-xs gba:mr-2">{dep.percent.toFixed(1)}%</span>
-              <span className="gba:text-red-600 gba:text-xs">
+              <span className="gba:text-muted-foreground gba:text-xs gba:mr-2">{dep.percent.toFixed(1)}%</span>
+              <span className="gba:text-destructive gba:text-xs">
                 {depChange < 0 ? `↓$${Math.abs(depChange / 1e3).toFixed(0)}K` : ''}
               </span>
             </div>

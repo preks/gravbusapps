@@ -187,7 +187,7 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({ request, 
           <Button
             variant="default"
             onClick={handleApprove}
-            className="gba:flex gba:items-center gba:gap-2 gba:bg-green-500 gba:text-white gba:hover:bg-green-600"
+            className="gba:flex gba:items-center gba:gap-2 gba:bg-green-500 gba:text-background gba:hover:bg-green-600"
             data-testid="expense-request-approve-button"
           >
             {getTranslationFromI18nKeyAndLabel('expense_request_approve', 'Approve')}
@@ -210,7 +210,8 @@ const ExpenseRequestDetails: React.FC<ExpenseRequestDetailsProps> = ({ request, 
           onClick={() => {
             // Navigate to the expense request record page
             const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-              expenseRequestId: request.id
+              expenseRequestId: request.id,
+              referrer: '/platform/fin/expenses/manager-expenses?tab=expense-requests'
             })
             navigateTo(url)
           }}

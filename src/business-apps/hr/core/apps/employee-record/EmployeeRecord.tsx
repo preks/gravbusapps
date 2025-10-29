@@ -14,7 +14,9 @@ import {
   PiChartBar,
   PiChatCircle,
   PiCalendar,
-  PiGraduationCap
+  PiGraduationCap,
+  PiClockCounterClockwise,
+  PiReceipt
 } from 'react-icons/pi'
 
 // Tab components
@@ -26,8 +28,11 @@ import PerformanceTab from './components/tabs/PerformanceTab'
 import FeedbackTab from './components/tabs/FeedbackTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
+import ChangeLogTab from './components/tabs/ChangeLogTab'
+import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { useFeature } from '@/common/hooks/useFeature'
 
 /**
  * Employee Record Module
@@ -42,7 +47,9 @@ const TAB_KEYS = {
   performance: 'performance',
   feedback: 'feedback',
   absences: 'absences',
-  skills: 'skills'
+  skills: 'skills',
+  changeLog: 'changeLog',
+  serviceRequests: 'serviceRequests'
 }
 
 // Helper to read URL parameters
@@ -74,7 +81,7 @@ const ErrorUI = () => {
   }, [])
 
   return (
-    <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-red-600">
+    <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
       <p className="gba:text-xl gba:font-medium">Error</p>
       <p>Error loading employee data.</p>
     </div>
@@ -83,7 +90,7 @@ const ErrorUI = () => {
 
 // Handle not found UI
 const NotFoundUI = () => (
-  <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-gray-600">
+  <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-muted-foreground">
     <p className="gba:text-xl gba:font-medium">Not Found</p>
     <p>Employee not found.</p>
   </div>
@@ -157,6 +164,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
+  const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
+  const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
 
   // Update URL when active tab changes
   useEffect(() => {
@@ -251,9 +260,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.summary,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiUser style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Summary</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiUser className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Summary</span>
           </div>
         ),
         children: (
@@ -263,16 +272,15 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             accessToken={accessToken}
             currentUserEmployeeId={currentUserEmployeeId}
             userInfo={userInfo}
-            isSelfView={isSelfView}
           />
         )
       },
       {
         key: TAB_KEYS.details,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiIdentificationCard style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Details</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiIdentificationCard className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Details</span>
           </div>
         ),
         children: (
@@ -288,9 +296,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.employment,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiBriefcase style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Employment</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiBriefcase className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Employment</span>
           </div>
         ),
         children: (
@@ -306,9 +314,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.documents,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiFiles style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Documents</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiFiles className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Documents</span>
           </div>
         ),
         children: (
@@ -324,9 +332,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.performance,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiChartBar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Performance</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiChartBar className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Performance</span>
           </div>
         ),
         children: (
@@ -341,31 +349,11 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         )
       },
       {
-        key: TAB_KEYS.feedback,
-        label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiChatCircle style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Feedback</span>
-          </div>
-        ),
-        children: (
-          <FeedbackTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-            employeeFeedback={feedback ?? []}
-            businessAppContext={{ accessToken, userInfo, additionalData }}
-          />
-        )
-      },
-      {
         key: TAB_KEYS.absences,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiCalendar style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Absences</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiCalendar className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Absences</span>
           </div>
         ),
         children: (
@@ -382,13 +370,79 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       {
         key: TAB_KEYS.skills,
         label: (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PiGraduationCap style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
-            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Skills</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiGraduationCap className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">Skills</span>
           </div>
         ),
         children: (
           <SkillsTab
+            employee={employee}
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            userInfo={userInfo}
+            isSelfView={isSelfView}
+          />
+        )
+      },
+      ...(feedbackTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.feedback,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiChatCircle className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">Feedback</span>
+                </div>
+              ),
+              children: (
+                <FeedbackTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                  employeeFeedback={feedback ?? []}
+                />
+              )
+            }
+          ]
+        : []),
+      ...(changeLogTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.changeLog,
+              label: (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <PiClockCounterClockwise
+                    style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }}
+                  />
+                  <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Change Log</span>
+                </div>
+              ),
+              children: (
+                <ChangeLogTab
+                  employeeId={employeeIdToShow}
+                  employeeName={employee?.displayName || 'Employee'}
+                  userRole={'employee'}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  additionalData={additionalData}
+                />
+              )
+            }
+          ]
+        : []),
+      {
+        key: TAB_KEYS.serviceRequests,
+        label: (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <PiReceipt style={{ fontSize: '20px', display: 'inline-block', verticalAlign: 'middle' }} />
+            <span style={{ display: 'inline-block', verticalAlign: 'middle' }}>Service Requests</span>
+          </div>
+        ),
+        children: (
+          <ServiceRequestsTab
             employee={employee}
             accessToken={accessToken}
             employeeId={employeeIdToShow}
@@ -407,8 +461,14 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         return true
       }
 
-      // If not viewing own profile and tab is employment, documents, or absences, check permissions
-      if (tabKey === TAB_KEYS.employment || tabKey === TAB_KEYS.documents || tabKey === TAB_KEYS.absences) {
+      // If not viewing own profile and tab is employment, documents, absences, changeLog, or serviceRequests, check permissions
+      if (
+        tabKey === TAB_KEYS.employment ||
+        tabKey === TAB_KEYS.documents ||
+        tabKey === TAB_KEYS.absences ||
+        tabKey === TAB_KEYS.changeLog ||
+        tabKey === TAB_KEYS.serviceRequests
+      ) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true
       }
@@ -435,7 +495,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Get the tab content based on the active tab
   const getTabContent = () => {
     const activeTabItem = tabItems.find(tab => tab.key === activeTab)
-    return activeTabItem ? <div className="gba:bg-white gba:p-4 gba:rounded-md">{activeTabItem.children}</div> : null
+    return activeTabItem ? (
+      <div className="gba:bg-primary-foreground gba:p-4 gba:rounded-md">{activeTabItem.children}</div>
+    ) : null
   }
 
   // Return the current UI state

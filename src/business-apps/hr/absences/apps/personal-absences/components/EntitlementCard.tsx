@@ -14,7 +14,7 @@ const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
           className="gba:entitlementSimpleTitle"
           data-testid="entitlement-title-simple"
           style={{
-            borderLeft: `4px solid ${color ? (color.startsWith('#') ? color : `#${color}`) : '#a78bfa'}`
+            borderLeft: `4px solid ${color ? (color.startsWith('#') ? color : `#${color}`) : 'var(--nw-chart-2)'}`
           }}
         >
           {type}
@@ -68,7 +68,7 @@ const EntitlementCard: React.FC<EntitlementCardProps> = ({ entitlement }) => {
       <div className="gba:entitlementCardDetails">
         <span
           className="gba:entitlementUsedTotal"
-          style={used && used > 0 ? { color: 'rgba(13, 188, 123)' } : { color: 'rgba(0, 0, 0)' }}
+          style={used && used > 0 ? { color: 'var(--nw-success)' } : { color: 'var(--nw-foreground)' }}
         >
           {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used', 'used')}: {used}{' '}
           {getTranslationFromI18nKeyAndLabel(

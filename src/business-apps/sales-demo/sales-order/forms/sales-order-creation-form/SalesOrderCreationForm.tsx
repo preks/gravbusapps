@@ -29,11 +29,7 @@ import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   CheckOutlined,
-  SearchOutlined,
-  UploadOutlined,
   InboxOutlined,
-  UserOutlined,
-  CalendarOutlined,
   PlusOutlined,
   DeleteOutlined
 } from '@ant-design/icons'

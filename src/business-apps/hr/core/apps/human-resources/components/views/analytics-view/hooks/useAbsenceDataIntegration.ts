@@ -129,7 +129,7 @@ export const useAbsenceDataIntegration = (context: BusinessAppContextProps): Use
       const startDate = `${currentYear}-01-01`
       const endDate = `${currentYear}-12-31`
 
-      const [monthlyData, yearlyData, absenceByTypeData, absenceByDepartmentData] = await Promise.all([
+      const [monthlyData, absenceByTypeData, absenceByDepartmentData] = await Promise.all([
         // Monthly absence trend
         queryClient.executeQuery('monthlyAbsenceDays', QueryType.TIMESERIES, {
           startDate,
@@ -185,10 +185,10 @@ export const useAbsenceDataIntegration = (context: BusinessAppContextProps): Use
 
       // Generate some mock data for groups (since we don't have group queries yet)
       const mockGroupData = [
-        { group: 'Vacation', days: Math.floor(totalDays * 0.6), color: '#1890ff' },
-        { group: 'Sick Leave', days: Math.floor(totalDays * 0.25), color: '#ff4d4f' },
-        { group: 'Special Leave', days: Math.floor(totalDays * 0.1), color: '#722ed1' },
-        { group: 'Other', days: Math.floor(totalDays * 0.05), color: '#52c41a' }
+        { group: 'Vacation', days: Math.floor(totalDays * 0.6), color: 'var(--nw-chart-1)' },
+        { group: 'Sick Leave', days: Math.floor(totalDays * 0.25), color: 'var(--nw-chart-2)' },
+        { group: 'Special Leave', days: Math.floor(totalDays * 0.1), color: 'var(--nw-chart-3)' },
+        { group: 'Other', days: Math.floor(totalDays * 0.05), color: 'var(--nw-chart-4)' }
       ]
 
       setChartData({

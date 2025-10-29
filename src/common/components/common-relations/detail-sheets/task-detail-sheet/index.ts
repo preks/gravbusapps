@@ -1,5 +1,5 @@
 export { TaskDetailSheet } from './TaskDetailSheet'
-export type { Task, TaskEmployee, TaskReference, TaskStatistics, TaskStatisticItem } from './types'
+export type { Task, TaskEmployee, TaskReference, TaskDocument, TaskStatistics, TaskStatisticItem } from './types'
 export {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,

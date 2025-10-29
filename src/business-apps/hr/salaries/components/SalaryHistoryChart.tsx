@@ -41,20 +41,20 @@ const SalaryHistoryChart: React.FC<SalaryHistoryChartProps> = ({ historyData, lo
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded gba:shadow-sm">
+        <div className="gba:bg-primary-foreground gba:p-3 gba:border gba:rounded gba:shadow-sm">
           <p className="gba:font-medium">{label}</p>
-          <p className="gba:text-blue-500">
+          <p className="gba:text-info">
             {getTranslationFromI18nKeyAndLabel('salary.chart.newAmount', 'New Amount')}:{' '}
             {formatCurrency(payload[0].value)}
           </p>
           {payload[1]?.value > 0 && (
-            <p className="gba:text-gray-500">
+            <p className="gba:text-muted-foreground">
               {getTranslationFromI18nKeyAndLabel('salary.chart.previousAmount', 'Previous Amount')}:{' '}
               {formatCurrency(payload[1].value)}
             </p>
           )}
           {payload[0].value > 0 && payload[1].value > 0 && (
-            <p className="gba:text-green-500">
+            <p className="gba:text-success">
               {getTranslationFromI18nKeyAndLabel('salary.chart.change', 'Change')}:{' '}
               {formatCurrency(payload[0].value - payload[1].value)} (
               {((payload[0].value / payload[1].value - 1) * 100).toFixed(1)}%)
@@ -70,9 +70,9 @@ const SalaryHistoryChart: React.FC<SalaryHistoryChartProps> = ({ historyData, lo
     return (
       <div
         data-testid="salary-history-chart-loading"
-        className="gba:h-64 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-md"
+        className="gba:h-64 gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-md"
       >
-        <p className="gba:text-gray-400">
+        <p className="gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel('salary.chart.loading', 'Loading chart data...')}
         </p>
       </div>
@@ -83,9 +83,9 @@ const SalaryHistoryChart: React.FC<SalaryHistoryChartProps> = ({ historyData, lo
     return (
       <div
         data-testid="salary-history-chart-empty"
-        className="gba:h-64 gba:flex gba:items-center gba:justify-center gba:bg-gray-50 gba:rounded-md"
+        className="gba:h-64 gba:flex gba:items-center gba:justify-center gba:bg-muted gba:rounded-md"
       >
-        <p className="gba:text-gray-400">
+        <p className="gba:text-muted-foreground">
           {getTranslationFromI18nKeyAndLabel('salary.chart.noData', 'No salary history data available')}
         </p>
       </div>
@@ -105,7 +105,7 @@ const SalaryHistoryChart: React.FC<SalaryHistoryChartProps> = ({ historyData, lo
             type="monotone"
             dataKey="amount"
             name={getTranslationFromI18nKeyAndLabel('salary.chart.salary', 'Salary')}
-            stroke="#1890ff"
+            stroke="var(--nw-chart-4)"
             activeDot={{ r: 8 }}
             strokeWidth={2}
           />
@@ -113,7 +113,7 @@ const SalaryHistoryChart: React.FC<SalaryHistoryChartProps> = ({ historyData, lo
             type="monotone"
             dataKey="previousAmount"
             name={getTranslationFromI18nKeyAndLabel('salary.chart.previousSalary', 'Previous Salary')}
-            stroke="#8884d8"
+            stroke="var(--nw-chart-2)"
             strokeDasharray="5 5"
             strokeWidth={1}
           />

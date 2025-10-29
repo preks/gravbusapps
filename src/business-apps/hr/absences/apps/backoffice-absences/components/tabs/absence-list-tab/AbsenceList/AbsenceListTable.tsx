@@ -37,26 +37,23 @@ interface AbsenceListTableProps {
   onPaginationChange: (page: number, newPageSize?: number) => void
 }
 
-// Helper functions
 const getColorForAbsence = (absence: EnhancedAbsence) => {
-  // First try to use the color from GraphQL
   if (absence.color) {
     return absence.color
   }
 
-  // Fallback to hardcoded colors based on group name
   const groupColors: Record<string, string> = {
-    Vacation: '#10b981',
-    'Sick Leave': '#ef4444',
-    'Personal Leave': '#8b5cf6',
-    'Maternity Leave': '#f59e0b',
-    'Paternity Leave': '#06b6d4',
-    Bereavement: '#6b7280',
-    'Jury Duty': '#84cc16',
-    'Military Leave': '#f97316'
+    Vacation: 'var(--nw-success)',
+    'Sick Leave': 'var(--nw-destructive)',
+    'Personal Leave': 'var(--nw-info)',
+    'Maternity Leave': 'var(--nw-warning)',
+    'Paternity Leave': 'var(--nw-info)',
+    Bereavement: 'var(--nw-muted-foreground)',
+    'Jury Duty': 'var(--nw-success)',
+    'Military Leave': 'var(--nw-warning)'
   }
 
-  return groupColors[absence.groupName] || '#6b7280'
+  return groupColors[absence.groupName] || 'var(--nw-muted-foreground)'
 }
 
 const getEmployeeName = (absence: EnhancedAbsence) => {
@@ -66,7 +63,6 @@ const getEmployeeName = (absence: EnhancedAbsence) => {
   return '-'
 }
 
-// Status mapping functions now use centralized utilities
 const getTranslatedStatus = (status: string) => {
   return getAbsenceStatusLabel(status)
 }
@@ -105,7 +101,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
       <Card data-testid={`${DATA_TEST_ID_PREFIX}-container`}>
         <CardContent className="gba:flex gba:items-center gba:justify-center gba:py-8">
           <div className="gba:text-center">
-            <p className="gba:text-red-600 gba:mb-2">{error.message}</p>
+            <p className="gba:text-destructive gba:mb-2">{error.message}</p>
             <Button onClick={() => window.location.reload()}>
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:absence_management_hub_backoffice.absence_list.retry',
@@ -134,9 +130,9 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
         <div className="gba:overflow-x-auto">
           <Table data-testid={`${DATA_TEST_ID_PREFIX}-table`}>
             <TableHeader>
-              <TableRow className="gba:border-b gba:bg-gray-50">
+              <TableRow className="gba:border-b gba:bg-muted">
                 <TableHead
-                  className="gba:w-[20%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[20%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('employeeName')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -145,7 +141,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('groupName')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -154,7 +150,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('startDate')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -163,7 +159,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[12%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[12%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('endDate')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -172,7 +168,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[10%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[10%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('status')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -184,7 +180,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[6%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[6%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('effectiveDays')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -193,7 +189,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   </div>
                 </TableHead>
                 <TableHead
-                  className="gba:w-[15%] gba:font-semibold gba:text-gray-700 gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-gray-100"
+                  className="gba:w-[15%] gba:font-semibold gba:text-foreground gba:py-4 gba:px-6 gba:cursor-pointer gba:select-none hover:gba:bg-muted"
                   onClick={() => onSort('createdAt')}
                 >
                   <div className="gba:flex gba:items-center">
@@ -210,7 +206,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
               {absences.map(record => (
                 <TableRow
                   key={record.id}
-                  className={`gba:border-b gba:hover:bg-gray-50 gba:transition-colors ${selectedAbsence?.id === record.id ? 'gba:bg-blue-50' : ''}`}
+                  className={`gba:border-b gba:hover:bg-muted gba:transition-colors ${selectedAbsence?.id === record.id ? 'gba:bg-info-secondary' : ''}`}
                   data-testid={`${DATA_TEST_ID_PREFIX}-row-${record.id}`}
                 >
                   <TableCell
@@ -218,11 +214,11 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                     data-testid={`${DATA_TEST_ID_PREFIX}-employee-cell-${record.id}`}
                   >
                     <div
-                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-gray-50 gba:p-2 gba:rounded gba:transition-colors"
+                      className="gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:hover:bg-muted gba:p-2 gba:rounded gba:transition-colors"
                       onClick={() => onRowClick(record)}
                     >
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiUser size={16} className="gba:text-gray-400" />
+                        <PiUser size={16} className="gba:text-muted-foreground" />
                         <span className="gba:font-medium gba:text-sm">{getEmployeeName(record)}</span>
                       </div>
                     </div>
@@ -235,9 +231,9 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                       variant="outline"
                       style={{
                         backgroundColor: getColorForAbsence(record),
-                        color: 'white',
                         borderColor: getColorForAbsence(record)
                       }}
+                      className="gba:text-white"
                     >
                       {record.groupName}
                     </Badge>
@@ -248,7 +244,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   >
                     {record.startDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={14} className="gba:text-gray-400" />
+                        <PiCalendar size={14} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDateForDisplay(record.startDate)}</span>
                       </div>
                     ) : (
@@ -261,7 +257,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   >
                     {record.endDate ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={14} className="gba:text-gray-400" />
+                        <PiCalendar size={14} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDateForDisplay(record.endDate)}</span>
                       </div>
                     ) : (
@@ -286,7 +282,7 @@ export const AbsenceListTable: React.FC<AbsenceListTableProps> = ({
                   >
                     {record.createdAt ? (
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <PiCalendar size={14} className="gba:text-gray-400" />
+                        <PiCalendar size={14} className="gba:text-muted-foreground" />
                         <span className="gba:text-sm">{formatDateForDisplay(record.createdAt)}</span>
                       </div>
                     ) : (

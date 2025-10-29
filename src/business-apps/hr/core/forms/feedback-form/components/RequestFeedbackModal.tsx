@@ -15,7 +15,7 @@ import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
-import EmployeeSearchableSelect from '@/business-apps/crm/common/forms/lead-form/components/EmployeeSearchableSelect'
+import EmployeeSearchableSelect from '@/business-apps/crm/core/forms/lead-form/components/EmployeeSearchableSelect'
 
 const prefixDataTestId = 'RequestFeedbackModal'
 
@@ -58,7 +58,6 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
 
   // Add null checks for businessAppContext
   if (!businessAppContext || !businessAppContext.accessToken) {
@@ -166,7 +165,6 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
   }
 
   const handleEmployeeSearch = (value: string) => {
-    setSearchTerm(value)
     fetchEmployees(value)
   }
 
@@ -216,7 +214,6 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
     if (isOpen) {
       setSelectedEmployeeId('')
       setError(null)
-      setSearchTerm('')
       fetchEmployees()
     }
   }, [isOpen])
@@ -283,7 +280,7 @@ const RequestFeedbackModal: React.FC<RequestFeedbackModalProps> = ({ isOpen, onC
               variant="default"
               disabled={!selectedEmployeeId || isSubmitting}
               onClick={handleSubmit}
-              className="gba:bg-black hover:gba:bg-gray-800 gba:text-white"
+              className="gba:bg-foreground hover:gba:bg-muted gba:text-primary-foreground"
               data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
             >
               {isSubmitting && <Spinner size="sm" className="gba:mr-2" />}

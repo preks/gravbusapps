@@ -89,6 +89,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       workspace
       version
       pictureThumbnail
+      userId
       additionalProperties
       skills(where: {isDeleted: {_eq: false}}) {
         level
@@ -256,6 +257,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
   EmployeeFeedback(where: {isDeleted: {_eq: false}, employeeId: {_eq: $employeeId}}) {
     feedback
     feedbackDate
+    feedbackPublic
     senderEmployeeId
     senderEmployee {
       firstName
@@ -399,11 +401,6 @@ export interface EmployeeData {
   EmployeePerformanceGoal: EmployeePerformanceGoal[]
 }
 
-interface Skill {
-  id: string
-  name: string
-}
-
 interface EmployeeSkill {
   level: string | null
   isDeleted: boolean
@@ -423,6 +420,7 @@ export interface Employee {
   workspace: string
   version: number
   pictureThumbnail: string
+  userId?: string
   skills: EmployeeSkill[]
   additionalProperties: {
     email: string
@@ -622,13 +620,6 @@ interface WorkingHours {
   saturdayHours: number
   sundayHours: number
   weeklyDays: number
-}
-
-interface Skill {
-  skill: {
-    name: string
-    id: string
-  }
 }
 
 interface WorkPermit {

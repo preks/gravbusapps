@@ -14,6 +14,8 @@ interface ExpenseRequestStatisticsProps extends BusinessAppContextProps {
   onWidgetClick?: (widgetKey: string) => void
   activeWidgetKey?: string
   currencyCode?: string
+  selectedCurrencyRef?: string
+  currencyInitialized?: boolean
 }
 
 const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
@@ -22,6 +24,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   fetchRequestStatistics = () => Promise.resolve(),
   onWidgetClick,
   activeWidgetKey,
+  currencyCode,
+  selectedCurrencyRef,
+  currencyInitialized,
   ...contextProps
 }) => {
   // Memoize context props to ensure stable reference
@@ -39,21 +44,27 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     isLoading: hookLoading,
     error: hookError,
     fetchStatistics
-  } = useGetExpenseRequestStatistics(
-    stableContextProps,
-    ((contextProps as any).selectedCurrencyRef as string) || 'Currency:v1:EUR'
-  )
+  } = useGetExpenseRequestStatistics(stableContextProps, selectedCurrencyRef || 'Currency:v1:EUR')
 
   // Combine loading states
   const isLoading = statsLoading || hookLoading
   const error = statsError || hookError
 
-  // Ensure statistics are fetched when component mounts
+  // Ensure statistics are fetched when component mounts or currency changes
   React.useEffect(() => {
+    // Avoid duplicate initial queries: wait until currencies are initialized
+    if (!currencyInitialized) return
+
     if (stableContextProps.accessToken && stableContextProps.userInfo?.employeeDetails?.employeeId) {
       fetchStatistics()
     }
-  }, [stableContextProps.accessToken, stableContextProps.userInfo?.employeeDetails?.employeeId, fetchStatistics])
+  }, [
+    stableContextProps.accessToken,
+    stableContextProps.userInfo?.employeeDetails?.employeeId,
+    selectedCurrencyRef,
+    fetchStatistics,
+    currencyInitialized
+  ])
 
   // Calculate current month name
   const currentMonthName = dayjs().format('MMMM')
@@ -165,6 +176,9 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         ' ' +
         currentMonthName,
       value: `${formatCurrencyDisplay(String(statistics.currentMonthAmount || '0'), (contextProps as any).currencyCode || 'EUR')}`,
+      // currencyCode provided by parent (derived from selectedCurrencyRef)
+      // fallback to 'EUR' when not available
+
       prefix: <DollarOutlined />,
       color: '#3f8600',
       precision: 2,
@@ -195,7 +209,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
     {
       key: 'reimbursable',
       title: getTranslationFromI18nKeyAndLabel('lowcoder:expense_item_list.expense_table.reimbursable', 'Reimbursable'),
-      value: formatCurrencyDisplay(statistics.reimbursableAmount, (contextProps as any).currencyCode || 'EUR'),
+      value: formatCurrencyDisplay(statistics.reimbursableAmount, currencyCode || 'EUR'),
       prefix: <DollarOutlined />,
       color: '#722ed1',
       precision: 2,

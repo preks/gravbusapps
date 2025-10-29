@@ -1,7 +1,7 @@
 import React, { useEffect, useState, ReactNode, useCallback } from 'react'
 import { Alert } from 'antd'
 import { Tabs } from '@newwork/gravity-ui-catalog'
-import { PiShoppingCart, PiChartBar, PiRobot, PiGauge, PiListBullets } from 'react-icons/pi'
+import { PiShoppingCart, PiChartBar, PiGauge, PiListBullets } from 'react-icons/pi'
 import { PageLayout } from '@/components/layout/pageLayout/PageLayout'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'

@@ -217,7 +217,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         } else if (!result.success) {
           console.error('Error printing request:', result.error)
         }
-      } catch (error) {
+      } catch {
         console.error('Error fetching print PDF:', error)
       } finally {
         if (isMounted.current) {
@@ -230,7 +230,8 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
 
   const handleViewRequestDetails = useCallback((request: ExpenseRequest) => {
     const url = buildPlatformUrl('/platform/fin/expenses/expense-request-record', {
-      expenseRequestId: request.id
+      expenseRequestId: request.id,
+      referrer: '/platform/fin/expenses/manager-expenses?tab=expense-requests'
     })
     navigateTo(url)
   }, [])
@@ -787,7 +788,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           onFilterChange: handleDataFilterChange
         }}
         dataBody={renderDataBody()}
-        contentBackground="white"
+        contentBackground="background"
         data-testid="expense-requests-container"
       />
 
@@ -800,7 +801,7 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_details.title', 'Expense Request Details')
         }
       >
-        <SheetContent className="gba:w-[600px] gba:sm:gba:w-[600px] gba:max-w-none">
+        <SheetContent className="gba:w-[600px] gba:sm:w-[600px] gba:max-w-none">
           <SheetHeader>
             <SheetTitle className="gba:text-xl gba:font-semibold gba:text-gray-900">
               {selectedRequest?.title ||

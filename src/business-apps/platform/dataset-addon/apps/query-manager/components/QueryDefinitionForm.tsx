@@ -19,9 +19,9 @@ import {
   CardTitle,
   CardContent,
   Switch,
-  Alert
+  Alert,
+  toast
 } from '@newwork/nw-design-system'
-import { toast } from 'sonner'
 import { FloppyDiskIcon, XIcon, PlusIcon, TrashIcon, PaintBrushIcon } from '@phosphor-icons/react'
 import {
   QueryDefinition,
@@ -30,8 +30,7 @@ import {
   ParameterType,
   QueryParameter,
   AdditionalColumn,
-  Services,
-  getServiceLabel
+  Services
 } from '@/common/network/dataset'
 
 // Environment detection utility
@@ -89,8 +88,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
   onSave,
   onCancel,
   isLoading,
-  defaultQueryType,
-  currentService
+  defaultQueryType
 }) => {
   const [formValues, setFormValues] = useState({
     name: '',
@@ -221,7 +219,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
       })
       setParameters(parsed.parameters || [])
       setAdditionalColumns(parsed.additionalColumns || [])
-    } catch (error) {
+    } catch {
       setJsonError('Invalid JSON format')
     }
   }
@@ -258,7 +256,7 @@ export const QueryDefinitionForm: React.FC<QueryDefinitionFormProps> = ({
       try {
         const parsed = JSON.parse(jsonValue)
         onSave(parsed, validateQuery)
-      } catch (error) {
+      } catch {
         toast.error('Invalid JSON format')
         return
       }

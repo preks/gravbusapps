@@ -47,6 +47,38 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
     additionalData.expensePlanId ||
     new URLSearchParams(window.location.search).get('expensePlanId') ||
     'd64d1b89-148e-462d-9add-534722eefe95'
+
+  // Determine the back URL based on referrer or query parameter
+  const getBackUrl = (): string => {
+    const urlParams = new URLSearchParams(window.location.search)
+    const referrerParam = urlParams.get('referrer')
+
+    // If a referrer is explicitly provided in the URL
+    if (referrerParam) {
+      return referrerParam
+    }
+
+    // Check document referrer
+    if (document.referrer) {
+      const referrerUrl = new URL(document.referrer)
+      // If coming from personal-expenses, manager-expenses, or backoffice-expenses
+      if (referrerUrl.pathname.includes('/personal-expenses')) {
+        return '/platform/fin/expenses/personal-expenses?tab=expense-plans'
+      }
+      if (referrerUrl.pathname.includes('/manager-expenses')) {
+        return '/platform/fin/expenses/manager-expenses?tab=expense-plans'
+      }
+      if (referrerUrl.pathname.includes('/backoffice-expenses')) {
+        return '/platform/fin/expenses/backoffice-expenses?tab=expense-plans'
+      }
+    }
+
+    // Default fallback to expenses launcher
+    return '/platform/fin/expenses/expenses-launcher'
+  }
+
+  const backUrl = getBackUrl()
+
   // Helper function to get initial tab from URL or available tabs
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -152,7 +184,12 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
           <span>{getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.items', 'Items')}</span>
         </div>
       ),
-      children: <ExpensePlanItems expensePlanItems={expensePlan?.expensePlanItem || []} />
+      children: (
+        <ExpensePlanItems
+          expensePlanItems={expensePlan?.expensePlanItem || []}
+          currencyCode={expensePlan?.currency?.code}
+        />
+      )
     },
 
     // Allowances tab - only show if there are allowances
@@ -363,9 +400,9 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
   if (loading) {
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
-        headerTopLeft={<BackButton dataTestId="expense-plan-record-back-button" />}
+        headerTopLeft={<BackButton dataTestId="expense-plan-record-back-button" backUrl={backUrl} />}
         contentContainer={
           <div
             className="gba:flex gba:justify-center gba:items-center gba:h-64"
@@ -409,9 +446,9 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
 
     return (
       <PageLayout
-        headerIcon={<PiWalletDuotone color="#c92559" />}
+        headerIcon={<PiWalletDuotone className="gba:text-primary" />}
         headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
-        headerTopLeft={<BackButton dataTestId="expense-plan-record-back-button" />}
+        headerTopLeft={<BackButton dataTestId="expense-plan-record-back-button" backUrl={backUrl} />}
         contentContainer={
           <Alert variant="destructive" data-testid="expense-plan-record-error">
             <AlertTitle>{errorTitle}</AlertTitle>
@@ -424,12 +461,13 @@ const ExpensePlanRecord: React.FC<BusinessAppContextProps> = ({ accessToken, add
 
   return (
     <PageLayout
-      headerIcon={<PiWalletDuotone color="#c92559" />}
+      headerIcon={<PiWalletDuotone className="gba:text-primary" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('lowcoder:expense_records.plan.title', 'Expense Plan Record')}
       headerTopLeft={
         <BackButton
           dataTestId="expense-plan-record-back-button"
           customBackText={getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.back_text', 'Back')}
+          backUrl={backUrl}
         />
       }
       contentContainer={

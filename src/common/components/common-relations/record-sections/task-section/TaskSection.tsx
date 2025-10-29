@@ -16,6 +16,7 @@ import { AppAction } from '@/components/app-action'
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
 import {
   TaskDetailSheet,
   Task as CommonTask,
@@ -33,24 +34,38 @@ import {
 } from '@phosphor-icons/react'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { FileInfo } from '@/common/types/FileTypes'
 
-type CatalogEntry = {
+export type CatalogEntry = {
   id?: string
   code?: string
   value?: string
   type?: string
 }
 
-type TaskItem = {
+export type TaskStatusCode = 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
+export type TaskTimingType = 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+
+export type TaskDocument = {
+  id: string
+  name: string
+  mimeType?: string
+  fileSize?: number
+  file?: string
+  fileInfo?: FileInfo
+}
+
+export type TaskItem = {
   id: string
   title: string
   description?: string
   createdAt?: string
   due?: string
   assignee?: string
-  statusCode?: 'PENDING' | 'IN_PROGRESS' | 'OVERDUE' | 'COMPLETED'
+  statusCode?: TaskStatusCode
   taskStatus?: CatalogEntry
   taskPriority?: CatalogEntry
+  taskType?: CatalogEntry
   assigneeEmployee?: {
     id: string
     displayName?: string
@@ -66,11 +81,12 @@ type TaskItem = {
     pictureThumbnail?: string
   }
   reference?: TaskReference
-  taskTiming?: 'DEADLINE' | 'SCHEDULED' | 'UNKNOWN_TIMING_TYPE'
+  taskTiming?: TaskTimingType
   startDate?: string
+  documents?: TaskDocument[]
 }
 
-interface TaskSectionProps extends BusinessAppContextProps {
+export interface TaskSectionProps extends BusinessAppContextProps {
   accountId?: string
   contactId?: string
   opportunityId?: string
@@ -86,18 +102,47 @@ interface TaskSectionProps extends BusinessAppContextProps {
 
 const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntityActionProps, buildReferenceUrl }) => {
   const [selectedTask, setSelectedTask] = useState<CommonTask | null>(null)
-  // Determine color and icon based on status
-  const getStatusColorAndIcon = (statusCode?: string) => {
+
+  // Handle document download
+  const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (!document.fileInfo) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch {
+      // Silent fail - fileInfo structure invalid
+    }
+  }
+
+  // Check if task is overdue based on due date and completion status
+  const isTaskOverdue = (dueDate?: string, statusCode?: string): boolean => {
+    if (!dueDate || statusCode === 'COMPLETED') {
+      return false
+    }
+    const now = dayjs()
+    const due = dayjs(dueDate)
+    return due.isValid() && due.isBefore(now)
+  }
+
+  // Determine color and icon based on status (with overdue calculation)
+  const getStatusColorAndIcon = (statusCode?: string, dueDate?: string) => {
+    // Check if task is overdue regardless of status code
+    if (isTaskOverdue(dueDate, statusCode)) {
+      return {
+        color: 'destructive',
+        icon: (props: any) => <WarningIcon weight="bold" {...props} />
+      }
+    }
+
     if (statusCode === 'COMPLETED') {
       return {
         color: 'success',
         icon: (props: any) => <CheckIcon weight="bold" {...props} />
-      }
-    }
-    if (statusCode === 'OVERDUE') {
-      return {
-        color: 'destructive',
-        icon: (props: any) => <WarningIcon weight="bold" {...props} />
       }
     }
     if (statusCode === 'IN_PROGRESS') {
@@ -170,7 +215,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
             pictureThumbnail: taskItem.creatorEmployee.pictureThumbnail
           }
         : undefined,
-      type: taskItem.taskPriority?.type || '',
+      type: taskItem.taskType?.value || taskItem.taskType?.code || 'GENERAL',
       priority: (taskItem.taskPriority?.type?.toLowerCase() as any) || 'medium',
       status: (taskItem.statusCode?.toLowerCase() as any) || 'pending',
       dueDate: taskItem.due || taskItem.createdAt || '',
@@ -178,7 +223,14 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
       updatedAt: taskItem.createdAt || '',
       reference: taskItem.reference,
       timingType: taskItem.taskTiming as any,
-      scheduleDate: taskItem.startDate
+      scheduleDate: taskItem.startDate,
+      documents: taskItem.documents?.map(doc => ({
+        id: doc.id,
+        name: doc.name || 'Untitled Document',
+        mimeType: doc.mimeType,
+        fileSize: doc.fileSize,
+        fileInfo: doc.fileInfo
+      }))
     }
   }
 
@@ -213,16 +265,23 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
     }
   }
 
-  // Map task status type to badge variant
-  const getStatusBadgeVariant = (status?: CatalogEntry): 'success' | 'info' | 'destructive' | 'warning' => {
+  // Map task status type to badge variant (with overdue calculation)
+  const getStatusBadgeVariant = (
+    status?: CatalogEntry,
+    dueDate?: string,
+    statusCode?: string
+  ): 'success' | 'info' | 'destructive' | 'warning' => {
+    // Check if task is overdue regardless of status badge
+    if (isTaskOverdue(dueDate, statusCode)) {
+      return 'destructive'
+    }
+
     const type = status?.type?.toUpperCase()
     switch (type) {
       case 'COMPLETED':
         return 'success'
       case 'IN_PROGRESS':
         return 'info'
-      case 'OVERDUE':
-        return 'destructive'
       case 'PENDING':
         return 'warning'
       default:
@@ -251,7 +310,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                 if (due) descParts.push(`Due ${due}`)
                 const code = t.statusCode
 
-                const { color, icon } = getStatusColorAndIcon(code)
+                const { color, icon } = getStatusColorAndIcon(code, t.due)
 
                 const assigneeName = t.assigneeEmployee ? getEmployeeDisplayName(t.assigneeEmployee) : t.assignee
                 const assigneeId = t.assigneeEmployee?.id
@@ -292,8 +351,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                       >
                         <span className="gba:truncate">{t.title}</span>
                         {t.taskStatus && (
-                          <Badge variant={getStatusBadgeVariant(t.taskStatus)} size="sm">
-                            {t.taskStatus.value || t.taskStatus.code}
+                          <Badge variant={getStatusBadgeVariant(t.taskStatus, t.due, t.statusCode)} size="sm">
+                            {isTaskOverdue(t.due, t.statusCode) ? 'Overdue' : t.taskStatus.value || t.taskStatus.code}
                           </Badge>
                         )}
                         {t.taskPriority && (
@@ -320,18 +379,39 @@ const TaskSection: React.FC<TaskSectionProps> = ({ accessToken, tasks, taskEntit
                     )
                   ) : undefined,
                   description: (
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      {timingTypeData && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="gba:flex gba:items-center">{timingTypeData.icon}</div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>{timingTypeData.tooltip}</p>
-                          </TooltipContent>
-                        </Tooltip>
+                    <div className="gba:flex gba:flex-col gba:gap-2">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        {timingTypeData && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="gba:flex gba:items-center">{timingTypeData.icon}</div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{timingTypeData.tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        <span>{descParts.join(' • ')}</span>
+                      </div>
+                      {t.documents && t.documents.length > 0 && (
+                        <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
+                          {t.documents.map(doc => {
+                            const FileIcon = getFileIcon(doc.mimeType)
+                            return (
+                              <button
+                                key={doc.id}
+                                onClick={e => handleDocumentClick(doc, e)}
+                                className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                                data-testid={`task-document-${t.id}-${doc.id}`}
+                                title={doc.name}
+                              >
+                                <FileIcon size={14} weight="bold" />
+                                <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
                       )}
-                      <span>{descParts.join(' • ')}</span>
                     </div>
                   ),
                   color,

@@ -3,7 +3,6 @@ import { Card, Typography, Table, Tag, List, Avatar } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts'
 import { UserOutlined, AlertOutlined } from '@ant-design/icons'
 import { ReportingChainData, ReportingChainSummary } from '../types/structuralTypes'
-import { chartColors } from '../utils/structuralUtils'
 
 const { Title, Text } = Typography
 
@@ -54,7 +53,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       width: 120,
       align: 'center' as const,
       render: (value: number) => (
-        <Text strong style={{ fontSize: '16px' }}>
+        <Text strong className="gba:text-base">
           {value}
         </Text>
       )
@@ -72,20 +71,20 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
       dataIndex: 'bottlenecks',
       key: 'bottlenecks',
       render: (bottlenecks: string[]) => (
-        <div style={{ maxWidth: '200px' }}>
+        <div className="gba:max-w-[200px]">
           {bottlenecks.length > 0 ? (
             <div>
               {bottlenecks.slice(0, 2).map((bottleneck, index) => (
-                <div key={index} style={{ fontSize: '12px', color: '#666' }}>
+                <div key={index} className="gba:text-xs gba:text-muted-foreground">
                   {bottleneck}
                 </div>
               ))}
               {bottlenecks.length > 2 && (
-                <div style={{ fontSize: '12px', color: '#999' }}>+{bottlenecks.length - 2} more</div>
+                <div className="gba:text-xs gba:text-muted-foreground">+{bottlenecks.length - 2} more</div>
               )}
             </div>
           ) : (
-            <Text style={{ color: '#666' }}>None</Text>
+            <Text className="gba:text-muted-foreground">None</Text>
           )}
         </div>
       )
@@ -116,43 +115,37 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
   return (
     <div data-testid={`${prefixDataTestId}-ReportingChainAnalysis`}>
       {/* Summary Statistics */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Title level={5} style={{ margin: 0, marginBottom: '16px', color: '#1f2937' }}>
+      <Card className="gba:mb-4">
+        <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
           Reporting Chain Summary
         </Title>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '16px'
-          }}
-        >
-          <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>
+        <div className="gba:grid gba:grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gba:gap-4">
+          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
+            <div className="gba:text-2xl gba:font-bold gba:text-foreground">
               {summary.averageChainLength.toFixed(1)}
             </div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Average Chain Length</div>
+            <div className="gba:text-xs gba:text-muted-foreground">Average Chain Length</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>{summary.maxChainLength}</div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Max Chain Length</div>
+          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
+            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.maxChainLength}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">Max Chain Length</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#f8f9fa', borderRadius: '6px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#1f2937' }}>{summary.minChainLength}</div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Min Chain Length</div>
+          <div className="gba:text-center gba:p-4 gba:bg-muted gba:rounded">
+            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{summary.minChainLength}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">Min Chain Length</div>
           </div>
-          <div style={{ textAlign: 'center', padding: '16px', backgroundColor: '#fff3cd', borderRadius: '6px' }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: chartColors.status.warning }}>
+          <div className="gba:text-center gba:p-4 gba:bg-warning-secondary/40 gba:rounded">
+            <div className="gba:text-2xl gba:font-bold gba:text-warning-secondary-foreground">
               {summary.bottlenecks.length}
             </div>
-            <div style={{ fontSize: '12px', color: '#666' }}>Bottlenecks Identified</div>
+            <div className="gba:text-xs gba:text-muted-foreground">Bottlenecks Identified</div>
           </div>
         </div>
       </Card>
 
       {/* Chain Distribution Chart */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Title level={5} style={{ margin: 0, marginBottom: '16px', color: '#1f2937' }}>
+      <Card className="gba:mb-4">
+        <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
           Chain Length Distribution
         </Title>
         <ResponsiveContainer width="100%" height={300}>
@@ -161,15 +154,15 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
             <XAxis dataKey="chainLength" />
             <YAxis />
             <Tooltip />
-            <Bar dataKey="count" fill={chartColors.primary[0]} radius={[4, 4, 0, 0]} />
+            <Bar dataKey="count" fill="var(--nw-chart-1)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </Card>
 
       {/* Bottlenecks Analysis */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Title level={5} style={{ margin: 0, marginBottom: '16px', color: '#1f2937' }}>
-          <AlertOutlined style={{ marginRight: '8px', color: chartColors.status.warning }} />
+      <Card className="gba:mb-4">
+        <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
+          <AlertOutlined className="gba:mr-2 gba:text-warning" />
           Bottleneck Managers
         </Title>
         <List
@@ -183,7 +176,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
                   <div>
                     <Text>{bottleneck.chainsThroughManager} reporting chains pass through this manager</Text>
                     <br />
-                    <Tag color="orange">Impact Score: {bottleneck.impact}</Tag>
+                    <Tag color="var(--nw-warning)">Impact Score: {bottleneck.impact}</Tag>
                   </div>
                 }
               />
@@ -195,7 +188,7 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
 
       {/* Detailed Reporting Chains Table */}
       <Card>
-        <Title level={5} style={{ margin: 0, marginBottom: '16px', color: '#1f2937' }}>
+        <Title level={5} className="gba:m-0 gba:mb-4 gba:text-foreground">
           Detailed Reporting Chains
         </Title>
         <Table
@@ -210,8 +203,8 @@ export const ReportingChainAnalysis: React.FC<ReportingChainAnalysisProps> = ({
           size="small"
           scroll={{ x: 1000 }}
           rowClassName={record => {
-            if (record.levels > 6) return 'gba:bg-red-50'
-            if (record.levels > 4) return 'gba:bg-orange-50'
+            if (record.levels > 6) return 'gba:bg-destructive-secondary/40'
+            if (record.levels > 4) return 'gba:bg-warning-secondary/40'
             return ''
           }}
         />

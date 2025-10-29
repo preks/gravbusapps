@@ -49,7 +49,7 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
             messageKey: 'The approval process has been canceled.'
           }
         })
-      } catch (processError) {
+      } catch {
         console.error('Error canceling process:', processError)
       }
       event.preventDefault()
@@ -151,7 +151,7 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
           <button
             onClick={refetch}
             style={{ marginTop: 'var(--nw-spacing-2)' }}
-            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-white gba:rounded gba:text-sm"
+            className="gba:px-3 gba:py-1 gba:bg-red-600 gba:text-background gba:rounded gba:text-sm"
           >
             Retry
           </button>
@@ -170,11 +170,11 @@ const ApproveExpenseRequestContent: React.FC<BusinessAppContextProps> = ({ acces
   }
 
   const currencyCode = expenseRequest.currency?.code || 'EUR'
-  const totalAmount = expenseRequest.totalAmount || 0
-  const reimbursableAmount = expenseRequest.reimbursableAmount || 0
-  const remainingAmount = expenseRequest.totalRemainingAmount || 0
-  const nonReimbursableAmount = expenseRequest.nonReimbursableAmount || 0
-  const advancePaymentAmount = expenseRequest.expensePlan?.advancePaymentTotalAmount || 0
+  const totalAmount = Number(expenseRequest.totalAmount ?? 0)
+  const reimbursableAmount = Number(expenseRequest.reimbursableAmount ?? 0)
+  const remainingAmount = Number(expenseRequest.totalRemainingAmount ?? 0)
+  const nonReimbursableAmount = Number(expenseRequest.nonReimbursableAmount ?? 0)
+  const advancePaymentAmount = Number(expenseRequest.expensePlan?.advancePaymentTotalAmount ?? 0)
   // Transform expense request items to match expense plan format for component compatibility
   const transformedExpenseItems =
     expenseRequest.expenseItem?.map(item => ({

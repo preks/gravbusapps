@@ -17,7 +17,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { ApprovalsPage, ExpenseReportsPage } from './components/pages'
 import TeamSpendingAnalyticsPage from './components/pages/TeamSpendingAnalyticsPage'
 
-export interface ManagerExpensesProps extends BusinessAppContextProps {}
+export type ManagerExpensesProps = BusinessAppContextProps
 
 const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
   const viewOptions = [

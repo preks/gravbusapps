@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel, formatDateToISO } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import UploadComponent from '../components/UploadComponent'
+import { FileUpload, FormField, FormItem } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
 import { useForm } from 'react-hook-form'
@@ -87,6 +87,23 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
 
   const fileClient = useFileClient({ accessToken } as any)
 
+  // Accepted file types aligned with previous UploadComponent
+  const acceptedFileTypes = 'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG'
+
+  // Map FileUpload files to the legacy fileList shape used by submit logic
+  const handleDesignSystemFilesChange = useCallback((files: Array<{ file: File | { name: string }; id: string }>) => {
+    const mapped = files
+      .filter(f => f.file instanceof File)
+      .map(f => ({
+        uid: f.id,
+        name: (f.file as File).name,
+        status: 'done',
+        originFileObj: f.file as File
+      }))
+    // Defer to avoid setState during child render
+    setTimeout(() => setFileList(mapped), 0)
+  }, [])
+
   // Normalize default values to match Select option value types (string ids)
   const normalizedDefaults: PersonalDataFormValues = useMemo(() => {
     const toIdString = (val: any) => (val === null || val === undefined || val === '' ? null : String(val))
@@ -169,10 +186,10 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
       data-testid="flw_changePersonalData_screenContentLayout"
     >
-      <FormHeader title={title} flowIconUrl={flowIconUrl} />
+      <FormHeader title={title} flowIconUrl={flowIconUrl} className="gba:px-6" />
 
       <div
-        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0 gba:[&>div[data-testid='change-personal-data']]:!px-0"
+        className="gba:flex gba:flex-col gba:gap-4 gba:[&>div[data-testid='change-personal-data']]:!pt-0"
         data-testid="change-personal-data-form-content"
       >
         {/* moved upload below comment - removed from here */}
@@ -326,17 +343,24 @@ const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessTo
               catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }}
             />
 
-            {/* Upload (compact single-line), placed under comment */}
-            <UploadComponent
-              dataTestIdPrefix="flw_changePersonalData_uploadFile"
-              multiple={false}
-              fileList={fileList}
-              setFileList={setFileList}
-              labelText={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_absences.create_absence.upload_document',
-                'Upload document'
+            {/* Upload (nw-design-system)  */}
+            <FormField
+              name={'fileUpload'}
+              render={() => (
+                <FormItem>
+                  <div data-testid="flw_changePersonalData_uploadFile">
+                    <FileUpload
+                      multiple={false}
+                      maxFiles={1}
+                      accept={acceptedFileTypes}
+                      layout="list"
+                      preview="icon"
+                      onFilesChange={handleDesignSystemFilesChange as any}
+                    />
+                  </div>
+                </FormItem>
               )}
-            />
+            ></FormField>
           </div>
         </AppActionForm>
       </div>

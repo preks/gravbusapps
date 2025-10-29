@@ -11,7 +11,7 @@ import {
   Badge,
   Button
 } from '@newwork/nw-design-system'
-import { getTranslationFromI18nKeyAndLabel, getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PiFileText, PiFilePdf } from 'react-icons/pi'
 import { useEmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
@@ -30,8 +30,6 @@ import ContractTypePieChart from '../charts/ContractTypePieChart'
 import GapRateByOrgUnitChart from '../charts/GapRateByOrgUnitChart'
 import ProbationRateByOrgUnitChart from '../charts/ProbationRateByOrgUnitChart'
 
-interface EmploymentProps extends BusinessAppContextProps {}
-
 interface TableData {
   period: string
   value: number | string
@@ -41,7 +39,7 @@ interface TableData {
 /**
  * Employment tab component displaying key employment metrics and distributions
  */
-const Employment: React.FC<EmploymentProps> = context => {
+const Employment: React.FC<BusinessAppContextProps> = context => {
   const prefixDataTestId = 'Employment'
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
   const [exportingTable, setExportingTable] = useState<string | null>(null)
@@ -58,11 +56,7 @@ const Employment: React.FC<EmploymentProps> = context => {
   } = useEmploymentTypeDistribution(context.accessToken)
 
   // Get contract type distribution data
-  const {
-    distribution: contractTypeDistribution,
-    loading: contractTypeLoading,
-    error: contractTypeError
-  } = useContractTypeDistribution(context.accessToken)
+  const { distribution: contractTypeDistribution } = useContractTypeDistribution(context.accessToken)
 
   // Get FTE to Employee ratio data
   const { totalFte, employeeCount, loading: fteLoading, error: fteError } = useFteRatio(context.accessToken)
@@ -77,11 +71,7 @@ const Employment: React.FC<EmploymentProps> = context => {
   } = useGapRate(context.accessToken)
 
   // Get Gap Rate by Org Unit data
-  const {
-    data: gapRateByOrgUnit,
-    loading: gapRateOrgUnitLoading,
-    error: gapRateOrgUnitError
-  } = useGapRateByOrgUnit(context.accessToken)
+  const { data: gapRateByOrgUnit } = useGapRateByOrgUnit(context.accessToken)
 
   // Get Probation Rate data
   const {
@@ -93,19 +83,10 @@ const Employment: React.FC<EmploymentProps> = context => {
   } = useProbationRate(context.accessToken)
 
   // Get Probation Rate by Org Unit data
-  const {
-    data: probationRateByOrgUnit,
-    loading: probationRateOrgUnitLoading,
-    error: probationRateOrgUnitError
-  } = useProbationRateByOrgUnit(context.accessToken)
+  const { data: probationRateByOrgUnit } = useProbationRateByOrgUnit(context.accessToken)
 
   // Get Average Tenure data
-  const {
-    formattedTenure,
-    employeeCount: employeesWithTenure,
-    loading: tenureLoading,
-    error: tenureError
-  } = useAverageTenure(context.accessToken)
+  const { formattedTenure, loading: tenureLoading, error: tenureError } = useAverageTenure(context.accessToken)
 
   // Get Tenure by Organizational Unit data for heatmap
   const {
@@ -248,13 +229,13 @@ const Employment: React.FC<EmploymentProps> = context => {
   if (hasError) {
     return (
       <div data-testid={`${prefixDataTestId}-tab`} className="gba:p-4">
-        <Card className="gba:border-red-200">
+        <Card className="gba:border-destructive-secondary">
           <CardContent className="gba:p-6">
             <div className="gba:text-center">
-              <p className="gba:text-red-600 gba:mb-4">Error loading employment data. Please try again.</p>
+              <p className="gba:text-destructive gba:mb-4">Error loading employment data. Please try again.</p>
               <button
                 onClick={() => window.location.reload()}
-                className="gba:px-4 gba:py-2 gba:bg-red-600 gba:text-white gba:rounded gba:hover:bg-red-700"
+                className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-primary-foreground gba:rounded gba:hover:bg-destructive"
               >
                 Retry
               </button>
@@ -272,8 +253,8 @@ const Employment: React.FC<EmploymentProps> = context => {
 
       {/* Charts Section */}
       <div className="gba:mb-4">
-        <h3 className="gba:text-lg gba:font-semibold gba:text-gray-900">Employment Analysis</h3>
-        <p className="gba:text-sm gba:text-gray-600">
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Employment Analysis</h3>
+        <p className="gba:text-sm gba:text-muted-foreground">
           Comprehensive view of employment metrics and organizational distribution. Click on any chart to view detailed
           data table below.
         </p>
@@ -288,14 +269,14 @@ const Employment: React.FC<EmploymentProps> = context => {
             data-testid="employment-type-chart-card"
             className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
               selectedChart === 'employment-type-chart'
-                ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg'
+                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
                 : 'gba:hover:shadow-lg'
             }`}
             onClick={() => handleChartClick('employment-type-chart')}
           >
             <EmploymentTypePieChart data={employmentTypeDistribution} loading={empTypeLoading} error={empTypeError} />
             {selectedChart === 'employment-type-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-blue-100 gba:text-blue-700 gba:px-2 gba:py-1 gba:rounded gba:text-xs">
+              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
                 ✓ Selected
               </div>
             )}
@@ -305,15 +286,13 @@ const Employment: React.FC<EmploymentProps> = context => {
           <div
             data-testid="contract-type-chart-card"
             className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
-              selectedChart === 'contract-type-chart'
-                ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
+              selectedChart === 'contract-type-chart' ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
             }`}
             onClick={() => handleChartClick('contract-type-chart')}
           >
             <ContractTypePieChart accessToken={context.accessToken} />
             {selectedChart === 'contract-type-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-blue-100 gba:text-blue-700 gba:px-2 gba:py-1 gba:rounded gba:text-xs">
+              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
                 ✓ Selected
               </div>
             )}
@@ -327,14 +306,14 @@ const Employment: React.FC<EmploymentProps> = context => {
             data-testid="gap-rate-org-unit-chart-card"
             className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
               selectedChart === 'gap-rate-org-unit-chart'
-                ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg'
+                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
                 : 'gba:hover:shadow-lg'
             }`}
             onClick={() => handleChartClick('gap-rate-org-unit-chart')}
           >
             <GapRateByOrgUnitChart accessToken={context.accessToken} />
             {selectedChart === 'gap-rate-org-unit-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-blue-100 gba:text-blue-700 gba:px-2 gba:py-1 gba:rounded gba:text-xs">
+              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
                 ✓ Selected
               </div>
             )}
@@ -345,14 +324,14 @@ const Employment: React.FC<EmploymentProps> = context => {
             data-testid="probation-rate-org-unit-chart-card"
             className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
               selectedChart === 'probation-rate-org-unit-chart'
-                ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg'
+                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
                 : 'gba:hover:shadow-lg'
             }`}
             onClick={() => handleChartClick('probation-rate-org-unit-chart')}
           >
             <ProbationRateByOrgUnitChart accessToken={context.accessToken} />
             {selectedChart === 'probation-rate-org-unit-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-blue-100 gba:text-blue-700 gba:px-2 gba:py-1 gba:rounded gba:text-xs">
+              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
                 ✓ Selected
               </div>
             )}
@@ -365,7 +344,7 @@ const Employment: React.FC<EmploymentProps> = context => {
             data-testid="tenure-heatmap-chart-card"
             className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
               selectedChart === 'tenure-heatmap-chart'
-                ? 'gba:ring-2 gba:ring-blue-500 gba:shadow-lg'
+                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
                 : 'gba:hover:shadow-lg'
             }`}
             onClick={() => handleChartClick('tenure-heatmap-chart')}
@@ -375,10 +354,10 @@ const Employment: React.FC<EmploymentProps> = context => {
               orgUnits={orgUnits}
               tenureRanges={tenureRanges}
               loading={tenureDistributionLoading}
-              error={tenureDistributionError?.message || null}
+              error={tenureDistributionError}
             />
             {selectedChart === 'tenure-heatmap-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-blue-100 gba:text-blue-700 gba:px-2 gba:py-1 gba:rounded gba:text-xs">
+              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
                 ✓ Selected
               </div>
             )}
@@ -394,10 +373,13 @@ const Employment: React.FC<EmploymentProps> = context => {
               {/* Table Header */}
               <div className="gba:flex gba:justify-between gba:items-center gba:mb-4 gba:pb-4 gba:border-b">
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  <h3 className="gba:text-xl gba:font-semibold gba:text-gray-800">
+                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">
                     Data Table: {selectedConfig.title}
                   </h3>
-                  <Badge variant="outline" className="gba:bg-green-50 gba:text-green-700">
+                  <Badge
+                    variant="outline"
+                    className="gba:bg-success-secondary/50 gba:text-success-secondary-foreground"
+                  >
                     {selectedConfig.tableData.length} entries
                   </Badge>
                 </div>
@@ -432,7 +414,7 @@ const Employment: React.FC<EmploymentProps> = context => {
                 </div>
               </div>
 
-              <p className="gba:text-sm gba:text-gray-600 gba:mb-4">{selectedConfig.description}</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{selectedConfig.description}</p>
 
               <div className="gba:max-h-96 gba:overflow-y-auto">
                 <Table>
@@ -468,7 +450,10 @@ const Employment: React.FC<EmploymentProps> = context => {
                         <TableCell className="gba:font-medium">{item.period}</TableCell>
                         <TableCell>
                           {typeof item.value === 'number' ? (
-                            <Badge variant="outline" className="gba:bg-blue-50 gba:text-blue-700">
+                            <Badge
+                              variant="outline"
+                              className="gba:bg-info-secondary/50 gba:text-info-secondary-foreground"
+                            >
                               {item.value.toLocaleString()}
                             </Badge>
                           ) : (
@@ -482,10 +467,10 @@ const Employment: React.FC<EmploymentProps> = context => {
               </div>
 
               {/* Summary */}
-              <div className="gba:mt-4 gba:pt-4 gba:border-t gba:bg-gray-50 gba:rounded gba:p-3">
+              <div className="gba:mt-4 gba:pt-4 gba:border-t gba:bg-muted gba:rounded gba:p-3">
                 <div className="gba:flex gba:justify-between gba:text-sm">
-                  <span className="gba:text-gray-600">Total entries: {selectedConfig.tableData.length}</span>
-                  <span className="gba:text-gray-600">
+                  <span className="gba:text-muted-foreground">Total entries: {selectedConfig.tableData.length}</span>
+                  <span className="gba:text-muted-foreground">
                     Total {selectedConfig.testId.includes('rate') ? 'Average' : 'Count'}:{' '}
                     {selectedConfig.testId.includes('rate')
                       ? `${(
@@ -510,7 +495,7 @@ const Employment: React.FC<EmploymentProps> = context => {
 
         {!selectedConfig && (
           <div className="gba:text-center gba:py-8">
-            <p className="gba:text-gray-500">Click on any chart above to view its detailed data table</p>
+            <p className="gba:text-muted-foreground">Click on any chart above to view its detailed data table</p>
           </div>
         )}
       </div>

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, CardTitle, Badge } from '@newwork/nw-design-system'
 import { TrendingUp } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -18,10 +18,7 @@ export interface DealSummaryProps {
   onDealClick?: (dealId: string) => void
 }
 
-export const DealSummary: React.FC<DealSummaryProps> = ({ deals, moduleColor = 'default', onDealClick }) => {
-  // Remove unused variable warning
-  const _ = moduleColor
-
+export const DealSummary: React.FC<DealSummaryProps> = ({ deals, onDealClick }) => {
   const handleDealClick = (dealId: string) => {
     onDealClick?.(dealId)
   }

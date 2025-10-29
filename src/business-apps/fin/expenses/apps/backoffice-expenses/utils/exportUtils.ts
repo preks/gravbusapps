@@ -2,6 +2,8 @@
  * Utility functions for exporting data to CSV and Excel formats
  */
 
+import { sanitizeFilename } from '@/common/utils/textUtils'
+
 /**
  * Escapes a value for use in CSV format
  * Handles quotes, commas, and newlines
@@ -34,11 +36,18 @@ export const htmlEscape = (value: string): string =>
 /**
  * Builds a timestamped filename for exports
  * Uses UTC time to ensure consistent filenames across timezones
+ * Sanitizes output to prevent XSS attacks using shared utility function
+ *
+ * Note: Input parameters (type, ext) are hardcoded in calling code,
+ * so only the final filename needs sanitization for defense-in-depth.
  */
 export const buildFilename = (type: string, ext: string): string => {
   const ts = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `backoffice-expense-${type}-${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}-${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}.${ext}`
+  const filename = `backoffice-expense-${type}-${ts.getUTCFullYear()}${pad(ts.getUTCMonth() + 1)}${pad(ts.getUTCDate())}-${pad(ts.getUTCHours())}${pad(ts.getUTCMinutes())}${pad(ts.getUTCSeconds())}.${ext}`
+
+  // Sanitize once at the end for defense-in-depth
+  return sanitizeFilename(filename)
 }
 
 /**
@@ -71,12 +80,18 @@ export const formatCellValue = (value: any): string => {
 /**
  * Triggers a file download by creating a temporary link element
  * Handles blob URL creation, link click, and cleanup
+ *
+ * Note: Filename is already sanitized by buildFilename(), no need to sanitize again
  */
 const triggerDownload = (blob: Blob, filename: string): void => {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
   link.download = filename
+
+  // Set additional security attributes
+  link.setAttribute('rel', 'noopener noreferrer')
+
   document.body.appendChild(link)
   link.click()
   link.remove()

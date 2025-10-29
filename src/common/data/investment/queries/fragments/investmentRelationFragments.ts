@@ -84,6 +84,10 @@ export const INVESTMENT_LEAD = `
         companySize {
           ${CATALOG_ENTRY}
         }
+        accountAnnualRevenueBand {
+          ${CATALOG_ENTRY}
+        }
+        accountAnnualRevenueBandRef
         country {
           ${CATALOG_ENTRY}
         }
@@ -437,6 +441,16 @@ export const INVESTMENT_TASK = `
     investment {
       ${INVESTMENT_REF}
     }
+    
+    # Documents
+    documents(where: { isDeleted: { _eq: false } }) {
+      id
+      name
+      file
+      fileInfo
+      mimeType
+      fileSize
+    }
 
     # User references
     creatorUserId
@@ -477,6 +491,16 @@ export const INVESTMENT_ACTIVITY = `
     lead {
       ${INVESTMENT_LEAD_REF}
     }
+    
+    # Documents
+    documents(where: { isDeleted: { _eq: false } }) {
+      id
+      name
+      file
+      fileInfo
+      mimeType
+      fileSize
+    }
 `
 
 export const INVESTMENT_NOTE = `
@@ -494,6 +518,16 @@ export const INVESTMENT_NOTE = `
     # Entity references
     investment {
       ${INVESTMENT_REF}
+    }
+    
+    # Documents
+    documents(where: { isDeleted: { _eq: false } }) {
+      id
+      name
+      file
+      fileInfo
+      mimeType
+      fileSize
     }
 `
 

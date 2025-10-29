@@ -1,0 +1,537 @@
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  Button,
+  Spinner,
+  RecordLayout,
+  Badge,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@newwork/nw-design-system'
+import { Users, FileText, User, CurrencyDollar } from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useContactData } from './hooks/useContactData'
+import { AppActionButton } from '@/components/app-action-button/AppActionButton'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useGetContactActivities, ContactActivityData } from './queries/ContactActivityQueries'
+import { useGetContactTasks, ContactTaskData } from './queries/ContactTaskQueries'
+import { useGetContactNotes, ContactNoteData } from './queries/ContactNoteQueries'
+import { ContactData } from './queries/ContactQueries'
+import { HomeView } from './views/home-view/HomeView'
+import { OpportunityView } from './views/opportunity-view/OpportunityView'
+import { DocumentView } from './views/document-view/DocumentView'
+
+interface ContactRecordContentProps extends BusinessAppContextProps {
+  contactId: string
+  onBack: () => void
+  fromEntity?: string | null
+}
+
+const ContactRecordContent: React.FC<ContactRecordContentProps> = ({ contactId, onBack, fromEntity, ...props }) => {
+  const [contact, setContact] = useState<ContactData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'overview'
+    const params = new URLSearchParams(window.location.search)
+    return params.get('tab') || 'overview'
+  })
+
+  const {
+    contact: contactData,
+    loading: dataLoading,
+    error: dataError,
+    refetchContactData
+  } = useContactData(contactId, props.accessToken)
+
+  // Data fetching hooks for sections
+  const { fetchContactActivities } = useGetContactActivities(props)
+  const { fetchContactTasks } = useGetContactTasks(props)
+  const { fetchContactNotes } = useGetContactNotes(props)
+
+  // State for section data
+  const [activities, setActivities] = useState<ContactActivityData[]>([])
+  const [notes, setNotes] = useState<ContactNoteData[]>([])
+  const [tasks, setTasks] = useState<ContactTaskData[]>([])
+  const [approvals, setApprovals] = useState<ContactTaskData[]>([])
+  const [sectionsLoading, setSectionsLoading] = useState(true)
+  const [sectionsError, setSectionsError] = useState<string | null>(null)
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value)
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    url.searchParams.set('tab', value)
+    window.history.replaceState(null, '', url.toString())
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (!params.get('tab')) {
+      const url = new URL(window.location.href)
+      url.searchParams.set('tab', activeTab)
+      window.history.replaceState(null, '', url.toString())
+    }
+    const onPop = () => {
+      const next = new URLSearchParams(window.location.search).get('tab') || 'overview'
+      setActiveTab(next)
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [activeTab])
+
+  // Load section data
+  const loadSectionData = useCallback(async () => {
+    if (!contactId || !props.accessToken) return
+
+    setSectionsLoading(true)
+    setSectionsError(null)
+
+    try {
+      const [activitiesData, notesData, tasksData] = await Promise.all([
+        fetchContactActivities({ contactId }),
+        fetchContactNotes({ contactId }),
+        fetchContactTasks({ contactId })
+      ])
+
+      const sortedActivities = (activitiesData.SalesActivity || []).sort(
+        (a: ContactActivityData, b: ContactActivityData) =>
+          new Date(b.occurredAt || b.createdAt).getTime() - new Date(a.occurredAt || a.createdAt).getTime()
+      )
+      const sortedNotes = (notesData.CrmNote || []).sort(
+        (a: ContactNoteData, b: ContactNoteData) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      const sortedTasks = (tasksData.SalesTask || []).sort(
+        (a: ContactTaskData, b: ContactTaskData) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+
+      // Separate regular tasks from approvals based on taskType
+      const regularTasks = sortedTasks.filter((task: ContactTaskData) => {
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
+        return taskTypeCode?.toUpperCase() !== 'APPROVAL' && taskTypeValue?.toUpperCase() !== 'APPROVAL'
+      })
+      const approvalTasks = sortedTasks.filter((task: ContactTaskData) => {
+        const taskTypeCode = task?.type?.code || ''
+        const taskTypeValue = task?.type?.value || ''
+        return taskTypeCode?.toUpperCase() === 'APPROVAL' || taskTypeValue?.toUpperCase() === 'APPROVAL'
+      })
+
+      setActivities(sortedActivities)
+      setNotes(sortedNotes)
+      setTasks(regularTasks)
+      setApprovals(approvalTasks)
+    } catch (error) {
+      console.error('Error loading section data:', error)
+      setSectionsError(error instanceof Error ? error.message : 'Failed to load data')
+    } finally {
+      setSectionsLoading(false)
+    }
+  }, [contactId, props.accessToken, fetchContactActivities, fetchContactNotes, fetchContactTasks])
+
+  // Load section data on mount
+  useEffect(() => {
+    loadSectionData()
+  }, [loadSectionData])
+
+  // Listen for process completion events to refresh contact data
+  useEffect(() => {
+    const handleProcessCompletion = (event: any) => {
+      try {
+        // Check for successful completion
+        if (event.detail?.resolution === 'success') {
+          refetchContactData()
+          loadSectionData() // Also refresh section data
+          return
+        }
+
+        // Also check for different event structure
+        const response = event.detail?.response
+        if (response?.detail?.resolution === 'success' || response?.contact) {
+          refetchContactData()
+          loadSectionData() // Also refresh section data
+        }
+      } catch (err) {
+        console.error('Error handling process completion in ContactRecord:', err)
+      }
+    }
+
+    // Listen to multiple possible event names for contact updates
+    const eventNames = [
+      'com.newwork.process.taskCompletion',
+      'com.newwork.process.completion',
+      'com.newwork.process.continue',
+      'com.newwork.process.processCompletion',
+      'processCompletion',
+      'taskCompletion',
+      'taskCompleted',
+      'processCompleted',
+      'task-completion',
+      'process-completion'
+    ]
+
+    eventNames.forEach(eventName => {
+      window.addEventListener(eventName, handleProcessCompletion as EventListener)
+    })
+
+    return () => {
+      eventNames.forEach(eventName => {
+        window.removeEventListener(eventName, handleProcessCompletion as EventListener)
+      })
+    }
+  }, [contactId, refetchContactData, loadSectionData])
+
+  const getBackButtonText = () => {
+    if (fromEntity === 'leads') {
+      return getTranslationFromI18nKeyAndLabel('crm.customers.navigation.backToLeads', 'Back to Customer Leads')
+    }
+    if (fromEntity === 'accounts') {
+      return getTranslationFromI18nKeyAndLabel('crm.customers.navigation.backToAccounts', 'Back to Customer Accounts')
+    }
+    if (fromEntity === 'salesPerformance') {
+      return getTranslationFromI18nKeyAndLabel('crm.navigation.backToSalesPerformance', 'Back to Sales Performance')
+    }
+    return getTranslationFromI18nKeyAndLabel('crm.customers.navigation.backToContacts', 'Back to Customer Contacts')
+  }
+
+  // Memoize header data - must be called before conditional returns
+  const headerDetailGroups = useMemo(
+    () => [
+      {
+        id: 'contact-details',
+        items: [
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.email', 'Email'),
+            value:
+              contactData?.email || contact?.email || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: Users
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.phone', 'Phone'),
+            value:
+              contactData?.phone || contact?.phone || getTranslationFromI18nKeyAndLabel('crm.common.notSet', 'Not set'),
+            icon: Users
+          },
+          {
+            label: getTranslationFromI18nKeyAndLabel('crm.common.owner', 'Owner'),
+            value:
+              contactData?.ownerEmployee?.displayName ||
+              contact?.ownerEmployee?.displayName ||
+              getTranslationFromI18nKeyAndLabel('crm.common.notAssigned', 'Not assigned'),
+            icon: User
+          }
+        ]
+      }
+    ],
+    [contactData, contact]
+  )
+
+  const headerActions = useMemo(() => {
+    // For now, we can add AI Summary later if needed
+    return null
+  }, [contactId])
+
+  const headerActionButton = useMemo(
+    () => (
+      <AppActionButton
+        data-testid="customer-contact-record-action-button"
+        size="icon"
+        contextsArray={[FlowContextName.customerContactEntity]}
+        externalContextData={{
+          contactId: contactId
+        }}
+        prefixDataTestId="customer-contact-record-action"
+        accessToken={props.accessToken}
+        emptyStateBehavior="hide"
+        deferMainContextRequestsUntilClick={false}
+      />
+    ),
+    [contactId, props.accessToken]
+  )
+
+  // Action props for sections - must be defined before subViews
+  const activityActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerActivityCreate],
+      externalContextData: { contactId },
+      prefixDataTestId: 'contact-activity'
+    }),
+    [contactId]
+  )
+
+  const noteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerNoteCreate],
+      externalContextData: { contactId },
+      prefixDataTestId: 'contact-note'
+    }),
+    [contactId]
+  )
+
+  const taskActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.createCustomerTask],
+      externalContextData: { contactId },
+      prefixDataTestId: 'contact-task'
+    }),
+    [contactId]
+  )
+
+  const approvalActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.createCustomerTask],
+      externalContextData: {
+        contactId,
+        typeRef: 'SalesTaskType:v1:APPROVAL',
+        salesTask: { contact: contactId, type: 'SalesTaskType:v1:APPROVAL' }
+      },
+      prefixDataTestId: 'contact-approval'
+    }),
+    [contactId]
+  )
+
+  const subViewsConfig = useMemo(
+    () => ({
+      defaultValue: activeTab,
+      onValueChange: handleTabChange,
+      items: [
+        {
+          value: 'overview',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.overview', 'Overview'),
+          icon: <User className="gba:mr-2" />,
+          content: (
+            <HomeView
+              contactId={contactId}
+              contact={contact!}
+              activities={activities}
+              notes={notes}
+              tasks={tasks}
+              approvals={approvals}
+              sectionsLoading={sectionsLoading}
+              sectionsError={sectionsError}
+              loadSectionData={loadSectionData}
+              activityActionProps={activityActionProps}
+              noteActionProps={noteActionProps}
+              taskActionProps={taskActionProps}
+              approvalActionProps={approvalActionProps}
+              {...props}
+            />
+          )
+        },
+        {
+          value: 'opportunities',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.opportunities', 'Opportunities'),
+          icon: <CurrencyDollar className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <OpportunityView contactId={contactId} {...props} />
+            </div>
+          )
+        },
+        {
+          value: 'documents',
+          label: getTranslationFromI18nKeyAndLabel('crm.common.documents', 'Documents'),
+          icon: <FileText className="gba:mr-2" />,
+          content: (
+            <div className="gba:col-span-12">
+              <DocumentView contactId={contactId} {...props} />
+            </div>
+          )
+        }
+      ]
+    }),
+    [
+      activeTab,
+      handleTabChange,
+      contact,
+      contactId,
+      props,
+      tasks,
+      approvals,
+      notes,
+      activities,
+      sectionsLoading,
+      sectionsError,
+      loadSectionData,
+      taskActionProps,
+      approvalActionProps,
+      noteActionProps,
+      activityActionProps
+    ]
+  )
+
+  useEffect(() => {
+    const fetchContactData = async () => {
+      if (!contactId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+
+        if (contactData) {
+          setContact(contactData)
+        } else if (dataError) {
+          setError(dataError)
+        }
+      } catch (err) {
+        console.error('Error fetching customer contact:', err)
+        setError(err instanceof Error ? err.message : 'Failed to load customer contact')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (!dataLoading) {
+      fetchContactData()
+    }
+  }, [contactId, contactData, dataLoading, dataError])
+
+  useEffect(() => {
+    setLoading(dataLoading)
+  }, [dataLoading])
+
+  if (loading) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (error || !contact) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <div className="gba:text-center">
+          <p className="gba:text-lg" style={{ color: 'var(--nw-color-destructive-600)' }}>
+            {error || getTranslationFromI18nKeyAndLabel('crm.customers.contact.notFound', 'Customer Contact not found')}
+          </p>
+          <Button
+            onClick={onBack}
+            style={{ marginTop: 'var(--nw-spacing-sm)' }}
+            variant="default"
+            data-testid="customer-contact-error-back-button"
+          >
+            {getBackButtonText()}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const fullName =
+    `${contactData?.firstName || contact?.firstName || ''} ${contactData?.lastName || contact?.lastName || ''}`.trim() ||
+    getTranslationFromI18nKeyAndLabel('crm.common.unnamedContact', 'Unnamed Contact')
+
+  const contactType = contactData?.contactType || contact?.contactType
+
+  const headerTitle = (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <span>{fullName}</span>
+      {contactType && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge data-testid="contact-type-badge" variant="outline" className="gba:text-sm">
+                {contactType}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent data-testid="contact-type-tooltip">
+              {getTranslationFromI18nKeyAndLabel('crm.common.contactType', 'Contact Type')}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+    </div>
+  )
+
+  return (
+    <div data-testid="customer-contact-detail">
+      <RecordLayout
+        headerOrientation="horizontal"
+        headerIcon={User}
+        headerCategory={getTranslationFromI18nKeyAndLabel('crm.common.contact', 'CONTACT')}
+        onBack={onBack}
+        headerTitle={headerTitle}
+        headerDetailGroups={headerDetailGroups}
+        headerActions={headerActions}
+        headerActionButton={headerActionButton}
+        subViews={subViewsConfig}
+      />
+    </div>
+  )
+}
+
+interface ContactRecordProps extends BusinessAppContextProps {
+  contactId?: string
+  source?: string
+  onBack?: () => void
+}
+
+const ContactRecord: React.FC<ContactRecordProps> = props => {
+  const contactId = useMemo(() => {
+    return props.contactId || new URLSearchParams(window.location.search).get('contactId')
+  }, [props.contactId])
+
+  const fromEntity = useMemo(() => {
+    return new URLSearchParams(window.location.search).get('fromEntity')
+  }, [])
+
+  const handleBack = () => {
+    if (props.onBack) {
+      props.onBack()
+    } else {
+      // Navigate back based on fromEntity first, then source
+      switch (fromEntity) {
+        case 'salesPerformance':
+          // Check if there's an employee ID to navigate back to specific employee performance
+          const employeeId = new URLSearchParams(window.location.search).get('employeeId')
+          const salesPerformanceUrl = employeeId
+            ? `/platform/crm/sales-performance?employeeId=${employeeId}`
+            : '/platform/crm/sales-performance'
+          navigateTo(salesPerformanceUrl)
+          break
+        default:
+          // Default back navigation based on source
+          navigateTo(buildPlatformUrl('/platform/crm/customer-relations', { view: 'contacts' }))
+          break
+      }
+    }
+  }
+
+  if (!contactId) {
+    return (
+      <div className="gba:flex gba:items-center gba:justify-center gba:min-h-screen">
+        <div className="gba:text-center">
+          <p
+            className="gba:text-lg"
+            style={{ color: 'var(--nw-color-destructive-600)' }}
+            data-testid="customer-contact-no-id-message"
+          >
+            {getTranslationFromI18nKeyAndLabel('crm.customers.contact.idRequired', 'Contact ID is required')}
+          </p>
+          <Button
+            onClick={handleBack}
+            style={{ marginTop: 'var(--nw-spacing-sm)' }}
+            variant="default"
+            data-testid="customer-contact-no-id-back-button"
+          >
+            {getTranslationFromI18nKeyAndLabel('crm.customers.navigation.backToContacts', 'Back to Customer Contacts')}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  return <ContactRecordContent {...props} contactId={contactId} onBack={handleBack} fromEntity={fromEntity} />
+}
+
+export { ContactRecord, ContactRecordContent }
+
+export default ContactRecord

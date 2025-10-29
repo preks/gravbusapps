@@ -9,6 +9,7 @@ import { useFilterData } from '../../../../hooks/useFilterData'
 import dayjs from 'dayjs'
 import { ExpenseFilterBar, FilterOptions } from '../../../filter-bar'
 import { usePlanVsRequestKpiCards, PlanVsRequestChart, PlanVsRequestCategoryTable } from './components'
+import { getExpenseGroupPluralName } from './utils/expenseGroupDisplay'
 
 export interface ExpensePlanVsRequestProps extends BusinessAppContextProps {
   isActive?: boolean
@@ -134,9 +135,12 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
       const currentPeriodAmount = categoryStat?.currentPeriodAmount || 0
       const variance = Number((categoryStat?.variance || 0).toFixed(2))
 
+      // Use translated plural name for display
+      const translatedName = getExpenseGroupPluralName(category.code || category.value)
+
       return {
         id: category.id,
-        name: category.value,
+        name: translatedName || category.value,
         code: category.code || category.id,
         currentPeriodAmount,
         previousPeriodAmount,
@@ -214,21 +218,23 @@ const ExpensePlanVsRequest: React.FC<ExpensePlanVsRequestProps> = props => {
         className="gba:text-sm gba:text-muted-foreground gba:bg-muted gba:p-3 gba:rounded-md gba:border gba:border-border"
         data-testid="plan-vs-request-active-filters"
       >
-        <span className="gba:font-medium">{getTranslationFromI18nKeyAndLabel('filters.period', 'Period')}:</span>{' '}
+        <span className="gba:font-medium">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.period_label', 'Period')}:
+        </span>{' '}
         {selectedPeriod}
         {' · '}
         <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('filters.currency', 'Currency')}:
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.currency_label', 'Currency')}:
         </span>{' '}
         {selectedCurrencyCode}
         {' · '}
         <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('filters.department', 'Department')}:
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.department_label', 'Department')}:
         </span>{' '}
         {selectedDepartmentName}
         {' · '}
         <span className="gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('common.lastUpdated', 'Last updated')}:
+          {getTranslationFromI18nKeyAndLabel('lowcoder:cards.last_updated', 'Last updated')}:
         </span>{' '}
         {dayjs().format('YYYY-MM-DD HH:mm')}
       </div>
