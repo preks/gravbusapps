@@ -249,8 +249,6 @@ const ChangeRelationshipScreen: React.FC<BusinessAppContextProps> = ({ additiona
     const shouldShowCongrats =
       idSelected.includes('child') || idSelected.includes('marriage') || idSelected.includes('mariage')
 
-    console.log(relationshipTypeOptions, 'relationshipTypeOptions')
-
     if (shouldShowCongrats) {
       // Show Congratulations modal first and resolve payload after user confirms
       pendingPayloadRef.current = relationshipChange
