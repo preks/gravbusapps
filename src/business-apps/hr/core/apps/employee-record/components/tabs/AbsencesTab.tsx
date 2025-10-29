@@ -37,7 +37,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   shownTab,
   userInfo
 }) => {
-  const userManagementClient = useRestClient(env('NEXT_PUBLIC_USER_MANAGEMENT_API_URL') || '')
+  const userManagementClient = useRestClient(env('NEXT_PUBLIC_USER_MANAGEMENT_API') || '')
   const [activeTab, setActiveTab] = useState<string>(shownTab ?? 'calendar')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
