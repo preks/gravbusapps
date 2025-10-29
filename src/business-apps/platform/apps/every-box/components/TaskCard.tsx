@@ -8,12 +8,15 @@ import {
   Card,
   CardContent,
   Badge,
-  Button
+  Button,
+  Avatar,
+  AvatarFallback
 } from '@newwork/nw-design-system';
-import { Clock, AlertTriangle, Eye } from 'lucide-react';
+import { Clock, AlertTriangle, Eye, User } from 'lucide-react';
 import { UnifiedTask } from '../types';
 import {
   formatRelativeTime,
+  formatDateTime,
   isOverdue,
   isDueSoon,
   getPriorityBadgeVariant,
@@ -48,6 +51,19 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView }) => {
   // Get flow name from workflowMeta
   const flowName = task.workflowMeta?.rootWorkflowId || task.flowId;
 
+  // Get creator information
+  const creatorName = task.sourceMetadata?.creatorName || task.sourceMetadata?.ownerName || 'Unknown';
+  const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt;
+  
+  // Generate initials from creator name
+  const getInitials = (name: string): string => {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+
   return (
     <Card
       className="gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow"
@@ -57,6 +73,31 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView }) => {
       <CardContent className="gba:p-4">
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
           <div className="gba:flex-1 gba:min-w-0">
+            {/* Creator info section */}
+            <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3" data-testid="task-creator-section">
+              <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
+                <AvatarFallback className="gba:text-xs gba:font-medium">
+                  {getInitials(creatorName)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="gba:flex-1 gba:min-w-0">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <User className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                  <span className="gba:text-xs gba:font-medium gba:truncate" data-testid="task-creator-name">
+                    {creatorName}
+                  </span>
+                </div>
+                {createdAt && (
+                  <div className="gba:flex gba:items-center gba:gap-1 gba:mt-0.5">
+                    <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
+                    <span className="gba:text-xs gba:text-muted-foreground" data-testid="task-created-at">
+                      {formatDateTime(createdAt)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
               <Badge variant={getPriorityBadgeVariant(task.priority)} data-testid="task-priority-badge">
                 {formatPriority(task.priority)}
