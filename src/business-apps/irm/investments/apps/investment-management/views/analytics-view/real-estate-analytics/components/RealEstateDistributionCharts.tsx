@@ -51,6 +51,113 @@ const StatusCountTooltip: React.FC<StatusCountTooltipProps> = ({ active, payload
   return null
 }
 
+// Type count tooltip component (for property type distribution by count)
+interface TypeCountTooltipProps {
+  active?: boolean
+  payload?: any[]
+  filteredData: any[]
+}
+
+const TypeCountTooltip: React.FC<TypeCountTooltipProps> = ({ active, payload, filteredData }) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    const total = filteredData.reduce((sum: number, item: any) => sum + item.count, 0)
+    const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} properties</div>
+        <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
+      </div>
+    )
+  }
+  return null
+}
+
+// Type amount tooltip component (for property type distribution by amount)
+interface TypeAmountTooltipProps {
+  active?: boolean
+  payload?: any[]
+  filteredData: any[]
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const TypeAmountTooltip: React.FC<TypeAmountTooltipProps> = ({
+  active,
+  payload,
+  filteredData,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    const total = filteredData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
+    const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          {formatCurrency(data.value as number, currency)}
+        </div>
+        <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
+      </div>
+    )
+  }
+  return null
+}
+
+// Status amount tooltip component (for property status distribution by amount)
+interface StatusAmountTooltipProps {
+  active?: boolean
+  payload?: any[]
+  filteredData: any[]
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const StatusAmountTooltip: React.FC<StatusAmountTooltipProps> = ({
+  active,
+  payload,
+  filteredData,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    const data = payload[0]
+    const total = filteredData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
+    const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${data.payload.name})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{data.payload.status}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          {formatCurrency(data.value as number, currency)}
+        </div>
+        <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
+      </div>
+    )
+  }
+  return null
+}
+
 export const RealEstateDistributionCharts: React.FC<RealEstateDistributionChartsProps> = ({
   rawInvestments,
   masterCurrency,
@@ -212,31 +319,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload?.length) {
-                      const data = payload[0]
-                      const total = filteredTypeCountData.reduce((sum: number, item: any) => sum + item.count, 0)
-                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
-                          </div>
-                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{data.value} properties</div>
-                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-                            {percentage.toFixed(1)}% of total
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
+                <ChartTooltip content={props => <TypeCountTooltip {...props} filteredData={filteredTypeCountData} />} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -300,31 +383,14 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   })}
                 </Pie>
                 <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload?.length) {
-                      const data = payload[0]
-                      const total = filteredTypeData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
-                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium gba:text-gray-700">{data.payload.type}</span>
-                          </div>
-                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                            {formatCurrencyCompact(data.value as number, typeCurrencyFilter)}
-                          </div>
-                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-                            {percentage.toFixed(1)}% of total
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
+                  content={props => (
+                    <TypeAmountTooltip
+                      {...props}
+                      filteredData={filteredTypeData}
+                      formatCurrency={formatCurrencyCompact}
+                      currency={typeCurrencyFilter}
+                    />
+                  )}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
@@ -455,31 +521,14 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                   })}
                 </Pie>
                 <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload?.length) {
-                      const data = payload[0]
-                      const total = filteredStatusData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
-                      const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                            />
-                            <span className="gba:font-medium gba:text-gray-700">{data.payload.status}</span>
-                          </div>
-                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                            {formatCurrencyCompact(data.value as number, statusCurrencyFilter)}
-                          </div>
-                          <div className="gba:text-sm gba:font-medium gba:text-gray-600">
-                            {percentage.toFixed(1)}% of total
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
+                  content={props => (
+                    <StatusAmountTooltip
+                      {...props}
+                      filteredData={filteredStatusData}
+                      formatCurrency={formatCurrencyCompact}
+                      currency={statusCurrencyFilter}
+                    />
+                  )}
                 />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>

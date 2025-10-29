@@ -19,6 +19,82 @@ import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useLiquidFundCorrelationData, useLiquidFundPerformanceByType } from '../hooks'
 
+// Interest Rate vs Amount scatter chart tooltip component
+interface RateVsAmountTooltipContentProps {
+  active?: boolean
+  payload?: any[]
+  formatCurrency: (amount: number) => string
+}
+
+const RateVsAmountTooltipContent: React.FC<RateVsAmountTooltipContentProps> = ({ active, payload, formatCurrency }) => {
+  if (active && payload?.length) {
+    const data = payload[0].payload
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Fixed-Term Deposit</div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: 'var(--color-ratevsamount)' }} />
+          <span className="gba:font-medium">Interest Rate:</span>
+          <span className="gba:font-semibold">{data.interestRate}%</span>
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: 'var(--color-ratevsamount)' }} />
+          <span className="gba:font-medium">Investment Amount:</span>
+          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount)}</span>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
+// Average metrics bar chart tooltip component
+interface AverageMetricsTooltipContentProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number) => string
+}
+
+const AverageMetricsTooltipContent: React.FC<AverageMetricsTooltipContentProps> = ({
+  active,
+  payload,
+  label,
+  formatCurrency
+}) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+        {payload.map((entry, index) => {
+          let formattedValue = ''
+          let properLabel = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'averageInterestRate') {
+            formattedValue = `${(entry.value as number).toFixed(2)}%`
+            properLabel = 'Average Interest Rate'
+            dotColor = 'var(--color-averageInterestRate)'
+          } else if (entry.dataKey === 'averageInvestmentAmount') {
+            formattedValue = formatCurrency(entry.value as number)
+            properLabel = 'Average Investment Amount'
+            dotColor = 'var(--color-averageInvestmentAmount)'
+          }
+
+          return (
+            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formattedValue}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
 interface LiquidFundAnalyticsChartsProps extends BusinessAppContextProps {
   masterCurrency: string
   availableCurrencies: string[]
@@ -129,33 +205,7 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                     tickFormatter={value => formatCurrencyCompact(value)}
                   />
                   <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload?.length) {
-                        const data = payload[0].payload
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Fixed-Term Deposit</div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-ratevsamount)' }}
-                              />
-                              <span className="gba:font-medium">Interest Rate:</span>
-                              <span className="gba:font-semibold">{data.interestRate}%</span>
-                            </div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-ratevsamount)' }}
-                              />
-                              <span className="gba:font-medium">Investment Amount:</span>
-                              <span className="gba:font-semibold">{formatCurrencyCompact(data.investmentAmount)}</span>
-                            </div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => <RateVsAmountTooltipContent {...props} formatCurrency={formatCurrencyCompact} />}
                   />
                   <Scatter name="ratevsamount" fill="var(--color-ratevsamount)" />
                 </ScatterChart>
@@ -222,42 +272,9 @@ export const LiquidFundAnalyticsCharts: React.FC<LiquidFundAnalyticsChartsProps>
                   <YAxis yAxisId="left" tickFormatter={value => `${value}%`} />
                   <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatCurrencyCompact(value)} />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                            {payload.map(entry => {
-                              let formattedValue = ''
-                              let properLabel = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'averageInterestRate') {
-                                formattedValue = `${(entry.value as number).toFixed(2)}%`
-                                properLabel = 'Average Interest Rate'
-                                dotColor = 'var(--color-averageInterestRate)'
-                              } else if (entry.dataKey === 'averageInvestmentAmount') {
-                                formattedValue = formatCurrencyCompact(entry.value as number)
-                                properLabel = 'Average Investment Amount'
-                                dotColor = 'var(--color-averageInvestmentAmount)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <AverageMetricsTooltipContent {...props} formatCurrency={formatCurrencyCompact} />
+                    )}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar

@@ -21,6 +21,144 @@ import { useCurrencySync } from '../../shared/hooks'
 import { useRealEstateTimelineAggregate } from '../hooks/useRealEstateTimelineAggregate'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+// Timeline chart tooltip component
+interface TimelineTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const TimelineTooltip: React.FC<TimelineTooltipProps> = ({ active, payload, label, formatCurrency, currency }) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+        {payload.map(entry => {
+          let formattedValue = ''
+          let properLabel = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'investmentCount') {
+            formattedValue = `${entry.value}`
+            properLabel = 'Investment Count'
+            dotColor = 'var(--color-investmentcount)'
+          } else if (entry.dataKey === 'totalInvestmentAmount') {
+            formattedValue = formatCurrency(entry.value as number, currency)
+            properLabel = 'Total Investment Amount'
+            dotColor = 'var(--color-totalinvestmentamount)'
+          } else if (entry.dataKey === 'cumulativeInvestments') {
+            formattedValue = `${entry.value}`
+            properLabel = 'Cumulative Investments'
+            dotColor = 'var(--color-cumulativeinvestments)'
+          }
+
+          return (
+            <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formattedValue}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
+// Performance metrics tooltip component
+interface PerformanceTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const PerformanceTooltip: React.FC<PerformanceTooltipProps> = ({
+  active,
+  payload,
+  label,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+        {payload.map(entry => {
+          let properLabel = ''
+          let formattedValue = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'averageOccupancyRate') {
+            properLabel = 'Average Occupancy Rate'
+            formattedValue = `${(entry.value as number).toFixed(1)}%`
+            dotColor = 'var(--color-averageoccupancyrate)'
+          } else if (entry.dataKey === 'totalPropertyValue') {
+            properLabel = 'Total Property Value'
+            formattedValue = formatCurrency(entry.value as number, currency)
+            dotColor = 'var(--color-totalpropertyvalue)'
+          }
+
+          return (
+            <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formattedValue}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
+// Property type distribution tooltip component
+interface PropertyTypeTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number) => string
+}
+
+const PropertyTypeTooltip: React.FC<PropertyTypeTooltipProps> = ({ active, payload, label, formatCurrency }) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+        {payload.map(entry => {
+          let properLabel = ''
+          let formattedValue = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'propertyCount') {
+            properLabel = 'Property Count'
+            formattedValue = `${entry.value}`
+            dotColor = 'var(--color-propertycount)'
+          } else if (entry.dataKey === 'averageValue') {
+            properLabel = 'Average Value'
+            formattedValue = formatCurrency(entry.value as number)
+            dotColor = 'var(--color-averagevalue)'
+          }
+
+          return (
+            <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formattedValue}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
 interface RealEstateTimelineChartsProps extends BusinessAppContextProps {
   rawInvestments: any[]
   masterCurrency: string
@@ -155,46 +293,13 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                            {payload.map(entry => {
-                              let formattedValue = ''
-                              let properLabel = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'investmentCount') {
-                                formattedValue = `${entry.value}`
-                                properLabel = 'Investment Count'
-                                dotColor = 'var(--color-investmentcount)'
-                              } else if (entry.dataKey === 'totalInvestmentAmount') {
-                                formattedValue = formatCurrencyCompact(entry.value as number, timelineCurrencyFilter)
-                                properLabel = 'Total Investment Amount'
-                                dotColor = 'var(--color-totalinvestmentamount)'
-                              } else if (entry.dataKey === 'cumulativeInvestments') {
-                                formattedValue = `${entry.value}`
-                                properLabel = 'Cumulative Investments'
-                                dotColor = 'var(--color-cumulativeinvestments)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <TimelineTooltip
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={timelineCurrencyFilter}
+                      />
+                    )}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar
@@ -272,42 +377,13 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                            {payload.map(entry => {
-                              let properLabel = ''
-                              let formattedValue = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'averageOccupancyRate') {
-                                properLabel = 'Average Occupancy Rate'
-                                formattedValue = `${(entry.value as number).toFixed(1)}%`
-                                dotColor = 'var(--color-averageoccupancyrate)'
-                              } else if (entry.dataKey === 'totalPropertyValue') {
-                                properLabel = 'Total Property Value'
-                                formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrencyFilter)
-                                dotColor = 'var(--color-totalpropertyvalue)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <PerformanceTooltip
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={performanceCurrencyFilter}
+                      />
+                    )}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Line
@@ -362,39 +438,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
               <ChartTooltip
-                content={({ active, payload, label }) => {
-                  if (active && payload?.length) {
-                    return (
-                      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                        {payload.map(entry => {
-                          let properLabel = ''
-                          let formattedValue = ''
-                          let dotColor = ''
-
-                          if (entry.dataKey === 'propertyCount') {
-                            properLabel = 'Property Count'
-                            formattedValue = `${entry.value}`
-                            dotColor = 'var(--color-propertycount)'
-                          } else if (entry.dataKey === 'averageValue') {
-                            properLabel = 'Average Value'
-                            formattedValue = formatCurrencyCompact(entry.value as number)
-                            dotColor = 'var(--color-averagevalue)'
-                          }
-
-                          return (
-                            <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
-                              <span className="gba:font-medium">{properLabel}:</span>
-                              <span className="gba:font-semibold">{formattedValue}</span>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  }
-                  return null
-                }}
+                content={props => <PropertyTypeTooltip {...props} formatCurrency={formatCurrencyCompact} />}
               />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar yAxisId="left" dataKey="propertyCount" fill="var(--color-propertycount)" name="Property Count" />

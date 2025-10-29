@@ -20,6 +20,31 @@ import { PieChart, Pie, Cell } from 'recharts'
 import { CurrencyCircleDollarIcon, ChartDonutIcon } from '@phosphor-icons/react'
 import type { DistributionData } from './distributionUtils'
 
+// Distribution chart tooltip component for investment count
+interface DistributionCountTooltipContentProps {
+  active?: boolean
+  payload?: any[]
+}
+
+const DistributionCountTooltipContent: React.FC<DistributionCountTooltipContentProps> = ({ active, payload }) => {
+  if (active && payload?.length) {
+    const dataPoint = payload[0].payload
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: `var(--color-${dataPoint.name})` }}
+          />
+          <span className="gba:font-medium gba:text-gray-700">{dataPoint.type}</span>
+        </div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{dataPoint.count} investments</div>
+      </div>
+    )
+  }
+  return null
+}
+
 interface InvestmentSizeChartProps {
   data: DistributionData[]
   currency: string
@@ -118,28 +143,7 @@ export const InvestmentSizeChart: React.FC<InvestmentSizeChartProps> = ({
                     return <Cell key={`cell-${entry.type}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload?.length) {
-                      const dataPoint = payload[0].payload
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${dataPoint.name})` }}
-                            />
-                            <span className="gba:font-medium gba:text-gray-700">{dataPoint.type}</span>
-                          </div>
-                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                            {dataPoint.count} investments
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
+                <ChartTooltip content={props => <DistributionCountTooltipContent {...props} />} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -248,28 +252,7 @@ export const InvestmentDurationChart: React.FC<InvestmentDurationChartProps> = (
                     return <Cell key={`cell-${entry.type}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip
-                  content={({ active, payload }) => {
-                    if (active && payload?.length) {
-                      const dataPoint = payload[0].payload
-                      return (
-                        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                            <div
-                              className="gba:w-3 gba:h-3 gba:rounded-full"
-                              style={{ backgroundColor: `var(--color-${dataPoint.name})` }}
-                            />
-                            <span className="gba:font-medium gba:text-gray-700">{dataPoint.type}</span>
-                          </div>
-                          <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                            {dataPoint.count} investments
-                          </div>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
+                <ChartTooltip content={props => <DistributionCountTooltipContent {...props} />} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>

@@ -21,6 +21,93 @@ import { useCurrencySync } from '../../shared/hooks'
 import { useRealEstateOccupancyDistribution, useRealEstatePropertyValueVsRent } from '../hooks'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+// Occupancy distribution bar chart tooltip
+interface OccupancyDistributionTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const OccupancyDistributionTooltip: React.FC<OccupancyDistributionTooltipProps> = ({
+  active,
+  payload,
+  label,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+        {payload.map(entry => {
+          let properLabel = ''
+          let formattedValue = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'count') {
+            properLabel = 'Property Count'
+            formattedValue = `${entry.value}`
+            dotColor = 'var(--color-count)'
+          } else if (entry.dataKey === 'totalValue') {
+            properLabel = 'Total Property Value'
+            formattedValue = formatCurrency(entry.value as number, currency)
+            dotColor = 'var(--color-totalValue)'
+          }
+
+          return (
+            <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formattedValue}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
+// Property value vs rent scatter chart tooltip
+interface PropertyValueVsRentTooltipProps {
+  active?: boolean
+  payload?: any[]
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const PropertyValueVsRentTooltip: React.FC<PropertyValueVsRentTooltipProps> = ({
+  active,
+  payload,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    const data = payload[0].payload
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.propertyName || 'Property'}</div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: 'var(--color-propertyValue)' }} />
+          <span className="gba:font-medium">Property Value:</span>
+          <span className="gba:font-semibold">{formatCurrency(data.propertyValue, currency)}</span>
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: 'var(--color-annualExpenses)' }}
+          />
+          <span className="gba:font-medium">Annual Net Cold Rent:</span>
+          <span className="gba:font-semibold">{formatCurrency(data.annualExpenses, currency)}</span>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
 interface RealEstateAnalyticsChartsProps extends BusinessAppContextProps {
   masterCurrency: string
   availableCurrencies: string[]
@@ -125,42 +212,13 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                            {payload.map(entry => {
-                              let properLabel = ''
-                              let formattedValue = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'count') {
-                                properLabel = 'Property Count'
-                                formattedValue = `${entry.value}`
-                                dotColor = 'var(--color-count)'
-                              } else if (entry.dataKey === 'totalValue') {
-                                properLabel = 'Total Property Value'
-                                formattedValue = formatCurrencyCompact(entry.value as number, occupancyCurrencyFilter)
-                                dotColor = 'var(--color-totalValue)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <OccupancyDistributionTooltip
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={occupancyCurrencyFilter}
+                      />
+                    )}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" />
@@ -227,39 +285,13 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                     <XAxis dataKey="propertyValue" name="Property Value" type="number" />
                     <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
                     <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0].payload
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                                {data.propertyName || 'Property'}
-                              </div>
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: 'var(--color-propertyValue)' }}
-                                />
-                                <span className="gba:font-medium">Property Value:</span>
-                                <span className="gba:font-semibold">
-                                  {formatCurrencyCompact(data.propertyValue, expensesCurrencyFilter)}
-                                </span>
-                              </div>
-                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: 'var(--color-annualExpenses)' }}
-                                />
-                                <span className="gba:font-medium">Annual Net Cold Rent:</span>
-                                <span className="gba:font-semibold">
-                                  {formatCurrencyCompact(data.annualExpenses, expensesCurrencyFilter)}
-                                </span>
-                              </div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
+                      content={props => (
+                        <PropertyValueVsRentTooltip
+                          {...props}
+                          formatCurrency={formatCurrencyCompact}
+                          currency={expensesCurrencyFilter}
+                        />
+                      )}
                     />
                     <Scatter dataKey="annualExpenses" fill="var(--color-annualExpenses)" />
                   </ScatterChart>

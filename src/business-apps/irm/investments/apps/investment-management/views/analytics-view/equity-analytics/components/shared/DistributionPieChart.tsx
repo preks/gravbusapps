@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { TooltipProps } from 'recharts'
 import {
   Card,
   CardHeader,
@@ -38,6 +39,44 @@ interface DistributionPieChartProps {
   onCurrencyChange?: (currency: string) => void
   availableCurrencies?: string[]
   formatCurrency?: (amount: number, currency: string) => string
+}
+
+// Custom tooltip component for distribution pie charts
+const DistributionTooltipContent: React.FC<
+  TooltipProps<number, string> & {
+    valueType: 'count' | 'amount'
+    currency?: string
+    formatCurrency?: (amount: number, currency: string) => string
+  }
+> = ({ active, payload, valueType, currency, formatCurrency }) => {
+  if (!active || !payload?.length) {
+    return null
+  }
+
+  const dataPoint = payload[0]
+
+  return (
+    <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+        <div
+          className="gba:w-3 gba:h-3 gba:rounded-full"
+          style={{ backgroundColor: `var(--color-${dataPoint.payload.name})` }}
+        />
+        <span className="gba:font-medium gba:text-gray-700">{dataPoint.payload.type}</span>
+      </div>
+      <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
+        {(() => {
+          if (valueType === 'count') {
+            return `${dataPoint.value} investments`
+          }
+          if (formatCurrency && currency) {
+            return formatCurrency(dataPoint.value as number, currency)
+          }
+          return dataPoint.value
+        })()}
+      </div>
+    </div>
+  )
 }
 
 export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
@@ -118,35 +157,14 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
               })}
             </Pie>
             <ChartTooltip
-              content={({ active, payload }) => {
-                if (active && payload?.length) {
-                  const dataPoint = payload[0]
-
-                  return (
-                    <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                        <div
-                          className="gba:w-3 gba:h-3 gba:rounded-full"
-                          style={{ backgroundColor: `var(--color-${dataPoint.payload.name})` }}
-                        />
-                        <span className="gba:font-medium gba:text-gray-700">{dataPoint.payload.type}</span>
-                      </div>
-                      <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
-                        {(() => {
-                          if (valueType === 'count') {
-                            return `${dataPoint.value} investments`
-                          }
-                          if (formatCurrency && currency) {
-                            return formatCurrency(dataPoint.value as number, currency)
-                          }
-                          return dataPoint.value
-                        })()}
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              }}
+              content={props => (
+                <DistributionTooltipContent
+                  {...props}
+                  valueType={valueType}
+                  currency={currency}
+                  formatCurrency={formatCurrency}
+                />
+              )}
             />
             <ChartLegend content={<ChartLegendContent />} />
           </PieChart>

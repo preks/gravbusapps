@@ -19,6 +19,158 @@ import { useCurrencySync } from '../../shared/hooks'
 import { useEquityStakeVsAmount, useEquityRoleVsAmount, useEquityConcentrationByRole } from '../hooks'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
+// Stake vs Investment scatter chart tooltip component
+interface StakeVsInvestmentTooltipContentProps {
+  active?: boolean
+  payload?: any[]
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const StakeVsInvestmentTooltipContent: React.FC<StakeVsInvestmentTooltipContentProps> = ({
+  active,
+  payload,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    const data = payload[0].payload // Get the actual data point
+
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+          Company: {data.company || data.name || 'Unknown'}
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+          />
+          <span className="gba:font-medium">Stake Percentage:</span>
+          <span className="gba:font-semibold">{data.stake}%</span>
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
+          />
+          <span className="gba:font-medium">Investment Amount:</span>
+          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount, currency)}</span>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
+// Role vs Investment scatter chart tooltip component
+interface RoleVsInvestmentTooltipContentProps {
+  active?: boolean
+  payload?: any[]
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const RoleVsInvestmentTooltipContent: React.FC<RoleVsInvestmentTooltipContentProps> = ({
+  active,
+  payload,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    const data = payload[0].payload // Get the actual data point
+    const roleScore = data.roleScore
+    let roleLabel
+    if (roleScore === 1) {
+      roleLabel = 'Follow-on'
+    } else if (roleScore === 2) {
+      roleLabel = 'Co-Investor'
+    } else if (roleScore === 3) {
+      roleLabel = 'Lead'
+    } else {
+      roleLabel = data.role
+    }
+
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
+          Company: {data.company || data.name || 'Unknown'}
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+          />
+          <span className="gba:font-medium">Investment Role:</span>
+          <span className="gba:font-semibold">{roleLabel}</span>
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+          <div
+            className="gba:w-3 gba:h-3 gba:rounded-full"
+            style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
+          />
+          <span className="gba:font-medium">Investment Amount:</span>
+          <span className="gba:font-semibold">{formatCurrency(data.investmentAmount, currency)}</span>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
+// Investment concentration bar/line chart tooltip component
+interface ConcentrationTooltipContentProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const ConcentrationTooltipContent: React.FC<ConcentrationTooltipContentProps> = ({
+  active,
+  payload,
+  label,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+        {payload.map((entry, index) => {
+          let formattedValue = ''
+          let properLabel = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'count') {
+            formattedValue = `${entry.value}`
+            properLabel = 'Investment Count'
+            dotColor = 'var(--color-investmentcount)'
+          } else if (entry.dataKey === 'totalValuation') {
+            formattedValue = formatCurrency(entry.value as number, currency)
+            properLabel = 'Total Valuation'
+            dotColor = 'var(--color-totalvaluation)'
+          } else if (entry.dataKey === 'averageValuation') {
+            formattedValue = formatCurrency(entry.value as number, currency)
+            properLabel = 'Average Valuation'
+            dotColor = 'var(--color-averagevaluation)'
+          }
+
+          return (
+            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formattedValue}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
 interface EquityAnalyticsChartsProps extends BusinessAppContextProps {
   masterCurrency: string
   availableCurrencies: string[]
@@ -140,38 +292,13 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     tickFormatter={value => formatCurrencyCompact(value, stakeAmountCurrency)}
                   />
                   <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload?.length) {
-                        const data = payload[0].payload // Get the actual data point
-
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                              Company: {data.company || data.name || 'Unknown'}
-                            </div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
-                              />
-                              <span className="gba:font-medium">Stake Percentage:</span>
-                              <span className="gba:font-semibold">{data.stake}%</span>
-                            </div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-stakevsinvestment)' }}
-                              />
-                              <span className="gba:font-medium">Investment Amount:</span>
-                              <span className="gba:font-semibold">
-                                {formatCurrencyCompact(data.investmentAmount, stakeAmountCurrency)}
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <StakeVsInvestmentTooltipContent
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={stakeAmountCurrency}
+                      />
+                    )}
                   />
                   <Scatter
                     name="stakevsinvestment"
@@ -255,49 +382,13 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     tickFormatter={value => formatCurrencyCompact(value, roleAmountCurrency)}
                   />
                   <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload?.length) {
-                        const data = payload[0].payload // Get the actual data point
-                        const roleScore = data.roleScore
-                        let roleLabel
-                        if (roleScore === 1) {
-                          roleLabel = 'Follow-on'
-                        } else if (roleScore === 2) {
-                          roleLabel = 'Co-Investor'
-                        } else if (roleScore === 3) {
-                          roleLabel = 'Lead'
-                        } else {
-                          roleLabel = data.role
-                        }
-
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">
-                              Company: {data.company || data.name || 'Unknown'}
-                            </div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
-                              />
-                              <span className="gba:font-medium">Investment Role:</span>
-                              <span className="gba:font-semibold">{roleLabel}</span>
-                            </div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-rolevsinvestment)' }}
-                              />
-                              <span className="gba:font-medium">Investment Amount:</span>
-                              <span className="gba:font-semibold">
-                                {formatCurrencyCompact(data.investmentAmount, roleAmountCurrency)}
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <RoleVsInvestmentTooltipContent
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={roleAmountCurrency}
+                      />
+                    )}
                   />
                   <Scatter
                     name="rolevsinvestment"
@@ -366,46 +457,13 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                   <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                            {payload.map(entry => {
-                              let formattedValue = ''
-                              let properLabel = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'count') {
-                                formattedValue = `${entry.value}`
-                                properLabel = 'Investment Count'
-                                dotColor = 'var(--color-investmentcount)'
-                              } else if (entry.dataKey === 'totalValuation') {
-                                formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
-                                properLabel = 'Total Valuation'
-                                dotColor = 'var(--color-totalvaluation)'
-                              } else if (entry.dataKey === 'averageValuation') {
-                                formattedValue = formatCurrencyCompact(entry.value as number, concentrationCurrency)
-                                properLabel = 'Average Valuation'
-                                dotColor = 'var(--color-averagevaluation)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <ConcentrationTooltipContent
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={concentrationCurrency}
+                      />
+                    )}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar

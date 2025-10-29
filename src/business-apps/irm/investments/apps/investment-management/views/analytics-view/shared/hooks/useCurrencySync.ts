@@ -91,7 +91,7 @@ export const useMultipleCurrencySync = (
   count: number
 ): Array<[string, (value: string) => void]> => {
   // Initialize array of currencies with master currency
-  const [currencies, setCurrencies] = useState<string[]>(() => Array(count).fill(masterCurrency))
+  const [currencies, setCurrencies] = useState<string[]>(() => new Array(count).fill(masterCurrency))
   const isFirstRender = useRef(true)
   const prevMasterCurrency = useRef<string>(masterCurrency)
 
@@ -104,7 +104,7 @@ export const useMultipleCurrencySync = (
     }
 
     if (prevMasterCurrency.current !== masterCurrency) {
-      setCurrencies(Array(count).fill(masterCurrency))
+      setCurrencies(new Array(count).fill(masterCurrency))
       prevMasterCurrency.current = masterCurrency
     }
   }, [masterCurrency, count])

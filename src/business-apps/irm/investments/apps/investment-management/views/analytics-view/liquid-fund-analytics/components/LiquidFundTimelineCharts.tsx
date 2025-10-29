@@ -19,6 +19,105 @@ import { CurrencyFilter } from '../../shared/components'
 import { useCurrencySync } from '../../shared/hooks'
 import { useLiquidFundTimelineAggregate } from '../hooks'
 
+// Performance timeline tooltip component
+interface PerformanceTimelineTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const PerformanceTimelineTooltip: React.FC<PerformanceTimelineTooltipProps> = ({
+  active,
+  payload,
+  label,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+        {payload.map(entry => {
+          let formattedValue = ''
+          let properLabel = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'investmentCount') {
+            formattedValue = `${entry.value}`
+            properLabel = 'Investment Count'
+            dotColor = 'var(--color-investmentcount)'
+          } else if (entry.dataKey === 'totalInvestmentAmount') {
+            formattedValue = formatCurrency(entry.value as number, currency)
+            properLabel = 'Total Invested Amount'
+            dotColor = 'var(--color-totalinvestmentamount)'
+          } else if (entry.dataKey === 'cumulativeInvestments') {
+            formattedValue = `${entry.value}`
+            properLabel = 'Cumulative Investments'
+            dotColor = 'var(--color-cumulativeinvestments)'
+          }
+
+          return (
+            <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formattedValue}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
+// Value trends timeline tooltip component
+interface ValueTrendsTooltipProps {
+  active?: boolean
+  payload?: any[]
+  label?: string
+  formatCurrency: (amount: number, currency: string) => string
+  currency: string
+}
+
+const ValueTrendsTooltip: React.FC<ValueTrendsTooltipProps> = ({
+  active,
+  payload,
+  label,
+  formatCurrency,
+  currency
+}) => {
+  if (active && payload?.length) {
+    return (
+      <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+        <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
+        {payload.map(entry => {
+          let properLabel = ''
+          let dotColor = ''
+
+          if (entry.dataKey === 'totalInvestmentAmount') {
+            properLabel = 'Total Invested Amount'
+            dotColor = 'var(--color-totalInvestmentAmount)'
+          } else if (entry.dataKey === 'totalMarketValue') {
+            properLabel = 'Total Market Value'
+            dotColor = 'var(--color-totalMarketValue)'
+          }
+
+          return (
+            <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+              <span className="gba:font-medium">{properLabel}:</span>
+              <span className="gba:font-semibold">{formatCurrency(entry.value as number, currency)}</span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}
+
 interface LiquidFundTimelineChartsProps extends BusinessAppContextProps {
   masterCurrency: string
   availableCurrencies: string[]
@@ -128,46 +227,13 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                            {payload.map(entry => {
-                              let formattedValue = ''
-                              let properLabel = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'investmentCount') {
-                                formattedValue = `${entry.value}`
-                                properLabel = 'Investment Count'
-                                dotColor = 'var(--color-investmentcount)'
-                              } else if (entry.dataKey === 'totalInvestmentAmount') {
-                                formattedValue = formatCurrencyCompact(entry.value as number, performanceCurrency)
-                                properLabel = 'Total Invested Amount'
-                                dotColor = 'var(--color-totalinvestmentamount)'
-                              } else if (entry.dataKey === 'cumulativeInvestments') {
-                                formattedValue = `${entry.value}`
-                                properLabel = 'Cumulative Investments'
-                                dotColor = 'var(--color-cumulativeinvestments)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <PerformanceTimelineTooltip
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={performanceCurrency}
+                      />
+                    )}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar
@@ -262,41 +328,13 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                     tickFormatter={value => formatCurrencyCompact(value, valueTrendsCurrency)}
                   />
                   <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">Year: {label}</div>
-                            {payload.map(entry => {
-                              let properLabel = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'totalInvestmentAmount') {
-                                properLabel = 'Total Invested Amount'
-                                dotColor = 'var(--color-totalInvestmentAmount)'
-                              } else if (entry.dataKey === 'totalMarketValue') {
-                                properLabel = 'Total Market Value'
-                                dotColor = 'var(--color-totalMarketValue)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">
-                                    {formatCurrencyCompact(entry.value as number, valueTrendsCurrency)}
-                                  </span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
+                    content={props => (
+                      <ValueTrendsTooltip
+                        {...props}
+                        formatCurrency={formatCurrencyCompact}
+                        currency={valueTrendsCurrency}
+                      />
+                    )}
                   />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Line

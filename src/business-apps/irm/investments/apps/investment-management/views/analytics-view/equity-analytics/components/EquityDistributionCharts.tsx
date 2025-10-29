@@ -22,8 +22,8 @@ interface EquityDistributionChartsProps extends BusinessAppContextProps {
   availableCurrencies: string[]
 }
 
-export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> = context => {
-  const { masterCurrency, availableCurrencies } = context
+export const EquityDistributionCharts: React.FC<EquityDistributionChartsProps> = props => {
+  const { masterCurrency, availableCurrencies, ...context } = props
 
   // Currency state for count-based charts - start with "All Currencies", then sync with master
   const [roleCountCurrency, setRoleCountCurrency] = useState<string>('All Currencies')
