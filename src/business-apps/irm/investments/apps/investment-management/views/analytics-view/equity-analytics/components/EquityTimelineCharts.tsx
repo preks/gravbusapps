@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -78,6 +78,123 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
     }).format(amount)
   }
 
+  // Timeline chart tooltip component
+  const TimelineTooltipContent: React.FC<{
+    active?: boolean
+    payload?: any[]
+    label?: string
+    formatCurrency: (amount: number, currency: string) => string
+    currency: string
+  }> = ({ active, payload, label, formatCurrency, currency }) => {
+    if (active && payload?.length) {
+      const investmentTypes = payload.filter(entry => entry.dataKey !== 'total' && (entry.value as number) > 0)
+      const totalEntry = payload.find(entry => entry.dataKey === 'total')
+      const total = (totalEntry?.value as number) || 0
+
+      return (
+        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+          <div className="gba:mb-2 gba:font-semibold gba:text-gray-800">{label}</div>
+          {investmentTypes.map(entry => (
+            <div key={entry.name as string} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+              <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.fill }} />
+              <span className="gba:font-medium gba:text-gray-600">{entry.name}:</span>
+              <span className="gba:font-semibold gba:text-gray-800">
+                {formatCurrency(entry.value as number, currency)}
+              </span>
+            </div>
+          ))}
+          <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:font-semibold gba:text-gray-700">Total:</span>
+              <span className="gba:font-bold gba:text-gray-900">{formatCurrency(total, currency)}</span>
+            </div>
+          </div>
+        </div>
+      )
+    }
+    return null
+  }
+
+  // Portfolio matrix tooltip component
+  const PortfolioMatrixTooltipContent: React.FC<{
+    active?: boolean
+    payload?: any[]
+    formatCurrency: (amount: number, currency: string) => string
+    currency: string
+  }> = ({ active, payload, formatCurrency, currency }) => {
+    if (active && payload?.length) {
+      const data = payload[0].payload
+
+      return (
+        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.company}</div>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div
+              className="gba:w-3 gba:h-3 gba:rounded-full"
+              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+            />
+            <span className="gba:font-medium">Investment Amount:</span>
+            <span className="gba:font-semibold">{formatCurrency(data.investmentAmount, currency)}</span>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div
+              className="gba:w-3 gba:h-3 gba:rounded-full"
+              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+            />
+            <span className="gba:font-medium">Years Invested:</span>
+            <span className="gba:font-semibold">{data.duration} years</span>
+          </div>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div
+              className="gba:w-3 gba:h-3 gba:rounded-full"
+              style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
+            />
+            <span className="gba:font-medium">MOIC:</span>
+            <span className="gba:font-semibold">{data.moic}x</span>
+          </div>
+        </div>
+      )
+    }
+    return null
+  }
+
+  // Top companies tooltip component
+  const TopCompaniesTooltipContent: React.FC<{
+    active?: boolean
+    payload?: any[]
+    label?: string
+    formatCurrency: (amount: number, currency: string) => string
+    currency: string
+  }> = ({ active, payload, label, formatCurrency, currency }) => {
+    if (active && payload?.length) {
+      return (
+        <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
+          <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
+          {payload.map(entry => {
+            let formattedValue = ''
+            let properLabel = ''
+            let dotColor = ''
+
+            if (entry.dataKey === 'valuation') {
+              formattedValue = formatCurrency(entry.value as number, currency)
+              properLabel = 'Valuation'
+              dotColor = 'var(--color-valuation)'
+            }
+
+            return (
+              <div key={entry.dataKey as string} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
+                <span className="gba:font-medium">{properLabel}:</span>
+                <span className="gba:font-semibold">{formattedValue}</span>
+              </div>
+            )
+          })}
+        </div>
+      )
+    }
+    return null
+  }
+
   // All data now fetched server-side with optimized queries!
   // Timeline data: useEquityTimelineAggregate
   // Top companies: useEquityTopCompanies
@@ -99,6 +216,26 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
       valuation: { label: 'Valuation' }
     }),
     []
+  )
+
+  // Memoized tooltip render functions
+  const renderTimelineTooltip = useCallback(
+    (props: any) => <TimelineTooltipContent {...props} formatCurrency={formatCurrency} currency={timelineCurrency} />,
+    [timelineCurrency]
+  )
+
+  const renderPortfolioMatrixTooltip = useCallback(
+    (props: any) => (
+      <PortfolioMatrixTooltipContent {...props} formatCurrency={formatCurrency} currency={portfolioMatrixCurrency} />
+    ),
+    [portfolioMatrixCurrency]
+  )
+
+  const renderTopCompaniesTooltip = useCallback(
+    (props: any) => (
+      <TopCompaniesTooltipContent {...props} formatCurrency={formatCurrency} currency={topCompaniesCurrency} />
+    ),
+    [topCompaniesCurrency]
   )
 
   // Portfolio matrix chart config - MUST be declared at top level (not inside conditionals)
@@ -163,47 +300,9 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                   <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrency(value, timelineCurrency).replaceAll(/[€$£¥]/g, '')}
+                    tickFormatter={value => formatCurrency(value, timelineCurrency).replace(/[€$£¥]/g, '')}
                   />
-                  <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        // Separate investment types from trend line
-                        const investmentTypes = payload.filter(
-                          entry => entry.dataKey !== 'total' && (entry.value as number) > 0
-                        )
-                        const totalEntry = payload.find(entry => entry.dataKey === 'total')
-                        const total = (totalEntry?.value as number) || 0
-
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-semibold gba:text-gray-800">{label}</div>
-                            {investmentTypes.map(entry => (
-                              <div key={entry.name} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: entry.fill }}
-                                />
-                                <span className="gba:font-medium gba:text-gray-600">{entry.name}:</span>
-                                <span className="gba:font-semibold gba:text-gray-800">
-                                  {formatCurrency(entry.value as number, timelineCurrency)}
-                                </span>
-                              </div>
-                            ))}
-                            <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-gray-200">
-                              <div className="gba:flex gba:items-center gba:gap-2">
-                                <span className="gba:font-semibold gba:text-gray-700">Total:</span>
-                                <span className="gba:font-bold gba:text-gray-900">
-                                  {formatCurrency(total, timelineCurrency)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
+                  <ChartTooltip content={renderTimelineTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   {aggregatedInvestmentTypes.map((type, index) => {
                     const isLastType = index === aggregatedInvestmentTypes.length - 1
@@ -318,46 +417,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                     domain={[0, 'auto']}
                   />
                   <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
-                  <ChartTooltip
-                    content={({ active, payload }) => {
-                      if (active && payload?.length) {
-                        const data = payload[0].payload
-
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{data.company}</div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                              />
-                              <span className="gba:font-medium">Investment Amount:</span>
-                              <span className="gba:font-semibold">
-                                {formatCurrency(data.investmentAmount, portfolioMatrixCurrency)}
-                              </span>
-                            </div>
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                              />
-                              <span className="gba:font-medium">Years Invested:</span>
-                              <span className="gba:font-semibold">{data.duration} years</span>
-                            </div>
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <div
-                                className="gba:w-3 gba:h-3 gba:rounded-full"
-                                style={{ backgroundColor: 'var(--color-portfoliomatrix)' }}
-                              />
-                              <span className="gba:font-medium">MOIC:</span>
-                              <span className="gba:font-semibold">{data.moic}x</span>
-                            </div>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
+                  <ChartTooltip content={renderPortfolioMatrixTooltip} />
                   <Scatter
                     name="portfoliomatrix"
                     data={portfolioMatrixData}
@@ -438,42 +498,9 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = props =
                   />
                   <YAxis
                     tick={{ fontSize: 12 }}
-                    tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replaceAll(/[€$£¥]/g, '')}
+                    tickFormatter={value => formatCurrency(value, topCompaniesCurrency).replace(/[€$£¥]/g, '')}
                   />
-                  <ChartTooltip
-                    content={({ active, payload, label }) => {
-                      if (active && payload?.length) {
-                        return (
-                          <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                            <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-                            {payload.map(entry => {
-                              let formattedValue = ''
-                              let properLabel = ''
-                              let dotColor = ''
-
-                              if (entry.dataKey === 'valuation') {
-                                formattedValue = formatCurrency(entry.value as number, topCompaniesCurrency)
-                                properLabel = 'Valuation'
-                                dotColor = 'var(--color-valuation)'
-                              }
-
-                              return (
-                                <div key={entry.dataKey} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                                  <div
-                                    className="gba:w-3 gba:h-3 gba:rounded-full"
-                                    style={{ backgroundColor: dotColor }}
-                                  />
-                                  <span className="gba:font-medium">{properLabel}:</span>
-                                  <span className="gba:font-semibold">{formattedValue}</span>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
+                  <ChartTooltip content={renderTopCompaniesTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar dataKey="valuation" name="valuation" fill="var(--color-valuation)" radius={[4, 4, 0, 0]} />
                 </ComposedChart>
