@@ -33,7 +33,10 @@ export class OrgDirectoryClient {
   private readonly client: GraphQLClient
 
   constructor(accessToken: string) {
-    const endpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK') ?? 'https://newwork-dev.newwork.com/v1/graphql'
+    const endpoint = env('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK')
+    if (!endpoint) {
+      throw new Error('NEXT_PUBLIC_GRAPHQL_ENDPOINT_NEWWORK is not set')
+    }
     this.client = new GraphQLClient(endpoint)
     this.client.setAccessToken(accessToken)
   }
