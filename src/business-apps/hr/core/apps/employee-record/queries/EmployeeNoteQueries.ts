@@ -17,25 +17,17 @@ export interface EmployeeNoteData {
   activeTo?: string
 }
 
-export interface EmployeeNoteResponse {
-  EmployeeNote: EmployeeNoteData[]
+export interface EmployeeData {
+  id: string
+  userId?: string
+  firstName: string
+  lastName: string
+  displayName?: string
 }
 
-export const GET_EMPLOYEE_NOTES = (): string => {
-  return `
-    query GetEmployeeNotes($employeeId: uuid!) {
-      EmployeeNote(where: {employeeId: {_eq: $employeeId}}, orderBy: {createdAt: DESC}) {
-        id
-        version
-        employeeId
-        notes
-        createdAt
-        createdBy
-        activeFrom
-        activeTo
-      }
-    }
-  `
+export interface EmployeeNoteResponse {
+  EmployeeNote: EmployeeNoteData[]
+  Employee?: EmployeeData[]
 }
 
 export const useGetEmployeeNotes = (context: BusinessAppContextProps) => {
@@ -43,11 +35,50 @@ export const useGetEmployeeNotes = (context: BusinessAppContextProps) => {
 
   const fetchEmployeeNotes = useCallback(
     async (variables: EmployeeNoteQueryVariables) => {
-      const query = GET_EMPLOYEE_NOTES()
       try {
-        const result = await graphqlClient.request<EmployeeNoteResponse>(query, variables)
+        const notesQuery = `
+          query GetEmployeeNotes($employeeId: uuid!) {
+            EmployeeNote(where: {employeeId: {_eq: $employeeId}}, orderBy: {createdAt: DESC}) {
+              id
+              version
+              employeeId
+              notes
+              createdAt
+              createdBy
+              activeFrom
+              activeTo
+            }
+          }
+        `
 
-        return result
+        const notesResult = await graphqlClient.request<{ EmployeeNote: EmployeeNoteData[] }>(notesQuery, variables)
+
+        const createdByUserIds = [...new Set(notesResult.EmployeeNote.map(note => note.createdBy).filter(Boolean))]
+
+        if (createdByUserIds.length === 0) {
+          return { EmployeeNote: notesResult.EmployeeNote, Employee: [] }
+        }
+
+        const employeesQuery = `
+          query GetEmployeesByUserIds($userIds: [String!]!) {
+            Employee(where: {userId: {_in: $userIds}, isDeleted: {_eq: false}}) {
+              id
+              userId
+              firstName
+              lastName
+              displayName
+            }
+          }
+        `
+
+        const employeesResult = await graphqlClient.request<{ Employee: EmployeeData[] }>(employeesQuery, {
+          userIds: createdByUserIds
+        })
+
+        return {
+          EmployeeNote: notesResult.EmployeeNote,
+          Employee: employeesResult.Employee || []
+        } as EmployeeNoteResponse
       } catch (error) {
         console.error('=== Error fetching employee notes ===', error)
         throw error

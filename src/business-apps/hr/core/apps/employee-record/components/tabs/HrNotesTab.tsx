@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { NoteItem } from '@/common/components/common-relations/record-sections/note-section/NoteSection'
-import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
-import { PlusIcon, MagnifyingGlass, PencilSimple, Trash, Calendar, User, ChatCircle } from '@phosphor-icons/react'
+import { Button, Input } from '@newwork/nw-design-system'
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import { PiChatCircle } from 'react-icons/pi'
 import { useGetEmployeeNotes } from '../../queries/EmployeeNoteQueries'
 import type { EmployeeNoteData } from '../../queries/EmployeeNoteQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import HrNoteModal from './HrNoteModal'
+import { startProcess } from '@/common/utils/start-process'
 
 interface HrNotesTabProps extends BusinessAppContextProps {
   employeeId: string
@@ -13,13 +14,10 @@ interface HrNotesTabProps extends BusinessAppContextProps {
 }
 
 export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
-  const { accessToken, employeeId, employeeName } = props
+  const { employeeId, employeeName } = props
   const [notes, setNotes] = useState<NoteItem[]>([])
   const [, setLoading] = useState(true)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [noteToEdit, setNoteToEdit] = useState<{ id: string; notes: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('all')
 
   const { fetchEmployeeNotes } = useGetEmployeeNotes(props)
 
@@ -29,15 +27,28 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
     setLoading(true)
     try {
       const result = await fetchEmployeeNotes({ employeeId })
-      const transformedNotes: NoteItem[] = (result.EmployeeNote || []).map((note: EmployeeNoteData) => ({
-        id: note.id,
-        noteTitle: note.notes?.substring(0, 50) || 'Employee Note',
-        noteText: note.notes || '',
-        createdAt: note.createdAt,
-        createdBy: note.createdBy,
-        reminderAt: null,
-        documents: []
-      }))
+      const employeesMap = new Map((result.Employee || []).map(emp => [emp.userId || emp.id, emp]))
+
+      const transformedNotes: NoteItem[] = (result.EmployeeNote || []).map((note: EmployeeNoteData) => {
+        const creatorEmployee = employeesMap.get(note.createdBy)
+        const creatorName = creatorEmployee
+          ? `${creatorEmployee.firstName || ''} ${creatorEmployee.lastName || ''}`.trim() ||
+            creatorEmployee.displayName ||
+            'Unknown'
+          : note.createdBy || 'Unknown'
+
+        return {
+          id: note.id,
+          noteTitle: note.notes?.substring(0, 50) || 'Employee Note',
+          noteText: note.notes || '',
+          createdAt: note.createdAt,
+          createdBy: creatorName,
+          reminderAt: null,
+          documents: [],
+          // Store additional data needed for editing
+          version: note.version
+        }
+      })
 
       setNotes(transformedNotes)
     } catch (err) {
@@ -56,7 +67,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
       try {
         const response = event.detail?.response
 
-        if (response?.hrNote || response?.HrNote) {
+        if (response?.hrNote || response?.HrNote || response?.employeeNote || response?.EmployeeNote) {
           loadNotes()
         }
       } catch (err) {
@@ -87,7 +98,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
       {/* Header Section with Action Buttons */}
       <div className="gba:flex gba:items-start gba:justify-between">
         <div className="gba:space-y-2">
-          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">HR Notes & Activities</h2>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">HR Notes</h2>
           <p className="gba:text-sm gba:text-muted-foreground">
             Manage notes and track interactions with {employeeName}
           </p>
@@ -96,55 +107,38 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
         <div className="gba:flex gba:gap-3">
           <Button
             onClick={() => {
-              setNoteToEdit(null)
-              setIsModalOpen(true)
+              startProcess({
+                processName: 'createEmployeeNote',
+                domain: 'employee',
+                payload: {
+                  employeeId: employeeId
+                },
+                builderType: 'NATIVE_SCREEN'
+              })
             }}
             variant="outline"
             data-testid="add-note-button"
           >
-            <PlusIcon size={18} weight="duotone" className="gba:mr-2" />
+            <PlusOutlined className="gba:mr-2" style={{ fontSize: 18 }} />
             Add Note
-          </Button>
-          <Button
-            onClick={() => {
-              /* TODO: Implement Log Activity */
-            }}
-            data-testid="logitariactivity-button"
-          >
-            <PlusIcon size={18} className="gba:mr-2" />
-            Log Activity
           </Button>
         </div>
       </div>
 
-      {/* Search and Filter Bar */}
-      <div className="gba:flex gba:gap-3 gba:border gba:border-border gba:rounded-lg gba:p-3 gba:bg-card">
-        <div className="gba:flex-1 gba:relative">
-          <MagnifyingGlass
-            size={20}
-            weight="regular"
-            className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:text-muted-foreground"
-            style={{ pointerEvents: 'none', marginTop: '-1px' }}
+      <div className="gba:border gba:border-border gba:rounded-lg gba:p-3 gba:bg-card">
+        <div className="gba:relative">
+          <SearchOutlined
+            className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:pointer-events-none gba:z-10"
+            style={{ fontSize: 20 }}
           />
           <Input
-            placeholder="Search notes and activities..."
+            placeholder="Search notes..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="gba:pl-10"
+            className="gba:!pl-10"
             data-testid="hr-notes-search-input"
           />
         </div>
-        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="gba:w-[200px]" data-testid="hr-notes-category-filter">
-            <SelectValue placeholder="All Categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
-            <SelectItem value="performance">Performance</SelectItem>
-            <SelectItem value="training">Training</SelectItem>
-            <SelectItem value="meeting">Meeting</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Notes Section */}
@@ -160,25 +154,17 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
               >
                 <div className="gba:flex gba:items-start gba:justify-between">
                   <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
-                    <ChatCircle size={24} className="gba:text-muted-foreground gba:mt-1" />
+                    <PiChatCircle
+                      className="gba:text-muted-foreground gba:mt-1 gba:flex-shrink-0"
+                      style={{ fontSize: 24, display: 'block' }}
+                    />
                     <div className="gba:flex-1">
-                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                        <h4 className="gba:font-semibold gba:text-foreground">{note.noteTitle}</h4>
-                        {/* Category badge would go here if we had category data */}
+                      <div className="gba:mb-3">
+                        <h4 className="gba:font-semibold gba:text-foreground">
+                          Notes from {note.createdBy || 'Unknown'} on {new Date(note.createdAt).toLocaleDateString()}
+                        </h4>
                       </div>
-                      <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">{note.noteText}</p>
-                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <Calendar size={16} />
-                          <span>{new Date(note.createdAt).toLocaleDateString()}</span>
-                        </div>
-                        {note.authorEmployee && (
-                          <div className="gba:flex gba:items-center gba:gap-1">
-                            <User size={16} />
-                            <span>{note.authorEmployee.displayName}</span>
-                          </div>
-                        )}
-                      </div>
+                      <p className="gba:text-sm gba:text-muted-foreground">{note.noteText}</p>
                     </div>
                   </div>
                   <div className="gba:flex gba:gap-2">
@@ -186,15 +172,26 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                       variant="ghost"
                       size="icon"
                       onClick={() => {
-                        setNoteToEdit({ id: note.id, notes: note.noteText })
-                        setIsModalOpen(true)
+                        // Get version from note - it's stored in the NoteItem but TypeScript doesn't know about it
+                        const noteVersion = (note as any).version !== undefined ? (note as any).version : 0
+                        startProcess({
+                          processName: 'createEmployeeNote',
+                          domain: 'employee',
+                          payload: {
+                            employeeId: employeeId,
+                            noteId: note.id,
+                            notes: note.noteText,
+                            version: noteVersion
+                          },
+                          builderType: 'NATIVE_SCREEN'
+                        })
                       }}
                       data-testid={`hr-note-edit-${note.id}`}
                     >
-                      <PencilSimple size={18} />
+                      <EditOutlined style={{ fontSize: 18 }} />
                     </Button>
                     <Button variant="ghost" size="icon" data-testid={`hr-note-delete-${note.id}`}>
-                      <Trash size={18} />
+                      <DeleteOutlined style={{ fontSize: 18 }} />
                     </Button>
                   </div>
                 </div>
@@ -207,17 +204,6 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
           </div>
         )}
       </div>
-
-      {/* Add/Edit Note Modal */}
-      <HrNoteModal
-        accessToken={accessToken}
-        employeeId={employeeId}
-        employeeName={employeeName}
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        onSuccess={loadNotes}
-        noteToEdit={noteToEdit}
-      />
     </div>
   )
 }

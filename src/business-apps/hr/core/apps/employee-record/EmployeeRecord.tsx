@@ -459,7 +459,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         label: (
           <div className="gba:flex gba:items-center gba:gap-2">
             <PiNotebook className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">HR Notes & Activities</span>
+            <span className="gba:inline-block gba:align-middle">HR Notes</span>
           </div>
         ),
         children: (
@@ -477,7 +477,12 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     return allTabs.filter(tab => {
       const tabKey = tab.key as string
 
-      // If viewing own profile, always show all tabs
+      // HR Notes tab should never be visible when viewing own profile
+      if (tabKey === TAB_KEYS.hrNotes && isSelfView) {
+        return false
+      }
+
+      // If viewing own profile, show all other tabs
       if (isSelfView) {
         return true
       }
