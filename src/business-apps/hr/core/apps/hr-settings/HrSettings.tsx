@@ -43,7 +43,7 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
     <PageLayout
       headerIcon={<PiUsersThreeDuotone color="var(--nw-decorative)" />}
       headerLabel={getTranslationFromI18nKeyAndLabel('translation:hr.hr_settings', 'HR Settings')}
-      className={className}
+      className={`${className ?? ''} gba:!overflow-y-visible`}
       pageHeaderRight={
         <Input
           prefix={<RiSearchLine className="gba:text-muted-foreground" />}
@@ -63,6 +63,7 @@ const HrSettings: React.FC<HrSettingsProps> = ({ className, prefixDataTestId }) 
             minHeight: '100%',
             padding: '32px'
           }}
+          className="gba:w-full gba:h-full gba:!overflow-y-auto"
         >
           {filteredCards.length === 0 ? (
             <div

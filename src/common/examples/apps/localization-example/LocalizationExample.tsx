@@ -1,4 +1,4 @@
-import React, { useState, Component } from 'react'
+import React, { useState } from 'react'
 import {
   Card,
   CardContent,
@@ -9,92 +9,13 @@ import {
   Button,
   Label,
   Separator,
-  LocalizationProvider,
-  useTranslation,
-  useLocalizationContext,
-  SupportedLocale
+  useTranslation
 } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import translations from './i18n'
 
-// ErrorBoundary to catch context errors
-class ProviderErrorBoundary extends Component<
-  { children: React.ReactNode; onError: () => void },
-  { hasError: boolean }
-> {
-  constructor(props: { children: React.ReactNode; onError: () => void }) {
-    super(props)
-    this.state = { hasError: false }
-  }
-
-  static getDerivedStateFromError() {
-    return { hasError: true }
-  }
-
-  componentDidCatch() {
-    this.props.onError()
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return null
-    }
-    return this.props.children
-  }
-}
-
-// Component that tries to use context
-const ContextTester: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => {
-  const ctx = useLocalizationContext()
-  React.useEffect(() => {
-    if (ctx) {
-      onSuccess()
-    }
-  }, [ctx, onSuccess])
-  return null
-}
-
-// Wrapper that conditionally provides LocalizationProvider
-const ConditionalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const locale = getCurrentActiveUserLocale() as SupportedLocale
-  const [hasProvider, setHasProvider] = useState<boolean | null>(null)
-
-  // Check if we're in a provider
-  if (hasProvider === null) {
-    return (
-      <ProviderErrorBoundary
-        onError={() => {
-          console.log('[LocalizationExample] No provider found, creating own with locale:', locale)
-          setHasProvider(false)
-        }}
-      >
-        <ContextTester
-          onSuccess={() => {
-            console.log('[LocalizationExample] Provider found, reusing existing provider')
-            setHasProvider(true)
-          }}
-        />
-      </ProviderErrorBoundary>
-    )
-  }
-
-  // If we have a provider, just render children
-  if (hasProvider) {
-    return <>{children}</>
-  }
-
-  // No provider, wrap with our own
-  console.log('[LocalizationExample] Wrapping with LocalizationProvider, locale:', locale)
-  return <LocalizationProvider locale={locale}>{children}</LocalizationProvider>
-}
-
 export const LocalizationExample: React.FC<BusinessAppContextProps> = () => {
-  return (
-    <ConditionalProvider>
-      <LocalizationExampleContent />
-    </ConditionalProvider>
-  )
+  return <LocalizationExampleContent />
 }
 
 const LocalizationExampleContent: React.FC = () => {

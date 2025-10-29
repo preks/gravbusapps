@@ -6,6 +6,7 @@ import {
   RiBuilding2Line,
   RiDeleteBin6Line
 } from '@remixicon/react'
+import { ClockIcon } from '@phosphor-icons/react'
 import { HrSettingsCardProps } from '../components/HrSettingsCard'
 
 export function useHrSettingsCards(): HrSettingsCardProps[] {
@@ -115,6 +116,17 @@ export function useHrSettingsCards(): HrSettingsCardProps[] {
         {
           label: t('hr.position_termination', 'Position Termination'),
           url: '/platform/hr/human-resources?view=positions'
+        }
+      ]
+    },
+    {
+      title: t('hr.time_attendance', 'Time Attendance'),
+      description: t('hr.time_attendance_description', 'Manage time attendance and tracking'),
+      icon: <ClockIcon />,
+      entries: [
+        {
+          label: t('hr.time_types', 'Time Types'),
+          url: '/platform/mdm/time-attendance?tab=time-types'
         }
       ]
     }
