@@ -46,10 +46,6 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
 
   const fetchCompensationData = useCallback(async () => {
     if (!employeeId || !accessToken) {
-      console.log('[useCompensationData] Missing employeeId or accessToken:', {
-        employeeId,
-        accessToken: !!accessToken
-      })
       setLoading(false)
       return
     }
@@ -58,14 +54,10 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
       setLoading(true)
       setError(null)
 
-      console.log('[useCompensationData] Fetching compensation data for employee:', employeeId)
-
       // ✅ FETCH REAL DATA from EmployeeWorkingCondition
       const result = await graphqlClient.request<any>(GET_EMPLOYEE_COMPENSATION_DATA, {
         employeeId
       })
-
-      console.log('[useCompensationData] GraphQL Response:', JSON.stringify(result, null, 2))
 
       // Extract working condition data
       const workingCondition = result?.EmployeeWorkingCondition?.[0]
@@ -121,7 +113,6 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         : null
 
       // ✅ Extract bonuses from GraphQL response
-      console.log('[useCompensationData] Raw EmployeeBonus data:', result?.EmployeeBonus)
       const bonuses: EmployeeBonus[] = (result?.EmployeeBonus || []).map((bonus: any) => ({
         id: bonus.id,
         employeeId: bonus.employeeId,
@@ -136,10 +127,8 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         description: bonus.description || '',
         notes: bonus.notes || ''
       }))
-      console.log('[useCompensationData] Processed bonuses:', bonuses.length, bonuses)
 
       // ✅ Extract benefits from GraphQL response
-      console.log('[useCompensationData] Raw EmployeeBenefit data:', result?.EmployeeBenefit)
       const benefits: EmployeeBenefit[] = (result?.EmployeeBenefit || []).map((benefit: any) => ({
         id: benefit.id,
         employeeId: benefit.employeeId,
@@ -159,46 +148,29 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         benefitStatus: benefit.benefitStatus,
         notes: benefit.notes || ''
       }))
-      console.log('[useCompensationData] Processed benefits:', benefits.length, benefits)
 
       // Calculate total bonuses for current year (YTD)
       // ✅ UPDATED: Now includes PENDING_COMPENSATION and APPROVED_COMPENSATION
       const currentYear = new Date().getFullYear()
-      console.log('[useCompensationData] Current year:', currentYear)
-
-      const ytdBonuses = bonuses.filter(bonus => {
-        const bonusYear = new Date(bonus.paymentDate).getFullYear()
-        const isActive = isCompensationStatusActive(bonus.status)
-        console.log('[useCompensationData] Bonus filter check:', {
-          bonusId: bonus.id,
-          bonusYear,
-          currentYear,
-          status: bonus.status,
-          isActive,
-          amount: bonus.amount,
-          included: bonusYear === currentYear && isActive
+      const totalBonusesYTD = bonuses
+        .filter(bonus => {
+          const bonusYear = new Date(bonus.paymentDate).getFullYear()
+          return bonusYear === currentYear && isCompensationStatusActive(bonus.status)
         })
-        return bonusYear === currentYear && isActive
-      })
-
-      const totalBonusesYTD = ytdBonuses.reduce((sum, bonus) => sum + bonus.amount, 0)
-      console.log('[useCompensationData] YTD bonuses:', ytdBonuses.length, 'Total amount:', totalBonusesYTD)
+        .reduce((sum, bonus) => sum + bonus.amount, 0)
 
       // Count active benefits
       // ✅ UPDATED: Now uses ACTIVE_BENEFIT enum value
       const activeBenefitsCount = benefits.filter(benefit => isBenefitActive(benefit.benefitStatus)).length
-      console.log('[useCompensationData] Active benefits count:', activeBenefitsCount)
 
       // Set current compensation data
-      const finalCompensationData = {
+      setCompensationData({
         currentCompensation,
         totalBonusesYTD,
         activeBenefitsCount,
         bonuses,
         benefits
-      }
-      console.log('[useCompensationData] Final compensation data:', finalCompensationData)
-      setCompensationData(finalCompensationData)
+      })
 
       // ✅ FETCH COMPENSATION HISTORY from EmployeeWorkingCondition
       const historyResult = await graphqlClient.request<any>(GET_EMPLOYEE_COMPENSATION_HISTORY, {
@@ -272,19 +244,13 @@ export const useCompensationData = (employeeId: string, accessToken: string) => 
         growthData
       })
     } catch (err) {
-      console.error('[useCompensationData] ERROR fetching compensation data:', err)
-      console.error('[useCompensationData] Error details:', {
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined,
-        errorObject: err
-      })
+      console.error('Error fetching compensation data:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch compensation data')
 
       // Set empty data on error
       setCompensationData(null)
       setHistoryData(null)
     } finally {
-      console.log('[useCompensationData] Fetch complete, loading set to false')
       setLoading(false)
     }
   }, [employeeId, accessToken, graphqlClient])
