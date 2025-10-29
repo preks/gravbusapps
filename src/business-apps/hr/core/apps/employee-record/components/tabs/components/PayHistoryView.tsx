@@ -15,6 +15,7 @@ import {
   Badge
 } from '@newwork/nw-design-system'
 import { CompensationHistoryData } from '../../../types/compensationTypes'
+import { getCompensationStatusLabel, getCompensationStatusVariant } from '../../../types/compensationEnums'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
 import PayslipHistorySection from './PayslipHistorySection'
 import dayjs from 'dayjs'
@@ -141,12 +142,8 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({ historyData, loading })
                     <TableCell>{bonus.bonusType.value}</TableCell>
                     <TableCell>{bonus.fiscalYear}</TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          bonus.status === 'Paid' ? 'success' : bonus.status === 'Approved' ? 'warning' : 'default'
-                        }
-                      >
-                        {bonus.status}
+                      <Badge variant={getCompensationStatusVariant(bonus.status)}>
+                        {getCompensationStatusLabel(bonus.status)}
                       </Badge>
                     </TableCell>
                     <TableCell>
