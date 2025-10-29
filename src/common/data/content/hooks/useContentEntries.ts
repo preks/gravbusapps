@@ -3,7 +3,7 @@
  * Fetch multiple content entries with filtering and pagination
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql-mock/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentEntriesQuery } from '../queries/contentQueries'
 import { mapBaseToContentEntry } from '../mappers/contentMappers'
 import type { ContentEntry, ContentEntryQueryParams } from '../types/contentTypes'
@@ -28,6 +28,7 @@ interface ContentEntriesResponse {
 
 /**
  * Hook to fetch content entries with filters
+ * FIXED: Use real GraphQL client and singular relation names
  */
 export const useContentEntries = (
   params: ContentEntryQueryParams = {},
@@ -49,13 +50,13 @@ export const useContentEntries = (
       const response = await graphqlClient.request<ContentEntriesResponse>(query)
 
       if (response.ContentEntry) {
-        const mappedEntries = response.ContentEntry.map(entry =>
+        const mappedEntries = response.ContentEntry.map((entry: any) =>
           mapBaseToContentEntry(entry, {
-            contentEntryCategories: entry.contentEntryCategories,
-            contentEntryTags: entry.contentEntryTags,
-            contentDocuments: entry.contentDocuments,
-            contentEntryReactions: entry.contentEntryReactions,
-            childContentEntries: entry.childContentEntries
+            contentEntryCategory: entry.contentEntryCategory,
+            contentEntryTag: entry.contentEntryTag,
+            contentDocument: entry.contentDocument,
+            contentEntryReaction: entry.contentEntryReaction,
+            childContentEntryAggregate: entry.childContentEntryAggregate
           })
         )
 
@@ -72,7 +73,7 @@ export const useContentEntries = (
     } finally {
       setIsLoading(false)
     }
-  }, [params, accessToken])
+  }, [params, accessToken, graphqlClient])
 
   useEffect(() => {
     fetchEntries()

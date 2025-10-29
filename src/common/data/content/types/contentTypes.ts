@@ -28,11 +28,13 @@ export interface ContentEntry extends BaseContentEntry {
   formattedCreatedAt?: string
   formattedUpdatedAt?: string
 
-  // Enhanced child collections (with computed fields)
-  contentEntryCategories?: ContentEntryCategory[]
-  contentEntryTags?: ContentEntryTag[]
-  contentDocuments?: ContentDocument[]
-  contentEntryReactions?: ContentEntryReaction[]
+  // Enhanced child collections (with computed fields) - FIXED: singular names
+  contentEntryCategory?: ContentEntryCategory[]
+  contentEntryTag?: ContentEntryTag[]
+  contentDocument?: ContentDocument[]
+  contentEntryReaction?: ContentEntryReaction[]
+
+  // Children/comments must be queried separately (no auto-relation in GraphQL)
   childContentEntries?: ContentEntry[]
 }
 
@@ -59,7 +61,7 @@ export interface ContentEntryTag extends BaseContentEntryTag {
 // =====================================================
 
 export interface ContentDocument extends BaseContentDocument {
-  // Enhanced child collection
+  // Children must be queried separately (no auto-relation in GraphQL)
   childDocuments?: ContentDocument[]
 
   // Computed fields
@@ -75,8 +77,9 @@ export interface ContentDocument extends BaseContentDocument {
 
 export interface ContentEntryReaction extends BaseContentEntryReaction {
   // Computed fields
+  reactionName?: string // From contentReaction.value
+  reactionEmoji?: string // From contentReaction.label or icon
   creatorDisplayName?: string
-  reactionEmoji?: string
 }
 
 // =====================================================
@@ -94,6 +97,8 @@ export interface ContentEntryQueryParams {
   tagRefs?: string[]
   creatorEmployeeId?: string | null
   parentContentEntryId?: string | null
+  activeFrom?: string
+  activeTo?: string
   includeChildren?: boolean
   sortBy?: string
   sortOrder?: 'ASC' | 'DESC'
@@ -119,7 +124,9 @@ export interface ContentReactionQueryParams {
 // =====================================================
 
 export interface ReactionAggregation {
-  reaction: string
+  reactionRef: string
+  reactionName: string
+  reactionEmoji?: string
   count: number
   employees: EmployeeRef[]
 }

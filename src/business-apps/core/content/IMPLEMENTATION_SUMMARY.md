@@ -27,7 +27,7 @@ Die Content-Plattform wurde erfolgreich von `_export` nach `apps/content-hub` un
 
 - ✅ GraphQL Queries (`ContentQueries.ts`)
 - ✅ Hooks: `useContents`, `useContent`, `useContentTags`, `useContentGroups`, `useContentTypes`
-- ✅ Types: `Content`, `ContentAuthor`, `ContentTag`, `ContentFormVals`
+- ✅ Types: `Content`, `ContentAuthor`, `ContentTag`, `ContentEntryWindowVals`
 - ✅ Constants: Alle Module (NEWS, INTRANET, KNOWLEDGE, **DOCUMENT**)
 - ✅ Utils: Tag-Handling, Validierung, Trending-Scores
 
@@ -165,7 +165,7 @@ Die folgenden Items sind NICHT notwendig für basic functionality:
 
 ### Phase 6: Forms (Optional)
 
-- ⏳ `forms/content-form/` - Create/Edit Content Form
+- ⏳ `forms/content-entry-window/` - Create/Edit Content Form
 - ⏳ `forms/document-form/` - Document Upload Form
 
 ### Phase 7: Records (Optional)

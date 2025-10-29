@@ -63,8 +63,8 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/mdm/engagement-data': 'mdm/apps/engagement-data',
 
   // Core
-  '/platform/core/content-hub': 'core/content/apps/content-hub',
-  '/platform/core/content-record': 'core/content/records/content-record',
+  '/platform/content/intranet': 'core/content/apps/content-portal',
+  '/platform/content/intranet/content-record': 'core/content/records/content-record',
 
   // Obsolete
   // TODO: Clean Up

@@ -1,16 +1,18 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { MessageCircle } from 'lucide-react'
-import { useArticleComments } from '../../hooks/useArticleComments'
+import { useContentComments, CommentWithReplies } from '../../hooks/useContentComments'
 import CommentForm from './CommentForm'
 import CommentItem from './CommentItem'
+import CommentThreadView from './CommentThreadView'
 
 export interface CommentSectionProps {
   articleId: string
   allowComment: boolean
   accessToken: string
   currentUserId: string | undefined
+  employeeId: string
   'data-testid'?: string
 }
 
@@ -19,13 +21,41 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
   allowComment,
   accessToken,
   currentUserId,
+  employeeId,
   'data-testid': dataTestId = 'comment-section'
 }) => {
   const { t } = useTranslation('content')
-  const { comments, allComments, isLoading, error, refetch } = useArticleComments(articleId, accessToken)
+  const { comments, allComments, isLoading, error, refetch } = useContentComments(articleId, accessToken)
+  const [viewingThread, setViewingThread] = useState<CommentWithReplies | null>(null)
 
   if (!allowComment) {
     return null
+  }
+
+  const handleViewThread = (comment: CommentWithReplies) => {
+    setViewingThread(comment)
+  }
+
+  const handleBackToComments = () => {
+    setViewingThread(null)
+  }
+
+  // If viewing a specific thread, show thread view
+  if (viewingThread) {
+    return (
+      <div className="gba:mt-8" data-testid={`${dataTestId}-thread-view`}>
+        <CommentThreadView
+          rootComment={viewingThread}
+          articleId={articleId}
+          accessToken={accessToken}
+          employeeId={employeeId}
+          currentUserId={currentUserId}
+          onCommentCreated={refetch}
+          onBack={handleBackToComments}
+          data-testid={`${dataTestId}-thread`}
+        />
+      </div>
+    )
   }
 
   return (
@@ -51,6 +81,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
         <CommentForm
           articleId={articleId}
           accessToken={accessToken}
+          employeeId={employeeId}
           onSuccess={refetch}
           data-testid={`${dataTestId}-new-comment-form`}
         />
@@ -72,8 +103,10 @@ export const CommentSection: React.FC<CommentSectionProps> = ({
               comment={comment}
               articleId={articleId}
               accessToken={accessToken}
+              employeeId={employeeId}
               currentUserId={currentUserId}
               onCommentCreated={refetch}
+              onViewThread={handleViewThread}
               data-testid={`${dataTestId}-item`}
             />
           ))}

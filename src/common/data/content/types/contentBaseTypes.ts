@@ -38,18 +38,18 @@ export interface BaseContentEntry extends BaseEntity {
   contentTypeRef?: string | null
 
   // Direct relations (populated by GraphQL)
-  parentContent?: BaseContentEntry | null
+  parentContentEntry?: BaseContentEntry | null
   creatorEmployee?: EmployeeRef | null
   updaterEmployee?: EmployeeRef | null
   contentGroup?: CatalogEntry | null
   contentType?: CatalogEntry | null
 
-  // Reverse relations (collections)
-  contentEntryCategories?: BaseContentEntryCategory[]
-  contentEntryTags?: BaseContentEntryTag[]
-  contentDocuments?: BaseContentDocument[]
-  contentEntryReactions?: BaseContentEntryReaction[]
-  childContentEntries?: BaseContentEntry[] // Comments
+  // Reverse relations (collections) - FIXED: All singular in GraphQL
+  contentEntryCategory?: BaseContentEntryCategory[]
+  contentEntryTag?: BaseContentEntryTag[]
+  contentDocument?: BaseContentDocument[]
+  contentEntryReaction?: BaseContentEntryReaction[]
+  childContentEntry?: BaseContentEntry[] // Child entries (comments)
 
   // Core fields
   title?: string | null
@@ -63,7 +63,7 @@ export interface BaseContentEntry extends BaseEntity {
   allowComment?: boolean
   allowReaction?: boolean
   role?: ContentRole
-  recordVersion?: string | null
+  entryVersion?: string | null
 }
 
 // =====================================================
@@ -112,13 +112,13 @@ export interface BaseContentDocument extends BaseEntity {
   documentTypeRef?: string | null
 
   // Direct relations
-  parentDocument?: BaseContentDocument | null
+  parentDocument?: ContentDocumentRef | null
   contentEntry?: ContentEntryRef | null
   documentGroup?: CatalogEntry | null
   documentType?: CatalogEntry | null
 
-  // Reverse relations
-  childDocuments?: BaseContentDocument[]
+  // Reverse relations (child documents) - Note: GraphQL doesn't auto-provide this
+  // Query separately with parentDocumentId filter
 
   // Core fields
   folder?: boolean
@@ -137,11 +137,10 @@ export interface BaseContentEntryReaction extends BaseEntity {
   // ID references
   contentEntryId: string
   creatorEmployeeId: string
+  contentReactionRef?: string | null
 
   // Direct relations
   contentEntry?: ContentEntryRef | null
   creatorEmployee?: EmployeeRef | null
-
-  // Core fields
-  reaction: string // Emoji standard reference
+  contentReaction?: CatalogEntry | null
 }

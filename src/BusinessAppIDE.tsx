@@ -93,21 +93,23 @@ for (const path in modulePatterns) {
       continue
     }
 
-    // Only include paths that are actual apps (typically in "apps", "forms", "popups", or "records" directories)
-    const hasAppsFormsPopupsOrRecords = pathParts.some(
-      part => part === 'apps' || part === 'forms' || part === 'popups' || part === 'records'
+    // Only include paths that are actual apps (typically in "apps", "forms", "popups", "windows", or "records" directories)
+    const hasAppsFormsPopupsWindowsOrRecords = pathParts.some(
+      part => part === 'apps' || part === 'forms' || part === 'popups' || part === 'windows' || part === 'records'
     )
-    if (!hasAppsFormsPopupsOrRecords) {
+    if (!hasAppsFormsPopupsWindowsOrRecords) {
       continue
     }
 
     // Determine the type based on the parent directory
     // Records are treated as apps (full-screen, not dialogs)
-    let componentType: 'app' | 'form' | 'popup' = 'app'
+    let componentType: 'app' | 'form' | 'popup' | 'window' = 'app'
     if (pathParts.includes('forms')) {
       componentType = 'form'
     } else if (pathParts.includes('popups')) {
       componentType = 'popup'
+    } else if (pathParts.includes('windows')) {
+      componentType = 'window'
     } else if (pathParts.includes('records')) {
       componentType = 'app' // Records display as full-screen apps
     }
@@ -144,11 +146,13 @@ for (const path in examplePatterns) {
   // Example path: ./common/examples/forms/example-catalog-select-form/index.ts
 
   // Determine type based on directory
-  let componentType: 'app' | 'form' | 'popup' = 'app'
+  let componentType: 'app' | 'form' | 'popup' | 'window' = 'app'
   if (pathParts.includes('forms')) {
     componentType = 'form'
   } else if (pathParts.includes('popups')) {
     componentType = 'popup'
+  } else if (pathParts.includes('windows')) {
+    componentType = 'window'
   }
 
   // Find index of "examples" segment
@@ -224,8 +228,8 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
 
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
 
-  // Check for different parameter types (app, form, popup)
-  const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup')
+  // Check for different parameter types (app, form, popup, window)
+  const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
     // First try to find by full path (new format), then fallback to name (legacy format)

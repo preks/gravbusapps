@@ -1,11 +1,16 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Content } from '../../content-hub/types/content.types'
-import { Button } from '@newwork/nw-design-system'
+import { ContentEntry } from '@/common/data/content/types/contentTypes'
+import { Button, Badge } from '@newwork/nw-design-system'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
+import { toast } from 'sonner'
+import dayjs from 'dayjs'
 
 interface ContentListViewProps {
-  data: Content[]
+  entries: ContentEntry[]
   totalCount: number
   pagination: { pageSize: number; page: number }
   setPagination: (pagination: { pageSize: number; page: number }) => void
@@ -16,8 +21,113 @@ interface ContentListViewProps {
   accessToken: string
 }
 
-const ContentListView: React.FC<ContentListViewProps> = ({ data, totalCount, pagination, setPagination }) => {
+const ContentListView: React.FC<ContentListViewProps> = ({
+  entries,
+  totalCount,
+  pagination,
+  setPagination,
+  accessToken
+}) => {
   const { t } = useTranslation('content')
+  const graphqlClient = useGraphQLClient(accessToken)
+  const kogitoUrl = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')
+  const restClient = useRestClient(kogitoUrl)
+  const [clearingReactions, setClearingReactions] = useState<Record<string, boolean>>({})
+  const [deletingEntries, setDeletingEntries] = useState<Record<string, boolean>>({})
+
+  const handleDeleteEntry = async (entry: ContentEntry) => {
+    setDeletingEntries(prev => ({ ...prev, [entry.id]: true }))
+
+    try {
+      await restClient.post(
+        '/content/deleteContentEntry',
+        {
+          contentEntry: {
+            id: entry.id,
+            version: entry.version
+          }
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        }
+      )
+
+      toast.success(t('content_entry_deleted'))
+    } catch (error) {
+      console.error('Error deleting content entry:', error)
+      toast.error(t('error_deleting_content_entry'))
+    } finally {
+      setDeletingEntries(prev => ({ ...prev, [entry.id]: false }))
+    }
+  }
+
+  const handleClearReactions = async (contentEntryId: string) => {
+    setClearingReactions(prev => ({ ...prev, [contentEntryId]: true }))
+
+    try {
+      // Fetch all reactions for this content entry
+      const query = `
+        query GetContentEntryReactions($contentEntryId: uuid!) {
+          ContentEntryReaction(
+            where: {
+              contentEntryId: { _eq: $contentEntryId }
+              isDeleted: { _eq: false }
+            }
+          ) {
+            id
+            version
+          }
+        }
+      `
+
+      const result = await graphqlClient.request<{ ContentEntryReaction: Array<{ id: string; version: number }> }>(
+        query,
+        {
+          contentEntryId
+        }
+      )
+
+      const reactions = result.ContentEntryReaction || []
+
+      if (reactions.length === 0) {
+        toast.info(t('no_reactions_to_delete'))
+        return
+      }
+
+      // Delete all reactions in sequence
+      let deletedCount = 0
+      for (const reaction of reactions) {
+        try {
+          await restClient.post(
+            '/content/deleteContentEntryReaction',
+            {
+              contentEntryReaction: {
+                id: reaction.id,
+                version: reaction.version
+              }
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${accessToken}`
+              }
+            }
+          )
+          deletedCount++
+        } catch (err) {
+          console.error(`Failed to delete reaction ${reaction.id}:`, err)
+        }
+      }
+
+      toast.success(t('reactions_cleared', { count: deletedCount }))
+    } catch (error) {
+      console.error('Error clearing reactions:', error)
+      toast.error(t('error_clearing_reactions'))
+    } finally {
+      setClearingReactions(prev => ({ ...prev, [contentEntryId]: false }))
+    }
+  }
 
   return (
     <div data-testid="content-list-view">
@@ -38,17 +148,47 @@ const ContentListView: React.FC<ContentListViewProps> = ({ data, totalCount, pag
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map(content => (
-            <TableRow key={content.articleId} data-testid={`content-row-${content.articleId}`}>
-              <TableCell>{content.articleGroupRef}</TableCell>
-              <TableCell>{content.title}</TableCell>
-              <TableCell>{content.authorFullName}</TableCell>
-              <TableCell>{content.createdAtText}</TableCell>
-              <TableCell>{content.status}</TableCell>
+          {entries.map(entry => (
+            <TableRow key={entry.id} data-testid={`content-row-${entry.id}`}>
               <TableCell>
-                <Button variant="outline" size="sm">
-                  {t('edit')}
-                </Button>
+                <Badge variant="outline">
+                  {typeof entry.contentTypeRef === 'string'
+                    ? entry.contentTypeRef
+                    : (entry.contentTypeRef as any)?.value || t('unknown')}
+                </Badge>
+              </TableCell>
+              <TableCell className="gba:font-medium">{entry.title}</TableCell>
+              <TableCell>{entry.creatorEmployee?.displayName || t('unknown')}</TableCell>
+              <TableCell>{dayjs(entry.createdAt).format('DD.MM.YYYY HH:mm')}</TableCell>
+              <TableCell>
+                <Badge variant={entry.isDeleted ? 'destructive' : 'default'}>
+                  {entry.isDeleted ? t('deleted') : t('active')}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="gba:flex gba:gap-2">
+                  <Button variant="outline" size="sm">
+                    {t('edit')}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleDeleteEntry(entry)}
+                    disabled={deletingEntries[entry.id]}
+                    data-testid={`delete-entry-${entry.id}`}
+                  >
+                    {deletingEntries[entry.id] ? t('deleting') : t('delete')}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => handleClearReactions(entry.id)}
+                    disabled={clearingReactions[entry.id]}
+                    data-testid={`clear-reactions-${entry.id}`}
+                  >
+                    {clearingReactions[entry.id] ? t('clearing') : t('clear_reactions')}
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}

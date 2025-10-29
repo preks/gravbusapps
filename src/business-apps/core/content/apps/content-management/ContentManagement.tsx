@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from 'react-i18next'
 import { Spinner, Alert, AlertTitle, AlertDescription, Button } from '@newwork/nw-design-system'
-import { useContents } from '../content-hub/hooks/useContents'
+import { useContentEntries } from '@/common/data/content'
 import ContentListView from './components/ContentListView'
 
 type ContentManagementProps = BusinessAppContextProps
@@ -18,15 +18,20 @@ const ContentManagement: React.FC<ContentManagementProps> = context => {
 
   const offset = (pagination.page - 1 || 0) * pagination.pageSize
 
-  const { data, totalCount, isLoading, error, refetch } = useContents(
-    {
-      offset,
+  // Build query params for central data hook
+  const queryParams = useMemo(
+    () => ({
       limit: pagination.pageSize,
+      offset,
       search,
-      sorter
-    },
-    context.accessToken
+      sortBy: sorter.field,
+      sortOrder: sorter.order === 'ascend' ? 'ASC' : 'DESC'
+    }),
+    [pagination.pageSize, offset, search, sorter.field, sorter.order]
   )
+
+  // Use central content data hook
+  const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, context.accessToken)
 
   if (error) {
     return (
@@ -52,7 +57,7 @@ const ContentManagement: React.FC<ContentManagementProps> = context => {
       )}
       {!isLoading && (
         <ContentListView
-          data={data}
+          entries={entries}
           totalCount={totalCount}
           pagination={pagination}
           setPagination={setPagination}

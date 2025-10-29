@@ -23,7 +23,7 @@ Die vollständige Migration der Content-Plattform von `_export` ist erfolgreich 
 
 #### Forms (2)
 
-3. **content-form** - `/core/every/forms/content-form`
+3. **content-entry-window** - `/core/every/forms/content-entry-window`
    - Create/Edit Content
    - Group/Type Selection
    - Validation
@@ -51,7 +51,7 @@ npm run publish:screen -- /core/every/apps/content-hub
 npm run publish:screen -- /core/every/apps/content-management
 
 # Forms
-npm run publish:screen -- /core/every/forms/content-form
+npm run publish:screen -- /core/every/forms/content-entry-window
 npm run publish:screen -- /core/every/forms/document-form
 
 # Records
@@ -96,7 +96,7 @@ src/business-apps/core/every/
 │       ├── ContentManagement.tsx
 │       └── components/
 ├── forms/
-│   ├── content-form/             ✅ 2 files
+│   ├── content-entry-window/             ✅ 2 files
 │   └── document-form/            ✅ 2 files
 └── records/
     └── content-record/           ✅ 4 files
@@ -244,7 +244,7 @@ Nach Publishing testen:
 
 ### Optional Enhancements (Not Required)
 
-- Rich Text Editor (Quill) in ContentForm
+- Rich Text Editor (Quill) in ContentEntryWindow
 - Advanced Tag Field Component
 - Image Upload Component
 - Banner/QuickLinks/TrendingTopics Components
@@ -257,7 +257,7 @@ Nach Publishing testen:
 
 - `src/business-apps/core/every/apps/content-hub`
 - `src/business-apps/core/every/apps/content-management`
-- `src/business-apps/core/every/forms/content-form`
+- `src/business-apps/core/every/forms/content-entry-window`
 - `src/business-apps/core/every/forms/document-form`
 - `src/business-apps/core/every/records/content-record`
 

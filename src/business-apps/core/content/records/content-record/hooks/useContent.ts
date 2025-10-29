@@ -1,92 +1,75 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_ALL_CONTENTS_QUERY, QueryVariables } from '../../../apps/content-hub/queries/ContentQueries'
-import { Content, ContentFormVals } from '../../../apps/content-hub/types/content.types'
+import { useState, useCallback } from 'react'
+import { useContentEntry } from '@/common/data/content'
+import { ContentEntryWindowVals } from '../../../apps/content-portal/types/content.types'
 
 export interface UseContentResult {
   isUpdating: boolean
   isMutating: boolean
-  item: Content | null
-  create: (values: ContentFormVals) => Promise<void>
+  item: any | null // Using any for backward compatibility with legacy Content type
+  create: (values: ContentEntryWindowVals) => Promise<void>
   error: any
   contentNotFound: boolean
 }
 
+/**
+ * Hook to fetch and manage a single content entry
+ * Migrated to use central useContentEntry hook
+ */
 export const useContent = (contentId: string, accessToken?: string): UseContentResult => {
-  const [item, setItem] = useState<Content | null>(null)
-  const [isUpdating, setIsUpdating] = useState(true)
   const [isMutating, setIsMutating] = useState(false)
-  const [error, setError] = useState<any>(null)
-  const [contentNotFound, setContentNotFound] = useState(false)
+  const [mutationError, setMutationError] = useState<any>(null)
 
-  const graphqlClient = useGraphQLClient(accessToken)
-
-  const fetchContent = useCallback(async () => {
-    if (!contentId || !accessToken) {
-      setIsUpdating(false)
-      return
-    }
-
-    setIsUpdating(true)
-    setError(null)
-
-    try {
-      const variables: QueryVariables = {
-        articleId: contentId,
-        offset: 0,
-        limit: 1
-      }
-
-      const query = GET_ALL_CONTENTS_QUERY(variables)
-      const result = await graphqlClient.request<{
-        ArticleEmployeeView: Content[]
-      }>(query)
-
-      if (result?.ArticleEmployeeView && result.ArticleEmployeeView.length > 0) {
-        setItem(result.ArticleEmployeeView[0])
-        setContentNotFound(false)
-      } else {
-        setContentNotFound(true)
-      }
-    } catch (err) {
-      console.error('Error fetching content:', err)
-      setError(err)
-      setContentNotFound(true)
-    } finally {
-      setIsUpdating(false)
-    }
-  }, [contentId, accessToken, graphqlClient])
+  // Use central content entry hook - FIXED: correct parameter order
+  const { entry, isLoading, error, refetch } = useContentEntry(contentId, {
+    includeChildren: true,
+    accessToken
+  })
 
   const create = useCallback(
-    async (values: ContentFormVals) => {
+    async (values: ContentEntryWindowVals) => {
       setIsMutating(true)
-      setError(null)
+      setMutationError(null)
 
       try {
-        // TODO: Implement mutation query
-        // const result = await graphqlClient.request(CREATE_OR_UPDATE_CONTENT_MUTATION, values);
+        // TODO: Implement mutation using central hooks
+        // This should use a mutation hook from central data layer
         console.log('Create/Update content:', values)
-        await fetchContent()
+        await refetch()
       } catch (err) {
-        setError(err)
+        setMutationError(err)
         throw err
       } finally {
         setIsMutating(false)
       }
     },
-    [graphqlClient, fetchContent]
+    [refetch]
   )
 
-  useEffect(() => {
-    fetchContent()
-  }, [fetchContent])
+  // Map entry to legacy item format for backward compatibility
+  const item = entry
+    ? {
+        articleId: entry.id,
+        title: entry.title,
+        content: entry.content || '',
+        previewText: entry.preview || '',
+        contentImage: entry.picture,
+        createdAt: entry.createdAt,
+        timeToRead: entry.timeToRead,
+        allowReaction: entry.allowReaction,
+        allowComment: entry.allowComment,
+        tags: entry.tags || [],
+        tagNames: entry.tags || [],
+        authorFullName: entry.creatorName,
+        displayAuthor: entry.displayCreator
+      }
+    : null
 
   return {
-    isUpdating,
+    isUpdating: isLoading,
     isMutating,
     item,
     create,
-    error,
-    contentNotFound
+    error: error || mutationError,
+    contentNotFound: !isLoading && !entry && !!contentId
   }
 }

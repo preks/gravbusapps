@@ -21,7 +21,7 @@ Alle Kern-Features der Content-Plattform sind erfolgreich migriert und einsatzbe
 
 ### Forms (2)
 
-1. **content-form** - Create/Edit Content
+1. **content-entry-window** - Create/Edit Content
    - Group & Type Selection
    - Title, Preview, Content fields
    - Settings: displayAuthor, allowComment, allowLike
@@ -48,7 +48,7 @@ Alle Kern-Features der Content-Plattform sind erfolgreich migriert und einsatzbe
 
 - ✅ `wrapped-entries/core/every/apps/content-hub.ts`
 - ✅ `wrapped-entries/core/every/apps/content-management.ts`
-- ✅ `wrapped-entries/core/every/forms/content-form.ts`
+- ✅ `wrapped-entries/core/every/forms/content-entry-window.ts`
 - ✅ `wrapped-entries/core/every/forms/document-form.ts`
 - ✅ `wrapped-entries/core/every/records/content-record.ts`
 
@@ -66,7 +66,7 @@ Alle Kern-Features der Content-Plattform sind erfolgreich migriert und einsatzbe
 - 4 Feed Components (News, Intranet, Knowledge, Document)
 - 1 Card Component (ContentCard - universal)
 - 3 Shared Components (SearchInput, NavigationTag, NavigationTagList)
-- 2 Forms (ContentForm, DocumentForm)
+- 2 Forms (ContentEntryWindow, DocumentForm)
 - 1 Record (ContentRecord with 2 sub-components)
 
 **Data Layer:**
@@ -85,7 +85,7 @@ npm run publish:screen -- /core/every/apps/content-hub
 npm run publish:screen -- /core/every/apps/content-management
 
 # Forms
-npm run publish:screen -- /core/every/forms/content-form
+npm run publish:screen -- /core/every/forms/content-entry-window
 npm run publish:screen -- /core/every/forms/document-form
 
 # Records
@@ -114,8 +114,8 @@ src/business-apps/core/every/
 │       └── components/
 │           └── ContentListView.tsx
 ├── forms/
-│   ├── content-form/                   ✅ 2 files
-│   │   ├── ContentForm.tsx
+│   ├── content-entry-window/                   ✅ 2 files
+│   │   ├── ContentEntryWindow.tsx
 │   │   └── index.ts
 │   └── document-form/                  ✅ 2 files
 │       ├── DocumentForm.tsx
@@ -259,7 +259,7 @@ The architecture supports easy addition of:
 ## 🚀 Next Steps (Optional)
 
 1. **i18n Integration** - Add translation keys (postponed as requested)
-2. **Rich Text Editor** - Integrate react-quill in ContentForm
+2. **Rich Text Editor** - Integrate react-quill in ContentEntryWindow
 3. **Image Upload** - Add image upload component
 4. **AppActionButton** - Integrate in ContentManagement table
 5. **API Mutations** - Implement create/update/delete mutations

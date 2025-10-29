@@ -8,11 +8,11 @@ import type {
   ContentReactionQueryParams
 } from '../types/contentTypes'
 import {
-  CONTENT_ENTRY_CORE_FRAGMENT,
   CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT,
   CONTENT_ENTRY_FULL_FRAGMENT,
   CONTENT_DOCUMENT_FRAGMENT,
-  CONTENT_ENTRY_REACTION_FRAGMENT
+  CONTENT_ENTRY_REACTION_FRAGMENT,
+  CATALOG_ENTRY_FRAGMENT
 } from './fragments/contentFragments'
 
 /**
@@ -38,12 +38,10 @@ const buildContentEntryWhereClause = (params: ContentEntryQueryParams): string =
     conditions.push(`creatorEmployeeId: { _eq: "${params.creatorEmployeeId}" }`)
   }
 
-  if (params.parentContentEntryId !== undefined) {
-    if (params.parentContentEntryId === null) {
-      conditions.push(`parentContentEntryId: { _is_null: true }`)
-    } else {
-      conditions.push(`parentContentEntryId: { _eq: "${params.parentContentEntryId}" }`)
-    }
+  if (params.parentContentEntryId !== undefined && params.parentContentEntryId !== null) {
+    // Only filter by parent if a specific parent ID is provided
+    // If null is passed, we don't filter by parent (returns all entries including nested)
+    conditions.push(`parentContentEntryId: { _eq: "${params.parentContentEntryId}" }`)
   }
 
   // Search across multiple fields
@@ -57,16 +55,24 @@ const buildContentEntryWhereClause = (params: ContentEntryQueryParams): string =
     conditions.push(`_or: [${searchConditions.join(', ')}]`)
   }
 
-  // Category filter (relation)
+  // Category filter (relation) - FIXED: use singular form
   if (params.categoryRefs && params.categoryRefs.length > 0) {
     const categoryConditions = params.categoryRefs.map(ref => `{ contentCategoryRef: { _eq: "${ref}" } }`)
-    conditions.push(`categories: { _or: [${categoryConditions.join(', ')}] }`)
+    conditions.push(`contentEntryCategory: { _or: [${categoryConditions.join(', ')}] }`)
   }
 
-  // Tag filter (relation)
+  // Tag filter (relation) - FIXED: use singular form
   if (params.tagRefs && params.tagRefs.length > 0) {
     const tagConditions = params.tagRefs.map(ref => `{ contentTagRef: { _eq: "${ref}" } }`)
-    conditions.push(`tags: { _or: [${tagConditions.join(', ')}] }`)
+    conditions.push(`contentEntryTag: { _or: [${tagConditions.join(', ')}] }`)
+  }
+
+  // Active period filters
+  if (params.activeFrom) {
+    conditions.push(`activeFrom: { _gte: "${params.activeFrom}" }`)
+  }
+  if (params.activeTo) {
+    conditions.push(`activeTo: { _lte: "${params.activeTo}" }`)
   }
 
   // Always exclude deleted
@@ -86,6 +92,7 @@ const buildOrderByClause = (params: ContentEntryQueryParams): string => {
 
 /**
  * Query content entries with filters
+ * NOTE: includeChildren is not used here - use separate query for children/comments
  */
 export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): string => {
   const limit = params.limit || 20
@@ -102,42 +109,32 @@ export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): 
         offset: ${offset}
       ) {
         ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-        contentEntryCategories {
+        contentEntryCategory {
           id
           contentCategoryRef
           contentCategory {
-            id
-            key
-            value
+            ${CATALOG_ENTRY_FRAGMENT}
           }
         }
-        contentEntryTags {
+        contentEntryTag {
           id
           contentTagRef
           contentTag {
-            id
-            key
-            value
+            ${CATALOG_ENTRY_FRAGMENT}
           }
         }
-        ${
-          params.includeChildren
-            ? `
-          childContentEntries {
-            ${CONTENT_ENTRY_CORE_FRAGMENT}
-            creatorEmployee {
-              id
-              displayName
-              picture
-            }
-            contentEntryReactions {
-              id
-              reaction
-              creatorEmployeeId
-            }
+        contentEntryReaction {
+          ${CONTENT_ENTRY_REACTION_FRAGMENT}
+        }
+        childContentEntryAggregate(
+          where: {
+            role: { _eq: "COMMENT" }
+            isDeleted: { _eq: false }
           }
-        `
-            : ''
+        ) {
+          aggregate {
+            count
+          }
         }
       }
       ContentEntryAggregate(${whereClause}) {
@@ -151,8 +148,9 @@ export const buildContentEntriesQuery = (params: ContentEntryQueryParams = {}): 
 
 /**
  * Query single content entry with full details
+ * NOTE: To load comments/children, make a separate query with parentContentEntryId filter
  */
-export const buildContentEntryQuery = (id: string, includeChildren = true): string => {
+export const buildContentEntryQuery = (id: string): string => {
   return `
     query getContentEntry {
       ContentEntry(
@@ -162,38 +160,49 @@ export const buildContentEntryQuery = (id: string, includeChildren = true): stri
         }
       ) {
         ${CONTENT_ENTRY_FULL_FRAGMENT}
-        ${
-          includeChildren
-            ? `
-          childContentEntries(
-            where: { isDeleted: { _eq: false } }
-            orderBy: { createdAt: ASC }
-          ) {
-            ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-            contentEntryReactions {
-              ${CONTENT_ENTRY_REACTION_FRAGMENT}
-            }
-            childContentEntries(
-              where: { isDeleted: { _eq: false } }
-              orderBy: { createdAt: ASC }
-            ) {
-              ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-              contentEntryReactions {
-                ${CONTENT_ENTRY_REACTION_FRAGMENT}
-              }
-              childContentEntries(
-                where: { isDeleted: { _eq: false } }
-                orderBy: { createdAt: ASC }
-              ) {
-                ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-                contentEntryReactions {
-                  ${CONTENT_ENTRY_REACTION_FRAGMENT}
-                }
-              }
-            }
+        childContentEntryAggregate(
+          where: {
+            role: { _eq: "COMMENT" }
+            isDeleted: { _eq: false }
           }
-        `
-            : ''
+        ) {
+          aggregate {
+            count
+          }
+        }
+      }
+    }
+  `
+}
+
+/**
+ * Query child content entries (comments) for a parent entry
+ */
+export const buildChildContentEntriesQuery = (parentId: string, limit = 50, offset = 0): string => {
+  return `
+    query getChildContentEntries {
+      ContentEntry(
+        where: { 
+          parentContentEntryId: { _eq: "${parentId}" }
+          isDeleted: { _eq: false }
+        }
+        orderBy: { createdAt: ASC }
+        limit: ${limit}
+        offset: ${offset}
+      ) {
+        ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
+        contentEntryReaction {
+          ${CONTENT_ENTRY_REACTION_FRAGMENT}
+        }
+      }
+      ContentEntryAggregate(
+        where: { 
+          parentContentEntryId: { _eq: "${parentId}" }
+          isDeleted: { _eq: false }
+        }
+      ) {
+        aggregate {
+          count
         }
       }
     }

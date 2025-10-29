@@ -1,24 +1,40 @@
 import React, { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@newwork/nw-design-system'
-import { MessageCircle, Share2 } from 'lucide-react'
-import { Content } from '@/business-apps/core/content/apps/content-hub/types/content.types'
-import { copyUrlToClipboard } from '@/business-apps/core/content/apps/content-hub/utils/contentUtils'
-import { useArticleLikes } from '@/business-apps/core/content/hooks/useArticleLikes'
-import { LikeButton } from '@/business-apps/core/content/components/interactions'
+import { Share2 } from 'lucide-react'
+import { Content } from '@/business-apps/core/content/apps/content-portal/types/content.types'
+import { copyUrlToClipboard } from '@/business-apps/core/content/apps/content-portal/utils/contentUtils'
+import { useUserContentReactions, ReactionSummary } from '@/common/data/content'
+import { ReactionButton } from '@/business-apps/core/content/components/interactions'
 import dayjs from 'dayjs'
 
 interface ContentInfoSectionProps {
   item: Content
   accessToken: string
   userId: string | undefined
+  employeeId: string | undefined
+  allowedReactions?: string[]
+  reactionCatalogMap?: Record<string, string>
 }
 
-const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({ item, accessToken, userId }) => {
+const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
+  item,
+  accessToken,
+  userId,
+  employeeId,
+  allowedReactions,
+  reactionCatalogMap
+}) => {
   const { t } = useTranslation('content')
 
-  // Fetch user's like status
-  const { userLike, refetch: refetchLikes } = useArticleLikes(item.articleId, userId, accessToken)
+  // Fetch reactions using central hook
+  const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
+    contentEntryIds: [item.articleId],
+    currentUserId: userId,
+    accessToken
+  })
+
+  const reactionSummary: ReactionSummary = reactionsByArticle[item.articleId] || {}
 
   const formattedDate = useMemo(() => {
     return item.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
@@ -60,29 +76,23 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({ item, accessTok
 
       {/* Stats */}
       <div className="gba:flex gba:flex-row gba:items-center gba:ml-auto gba:gap-4">
-        {item.allowLike && (
-          <LikeButton
-            articleId={item.articleId}
-            userLike={userLike}
-            likesCount={item.likesCount}
-            allowLike={item.allowLike}
+        {item.allowReaction && (
+          <ReactionButton
+            contentEntryId={item.articleId}
+            reactionSummary={reactionSummary}
+            allowReaction={item.allowReaction}
             accessToken={accessToken}
-            onSuccess={refetchLikes}
+            employeeId={employeeId || ''}
+            onSuccess={refetchReactions}
             size="md"
-            data-testid="content-info-like-button"
+            allowedReactions={allowedReactions}
+            reactionCatalogMap={reactionCatalogMap}
+            data-testid="content-info-reaction-button"
           />
-        )}
-
-        {item.allowComment && (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <MessageCircle className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:text-foreground">{item.commentsCount || 0}</span>
-          </div>
         )}
 
         <Button variant="ghost" size="sm" onClick={handleShare} className="gba:p-2" data-testid="content-share-button">
           <Share2 className="gba:w-4 gba:h-4" />
-          <span className="gba:ml-2 gba:text-sm">{item.shareCount || 0}</span>
         </Button>
       </div>
     </div>

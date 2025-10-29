@@ -3,8 +3,12 @@
  * Reusable fragments for consistent data fetching
  */
 
+// Import catalog entry fragment from catalog data
+import { CATALOG_ENTRY_REF } from '@/common/data/catalog/queries/catalogFragments'
+
 /**
  * Employee reference fragment
+ * FIXED: Removed email (doesn't exist in Employee schema)
  */
 export const EMPLOYEE_REF_FRAGMENT = `
   id
@@ -12,30 +16,22 @@ export const EMPLOYEE_REF_FRAGMENT = `
   firstName
   lastName
   displayName
-  email
   picture
   pictureThumbnail
 `
 
 /**
- * Catalog entry fragment
+ * Use the centralized catalog entry fragment
  */
-export const CATALOG_ENTRY_FRAGMENT = `
-  id
-  catalogIdentifier
-  version
-  key
-  value
-  sortOrder
-  isActive
-`
+export const CATALOG_ENTRY_FRAGMENT = CATALOG_ENTRY_REF
 
 /**
  * Content entry core fields
  */
 export const CONTENT_ENTRY_CORE_FRAGMENT = `
   id
-  parentContentId
+  version
+  parentContentEntryId
   title
   preview
   content
@@ -51,8 +47,9 @@ export const CONTENT_ENTRY_CORE_FRAGMENT = `
   role
   contentGroupRef
   contentTypeRef
-  recordVersion
-  recordState
+  entryVersion
+  activeFrom
+  activeTo
   createdAt
   createdBy
   updatedAt
@@ -119,7 +116,7 @@ export const CONTENT_ENTRY_TAG_FRAGMENT = `
 `
 
 /**
- * Content document fragment
+ * Content document fragment (without children to avoid recursion)
  */
 export const CONTENT_DOCUMENT_FRAGMENT = `
   id
@@ -141,19 +138,47 @@ export const CONTENT_DOCUMENT_FRAGMENT = `
 `
 
 /**
+ * Content document with children (one level)
+ */
+export const CONTENT_DOCUMENT_WITH_CHILDREN_FRAGMENT = `
+  ${CONTENT_DOCUMENT_FRAGMENT}
+  childDocument {
+    id
+    parentDocumentId
+    folder
+    name
+    description
+    fileInfo
+    documentGroupRef
+    documentTypeRef
+    contentEntryId
+    recordState
+    createdAt
+    createdBy
+    isDeleted
+  }
+`
+
+/**
  * Content entry reaction fragment
+ * FIXED: CatalogEntry has no label or icon fields
  */
 export const CONTENT_ENTRY_REACTION_FRAGMENT = `
   id
   contentEntryId
   creatorEmployeeId
-  reaction
-  recordState
+  contentReactionRef
   createdAt
   createdBy
   isDeleted
   creatorEmployee {
     ${EMPLOYEE_REF_FRAGMENT}
+  }
+  contentReaction {
+    id
+    code
+    value
+    description
   }
 `
 
@@ -162,16 +187,42 @@ export const CONTENT_ENTRY_REACTION_FRAGMENT = `
  */
 export const CONTENT_ENTRY_FULL_FRAGMENT = `
   ${CONTENT_ENTRY_WITH_CATALOGS_FRAGMENT}
-  contentEntryCategories {
+  contentEntryCategory {
     ${CONTENT_ENTRY_CATEGORY_FRAGMENT}
   }
-  contentEntryTags {
+  contentEntryTag {
     ${CONTENT_ENTRY_TAG_FRAGMENT}
   }
-  contentDocuments {
+  contentDocument {
     ${CONTENT_DOCUMENT_FRAGMENT}
   }
-  contentEntryReactions {
+  contentEntryReaction {
     ${CONTENT_ENTRY_REACTION_FRAGMENT}
+  }
+`
+
+/**
+ * Child content entry fragment (for comments, one level only to avoid recursion)
+ */
+export const CHILD_CONTENT_ENTRY_FRAGMENT = `
+  id
+  parentContentEntryId
+  title
+  preview
+  content
+  picture
+  pictureThumbnail
+  creatorEmployeeId
+  displayCreator
+  allowComment
+  allowReaction
+  role
+  contentGroupRef
+  contentTypeRef
+  createdAt
+  updatedAt
+  isDeleted
+  creatorEmployee {
+    ${EMPLOYEE_REF_FRAGMENT}
   }
 `

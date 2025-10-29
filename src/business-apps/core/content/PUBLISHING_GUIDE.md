@@ -5,7 +5,7 @@
 Die Content-Plattform besteht aus 5 publishable screens:
 
 - 2 Apps (content-hub, content-management)
-- 2 Forms (content-form, document-form)
+- 2 Forms (content-entry-window, document-form)
 - 1 Record (content-record)
 
 ## 🚀 Publishing Commands
@@ -20,7 +20,7 @@ npm run publish:screen -- /core/every/apps/content-hub
 npm run publish:screen -- /core/every/apps/content-management
 
 # Content Form (Create/Edit Content)
-npm run publish:screen -- /core/every/forms/content-form
+npm run publish:screen -- /core/every/forms/content-entry-window
 
 # Document Form (Upload Documents)
 npm run publish:screen -- /core/every/forms/document-form
@@ -36,7 +36,7 @@ npm run publish:screen -- /core/every/records/content-record
 npm run publish:screen -- /core/every/apps/content-hub; npm run publish:screen -- /core/every/apps/content-management
 
 # Forms
-npm run publish:screen -- /core/every/forms/content-form; npm run publish:screen -- /core/every/forms/document-form
+npm run publish:screen -- /core/every/forms/content-entry-window; npm run publish:screen -- /core/every/forms/document-form
 
 # Records
 npm run publish:screen -- /core/every/records/content-record
@@ -48,7 +48,7 @@ npm run publish:screen -- /core/every/records/content-record
 # Mit -r oder --resource flag für Resource URL creation
 npm run publish:screen -- /core/every/apps/content-hub -r
 npm run publish:screen -- /core/every/apps/content-management -r
-npm run publish:screen -- /core/every/forms/content-form -r
+npm run publish:screen -- /core/every/forms/content-entry-window -r
 npm run publish:screen -- /core/every/forms/document-form -r
 npm run publish:screen -- /core/every/records/content-record -r
 ```
@@ -83,7 +83,7 @@ npm run publish:screen -- /core/every/records/content-record -r
 **Entry Point:** `src/wrapped-entries/core/every/apps/content-management.ts`
 **Main Component:** `src/business-apps/core/every/apps/content-management/ContentManagement.tsx`
 
-### content-form
+### content-entry-window
 
 **Beschreibung:** Formular zum Erstellen/Bearbeiten von Content
 **Features:**
@@ -94,8 +94,8 @@ npm run publish:screen -- /core/every/records/content-record -r
 - Settings (Author, Comments, Likes)
 - Validation
 
-**Entry Point:** `src/wrapped-entries/core/every/forms/content-form.ts`
-**Main Component:** `src/business-apps/core/every/forms/content-form/ContentForm.tsx`
+**Entry Point:** `src/wrapped-entries/core/every/forms/content-entry-window.ts`
+**Main Component:** `src/business-apps/core/every/forms/content-entry-window/ContentEntryWindow.tsx`
 
 ### document-form
 
@@ -144,7 +144,7 @@ interface BusinessAppContextProps {
 
 ### Custom Props
 
-**content-form:**
+**content-entry-window:**
 
 ```typescript
 {
@@ -236,7 +236,7 @@ content-card-{id}
 content-nav-tag-{category}
 content-search-input
 {type}-feed-load-more
-content-form-{field}-{element}
+content-entry-window-{field}-{element}
 document-form-{field}-{element}
 content-record
 content-record-back-button

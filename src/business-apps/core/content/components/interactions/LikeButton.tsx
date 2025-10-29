@@ -60,7 +60,7 @@ export const LikeButton: React.FC<LikeButtonProps> = ({
 
   return (
     <AppActionProvider
-      contextsArray={[FlowContextName.contentLikeUpdate]}
+      contextsArray={[FlowContextName.contentEntryReact]}
       externalContextData={{ articleId }}
       accessToken={accessToken}
       onSuccess={handleSuccess}

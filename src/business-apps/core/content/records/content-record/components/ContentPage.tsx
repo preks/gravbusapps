@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Badge } from '@newwork/nw-design-system'
-import { Content } from '@/business-apps/core/content/apps/content-hub/types/content.types'
+import { Content } from '@/business-apps/core/content/apps/content-portal/types/content.types'
 import { CommentSection } from '@/business-apps/core/content/components/interactions'
 import ContentInfoSection from './ContentInfoSection'
 
@@ -9,9 +9,19 @@ interface ContentPageProps {
   item: Content
   accessToken: string
   userId: string | undefined
+  employeeId: string | undefined
+  allowedReactions?: string[]
+  reactionCatalogMap?: Record<string, string>
 }
 
-const ContentPage: React.FC<ContentPageProps> = ({ item, accessToken, userId }) => {
+const ContentPage: React.FC<ContentPageProps> = ({
+  item,
+  accessToken,
+  userId,
+  employeeId,
+  allowedReactions,
+  reactionCatalogMap
+}) => {
   const { t } = useTranslation('content')
 
   return (
@@ -65,7 +75,14 @@ const ContentPage: React.FC<ContentPageProps> = ({ item, accessToken, userId }) 
         )}
 
         {/* Article Info Section */}
-        <ContentInfoSection item={item} accessToken={accessToken} userId={userId} />
+        <ContentInfoSection
+          item={item}
+          accessToken={accessToken}
+          userId={userId}
+          employeeId={employeeId}
+          allowedReactions={allowedReactions}
+          reactionCatalogMap={reactionCatalogMap}
+        />
 
         {/* Comment Section */}
         {item.allowComment && (
@@ -73,6 +90,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ item, accessToken, userId }) 
             articleId={item.articleId}
             allowComment={item.allowComment}
             accessToken={accessToken}
+            employeeId={employeeId}
             currentUserId={userId}
             data-testid="content-page-comments"
           />

@@ -4,6 +4,7 @@
  */
 import type { EmployeeRef } from '@/common/data/employee/types/employeeBaseTypes'
 import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
+import { ContentRole } from '../types/contentEnums'
 import type {
   BaseContentEntry,
   BaseContentEntryCategory,
@@ -49,15 +50,17 @@ const getEmployeeDisplayName = (employee?: EmployeeRef | null): string | undefin
 
 /**
  * Map base content entry to enhanced content entry
+ * FIXED: Relations are singular in GraphQL (contentEntryCategory, not contentEntryCategories)
  */
 export const mapBaseToContentEntry = (
   base: BaseContentEntry,
   options?: {
-    contentEntryCategories?: BaseContentEntryCategory[]
-    contentEntryTags?: BaseContentEntryTag[]
-    contentDocuments?: BaseContentDocument[]
-    contentEntryReactions?: BaseContentEntryReaction[]
+    contentEntryCategory?: BaseContentEntryCategory[]
+    contentEntryTag?: BaseContentEntryTag[]
+    contentDocument?: BaseContentDocument[]
+    contentEntryReaction?: BaseContentEntryReaction[]
     childContentEntries?: BaseContentEntry[]
+    childContentEntryAggregate?: { aggregate: { count: number } }
   }
 ): ContentEntry => {
   const mapped: ContentEntry = {
@@ -70,21 +73,25 @@ export const mapBaseToContentEntry = (
     formattedUpdatedAt: formatDate(base.updatedAt),
 
     // Relation counts
-    reactionCount: options?.contentEntryReactions?.length || 0,
-    commentCount: options?.childContentEntries?.filter(e => e.role === 'COMMENT').length || 0,
+    reactionCount: options?.contentEntryReaction?.length || 0,
+    // Use aggregate count if available, otherwise fallback to filtered childContentEntries
+    commentCount:
+      options?.childContentEntryAggregate?.aggregate?.count ??
+      options?.childContentEntries?.filter(e => e.role === ContentRole.COMMENT).length ??
+      0,
 
-    // Map relations if provided
-    contentEntryCategories: options?.contentEntryCategories?.map(mapBaseToContentEntryCategory),
-    contentEntryTags: options?.contentEntryTags?.map(mapBaseToContentEntryTag),
-    contentDocuments: options?.contentDocuments?.map(mapBaseToContentDocument),
-    contentEntryReactions: options?.contentEntryReactions?.map(mapBaseToContentEntryReaction),
+    // Map relations if provided (singular names)
+    contentEntryCategory: options?.contentEntryCategory?.map(mapBaseToContentEntryCategory),
+    contentEntryTag: options?.contentEntryTag?.map(mapBaseToContentEntryTag),
+    contentDocument: options?.contentDocument?.map(mapBaseToContentDocument),
+    contentEntryReaction: options?.contentEntryReaction?.map(mapBaseToContentEntryReaction),
     childContentEntries: options?.childContentEntries?.map(child => mapBaseToContentEntry(child)),
 
     // Computed category and tag names
-    categoryNames: options?.contentEntryCategories?.map(c => c.contentCategory?.value).filter(Boolean) as
+    categoryNames: options?.contentEntryCategory?.map(c => c.contentCategory?.value).filter(Boolean) as
       | string[]
       | undefined,
-    tagNames: options?.contentEntryTags?.map(t => t.contentTag?.value).filter(Boolean) as string[] | undefined
+    tagNames: options?.contentEntryTag?.map(t => t.contentTag?.value).filter(Boolean) as string[] | undefined
   }
 
   return mapped
@@ -114,29 +121,33 @@ export const mapBaseToContentEntryTag = (base: BaseContentEntryTag): ContentEntr
  * Map base content document to enhanced
  */
 export const mapBaseToContentDocument = (base: BaseContentDocument): ContentDocument => {
+  const fileInfo = base.fileInfo as any // fileInfo is jsonb, dynamic structure
   return {
     ...base,
     documentTypeName: base.documentType?.value,
-    fileSize: base.fileInfo?.size,
-    mimeType: base.fileInfo?.type,
-    filePath: base.fileInfo?.name
+    fileSize: fileInfo?.size,
+    mimeType: fileInfo?.type,
+    filePath: fileInfo?.name
   }
 }
 
 /**
  * Map base content entry reaction to enhanced
+ * FIXED: CatalogEntry has no label or icon - use value for both name and emoji
  */
 export const mapBaseToContentEntryReaction = (base: BaseContentEntryReaction): ContentEntryReaction => {
   return {
     ...base,
     creatorDisplayName: getEmployeeDisplayName(base.creatorEmployee),
-    reactionEmoji: base.reaction
+    reactionName: base.contentReaction?.value,
+    reactionEmoji: base.contentReaction?.value // Use value as emoji fallback
   }
 }
 
 /**
  * Build nested comment hierarchy
  * Recursively builds tree structure from flat comment list
+ * FIXED: Use singular relation names
  */
 export const buildCommentHierarchy = (
   comments: BaseContentEntry[],
@@ -146,33 +157,37 @@ export const buildCommentHierarchy = (
 
   return childComments.map(comment => {
     const nestedChildren = buildCommentHierarchy(comments, comment.id)
-    const reactions = comment.contentEntryReactions || []
+    const reactions = comment.contentEntryReaction || []
 
     return mapBaseToContentEntry(comment, {
       childContentEntries: nestedChildren,
-      contentEntryReactions: reactions,
-      contentEntryCategories: comment.contentEntryCategories,
-      contentEntryTags: comment.contentEntryTags,
-      contentDocuments: comment.contentDocuments
+      contentEntryReaction: reactions,
+      contentEntryCategory: comment.contentEntryCategory,
+      contentEntryTag: comment.contentEntryTag,
+      contentDocument: comment.contentDocument
     })
   })
 }
 
 /**
  * Aggregate reactions by emoji type
+ * FIXED: Use value instead of label/icon
  */
 export const aggregateReactions = (reactions: BaseContentEntryReaction[]): ReactionAggregation[] => {
   const reactionMap = new Map<string, ReactionAggregation>()
 
   reactions.forEach(reaction => {
-    const existing = reactionMap.get(reaction.reaction)
+    const reactionRef = reaction.contentReactionRef || 'unknown'
+    const existing = reactionMap.get(reactionRef)
 
     if (existing && reaction.creatorEmployee) {
       existing.count++
       existing.employees.push(reaction.creatorEmployee)
     } else if (reaction.creatorEmployee) {
-      reactionMap.set(reaction.reaction, {
-        reaction: reaction.reaction,
+      reactionMap.set(reactionRef, {
+        reactionRef,
+        reactionName: reaction.contentReaction?.value || 'Unknown',
+        reactionEmoji: reaction.contentReaction?.value, // Use value as emoji
         count: 1,
         employees: [reaction.creatorEmployee]
       })
@@ -184,6 +199,7 @@ export const aggregateReactions = (reactions: BaseContentEntryReaction[]): React
 
 /**
  * Extract unique catalog entries from content entries
+ * FIXED: Use singular relation names
  */
 export const extractUniqueCatalogRefs = (
   entries: ContentEntry[],
@@ -196,16 +212,16 @@ export const extractUniqueCatalogRefs = (
 
     switch (type) {
       case 'group':
-        catalogs = [entry.contentGroup]
+        catalogs = entry.contentGroup ? [entry.contentGroup] : []
         break
       case 'type':
-        catalogs = [entry.contentType]
+        catalogs = entry.contentType ? [entry.contentType] : []
         break
       case 'category':
-        catalogs = entry.contentEntryCategories?.map(c => c.contentCategory) || []
+        catalogs = (entry.contentEntryCategory?.map(c => c.contentCategory).filter(Boolean) as CatalogEntry[]) || []
         break
       case 'tag':
-        catalogs = entry.contentEntryTags?.map(t => t.contentTag) || []
+        catalogs = (entry.contentEntryTag?.map(t => t.contentTag).filter(Boolean) as CatalogEntry[]) || []
         break
     }
 
@@ -216,7 +232,7 @@ export const extractUniqueCatalogRefs = (
     })
   })
 
-  return Array.from(catalogMap.values()).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+  return Array.from(catalogMap.values()).sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
 }
 
 /**
@@ -268,4 +284,28 @@ export const filterEntriesByDateRange = (entries: ContentEntry[], startDate?: Da
 
     return true
   })
+}
+
+/**
+ * Map ContentEntry to legacy Content format (for backward compatibility)
+ * Used during migration period for Intranet views
+ */
+export const toIntranetContent = (entry: ContentEntry): any => {
+  return {
+    articleId: entry.id,
+    title: entry.title,
+    content: entry.content || '',
+    previewText: entry.preview || '',
+    contentImage: entry.picture,
+    createdAt: entry.createdAt,
+    timeToRead: entry.timeToRead,
+    allowReaction: entry.allowReaction,
+    allowComment: entry.allowComment,
+    reactionsCount: entry.reactionCount || 0,
+    commentsCount: entry.commentCount || 0,
+    tags: entry.tagNames || [],
+    tagNames: entry.tagNames || [],
+    authorFullName: entry.creatorDisplayName || '',
+    displayAuthor: entry.displayCreator
+  }
 }

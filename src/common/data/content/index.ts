@@ -14,6 +14,3 @@ export * from './mappers'
 
 // Hooks
 export * from './hooks'
-
-// Mock data (for testing)
-export * from './mock'

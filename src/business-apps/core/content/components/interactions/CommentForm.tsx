@@ -5,11 +5,14 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { buildCreateContentEntryPayload } from '@/common/data/content/payloads'
+import { ContentRole } from '@/common/data/content/types/contentEnums'
 
 export interface CommentFormProps {
-  articleId: string
-  articleCommentId?: string | null
+  articleId: string // Parent content entry ID
+  articleCommentId?: string | null // Parent comment ID (for nested replies)
   accessToken: string
+  employeeId: string // Current user's employee ID
   onSuccess?: () => void
   onCancel?: () => void
   placeholder?: string
@@ -26,6 +29,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
   articleId,
   articleCommentId = null,
   accessToken,
+  employeeId,
   onSuccess,
   onCancel,
   placeholder = 'Write a comment...',
@@ -40,21 +44,22 @@ export const CommentForm: React.FC<CommentFormProps> = ({
 
   const transformData = useCallback(
     (formData: CommentFormData) => {
-      const articleCommentData: any = {
-        comment: formData.comment,
-        article: articleId
-      }
+      // Determine parent: If articleCommentId exists, it's a reply to a comment (nested)
+      // Otherwise, it's a top-level comment on the article
+      const parentId = articleCommentId || articleId
 
-      // Only include articleComment if replying to another comment
-      if (articleCommentId) {
-        articleCommentData.articleComment = articleCommentId
-      }
-
-      return {
-        articleComment: articleCommentData
-      }
+      return buildCreateContentEntryPayload({
+        content: formData.comment,
+        role: ContentRole.COMMENT,
+        parentContentEntryId: parentId,
+        creatorEmployeeId: employeeId,
+        displayCreator: true,
+        displayUpdater: false,
+        allowComment: true, // Allow nested replies
+        allowReaction: true
+      })
     },
-    [articleId, articleCommentId]
+    [articleId, articleCommentId, employeeId]
   )
 
   const handleSuccess = useCallback(() => {
@@ -81,7 +86,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
       )}
 
       <AppActionProvider
-        contextsArray={[FlowContextName.contentCommentCreate]}
+        contextsArray={[FlowContextName.contentEntryComment]}
         externalContextData={{ articleId }}
         accessToken={accessToken}
         onSuccess={handleSuccess}

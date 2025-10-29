@@ -3,7 +3,7 @@
  * Fetch documents for a content entry
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql-mock/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentDocumentsQuery } from '../queries/contentQueries'
 import { mapBaseToContentDocument } from '../mappers/contentMappers'
 import type { ContentDocument, ContentDocumentQueryParams } from '../types/contentTypes'

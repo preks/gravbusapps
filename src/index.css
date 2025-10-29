@@ -23,6 +23,8 @@
 
 @import '@newwork/nw-design-system/index.css';
 
+@import 'react-quill/dist/quill.snow.css';
+
 @import 'tailwindcss' prefix(gba);
 @import 'tw-animate-css';
 

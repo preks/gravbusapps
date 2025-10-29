@@ -3,7 +3,7 @@
  * Fetch single content entry with full details including nested comments
  */
 import { useState, useEffect, useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql-mock/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { buildContentEntryQuery } from '../queries/contentQueries'
 import { mapBaseToContentEntry, buildCommentHierarchy } from '../mappers/contentMappers'
 import type { ContentEntry } from '../types/contentTypes'
@@ -47,24 +47,25 @@ export const useContentEntry = (
     setError(null)
 
     try {
-      const query = buildContentEntryQuery(id, options?.includeChildren ?? true)
+      const query = buildContentEntryQuery(id)
       const response = await graphqlClient.request<ContentEntryResponse>(query)
 
       if (response.ContentEntry && response.ContentEntry.length > 0) {
         const baseEntry = response.ContentEntry[0]
 
         // Build nested comment hierarchy if children are included
-        let childContentEntries = baseEntry.childContentEntries
-        if (options?.includeChildren && baseEntry.childContentEntries) {
-          childContentEntries = buildCommentHierarchy(baseEntry.childContentEntries)
+        let childContentEntry = baseEntry.childContentEntry
+        if (options?.includeChildren && baseEntry.childContentEntry) {
+          childContentEntry = buildCommentHierarchy(baseEntry.childContentEntry)
         }
 
         const mappedEntry = mapBaseToContentEntry(baseEntry, {
-          contentEntryCategories: baseEntry.contentEntryCategories,
-          contentEntryTags: baseEntry.contentEntryTags,
-          contentDocuments: baseEntry.contentDocuments,
-          contentEntryReactions: baseEntry.contentEntryReactions,
-          childContentEntries
+          contentEntryCategory: baseEntry.contentEntryCategory,
+          contentEntryTag: baseEntry.contentEntryTag,
+          contentDocument: baseEntry.contentDocument,
+          contentEntryReaction: baseEntry.contentEntryReaction,
+          childContentEntries: childContentEntry,
+          childContentEntryAggregate: (baseEntry as any).childContentEntryAggregate
         })
 
         setEntry(mappedEntry)

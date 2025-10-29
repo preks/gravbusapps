@@ -22,7 +22,7 @@ interface BusinessAppInfo {
   module: string
   subModule?: string
   screenKey: string
-  type: 'app' | 'form' | 'popup'
+  type: 'app' | 'form' | 'popup' | 'window'
 }
 
 interface RecentlyUsedApp {
@@ -141,7 +141,7 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     return subModule === 'default' ? 'General' : subModule.charAt(0).toUpperCase() + subModule.slice(1)
   }
 
-  const getTypeIcon = (type: 'app' | 'form' | 'popup') => {
+  const getTypeIcon = (type: 'app' | 'form' | 'popup' | 'window') => {
     switch (type) {
       case 'app':
         return <Play />
@@ -149,12 +149,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return <Article />
       case 'popup':
         return <ChatCircle />
+      case 'window':
+        return <AppWindow />
       default:
         return <Play />
     }
   }
 
-  const getTypeLabel = (type: 'app' | 'form' | 'popup'): string => {
+  const getTypeLabel = (type: 'app' | 'form' | 'popup' | 'window'): string => {
     switch (type) {
       case 'app':
         return 'App'
@@ -162,13 +164,15 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return 'Form'
       case 'popup':
         return 'Popup'
+      case 'window':
+        return 'Window'
       default:
         return 'App'
     }
   }
 
   // Tailwind token-based classes to replace inline color styles
-  const getTypeTextClass = (type: 'app' | 'form' | 'popup'): string => {
+  const getTypeTextClass = (type: 'app' | 'form' | 'popup' | 'window'): string => {
     switch (type) {
       case 'app':
         return 'gba:text-ext-1'
@@ -176,12 +180,14 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return 'gba:text-ext-2'
       case 'popup':
         return 'gba:text-ext-3'
+      case 'window':
+        return 'gba:text-ext-4'
       default:
         return 'gba:text-primary'
     }
   }
 
-  const getTypeBadgeClasses = (type: 'app' | 'form' | 'popup'): string => {
+  const getTypeBadgeClasses = (type: 'app' | 'form' | 'popup' | 'window'): string => {
     switch (type) {
       case 'app':
         return 'gba:bg-ext-1-secondary gba:text-ext-1-secondary-foreground'
@@ -189,6 +195,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
         return 'gba:bg-ext-2-secondary gba:text-ext-2-secondary-foreground'
       case 'popup':
         return 'gba:bg-ext-3-secondary gba:text-ext-3-secondary-foreground'
+      case 'window':
+        return 'gba:bg-ext-4-secondary gba:text-ext-4-secondary-foreground'
       default:
         return 'gba:bg-primary-secondary gba:text-primary-secondary-foreground'
     }
@@ -273,7 +281,8 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
     const apps = items.filter(i => i.type === 'app')
     const forms = items.filter(i => i.type === 'form')
     const popups = items.filter(i => i.type === 'popup')
-    return { items, apps, forms, popups }
+    const windows = items.filter(i => i.type === 'window')
+    return { items, apps, forms, popups, windows }
   }, [businessApps])
 
   return (
@@ -365,6 +374,29 @@ export const IDEStartScreen: React.FC<IDEStartScreenProps> = ({ businessApps, on
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                           <div className="gba:space-y-1 gba:text-left">{exampleItems.popups.map(renderAppButton)}</div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {/* Windows */}
+                  {exampleItems.windows.length > 0 && (
+                    <Card
+                      className="gba:shadow-sm hover:gba:shadow-md gba:transition-shadow"
+                      style={{ display: 'flex', flexDirection: 'column' }}
+                    >
+                      <CardContent
+                        className="gba:p-3"
+                        style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+                      >
+                        <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+                          <span className="gba:flex gba:items-center gba:gap-2 gba:font-semibold">
+                            <AppWindow className="gba:text-purple-600" />
+                            Windows
+                          </span>
+                          <Badge variant="secondary">{exampleItems.windows.length}</Badge>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                          <div className="gba:space-y-1 gba:text-left">{exampleItems.windows.map(renderAppButton)}</div>
                         </div>
                       </CardContent>
                     </Card>
