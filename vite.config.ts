@@ -323,6 +323,7 @@ if (globalThis.__APP_BUILD_INFO__) {
       if (id === 'virtual:wrapped-entries') {
         // Generate a module that re-exports all the wrapped components
         let code = `import { wrapWithUiCatalog } from './common/wrapWithUiCatalog';
+import { wrapWithLocalizationProvider } from './common/wrapWithLocalizationProvider';
 `
 
         // For each entry in our dynamic entries, create an import and export
@@ -338,7 +339,7 @@ if (globalThis.__APP_BUILD_INFO__) {
             code += `export const ${cleanEntryKey} = ${cleanEntryKey}Original;
 `
           } else {
-            code += `export const ${cleanEntryKey} = wrapWithUiCatalog(${cleanEntryKey}Original);
+            code += `export const ${cleanEntryKey} = wrapWithUiCatalog(wrapWithLocalizationProvider(${cleanEntryKey}Original));
 `
           }
         })
@@ -351,6 +352,8 @@ if (globalThis.__APP_BUILD_INFO__) {
         // Generate a module that can dynamically load any business app screen
         const availableScreensJson = JSON.stringify(allPossibleEntries, null, 2)
 
+        // In dev mode (serve), BusinessAppIDE already provides LocalizationProvider
+        // So we only wrap with UiCatalog
         let code = "import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';\n\n"
         code += '// Available screen entries for dynamic loading\n'
         code += 'const availableScreens = ' + availableScreensJson + ';\n\n'
@@ -395,7 +398,7 @@ if (globalThis.__APP_BUILD_INFO__) {
         code += '        throw new Error(`Screen "${screenKey}" does not have a default export`);\n'
         code += '      }\n'
         code += '      \n'
-        code += '      // Wrap with UI catalog\n'
+        code += '      // Wrap with UI catalog only (BusinessAppIDE provides LocalizationProvider)\n'
         code += '      const wrappedComponent = wrapWithUiCatalog(component);\n'
         code += '      \n'
         code += '      const loadTime = performance.now() - startTime;\n'
@@ -525,10 +528,11 @@ export default OriginalComponent;
       } else {
         wrapperContent = `// Auto-generated wrapper file
 import { wrapWithUiCatalog } from '@/common/wrapWithUiCatalog';
+import { wrapWithLocalizationProvider } from '@/common/wrapWithLocalizationProvider';
 import OriginalComponent from '${relativeEntryPath.startsWith('.') ? relativeEntryPath : './' + relativeEntryPath}';
 
 // Re-export wrapped component
-export default wrapWithUiCatalog(OriginalComponent);
+export default wrapWithUiCatalog(wrapWithLocalizationProvider(OriginalComponent));
 `
       }
 
