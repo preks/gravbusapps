@@ -30,6 +30,11 @@ export const SECTION_KEYS = {
     workingHours: 'workingHours',
     jobHistory: 'jobHistory'
   },
+  compensation: {
+    bonuses: 'bonuses',
+    benefits: 'benefits',
+    payslips: 'payslips'
+  },
   documents: {
     personalDocuments: 'personalDocuments',
     salaryDocuments: 'salaryDocuments',
@@ -116,12 +121,24 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
   [TAB_KEYS.compensation]: {
     domain: 'employee',
     resource: 'working_conditions', // ✅ Using existing working_conditions resource since it contains salary data
-    permission: 'read'
-    // TODO: If separate permissions are needed for bonuses/benefits, add sections here:
-    // sections: {
-    //   bonuses: { domain: 'employee', resource: 'employee_bonus', permission: 'read' },
-    //   benefits: { domain: 'employee', resource: 'employee_benefit', permission: 'read' }
-    // }
+    permission: 'read',
+    sections: {
+      bonuses: {
+        domain: 'employee',
+        resource: 'employee_bonus',
+        permission: 'read'
+      },
+      benefits: {
+        domain: 'employee',
+        resource: 'employee_benefit',
+        permission: 'read'
+      },
+      payslips: {
+        domain: 'employee',
+        resource: 'employee_payslip',
+        permission: 'read'
+      }
+    }
   },
   [TAB_KEYS.documents]: {
     domain: 'employee',
