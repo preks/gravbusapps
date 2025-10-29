@@ -24,6 +24,7 @@ import {
 import { PiDownload, PiMagnifyingGlass, PiEye } from 'react-icons/pi'
 import { EmployeePayslip } from '../../../types/compensationTypes'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
+import { getPayslipStatusLabel, getPayslipStatusVariant } from '../../../types/compensationEnums'
 
 interface PayslipHistorySectionProps {
   payslips: EmployeePayslip[]
@@ -151,7 +152,8 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ payslips,
             <Table data-testid="payslip-history-table">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="gba:w-[200px]">Month</TableHead>
+                  <TableHead className="gba:w-[150px]">Month</TableHead>
+                  <TableHead className="gba:w-[100px]">Year</TableHead>
                   <TableHead className="gba:w-[150px]">Gross Amount</TableHead>
                   <TableHead className="gba:w-[120px]">Status</TableHead>
                   <TableHead className="gba:w-[80px] gba:text-center">View</TableHead>
@@ -159,53 +161,50 @@ const PayslipHistorySection: React.FC<PayslipHistorySectionProps> = ({ payslips,
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedPayslips.map(payslip => (
-                  <TableRow key={payslip.id} data-testid={`payslip-history-row-${payslip.id}`}>
-                    <TableCell className="gba:w-[200px]">
-                      <div className="gba:font-medium">{payslip.monthName}</div>
-                    </TableCell>
-                    <TableCell className="gba:w-[150px]">
-                      <div className="gba:font-semibold gba:text-foreground">
-                        {formatCurrency(payslip.grossAmount, payslip.currency.code)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="gba:w-[120px]">
-                      <Badge
-                        variant={
-                          payslip.status === 'Paid'
-                            ? 'success'
-                            : payslip.status === 'Generated'
-                              ? 'warning'
-                              : 'destructive'
-                        }
-                      >
-                        {payslip.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="gba:w-[80px] gba:text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleView(payslip)}
-                        data-testid={`payslip-view-button-${payslip.id}`}
-                        title="View Payslip"
-                      >
-                        <PiEye className="gba:w-4 gba:h-4" />
-                      </Button>
-                    </TableCell>
-                    <TableCell className="gba:w-[80px] gba:text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDownload(payslip)}
-                        data-testid={`payslip-download-button-${payslip.id}`}
-                        title="Download Payslip"
-                      >
-                        <PiDownload className="gba:w-4 gba:h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {paginatedPayslips.map(payslip => {
+                  return (
+                    <TableRow key={payslip.id} data-testid={`payslip-history-row-${payslip.id}`}>
+                      <TableCell className="gba:w-[150px]">
+                        <div className="gba:font-medium">{payslip.payPeriod || '-'}</div>
+                      </TableCell>
+                      <TableCell className="gba:w-[100px]">
+                        <div className="gba:font-medium">{payslip.fiscalYear || '-'}</div>
+                      </TableCell>
+                      <TableCell className="gba:w-[150px]">
+                        <div className="gba:font-semibold gba:text-foreground">
+                          {formatCurrency(payslip.grossAmount, payslip.currency.code)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="gba:w-[120px]">
+                        <Badge variant={getPayslipStatusVariant(payslip.status)}>
+                          {getPayslipStatusLabel(payslip.status)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="gba:w-[80px] gba:text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleView(payslip)}
+                          data-testid={`payslip-view-button-${payslip.id}`}
+                          title="View Payslip"
+                        >
+                          <PiEye className="gba:w-4 gba:h-4" />
+                        </Button>
+                      </TableCell>
+                      <TableCell className="gba:w-[80px] gba:text-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDownload(payslip)}
+                          data-testid={`payslip-download-button-${payslip.id}`}
+                          title="Download Payslip"
+                        >
+                          <PiDownload className="gba:w-4 gba:h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
 
