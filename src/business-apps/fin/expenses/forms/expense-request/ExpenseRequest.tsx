@@ -67,12 +67,17 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
 
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
 
+  // Extract expensePlanId from additionalData if available
+  const expensePlanId = React.useMemo(() => {
+    return additionalData?.psi_taskPayload?.psi_initialParameters?.expensePlanId
+  }, [additionalData])
+
   const planData =
     React.useMemo(() => {
       if (!expenseCatalogueData?.ExpensePlan) return []
 
-      return transformPlansToCardData(expenseCatalogueData, t)
-    }, [expenseCatalogueData, t]) || []
+      return transformPlansToCardData(expenseCatalogueData)
+    }, [expenseCatalogueData]) || []
 
   const isExpenseDisabled = React.useMemo(() => {
     const expenseType = getCatalogTypeTransformer(REQUEST_TYPES.EXPENSE, expenseCatalogueData)
@@ -157,16 +162,31 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
     }
   }
 
-  const handlePlanSelect = (plan: PlanData) => {
-    setSelectedPlan(plan)
-    const fullPlanData = expenseCatalogueData?.ExpensePlan?.find((p: any) => p.id === plan.id)
+  const handlePlanSelect = React.useCallback(
+    (plan: PlanData) => {
+      setSelectedPlan(plan)
+      const fullPlanData = expenseCatalogueData?.ExpensePlan?.find((p: any) => p.id === plan.id)
 
-    if (!fullPlanData) return
+      if (!fullPlanData) return
 
-    const formValues = buildFormValuesFromPlan(fullPlanData, plan)
-    form.setFieldsValue(formValues)
-    updateFormValidity()
-  }
+      const formValues = buildFormValuesFromPlan(fullPlanData, plan)
+      form.setFieldsValue(formValues)
+      updateFormValidity()
+    },
+    [expenseCatalogueData, form, setSelectedCostCenter]
+  )
+
+  // Auto-select plan when expensePlanId is provided and form is at start step
+  React.useEffect(() => {
+    if (expensePlanId && step === FORM_STEPS.START && expenseCatalogueData?.ExpensePlan && planData.length > 0) {
+      const planToSelect = planData.find((plan: PlanData) => plan.id === expensePlanId)
+
+      if (planToSelect) {
+        handlePlanSelect(planToSelect)
+        setStep(FORM_STEPS.PLAN)
+      }
+    }
+  }, [expensePlanId, step, expenseCatalogueData, planData, handlePlanSelect, setStep])
 
   const backButtonClick = () => {
     if (selectedPlan && step === FORM_STEPS.PLAN) {
@@ -277,7 +297,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
       }
 
       // Determine request type and prepare data
-      const isTrip = step === FORM_STEPS.TRIP || (selectedPlan && selectedPlan?.planType === PLAN_TYPE_ENUM.TRIP)
+      const isTrip = step === FORM_STEPS.TRIP || selectedPlan?.planType === PLAN_TYPE_ENUM.TRIP
       const expenseTypeRef = determineExpenseTypeRef(isTrip)
       const selectedPlanCurrency = getSelectedPlanCurrency()
 
