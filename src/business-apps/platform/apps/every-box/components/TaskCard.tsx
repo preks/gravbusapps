@@ -96,12 +96,14 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessTok
             {/* Creator info section */}
             <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3" data-testid="task-creator-section">
               <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
-                {employeeData?.pictureThumbnail && !employeeData.pictureThumbnail.startsWith('{') && (
-                  <AvatarImage
-                    src={`data:image/jpeg;base64,${employeeData.pictureThumbnail}`}
-                    alt={creatorName}
-                  />
-                )}
+                <AvatarImage
+                  src={
+                    employeeData?.pictureThumbnail && !employeeData.pictureThumbnail.startsWith('{')
+                      ? `data:image/jpeg;base64,${employeeData.pictureThumbnail}`
+                      : undefined
+                  }
+                  alt={creatorName}
+                />
                 <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
                   {getInitials(creatorName)}
                 </AvatarFallback>
