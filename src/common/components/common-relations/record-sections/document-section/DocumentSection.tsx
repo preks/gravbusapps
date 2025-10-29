@@ -27,6 +27,8 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
+import { FileInfo } from '@/common/types/FileTypes'
 import {
   Eye,
   MoreHorizontal,
@@ -164,7 +166,7 @@ export interface DocumentItem {
     value: string
     code?: string
   } | null
-  file?: string | null
+  fileInfo?: FileInfo | null
   mimeType?: string | null
   fileSize?: number
   createdBy?: string | null
@@ -438,8 +440,31 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
   // State for view mode (tree vs list) - default to tree view
   const [viewMode, setViewMode] = useState<'tree' | 'list'>('tree')
 
-  // State for expanded folders in tree view
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
+  // State for expanded folders in tree view with localStorage persistence
+  // Generate a unique storage key based on entity
+  const storageKey = `documentSection_expandedFolders_${entityId}`
+
+  // Initialize state from localStorage
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(storageKey)
+      if (stored) {
+        return new Set(JSON.parse(stored))
+      }
+    } catch (error) {
+      console.warn('Failed to load expanded folders from localStorage:', error)
+    }
+    return new Set()
+  })
+
+  // Persist to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(expandedFolders)))
+    } catch (error) {
+      console.warn('Failed to save expanded folders to localStorage:', error)
+    }
+  }, [expandedFolders, storageKey])
 
   // State for search
   const [searchTerm, setSearchTerm] = useState('')
@@ -617,7 +642,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
               code: doc.documentGroup.code
             }
           : null,
-        file: doc.file || null,
+        fileInfo: doc.fileInfo || null,
         mimeType: doc.mimeType || null,
         fileSize: doc.fileSize,
         createdBy: doc.createdBy || null,
@@ -711,11 +736,24 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
     })
   }
 
+  // Handle opening documents in new tab (for files, not folders)
+  const handleOpenDocument = (document: DocumentItem) => {
+    if (!document.fileInfo || document.folder) {
+      return
+    }
+
+    try {
+      const fileUrl = buildFileUrl(document.fileInfo)
+      window.open(fileUrl, '_blank')
+    } catch (error) {
+      console.error('Error opening document:', error)
+      toast.error('Failed to open document')
+    }
+  }
+
   // Handle row selection for tree view context
   const handleRowClick = (documentId: string, event: React.MouseEvent) => {
-    if (viewMode !== 'tree') return
-
-    // Don't select if we were dragging
+    // Don't do anything if we were dragging
     if (isDragging) {
       return
     }
@@ -725,15 +763,31 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
       return
     }
 
-    setSelectedItems(prev => {
-      if (event.ctrlKey || event.metaKey) {
-        // Multi-select with Ctrl/Cmd
-        return prev.includes(documentId) ? prev.filter(id => id !== documentId) : [...prev, documentId]
-      } else {
-        // Single select
-        return prev.includes(documentId) && prev.length === 1 ? [] : [documentId]
-      }
-    })
+    // Find the document
+    const document = filteredDocuments.find(doc => doc.id === documentId)
+    if (!document) return
+
+    // If it's a file (not a folder), open it in a new tab
+    if (!document.folder) {
+      handleOpenDocument(document)
+      return
+    }
+
+    // For folders in tree view, toggle expansion AND select
+    if (viewMode === 'tree' && document.folder) {
+      toggleFolderExpansion(documentId)
+
+      // Also handle selection for folder operations (upload/create subfolder)
+      setSelectedItems(prev => {
+        if (event.ctrlKey || event.metaKey) {
+          // Multi-select with Ctrl/Cmd
+          return prev.includes(documentId) ? prev.filter(id => id !== documentId) : [...prev, documentId]
+        } else {
+          // Single select
+          return prev.includes(documentId) && prev.length === 1 ? [] : [documentId]
+        }
+      })
+    }
   }
 
   // Get the target parent for new folder/upload operations
@@ -1231,96 +1285,24 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
 
   // Handle document download
   const handleDownloadDocument = (document: DocumentItem) => {
-    if (!document.file) {
+    if (!document.fileInfo) {
       toast.warning('No file available to download')
       return
     }
 
     try {
-      // For investment and customer relations documents
-      if (apiConfig?.baseEndpoint) {
-        const entityType = graphQLSearchConfig?.entityType || 'documents'
+      const fileUrl = buildFileUrl(document.fileInfo)
+      const downloadFilename = document.name || 'document'
 
-        // Get file extension
-        const getFileExtension = (doc: DocumentItem): string => {
-          if (doc.name && doc.name.includes('.')) {
-            return doc.name.split('.').pop() || 'pdf'
-          }
-          const mimeTypeExtensions: Record<string, string> = {
-            'application/pdf': 'pdf',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-            'application/msword': 'doc',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-            'application/vnd.ms-excel': 'xls',
-            'image/png': 'png',
-            'image/jpeg': 'jpg',
-            'text/plain': 'txt'
-          }
-          return (doc.mimeType && mimeTypeExtensions[doc.mimeType]) || 'pdf'
-        }
+      // Use simple link download
+      const link = window.document.createElement('a')
+      link.href = fileUrl
+      link.download = downloadFilename
+      window.document.body.appendChild(link)
+      link.click()
+      window.document.body.removeChild(link)
 
-        const fileExtension = getFileExtension(document)
-
-        // Determine the correct API path and URL pattern based on the baseEndpoint
-        const baseEndpoint = apiConfig.baseEndpoint || ''
-
-        // Proper pluralization function
-        const pluralize = (word: string): string => {
-          const pluralMap: Record<string, string> = {
-            opportunity: 'opportunities',
-            contact: 'contacts',
-            account: 'accounts',
-            lead: 'leads',
-            document: 'documents'
-          }
-          return pluralMap[word] || `${word}s`
-        }
-
-        const pluralEntityType = pluralize(entityType)
-        let fileUrl: string
-
-        if (baseEndpoint === '/investment-relations') {
-          // Investment documents use IRM paths with files endpoint (like working investment components)
-          const filesEndpoint = env('NEXT_PUBLIC_FILES_ENDPOINT') || ''
-          const baseUrl = `${filesEndpoint}/files/api/v1/public/downloads/irm/${pluralEntityType}/${entityId}/documents/`
-
-          if (document.file.includes('.')) {
-            fileUrl = `${baseUrl}${document.file}`
-          } else {
-            fileUrl = `${baseUrl}${document.file}.${fileExtension}`
-          }
-        } else if (baseEndpoint === '/customer-relations') {
-          // CRM documents use relative URLs (like working CRM ContactDocuments component)
-          if (document.file.includes('.')) {
-            fileUrl = `/files/api/v1/public/downloads/crm/${pluralEntityType}/${entityId}/documents/${document.file}`
-          } else {
-            fileUrl = `/files/api/v1/public/downloads/crm/${pluralEntityType}/${entityId}/documents/${document.file}.${fileExtension}`
-          }
-        } else {
-          // Fallback - try to infer from baseEndpoint
-          const endpointParts = baseEndpoint.split('-')
-          const domain = endpointParts[0]?.replace('/', '') || 'crm'
-
-          if (document.file.includes('.')) {
-            fileUrl = `/files/api/v1/public/downloads/${domain}/${pluralEntityType}/${entityId}/documents/${document.file}`
-          } else {
-            fileUrl = `/files/api/v1/public/downloads/${domain}/${pluralEntityType}/${entityId}/documents/${document.file}.${fileExtension}`
-          }
-        }
-
-        const downloadFilename = document.name || `document.${fileExtension}`
-
-        // Use simple link download like the working CRM ContactDocuments component
-        const link = window.document.createElement('a')
-        link.href = fileUrl
-        link.download = downloadFilename
-        window.document.body.appendChild(link)
-        link.click()
-        window.document.body.removeChild(link)
-      } else {
-        // Fallback for other document types
-        toast.info('Download functionality not implemented for this document type')
-      }
+      toast.success(`Downloading ${downloadFilename}`)
     } catch (error) {
       console.error('Error downloading document:', error)
       toast.error('Failed to download document')
@@ -1365,7 +1347,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
     const actions = []
 
     // Add download action if available (only for files, not folders)
-    if (downloadActionProps && selectedDocument.file && !selectedDocument.folder) {
+    if (downloadActionProps && selectedDocument.fileInfo && !selectedDocument.folder) {
       actions.push({
         key: 'download',
         label: 'Download',
@@ -1411,7 +1393,7 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
       if (
         !hasDownloadAction &&
         apiConfig?.baseEndpoint === '/investment-relations' &&
-        selectedDocument.file &&
+        selectedDocument.fileInfo &&
         !selectedDocument.folder
       ) {
         // Insert download action at the beginning
@@ -1654,13 +1636,13 @@ const DocumentSection: React.FC<DocumentSectionProps> = ({
                       data-testid={`${dataTestId}-row-${document.id}`}
                       data-folder={document.folder ? 'true' : 'false'} // Add data attribute to identify folders
                       className={`
+                         gba:cursor-pointer
                          ${isSelected && viewMode === 'tree' ? 'gba:bg-muted/50' : ''} 
-                         ${viewMode === 'tree' ? 'gba:cursor-pointer hover:gba:bg-muted/30' : ''}
+                         ${viewMode === 'tree' ? 'hover:gba:bg-muted/30' : ''}
                          ${isDraggedOver ? 'gba:bg-primary/20 gba:border-2 gba:border-primary gba:border-dashed' : ''}
                          ${isDragging ? 'gba:opacity-50' : ''}
                          ${document.folder && draggedDocument ? 'gba:transition-all gba:duration-200 hover:gba:bg-primary/10' : ''}
-                         ${document.folder ? 'gba:transition-all gba:duration-200 gba:cursor-move' : ''}
-                         ${!document.folder ? 'gba:cursor-move' : ''}
+                         ${document.folder ? 'gba:transition-all gba:duration-200' : ''}
                        `}
                       onClick={e => handleRowClick(document.id, e)}
                       onMouseDown={handleMouseDown}
