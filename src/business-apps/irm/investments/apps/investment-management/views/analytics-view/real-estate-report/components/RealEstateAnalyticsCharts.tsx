@@ -1,6 +1,16 @@
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@newwork/nw-design-system'
-import { ChartContainer, ChartTooltip, ChartLegend, ChartLegendContent, IconAvatar } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  ChartContainer,
+  ChartTooltip,
+  ChartLegend,
+  ChartLegendContent,
+  IconAvatar
+} from '@newwork/nw-design-system'
 import { ScatterChart, Scatter, XAxis, YAxis, Bar, ComposedChart } from 'recharts'
 import { ChartBarIcon, PercentIcon } from '@phosphor-icons/react'
 import { formatCurrency } from '@/common/data/investment'
@@ -56,7 +66,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
               <YAxis yAxisId="right" orientation="right" tickFormatter={value => formatCompactNumber(value, 1)} />
               <ChartTooltip
                 content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload?.length) {
                     return (
                       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
                         <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
@@ -126,7 +136,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                 />
                 <ChartTooltip
                   content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
+                    if (active && payload?.length) {
                       const data = payload[0].payload
                       return (
                         <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
