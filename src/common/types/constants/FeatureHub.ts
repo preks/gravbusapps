@@ -33,7 +33,8 @@ const CoreFeature = {
 const HCMFeature = {
   EmployeeProfile: { Key: 'hcm.employee-profile.mode', Values: HCMFeatureEmployeeProfileValue },
   EmployeeAbsence: { Key: 'hcm.employee-absence.enabled' },
-  EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' }
+  EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' },
+  CompensationGrowth: { Key: 'hcm.compensation.growth.enabled' }
 }
 
 const CRMFeature = {
