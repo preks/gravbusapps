@@ -166,7 +166,7 @@ const HomeView: React.FC<HomeViewProps> = ({ accountId, accountData, ...props })
   // Action props for sections
   const activityActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.investmentCreateActivity],
+      contextsArray: [FlowContextName.investmentActivityCreate],
       externalContextData: { accountId },
       prefixDataTestId: 'account-activity'
     }),

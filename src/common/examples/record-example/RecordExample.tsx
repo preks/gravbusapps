@@ -617,7 +617,7 @@ const RecordExample: React.FC<BusinessAppContextProps> = context => {
                       activitiesError: null,
                       onReloadActivities: () => {},
                       activitySectionActionProps: {
-                        contextsArray: [FlowContextName.investmentCreateActivity],
+                        contextsArray: [FlowContextName.investmentActivityCreate],
                         externalContextData: { ...entityIds },
                         prefixDataTestId: 'record-example-activities',
                         emptyStateBehavior: 'enable'
