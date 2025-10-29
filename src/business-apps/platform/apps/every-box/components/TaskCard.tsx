@@ -19,11 +19,7 @@ import {
   formatRelativeTime,
   formatDateTime,
   isOverdue,
-  isDueSoon,
-  getPriorityBadgeVariant,
-  getTaskStatusBadgeVariant,
-  formatTaskStatus,
-  formatPriority
+  isDueSoon
 } from '../utils/taskFormatters';
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch';
 
@@ -55,9 +51,6 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
   const taskTitle = task.source === 'kogito'
     ? (task.referenceTaskName || task.sourceMetadata?.nodeName || task.name || 'Untitled Task')
     : (task.title || task.name || 'Untitled Task');
-  
-  // Get flow name from workflowMeta
-  const flowName = task.workflowMeta?.rootWorkflowId || task.flowId;
 
   // Extract creator user ID from different sources
   const creatorUserId = task.sourceMetadata?.creatorUserId || 
@@ -92,11 +85,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
       onClick={() => onView(task)}
       data-testid={`task-card-${task.id}`}
     >
-      <CardContent className="gba:p-4">
+      <CardContent className="gba:py-2 gba:px-4">
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
           <div className="gba:flex-1 gba:min-w-0">
             {/* Creator info section */}
-            <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3" data-testid="task-creator-section">
+            <div className="gba:flex gba:items-start gba:gap-3 gba:mb-2" data-testid="task-creator-section">
               <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
                 <AvatarImage
                   src={
@@ -110,7 +103,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                   {getInitials(creatorName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="gba:flex-1 gba:min-w-0">
+              <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-shrink-0">
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <User className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
                   <span className="gba:text-xs gba:font-medium gba:truncate" data-testid="task-creator-name">
@@ -126,30 +119,19 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                   </div>
                 )}
               </div>
+              <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0 gba:self-stretch">
+                <span className="gba:text-base gba:font-semibold gba:truncate gba:px-2" data-testid="task-title">
+                  {taskTitle}
+                </span>
+                <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
+                  {getSourceBadgeText(task.source)}
+                </Badge>
+              </div>
             </div>
-
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <Badge variant={getPriorityBadgeVariant(task.priority)} data-testid="task-priority-badge">
-                {formatPriority(task.priority)}
-              </Badge>
-              <Badge variant="outline" data-testid="task-source-badge">
-                {getSourceBadgeText(task.source)}
-              </Badge>
-              <Badge variant={getTaskStatusBadgeVariant(task.status)} data-testid="task-status-badge">
-                {formatTaskStatus(task.status)}
-              </Badge>
-            </div>
-
-            <h3
-              className="gba:font-semibold gba:text-base gba:mb-1 gba:truncate"
-              data-testid="task-title"
-            >
-              {taskTitle}
-            </h3>
 
             {(task.description || task.message) && (
               <p
-                className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2 gba:mb-2"
+                className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2 gba:mb-1"
                 data-testid="task-description"
               >
                 {task.description || task.message}
@@ -157,11 +139,6 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
             )}
 
             <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
-              {flowName && (
-                <span data-testid="task-flow-name">
-                  {flowName}
-                </span>
-              )}
               {task.dueDate && (
                 <div className="gba:flex gba:items-center gba:gap-1">
                   {overdue || dueSoon ? (
