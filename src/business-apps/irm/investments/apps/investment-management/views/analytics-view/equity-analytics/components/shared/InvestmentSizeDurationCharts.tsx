@@ -24,11 +24,21 @@ import type { DistributionData } from './distributionUtils'
 interface DistributionCountTooltipContentProps {
   active?: boolean
   payload?: any[]
+  chartData: any[]
 }
 
-const DistributionCountTooltipContent: React.FC<DistributionCountTooltipContentProps> = ({ active, payload }) => {
+const DistributionCountTooltipContent: React.FC<DistributionCountTooltipContentProps> = ({
+  active,
+  payload,
+  chartData
+}) => {
   if (active && payload?.length) {
     const dataPoint = payload[0].payload
+
+    // Calculate percentage of total
+    const total = chartData.reduce((sum: number, item: any) => sum + item.count, 0)
+    const percentage = total > 0 ? (dataPoint.count / total) * 100 : 0
+
     return (
       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
@@ -39,6 +49,7 @@ const DistributionCountTooltipContent: React.FC<DistributionCountTooltipContentP
           <span className="gba:font-medium gba:text-gray-700">{dataPoint.type}</span>
         </div>
         <div className="gba:text-lg gba:font-semibold gba:text-gray-900">{dataPoint.count} investments</div>
+        <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
       </div>
     )
   }
@@ -73,7 +84,10 @@ export const InvestmentSizeChart: React.FC<InvestmentSizeChartProps> = ({
   }, [data])
 
   // Memoized tooltip render function
-  const renderTooltip = useCallback((props: any) => <DistributionCountTooltipContent {...props} />, [])
+  const renderTooltip = useCallback(
+    (props: any) => <DistributionCountTooltipContent {...props} chartData={data} />,
+    [data]
+  )
 
   return (
     <Card>
@@ -185,7 +199,10 @@ export const InvestmentDurationChart: React.FC<InvestmentDurationChartProps> = (
   }, [data])
 
   // Memoized tooltip render function
-  const renderTooltip = useCallback((props: any) => <DistributionCountTooltipContent {...props} />, [])
+  const renderTooltip = useCallback(
+    (props: any) => <DistributionCountTooltipContent {...props} chartData={data} />,
+    [data]
+  )
 
   return (
     <Card>
