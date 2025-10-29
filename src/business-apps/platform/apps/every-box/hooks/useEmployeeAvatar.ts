@@ -62,8 +62,17 @@ export const useEmployeeAvatar = (accessToken: string, employeeId?: string) => {
 
         const employee = result?.EmployeePosition?.[0]?.employee;
         if (employee) {
+          console.log('[useEmployeeAvatar] GraphQL response for employeeId:', id, {
+            hasEmployee: !!employee,
+            employeeName: `${employee.firstName} ${employee.lastName}`,
+            hasPictureThumbnail: !!employee.pictureThumbnail,
+            pictureThumbnailLength: employee.pictureThumbnail?.length || 0,
+            pictureThumbnailStart: employee.pictureThumbnail?.substring(0, 50),
+            startsWithBrace: employee.pictureThumbnail?.startsWith('{')
+          });
           setEmployeeData(employee);
         } else {
+          console.log('[useEmployeeAvatar] No employee found for:', id);
           setEmployeeData(null);
         }
       } catch (err) {

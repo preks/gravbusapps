@@ -62,6 +62,18 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessTok
                            task.sourceMetadata?.initiatedBy ||
                            task.assignment?.assignedTo;
 
+  console.log('[TaskCard] Task creator info:', {
+    taskId: task.id,
+    source: task.source,
+    creatorEmployeeId,
+    availableMetadata: {
+      creatorUserId: task.sourceMetadata?.creatorUserId,
+      createdBy: task.sourceMetadata?.createdBy,
+      initiatedBy: task.sourceMetadata?.initiatedBy,
+      assignedTo: task.assignment?.assignedTo
+    }
+  });
+
   // Fetch employee avatar data
   const { employeeData } = useEmployeeAvatar(accessToken, creatorEmployeeId);
 
