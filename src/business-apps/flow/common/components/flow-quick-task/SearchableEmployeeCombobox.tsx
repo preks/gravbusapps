@@ -9,13 +9,23 @@ import {
   CommandList,
   Popover,
   PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { cn } from '@/common/utils/cn'
 
 export interface SearchableEmployeeComboboxProps {
-  options: Array<{ value: string; label: string }>
+  options: Array<{
+    value: string
+    label: string
+    avatarUrl?: string
+    email?: string
+    firstName?: string
+    lastName?: string
+  }>
   value?: string
   onValueChange?: (value: string) => void
   onSearchChange: (query: string) => void
@@ -66,6 +76,15 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
 
   const selectedOption = options.find(opt => opt.value === value)
 
+  // Get initials for avatar fallback
+  const getInitials = (option: (typeof options)[0]): string => {
+    if (option.firstName && option.lastName) {
+      return `${option.firstName.charAt(0)}${option.lastName.charAt(0)}`.toUpperCase()
+    }
+    // Fallback to first two letters of label
+    return option.label.substring(0, 2).toUpperCase()
+  }
+
   // Render empty state message based on loading and options
   const renderEmptyState = () => {
     if (loading && options.length === 0) {
@@ -83,14 +102,31 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
         <Button
           variant="outline"
           aria-expanded={open}
-          className={cn('gba:w-full gba:justify-between', className)}
+          className={cn('gba:w-full gba:justify-between gba:h-auto gba:py-2', className)}
           disabled={disabled}
         >
-          {selectedOption?.label || placeholder}
-          <ChevronsUpDown className="gba:opacity-50" />
+          {selectedOption ? (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+              <Avatar className="gba:h-6 gba:w-6 gba:shrink-0">
+                {selectedOption.avatarUrl && <AvatarImage src={selectedOption.avatarUrl} alt={selectedOption.label} />}
+                <AvatarFallback className="gba:text-xs">{getInitials(selectedOption)}</AvatarFallback>
+              </Avatar>
+              <div className="gba:flex gba:flex-col gba:items-start gba:min-w-0">
+                <span className="gba:text-sm gba:font-medium gba:truncate gba:max-w-full">{selectedOption.label}</span>
+                {selectedOption.email && (
+                  <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-full">
+                    {selectedOption.email}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <span className="gba:text-muted-foreground">{placeholder}</span>
+          )}
+          <ChevronsUpDown className="gba:ml-2 gba:h-4 gba:w-4 gba:shrink-0 gba:opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="gba:w-[var(--radix-popover-trigger-width)] gba:p-0">
+      <PopoverContent className="gba:w-[var(--radix-popover-trigger-width)] gba:p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={searchPlaceholder}
@@ -102,9 +138,25 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
             {renderEmptyState()}
             <CommandGroup>
               {options.map(option => (
-                <CommandItem key={option.value} value={option.value} onSelect={handleSelect}>
-                  {option.label}
-                  <Check className={cn('gba:ml-auto', value === option.value ? 'gba:opacity-100' : 'gba:opacity-0')} />
+                <CommandItem key={option.value} value={option.value} onSelect={handleSelect} className="gba:py-2">
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                    <Avatar className="gba:h-8 gba:w-8 gba:shrink-0">
+                      {option.avatarUrl && <AvatarImage src={option.avatarUrl} alt={option.label} />}
+                      <AvatarFallback className="gba:text-xs">{getInitials(option)}</AvatarFallback>
+                    </Avatar>
+                    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+                      <span className="gba:text-sm gba:font-medium gba:truncate">{option.label}</span>
+                      {option.email && (
+                        <span className="gba:text-xs gba:text-muted-foreground gba:truncate">{option.email}</span>
+                      )}
+                    </div>
+                  </div>
+                  <Check
+                    className={cn(
+                      'gba:ml-auto gba:h-4 gba:w-4 gba:shrink-0',
+                      value === option.value ? 'gba:opacity-100' : 'gba:opacity-0'
+                    )}
+                  />
                 </CommandItem>
               ))}
             </CommandGroup>

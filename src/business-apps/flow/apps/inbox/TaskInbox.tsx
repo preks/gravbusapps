@@ -212,6 +212,7 @@ import { mockUsers, type User as MockUser } from '../../data/mockUsers'
 const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', accessToken, userInfo, ...context }) => {
   // Get logged-in user's ID from userInfo
   const loggedInUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || 'user-001'
+  const loggedInEmployeeId = userInfo?.employeeDetails?.employeeId || ''
   const loggedInUserName =
     userInfo?.givenName && userInfo?.familyName
       ? `${userInfo.givenName} ${userInfo.familyName}`
@@ -1224,6 +1225,7 @@ const TaskInbox: React.FC<TaskInboxProps> = ({ prefixDataTestId = 'TaskInbox', a
         onSubmit={handleQuickTaskSubmit}
         title="Blink"
         description="Fill out the form to create and assign a task instantly"
+        employeeId={loggedInEmployeeId}
         config={{
           assigneeSelector: { mode: 'employee-search', required: true },
           enableFileUpload: true,

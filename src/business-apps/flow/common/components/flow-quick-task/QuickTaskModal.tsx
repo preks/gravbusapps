@@ -31,7 +31,8 @@ export const QuickTaskModal: React.FC<QuickTaskModalProps> = ({
   accessToken,
   onSubmit,
   title,
-  description
+  description,
+  employeeId
 }) => {
   const handleCancel = () => {
     onOpenChange(false)
@@ -63,6 +64,7 @@ export const QuickTaskModal: React.FC<QuickTaskModalProps> = ({
             onSubmit={handleSubmitWithClose}
             onCancel={handleCancel}
             config={configWithTitle}
+            employeeId={employeeId}
           />
         </div>
       </DialogContent>

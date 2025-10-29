@@ -32,14 +32,16 @@ export const QuickTaskForm: React.FC<QuickTaskFormProps> = ({
   onSubmit,
   onCancel,
   defaultValues,
-  isSubmitting: externalIsSubmitting
+  isSubmitting: externalIsSubmitting,
+  employeeId
 }) => {
   const { form, handleSubmit, isSubmitting, employeeOptions, employeesLoading, handleEmployeeSearch } =
     useQuickTaskForm({
       accessToken,
       config,
       defaultValues,
-      onSubmit
+      onSubmit,
+      employeeId
     })
 
   // Use external isSubmitting if provided, otherwise use internal

@@ -1,11 +1,15 @@
 ﻿import { UseFormReturn } from 'react-hook-form'
 
 /**
- * Assignee option for selection
+ * Assignee option for selection (with avatar support)
  */
 export interface AssigneeOption {
   value: string
   label: string
+  avatarUrl?: string
+  email?: string
+  firstName?: string
+  lastName?: string
 }
 
 /**
@@ -101,6 +105,7 @@ export interface QuickTaskFormProps {
   onCancel?: () => void
   defaultValues?: Partial<QuickTaskFormData>
   isSubmitting?: boolean
+  employeeId?: string // Current user's employee ID for fetching teammates
 }
 
 /**
@@ -114,6 +119,7 @@ export interface QuickTaskModalProps {
   onSubmit: (data: QuickTaskFormData) => Promise<void>
   title?: string
   description?: string
+  employeeId?: string // Current user's employee ID for fetching teammates
 }
 
 /**
@@ -124,6 +130,7 @@ export interface UseQuickTaskFormOptions {
   config?: QuickTaskFormConfig
   defaultValues?: Partial<QuickTaskFormData>
   onSubmit: (data: QuickTaskFormData) => Promise<void>
+  employeeId?: string // Current user's employee ID for fetching teammates
 }
 
 /**
@@ -149,4 +156,5 @@ export interface Employee {
   fullName: string
   email?: string
   personnelCode?: string
+  avatarUrl?: string
 }

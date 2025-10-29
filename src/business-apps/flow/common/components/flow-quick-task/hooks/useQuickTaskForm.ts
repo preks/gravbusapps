@@ -11,7 +11,7 @@ const SEARCH_DEBOUNCE_DELAY_MS = 300
  * Handles employee search, form initialization, and submission
  */
 export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTaskFormResult {
-  const { accessToken, config = {}, defaultValues, onSubmit } = options
+  const { accessToken, config = {}, defaultValues, onSubmit, employeeId } = options
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -29,7 +29,7 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
 
   // Employee search logic (only if using employee-search mode)
   const assigneeMode = config.assigneeSelector?.mode || 'employee-search'
-  const { employees, loading: employeesLoading, searchEmployees } = useEmployeeSearch(accessToken)
+  const { employees, loading: employeesLoading, searchEmployees } = useEmployeeSearch(accessToken, employeeId)
 
   // Debounce timer ref
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -55,12 +55,8 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
     [assigneeMode, searchEmployees, config.assigneeSelector]
   )
 
-  // Trigger initial search on mount (for employee-search mode)
-  useEffect(() => {
-    if (assigneeMode === 'employee-search') {
-      searchEmployees('') // Load initial results with empty search
-    }
-  }, [assigneeMode, searchEmployees])
+  // Note: We no longer trigger initial search here because useEmployeeSearch
+  // automatically initializes with teammates when they load
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -71,7 +67,7 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
     }
   }, [])
 
-  // Convert employees to combobox options
+  // Convert employees to combobox options with avatar support
   const employeeOptions: AssigneeOption[] = useMemo(() => {
     if (assigneeMode !== 'employee-search') {
       return []
@@ -80,7 +76,11 @@ export function useQuickTaskForm(options: UseQuickTaskFormOptions): UseQuickTask
       .filter(employee => employee.userId && employee.fullName)
       .map(employee => ({
         value: employee.userId,
-        label: employee.fullName
+        label: employee.fullName,
+        avatarUrl: employee.avatarUrl,
+        email: employee.email,
+        firstName: employee.firstName,
+        lastName: employee.lastName
       }))
   }, [employees, assigneeMode])
 
