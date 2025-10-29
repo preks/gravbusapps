@@ -65,17 +65,6 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessTok
   // Fetch employee avatar data
   const { employeeData } = useEmployeeAvatar(accessToken, creatorEmployeeId);
 
-  // Debug logging
-  if (employeeData) {
-    console.log('[TaskCard] Employee data loaded:', {
-      id: employeeData.id,
-      name: `${employeeData.firstName} ${employeeData.lastName}`,
-      hasPicture: !!employeeData.pictureThumbnail,
-      pictureLength: employeeData.pictureThumbnail?.length || 0,
-      pictureStart: employeeData.pictureThumbnail?.substring(0, 50)
-    });
-  }
-
   // Get creator name - prefer fetched data, fallback to metadata
   const creatorName = employeeData 
     ? `${employeeData.firstName} ${employeeData.lastName}`.trim()
