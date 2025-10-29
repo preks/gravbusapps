@@ -29,6 +29,7 @@ interface RewardCategory {
   percentage: number
   fill: string // Color for pie chart
   label: string
+  [key: string]: string | number // Index signature for chart compatibility
 }
 
 /**
@@ -217,8 +218,8 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ compensationData, l
             <CardTitle>Visual Breakdown</CardTitle>
             <CardDescription>Compensation distribution chart</CardDescription>
           </CardHeader>
-          <CardContent className="gba:flex gba:items-center gba:justify-center gba:min-h-[300px]">
-            <ChartContainer config={chartConfig} className="gba:mx-auto gba:aspect-square gba:max-h-[400px] gba:w-full">
+          <CardContent className="gba:flex gba:items-center gba:justify-center gba:min-h-[400px]">
+            <ChartContainer config={chartConfig} className="gba:h-[450px] gba:w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <ChartTooltip
@@ -246,8 +247,8 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ compensationData, l
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
-                    cy="50%"
-                    outerRadius={140}
+                    cy="42%"
+                    outerRadius="65%"
                     label={renderCustomLabel}
                     labelLine={true}
                   />
@@ -259,7 +260,7 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ compensationData, l
       </div>
 
       {/* Summary Footer */}
-      <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
+      <div className="gba:text-sm gba:text-muted-foreground gba:py-2">
         {getTranslationFromI18nKeyAndLabel(
           'lowcoder:compensation.total_rewards_description',
           'Your total rewards package includes base salary, bonuses, benefits, and stock options'
