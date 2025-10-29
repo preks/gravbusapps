@@ -172,6 +172,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
   const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const timeTrackingTabFeatureFlag = useFeature('dev.employee-record.timetracking.enabled')
+  const compensationTabFeatureFlag = useFeature('dev.employee-record.compensation.enabled')
 
   // Update URL when active tab changes
   useEffect(() => {
@@ -339,24 +340,28 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           />
         )
       },
-      {
-        key: TAB_KEYS.compensation,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiCurrencyEur className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">Compensation</span>
-          </div>
-        ),
-        children: (
-          <CompensationTab
-            employee={employee}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
-        )
-      },
+      ...(compensationTabFeatureFlag
+        ? [
+            {
+              key: TAB_KEYS.compensation,
+              label: (
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <PiCurrencyEur className="gba:text-xl gba:inline-block gba:align-middle" />
+                  <span className="gba:inline-block gba:align-middle">Compensation</span>
+                </div>
+              ),
+              children: (
+                <CompensationTab
+                  employee={employee}
+                  accessToken={accessToken}
+                  employeeId={employeeIdToShow}
+                  userInfo={userInfo}
+                  isSelfView={isSelfView}
+                />
+              )
+            }
+          ]
+        : []),
       {
         key: TAB_KEYS.documents,
         label: (
