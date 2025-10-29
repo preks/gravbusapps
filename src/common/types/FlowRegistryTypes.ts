@@ -14,7 +14,6 @@ export enum FlowContextName {
   // Customer Relations
 
   /// Customer Leads
-  leadEntity = 'custopmerLeadEntity', // TODO: Obsolete
   customerLeadEntity = 'customerLeadEntity',
   customerLeadCreate = 'customerLeadCreate',
 
@@ -52,40 +51,40 @@ export enum FlowContextName {
   customerNoteDelete = 'customerNoteDelete',
 
   /// Customer Documents
-  createCustomerDocument = 'customerDocumentCreate',
+  customerDocumentCreate = 'customerDocumentCreate',
 
   customerTaskEntity = 'customerTaskEntity',
-  createCustomerTask = 'customerTaskCreate',
+  customerTaskCreate = 'customerTaskCreate',
   customerTaskDelete = 'customerTaskDelete',
 
   // Investment Relations
 
   /// Investment Leads
   investmentLeadEntity = 'investmentLeadEntity',
-  createInvestmentLead = 'investmentLeadCreate',
-  updateInvestmentLead = 'investmentLeadUpdate',
+  investmentLeadCreate = 'investmentLeadCreate',
+  investmentLeadUpdate = 'investmentLeadUpdate',
 
   /// Investment Accounts
   investmentAccountEntity = 'investmentAccountEntity',
-  createInvestmentAccount = 'investmentAccountCreate',
-  updateInvestmentAccount = 'investmentAccountUpdate',
+  investmentAccountCreate = 'investmentAccountCreate',
+  investmentAccountUpdate = 'investmentAccountUpdate',
 
   /// Investment Contacts
   investmentContactEntity = 'investmentContactEntity',
-  createInvestmentContact = 'investmentContactCreate',
-  updateInvestmentContact = 'investmentContactUpdate',
+  investmentContactCreate = 'investmentContactCreate',
+  investmentContactUpdate = 'investmentContactUpdate',
 
   /// Investment Opportunities
   investmentOpportunityEntity = 'investmentOpportunityEntity',
-  createInvestmentOpportunity = 'investmentOpportunityCreate',
-  updateInvestmentOpportunity = 'investmentOpportunityUpdate',
+  investmentOpportunityCreate = 'investmentOpportunityCreate',
+  investmentOpportunityUpdate = 'investmentOpportunityUpdate',
   investmentOpportunityStageTransition = 'investmentOpportunityStageTransition',
   investmentOpportunityConditionUpdate = 'investmentOpportunityConditionUpdate',
 
   /// Investment Activities
 
   investmentActivityEntity = 'investmentActivityEntity',
-  createInvestmentActivity = 'investmentActivityCreate',
+  investmentActivityCreate = 'investmentActivityCreate',
   investmentActivityDelete = 'investmentActivityDelete',
 
   /// Investment Tasks

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Spinner } from '@newwork/nw-design-system'
+import { Spinner, AvatarUpload } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
@@ -12,11 +12,11 @@ import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 const prefixDataTestId = 'ChangeProfilePictureScreen'
 
 const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additionalData, userInfo, accessToken }) => {
-  const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [isImageLoading, setIsImageLoading] = useState<boolean>(true)
   const [currentVersion, setCurrentVersion] = useState<number | null>(null)
+  const [changedFile, setChangedFile] = useState<File | null>(null)
+  const onChangeExecutionsRef = useRef<number>(0)
 
   const currentImageUrl = useMemo(() => {
     const avatar = (additionalData as any)?.psi_taskPayload?.avatarUrl
@@ -37,7 +37,9 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
         setIsImageLoading(true)
         const res = await fetchEmployeePicture(employeeId)
         if (!cancelled) {
-          if (res.thumbnail) setPreviewUrl(res.thumbnail)
+          if (res.thumbnail) {
+            setPreviewUrl(res.thumbnail)
+          }
           if (typeof res.version === 'number') setCurrentVersion(res.version)
         }
       } catch (error) {
@@ -52,32 +54,11 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
     }
   }, [userInfo?.employeeDetails?.employeeId, accessToken])
 
-  const handleOpenFileDialog = () => {
-    fileInputRef.current?.click()
-  }
-
-  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = e => {
-    const file = e.target.files?.[0] || null
-    setSelectedFile(file)
-    if (file) {
-      const reader = new FileReader()
-      setIsImageLoading(true)
-      reader.onload = () => {
-        setPreviewUrl(typeof reader.result === 'string' ? reader.result : null)
-        setIsImageLoading(false)
-      }
-      reader.readAsDataURL(file)
-    } else {
-      setPreviewUrl(null)
-      setIsImageLoading(false)
-    }
-  }
-
   const imageSrc = previewUrl || currentImageUrl || undefined
 
   const validateForm = () => {
     // Require uploading a new file; existing preview/current image is not sufficient
-    const hasNewUpload = Boolean(selectedFile)
+    const hasNewUpload = Boolean(changedFile)
     if (!hasNewUpload) {
       return [
         getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.required', 'Please upload a profile picture.')
@@ -88,20 +69,27 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
 
   const handlePreSubmit = async () => {
     const employeeId = userInfo?.employeeDetails?.employeeId
-    if (!employeeId || !selectedFile) return {}
+    if (!employeeId || !changedFile) return {}
 
     try {
       const pathParams = { accessScope: 'public' } as const
       const appName = 'userProfile'
       const folderPath = `/pics/${employeeId}`
 
-      const uploadResponse = await fileClient.uploadFile(selectedFile, pathParams, { appName, folderPath })
+      const uploadResponse = await fileClient.uploadFile(changedFile, pathParams, { appName, folderPath })
 
-      const thumbnailBase64 = previewUrl
-        ? previewUrl.includes(',')
-          ? previewUrl.split(',').pop() || ''
-          : previewUrl
-        : ''
+      // FileReader result is set asynchronously, so previewPicture will always be null here.
+      // Fix: Return a Promise from handlePreSubmit and resolve after FileReader loads.
+      const thumbnailBase64 = await new Promise<string>(resolve => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = typeof reader.result === 'string' ? reader.result : ''
+          // Extract base64 portion if present (after the comma)
+          const base64 = result.includes(',') ? result.split(',').pop() || '' : result
+          resolve(base64)
+        }
+        reader.readAsDataURL(changedFile)
+      })
 
       const employeePictureChange = {
         id: employeeId,
@@ -135,7 +123,7 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
       validateForm={validateForm}
       handlePreSubmit={handlePreSubmit}
       // Disable submit until a new file is selected
-      isSubmitDisabled={!selectedFile}
+      isSubmitDisabled={!changedFile || onChangeExecutionsRef.current < 2}
       submitButtonText={getTranslationFromI18nKeyAndLabel('common.submit', 'Submit')}
       cancelButtonText={getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
       submitButtonTestId="flw_changePicture_btnSubmit"
@@ -182,53 +170,42 @@ const ChangeProfilePictureScreen: React.FC<BusinessAppContextProps> = ({ additio
 
         {/* Content */}
         <div className="gba:p-6 gba:flex gba:flex-col gba:items-center gba:gap-6 gba:overflow-y-auto gba:max-h-[calc(90vh-160px)]">
-          {/* Avatar preview */}
-          <div
-            className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:border-border gba:flex gba:items-center gba:justify-center"
-            data-testid="flw_changePicture_currentPicture"
-          >
+          <div className="gba:w-full gba:flex gba:justify-center">
             {isImageLoading ? (
               <Spinner size="lg" />
-            ) : imageSrc ? (
-              <img src={imageSrc} alt="avatar" className="gba:w-full gba:h-full gba:object-cover" />
             ) : (
-              <div className="gba:w-full gba:h-full gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.noImage', 'No image')}
-              </div>
-            )}
-          </div>
-
-          {/* Upload button */}
-          <div className="gba:w-full">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="gba:hidden"
-              data-testid={formatDataTestId(prefixDataTestId, 'FileInput')}
-            />
-            <Button
-              variant="secondary"
-              onClick={handleOpenFileDialog}
-              data-testid="flw_changePicture_uploadFile"
-              type="button"
-              className="gba:w-full"
-            >
-              {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.upload', 'Upload Picture')}
-            </Button>
-            {!selectedFile && !imageSrc && (
-              <div
-                className="gba:text-destructive gba:text-sm gba:mt-2"
-                data-testid={formatDataTestId(prefixDataTestId, 'ValidationMessage')}
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:profile_picture_form.required',
-                  'Please upload a profile picture.'
+              <AvatarUpload
+                image={imageSrc}
+                shape="circle"
+                uploadButtonText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:profile_picture_form.upload',
+                  'Upload Picture'
                 )}
-              </div>
+                onChange={file => {
+                  onChangeExecutionsRef.current += 1
+                  setChangedFile(file)
+                }}
+                data-testid="flw_changePicture_avatarUpload"
+                className="gba:w-full"
+                fallback={
+                  <div className="gba:w-48 gba:h-48 gba:rounded-full gba:overflow-hidden gba:border gba:border-border gba:flex gba:items-center gba:justify-center gba:text-muted-foreground">
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:profile_picture_form.noImage', 'No image')}
+                  </div>
+                }
+              />
             )}
           </div>
+          {!changedFile && (
+            <div
+              className="gba:text-destructive gba:text-sm gba:mt-2"
+              data-testid={formatDataTestId(prefixDataTestId, 'ValidationMessage')}
+            >
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:profile_picture_form.required',
+                'Please upload a profile picture.'
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions handled by AppActionForm (standard layout) */}
