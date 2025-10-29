@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react'
-import { TooltipProps } from 'recharts'
+import React, { useMemo, useCallback } from 'react'
+import { PieChart, Pie, Cell, TooltipProps } from 'recharts'
 import {
   Card,
   CardHeader,
@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { PieChart, Pie, Cell } from 'recharts'
 import type { Icon } from '@phosphor-icons/react'
 
 interface DistributionData {
@@ -47,13 +46,18 @@ const DistributionTooltipContent: React.FC<
     valueType: 'count' | 'amount'
     currency?: string
     formatCurrency?: (amount: number, currency: string) => string
+    chartData: any[]
   }
-> = ({ active, payload, valueType, currency, formatCurrency }) => {
+> = ({ active, payload, valueType, currency, formatCurrency, chartData }) => {
   if (!active || !payload?.length) {
     return null
   }
 
   const dataPoint = payload[0]
+
+  // Calculate percentage of total
+  const total = chartData.reduce((sum, item) => sum + item.value, 0)
+  const percentage = total > 0 ? ((dataPoint.value as number) / total) * 100 : 0
 
   return (
     <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
@@ -75,6 +79,7 @@ const DistributionTooltipContent: React.FC<
           return dataPoint.value
         })()}
       </div>
+      <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
     </div>
   )
 }
@@ -109,6 +114,20 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
       value: valueType === 'count' ? item.count : item.totalAmount
     }))
   }, [data, valueType])
+
+  // Memoized tooltip render function
+  const renderTooltip = useCallback(
+    (props: any) => (
+      <DistributionTooltipContent
+        {...props}
+        valueType={valueType}
+        currency={currency}
+        formatCurrency={formatCurrency}
+        chartData={chartData}
+      />
+    ),
+    [valueType, currency, formatCurrency, chartData]
+  )
 
   return (
     <Card>
@@ -156,16 +175,7 @@ export const DistributionPieChart: React.FC<DistributionPieChartProps> = ({
                 return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
               })}
             </Pie>
-            <ChartTooltip
-              content={props => (
-                <DistributionTooltipContent
-                  {...props}
-                  valueType={valueType}
-                  currency={currency}
-                  formatCurrency={formatCurrency}
-                />
-              )}
-            />
+            <ChartTooltip content={renderTooltip} />
             <ChartLegend content={<ChartLegendContent />} />
           </PieChart>
         </ChartContainer>

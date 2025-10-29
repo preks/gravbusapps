@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -72,6 +72,9 @@ export const InvestmentSizeChart: React.FC<InvestmentSizeChartProps> = ({
     return config
   }, [data])
 
+  // Memoized tooltip render function
+  const renderTooltip = useCallback((props: any) => <DistributionCountTooltipContent {...props} />, [])
+
   return (
     <Card>
       <CardHeader>
@@ -143,7 +146,7 @@ export const InvestmentSizeChart: React.FC<InvestmentSizeChartProps> = ({
                     return <Cell key={`cell-${entry.type}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip content={props => <DistributionCountTooltipContent {...props} />} />
+                <ChartTooltip content={renderTooltip} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -180,6 +183,9 @@ export const InvestmentDurationChart: React.FC<InvestmentDurationChartProps> = (
     }
     return config
   }, [data])
+
+  // Memoized tooltip render function
+  const renderTooltip = useCallback((props: any) => <DistributionCountTooltipContent {...props} />, [])
 
   return (
     <Card>
@@ -252,7 +258,7 @@ export const InvestmentDurationChart: React.FC<InvestmentDurationChartProps> = (
                     return <Cell key={`cell-${entry.type}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip content={props => <DistributionCountTooltipContent {...props} />} />
+                <ChartTooltip content={renderTooltip} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>

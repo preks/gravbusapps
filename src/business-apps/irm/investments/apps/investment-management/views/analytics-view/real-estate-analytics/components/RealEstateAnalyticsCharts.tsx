@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -155,6 +155,25 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
     []
   )
 
+  // Memoized tooltip render functions
+  const renderOccupancyTooltip = useCallback(
+    (props: any) => (
+      <OccupancyDistributionTooltip
+        {...props}
+        formatCurrency={formatCurrencyCompact}
+        currency={occupancyCurrencyFilter}
+      />
+    ),
+    [occupancyCurrencyFilter]
+  )
+
+  const renderPropertyValueTooltip = useCallback(
+    (props: any) => (
+      <PropertyValueVsRentTooltip {...props} formatCurrency={formatCurrencyCompact} currency={expensesCurrencyFilter} />
+    ),
+    [expensesCurrencyFilter]
+  )
+
   return (
     <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6">
       {/* Occupancy Rate Distribution */}
@@ -211,15 +230,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                   <XAxis dataKey="range" />
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
-                  <ChartTooltip
-                    content={props => (
-                      <OccupancyDistributionTooltip
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={occupancyCurrencyFilter}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderOccupancyTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar yAxisId="left" dataKey="count" fill="var(--color-count)" />
                   <Bar yAxisId="right" dataKey="totalValue" fill="var(--color-totalValue)" opacity={0.8} />
@@ -284,15 +295,7 @@ export const RealEstateAnalyticsCharts: React.FC<RealEstateAnalyticsChartsProps>
                   <ScatterChart data={propertyValueVsRentData}>
                     <XAxis dataKey="propertyValue" name="Property Value" type="number" />
                     <YAxis dataKey="annualExpenses" name="Annual Net Cold Rent" type="number" />
-                    <ChartTooltip
-                      content={props => (
-                        <PropertyValueVsRentTooltip
-                          {...props}
-                          formatCurrency={formatCurrencyCompact}
-                          currency={expensesCurrencyFilter}
-                        />
-                      )}
-                    />
+                    <ChartTooltip content={renderPropertyValueTooltip} />
                     <Scatter dataKey="annualExpenses" fill="var(--color-annualExpenses)" />
                   </ScatterChart>
                 </ChartContainer>

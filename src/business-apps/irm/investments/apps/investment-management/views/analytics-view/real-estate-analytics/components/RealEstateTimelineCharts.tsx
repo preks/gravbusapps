@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -246,6 +246,26 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
     []
   )
 
+  // Memoized tooltip render functions
+  const renderTimelineTooltip = useCallback(
+    (props: any) => (
+      <TimelineTooltip {...props} formatCurrency={formatCurrencyCompact} currency={timelineCurrencyFilter} />
+    ),
+    [timelineCurrencyFilter]
+  )
+
+  const renderPerformanceTooltip = useCallback(
+    (props: any) => (
+      <PerformanceTooltip {...props} formatCurrency={formatCurrencyCompact} currency={performanceCurrencyFilter} />
+    ),
+    [performanceCurrencyFilter]
+  )
+
+  const renderPropertyTypeTooltip = useCallback(
+    (props: any) => <PropertyTypeTooltip {...props} formatCurrency={formatCurrencyCompact} />,
+    []
+  )
+
   return (
     <div className="gba:space-y-6">
       {/* Investment Timeline */}
@@ -292,15 +312,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
                   <XAxis dataKey="year" />
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
-                  <ChartTooltip
-                    content={props => (
-                      <TimelineTooltip
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={timelineCurrencyFilter}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderTimelineTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar
                     yAxisId="left"
@@ -376,15 +388,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
                   <XAxis dataKey="year" />
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
-                  <ChartTooltip
-                    content={props => (
-                      <PerformanceTooltip
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={performanceCurrencyFilter}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderPerformanceTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Line
                     yAxisId="left"
@@ -437,9 +441,7 @@ export const RealEstateTimelineCharts: React.FC<RealEstateTimelineChartsProps> =
               <XAxis dataKey="yearRange" />
               <YAxis yAxisId="left" />
               <YAxis yAxisId="right" orientation="right" />
-              <ChartTooltip
-                content={props => <PropertyTypeTooltip {...props} formatCurrency={formatCurrencyCompact} />}
-              />
+              <ChartTooltip content={renderPropertyTypeTooltip} />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar yAxisId="left" dataKey="propertyCount" fill="var(--color-propertycount)" name="Property Count" />
               <Line

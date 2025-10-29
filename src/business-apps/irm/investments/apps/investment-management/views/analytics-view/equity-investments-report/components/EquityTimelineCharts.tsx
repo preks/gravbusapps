@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -144,8 +144,8 @@ const TimelineChartTooltipContent: React.FC<TimelineChartTooltipContentProps> = 
     return (
       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
         <div className="gba:mb-2 gba:font-semibold gba:text-gray-800">{label}</div>
-        {investmentTypes.map((entry, index) => (
-          <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+        {investmentTypes.map(entry => (
+          <div key={entry.dataKey as string} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
             <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: entry.fill }} />
             <span className="gba:font-medium gba:text-gray-600">{entry.name}:</span>
             <span className="gba:font-semibold gba:text-gray-900">
@@ -234,7 +234,7 @@ const TopCompaniesTooltipContent: React.FC<TopCompaniesTooltipContentProps> = ({
     return (
       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
         <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-        {payload.map((entry, index) => {
+        {payload.map(entry => {
           let formattedValue = ''
           let properLabel = ''
           let dotColor = ''
@@ -246,7 +246,7 @@ const TopCompaniesTooltipContent: React.FC<TopCompaniesTooltipContentProps> = ({
           }
 
           return (
-            <div key={index} className="gba:flex gba:items-center gba:gap-2">
+            <div key={entry.dataKey as string} className="gba:flex gba:items-center gba:gap-2">
               <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
               <span className="gba:font-medium">{properLabel}:</span>
               <span className="gba:font-semibold">{formattedValue}</span>
@@ -358,6 +358,28 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
     return config
   }, [filteredEquityTimelineData.types])
 
+  // Memoized tooltip render functions
+  const renderTimelineTooltip = useCallback(
+    (props: any) => (
+      <TimelineChartTooltipContent {...props} formatCurrency={formatCurrency} currency={timelineCurrency} />
+    ),
+    [timelineCurrency]
+  )
+
+  const renderPortfolioMatrixTooltip = useCallback(
+    (props: any) => (
+      <PortfolioMatrixTooltipContent {...props} formatCurrency={formatCurrency} currency={portfolioMatrixCurrency} />
+    ),
+    [portfolioMatrixCurrency]
+  )
+
+  const renderTopCompaniesTooltip = useCallback(
+    (props: any) => (
+      <TopCompaniesTooltipContent {...props} formatCurrency={formatCurrency} currency={topCompaniesCurrency} />
+    ),
+    [topCompaniesCurrency]
+  )
+
   return (
     <>
       {/* Equity Investment Performance Timeline - Full Width Row */}
@@ -390,11 +412,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
             <ComposedChart data={filteredEquityTimelineData.data} margin={{ top: 40, right: 30, left: 20, bottom: 5 }}>
               <XAxis dataKey="year" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
-              <ChartTooltip
-                content={props => (
-                  <TimelineChartTooltipContent {...props} formatCurrency={formatCurrency} currency={timelineCurrency} />
-                )}
-              />
+              <ChartTooltip content={renderTimelineTooltip} />
               <ChartLegend content={<ChartLegendContent />} />
               {filteredEquityTimelineData.types.map((type, index) => {
                 const isLastType = index === filteredEquityTimelineData.types.length - 1
@@ -489,15 +507,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                 domain={[0, 'auto']}
               />
               <ZAxis type="number" dataKey="size" range={[100, 2000]} name="Investment Amount" />
-              <ChartTooltip
-                content={props => (
-                  <PortfolioMatrixTooltipContent
-                    {...props}
-                    formatCurrency={formatCurrency}
-                    currency={portfolioMatrixCurrency}
-                  />
-                )}
-              />
+              <ChartTooltip content={renderPortfolioMatrixTooltip} />
               <Scatter
                 name="portfoliomatrix"
                 data={portfolioMatrixData}
@@ -558,15 +568,7 @@ export const EquityTimelineCharts: React.FC<EquityTimelineChartsProps> = ({
                 }}
               />
               <YAxis tick={{ fontSize: 12 }} tickFormatter={value => formatCompactNumber(value, 1)} />
-              <ChartTooltip
-                content={props => (
-                  <TopCompaniesTooltipContent
-                    {...props}
-                    formatCurrency={formatCurrency}
-                    currency={topCompaniesCurrency}
-                  />
-                )}
-              />
+              <ChartTooltip content={renderTopCompaniesTooltip} />
               <ChartLegend content={<ChartLegendContent />} />
               <Bar dataKey="valuation" name="valuation" fill="var(--color-valuation)" radius={[4, 4, 0, 0]} />
             </ComposedChart>

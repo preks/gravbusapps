@@ -260,6 +260,36 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
       }, [] as any[])
   }, [rawInvestments, statusCurrencyFilter])
 
+  // Memoized tooltip render functions
+  const renderTypeCountTooltip = useCallback(
+    (props: any) => <TypeCountTooltip {...props} filteredData={filteredTypeCountData} />,
+    [filteredTypeCountData]
+  )
+
+  const renderTypeAmountTooltip = useCallback(
+    (props: any) => (
+      <TypeAmountTooltip
+        {...props}
+        filteredData={filteredTypeData}
+        formatCurrency={formatCurrencyCompact}
+        currency={typeCurrencyFilter}
+      />
+    ),
+    [filteredTypeData, typeCurrencyFilter]
+  )
+
+  const renderStatusAmountTooltip = useCallback(
+    (props: any) => (
+      <StatusAmountTooltip
+        {...props}
+        filteredData={filteredStatusData}
+        formatCurrency={formatCurrencyCompact}
+        currency={statusCurrencyFilter}
+      />
+    ),
+    [filteredStatusData, statusCurrencyFilter]
+  )
+
   return (
     <div className="gba:space-y-6">
       {/* Type Distribution */}
@@ -319,7 +349,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip content={props => <TypeCountTooltip {...props} filteredData={filteredTypeCountData} />} />
+                <ChartTooltip content={renderTypeCountTooltip} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -382,16 +412,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip
-                  content={props => (
-                    <TypeAmountTooltip
-                      {...props}
-                      filteredData={filteredTypeData}
-                      formatCurrency={formatCurrencyCompact}
-                      currency={typeCurrencyFilter}
-                    />
-                  )}
-                />
+                <ChartTooltip content={renderTypeAmountTooltip} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>
@@ -520,16 +541,7 @@ export const RealEstateDistributionCharts: React.FC<RealEstateDistributionCharts
                     return <Cell key={`cell-${key}`} fill={`var(--color-${key})`} />
                   })}
                 </Pie>
-                <ChartTooltip
-                  content={props => (
-                    <StatusAmountTooltip
-                      {...props}
-                      filteredData={filteredStatusData}
-                      formatCurrency={formatCurrencyCompact}
-                      currency={statusCurrencyFilter}
-                    />
-                  )}
-                />
+                <ChartTooltip content={renderStatusAmountTooltip} />
                 <ChartLegend content={<ChartLegendContent />} />
               </PieChart>
             </ChartContainer>

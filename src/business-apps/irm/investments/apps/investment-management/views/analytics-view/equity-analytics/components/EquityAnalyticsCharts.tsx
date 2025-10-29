@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -138,7 +138,7 @@ const ConcentrationTooltipContent: React.FC<ConcentrationTooltipContentProps> = 
     return (
       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
         <div className="gba:mb-2 gba:font-medium gba:text-gray-700">{label}</div>
-        {payload.map((entry, index) => {
+        {payload.map(entry => {
           let formattedValue = ''
           let properLabel = ''
           let dotColor = ''
@@ -158,7 +158,7 @@ const ConcentrationTooltipContent: React.FC<ConcentrationTooltipContentProps> = 
           }
 
           return (
-            <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+            <div key={entry.dataKey as string} className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
               <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: dotColor }} />
               <span className="gba:font-medium">{properLabel}:</span>
               <span className="gba:font-semibold">{formattedValue}</span>
@@ -226,6 +226,33 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
     }),
     []
   )
+
+  // Memoized tooltip render functions
+  const renderStakeTooltip = useCallback(
+    (props: any) => (
+      <StakeVsInvestmentTooltipContent
+        {...props}
+        formatCurrency={formatCurrencyCompact}
+        currency={stakeAmountCurrency}
+      />
+    ),
+    [stakeAmountCurrency]
+  )
+
+  const renderRoleTooltip = useCallback(
+    (props: any) => (
+      <RoleVsInvestmentTooltipContent {...props} formatCurrency={formatCurrencyCompact} currency={roleAmountCurrency} />
+    ),
+    [roleAmountCurrency]
+  )
+
+  const renderConcentrationTooltip = useCallback(
+    (props: any) => (
+      <ConcentrationTooltipContent {...props} formatCurrency={formatCurrencyCompact} currency={concentrationCurrency} />
+    ),
+    [concentrationCurrency]
+  )
+
   return (
     <>
       {/* Stake vs Investment Amount Correlation - Scatter Plot (Full Width) */}
@@ -291,15 +318,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     tick={{ fontSize: 12 }}
                     tickFormatter={value => formatCurrencyCompact(value, stakeAmountCurrency)}
                   />
-                  <ChartTooltip
-                    content={props => (
-                      <StakeVsInvestmentTooltipContent
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={stakeAmountCurrency}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderStakeTooltip} />
                   <Scatter
                     name="stakevsinvestment"
                     data={stakeVsInvestmentAmountData}
@@ -381,15 +400,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                     tick={{ fontSize: 12 }}
                     tickFormatter={value => formatCurrencyCompact(value, roleAmountCurrency)}
                   />
-                  <ChartTooltip
-                    content={props => (
-                      <RoleVsInvestmentTooltipContent
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={roleAmountCurrency}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderRoleTooltip} />
                   <Scatter
                     name="rolevsinvestment"
                     data={roleInvestmentAmountData}
@@ -456,15 +467,7 @@ export const EquityAnalyticsCharts: React.FC<EquityAnalyticsChartsProps> = props
                   <XAxis dataKey="role" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                  <ChartTooltip
-                    content={props => (
-                      <ConcentrationTooltipContent
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={concentrationCurrency}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderConcentrationTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar
                     yAxisId="left"

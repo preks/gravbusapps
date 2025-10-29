@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react'
+import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -23,21 +23,36 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 interface DistributionCountTooltipProps {
   active?: boolean
   payload?: any[]
+  chartData: any[]
+  label?: string // Optional label for the count (defaults to "investments")
 }
 
-const DistributionCountTooltip: React.FC<DistributionCountTooltipProps> = ({ active, payload }) => {
+const DistributionCountTooltip: React.FC<DistributionCountTooltipProps> = ({
+  active,
+  payload,
+  chartData,
+  label = 'investments'
+}) => {
   if (active && payload?.length) {
     const data = payload[0]
+    // Calculate percentage of total
+    const total = chartData.reduce((sum: number, item: any) => sum + item.count, 0)
+    const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
+    // Support both investmentType and liquidFundType field names
+    const typeName = data.payload.investmentType || data.payload.liquidFundType || data.payload.type
     return (
       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
           <div
             className="gba:w-3 gba:h-3 gba:rounded-full"
             style={{ backgroundColor: `var(--color-${data.payload.name})` }}
           />
-          <span className="gba:font-medium">{data.payload.investmentType}</span>
+          <span className="gba:font-medium gba:text-gray-700">{typeName}</span>
         </div>
-        <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} investments</div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          {data.value} {label}
+        </div>
+        <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
       </div>
     )
   }
@@ -50,28 +65,36 @@ interface DistributionAmountTooltipProps {
   payload?: any[]
   formatCurrency: (amount: number, currency: string) => string
   currency: string
+  chartData: any[]
 }
 
 const DistributionAmountTooltip: React.FC<DistributionAmountTooltipProps> = ({
   active,
   payload,
   formatCurrency,
-  currency
+  currency,
+  chartData
 }) => {
   if (active && payload?.length) {
     const data = payload[0]
     // Support both investmentType and liquidFundType field names
     const typeName = data.payload.investmentType || data.payload.liquidFundType
+    // Calculate percentage of total
+    const total = chartData.reduce((sum: number, item: any) => sum + item.totalAmount, 0)
+    const percentage = total > 0 ? ((data.value as number) / total) * 100 : 0
     return (
       <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-        <div className="gba:flex gba:items-center gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
           <div
             className="gba:w-3 gba:h-3 gba:rounded-full"
             style={{ backgroundColor: `var(--color-${data.payload.name})` }}
           />
-          <span className="gba:font-medium">{typeName}</span>
+          <span className="gba:font-medium gba:text-gray-700">{typeName}</span>
         </div>
-        <div className="gba:mt-1 gba:text-lg gba:font-semibold">{formatCurrency(data.value as number, currency)}</div>
+        <div className="gba:text-lg gba:font-semibold gba:text-gray-900">
+          {formatCurrency(data.value as number, currency)}
+        </div>
+        <div className="gba:text-sm gba:font-medium gba:text-gray-600">{percentage.toFixed(1)}% of total</div>
       </div>
     )
   }
@@ -207,6 +230,41 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
     [liquidFundTypeAmountData]
   )
 
+  // Memoized tooltip render functions
+  const renderInvestmentTypeCountTooltip = useCallback(
+    (props: any) => <DistributionCountTooltip {...props} chartData={investmentTypeCountData} />,
+    [investmentTypeCountData]
+  )
+
+  const renderInvestmentTypeAmountTooltip = useCallback(
+    (props: any) => (
+      <DistributionAmountTooltip
+        {...props}
+        formatCurrency={formatCurrencyCompact}
+        currency={investmentTypeAmountCurrency}
+        chartData={investmentTypeAmountData}
+      />
+    ),
+    [investmentTypeAmountCurrency, investmentTypeAmountData]
+  )
+
+  const renderLiquidFundTypeCountTooltip = useCallback(
+    (props: any) => <DistributionCountTooltip {...props} chartData={liquidFundTypeCountData} label="funds" />,
+    [liquidFundTypeCountData]
+  )
+
+  const renderLiquidFundTypeAmountTooltip = useCallback(
+    (props: any) => (
+      <DistributionAmountTooltip
+        {...props}
+        formatCurrency={formatCurrencyCompact}
+        currency={liquidFundTypeAmountCurrency}
+        chartData={liquidFundTypeAmountData}
+      />
+    ),
+    [liquidFundTypeAmountCurrency, liquidFundTypeAmountData]
+  )
+
   return (
     <div className="gba:space-y-6">
       {/* Type Distribution - Side by Side */}
@@ -275,7 +333,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                         <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
-                    <ChartTooltip content={props => <DistributionCountTooltip {...props} />} />
+                    <ChartTooltip content={renderInvestmentTypeCountTooltip} />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
                 </ChartContainer>
@@ -345,15 +403,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                         <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
-                    <ChartTooltip
-                      content={props => (
-                        <DistributionAmountTooltip
-                          {...props}
-                          formatCurrency={formatCurrencyCompact}
-                          currency={investmentTypeAmountCurrency}
-                        />
-                      )}
-                    />
+                    <ChartTooltip content={renderInvestmentTypeAmountTooltip} />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
                 </ChartContainer>
@@ -429,26 +479,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                         <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
-                    <ChartTooltip
-                      content={({ active, payload }) => {
-                        if (active && payload?.length) {
-                          const data = payload[0]
-                          return (
-                            <div className="gba:bg-white gba:p-3 gba:border gba:border-gray-200 gba:rounded-lg gba:shadow-lg">
-                              <div className="gba:flex gba:items-center gba:gap-2">
-                                <div
-                                  className="gba:w-3 gba:h-3 gba:rounded-full"
-                                  style={{ backgroundColor: `var(--color-${data.payload.name})` }}
-                                />
-                                <span className="gba:font-medium">{data.payload.liquidFundType}</span>
-                              </div>
-                              <div className="gba:mt-1 gba:text-lg gba:font-semibold">{data.value} funds</div>
-                            </div>
-                          )
-                        }
-                        return null
-                      }}
-                    />
+                    <ChartTooltip content={renderLiquidFundTypeCountTooltip} />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
                 </ChartContainer>
@@ -518,15 +549,7 @@ export const LiquidFundDistributionCharts: React.FC<LiquidFundDistributionCharts
                         <Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />
                       ))}
                     </Pie>
-                    <ChartTooltip
-                      content={props => (
-                        <DistributionAmountTooltip
-                          {...props}
-                          formatCurrency={formatCurrencyCompact}
-                          currency={liquidFundTypeAmountCurrency}
-                        />
-                      )}
-                    />
+                    <ChartTooltip content={renderLiquidFundTypeAmountTooltip} />
                     <ChartLegend content={<ChartLegendContent />} />
                   </PieChart>
                 </ChartContainer>

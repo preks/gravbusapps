@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import {
   Card,
   CardHeader,
@@ -47,15 +47,15 @@ const PerformanceTimelineTooltip: React.FC<PerformanceTimelineTooltipProps> = ({
           if (entry.dataKey === 'investmentCount') {
             formattedValue = `${entry.value}`
             properLabel = 'Investment Count'
-            dotColor = 'var(--color-investmentcount)'
+            dotColor = 'var(--color-investmentCount)'
           } else if (entry.dataKey === 'totalInvestmentAmount') {
             formattedValue = formatCurrency(entry.value as number, currency)
             properLabel = 'Total Invested Amount'
-            dotColor = 'var(--color-totalinvestmentamount)'
+            dotColor = 'var(--color-totalInvestmentAmount)'
           } else if (entry.dataKey === 'cumulativeInvestments') {
             formattedValue = `${entry.value}`
             properLabel = 'Cumulative Investments'
-            dotColor = 'var(--color-cumulativeinvestments)'
+            dotColor = 'var(--color-cumulativeInvestments)'
           }
 
           return (
@@ -166,6 +166,21 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
     return config
   }, [])
 
+  // Memoized tooltip render functions
+  const renderPerformanceTooltip = useCallback(
+    (props: any) => (
+      <PerformanceTimelineTooltip {...props} formatCurrency={formatCurrencyCompact} currency={performanceCurrency} />
+    ),
+    [performanceCurrency]
+  )
+
+  const renderValueTrendsTooltip = useCallback(
+    (props: any) => (
+      <ValueTrendsTooltip {...props} formatCurrency={formatCurrencyCompact} currency={valueTrendsCurrency} />
+    ),
+    [valueTrendsCurrency]
+  )
+
   return (
     <div className="gba:space-y-6">
       {/* Investment Performance Timeline */}
@@ -226,15 +241,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                   <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                  <ChartTooltip
-                    content={props => (
-                      <PerformanceTimelineTooltip
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={performanceCurrency}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderPerformanceTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Bar
                     yAxisId="left"
@@ -327,15 +334,7 @@ export const LiquidFundTimelineCharts: React.FC<LiquidFundTimelineChartsProps> =
                     tick={{ fontSize: 12 }}
                     tickFormatter={value => formatCurrencyCompact(value, valueTrendsCurrency)}
                   />
-                  <ChartTooltip
-                    content={props => (
-                      <ValueTrendsTooltip
-                        {...props}
-                        formatCurrency={formatCurrencyCompact}
-                        currency={valueTrendsCurrency}
-                      />
-                    )}
-                  />
+                  <ChartTooltip content={renderValueTrendsTooltip} />
                   <ChartLegend content={<ChartLegendContent />} />
                   <Line
                     type="monotone"
