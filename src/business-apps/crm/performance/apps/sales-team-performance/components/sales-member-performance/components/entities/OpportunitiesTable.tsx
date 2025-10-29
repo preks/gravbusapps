@@ -236,7 +236,7 @@ export const OpportunitiesTable: React.FC<OpportunitiesTableProps> = ({
                       <AppActionButton
                         data-testid={`${DATA_TEST_ID_PREFIX}-update-opportunity-button-${opportunity.id}`}
                         variant="secondary"
-                        contextsArray={[FlowContextName.opportunityEntity]}
+                        contextsArray={[FlowContextName.customerOpportunityEntity]}
                         externalContextData={{
                           opportunityId: opportunity.id
                         }}

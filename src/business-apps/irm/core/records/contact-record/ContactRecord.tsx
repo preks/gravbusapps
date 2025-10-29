@@ -320,7 +320,7 @@ const InvestmentContactRecordContent: React.FC<ContactRecordContentProps> = ({
   // Action props for sections - must be defined before subViewsConfig
   const activityActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createInvestmentActivity],
+      contextsArray: [FlowContextName.investmentCreateActivity],
       externalContextData: { contactId },
       prefixDataTestId: 'contact-activity'
     }),

@@ -11,6 +11,7 @@ import { debugLogger } from '../core/debugLogger'
 import { registerProductData } from './productDataConfig'
 import { registerCatalogData } from './catalogDataConfig'
 import { registerSalesData } from './salesDataConfig'
+import { registerContentData } from '@/common/data/content/mock/contentDataConfig'
 
 /**
  * Configuration registry interface
@@ -33,7 +34,8 @@ export const initializeAllDataConfigs = async (): Promise<void> => {
     const configModules = {
       product: () => import('./productDataConfig'),
       catalog: () => import('./catalogDataConfig'),
-      sales: () => import('./salesDataConfig')
+      sales: () => import('./salesDataConfig'),
+      content: () => import('@/common/data/content/mock/contentDataConfig')
       // Add new configs here - they'll be auto-loaded:
       // hr: () => import('./hrDataConfig'),
       // finance: () => import('./financeDataConfig'),
@@ -79,7 +81,8 @@ export const initializeAllDataConfigsSync = (): void => {
     const configs = [
       { name: 'product', fn: registerProductData },
       { name: 'catalog', fn: registerCatalogData },
-      { name: 'sales', fn: registerSalesData }
+      { name: 'sales', fn: registerSalesData },
+      { name: 'content', fn: registerContentData }
       // Add new configs here:
       // { name: 'hr', fn: registerHRData },
       // { name: 'finance', fn: registerFinanceData },

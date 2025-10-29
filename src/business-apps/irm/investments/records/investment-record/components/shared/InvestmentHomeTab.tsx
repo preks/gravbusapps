@@ -315,7 +315,7 @@ export const InvestmentHomeTab: React.FC<InvestmentHomeTabProps> = ({ investment
               activitiesError: activitiesError,
               onReloadActivities: loadActivities,
               activitySectionActionProps: {
-                contextsArray: [FlowContextName.createInvestmentActivity],
+                contextsArray: [FlowContextName.investmentCreateActivity],
                 externalContextData: { investmentId },
                 prefixDataTestId: 'investment-activity',
                 emptyStateBehavior: 'enable'
