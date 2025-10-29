@@ -84,11 +84,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
       onClick={() => onView(task)}
       data-testid={`task-card-${task.id}`}
     >
-      <CardContent className="gba:py-1 gba:px-4">
+      <CardContent className="gba:py-1.5 gba:px-4">
         <div className="gba:flex gba:items-start">
           <div className="gba:flex-1 gba:min-w-0">
             {/* Creator info section */}
-            <div className="gba:flex gba:items-start gba:gap-3 gba:mb-2" data-testid="task-creator-section">
+            <div className="gba:flex gba:items-start gba:gap-2" data-testid="task-creator-section">
               <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
                 <AvatarImage
                   src={
@@ -110,7 +110,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                   </span>
                 </div>
                 {createdAt && (
-                  <div className="gba:flex gba:items-center gba:gap-1 gba:mt-0.5">
+                  <div className="gba:flex gba:items-center gba:gap-1">
                     <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
                     <span className="gba:text-xs gba:text-muted-foreground" data-testid="task-created-at">
                       {formatDateTime(createdAt)}
@@ -130,7 +130,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
 
             {(task.description || task.message) && (
               <p
-                className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2 gba:mb-1"
+                className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2"
                 data-testid="task-description"
               >
                 {task.description || task.message}
