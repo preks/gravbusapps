@@ -54,8 +54,25 @@ export const useContactInsights = (accessToken: string) => {
         const contacts = result.contacts || []
         const currentDate = new Date()
         const totalContacts = contacts.length
+        // Helper function to convert catalog code to display value
+        const getContactTypeDisplayValue = (type: string | null | undefined): string => {
+          if (!type) return 'Unknown'
+          // Map catalog codes to display values
+          const typeMap: Record<string, string> = {
+            '3NARY_CONTACT': 'Primary Contact',
+            PRIMARY_CONTACT: 'Primary Contact',
+            JNDER_CONTACT: 'Under Contact',
+            UNDER_CONTACT: 'Under Contact',
+            NIDARY_CONTACT: 'Midary Contact',
+            MIDARY_CONTACT: 'Midary Contact',
+            SECONDARY_CONTACT: 'Secondary Contact',
+            FOUNDER_CONTACT: 'Founder Contact'
+          }
+          return typeMap[type] || type
+        }
+
         const typeGroups = contacts.reduce((acc: any, c: any) => {
-          const t = c.type || 'Unknown'
+          const t = getContactTypeDisplayValue(c.type)
           acc[t] = (acc[t] || 0) + 1
           return acc
         }, {})
