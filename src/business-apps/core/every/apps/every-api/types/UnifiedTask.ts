@@ -68,6 +68,7 @@ export interface UnifiedTask {
   message?: string
   description?: string
   taskCategory?: string
+  tags?: Record<string, any>
 
   // Form data and inputs
   form?: any[]

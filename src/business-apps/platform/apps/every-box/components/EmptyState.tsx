@@ -3,20 +3,22 @@
  * Displays empty state message when no tasks or flows are available
  */
 
-import React from 'react';
-import { Inbox, Send } from 'lucide-react';
+import React from 'react'
+import { Inbox, Send, CheckCircle } from 'lucide-react'
 
 interface EmptyStateProps {
-  type: 'inbox' | 'outbox';
-  message?: string;
+  type: 'inbox' | 'outbox' | 'completed'
+  message?: string
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
-  const Icon = type === 'inbox' ? Inbox : Send;
+  const Icon = type === 'inbox' ? Inbox : type === 'outbox' ? Send : CheckCircle
   const defaultMessage =
     type === 'inbox'
       ? 'No tasks assigned to you at the moment'
-      : 'You have not initiated any workflows yet';
+      : type === 'outbox'
+        ? 'You have not initiated any workflows yet'
+        : 'No completed tasks yet'
 
   return (
     <div
@@ -27,12 +29,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ type, message }) => {
         <Icon className="gba:h-12 gba:w-12 gba:text-muted-foreground" />
       </div>
       <h3 className="gba:text-lg gba:font-semibold gba:mb-2">
-        {type === 'inbox' ? 'Inbox Empty' : 'No Workflows Started'}
+        {type === 'inbox' ? 'Inbox Empty' : type === 'outbox' ? 'No Workflows Started' : 'No Completed Tasks'}
       </h3>
-      <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">
-        {message || defaultMessage}
-      </p>
+      <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{message || defaultMessage}</p>
     </div>
-  );
-};
-
+  )
+}

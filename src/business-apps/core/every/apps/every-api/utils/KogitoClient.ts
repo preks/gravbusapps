@@ -51,8 +51,13 @@ export async function fetchKogitoUserTasks(
   try {
     const client = new FlowMetricsClient(accessToken)
 
+    // Determine cockpitPage and filterState based on requested status
+    // For completed tasks: cockpitPage='ALL' with filterState=['Closed']
+    // For active tasks: cockpitPage='INBOX' (no filterState needed)
+    const isCompletedRequest = params?.status?.[0]?.toUpperCase() === 'COMPLETED'
+
     const response: FlowExecutionTasksResponse = await client.getFlowExecutionTasks({
-      cockpitPage: 'INBOX',
+      cockpitPage: isCompletedRequest ? 'ALL' : 'INBOX',
       userId: userId,
       size: params?.pageSize || 100,
       page: params?.page || 0,
@@ -61,7 +66,7 @@ export async function fetchKogitoUserTasks(
       search: params?.search,
       filterTaskName: params?.taskName,
       filterProcessName: params?.processName,
-      state: params?.status?.[0] // Take first status if multiple provided
+      ...(isCompletedRequest && { filterState: ['Closed'] }) // Only for completed tasks
     })
 
     console.log('Kogito response:', {
@@ -71,7 +76,7 @@ export async function fetchKogitoUserTasks(
 
     // Handle both response formats (processingStates or content)
     const tasks = response.processingStates || response.content || []
-    console.log(`Found ${tasks.length} Kogito tasks`)
+    console.log(`Found ${tasks.length} Kogito tasks (cockpitPage: ${isCompletedRequest ? 'ALL' : 'INBOX'})`)
 
     return tasks
   } catch (error) {

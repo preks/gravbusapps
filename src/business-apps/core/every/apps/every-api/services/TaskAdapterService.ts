@@ -107,6 +107,7 @@ function mapKogitoState(state: string): TaskStatus {
       return 'IN_PROGRESS'
     case 'COMPLETED':
     case 'COMPLETE':
+    case 'CLOSED': // Tasks from HISTORY/ALL cockpitPage with filterState=['Closed']
       return 'COMPLETED'
     case 'FAILED':
     case 'ERROR':
@@ -115,6 +116,9 @@ function mapKogitoState(state: string): TaskStatus {
     case 'EXITED':
     case 'OBSOLETE':
     case 'SUSPENDED':
+    case 'CANCELED': // Alternative spelling
+    case 'CANCELLED':
+    case 'SKIPPED': // Tasks that were skipped in the workflow
       return 'CANCELLED'
     default:
       console.warn(`Unknown Kogito state: ${state}, defaulting to SCHEDULED`)
@@ -126,6 +130,16 @@ function mapKogitoState(state: string): TaskStatus {
  * Adapt a custom-flow-engine task to unified format
  */
 export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
+  // Use scheduledAt as the creation timestamp for CFlow tasks
+  const createdDate = cflowTask.scheduledAt || (cflowTask as any).createdAt || (cflowTask as any).created_at
+
+  // Extract creator information from CFlow task
+  // CFlow uses 'flowInitiatedBy' which is the USER ID (not employee ID!)
+  const flowInitiatedBy = (cflowTask as any).flowInitiatedBy
+
+  const creatorUserId = flowInitiatedBy // This is userId - need to fetch employee by userId
+  const creatorName = (cflowTask as any).flowInitiatedByName
+
   const unifiedTask: UnifiedTask = {
     id: cflowTask.id,
     flowId: cflowTask.flowId || cflowTask.workflowMeta?.rootWorkflowId || cflowTask.id,
@@ -136,9 +150,11 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
     status: mapCflowStatus(cflowTask.status),
     priority: cflowTask.priority,
     dueDate: cflowTask.dueDate,
+    createdAt: createdDate, // Use best available date for proper sorting
     scheduledAt: cflowTask.scheduledAt,
     message: cflowTask.message,
     taskCategory: cflowTask.taskCategory,
+    tags: (cflowTask as any).tags, // Workflow tags for filtering (e.g., blink tasks)
     form: cflowTask.form,
     inputs: cflowTask.inputs,
     links: cflowTask.links,
@@ -149,6 +165,8 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
     source: 'cflow',
     sourceMetadata: {
       originalStatus: cflowTask.status,
+      creatorUserId, // CFlow provides userId - need to fetch employee by userId
+      creatorName, // Explicitly include creator name for display fallback
       ...Object.keys(cflowTask)
         .filter(
           key =>
@@ -167,11 +185,16 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
               'inputs',
               'links',
               'taskCategory',
+              'tags',
               'dueDate',
               'scheduledAt',
               'availableActions',
               'assignment',
-              'workflowMeta'
+              'workflowMeta',
+              'flowInitiatedBy',
+              'flowInitiatedByName',
+              'creatorUserId',
+              'creatorName'
             ].includes(key)
         )
         .reduce((acc, key) => ({ ...acc, [key]: cflowTask[key] }), {})
@@ -200,6 +223,9 @@ export function adaptKogitoTask(kogitoTask: KogitoTask, userId?: string): Unifie
   // Task can be unclaimed if user is owner and task is reserved
   const canUnclaim = isOwner && stateUpper === 'RESERVED'
 
+  // Use started timestamp as creation date for Kogito tasks
+  const createdDate = kogitoTask.started || kogitoTask.createdAt
+
   const unifiedTask: UnifiedTask = {
     id: kogitoTask.id,
     flowId: kogitoTask.processInstanceId || kogitoTask.customFlowId || kogitoTask.id,
@@ -214,6 +240,7 @@ export function adaptKogitoTask(kogitoTask: KogitoTask, userId?: string): Unifie
         : typeof kogitoTask.priority === 'string'
           ? parseInt(kogitoTask.priority, 10)
           : undefined,
+    createdAt: createdDate, // Use createdAt or started for proper sorting
     scheduledAt: kogitoTask.started || kogitoTask.createdAt,
     completedAt: kogitoTask.completed,
     description: kogitoTask.description,

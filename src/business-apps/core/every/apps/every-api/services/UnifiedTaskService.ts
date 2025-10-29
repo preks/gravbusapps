@@ -14,6 +14,7 @@ import { getApiConfig } from '../utils/config'
 
 export interface FetchTasksResult {
   tasks: UnifiedTask[]
+  totalCount: number // Total count of tasks before pagination
   errors: Array<{
     source: TaskSource
     message: string
@@ -212,6 +213,9 @@ export async function fetchAllUserTasks(
   accessToken?: string,
   filters?: Partial<TaskFilters>
 ): Promise<FetchTasksResult> {
+  const startTime = performance.now()
+  console.log('[UnifiedTaskService] 🚀 START Fetching all user tasks')
+
   const parsedFilters = parseFilters(filters)
   const config = getApiConfig()
 
@@ -225,21 +229,33 @@ export async function fetchAllUserTasks(
 
   // Fetch from both sources in parallel
   const fetchPromises: Promise<void>[] = []
+  const timings: Record<string, number> = {}
 
   if (fetchCflow) {
     const cflowParams: Record<string, string> = {
-      limit: '100' // Fetch more, filter client-side
+      limit: '1000', // Fetch all tasks for proper pagination across sources
+      sortBy: parsedFilters.sortBy || 'createdAt',
+      sortOrder: parsedFilters.sortOrder || 'desc'
     }
     if (parsedFilters.status) cflowParams.status = parsedFilters.status
     if (parsedFilters.search) cflowParams.search = parsedFilters.search
 
     fetchPromises.push(
-      fetchCflowUserTasks(userId, accessToken, cflowParams)
-        .then(cflowTasks => {
+      (async () => {
+        const cflowStart = performance.now()
+        console.log('[UnifiedTaskService] 📡 Starting CFlow API call')
+        try {
+          const cflowTasks = await fetchCflowUserTasks(userId, accessToken, cflowParams)
+          const cflowEnd = performance.now()
+          timings.cflow = cflowEnd - cflowStart
+          console.log(`[UnifiedTaskService] ✅ CFlow API completed in ${timings.cflow.toFixed(0)}ms`)
+
           const adapted = adaptCflowTasks(cflowTasks)
           allTasks.push(...adapted)
-        })
-        .catch(error => {
+        } catch (error: any) {
+          const cflowEnd = performance.now()
+          timings.cflow = cflowEnd - cflowStart
+          console.error(`[UnifiedTaskService] ❌ CFlow API failed after ${timings.cflow.toFixed(0)}ms`, error)
           errors.push({
             source: 'cflow',
             message: 'Failed to fetch custom-flow-engine tasks',
@@ -248,18 +264,45 @@ export async function fetchAllUserTasks(
           if (!config.enablePartialResults) {
             throw error
           }
-        })
+        }
+      })()
     )
   }
 
   if (fetchKogito) {
+    // Map sortBy to Kogito field names
+    let kogitoSortField = 'CREATION_DATE'
+    if (parsedFilters.sortBy === 'priority') {
+      kogitoSortField = 'PRIORITY'
+    } else if (parsedFilters.sortBy === 'dueDate') {
+      kogitoSortField = 'DUE_DATE'
+    } else if (parsedFilters.sortBy === 'title') {
+      kogitoSortField = 'NAME'
+    }
+
+    const kogitoParams = {
+      pageSize: 1000, // Fetch all tasks for proper pagination across sources
+      sortBy: kogitoSortField,
+      sortOrder: parsedFilters.sortOrder === 'asc' ? ('ASC' as const) : ('DESC' as const),
+      search: parsedFilters.search,
+      ...(parsedFilters.status && { status: [parsedFilters.status] }) // Kogito expects status as array
+    }
+
     fetchPromises.push(
-      fetchKogitoUserTasks(userId, accessToken)
-        .then(kogitoTasks => {
+      (async () => {
+        const kogitoStart = performance.now()
+        console.log('[UnifiedTaskService] 📡 Starting Kogito API call')
+        try {
+          const kogitoTasks = await fetchKogitoUserTasks(userId, accessToken, kogitoParams)
+          const kogitoEnd = performance.now()
+          timings.kogito = kogitoEnd - kogitoStart
+          console.log(`[UnifiedTaskService] ✅ Kogito API completed in ${timings.kogito.toFixed(0)}ms`)
           const adapted = adaptKogitoTasks(kogitoTasks, userId)
           allTasks.push(...adapted)
-        })
-        .catch(error => {
+        } catch (error: any) {
+          const kogitoEnd = performance.now()
+          timings.kogito = kogitoEnd - kogitoStart
+          console.error(`[UnifiedTaskService] ❌ Kogito API failed after ${timings.kogito.toFixed(0)}ms`, error)
           errors.push({
             source: 'kogito',
             message: 'Failed to fetch Kogito tasks',
@@ -268,7 +311,8 @@ export async function fetchAllUserTasks(
           if (!config.enablePartialResults) {
             throw error
           }
-        })
+        }
+      })()
     )
   }
 
@@ -296,8 +340,20 @@ export async function fetchAllUserTasks(
 
   const paginated = applyPagination(filtered, parsedFilters)
 
+  const endTime = performance.now()
+  console.log(`[UnifiedTaskService] ✅ DONE Fetched all user tasks in ${(endTime - startTime).toFixed(0)}ms`, {
+    totalTime: `${(endTime - startTime).toFixed(0)}ms`,
+    cflowTime: timings.cflow ? `${timings.cflow.toFixed(0)}ms` : 'not fetched',
+    kogitoTime: timings.kogito ? `${timings.kogito.toFixed(0)}ms` : 'not fetched',
+    tasksReturned: paginated.length,
+    totalFiltered: filtered.length,
+    errorsCount: errors.length,
+    warningsCount: warnings.length
+  })
+
   return {
     tasks: paginated,
+    totalCount: filtered.length, // Total count before pagination
     errors,
     warnings
   }
