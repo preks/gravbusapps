@@ -10,6 +10,8 @@ import CurrentCompensationView from './components/CurrentCompensationView'
 import PayHistoryView from './components/PayHistoryView'
 import GrowthView from './components/GrowthView'
 import { PiCurrencyEur, PiClockCounterClockwise, PiTrendUp } from 'react-icons/pi'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 
 interface JobsCompensationTabProps {
   employee: Employee
@@ -26,6 +28,9 @@ interface JobsCompensationTabProps {
 const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, accessToken, employeeId }) => {
   const [activeSubTab, setActiveSubTab] = useState('current')
   const empId = employeeId || employee.id
+
+  // Feature flag for Growth tab
+  const growthTabEnabled = !!useFeature(Feature.HCM.CompensationGrowth.Key)
 
   // Fetch compensation data
   const { loading, error, compensationData, historyData, refetch } = useCompensationData(empId, accessToken)
@@ -65,7 +70,9 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, accessT
 
       {/* Sub-tabs for Current Compensation, Compensation History, and Growth */}
       <TabSwitch value={activeSubTab} onValueChange={setActiveSubTab} className="gba:w-full">
-        <TabSwitchList className="gba:grid gba:w-[45%] gba:grid-cols-3 gba:mb-6">
+        <TabSwitchList
+          className={`gba:grid gba:w-[45%] ${growthTabEnabled ? 'gba:grid-cols-3' : 'gba:grid-cols-2'} gba:mb-6`}
+        >
           <TabSwitchTrigger
             value="current"
             startIcon={<PiCurrencyEur className="gba:w-5 gba:h-5" />}
@@ -80,13 +87,15 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, accessT
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.history', 'Compensation History')}
           </TabSwitchTrigger>
-          <TabSwitchTrigger
-            value="growth"
-            startIcon={<PiTrendUp className="gba:w-5 gba:h-5" />}
-            data-testid="compensation-growth-tab"
-          >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.growth', 'Growth')}
-          </TabSwitchTrigger>
+          {growthTabEnabled && (
+            <TabSwitchTrigger
+              value="growth"
+              startIcon={<PiTrendUp className="gba:w-5 gba:h-5" />}
+              data-testid="compensation-growth-tab"
+            >
+              {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.growth', 'Growth')}
+            </TabSwitchTrigger>
+          )}
         </TabSwitchList>
 
         <TabSwitchContent value="current">
@@ -104,9 +113,11 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, accessT
           {historyData && <PayHistoryView historyData={historyData} loading={loading} />}
         </TabSwitchContent>
 
-        <TabSwitchContent value="growth">
-          {historyData?.growthData && <GrowthView growthData={historyData.growthData} loading={loading} />}
-        </TabSwitchContent>
+        {growthTabEnabled && (
+          <TabSwitchContent value="growth">
+            {historyData?.growthData && <GrowthView growthData={historyData.growthData} loading={loading} />}
+          </TabSwitchContent>
+        )}
       </TabSwitch>
     </div>
   )
