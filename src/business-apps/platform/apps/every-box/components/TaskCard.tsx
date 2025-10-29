@@ -10,6 +10,7 @@ import {
   Badge,
   Button,
   Avatar,
+  AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system';
 import { Clock, AlertTriangle, Eye, User } from 'lucide-react';
@@ -24,13 +25,15 @@ import {
   formatTaskStatus,
   formatPriority
 } from '../utils/taskFormatters';
+import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar';
 
 interface TaskCardProps {
   task: UnifiedTask;
   onView: (task: UnifiedTask) => void;
+  accessToken: string;
 }
 
-export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView }) => {
+export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, accessToken }) => {
   const overdue = isOverdue(task.dueDate);
   const dueSoon = isDueSoon(task.dueDate);
 
@@ -51,12 +54,29 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView }) => {
   // Get flow name from workflowMeta
   const flowName = task.workflowMeta?.rootWorkflowId || task.flowId;
 
-  // Get creator information
-  const creatorName = task.sourceMetadata?.creatorName || task.sourceMetadata?.ownerName || 'Unknown';
+  // Extract creator employee ID from different sources
+  // For Kogito tasks: creatorUserId is the employee ID
+  // For CFlow tasks: check various possible fields for creator ID
+  const creatorEmployeeId = task.sourceMetadata?.creatorUserId || 
+                           task.sourceMetadata?.createdBy ||
+                           task.sourceMetadata?.initiatedBy ||
+                           task.assignment?.assignedTo;
+
+  // Fetch employee avatar data
+  const { employeeData } = useEmployeeAvatar(accessToken, creatorEmployeeId);
+
+  // Get creator name - prefer fetched data, fallback to metadata
+  const creatorName = employeeData 
+    ? `${employeeData.firstName} ${employeeData.lastName}`.trim()
+    : task.sourceMetadata?.creatorName || task.sourceMetadata?.ownerName || 'Unknown';
+  
   const createdAt = task.createdAt || task.scheduledAt || task.sourceMetadata?.createdAt;
   
   // Generate initials from creator name
   const getInitials = (name: string): string => {
+    if (employeeData) {
+      return `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase();
+    }
     const parts = name.trim().split(/\s+/);
     if (parts.length >= 2) {
       return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
@@ -76,7 +96,13 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView }) => {
             {/* Creator info section */}
             <div className="gba:flex gba:items-center gba:gap-3 gba:mb-3" data-testid="task-creator-section">
               <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0" data-testid="task-creator-avatar">
-                <AvatarFallback className="gba:text-xs gba:font-medium">
+                {employeeData?.pictureThumbnail && (
+                  <AvatarImage
+                    src={`data:image/jpeg;base64,${employeeData.pictureThumbnail}`}
+                    alt={creatorName}
+                  />
+                )}
+                <AvatarFallback className="gba:text-xs gba:font-medium gba:bg-gradient-to-br gba:from-blue-500 gba:to-purple-600 gba:text-white">
                   {getInitials(creatorName)}
                 </AvatarFallback>
               </Avatar>
