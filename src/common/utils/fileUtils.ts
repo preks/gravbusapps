@@ -44,11 +44,25 @@ export const buildFileUrl = (fileInfo: FileInfo): string => {
 export const formatFileSize = (bytes: number | undefined): string => {
   if (!bytes || bytes === 0) return '0 Bytes'
 
+  // Validate input is a valid number
+  if (typeof bytes !== 'number' || isNaN(bytes) || bytes < 0) {
+    return '0 Bytes'
+  }
+
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
 
-  return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`
+  // Ensure index is within bounds
+  const sizeIndex = Math.min(i, sizes.length - 1)
+  const formattedSize = Number.parseFloat((bytes / Math.pow(k, sizeIndex)).toFixed(2))
+
+  // Handle potential NaN from parseFloat
+  if (isNaN(formattedSize)) {
+    return '0 Bytes'
+  }
+
+  return `${formattedSize} ${sizes[sizeIndex]}`
 }
 
 /**
