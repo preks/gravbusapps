@@ -190,8 +190,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
         tags: Object.keys(templateTags).length > 0 ? templateTags : undefined
       }
 
-      console.log('FlowDesigner: Saving template data:', JSON.stringify(templateData, null, 2))
-
       if (onSave) {
         // Use the provided onSave callback
         await onSave(templateData)
@@ -205,8 +203,6 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
           await flowTemplateClient.createTemplate(templateData)
         }
       }
-
-      console.log(`Template ${isEditMode ? 'updated' : 'created'} successfully`)
     } catch (error) {
       console.error('Error saving template:', error)
       setSaveError(error instanceof Error ? error.message : 'Failed to save template')
