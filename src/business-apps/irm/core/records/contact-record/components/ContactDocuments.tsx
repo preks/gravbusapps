@@ -62,7 +62,7 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
             code: doc.documentGroup.code
           }
         : null,
-      file: doc.file,
+      file: doc.file || (doc as any)?.fileInfo?.fileId,
       mimeType: doc.mimeType,
       fileSize: doc.fileSize,
       createdBy: doc.createdBy,

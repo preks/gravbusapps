@@ -237,7 +237,9 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
       } else {
         // Handle individual filter removal - find which filters were removed and remove them
         const removedFilters = selectedFilters.filter((f: any) => !filters.includes(f))
-        removedFilters.forEach((filterId: any) => removeFilter(filterId))
+        removedFilters.forEach((filterId: any) => {
+          removeFilter(filterId)
+        })
       }
     },
     [clearAllFilters, selectedFilters, removeFilter]
@@ -280,7 +282,7 @@ const EquityInvestmentsList: React.FC<EquityInvestmentsListProps> = props => {
         ),
         actions: (
           <AppAction
-            contextsArray={[FlowContextName.createInvestment]}
+            contextsArray={[FlowContextName.investmentCreate]}
             externalContextData={{
               investmentGroup: 'InvestmentGroup:v1:EQUITY',
               fromView: 'investments',

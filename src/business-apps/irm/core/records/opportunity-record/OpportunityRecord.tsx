@@ -247,7 +247,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
               code: doc.documentGroup.code
             }
           : null,
-        file: doc.file || null,
+        file: doc.file || (doc as any)?.fileInfo?.fileId || null,
         mimeType: doc.mimeType || null,
         fileSize: doc.fileSize,
         createdBy: doc.createdBy || null,
@@ -393,7 +393,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
 
   const activityActionProps = useMemo(
     () => ({
-      contextsArray: [FlowContextName.createInvestmentActivity],
+      contextsArray: [FlowContextName.investmentActivityCreate],
       externalContextData: {
         opportunityId,
         opportunity: opportunityId,
