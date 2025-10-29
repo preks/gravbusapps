@@ -4,6 +4,7 @@ import { env } from '@/common/env/EnvUtils'
 export interface FlowExecutionTask {
   id: string
   name: string
+  nodeName?: string
   referenceName?: string
   description?: string
   priority?: number

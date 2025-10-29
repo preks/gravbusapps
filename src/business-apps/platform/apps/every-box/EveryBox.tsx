@@ -77,74 +77,71 @@ export const EveryBox: React.FC<EveryBoxProps> = ({
     };
   }, [refetchTasks, refetchFlows]);
 
-  const handleRefreshAll = () => {
-    refetchTasks();
-    refetchFlows();
-  };
-
   return (
     <ErrorBoundary>
       <div
-        className="gba:container gba:mx-auto gba:py-6 gba:px-4"
+        className="gba:h-screen gba:overflow-auto gba:p-6"
         data-testid={`${prefixDataTestId}-container`}
       >
-        <Card>
-        <CardContent className="gba:p-6">
-          {/* Header */}
-          <div className="gba:mb-6">
-            <h1 className="gba:text-2xl gba:font-bold gba:mb-2" data-testid={`${prefixDataTestId}-title`}>
-              EveryBox
-            </h1>
-            <p className="gba:text-muted-foreground gba:text-sm">
-              Manage all your tasks and workflows in one place
-            </p>
-          </div>
+        <div className="gba:container gba:mx-auto gba:max-w-7xl">
+          <Card>
+            <CardContent className="gba:p-6">
+              {/* Header */}
+              <div className="gba:mb-6">
+                <h1 className="gba:text-2xl gba:font-bold gba:mb-2" data-testid={`${prefixDataTestId}-title`}>
+                  EveryBox
+                </h1>
+                <p className="gba:text-muted-foreground gba:text-sm">
+                  Manage all your tasks and workflows in one place
+                </p>
+              </div>
 
-          {/* Tabs */}
-          <Tabs defaultValue="inbox" data-testid={`${prefixDataTestId}-tabs`}>
-            <TabsList className="gba:grid gba:w-full gba:grid-cols-2 gba:mb-6">
-              <TabsTrigger value="inbox" data-testid={`${prefixDataTestId}-inbox-tab`}>
-                <Inbox className="gba:mr-2 gba:h-4 gba:w-4" />
-                Inbox
-                {tasks.length > 0 && (
-                  <Badge variant="secondary" className="gba:ml-2">
-                    {tasks.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="outbox" data-testid={`${prefixDataTestId}-outbox-tab`}>
-                <Send className="gba:mr-2 gba:h-4 gba:w-4" />
-                Outbox
-                {flows.length > 0 && (
-                  <Badge variant="secondary" className="gba:ml-2">
-                    {flows.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            </TabsList>
+              {/* Tabs */}
+              <Tabs defaultValue="inbox" data-testid={`${prefixDataTestId}-tabs`}>
+                <TabsList className="gba:grid gba:w-full gba:grid-cols-2 gba:mb-6">
+                  <TabsTrigger value="inbox" data-testid={`${prefixDataTestId}-inbox-tab`}>
+                    <Inbox className="gba:mr-2 gba:h-4 gba:w-4" />
+                    Inbox
+                    {tasks.length > 0 && (
+                      <Badge variant="secondary" className="gba:ml-2">
+                        {tasks.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="outbox" data-testid={`${prefixDataTestId}-outbox-tab`}>
+                    <Send className="gba:mr-2 gba:h-4 gba:w-4" />
+                    Outbox
+                    {flows.length > 0 && (
+                      <Badge variant="secondary" className="gba:ml-2">
+                        {flows.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
 
-            <TabsContent value="inbox">
-              <InboxView
-                {...context}
-                tasks={tasks}
-                isLoading={tasksLoading}
-                error={tasksError}
-                onRefresh={refetchTasks}
-              />
-            </TabsContent>
+                <TabsContent value="inbox">
+                  <InboxView
+                    {...context}
+                    tasks={tasks}
+                    isLoading={tasksLoading}
+                    error={tasksError}
+                    onRefresh={refetchTasks}
+                  />
+                </TabsContent>
 
-            <TabsContent value="outbox">
-              <OutboxView
-                flows={flows}
-                isLoading={flowsLoading}
-                error={flowsError}
-                onRefresh={refetchFlows}
-              />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </div>
+                <TabsContent value="outbox">
+                  <OutboxView
+                    flows={flows}
+                    isLoading={flowsLoading}
+                    error={flowsError}
+                    onRefresh={refetchFlows}
+                  />
+                </TabsContent>
+              </Tabs>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </ErrorBoundary>
   );
 };

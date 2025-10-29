@@ -250,6 +250,7 @@ export function adaptKogitoTask(kogitoTask: KogitoTask, userId?: string): Unifie
       assigneeNames: kogitoTask.assigneeNames,
       endpoint: kogitoTask.endpoint,
       customFlowId: kogitoTask.customFlowId,
+      nodeName: kogitoTask.nodeName,
       inputs: kogitoTask.inputs,
       variables: kogitoTask.variables
     }
