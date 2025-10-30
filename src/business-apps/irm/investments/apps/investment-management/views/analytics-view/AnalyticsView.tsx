@@ -7,9 +7,9 @@ import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Import the investment report components
-import EquityInvestmentsReport from './equity-investments-report/EquityInvestmentsReport'
-import LiquidFundInvestmentsReport from './liquid-fund-report/LiquidFundInvestmentsReport'
-import RealEstateInvestmentsReport from './real-estate-report/RealEstateInvestmentsReport'
+import EquityInvestmentsReport from './equity-analytics/EquityInvestmentsReport'
+import LiquidFundInvestmentsReport from './liquid-fund-analytics/LiquidFundInvestmentsReport'
+import RealEstateInvestmentsReport from './real-estate-analytics/RealEstateInvestmentsReport'
 import { InvestmentPortfolioOverview } from './overview'
 
 export interface AnalyticsViewProps extends BusinessAppContextProps {
@@ -40,9 +40,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = props => {
       const params: Record<string, string> = {}
 
       // Preserve existing query parameters
-      currentUrl.searchParams.forEach((value, key) => {
+      for (const [key, value] of currentUrl.searchParams.entries()) {
         params[key] = value
-      })
+      }
 
       // Update the analytics tab parameter
       params.analyticsTab = tab

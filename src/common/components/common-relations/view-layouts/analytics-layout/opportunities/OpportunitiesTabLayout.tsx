@@ -64,7 +64,9 @@ export interface OpportunitiesTabLayoutProps {
   selectedTimeFilter: OpportunityTimeFilter
   onTimeFilterChange: (filter: OpportunityTimeFilter) => void
   opportunitiesByStage: Array<{ stage: string; count: number; value: number }>
-  opportunitiesByPipeline: Array<{ pipeline: string; count: number; percentage: number }>
+  selectedStagePipelineId?: string
+  onStagePipelineChange?: (id: string) => void
+  opportunitiesByPipeline: Array<{ pipelineId: string; pipeline: string; count: number; percentage: number }>
   topDeals: Array<{ id: string; name: string; value: number; stage: string; winChance: number; owner: string }>
   velocityData?: { averageDaysInPipeline: number; velocityTrend: any[]; quickWins: any[]; slowMovers: any[] } | null
   dealHealthData?: { healthDistribution: any; matrixData: any[] } | null
@@ -90,6 +92,8 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
   selectedTimeFilter,
   onTimeFilterChange,
   opportunitiesByStage,
+  selectedStagePipelineId,
+  onStagePipelineChange,
   opportunitiesByPipeline,
   topDeals,
   velocityData,
@@ -279,7 +283,13 @@ export const OpportunitiesTabLayout: React.FC<OpportunitiesTabLayoutProps> = ({
 
       <div className="gba:flex gba:flex-col lg:gba:flex-row gba:gap-6">
         <div className="gba:flex-1 lg:gba:w-3/4">
-          <OpportunitiesByStageBar data={opportunitiesByStage} moduleColor={moduleColor} />
+          <OpportunitiesByStageBar
+            data={opportunitiesByStage}
+            moduleColor={moduleColor}
+            pipelines={pipelines}
+            selectedPipelineId={selectedStagePipelineId}
+            onPipelineChange={onStagePipelineChange}
+          />
         </div>
         <div className="gba:flex-1 lg:gba:w-1/4 lg:gba:flex-none">
           <OpportunitiesByPipelinePie data={opportunitiesByPipeline} moduleColor={moduleColor} />

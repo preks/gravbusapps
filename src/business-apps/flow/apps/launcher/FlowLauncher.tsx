@@ -5,6 +5,7 @@ import { env } from '@/common/env/EnvUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
   Toaster,
+  toast,
   Button,
   Alert,
   Spinner,
@@ -16,8 +17,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-  toast
+  SelectValue
 } from '@newwork/nw-design-system'
 import { AlertTriangle, RefreshCw, Play } from 'lucide-react'
 import { MockDataProvider } from '../../providers/MockDataProvider'

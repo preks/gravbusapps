@@ -12,5 +12,8 @@ export * from './investmentRelationTypes'
 // Essential enums
 export * from './investmentEnums'
 
+// Rejection reason types
+export * from './rejectionReasonTypes'
+
 // Re-export common types for convenience
 export type { CatalogEntry, EmployeeRef } from '@/common/network/graphql/commonTypes'

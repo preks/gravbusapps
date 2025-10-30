@@ -8,7 +8,7 @@ import {
   SelectValue,
   Spinner
 } from '@newwork/nw-design-system'
-import { Tags, Info } from 'lucide-react'
+import { AppWindow, FolderTree } from 'lucide-react'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { CatalogEntry } from '@/common/types/CatalogTypes'
 import { FlowTags } from '../../types'
@@ -162,19 +162,6 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-        <Tags className="gba:h-4 gba:w-4" />
-        <h3 className="gba:text-sm gba:font-medium">
-          {getTranslationFromI18nKeyAndLabel('flow.creator.tags.title', 'Tags')}
-        </h3>
-        <div className="gba:group gba:relative gba:z-50">
-          <Info className="gba:h-4 gba:w-4 gba:text-gray-400 gba:cursor-help" />
-          <div className="gba:absolute gba:bottom-full gba:left-1/2 gba:transform gba:-translate-x-1/2 gba:mb-2 gba:px-3 gba:py-2 gba:bg-gray-900 gba:text-white gba:text-xs gba:rounded gba:opacity-0 gba:pointer-events-none group-hover:gba:opacity-100 gba:transition-opacity gba:duration-200 gba:z-[100] gba:max-w-xs gba:text-center gba:whitespace-normal">
-            Tags control template visibility in different parts of the application
-          </div>
-        </div>
-      </div>
-
       {error && (
         <div className="gba:p-3 gba:bg-red-50 gba:border gba:border-red-200 gba:rounded-md">
           <p className="gba:text-sm gba:text-red-800">{error}</p>
@@ -183,7 +170,10 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
 
       {/* App Selection */}
       <div className="gba:space-y-2">
-        <Label htmlFor="app-select">{getTranslationFromI18nKeyAndLabel('flow.creator.tags.app', 'Application')}</Label>
+        <Label htmlFor="app-select" className="gba:flex gba:items-center gba:gap-2">
+          <AppWindow className="gba:h-4 gba:w-4" />
+          {getTranslationFromI18nKeyAndLabel('flow.creator.tags.app', 'Application')}
+        </Label>
         <Select value={selectedApp || '__NONE__'} onValueChange={handleAppChange} disabled={isLoadingApps}>
           <SelectTrigger id="app-select" className="gba:w-full" data-testid={`${testId}-app-select`}>
             <SelectValue placeholder={isLoadingApps ? 'Loading applications...' : 'Select an application'} />
@@ -221,7 +211,8 @@ export const TagConfiguration: React.FC<TagConfigurationProps> = ({
       {/* Service Category Selection - Only shown when Service Portal is selected */}
       {isServicePortalSelected && (
         <div className="gba:space-y-2">
-          <Label htmlFor="service-category-select">
+          <Label htmlFor="service-category-select" className="gba:flex gba:items-center gba:gap-2">
+            <FolderTree className="gba:h-4 gba:w-4" />
             {getTranslationFromI18nKeyAndLabel('flow.creator.tags.serviceCategory', 'Service Category')}
           </Label>
           <Select
