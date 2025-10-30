@@ -122,9 +122,9 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         <Alert variant="destructive">
           <AlertTitle>{t('error')}</AlertTitle>
           <AlertDescription>
-            {error}
+            {error?.message || String(error)}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              Retry
+              {t('retry')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -159,7 +159,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
               />
             </div>
             <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} placeholder="Search Knowledge Base" />
+              <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
                 externalContextData={{ contentGroup: contentGroupMapper[KNOWLEDGE_BASE] }}
@@ -168,7 +168,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
                 deferMainContextRequestsUntilClick
                 data-testid="knowledge-view-create-button"
               >
-                <Button>Create Article</Button>
+                <Button>{t('create_article')}</Button>
               </AppAction>
             </div>
           </div>
@@ -207,7 +207,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
 
           {!isLoading && regularArticles.length === 0 && !featuredArticle && (
             <div className="gba:col-span-3 gba:text-center gba:py-12">
-              <p className="gba:text-muted-foreground">No knowledge articles found</p>
+              <p className="gba:text-muted-foreground">{t('no_knowledge_found')}</p>
             </div>
           )}
         </div>
@@ -215,7 +215,7 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         {hasMore && (
           <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
             <Button variant="default" className="gba:w-56" onClick={loadMore} disabled={isLoading}>
-              Load More
+              {t('load_more')}
             </Button>
           </div>
         )}

@@ -1,49 +1,23 @@
-# Buttons
+# Common actions
 save = Speichern
 cancel = Abbrechen
 delete = Löschen
 edit = Bearbeiten
-close = Schließen
-back = Zurück
-next = Weiter
-submit = Absenden
-reset = Zurücksetzen
-search = Suchen
-filter = Filtern
-clear = Löschen
-
-# Actions
-add = Hinzufügen
-remove = Entfernen
+create = Erstellen
 update = Aktualisieren
-view = Ansehen
-download = Herunterladen
-upload = Hochladen
-
-# States
-loading = Lädt...
-error = Fehler
-success = Erfolgreich
-warning = Warnung
-info = Information
+close = Schließen
+submit = Absenden
 
 # Common labels
-name = Name
-description = Beschreibung
-status = Status
-date = Datum
-created = Erstellt
-modified = Geändert
+error = Fehler
+success = Erfolg
+warning = Warnung
+info = Info
+retry = Erneut versuchen
+load_more = Mehr laden
+loading = Laden
+search = Suchen
 
-# Business entities
-employee = Mitarbeiter
-employees = Mitarbeiter
-account = Kunde
-accounts = Kunden
-contact = Kontakt
-contacts = Kontakte
-lead = Lead
-leads = Leads
-opportunity = Verkaufschance
-opportunities = Verkaufschancen
-
+# Common messages
+no_results = Keine Ergebnisse gefunden
+no_data = Keine Daten verfügbar

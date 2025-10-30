@@ -135,6 +135,21 @@
       transform: rotate(360deg);
     }
   }
+
+  /* Gradient animation for banner backgrounds */
+  @keyframes gradient-x {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+}
+
+@utility animate-gradient-x {
+  animation: gradient-x 15s ease infinite;
 }
 
 @layer utilities {

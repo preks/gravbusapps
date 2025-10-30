@@ -1,15 +1,16 @@
 import React, { useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Button } from '@newwork/nw-design-system'
 import { Share2 } from 'lucide-react'
-import { Content } from '@/business-apps/core/content/apps/content-portal/types/content.types'
+import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { copyUrlToClipboard } from '@/business-apps/core/content/apps/content-portal/utils/contentUtils'
 import { useUserContentReactions, ReactionSummary } from '@/common/data/content'
 import { ReactionButton } from '@/business-apps/core/content/components/interactions'
+import translations from '../_i18n'
 import dayjs from 'dayjs'
 
 interface ContentInfoSectionProps {
-  item: Content
+  item: ContentEntry
   accessToken: string
   userId: string | undefined
   employeeId: string | undefined
@@ -25,16 +26,16 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
   allowedReactions,
   reactionCatalogMap
 }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
 
   // Fetch reactions using central hook
   const { reactionsByArticle, refetch: refetchReactions } = useUserContentReactions({
-    contentEntryIds: [item.articleId],
+    contentEntryIds: [item.id],
     currentUserId: userId,
     accessToken
   })
 
-  const reactionSummary: ReactionSummary = reactionsByArticle[item.articleId] || {}
+  const reactionSummary: ReactionSummary = reactionsByArticle[item.id] || {}
 
   const formattedDate = useMemo(() => {
     return item.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
@@ -51,19 +52,10 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
     >
       {/* Author and Date Info */}
       <div className="gba:flex gba:flex-row gba:items-center">
-        {item.displayAuthor && item.author && (
+        {item.displayCreator && item.creatorDisplayName && (
           <>
-            <p className="gba:text-sm gba:font-bold gba:text-foreground">
-              {item.author.firstName} {item.author.lastName}
-            </p>
-
-            {item.author.jobPosition && (
-              <>
-                <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
-                <p className="gba:text-sm gba:font-regular gba:text-foreground">{item.author.jobPosition}</p>
-                <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
-              </>
-            )}
+            <p className="gba:text-sm gba:font-bold gba:text-foreground">{item.creatorDisplayName}</p>
+            <p className="gba:text-sm gba:font-regular gba:mx-3 gba:text-muted-foreground">•</p>
           </>
         )}
 
@@ -78,7 +70,7 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
       <div className="gba:flex gba:flex-row gba:items-center gba:ml-auto gba:gap-4">
         {item.allowReaction && (
           <ReactionButton
-            contentEntryId={item.articleId}
+            contentEntryId={item.id}
             reactionSummary={reactionSummary}
             allowReaction={item.allowReaction}
             accessToken={accessToken}

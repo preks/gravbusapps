@@ -1,8 +1,9 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Content } from '../../types/content.types'
 import { MessageSquare } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import translations from '../../_i18n'
 
 interface TrendingNowProps {
   articles: Content[]
@@ -18,7 +19,7 @@ const calculateTrendingScore = (article: Content): number => {
 }
 
 const TrendingNow: React.FC<TrendingNowProps> = ({ articles, className = '', currentTab }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
 
   const trendingArticles = [...articles]
     .sort((a, b) => calculateTrendingScore(b) - calculateTrendingScore(a))

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Input } from '@newwork/nw-design-system'
-import { useTranslation } from 'react-i18next'
+import { Input, useTranslation } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 
 interface SearchInputProps {
   onSearch: (query: string) => void
@@ -13,7 +13,7 @@ interface SearchInputProps {
  * Reusable search input component with debouncing
  */
 const SearchInput: React.FC<SearchInputProps> = ({ onSearch, className = '', placeholder, autoReset = false }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<string>('')
 

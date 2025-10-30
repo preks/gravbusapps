@@ -1,5 +1,5 @@
 export { LikeButton } from './LikeButton'
-export { ReactionButton } from './ReactionButton'
+export { ReactionButton, type ReactionSummary } from './ReactionButton'
 export { CommentSection } from './CommentSection'
 export { CommentItem } from './CommentItem'
 export { CommentForm } from './CommentForm'

@@ -1,12 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation } from 'react-i18next'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
 import { ArrowLeft } from 'lucide-react'
-import { useContent } from '@/business-apps/core/content/records/content-record/hooks/useContent'
+import { useContentEntry } from '@/common/data/content'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import ContentPage from './components/ContentPage'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import translations from './_i18n'
 
 export interface ContentRecordProps extends BusinessAppContextProps {
   contentId?: string
@@ -18,10 +19,9 @@ const CATALOG_IDENTIFIER = 'ContentReaction'
 const CATALOG_VERSION = 'v1'
 
 const ContentRecord: React.FC<ContentRecordProps> = context => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const catalogClient = useCatalogManagerClient(context.accessToken)
   const [reactionCatalogMap, setReactionCatalogMap] = useState<Record<string, string>>(context.reactionCatalogMap || {})
-  const [allowedReactions, setAllowedReactions] = useState<string[]>(context.allowedReactions || [])
 
   // Get contentId from props or URL query parameters
   const contentId = useMemo(() => {
@@ -30,7 +30,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
 
   // Load allowed reactions if not provided
   useEffect(() => {
-    if (context.reactionCatalogMap && context.allowedReactions) {
+    if (context.reactionCatalogMap) {
       return // Already provided
     }
 
@@ -48,36 +48,35 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
           }
         )
 
-        const entries = (response as any).catalogEntries || []
+        const entries = (response as any).data || []
 
-        // Build map: unified code -> catalog entry ID
+        // Build map: value -> catalog entry ID (only for +1/-1 votes)
         const catalogMap: Record<string, string> = {}
-        const reactions: string[] = []
 
         entries.forEach((entry: any) => {
-          const unifiedCode = entry.additionalValue2
-          if (unifiedCode && entry.id) {
-            catalogMap[unifiedCode] = entry.id
-            reactions.push(unifiedCode)
+          // For +1 and -1 votes (check by ID)
+          if (entry.id === 'ContentReaction:v1:+1') {
+            catalogMap['+1'] = entry.id
+          } else if (entry.id === 'ContentReaction:v1:-1') {
+            catalogMap['-1'] = entry.id
           }
         })
 
         setReactionCatalogMap(catalogMap)
-        setAllowedReactions(reactions)
       } catch (error) {
         console.error('Error loading reactions:', error)
       }
     }
 
     loadReactions()
-  }, [context.accessToken, context.reactionCatalogMap, context.allowedReactions])
+  }, [context.accessToken, context.reactionCatalogMap])
 
   // Get the tab parameter to know which tab to return to
   const fromTab = useMemo(() => {
     return new URLSearchParams(window.location.search).get('tab') || 'intranet'
   }, [])
 
-  const { item, isUpdating, error, contentNotFound } = useContent(contentId, context.accessToken)
+  const { entry: item, isLoading, error } = useContentEntry(contentId, { accessToken: context.accessToken })
 
   const handleBackClick = () => {
     const url = buildPlatformUrl('/platform/content/intranet', { tab: fromTab })
@@ -102,7 +101,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     )
   }
 
-  if (isUpdating) {
+  if (isLoading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-screen">
         <div className="gba:animate-spin gba:rounded-full gba:h-12 gba:w-12 gba:border-b-2 gba:border-primary"></div>
@@ -110,11 +109,11 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     )
   }
 
-  if (error || contentNotFound) {
+  if (error || !item) {
     return (
       <div className="gba:p-6 gba:max-w-4xl gba:mx-auto" data-testid="content-record-error">
         <Alert variant="destructive">
-          <AlertTitle>{contentNotFound ? t('content_not_found') : t('error_loading_content')}</AlertTitle>
+          <AlertTitle>{!item ? t('content_not_found') : t('error_loading_content')}</AlertTitle>
           <AlertDescription>
             <Button onClick={handleBackClick} variant="outline" className="gba:mt-2">
               {t('go_back')}
@@ -123,10 +122,6 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         </Alert>
       </div>
     )
-  }
-
-  if (!item) {
-    return null
   }
 
   return (
@@ -145,7 +140,6 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         accessToken={context.accessToken}
         userId={context.userInfo?.id}
         employeeId={context.userInfo?.employeeDetails?.employeeId}
-        allowedReactions={allowedReactions}
         reactionCatalogMap={reactionCatalogMap}
       />
     </div>

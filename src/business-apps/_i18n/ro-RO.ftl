@@ -1,49 +1,23 @@
-# Buttons
+# Common actions
 save = Salvează
 cancel = Anulează
 delete = Șterge
 edit = Editează
-close = Închide
-back = Înapoi
-next = Următorul
-submit = Trimite
-reset = Resetează
-search = Căutare
-filter = Filtru
-clear = Șterge
-
-# Actions
-add = Adaugă
-remove = Elimină
+create = Creează
 update = Actualizează
-view = Vizualizare
-download = Descarcă
-upload = Încarcă
+close = Închide
+submit = Trimite
 
-# States
-loading = Se încarcă...
+# Common labels
 error = Eroare
 success = Succes
 warning = Avertisment
-info = Informație
+info = Info
+retry = Reîncercați
+load_more = Încărcați mai multe
+loading = Se încarcă
+search = Căutare
 
-# Common labels
-name = Nume
-description = Descriere
-status = Status
-date = Dată
-created = Creat
-modified = Modificat
-
-# Business entities
-employee = Angajat
-employees = Angajați
-account = Cont
-accounts = Conturi
-contact = Contact
-contacts = Contacte
-lead = Lead
-leads = Lead-uri
-opportunity = Oportunitate
-opportunities = Oportunități
-
+# Common messages
+no_results = Nu s-au găsit rezultate
+no_data = Nu sunt date disponibile

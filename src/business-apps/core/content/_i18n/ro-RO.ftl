@@ -17,7 +17,7 @@ archived = Arhivat
 pending = În așteptare
 
 # Content actions
-create-content = Crează conținut
+create-content = Creează conținut
 edit-content = Editează conținut
 delete-content = Șterge conținut
 publish-content = Publică conținut
@@ -31,3 +31,15 @@ created-at = Creat la
 updated-at = Actualizat la
 published-at = Publicat la
 
+# Shared UI elements
+content_link_copied = Link copiat în clipboard
+no_image = Fără imagine
+content_image = Imagine conținut
+
+# Comments & Interactions
+comment = comentariu
+comments = comentarii
+add_comment = Adaugă comentariu
+answer = Răspuns
+answers = Răspunsuri
+unknown = Necunoscut

@@ -1,10 +1,10 @@
 import React from 'react'
 import { Content } from '../../types/content.types'
-import { useTranslation } from 'react-i18next'
-import { Badge } from '@newwork/nw-design-system'
+import { useTranslation, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import translations from '../../_i18n'
 
 interface MainFeaturedArticleProps {
   item: Content
@@ -14,7 +14,7 @@ interface MainFeaturedArticleProps {
 }
 
 const MainFeaturedArticle: React.FC<MainFeaturedArticleProps> = ({ item, onClick, currentTab, reactionSummary }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const createdDate = item?.createdAt
     ? new Date(item.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
     : ''

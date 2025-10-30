@@ -95,7 +95,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
           <AlertDescription>
             {error?.message || 'An error occurred'}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              Retry
+              {t('retry')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -130,7 +130,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
               />
             </div>
             <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} placeholder="Search Documents" />
+              <SearchInput onSearch={handleSearch} placeholder={t('search_documents')} />
               <AppAction
                 contextsArray={[FlowContextName.contentEntryCreate]}
                 externalContextData={{ contentGroup: contentGroupMapper[DOCUMENT] }}
@@ -139,7 +139,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                 deferMainContextRequestsUntilClick
                 data-testid="document-view-create-button"
               >
-                <Button>Create Document</Button>
+                <Button>{t('create_document')}</Button>
               </AppAction>
             </div>
           </div>
@@ -163,7 +163,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
 
           {!isLoading && data.length === 0 && (
             <div className="gba:col-span-3 gba:text-center gba:py-12">
-              <p className="gba:text-muted-foreground">No documents found</p>
+              <p className="gba:text-muted-foreground">{t('no_documents_found')}</p>
             </div>
           )}
         </div>
@@ -177,7 +177,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
               disabled={isLoading}
               data-testid="document-view-load-more"
             >
-              Load More
+              {t('load_more')}
             </Button>
           </div>
         )}

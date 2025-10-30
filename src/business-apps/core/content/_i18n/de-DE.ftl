@@ -31,3 +31,15 @@ created-at = Erstellt am
 updated-at = Aktualisiert am
 published-at = Veröffentlicht am
 
+# Shared UI elements
+content_link_copied = Link in Zwischenablage kopiert
+no_image = Kein Bild
+content_image = Inhaltsbild
+
+# Comments & Interactions
+comment = Kommentar
+comments = Kommentare
+add_comment = Kommentar hinzufügen
+answer = Antwort
+answers = Antworten
+unknown = Unbekannt

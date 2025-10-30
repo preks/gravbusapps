@@ -1,13 +1,14 @@
 import React from 'react'
-import { useTranslation } from 'react-i18next'
-import { Badge, Button } from '@newwork/nw-design-system'
+import { useTranslation, Badge, Button } from '@newwork/nw-design-system'
 import { MessageCircle, Share2 } from 'lucide-react'
 import { Content } from '../../types/content.types'
 import { copyUrlToClipboard, calculateReadingTime } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ReactionButton, ReactionSummary } from '@/business-apps/core/content/components/interactions'
+import { ReactionButton } from '@/business-apps/core/content/components/interactions'
+import type { ReactionSummary } from '@/business-apps/core/content/components/interactions/ReactionButton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
+import translations from '../../_i18n'
 
 export type ContentCardVariant = 'news' | 'knowledge' | 'intranet' | 'document'
 
@@ -38,7 +39,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
   reactionSummary = {},
   onReactionsRefetch
 }) => {
-  const { t } = useTranslation('content')
+  const { t } = useTranslation(translations)
   const formattedDate = item?.createdAt ? dayjs(item.createdAt).format('MMM DD, YYYY') : ''
 
   const handleClick = () => {

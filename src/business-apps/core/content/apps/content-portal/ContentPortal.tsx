@@ -33,23 +33,40 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           offset: 0
         })
 
-        // Filter to only parent reactions (no skin tone variants)
-        const parentReactions = result.entries
-          .filter(entry => !entry.parentEntryId && entry.type === 'EMOJI')
-          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-
-        // Build map of unified code -> catalog entry ID
+        // Build map for both vote reactions (+1/-1) and emoji reactions
         const catalogMap: Record<string, string> = {}
-        parentReactions.forEach(entry => {
-          const unifiedCode = entry.additionalValue2 || ''
-          if (unifiedCode && entry.id) {
-            catalogMap[unifiedCode] = entry.id
+        const allowedCodes: string[] = []
+
+        result.entries.forEach(entry => {
+          // For +1 and -1 votes (check by ID)
+          if (entry.id === 'ContentReaction:v1:+1') {
+            catalogMap['+1'] = entry.id
+          } else if (entry.id === 'ContentReaction:v1:-1') {
+            catalogMap['-1'] = entry.id
+          }
+          // For other emoji reactions (excluding +1/-1)
+          else if (entry.type === 'EMOJI' && !entry.parentEntryId && entry.additionalValue2) {
+            const unifiedCode = entry.additionalValue2
+            if (unifiedCode && entry.id) {
+              catalogMap[unifiedCode] = entry.id
+              allowedCodes.push(unifiedCode)
+            }
           }
         })
 
-        const allowedCodes = parentReactions.map(entry => entry.additionalValue2 || '').filter(code => code !== '')
+        // Sort emoji codes by display order (exclude +1/-1)
+        const emojiEntries = result.entries
+          .filter(
+            entry =>
+              !entry.parentEntryId &&
+              entry.type === 'EMOJI' &&
+              entry.id !== 'ContentReaction:v1:+1' &&
+              entry.id !== 'ContentReaction:v1:-1'
+          )
+          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+        const sortedCodes = emojiEntries.map(entry => entry.additionalValue2 || '').filter(code => code !== '')
 
-        setAllowedReactions(allowedCodes)
+        setAllowedReactions(sortedCodes.length > 0 ? sortedCodes : allowedCodes)
         setReactionCatalogMap(catalogMap)
       } catch (error) {
         console.error('Failed to load reactions catalog:', error)
@@ -271,6 +288,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
         <TabSwitchContent value="questions" data-testid="intranet-content-questions">
           <QuestionView
             accessToken={context.accessToken}
+            userInfo={context.userInfo}
             hideBanner
             currentTab="questions"
             allowedReactions={allowedReactions}

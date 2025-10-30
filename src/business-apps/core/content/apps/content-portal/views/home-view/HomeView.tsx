@@ -103,7 +103,7 @@ const HomeView: React.FC<HomeViewProps> = ({
           <AlertDescription>
             {error?.message || 'An error occurred'}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              Retry
+              {t('retry')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -140,12 +140,14 @@ const HomeView: React.FC<HomeViewProps> = ({
 
         <div className="gba:w-full gba:flex gba:justify-center gba:mb-8 gba:mt-6">
           <div className="gba:w-full gba:max-w-[80%]">
-            <SearchInput onSearch={handleSearch} placeholder="Search Intranet" />
+            <SearchInput onSearch={handleSearch} placeholder={t('search_intranet')} />
           </div>
         </div>
 
         <div className="gba:mb-6">
-          <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">Latest Announcements</h2>
+          <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">
+            {t('latest_announcements')}
+          </h2>
         </div>
 
         <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">
@@ -165,7 +167,9 @@ const HomeView: React.FC<HomeViewProps> = ({
               />
             ))
           ) : (
-            <div className="gba:col-span-2 gba:text-center gba:text-muted-foreground gba:py-8">No more articles</div>
+            <div className="gba:col-span-2 gba:text-center gba:text-muted-foreground gba:py-8">
+              {t('no_more_articles')}
+            </div>
           )}
         </div>
 
@@ -178,14 +182,14 @@ const HomeView: React.FC<HomeViewProps> = ({
               disabled={isLoading}
               data-testid="intranet-view-load-more"
             >
-              Load More
+              {t('load_more')}
             </Button>
           </div>
         )}
 
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12">
-            <p className="gba:text-muted-foreground">No intranet content found</p>
+            <p className="gba:text-muted-foreground">{t('no_intranet_found')}</p>
           </div>
         )}
       </div>

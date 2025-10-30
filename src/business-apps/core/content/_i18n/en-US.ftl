@@ -31,3 +31,15 @@ created-at = Created at
 updated-at = Updated at
 published-at = Published at
 
+# Shared UI elements
+content_link_copied = Content link copied to clipboard
+no_image = No Image
+content_image = Content Image
+
+# Comments & Interactions
+comment = comment
+comments = comments
+add_comment = Add comment
+answer = Answer
+answers = Answers
+unknown = Unknown

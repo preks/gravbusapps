@@ -101,7 +101,7 @@ const NewsView: React.FC<NewsViewProps> = ({
           <AlertDescription>
             {error?.message || 'An error occurred'}
             <Button onClick={refetch} variant="outline" className="gba:mt-2 gba:ml-4">
-              Retry
+              {t('retry')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -124,7 +124,7 @@ const NewsView: React.FC<NewsViewProps> = ({
         {featuredArticles.length > 0 && (
           <>
             <div className="gba:w-full gba:mb-6 gba:py-4">
-              <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">Featured News</h2>
+              <h2 className="gba:text-2xl gba:font-semibold gba:text-foreground">{t('featured_news')}</h2>
             </div>
             <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-10">
               {featuredArticles.map(item => (
@@ -166,7 +166,7 @@ const NewsView: React.FC<NewsViewProps> = ({
                 deferMainContextRequestsUntilClick
                 data-testid="news-view-create-button"
               >
-                <Button>Create Article</Button>
+                <Button>{t('create_article')}</Button>
               </AppAction>
             </div>
           </div>
@@ -198,14 +198,14 @@ const NewsView: React.FC<NewsViewProps> = ({
               disabled={isLoading}
               data-testid="news-view-load-more"
             >
-              Load More
+              {t('load_more')}
             </Button>
           </div>
         )}
 
         {!isLoading && data.length === 0 && (
           <div className="gba:text-center gba:py-12">
-            <p className="gba:text-muted-foreground">No news found</p>
+            <p className="gba:text-muted-foreground">{t('no_news_found')}</p>
           </div>
         )}
       </div>
