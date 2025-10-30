@@ -3,7 +3,7 @@
  * Displays inbox tasks with search, filters, and grouping
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Input, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
 import { Search, RefreshCw, Zap, CheckCircle, Inbox } from 'lucide-react'
 import { UnifiedTask } from '../types'
@@ -15,7 +15,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { filterTasksBySearch } from '../utils/taskGrouping'
 import { useEmployeeAvatarsBatch } from '../hooks/useEmployeeAvatarsBatch'
 
-type TaskFilterType = 'all' | 'blinks' | 'approvals'
+type TaskFilterType = 'all' | 'blinks' | 'approvals' | 'completed'
 
 interface InboxViewProps extends BusinessAppContextProps {
   tasks: UnifiedTask[]
@@ -25,6 +25,14 @@ interface InboxViewProps extends BusinessAppContextProps {
   onRefresh: () => void
   onLoadMore: () => void
   hasMore: boolean
+  // Completed tasks props
+  completedTasks: UnifiedTask[]
+  completedTotalCount: number
+  completedIsLoading: boolean
+  completedError: string | null
+  onCompletedRefresh: () => void
+  onCompletedLoadMore: () => void
+  completedHasMore: boolean
 }
 
 export const InboxView: React.FC<InboxViewProps> = ({
@@ -35,11 +43,44 @@ export const InboxView: React.FC<InboxViewProps> = ({
   onRefresh,
   onLoadMore,
   hasMore,
+  completedTasks,
+  completedTotalCount,
+  completedIsLoading,
+  completedError,
+  onCompletedRefresh,
+  onCompletedLoadMore,
+  completedHasMore,
   ...context
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTask, setSelectedTask] = useState<UnifiedTask | null>(null)
   const [filterType, setFilterType] = useState<TaskFilterType>('all')
+  const [localTasks, setLocalTasks] = useState<UnifiedTask[]>(tasks)
+  const [localCompletedTasks, setLocalCompletedTasks] = useState<UnifiedTask[]>(completedTasks)
+
+  // Sync local tasks with props
+  useEffect(() => {
+    setLocalTasks(tasks)
+  }, [tasks])
+
+  useEffect(() => {
+    setLocalCompletedTasks(completedTasks)
+  }, [completedTasks])
+
+  // Handler to remove task immediately after completion and refresh completed tasks
+  const handleTaskCompleted = useCallback(
+    (taskId: string) => {
+      // Remove from local inbox/active tasks immediately for better UX
+      setLocalTasks(prev => prev.filter(t => t.id !== taskId))
+      setLocalCompletedTasks(prev => prev.filter(t => t.id !== taskId))
+
+      console.log('[InboxView] Task completed locally, removed from inbox. Refreshing completed tasks...')
+
+      // Refresh completed tasks from backend using dedicated endpoint
+      onCompletedRefresh()
+    },
+    [onCompletedRefresh]
+  )
 
   /**
    * Helper function to check if a task is a Blink (quick direct task)
@@ -66,12 +107,21 @@ export const InboxView: React.FC<InboxViewProps> = ({
     )
   }
 
+  // Use appropriate data source based on filter type
+  const currentTasks = filterType === 'completed' ? localCompletedTasks : localTasks
+  const currentTotalCount = filterType === 'completed' ? completedTotalCount : totalCount
+  const currentIsLoading = filterType === 'completed' ? completedIsLoading : isLoading
+  const currentError = filterType === 'completed' ? completedError : error
+  const currentOnRefresh = filterType === 'completed' ? onCompletedRefresh : onRefresh
+  const currentOnLoadMore = filterType === 'completed' ? onCompletedLoadMore : onLoadMore
+  const currentHasMore = filterType === 'completed' ? completedHasMore : hasMore
+
   // Extract user IDs and employee IDs separately
   const { userIds, employeeIds } = useMemo(() => {
     const uIds: string[] = []
     const eIds: string[] = []
 
-    tasks.forEach(task => {
+    currentTasks.forEach(task => {
       // Both Kogito and CFlow tasks have creatorUserId (user ID)
       if (task.sourceMetadata?.creatorUserId) {
         uIds.push(task.sourceMetadata.creatorUserId)
@@ -86,44 +136,47 @@ export const InboxView: React.FC<InboxViewProps> = ({
       userIds: [...new Set(uIds)], // Remove duplicates
       employeeIds: [...new Set(eIds)] // Remove duplicates
     }
-  }, [tasks])
+  }, [currentTasks])
 
   // Batch fetch all employee avatars in one request (handles both userIds and employeeIds)
   const { employeeMap } = useEmployeeAvatarsBatch(context.accessToken || '', userIds, employeeIds)
 
   // Filter tasks (tasks are already sorted by date from the API)
   const filteredTasks = useMemo(() => {
-    let result = tasks
+    let result = currentTasks
 
-    // Apply task type filter
-    if (filterType === 'blinks') {
-      result = result.filter(isBlinkTask)
-    } else if (filterType === 'approvals') {
-      result = result.filter(isApprovalTask)
+    // Apply task type filter (only for active/inbox tasks, not completed)
+    if (filterType !== 'completed') {
+      if (filterType === 'blinks') {
+        result = result.filter(isBlinkTask)
+      } else if (filterType === 'approvals') {
+        result = result.filter(isApprovalTask)
+      }
+      // 'all' shows all active tasks - no filtering
     }
-    // 'all' shows all tasks - no filtering
 
-    // Apply search filter
+    // Apply search filter (including sender name search)
     if (searchQuery.trim()) {
-      result = filterTasksBySearch(result, searchQuery)
+      result = filterTasksBySearch(result, searchQuery, employeeMap)
     }
 
     // Tasks are already sorted by createdAt (desc) from the unified API
     // No additional sorting needed here
 
     return result
-  }, [tasks, searchQuery, filterType])
+  }, [currentTasks, searchQuery, filterType])
 
   // Count tasks by type for badges
   const taskCounts = useMemo(() => {
     return {
       all: tasks.length,
       blinks: tasks.filter(isBlinkTask).length,
-      approvals: tasks.filter(isApprovalTask).length
+      approvals: tasks.filter(isApprovalTask).length,
+      completed: completedTasks.length
     }
-  }, [tasks])
+  }, [tasks, completedTasks])
 
-  if (isLoading && tasks.length === 0) {
+  if (currentIsLoading && currentTasks.length === 0) {
     return <LoadingSkeleton count={5} type="task" />
   }
 
@@ -144,11 +197,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
         <Button
           variant="outline"
           size="icon"
-          onClick={onRefresh}
-          disabled={isLoading}
+          onClick={currentOnRefresh}
+          disabled={currentIsLoading}
           data-testid="inbox-refresh-button"
         >
-          <RefreshCw className={`gba:h-4 gba:w-4 ${isLoading ? 'gba:animate-spin' : ''}`} />
+          <RefreshCw className={`gba:h-4 gba:w-4 ${currentIsLoading ? 'gba:animate-spin' : ''}`} />
         </Button>
       </div>
 
@@ -159,54 +212,66 @@ export const InboxView: React.FC<InboxViewProps> = ({
           size="sm"
           onClick={() => setFilterType('all')}
           data-testid="inbox-filter-all"
-          startIcon={<Inbox className="gba:h-4 gba:w-4" />}
-          endAdornment={
-            <Badge variant="secondary" className="gba:ml-2">
-              {taskCounts.all}
-            </Badge>
-          }
+          className="gba:flex gba:items-center gba:gap-2"
         >
+          <Inbox className="gba:h-4 gba:w-4" />
           All
+          <Badge variant="secondary" className="gba:ml-2">
+            {taskCounts.all}
+          </Badge>
         </Button>
         <Button
           variant={filterType === 'blinks' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setFilterType('blinks')}
           data-testid="inbox-filter-blinks"
-          startIcon={<Zap className="gba:h-4 gba:w-4" />}
-          endAdornment={
-            taskCounts.blinks > 0 && (
-              <Badge variant="secondary" className="gba:ml-2">
-                {taskCounts.blinks}
-              </Badge>
-            )
-          }
+          className="gba:flex gba:items-center gba:gap-2"
         >
+          <Zap className="gba:h-4 gba:w-4" />
           Blinks
+          {taskCounts.blinks > 0 && (
+            <Badge variant="secondary" className="gba:ml-2">
+              {taskCounts.blinks}
+            </Badge>
+          )}
         </Button>
         <Button
           variant={filterType === 'approvals' ? 'default' : 'outline'}
           size="sm"
           onClick={() => setFilterType('approvals')}
           data-testid="inbox-filter-approvals"
-          startIcon={<CheckCircle className="gba:h-4 gba:w-4" />}
-          endAdornment={
-            taskCounts.approvals > 0 && (
-              <Badge variant="secondary" className="gba:ml-2">
-                {taskCounts.approvals}
-              </Badge>
-            )
-          }
+          className="gba:flex gba:items-center gba:gap-2"
         >
+          <CheckCircle className="gba:h-4 gba:w-4" />
           Approvals
+          {taskCounts.approvals > 0 && (
+            <Badge variant="secondary" className="gba:ml-2">
+              {taskCounts.approvals}
+            </Badge>
+          )}
+        </Button>
+        <Button
+          variant={filterType === 'completed' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilterType('completed')}
+          data-testid="inbox-filter-completed"
+          className="gba:flex gba:items-center gba:gap-2"
+        >
+          <CheckCircle className="gba:h-4 gba:w-4" />
+          Completed
+          {taskCounts.completed > 0 && (
+            <Badge variant="secondary" className="gba:ml-2">
+              {taskCounts.completed}
+            </Badge>
+          )}
         </Button>
       </div>
 
       {/* Error Alert */}
-      {error && (
+      {currentError && (
         <Alert variant="destructive">
           <AlertTitle>Error Loading Tasks</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{currentError}</AlertDescription>
         </Alert>
       )}
 
@@ -221,7 +286,9 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 ? 'No Blink tasks at the moment'
                 : filterType === 'approvals'
                   ? 'No approval tasks at the moment'
-                  : 'No tasks assigned to you at the moment'
+                  : filterType === 'completed'
+                    ? 'No completed tasks yet'
+                    : 'No tasks assigned to you at the moment'
           }
         />
       ) : (
@@ -236,13 +303,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
           {!searchQuery.trim() && (
             <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t">
               <p className="gba:text-sm gba:text-muted-foreground">
-                Showing {filteredTasks.length} of {totalCount} tasks
+                Showing {filteredTasks.length} of {currentTotalCount} tasks
               </p>
-              {hasMore && (
+              {currentHasMore && (
                 <Button
                   variant="outline"
-                  onClick={onLoadMore}
-                  disabled={isLoading}
+                  onClick={currentOnLoadMore}
+                  disabled={currentIsLoading}
                   data-testid="inbox-load-more-button"
                 >
                   Load More
@@ -255,11 +322,13 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
       {/* Task Detail Dialog */}
       <TaskDetailDialog
-        {...context}
         task={selectedTask}
         open={!!selectedTask}
         onClose={() => setSelectedTask(null)}
         onTaskUpdated={onRefresh}
+        onTaskCompleted={handleTaskCompleted}
+        accessToken={context.accessToken}
+        userId={context.userInfo?.id}
       />
     </div>
   )

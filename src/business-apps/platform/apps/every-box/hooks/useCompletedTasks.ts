@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { fetchAllUserTasks } from '@/business-apps/core/every/apps/every-api'
+import { fetchCompletedUserTasks } from '@/business-apps/core/every/apps/every-api'
 import { UnifiedTask } from '@/business-apps/core/every/apps/every-api/types'
 
 interface UseCompletedTasksResult {
@@ -31,6 +31,9 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
   // Track whether we've made the initial fetch
   const hasInitialFetchRef = useRef(false)
 
+  // Track last task data to avoid unnecessary re-renders
+  const lastTaskDataRef = useRef<string>('')
+
   const ITEMS_PER_PAGE = 50
 
   /**
@@ -51,25 +54,39 @@ export const useCompletedTasks = (context: BusinessAppContextProps): UseComplete
         const offset = append ? currentOffset : 0
         console.log(`[EveryBox] Fetching completed tasks for user: ${userId}, offset: ${offset}`)
 
-        // Fetch COMPLETED tasks only
-        const response = await fetchAllUserTasks(userId, context.accessToken || '', {
-          status: 'COMPLETED',
+        // Fetch COMPLETED tasks using dedicated endpoint
+        // This uses the /completed endpoint which filters by task_business_status (not task_conductor_status)
+        const response = await fetchCompletedUserTasks(userId, context.accessToken || '', {
           limit: ITEMS_PER_PAGE,
           offset,
           sortBy: 'createdAt',
           sortOrder: 'desc'
         })
 
-        console.log(`[EveryBox] Fetched ${response.tasks.length} completed tasks, total: ${response.totalCount}`)
+        console.log(
+          `[EveryBox] Fetched ${response.tasks.length} completed tasks using dedicated endpoint, total: ${response.totalCount}`
+        )
 
         // Log source breakdown
         const kogitoCount = response.tasks.filter(t => t.source === 'kogito').length
         const cflowCount = response.tasks.filter(t => t.source === 'cflow').length
         console.log(`[EveryBox] Completed - Kogito tasks: ${kogitoCount}, CFlow tasks: ${cflowCount}`)
 
-        setTasks(prev => (append ? [...prev, ...response.tasks] : response.tasks))
-        setTotalCount(response.totalCount)
-        setCurrentOffset(append ? offset + response.tasks.length : response.tasks.length)
+        // Only update state if data has actually changed (optimization for polling)
+        const newTaskData = JSON.stringify({
+          tasks: response.tasks.map(t => ({ id: t.id, status: t.status, createdAt: t.createdAt })),
+          totalCount: response.totalCount
+        })
+
+        if (newTaskData !== lastTaskDataRef.current || append) {
+          console.log('[EveryBox] Completed task data changed, updating state')
+          lastTaskDataRef.current = newTaskData
+          setTasks(prev => (append ? [...prev, ...response.tasks] : response.tasks))
+          setTotalCount(response.totalCount)
+          setCurrentOffset(append ? offset + response.tasks.length : response.tasks.length)
+        } else {
+          console.log('[EveryBox] No changes in completed task data, skipping state update')
+        }
 
         // Log any warnings or errors
         if (response.warnings && response.warnings.length > 0) {

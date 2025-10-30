@@ -34,6 +34,18 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
   // Check if this is a Blink task (quick direct task from one person to another)
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
 
+  // Format process/module name from processDefinitionId for Kogito tasks
+  const getModuleName = (processDefId?: string): string | null => {
+    if (!processDefId) return null
+    // Convert snake_case or kebab-case to Title Case
+    return processDefId
+      .split(/[_-]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+
+  const moduleName = task.source === 'kogito' ? getModuleName(task.type) : null
+
   // Get task name/title
   // For Kogito tasks, prefer referenceName (most descriptive with context)
   // Then fallback to nodeName, title, or name
@@ -114,7 +126,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                 {getInitials(creatorName)}
               </AvatarFallback>
             </Avatar>
-            <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-shrink-0 gba:leading-none gba:gap-0.5">
+            <div className="gba:flex gba:flex-col gba:w-48 gba:flex-shrink-0 gba:leading-none gba:gap-0.5">
               <div className="gba:flex gba:items-center gba:gap-2">
                 <User className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
                 <span
@@ -124,17 +136,27 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                   {creatorName}
                 </span>
               </div>
-              {createdAt && (
+              {task.status === 'COMPLETED' && task.completedAt ? (
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <Clock className="gba:h-3 gba:w-3 gba:text-success" />
+                  <span
+                    className="gba:text-xs gba:text-success gba:leading-tight gba:whitespace-nowrap gba:font-medium"
+                    data-testid="task-completed-at"
+                  >
+                    ✓ {formatDateTime(task.completedAt)}
+                  </span>
+                </div>
+              ) : createdAt ? (
                 <div className="gba:flex gba:items-center gba:gap-1">
                   <Clock className="gba:h-3 gba:w-3 gba:text-muted-foreground" />
                   <span
-                    className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
+                    className="gba:text-xs gba:text-muted-foreground gba:leading-tight gba:whitespace-nowrap"
                     data-testid="task-created-at"
                   >
                     {formatDateTime(createdAt)}
                   </span>
                 </div>
-              )}
+              ) : null}
             </div>
             <div className="gba:flex gba:flex-col gba:gap-0.5 gba:flex-1 gba:min-w-0">
               <div className="gba:flex gba:items-center gba:gap-2">
@@ -144,6 +166,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                 <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
                   {getSourceBadgeText(task.source)}
                 </Badge>
+                {moduleName && (
+                  <Badge variant="secondary" data-testid="task-module-badge" className="gba:flex-shrink-0">
+                    {moduleName}
+                  </Badge>
+                )}
                 {isBlinkTask && (
                   <div
                     className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0"

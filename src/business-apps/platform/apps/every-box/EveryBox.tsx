@@ -3,7 +3,7 @@
  * Unified inbox and outbox for all tasks and workflows
  */
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   Card,
   CardContent,
@@ -12,17 +12,24 @@ import {
   TabsTrigger,
   TabsContent,
   Badge,
-  ThemeProvider
+  ThemeProvider,
+  Button
 } from '@newwork/nw-design-system'
-import { Inbox, Send, CheckCircle } from 'lucide-react'
+import { Inbox, Send, Zap } from 'lucide-react'
+import { message } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { env } from '@/common/env/EnvUtils'
 import { useInboxTasks } from './hooks/useInboxTasks'
 import { useOutboxFlows } from './hooks/useOutboxFlows'
 import { useCompletedTasks } from './hooks/useCompletedTasks'
 import { InboxView } from './components/InboxView'
 import { OutboxView } from './components/OutboxView'
-import { CompletedView } from './components/CompletedView'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import {
+  QuickTaskModal,
+  QuickTaskFormData,
+  QuickTaskFlowService
+} from '@/business-apps/flow/common/components/flow-quick-task'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -32,6 +39,7 @@ const POLLING_INTERVAL = 15000 // 15 seconds
 
 export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-box', ...context }) => {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
 
   // Debug logging
   useEffect(() => {
@@ -87,6 +95,34 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     }
   }, [refetchTasks, refetchFlows, refetchCompleted])
 
+  // Handle Quick Task (Blink) submission
+  const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
+    try {
+      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || 'https://newwork-dev.newwork.com/flow-engine'
+
+      // Execute the quick task using the service method
+      await QuickTaskFlowService.executeQuickTask({
+        formData: data,
+        uploadResults: [], // File upload results if needed
+        accessToken: context.accessToken,
+        initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
+        apiBaseUrl: baseUrl
+      })
+
+      message.success(`Blink "${data.title}" created successfully!`)
+
+      // Refresh the task lists in the background (don't wait for them)
+      // This allows the modal to close immediately
+      Promise.all([refetchTasks(), refetchFlows(), refetchCompleted()]).catch(err => {
+        console.error('[EveryBox] Failed to refresh task lists:', err)
+      })
+    } catch (error) {
+      console.error('[EveryBox] Failed to create Blink:', error)
+      message.error(`Failed to create Blink: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw error // Re-throw to prevent modal from closing on error
+    }
+  }
+
   return (
     <ThemeProvider defaultTheme="light">
       <ErrorBoundary>
@@ -95,13 +131,25 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
             <Card>
               <CardContent className="gba:p-6">
                 {/* Header */}
-                <div className="gba:mb-6">
-                  <h1 className="gba:text-2xl gba:font-bold gba:mb-2" data-testid={`${prefixDataTestId}-title`}>
-                    EveryBox
-                  </h1>
-                  <p className="gba:text-muted-foreground gba:text-sm">
-                    Manage all your tasks and workflows in one place
-                  </p>
+                <div className="gba:mb-6 gba:flex gba:items-start gba:justify-between">
+                  <div>
+                    <h1 className="gba:text-2xl gba:font-bold gba:mb-2" data-testid={`${prefixDataTestId}-title`}>
+                      EveryBox
+                    </h1>
+                    <p className="gba:text-muted-foreground gba:text-sm">
+                      Manage all your tasks and workflows in one place
+                    </p>
+                  </div>
+
+                  {/* Blink Button */}
+                  <Button
+                    onClick={() => setIsQuickTaskModalOpen(true)}
+                    className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
+                    data-testid={`${prefixDataTestId}-blink-button`}
+                  >
+                    <Zap className="gba:h-4 gba:w-4 gba:mr-2" />
+                    Blink
+                  </Button>
                 </div>
 
                 {/* Tabs */}
@@ -119,7 +167,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                         )
                       }
                     >
-                      Inbox
+                      InFlows
                     </TabsTrigger>
                     <TabsTrigger
                       value="outbox"
@@ -133,21 +181,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                         )
                       }
                     >
-                      Outbox
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="completed"
-                      data-testid={`${prefixDataTestId}-completed-tab`}
-                      startIcon={<CheckCircle className="gba:h-5 gba:w-5" />}
-                      endAdornment={
-                        totalCompletedCount > 0 && (
-                          <Badge variant="secondary" className="gba:ml-2">
-                            {totalCompletedCount}
-                          </Badge>
-                        )
-                      }
-                    >
-                      Completed
+                      OutFlows
                     </TabsTrigger>
                   </TabsList>
 
@@ -161,29 +195,48 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                       onRefresh={refetchTasks}
                       onLoadMore={loadMoreTasks}
                       hasMore={hasMoreTasks}
+                      completedTasks={completedTasks}
+                      completedTotalCount={totalCompletedCount}
+                      completedIsLoading={completedLoading}
+                      completedError={completedError}
+                      onCompletedRefresh={refetchCompleted}
+                      onCompletedLoadMore={loadMoreCompleted}
+                      completedHasMore={hasMoreCompleted}
                     />
                   </TabsContent>
 
                   <TabsContent value="outbox">
-                    <OutboxView flows={flows} isLoading={flowsLoading} error={flowsError} onRefresh={refetchFlows} />
-                  </TabsContent>
-
-                  <TabsContent value="completed">
-                    <CompletedView
-                      {...context}
-                      tasks={completedTasks}
-                      totalCount={totalCompletedCount}
-                      isLoading={completedLoading}
-                      error={completedError}
-                      onRefresh={refetchCompleted}
-                      onLoadMore={loadMoreCompleted}
-                      hasMore={hasMoreCompleted}
+                    <OutboxView
+                      flows={flows}
+                      isLoading={flowsLoading}
+                      error={flowsError}
+                      onRefresh={refetchFlows}
+                      accessToken={context.accessToken}
                     />
                   </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>
           </div>
+
+          {/* Blink Modal */}
+          <QuickTaskModal
+            open={isQuickTaskModalOpen}
+            onOpenChange={setIsQuickTaskModalOpen}
+            accessToken={context.accessToken}
+            currentUserId={context.userInfo?.id}
+            onSubmit={handleQuickTaskSubmit}
+            title="Blink"
+            description="Create and assign a quick task instantly"
+            config={{
+              assigneeSelector: { mode: 'employee-search', required: true },
+              enableFileUpload: true,
+              enableDueDate: true,
+              maxFiles: 5,
+              maxFileSize: 10,
+              allowedFileTypes: ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.jpg', '.jpeg', '.png', '.zip']
+            }}
+          />
         </div>
       </ErrorBoundary>
     </ThemeProvider>

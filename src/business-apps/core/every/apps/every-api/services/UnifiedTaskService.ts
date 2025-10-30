@@ -8,7 +8,12 @@
 import { UnifiedTask, TaskStatistics, TaskSource } from '../types/UnifiedTask'
 import { TaskFilters, ParsedTaskFilters, DEFAULT_FILTERS } from '../types/TaskFilters'
 import { adaptCflowTasks, adaptKogitoTasks } from './TaskAdapterService'
-import { fetchCflowUserTasks, fetchCflowTask, fetchCflowTaskStats } from '../utils/CflowClient'
+import {
+  fetchCflowUserTasks,
+  fetchCflowCompletedTasks,
+  fetchCflowTask,
+  fetchCflowTaskStats
+} from '../utils/CflowClient'
 import { fetchKogitoUserTasks, fetchKogitoTask, fetchKogitoTaskStats } from '../utils/KogitoClient'
 import { getApiConfig } from '../utils/config'
 
@@ -342,6 +347,163 @@ export async function fetchAllUserTasks(
 
   const endTime = performance.now()
   console.log(`[UnifiedTaskService] ✅ DONE Fetched all user tasks in ${(endTime - startTime).toFixed(0)}ms`, {
+    totalTime: `${(endTime - startTime).toFixed(0)}ms`,
+    cflowTime: timings.cflow ? `${timings.cflow.toFixed(0)}ms` : 'not fetched',
+    kogitoTime: timings.kogito ? `${timings.kogito.toFixed(0)}ms` : 'not fetched',
+    tasksReturned: paginated.length,
+    totalFiltered: filtered.length,
+    errorsCount: errors.length,
+    warningsCount: warnings.length
+  })
+
+  return {
+    tasks: paginated,
+    totalCount: filtered.length, // Total count before pagination
+    errors,
+    warnings
+  }
+}
+
+/**
+ * Fetch COMPLETED tasks from all sources using dedicated endpoint
+ * This uses the /completed endpoint which filters by task_business_status (not task_conductor_status)
+ */
+export async function fetchCompletedUserTasks(
+  userId: string,
+  accessToken?: string,
+  filters?: Partial<TaskFilters>
+): Promise<FetchTasksResult> {
+  const startTime = performance.now()
+  console.log('[UnifiedTaskService] 🚀 START Fetching COMPLETED tasks using dedicated endpoint')
+
+  const parsedFilters = parseFilters(filters)
+  const config = getApiConfig()
+
+  const errors: FetchTasksResult['errors'] = []
+  const warnings: string[] = []
+  const allTasks: UnifiedTask[] = []
+
+  // Determine which sources to fetch from
+  const fetchCflow = parsedFilters.source === 'all' || parsedFilters.source === 'cflow'
+  const fetchKogito = parsedFilters.source === 'all' || parsedFilters.source === 'kogito'
+
+  // Fetch from both sources in parallel
+  const fetchPromises: Promise<void>[] = []
+  const timings: Record<string, number> = {}
+
+  if (fetchCflow) {
+    const cflowParams: Record<string, string> = {
+      limit: '1000', // Fetch all tasks for proper pagination across sources
+      sortBy: parsedFilters.sortBy || 'createdAt',
+      sortOrder: parsedFilters.sortOrder || 'desc'
+    }
+    if (parsedFilters.search) cflowParams.search = parsedFilters.search
+
+    fetchPromises.push(
+      (async () => {
+        const cflowStart = performance.now()
+        console.log('[UnifiedTaskService] 📡 Starting CFlow COMPLETED API call')
+        try {
+          const cflowTasks = await fetchCflowCompletedTasks(userId, accessToken, cflowParams)
+          const cflowEnd = performance.now()
+          timings.cflow = cflowEnd - cflowStart
+          console.log(`[UnifiedTaskService] ✅ CFlow COMPLETED API completed in ${timings.cflow.toFixed(0)}ms`)
+
+          const adapted = adaptCflowTasks(cflowTasks)
+          allTasks.push(...adapted)
+        } catch (error: any) {
+          const cflowEnd = performance.now()
+          timings.cflow = cflowEnd - cflowStart
+          console.error(`[UnifiedTaskService] ❌ CFlow COMPLETED API failed after ${timings.cflow.toFixed(0)}ms`, error)
+          errors.push({
+            source: 'cflow',
+            message: 'Failed to fetch custom-flow-engine completed tasks',
+            details: error.message
+          })
+          if (!config.enablePartialResults) {
+            throw error
+          }
+        }
+      })()
+    )
+  }
+
+  if (fetchKogito) {
+    // Map sortBy to Kogito field names
+    let kogitoSortField = 'CREATION_DATE'
+    if (parsedFilters.sortBy === 'priority') {
+      kogitoSortField = 'PRIORITY'
+    } else if (parsedFilters.sortBy === 'dueDate') {
+      kogitoSortField = 'DUE_DATE'
+    } else if (parsedFilters.sortBy === 'title') {
+      kogitoSortField = 'NAME'
+    }
+
+    const kogitoParams = {
+      pageSize: 1000, // Fetch all tasks for proper pagination across sources
+      sortBy: kogitoSortField,
+      sortOrder: parsedFilters.sortOrder === 'asc' ? ('ASC' as const) : ('DESC' as const),
+      search: parsedFilters.search,
+      status: ['COMPLETED'] // Kogito expects status as array
+    }
+
+    fetchPromises.push(
+      (async () => {
+        const kogitoStart = performance.now()
+        console.log('[UnifiedTaskService] 📡 Starting Kogito COMPLETED API call')
+        try {
+          const kogitoTasks = await fetchKogitoUserTasks(userId, accessToken, kogitoParams)
+          const kogitoEnd = performance.now()
+          timings.kogito = kogitoEnd - kogitoStart
+          console.log(`[UnifiedTaskService] ✅ Kogito COMPLETED API completed in ${timings.kogito.toFixed(0)}ms`)
+          const adapted = adaptKogitoTasks(kogitoTasks, userId)
+          allTasks.push(...adapted)
+        } catch (error: any) {
+          const kogitoEnd = performance.now()
+          timings.kogito = kogitoEnd - kogitoStart
+          console.error(
+            `[UnifiedTaskService] ❌ Kogito COMPLETED API failed after ${timings.kogito.toFixed(0)}ms`,
+            error
+          )
+          errors.push({
+            source: 'kogito',
+            message: 'Failed to fetch Kogito completed tasks',
+            details: error.message
+          })
+          if (!config.enablePartialResults) {
+            throw error
+          }
+        }
+      })()
+    )
+  }
+
+  // Wait for all fetches to complete
+  await Promise.all(fetchPromises)
+
+  console.log('[UnifiedTaskService] Before filtering COMPLETED tasks:', {
+    totalTasks: allTasks.length,
+    sourceFilter: parsedFilters.source,
+    cflowCount: allTasks.filter(t => t.source === 'cflow').length,
+    kogitoCount: allTasks.filter(t => t.source === 'kogito').length
+  })
+
+  // Add warnings if partial results
+  if (errors.length > 0 && allTasks.length > 0) {
+    warnings.push('Partial results: Some task sources failed to respond')
+  }
+
+  // Apply filters and pagination
+  const filtered = applyFilters(allTasks, parsedFilters)
+  console.log('[UnifiedTaskService] After filtering COMPLETED tasks:', {
+    filteredCount: filtered.length,
+    sourceFilter: parsedFilters.source
+  })
+
+  const paginated = applyPagination(filtered, parsedFilters)
+
+  const endTime = performance.now()
+  console.log(`[UnifiedTaskService] ✅ DONE Fetched COMPLETED tasks in ${(endTime - startTime).toFixed(0)}ms`, {
     totalTime: `${(endTime - startTime).toFixed(0)}ms`,
     cflowTime: timings.cflow ? `${timings.cflow.toFixed(0)}ms` : 'not fetched',
     kogitoTime: timings.kogito ? `${timings.kogito.toFixed(0)}ms` : 'not fetched',

@@ -55,6 +55,14 @@ export interface Flow {
   progressPercentage?: number
   steps: FlowStep[]
   metadata: Record<string, any>
+  tags?: Record<string, any> // Flow tags (for categorization and filtering)
+  // Blink grouping support
+  blinkGroupId?: string // Group ID for multi-assignee blinks
+  assignedUserId?: string // User ID of the assignee (for identifying who the workflow is for)
+  isGrouped?: boolean // Whether this flow is part of a group
+  groupedFlows?: Flow[] // All flows in the group (for grouped display)
+  assigneeCount?: number // Total number of assignees in the group
+  completedAssignees?: number // Number of completed assignees
 }
 
 /**

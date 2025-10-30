@@ -3,7 +3,7 @@
  * Fetches workflows initiated by the user
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
 import { Flow, FlowStatus } from '../types'
@@ -17,6 +17,9 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 
   // Use Keycloak user ID for CFlow (flows are initiated by Keycloak ID, not employee ID)
   const userId = context.userInfo?.id || ''
+
+  // Track last flow data to avoid unnecessary re-renders
+  const lastFlowDataRef = useRef<string>('')
 
   /**
    * Fetch initiated workflows
@@ -74,7 +77,30 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 
     try {
       const initiatedFlows = await fetchInitiatedFlows()
-      setFlows(initiatedFlows)
+
+      // Group flows by blinkGroupId
+      const groupedFlows = groupFlowsByBlinkId(initiatedFlows)
+
+      // Only update state if data has actually changed (optimization for polling)
+      const newFlowData = JSON.stringify(
+        groupedFlows.map(f => ({
+          id: f.id,
+          status: f.status,
+          startedAt: f.startedAt,
+          completedAt: f.completedAt,
+          blinkGroupId: f.blinkGroupId,
+          completedAssignees: f.completedAssignees,
+          assigneeCount: f.assigneeCount
+        }))
+      )
+
+      if (newFlowData !== lastFlowDataRef.current) {
+        console.log('[EveryBox] Flow data changed, updating state')
+        lastFlowDataRef.current = newFlowData
+        setFlows(groupedFlows)
+      } else {
+        console.log('[EveryBox] No changes in flow data, skipping state update')
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load flows'
       setError(errorMessage)
@@ -107,6 +133,11 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 const transformFlow = (rawFlow: any): Flow => {
   const status = mapFlowStatus(rawFlow.status)
 
+  // Extract blinkGroupId and assignedUserId from tags
+  const tags = rawFlow.tags || {}
+  const blinkGroupId = tags.blinkGroupId || undefined
+  const assignedUserId = tags.assignedUserId || undefined
+
   return {
     id: (rawFlow as any).flowId || rawFlow.workflowId,
     templateName: (rawFlow as any).flowName || rawFlow.templateName || rawFlow.name || 'Unnamed Flow',
@@ -119,10 +150,69 @@ const transformFlow = (rawFlow: any): Flow => {
     totalSteps: (rawFlow as any).stepStatus?.total || 0,
     steps: [],
     progressPercentage: (rawFlow as any).progressPercentage,
+    tags: rawFlow.tags, // Include tags for filtering and badge display
+    blinkGroupId, // Add blinkGroupId for grouping
+    assignedUserId, // Add assignedUserId to identify who this workflow is for
     metadata: {
       rawFlow
     }
   }
+}
+
+/**
+ * Group flows by blinkGroupId
+ * Multi-assignee blinks with the same groupId are displayed as a single entry
+ */
+const groupFlowsByBlinkId = (flows: Flow[]): Flow[] => {
+  // Separate flows with and without group IDs
+  const groupedFlowsMap = new Map<string, Flow[]>()
+  const ungroupedFlows: Flow[] = []
+
+  flows.forEach(flow => {
+    if (flow.blinkGroupId) {
+      const existing = groupedFlowsMap.get(flow.blinkGroupId) || []
+      existing.push(flow)
+      groupedFlowsMap.set(flow.blinkGroupId, existing)
+    } else {
+      ungroupedFlows.push(flow)
+    }
+  })
+
+  // Create grouped flow entries
+  const groupedFlowEntries: Flow[] = []
+  groupedFlowsMap.forEach(groupFlows => {
+    if (groupFlows.length === 1) {
+      // Single flow in group, treat as ungrouped
+      ungroupedFlows.push(groupFlows[0])
+    } else {
+      // Multiple flows in group, create a grouped entry
+      const completedCount = groupFlows.filter(f => f.status === 'COMPLETED').length
+      const allCompleted = completedCount === groupFlows.length
+
+      // Use the first flow as the base, but aggregate data
+      const representativeFlow = groupFlows[0]
+
+      groupedFlowEntries.push({
+        ...representativeFlow,
+        isGrouped: true,
+        groupedFlows: groupFlows,
+        assigneeCount: groupFlows.length,
+        completedAssignees: completedCount,
+        status: allCompleted ? 'COMPLETED' : 'RUNNING', // Mark as completed only if all are done
+        completedAt: allCompleted
+          ? groupFlows.reduce(
+              (latest, f) => (!latest || (f.completedAt && f.completedAt > latest) ? f.completedAt : latest),
+              groupFlows[0].completedAt
+            )
+          : undefined
+      })
+    }
+  })
+
+  // Combine and sort by start date (newest first)
+  return [...groupedFlowEntries, ...ungroupedFlows].sort(
+    (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+  )
 }
 
 /**

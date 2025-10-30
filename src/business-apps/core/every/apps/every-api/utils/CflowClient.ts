@@ -117,6 +117,70 @@ export async function fetchCflowUserTasks(
 }
 
 /**
+ * Fetch COMPLETED tasks for a user from custom-flow-engine using dedicated endpoint
+ * This uses the /completed endpoint which filters by task_business_status (not task_conductor_status)
+ */
+export async function fetchCflowCompletedTasks(
+  userId: string,
+  accessToken?: string,
+  queryParams?: Record<string, string>
+): Promise<CflowTask[]> {
+  const endpoint = getCflowEndpoint()
+
+  if (!endpoint) {
+    throw new Error(
+      'Custom Flow Engine endpoint not configured. Set NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL environment variable.'
+    )
+  }
+
+  // Filter out undefined/null values from query params
+  const cleanParams: Record<string, string> = {}
+  if (queryParams) {
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== 'undefined' && value !== 'null') {
+        cleanParams[key] = value
+      }
+    })
+  }
+
+  const params = new URLSearchParams(cleanParams)
+  const url = `${endpoint}/api/tasks/user/${userId}/completed${params.toString() ? '?' + params.toString() : ''}`
+
+  console.log('Fetching cflow COMPLETED tasks for user:', userId, 'from:', url)
+
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json'
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: AbortSignal.timeout(30000) // 30 second timeout
+    })
+
+    console.log('Cflow completed tasks response status:', response.status, response.statusText)
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`HTTP ${response.status}: ${response.statusText}. ${errorText}`)
+    }
+
+    const data: CflowTasksResponse = await response.json()
+    console.log(`Found ${data.tasks?.length || 0} cflow COMPLETED tasks`)
+    return data.tasks || []
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    console.error('Failed to fetch cflow completed tasks:', errorMsg)
+    throw new Error(`Custom Flow Engine completed tasks error: ${errorMsg}`)
+  }
+}
+
+/**
  * Fetch a single task by ID from custom-flow-engine
  */
 export async function fetchCflowTask(taskId: string, userId: string, accessToken?: string): Promise<CflowTask | null> {

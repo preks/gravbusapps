@@ -137,23 +137,49 @@ export const sortFlowsByDate = (flows: Flow[]): Flow[] => {
   })
 }
 
+// Employee avatar data interface (for search by sender name)
+interface EmployeeData {
+  firstName: string
+  lastName: string
+  displayName: string
+}
+
 /**
  * Filter tasks by search query
+ * Includes search by sender name if employeeMap is provided
  */
-export const filterTasksBySearch = (tasks: UnifiedTask[], query: string): UnifiedTask[] => {
+export const filterTasksBySearch = (
+  tasks: UnifiedTask[],
+  query: string,
+  employeeMap?: Map<string, EmployeeData>
+): UnifiedTask[] => {
   if (!query.trim()) return tasks
 
   const lowerQuery = query.toLowerCase()
   return tasks.filter(task => {
-    return (
+    // Search in task fields
+    const matchesTaskData =
       task.title?.toLowerCase().includes(lowerQuery) ||
       task.description?.toLowerCase().includes(lowerQuery) ||
-      task.flowName?.toLowerCase().includes(lowerQuery) ||
       task.type?.toLowerCase().includes(lowerQuery) ||
       task.name?.toLowerCase().includes(lowerQuery) ||
       task.referenceTaskName?.toLowerCase().includes(lowerQuery) ||
       task.sourceMetadata?.nodeName?.toLowerCase().includes(lowerQuery)
-    )
+
+    // Search by sender name if employeeMap is available
+    if (employeeMap && task.sourceMetadata?.creatorUserId) {
+      const creatorData = employeeMap.get(task.sourceMetadata.creatorUserId)
+      if (creatorData) {
+        const matchesSenderName =
+          creatorData.firstName?.toLowerCase().includes(lowerQuery) ||
+          creatorData.lastName?.toLowerCase().includes(lowerQuery) ||
+          creatorData.displayName?.toLowerCase().includes(lowerQuery)
+
+        if (matchesSenderName) return true
+      }
+    }
+
+    return matchesTaskData
   })
 }
 

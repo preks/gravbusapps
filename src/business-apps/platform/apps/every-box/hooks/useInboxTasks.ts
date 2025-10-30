@@ -31,6 +31,9 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
   // Track whether we've made the initial fetch
   const hasInitialFetchRef = useRef(false)
 
+  // Track last task data to avoid unnecessary re-renders
+  const lastTaskDataRef = useRef<string>('')
+
   const ITEMS_PER_PAGE = 50
 
   /**
@@ -67,9 +70,21 @@ export const useInboxTasks = (context: BusinessAppContextProps): UseInboxTasksRe
         const cflowCount = response.tasks.filter(t => t.source === 'cflow').length
         console.log(`[EveryBox] Kogito tasks: ${kogitoCount}, CFlow tasks: ${cflowCount}`)
 
-        setTasks(prev => (append ? [...prev, ...response.tasks] : response.tasks))
-        setTotalCount(response.totalCount)
-        setCurrentOffset(append ? offset + response.tasks.length : response.tasks.length)
+        // Only update state if data has actually changed (optimization for polling)
+        const newTaskData = JSON.stringify({
+          tasks: response.tasks.map(t => ({ id: t.id, status: t.status, createdAt: t.createdAt })),
+          totalCount: response.totalCount
+        })
+
+        if (newTaskData !== lastTaskDataRef.current || append) {
+          console.log('[EveryBox] Task data changed, updating state')
+          lastTaskDataRef.current = newTaskData
+          setTasks(prev => (append ? [...prev, ...response.tasks] : response.tasks))
+          setTotalCount(response.totalCount)
+          setCurrentOffset(append ? offset + response.tasks.length : response.tasks.length)
+        } else {
+          console.log('[EveryBox] No changes in task data, skipping state update')
+        }
 
         // Log any warnings or errors
         if (response.warnings && response.warnings.length > 0) {

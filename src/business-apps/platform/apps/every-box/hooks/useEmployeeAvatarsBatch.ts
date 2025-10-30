@@ -110,38 +110,46 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
         return
       }
 
+      const uniqueUserIds = [...new Set(uIds)]
+      const uniqueEmployeeIds = [...new Set(eIds)]
+
+      // Check cache first and separate cached vs missing IDs
+      const cachedMap = new Map<string, EmployeeAvatarData>()
+      const missingUserIds: string[] = []
+      const missingEmployeeIds: string[] = []
+
+      uniqueUserIds.forEach(userId => {
+        if (isCacheValid(userId) && employeeCache.has(userId)) {
+          cachedMap.set(userId, employeeCache.get(userId)!)
+        } else {
+          missingUserIds.push(userId)
+        }
+      })
+
+      uniqueEmployeeIds.forEach(empId => {
+        if (isCacheValid(empId) && employeeCache.has(empId)) {
+          cachedMap.set(empId, employeeCache.get(empId)!)
+        } else {
+          missingEmployeeIds.push(empId)
+        }
+      })
+
+      // If everything is cached, just update state without loading
+      if (missingUserIds.length === 0 && missingEmployeeIds.length === 0) {
+        console.log(`[useEmployeeAvatarsBatch] ✅ All ${cachedMap.size} employees found in cache - no API call needed`)
+        setEmployeeMap(cachedMap)
+        setError(null)
+        return
+      }
+
+      console.log(
+        `[useEmployeeAvatarsBatch] Cache hit: ${cachedMap.size}, Cache miss: ${missingUserIds.length + missingEmployeeIds.length} - fetching missing...`
+      )
+
       setIsLoading(true)
       setError(null)
 
       try {
-        const uniqueUserIds = [...new Set(uIds)]
-        const uniqueEmployeeIds = [...new Set(eIds)]
-
-        // Check cache first and separate cached vs missing IDs
-        const cachedMap = new Map<string, EmployeeAvatarData>()
-        const missingUserIds: string[] = []
-        const missingEmployeeIds: string[] = []
-
-        uniqueUserIds.forEach(userId => {
-          if (isCacheValid(userId) && employeeCache.has(userId)) {
-            cachedMap.set(userId, employeeCache.get(userId)!)
-          } else {
-            missingUserIds.push(userId)
-          }
-        })
-
-        uniqueEmployeeIds.forEach(empId => {
-          if (isCacheValid(empId) && employeeCache.has(empId)) {
-            cachedMap.set(empId, employeeCache.get(empId)!)
-          } else {
-            missingEmployeeIds.push(empId)
-          }
-        })
-
-        console.log(
-          `[useEmployeeAvatarsBatch] Cache hit: ${cachedMap.size}, Cache miss: ${missingUserIds.length + missingEmployeeIds.length}`
-        )
-
         // Only fetch missing employees
         const promises = []
         if (missingUserIds.length > 0) {

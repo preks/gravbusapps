@@ -75,7 +75,7 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
         task.title?.toLowerCase().includes(searchLower) ||
         task.flowId?.toLowerCase().includes(searchLower) ||
         task.source?.toLowerCase().includes(searchLower) ||
-        task.taskId?.toLowerCase().includes(searchLower)
+        task.id?.toLowerCase().includes(searchLower)
     )
   }, [tasks, searchQuery])
 
@@ -149,11 +149,12 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
 
       {/* Task Detail Dialog */}
       <TaskDetailDialog
-        {...context}
         task={selectedTask}
         open={!!selectedTask}
         onClose={() => setSelectedTask(null)}
         onTaskUpdated={onRefresh}
+        accessToken={context.accessToken}
+        userId={context.userInfo?.id}
       />
     </div>
   )

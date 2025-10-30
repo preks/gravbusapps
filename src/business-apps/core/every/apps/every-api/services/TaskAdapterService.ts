@@ -27,6 +27,7 @@ interface CflowTask {
   taskCategory?: string
   dueDate?: string
   scheduledAt?: string
+  completedAt?: string
   availableActions?: {
     canClaim?: boolean
     canComplete?: boolean
@@ -140,6 +141,17 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
   const creatorUserId = flowInitiatedBy // This is userId - need to fetch employee by userId
   const creatorName = (cflowTask as any).flowInitiatedByName
 
+  // Debug: Log completedAt field
+  if (cflowTask.status === 'COMPLETED') {
+    console.log('[TaskAdapter] Completed task:', {
+      id: cflowTask.id,
+      status: cflowTask.status,
+      completedAt: (cflowTask as any).completedAt,
+      completed_at: (cflowTask as any).completed_at,
+      rawTask: cflowTask
+    })
+  }
+
   const unifiedTask: UnifiedTask = {
     id: cflowTask.id,
     flowId: cflowTask.flowId || cflowTask.workflowMeta?.rootWorkflowId || cflowTask.id,
@@ -152,6 +164,7 @@ export function adaptCflowTask(cflowTask: CflowTask): UnifiedTask {
     dueDate: cflowTask.dueDate,
     createdAt: createdDate, // Use best available date for proper sorting
     scheduledAt: cflowTask.scheduledAt,
+    completedAt: (cflowTask as any).completedAt || (cflowTask as any).completed_at, // Map completion timestamp
     message: cflowTask.message,
     taskCategory: cflowTask.taskCategory,
     tags: (cflowTask as any).tags, // Workflow tags for filtering (e.g., blink tasks)
