@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
@@ -83,6 +83,38 @@ export const AmountField: React.FC<AmountFieldProps> = ({
     form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
     onAmountChange(num)
   }
+
+  // Format amount when it changes from external source (e.g., OCR from receipt)
+  useEffect(() => {
+    if (amountValue !== undefined && amountValue !== null && amountValue > 0) {
+      const currentFormValue = form.getFieldValue(`amount-${index}`)
+
+      // Only format if the form value is a simple number without locale formatting
+      // This happens when OCR sets the value
+      if (currentFormValue && /^[\d,.]+$/.test(String(currentFormValue))) {
+        const numValue =
+          typeof currentFormValue === 'number'
+            ? currentFormValue
+            : parseFloat(String(currentFormValue).replace(',', '.'))
+
+        if (!isNaN(numValue)) {
+          const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
+          const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+          }).format(numValue)
+
+          const finalDisplay =
+            platformFormatted && platformFormatted !== String(numValue) ? platformFormatted : intlFormatted
+
+          // Only update if format is different to avoid infinite loop
+          if (String(currentFormValue) !== finalDisplay) {
+            form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
+          }
+        }
+      }
+    }
+  }, [amountValue, form, index])
 
   const renderAmountInput = () => (
     <InputField
