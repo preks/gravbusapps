@@ -6,7 +6,6 @@
 // Re-export all investment utilities from central location
 export {
   extractCurrencyCode,
-  formatCurrency,
   formatPercentage,
   formatDate,
   formatDisplayDate,
@@ -14,6 +13,51 @@ export {
   formatLargeNumber,
   formatNumber
 } from '@/common/data/investment'
+
+// Use the formatCurrencyCompact from investment-management utils
+export { formatCurrencyCompact as formatCurrency } from '../../../utils/currencyUtils'
+
+// Re-export utilities from the new shared/utils folder
+export {
+  safeCurrencyExtraction,
+  extractAvailableCurrencies,
+  formatCurrencyDisplay,
+  getCurrencySymbol,
+  validateCurrencyCode
+} from './utils/currencyUtils'
+
+export {
+  calculateDurationYears,
+  calculateInvestmentDuration,
+  formatDuration,
+  formatYearsDuration,
+  isDateInRange,
+  getDateRange
+} from './utils/dateUtils'
+
+export {
+  filterInvestmentsByCurrency,
+  hasNonZeroValues,
+  shouldShowEmptyState,
+  groupInvestmentsByField,
+  filterByDateRange,
+  sortInvestments,
+  getTopItems,
+  deduplicateInvestments
+} from './utils/dataFilters'
+
+export {
+  CHART_COLORS,
+  SEMANTIC_COLORS,
+  getChartColor,
+  createChartConfig,
+  renderCustomizedLabel,
+  formatChartNumber,
+  formatChartPercentage,
+  calculateChartDimensions,
+  generateChartTooltipContent,
+  getContrastColor
+} from './utils/chartUtils.tsx'
 
 /**
  * Calculate percentage change between current and previous values

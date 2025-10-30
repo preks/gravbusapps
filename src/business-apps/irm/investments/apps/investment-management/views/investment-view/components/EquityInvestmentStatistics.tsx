@@ -2,7 +2,7 @@ import React from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { DollarCircleOutlined, RiseOutlined, BankOutlined, TeamOutlined } from '@ant-design/icons'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useEquityKPIIntegration } from '../../analytics-view/equity-investments-report/hooks/useEquityKPIIntegration'
+import { useEquityKPIIntegration } from '../../analytics-view/equity-analytics/hooks/useEquityKPIIntegration'
 import { formatCurrency, calculateChange } from '../../analytics-view/shared/utils'
 
 type EquityInvestmentStatisticsProps = BusinessAppContextProps
@@ -41,32 +41,32 @@ export const EquityInvestmentStatistics: React.FC<EquityInvestmentStatisticsProp
       }
     },
     {
-      key: 'total-market-value',
-      title: 'Total Market Value',
-      value: formatCurrency(kpis.totalMarketValue),
+      key: 'portfolio-moic',
+      title: 'Portfolio MOIC',
+      value: kpis.portfolioMoic.toFixed(2) + 'x',
       prefix: <RiseOutlined />,
       color: '#faad14',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Current total market value of equity positions',
+      description: 'Multiple on Invested Capital for equity portfolio',
       trend: {
-        value: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).value,
-        positive: calculateChange(kpis.totalMarketValue, previousKpis.totalMarketValue).positive,
+        value: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).value,
+        positive: calculateChange(kpis.portfolioMoic, previousKpis.portfolioMoic).positive,
         description: 'vs 7 days ago'
       }
     },
     {
-      key: 'average-company-valuation',
-      title: 'Average Company Valuation',
-      value: formatCurrency(kpis.averageCompanyValuation),
+      key: 'average-duration',
+      title: 'Average Duration',
+      value: Math.round(kpis.averageDuration) + ' days',
       prefix: <BankOutlined />,
       color: '#722ed1',
       valueIsString: true,
       span: { xs: 24, sm: 12, lg: 6 },
-      description: 'Average valuation across all companies',
+      description: 'Average investment holding period',
       trend: {
-        value: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).value,
-        positive: calculateChange(kpis.averageCompanyValuation, previousKpis.averageCompanyValuation).positive,
+        value: calculateChange(kpis.averageDuration, previousKpis.averageDuration).value,
+        positive: calculateChange(kpis.averageDuration, previousKpis.averageDuration).positive,
         description: 'vs 7 days ago'
       }
     }

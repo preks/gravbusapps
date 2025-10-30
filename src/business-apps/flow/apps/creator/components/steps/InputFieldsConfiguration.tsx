@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Button, Input, Checkbox } from '@newwork/nw-design-system'
 import { Select } from 'antd'
-import { FormInput, Trash2 } from 'lucide-react'
+import { FormInput, Trash2, GripVertical } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { InputType } from '@/common/network/flows/FlowTemplateClient'
 
@@ -23,7 +23,7 @@ interface InputFieldsContentProps {
   onUpdateStep: (updates: any) => void
 }
 
-export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({ step, testId, onUpdateStep }) => {
+export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({ step }) => {
   const inputs = step.form || step.inputs || [] // Handle both form and inputs
   const requiredCount = inputs.filter((input: any) => input.required).length
 
@@ -53,6 +53,7 @@ export const InputFieldsTrigger: React.FC<InputFieldsTriggerProps> = ({ step, te
 
 export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({ step, testId, onUpdateStep }) => {
   const inputs = step.form || step.inputs || [] // Handle both form and inputs
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
 
   const handleAddInput = () => {
     const newInputs = [
@@ -110,6 +111,36 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({ step, te
     onUpdateStep({ form: newInputs }) // Use 'form' to match backend
   }
 
+  // Drag and drop handlers
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null)
+      return
+    }
+
+    const newInputs = [...inputs]
+    const [draggedItem] = newInputs.splice(draggedIndex, 1)
+    newInputs.splice(dropIndex, 0, draggedItem)
+
+    onUpdateStep({ form: newInputs })
+    setDraggedIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+  }
+
   return (
     <div className="gba:space-y-3 gba:pt-2">
       <div className="gba:flex gba:items-center gba:justify-between">
@@ -123,99 +154,130 @@ export const InputFieldsContent: React.FC<InputFieldsContentProps> = ({ step, te
 
       <div className="gba:space-y-3">
         {inputs.length > 0 &&
-          inputs.map((input: any, index: number) => (
-            <div
-              key={`input-${input.id || index}`}
-              className="gba:space-y-2 gba:p-3 gba:border gba:rounded gba:bg-gray-50"
-            >
-              <div className="gba:flex gba:gap-2 gba:items-center">
-                <Input
-                  value={input.label || ''}
-                  onChange={e => handleUpdateInput(index, 'label', e.target.value)}
-                  className="gba:flex-1"
-                  placeholder="Field label"
-                  data-testid={`${testId}-input-label-${index}`}
-                />
-                <Select
-                  value={input.type || InputType.TEXT}
-                  onChange={value => handleUpdateInput(index, 'type', value)}
-                  style={{ width: '120px' }}
-                  data-testid={`${testId}-input-type-${index}`}
-                >
-                  <Select.Option value={InputType.TEXT}>Text</Select.Option>
-                  <Select.Option value={InputType.NUMBER}>Number</Select.Option>
-                  <Select.Option value={InputType.DATE}>Date</Select.Option>
-                  <Select.Option value={InputType.DATETIME}>DateTime</Select.Option>
-                  <Select.Option value={InputType.TEXTAREA}>Textarea</Select.Option>
-                  <Select.Option value={InputType.SELECT}>Select</Select.Option>
-                  <Select.Option value={InputType.MULTISELECT}>Multi-Select</Select.Option>
-                  <Select.Option value={InputType.CHECKBOX}>Checkbox</Select.Option>
-                  <Select.Option value={InputType.FILE}>File</Select.Option>
-                </Select>
-                <div className="gba:flex gba:items-center gba:gap-1">
-                  <Checkbox
-                    checked={input.required || false}
-                    onCheckedChange={checked => handleUpdateInput(index, 'required', checked)}
-                    data-testid={`${testId}-input-required-${index}`}
-                  />
-                  <label className="gba:text-xs gba:text-gray-600 gba:whitespace-nowrap">Required</label>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveInput(index)}
-                  data-testid={`${testId}-remove-input-${index}`}
-                >
-                  <Trash2 className="gba:h-4 gba:w-4" />
-                </Button>
-              </div>
+          inputs.map((input: any, index: number) => {
+            const isDragging = draggedIndex === index
 
-              {/* Options for multi-value inputs */}
-              {[InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(input.type) && (
-                <div className="gba:space-y-2">
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <span className="gba:text-xs gba:text-gray-600">Options:</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAddOption(index)}
-                      data-testid={`${testId}-add-option-${index}`}
-                    >
-                      Add Option
-                    </Button>
+            return (
+              <div
+                key={`input-${input.id || index}`}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={handleDragOver}
+                onDrop={e => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`gba:space-y-2 gba:p-3 gba:border gba:rounded gba:cursor-move ${
+                  isDragging ? 'gba:opacity-50 gba:bg-gray-200' : 'gba:bg-gray-50'
+                }`}
+              >
+                <div className="gba:flex gba:gap-2 gba:items-center">
+                  {/* Drag Handle */}
+                  <div className="gba:cursor-grab active:gba:cursor-grabbing gba:text-gray-400 hover:gba:text-gray-600">
+                    <GripVertical className="gba:h-5 gba:w-5" />
                   </div>
 
-                  {(input.options || []).map((option: any, optionIndex: number) => (
-                    <div
-                      key={`option-${index}-${optionIndex}`}
-                      className="gba:flex gba:gap-2 gba:items-center gba:pl-4"
-                    >
-                      <Input
-                        value={option.label || ''}
-                        onChange={e => handleUpdateOption(index, optionIndex, 'label', e.target.value)}
-                        className="gba:flex-1"
-                        data-testid={`${testId}-option-label-${index}-${optionIndex}`}
-                      />
-                      <Input
-                        value={option.value || ''}
-                        onChange={e => handleUpdateOption(index, optionIndex, 'value', e.target.value)}
-                        className="gba:flex-1"
-                        data-testid={`${testId}-option-value-${index}-${optionIndex}`}
-                      />
+                  <Input
+                    value={input.label || ''}
+                    onChange={e => handleUpdateInput(index, 'label', e.target.value)}
+                    className="gba:flex-1"
+                    placeholder="Field label"
+                    data-testid={`${testId}-input-label-${index}`}
+                  />
+                  <Select
+                    value={input.type || InputType.TEXT}
+                    onChange={value => handleUpdateInput(index, 'type', value)}
+                    style={{ width: '120px' }}
+                    data-testid={`${testId}-input-type-${index}`}
+                  >
+                    <Select.Option value={InputType.TEXT}>Text</Select.Option>
+                    <Select.Option value={InputType.NUMBER}>Number</Select.Option>
+                    <Select.Option value={InputType.DATE}>Date</Select.Option>
+                    <Select.Option value={InputType.DATETIME}>DateTime</Select.Option>
+                    <Select.Option value={InputType.TEXTAREA}>Textarea</Select.Option>
+                    <Select.Option value={InputType.SELECT}>Select</Select.Option>
+                    <Select.Option value={InputType.MULTISELECT}>Multi-Select</Select.Option>
+                    <Select.Option value={InputType.CHECKBOX}>Checkbox</Select.Option>
+                    <Select.Option value={InputType.FILE}>File</Select.Option>
+                  </Select>
+                  <div className="gba:flex gba:items-center gba:gap-1">
+                    <Checkbox
+                      checked={input.required || false}
+                      onCheckedChange={checked => handleUpdateInput(index, 'required', checked)}
+                      data-testid={`${testId}-input-required-${index}`}
+                    />
+                    <label className="gba:text-xs gba:text-gray-600 gba:whitespace-nowrap">Required</label>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveInput(index)}
+                    data-testid={`${testId}-remove-input-${index}`}
+                  >
+                    <Trash2 className="gba:h-4 gba:w-4" />
+                  </Button>
+                </div>
+
+                {/* Options for multi-value inputs */}
+                {[InputType.SELECT, InputType.MULTISELECT, InputType.CHECKBOX].includes(input.type) && (
+                  <div className="gba:space-y-2">
+                    <div className="gba:flex gba:items-center gba:justify-between">
+                      <span className="gba:text-xs gba:text-gray-600">Options:</span>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        onClick={() => handleRemoveOption(index, optionIndex)}
-                        data-testid={`${testId}-remove-option-${index}-${optionIndex}`}
+                        onClick={() => handleAddOption(index)}
+                        data-testid={`${testId}-add-option-${index}`}
                       >
-                        <Trash2 className="gba:h-4 gba:w-4" />
+                        Add Option
                       </Button>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+
+                    {/* Column Headers */}
+                    {(input.options || []).length > 0 && (
+                      <div className="gba:flex gba:gap-2 gba:items-center gba:pl-4">
+                        <div className="gba:flex-1">
+                          <span className="gba:text-xs gba:font-medium gba:text-gray-700">Label</span>
+                        </div>
+                        <div className="gba:flex-1">
+                          <span className="gba:text-xs gba:font-medium gba:text-gray-700">Value</span>
+                        </div>
+                        <div className="gba:w-8"></div>
+                      </div>
+                    )}
+
+                    {(input.options || []).map((option: any, optionIndex: number) => (
+                      <div
+                        key={`option-${index}-${optionIndex}`}
+                        className="gba:flex gba:gap-2 gba:items-center gba:pl-4"
+                      >
+                        <Input
+                          value={option.label || ''}
+                          onChange={e => handleUpdateOption(index, optionIndex, 'label', e.target.value)}
+                          className="gba:flex-1"
+                          placeholder="Display text"
+                          data-testid={`${testId}-option-label-${index}-${optionIndex}`}
+                        />
+                        <Input
+                          value={option.value || ''}
+                          onChange={e => handleUpdateOption(index, optionIndex, 'value', e.target.value)}
+                          className="gba:flex-1"
+                          placeholder="Stored value"
+                          data-testid={`${testId}-option-value-${index}-${optionIndex}`}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveOption(index, optionIndex)}
+                          data-testid={`${testId}-remove-option-${index}-${optionIndex}`}
+                        >
+                          <Trash2 className="gba:h-4 gba:w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
       </div>
     </div>
   )
