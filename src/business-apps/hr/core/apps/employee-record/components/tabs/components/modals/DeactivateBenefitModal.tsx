@@ -23,6 +23,8 @@ import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BenefitCatalogItem } from '../../../../types/benefitCatalogTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { DEACTIVATION_REASON_OPTIONS, getReasonLabel } from '../../../../constants/benefitDeactivationReasons'
+import BenefitSummaryCard from './BenefitSummaryCard'
 
 interface DeactivateBenefitModalProps extends BusinessAppContextProps {
   /**
@@ -83,29 +85,6 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
       setEndDate(getDefaultEndDate())
     }
   }, [isOpen])
-
-  /**
-   * Format currency amount
-   */
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(amount)
-  }
-
-  /**
-   * Format date string
-   */
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  }
 
   /**
    * Check if form is valid
@@ -180,24 +159,6 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
   }
 
   /**
-   * Get label for reason option
-   */
-  const getReasonLabel = (reasonValue: string): string => {
-    switch (reasonValue) {
-      case 'no_longer_needed':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:compensation.reason_no_longer_needed', 'No longer needed')
-      case 'found_alternative':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:compensation.reason_found_alternative', 'Found alternative')
-      case 'cost_reduction':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:compensation.reason_cost_reduction', 'Cost reduction')
-      case 'other':
-        return getTranslationFromI18nKeyAndLabel('lowcoder:compensation.reason_other', 'Other')
-      default:
-        return reasonValue
-    }
-  }
-
-  /**
    * Handle modal close
    */
   const handleClose = () => {
@@ -225,36 +186,7 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
           )}
 
           {/* Benefit Summary Card */}
-          <div
-            className="gba:p-4 gba:bg-muted gba:rounded-lg gba:space-y-2"
-            data-testid="deactivate-benefit-summary-card"
-          >
-            <div className="gba:font-semibold gba:text-foreground">{benefit.benefitType}</div>
-            {benefit.provider?.value && (
-              <div className="gba:text-sm gba:text-muted-foreground">
-                <span className="gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.provider', 'Provider')}:
-                </span>{' '}
-                {benefit.provider.value}
-              </div>
-            )}
-            {benefit.yearlyAmount && (
-              <div className="gba:text-sm gba:text-muted-foreground">
-                <span className="gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.value', 'Value')}:
-                </span>{' '}
-                {formatCurrency(benefit.yearlyAmount)} / year
-              </div>
-            )}
-            {benefit.startDate && (
-              <div className="gba:text-sm gba:text-muted-foreground">
-                <span className="gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.start_date', 'Start Date')}:
-                </span>{' '}
-                {formatDate(benefit.startDate)}
-              </div>
-            )}
-          </div>
+          <BenefitSummaryCard benefit={benefit} />
 
           {/* Effective End Date (Required) */}
           <div className="gba:space-y-2">
@@ -288,24 +220,11 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="no_longer_needed">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:compensation.reason_no_longer_needed',
-                    'No longer needed'
-                  )}
-                </SelectItem>
-                <SelectItem value="found_alternative">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:compensation.reason_found_alternative',
-                    'Found alternative'
-                  )}
-                </SelectItem>
-                <SelectItem value="cost_reduction">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.reason_cost_reduction', 'Cost reduction')}
-                </SelectItem>
-                <SelectItem value="other">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.reason_other', 'Other')}
-                </SelectItem>
+                {DEACTIVATION_REASON_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {getTranslationFromI18nKeyAndLabel(option.labelKey, option.defaultLabel)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

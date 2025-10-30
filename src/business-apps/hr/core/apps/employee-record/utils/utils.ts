@@ -150,3 +150,32 @@ export const getTimeSince = (dateString: string) => {
     return years === 1 ? '1 year ago' : `${years} years ago`
   }
 }
+
+/**
+ * Format currency amount with locale support
+ */
+export const formatCurrency = (
+  amount: number,
+  locale: string = 'de-DE',
+  currency: string = 'EUR',
+  options: Intl.NumberFormatOptions = {}
+): string => {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+    ...options
+  }).format(amount)
+}
+
+/**
+ * Format date string with locale support
+ */
+export const formatDate = (dateString: string, locale: string = 'en-US'): string => {
+  return new Date(dateString).toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
