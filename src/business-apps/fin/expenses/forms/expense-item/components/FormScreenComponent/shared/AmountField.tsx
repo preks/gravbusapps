@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { InputField, SelectField } from '@newwork/gravity-ui-catalog'
 import { Form } from 'antd'
@@ -29,6 +29,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
   onCurrencyChange
 }) => {
   const { t } = useTranslation()
+  const previousValueRef = useRef<string | undefined>()
 
   const handleAmountBlur = () => {
     const currentValue = form.getFieldValue(`amount-${index}`)
@@ -86,18 +87,21 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
   // Format amount when it changes from external source (e.g., OCR from receipt)
   useEffect(() => {
-    if (amountValue !== undefined && amountValue !== null && amountValue > 0) {
-      const currentFormValue = form.getFieldValue(`amount-${index}`)
+    const currentFormValue = form.getFieldValue(`amount-${index}`)
+    const currentValueStr = String(currentFormValue || '')
 
-      // Only format if the form value is a simple number without locale formatting
-      // This happens when OCR sets the value
-      if (currentFormValue && /^[\d,.]+$/.test(String(currentFormValue))) {
+    // Only process if value changed
+    if (previousValueRef.current !== currentValueStr && currentFormValue) {
+      previousValueRef.current = currentValueStr
+
+      // Check if we have a form value that looks like it came from OCR (unformatted number)
+      if (/^[\d,.]+$/.test(currentValueStr)) {
         const numValue =
           typeof currentFormValue === 'number'
             ? currentFormValue
             : parseFloat(String(currentFormValue).replace(',', '.'))
 
-        if (!isNaN(numValue)) {
+        if (!isNaN(numValue) && numValue > 0) {
           const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
           const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
             minimumFractionDigits: 2,
@@ -107,16 +111,20 @@ export const AmountField: React.FC<AmountFieldProps> = ({
           const finalDisplay =
             platformFormatted && platformFormatted !== String(numValue) ? platformFormatted : intlFormatted
 
-          // Only update if format is different to avoid infinite loop
-          if (String(currentFormValue) !== finalDisplay) {
-            form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
-            // IMPORTANT: Notify parent component of the numeric value for validation
-            onAmountChange(numValue)
+          // Only update if format is different
+          if (currentValueStr !== finalDisplay) {
+            // Use setTimeout to avoid updating during render
+            setTimeout(() => {
+              form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
+              previousValueRef.current = finalDisplay
+              // IMPORTANT: Notify parent component of the numeric value for validation
+              onAmountChange(numValue)
+            }, 100)
           }
         }
       }
     }
-  }, [amountValue, form, index, onAmountChange])
+  })
 
   const renderAmountInput = () => (
     <InputField
