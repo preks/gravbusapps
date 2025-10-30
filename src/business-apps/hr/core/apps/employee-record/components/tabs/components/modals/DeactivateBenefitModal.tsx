@@ -66,13 +66,6 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   /**
-   * Calculate if HR approval is required based on benefit value or type
-   */
-  const requiresApproval = useMemo(() => {
-    return (benefit.yearlyAmount && benefit.yearlyAmount > 5000) || benefit.code === 'CAR' || benefit.code === 'ESPP'
-  }, [benefit])
-
-  /**
    * Get default end date (last day of current month)
    */
   const getDefaultEndDate = (): string => {
@@ -155,7 +148,7 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
       // Determine deactivation reason text
       const deactivationReasonText = reason === 'other' ? additionalDetails.trim() : getReasonLabel(reason)
 
-      // Start Kogito process
+      // Start Kogito process - backend will determine if approval is required
       startProcess({
         domain: 'human-resources',
         processName: 'deactivateEmployeeBenefit',
@@ -166,8 +159,7 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
           deactivationReason: deactivationReasonText,
           effectiveEndDate: new Date(endDate).toISOString(),
           requestedBy: employeeId,
-          requestDate: new Date().toISOString(),
-          requiresApproval
+          requestDate: new Date().toISOString()
         },
         skipScreen: true
       })
@@ -263,18 +255,6 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
               </div>
             )}
           </div>
-
-          {/* Warning Alert (if approval required) */}
-          {requiresApproval && (
-            <Alert variant="default" data-testid="deactivate-benefit-warning-alert">
-              <AlertDescription>
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:compensation.deactivation_approval_warning',
-                  'This benefit requires HR approval for deactivation due to its value or type.'
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Effective End Date (Required) */}
           <div className="gba:space-y-2">
