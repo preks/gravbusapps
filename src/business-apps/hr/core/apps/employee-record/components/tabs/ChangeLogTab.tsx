@@ -12,6 +12,7 @@ export interface ChangeLogEntry {
   fieldName: string
   fieldCategory: string
   fieldDetail?: string
+  channelName?: string
   previousValue: string | null
   newValue: string | null
   timestamp: string
@@ -402,7 +403,12 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
                 <div className="gba:flex gba:items-center gba:justify-between gba:py-2 gba:border-b gba:border-border">
                   <div className="gba:text-lg gba:font-semibold">
                     {groupBy === 'date'
-                      ? formatDate(new Date(dateKey), 'date.short')
+                      ? (() => {
+                          const formatted = formatDate(new Date(dateKey), 'date.short') as string
+                          return typeof formatted === 'string' && formatted.includes('T')
+                            ? new Date(dateKey).toLocaleDateString()
+                            : formatted
+                        })()
                       : dateKey.charAt(0).toUpperCase() + dateKey.slice(1)}
                   </div>
                   <div className="gba:text-sm gba:text-muted-foreground">

@@ -115,6 +115,9 @@ export class ChangeLogService {
       const employeeData = this.graphqlClient ? data?.Employee?.[0] : data.data?.Employee?.[0]
       const entries = ChangeLogDataTransformer.transformEmployeeData(employeeData)
 
+      console.log(employeeData, 'employeeData')
+      console.log(entries, 'entries')
+
       return {
         entries,
         totalCount: entries.length,

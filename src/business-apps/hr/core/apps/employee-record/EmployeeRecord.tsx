@@ -166,8 +166,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   // Track active tab for the UI
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId()
-  const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
+  // const feedbackTabFeatureFlag = useFeature('dev.employee-record.feedback.enabled')
   // const changeLogTabFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
+  const feedbackTabFeatureFlag = true
   const changeLogTabFeatureFlag = true
   const timeTrackingTabFeatureFlag = useFeature('dev.employee-record.timetracking.enabled')
 
