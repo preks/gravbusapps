@@ -5,10 +5,9 @@
 
 import React, { useMemo } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Card,
+  CardContent,
+  CardHeader,
   Badge,
   Button,
   Separator,
@@ -18,7 +17,7 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { CheckCircle, User, Calendar, Info, Zap } from 'lucide-react'
+import { CheckCircle, User, Calendar, Info, Zap, X } from 'lucide-react'
 import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import {
@@ -35,7 +34,6 @@ import { env } from '@/common/env/EnvUtils'
 
 interface TaskDetailDialogProps {
   task: UnifiedTask | null
-  open: boolean
   onClose: () => void
   onTaskUpdated: () => void
   onTaskCompleted?: (taskId: string) => void // Callback to remove task from list immediately
@@ -82,7 +80,6 @@ const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessTo
 
 export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   task,
-  open,
   onClose,
   onTaskUpdated,
   onTaskCompleted,
@@ -235,96 +232,104 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[80vh] gba:overflow-y-auto" data-testid="task-detail-dialog">
-        <DialogHeader>
-          <DialogTitle data-testid="task-detail-title">{taskTitle}</DialogTitle>
-        </DialogHeader>
-
-        <div className="gba:space-y-4">
-          {/* Badges */}
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-            {isBlinkTask && (
-              <Badge
-                variant="default"
-                className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600"
-                data-testid="task-detail-blink"
-              >
-                <Zap className="gba:h-3 gba:w-3 gba:mr-1" />
-                Blink
+    <Card className="gba:h-full gba:flex gba:flex-col gba:shadow-lg" data-testid="task-detail-dialog">
+      {/* Header with Close Button */}
+      <CardHeader className="gba:border-b gba:pb-4">
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+          <div className="gba:flex-1">
+            <h2 className="gba:text-2xl gba:font-bold gba:mb-3" data-testid="task-detail-title">
+              {taskTitle}
+            </h2>
+            {/* Badges */}
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+              {isBlinkTask && (
+                <Badge
+                  variant="default"
+                  className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600"
+                  data-testid="task-detail-blink"
+                >
+                  <Zap className="gba:h-3 gba:w-3 gba:mr-1" />
+                  Blink
+                </Badge>
+              )}
+              <Badge variant={getPriorityBadgeVariant(task.priority)} data-testid="task-detail-priority">
+                {formatPriority(task.priority)}
               </Badge>
-            )}
-            <Badge variant={getPriorityBadgeVariant(task.priority)} data-testid="task-detail-priority">
-              {formatPriority(task.priority)}
-            </Badge>
-            <Badge variant={getTaskStatusBadgeVariant(task.status)} data-testid="task-detail-status">
-              {formatTaskStatus(task.status)}
-            </Badge>
-            <Badge variant="outline" data-testid="task-detail-source">
-              {task.source === 'kogito' ? 'Kogito' : 'CFlow'}
-            </Badge>
+              <Badge variant={getTaskStatusBadgeVariant(task.status)} data-testid="task-detail-status">
+                {formatTaskStatus(task.status)}
+              </Badge>
+              <Badge variant="outline" data-testid="task-detail-source">
+                {task.source === 'kogito' ? 'Kogito' : 'CFlow'}
+              </Badge>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="gba:rounded-full gba:hover:bg-muted gba:flex-shrink-0"
+            data-testid="task-detail-close-button"
+          >
+            <X className="gba:h-5 gba:w-5" />
+          </Button>
+        </div>
+      </CardHeader>
 
-          {/* Task Details Grid - Now above description */}
-          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+      {/* Scrollable Content */}
+      <CardContent className="gba:flex-1 gba:overflow-y-auto gba:pt-6">
+        <div className="gba:space-y-4">
+          {/* Task Details Grid - Compact version */}
+          <div className="gba:flex gba:flex-wrap gba:gap-4 gba:text-sm">
             {/* Initiator (for CFlow tasks) */}
             {initiatorUserId && (
-              <div>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-2">
-                  <User className="gba:h-4 gba:w-4" />
-                  <span>From</span>
-                </div>
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <User className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                <span className="gba:text-muted-foreground">From:</span>
                 <InitiatorInfo initiatorUserId={initiatorUserId} accessToken={accessToken} />
               </div>
             )}
 
             {/* Scheduled/Created Date */}
             {scheduledDate && (
-              <div>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  <Calendar className="gba:h-4 gba:w-4" />
-                  <span>Scheduled</span>
-                </div>
-                <p className="gba:font-medium" data-testid="task-detail-scheduled">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                <span className="gba:text-muted-foreground">Scheduled:</span>
+                <span className="gba:font-medium" data-testid="task-detail-scheduled">
                   {formatDateTime(scheduledDate)}
-                </p>
+                </span>
               </div>
             )}
 
             {/* Due Date */}
             {task.dueDate && (
-              <div>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  <Calendar className="gba:h-4 gba:w-4" />
-                  <span>Due Date</span>
-                </div>
-                <p className="gba:font-medium" data-testid="task-detail-due-date">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Calendar className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+                <span className="gba:text-muted-foreground">Due:</span>
+                <span className="gba:font-medium" data-testid="task-detail-due-date">
                   {formatDateTime(task.dueDate)}
-                </p>
+                </span>
               </div>
             )}
 
             {/* Completed Date - Only show for completed tasks */}
             {task.status === 'COMPLETED' && task.completedAt && (
-              <div>
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success gba:mb-1">
-                  <Calendar className="gba:h-4 gba:w-4" />
-                  <span>Completed</span>
-                </div>
-                <p className="gba:font-medium gba:text-success" data-testid="task-detail-completed-at">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Calendar className="gba:h-4 gba:w-4 gba:text-success" />
+                <span className="gba:text-success">Completed:</span>
+                <span className="gba:font-medium gba:text-success" data-testid="task-detail-completed-at">
                   {formatDateTime(task.completedAt)}
-                </p>
+                </span>
               </div>
             )}
           </div>
 
-          {/* Description/Message - Now below metadata */}
+          {/* Description/Message */}
           {taskDescription && (
             <>
               <Separator />
               <div>
-                <h4 className="gba:font-semibold gba:mb-2">Description</h4>
-                <p className="gba:text-sm gba:text-muted-foreground">{taskDescription}</p>
+                <h4 className="gba:font-semibold gba:mb-3 gba:text-lg">Description</h4>
+                <p className="gba:text-sm gba:leading-relaxed gba:text-muted-foreground">{taskDescription}</p>
               </div>
             </>
           )}
@@ -334,14 +339,14 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
             <>
               <Separator />
               <div>
-                <h4 className="gba:font-semibold gba:mb-2">Task Context</h4>
-                <div className="gba:bg-muted gba:p-3 gba:rounded-md gba:space-y-2">
+                <h4 className="gba:font-semibold gba:mb-3 gba:text-lg">Task Context</h4>
+                <div className="gba:bg-muted gba:p-4 gba:rounded-lg gba:space-y-3">
                   {Object.entries(taskInputs).map(([key, value]) => (
-                    <div key={key} className="gba:flex gba:gap-2">
-                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[120px]">
+                    <div key={key} className="gba:flex gba:gap-3">
+                      <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:min-w-[140px]">
                         {key}:
                       </span>
-                      <span className="gba:text-sm gba:flex-1">
+                      <span className="gba:text-sm gba:flex-1 gba:break-words">
                         {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                       </span>
                     </div>
@@ -360,36 +365,36 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
               </AlertDescription>
             </Alert>
           )}
-
-          {/* Action buttons */}
-          <div className="gba:flex gba:gap-2 gba:justify-end">
-            <Button variant="outline" onClick={onClose} data-testid="task-detail-cancel-button">
-              Close
-            </Button>
-
-            {/* Primary action for Blink tasks: Complete directly */}
-            {isBlinkTask && task.status !== 'COMPLETED' && (
-              <Button
-                onClick={handleCompleteBlinkTask}
-                disabled={isCompleting}
-                data-testid="task-detail-complete-button"
-                className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:text-white"
-              >
-                <CheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
-                {isCompleting ? 'Completing...' : 'Complete Task'}
-              </Button>
-            )}
-
-            {/* Primary action for other tasks: Open in dedicated screen */}
-            {!isBlinkTask && hasEndpoint && task.status !== 'COMPLETED' && (
-              <Button onClick={handleOpenTask} data-testid="task-detail-open-button">
-                <CheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
-                Open Task
-              </Button>
-            )}
-          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </CardContent>
+
+      {/* Action buttons - Fixed at bottom */}
+      <div className="gba:border-t gba:p-4 gba:flex gba:gap-2 gba:justify-end gba:bg-muted/30">
+        <Button variant="outline" onClick={onClose} data-testid="task-detail-cancel-button">
+          Close
+        </Button>
+
+        {/* Primary action for Blink tasks: Complete directly */}
+        {isBlinkTask && task.status !== 'COMPLETED' && (
+          <Button
+            onClick={handleCompleteBlinkTask}
+            disabled={isCompleting}
+            data-testid="task-detail-complete-button"
+            className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 gba:text-white"
+          >
+            <CheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
+            {isCompleting ? 'Completing...' : 'Complete Task'}
+          </Button>
+        )}
+
+        {/* Primary action for other tasks: Open in dedicated screen */}
+        {!isBlinkTask && hasEndpoint && task.status !== 'COMPLETED' && (
+          <Button onClick={handleOpenTask} data-testid="task-detail-open-button">
+            <CheckCircle className="gba:mr-2 gba:h-4 gba:w-4" />
+            Open Task
+          </Button>
+        )}
+      </div>
+    </Card>
   )
 }

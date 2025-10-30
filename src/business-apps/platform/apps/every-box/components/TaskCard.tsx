@@ -14,9 +14,10 @@ interface TaskCardProps {
   task: UnifiedTask
   onView: (task: UnifiedTask) => void
   employeeMap: Map<string, EmployeeAvatarData>
+  isSelected?: boolean
 }
 
-export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeMap }) => {
+export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeMap, isSelected = false }) => {
   const overdue = isOverdue(task.dueDate)
   const dueSoon = isDueSoon(task.dueDate)
 
@@ -89,7 +90,11 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
 
   return (
     <Card
-      className="gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow nw:py-1"
+      className={`gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-300 nw:py-1 ${
+        isSelected
+          ? 'gba:border-primary gba:border-2 gba:shadow-lg gba:bg-primary/5'
+          : 'gba:border gba:hover:border-primary/50'
+      }`}
       onClick={() => onView(task)}
       data-testid={`task-card-${task.id}`}
     >
@@ -163,25 +168,29 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
                 <span className="gba:text-base gba:font-semibold gba:truncate gba:px-2" data-testid="task-title">
                   {taskTitle}
                 </span>
-                <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
-                  {getSourceBadgeText(task.source)}
-                </Badge>
-                {moduleName && (
-                  <Badge variant="secondary" data-testid="task-module-badge" className="gba:flex-shrink-0">
-                    {moduleName}
-                  </Badge>
-                )}
-                {isBlinkTask && (
-                  <div
-                    className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0"
-                    data-testid="task-blink-indicator"
-                  >
-                    <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
-                    <span className="gba:text-sm gba:font-medium gba:text-blue-500">Blink</span>
-                  </div>
+                {!isSelected && (
+                  <>
+                    <Badge variant="outline" data-testid="task-source-badge" className="gba:flex-shrink-0">
+                      {getSourceBadgeText(task.source)}
+                    </Badge>
+                    {moduleName && (
+                      <Badge variant="secondary" data-testid="task-module-badge" className="gba:flex-shrink-0">
+                        {moduleName}
+                      </Badge>
+                    )}
+                    {isBlinkTask && (
+                      <div
+                        className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0"
+                        data-testid="task-blink-indicator"
+                      >
+                        <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
+                        <span className="gba:text-sm gba:font-medium gba:text-blue-500">Blink</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-              {(task.description || task.message) && (
+              {!isSelected && (task.description || task.message) && (
                 <p
                   className="gba:text-xs gba:text-muted-foreground gba:line-clamp-1 gba:px-2"
                   data-testid="task-description"
@@ -192,30 +201,39 @@ export const TaskCard: React.FC<TaskCardProps> = memo(({ task, onView, employeeM
             </div>
           </div>
 
-          {/* Right side: Due date only */}
-          <div className="gba:flex gba:flex-col gba:gap-1 gba:items-end gba:flex-shrink-0">
-            {task.dueDate && (
-              <div className="gba:flex gba:items-center gba:gap-1">
-                {overdue || dueSoon ? (
-                  <AlertTriangle className="gba:h-3 gba:w-3" />
-                ) : (
-                  <Clock className="gba:h-3 gba:w-3" />
-                )}
-                <span
-                  className={`gba:text-xs ${
-                    overdue
-                      ? 'gba:text-destructive gba:font-semibold'
-                      : dueSoon
-                        ? 'gba:text-warning gba:font-semibold'
-                        : 'gba:text-muted-foreground'
-                  }`}
-                  data-testid="task-due-date"
-                >
-                  {overdue ? 'Overdue' : dueSoon ? 'Due soon' : `Due ${formatRelativeTime(task.dueDate)}`}
-                </span>
-              </div>
-            )}
-          </div>
+          {/* Right side: Due date only - Hidden when selected except for Blink icon */}
+          {!isSelected && (
+            <div className="gba:flex gba:flex-col gba:gap-1 gba:items-end gba:flex-shrink-0">
+              {task.dueDate && (
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  {overdue || dueSoon ? (
+                    <AlertTriangle className="gba:h-3 gba:w-3" />
+                  ) : (
+                    <Clock className="gba:h-3 gba:w-3" />
+                  )}
+                  <span
+                    className={`gba:text-xs ${
+                      overdue
+                        ? 'gba:text-destructive gba:font-semibold'
+                        : dueSoon
+                          ? 'gba:text-warning gba:font-semibold'
+                          : 'gba:text-muted-foreground'
+                    }`}
+                    data-testid="task-due-date"
+                  >
+                    {overdue ? 'Overdue' : dueSoon ? 'Due soon' : `Due ${formatRelativeTime(task.dueDate)}`}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Show only Blink icon when selected */}
+          {isSelected && isBlinkTask && (
+            <div className="gba:flex-shrink-0 gba:ml-2">
+              <Zap className="gba:h-4 gba:w-4 gba:text-blue-500" strokeWidth={2.5} />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -20,6 +20,7 @@ interface FlowCardProps {
   flow: Flow
   onView: (flow: Flow) => void
   accessToken: string
+  isSelected?: boolean
 }
 
 /**
@@ -50,7 +51,7 @@ const AssigneeAvatar: React.FC<AssigneeAvatarProps> = memo(({ userId, accessToke
   )
 })
 
-export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessToken }) => {
+export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessToken, isSelected = false }) => {
   const progressPercentage = flow.totalSteps > 0 ? Math.round((flow.currentStep / flow.totalSteps) * 100) : 0
 
   // Check if this is a blink flow (has blinkGroupId or is grouped)
@@ -107,7 +108,11 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
 
   return (
     <Card
-      className="gba:cursor-pointer gba:hover:shadow-md gba:transition-shadow"
+      className={`gba:cursor-pointer gba:hover:shadow-md gba:transition-all gba:duration-300 ${
+        isSelected
+          ? 'gba:border-primary gba:border-2 gba:shadow-lg gba:bg-primary/5'
+          : 'gba:border gba:hover:border-primary/50'
+      }`}
       onClick={() => onView(flow)}
       data-testid={`flow-card-${flow.id}`}
     >
@@ -123,9 +128,9 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
                     data-testid="flow-blink-badge"
                   >
                     <Zap className="gba:h-3 gba:w-3 gba:mr-1" />
-                    Blink
+                    {!isSelected && 'Blink'}
                   </Badge>
-                  {visibleAssigneeIds.length > 0 && (
+                  {!isSelected && visibleAssigneeIds.length > 0 && (
                     <div className="gba:flex gba:items-center gba:gap-1.5" data-testid="flow-blink-assignees">
                       <ArrowRight className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
                       <div className="gba:flex gba:items-center gba:-space-x-2">
@@ -145,35 +150,37 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
                   )}
                 </>
               )}
-              {isServiceRequest && (
+              {!isSelected && isServiceRequest && (
                 <Badge variant="secondary" data-testid="flow-service-badge">
                   <FileText className="gba:h-3 gba:w-3 gba:mr-1" />
                   Service Request
                 </Badge>
               )}
-              {isExpenseFlow && (
+              {!isSelected && isExpenseFlow && (
                 <Badge variant="secondary" data-testid="flow-expense-badge">
                   <DollarSign className="gba:h-3 gba:w-3 gba:mr-1" />
                   Expenses
                 </Badge>
               )}
-              {isAbsenceRequest && (
+              {!isSelected && isAbsenceRequest && (
                 <Badge variant="secondary" data-testid="flow-absence-badge">
                   <Calendar className="gba:h-3 gba:w-3 gba:mr-1" />
                   Absences
                 </Badge>
               )}
-              <Badge variant={getFlowStatusBadgeVariant(flow.status)} data-testid="flow-status-badge">
-                {formatFlowStatus(flow.status)}
-              </Badge>
+              {!isSelected && (
+                <Badge variant={getFlowStatusBadgeVariant(flow.status)} data-testid="flow-status-badge">
+                  {formatFlowStatus(flow.status)}
+                </Badge>
+              )}
             </div>
 
             <h3 className="gba:font-semibold gba:text-base gba:mb-1 gba:truncate" data-testid="flow-title">
               {flow.templateName}
             </h3>
 
-            {/* Show assignee completion for all blinks (both single and multi-user) */}
-            {shouldShowAssigneeProgress && (
+            {/* Show assignee completion for all blinks (both single and multi-user) - Hide when selected */}
+            {!isSelected && shouldShowAssigneeProgress && (
               <div className="gba:mb-2">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:mb-1">
                   <Users className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
@@ -189,8 +196,8 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
               </div>
             )}
 
-            {/* Show step progress for non-blink flows only */}
-            {!shouldShowAssigneeProgress && flow.totalSteps > 0 && (
+            {/* Show step progress for non-blink flows only - Hide when selected */}
+            {!isSelected && !shouldShowAssigneeProgress && flow.totalSteps > 0 && (
               <div className="gba:mb-2">
                 <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:mb-1">
                   <span>Progress</span>
@@ -202,15 +209,17 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
               </div>
             )}
 
-            <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
-              <div className="gba:flex gba:items-center gba:gap-1">
-                <Calendar className="gba:h-3 gba:w-3" />
-                <span data-testid="flow-started-at">Started {formatRelativeTime(flow.startedAt)}</span>
+            {!isSelected && (
+              <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
+                <div className="gba:flex gba:items-center gba:gap-1">
+                  <Calendar className="gba:h-3 gba:w-3" />
+                  <span data-testid="flow-started-at">Started {formatRelativeTime(flow.startedAt)}</span>
+                </div>
+                {flow.completedAt && (
+                  <span data-testid="flow-completed-at">Completed {formatDateTime(flow.completedAt)}</span>
+                )}
               </div>
-              {flow.completedAt && (
-                <span data-testid="flow-completed-at">Completed {formatDateTime(flow.completedAt)}</span>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </CardContent>

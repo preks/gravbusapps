@@ -181,155 +181,179 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   return (
-    <div className="gba:space-y-4" data-testid="inbox-view">
-      {/* Search and Actions */}
-      <div className="gba:flex gba:items-center gba:gap-4">
-        <div className="gba:relative gba:flex-1">
-          <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
-          <Input
-            placeholder="Search tasks..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="gba:pl-10"
-            data-testid="inbox-search-input"
-          />
-        </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={currentOnRefresh}
-          disabled={currentIsLoading}
-          data-testid="inbox-refresh-button"
-        >
-          <RefreshCw className={`gba:h-4 gba:w-4 ${currentIsLoading ? 'gba:animate-spin' : ''}`} />
-        </Button>
-      </div>
-
-      {/* Task Type Filters */}
-      <div className="gba:flex gba:items-center gba:gap-2" data-testid="inbox-filter-buttons">
-        <Button
-          variant={filterType === 'all' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterType('all')}
-          data-testid="inbox-filter-all"
-          className="gba:flex gba:items-center gba:gap-2"
-        >
-          <Inbox className="gba:h-4 gba:w-4" />
-          All
-          <Badge variant="secondary" className="gba:ml-2">
-            {taskCounts.all}
-          </Badge>
-        </Button>
-        <Button
-          variant={filterType === 'blinks' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterType('blinks')}
-          data-testid="inbox-filter-blinks"
-          className="gba:flex gba:items-center gba:gap-2"
-        >
-          <Zap className="gba:h-4 gba:w-4" />
-          Blinks
-          {taskCounts.blinks > 0 && (
-            <Badge variant="secondary" className="gba:ml-2">
-              {taskCounts.blinks}
-            </Badge>
-          )}
-        </Button>
-        <Button
-          variant={filterType === 'approvals' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterType('approvals')}
-          data-testid="inbox-filter-approvals"
-          className="gba:flex gba:items-center gba:gap-2"
-        >
-          <CheckCircle className="gba:h-4 gba:w-4" />
-          Approvals
-          {taskCounts.approvals > 0 && (
-            <Badge variant="secondary" className="gba:ml-2">
-              {taskCounts.approvals}
-            </Badge>
-          )}
-        </Button>
-        <Button
-          variant={filterType === 'completed' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilterType('completed')}
-          data-testid="inbox-filter-completed"
-          className="gba:flex gba:items-center gba:gap-2"
-        >
-          <CheckCheck className="gba:h-4 gba:w-4" />
-          Completed
-          {taskCounts.completed > 0 && (
-            <Badge variant="secondary" className="gba:ml-2">
-              {taskCounts.completed}
-            </Badge>
-          )}
-        </Button>
-      </div>
-
-      {/* Error Alert */}
-      {currentError && (
-        <Alert variant="destructive">
-          <AlertTitle>Error Loading Tasks</AlertTitle>
-          <AlertDescription>{currentError}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Task List */}
-      {filteredTasks.length === 0 ? (
-        <EmptyState
-          type="inbox"
-          message={
-            searchQuery.trim()
-              ? `No tasks found matching "${searchQuery}"`
-              : filterType === 'blinks'
-                ? 'No Blink tasks at the moment'
-                : filterType === 'approvals'
-                  ? 'No approval tasks at the moment'
-                  : filterType === 'completed'
-                    ? 'No completed tasks yet'
-                    : 'No tasks assigned to you at the moment'
-          }
-        />
-      ) : (
-        <>
-          <div className="gba:space-y-1.5" data-testid="inbox-task-list">
-            {filteredTasks.map(task => (
-              <TaskCard key={task.id} task={task} onView={setSelectedTask} employeeMap={employeeMap} />
-            ))}
+    <div className="gba:flex gba:gap-4 gba:h-[calc(100vh-200px)] gba:overflow-hidden" data-testid="inbox-view">
+      {/* Master Panel - Task List */}
+      <div
+        className={`gba:flex gba:flex-col gba:gap-4 gba:transition-all gba:duration-500 gba:ease-in-out ${
+          selectedTask ? 'gba:w-[45%]' : 'gba:w-full'
+        }`}
+      >
+        {/* Search and Actions */}
+        <div className="gba:flex gba:items-center gba:gap-4">
+          <div className="gba:relative gba:flex-1">
+            <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+            <Input
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="gba:pl-10"
+              data-testid="inbox-search-input"
+            />
           </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={currentOnRefresh}
+            disabled={currentIsLoading}
+            data-testid="inbox-refresh-button"
+          >
+            <RefreshCw className={`gba:h-4 gba:w-4 ${currentIsLoading ? 'gba:animate-spin' : ''}`} />
+          </Button>
+        </div>
 
-          {/* Pagination Info and Load More */}
-          {!searchQuery.trim() && (
-            <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t">
-              <p className="gba:text-sm gba:text-muted-foreground">
-                Showing {filteredTasks.length} of {currentTotalCount} tasks
-              </p>
-              {currentHasMore && (
-                <Button
-                  variant="outline"
-                  onClick={currentOnLoadMore}
-                  disabled={currentIsLoading}
-                  data-testid="inbox-load-more-button"
-                >
-                  Load More
-                </Button>
+        {/* Task Type Filters */}
+        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap" data-testid="inbox-filter-buttons">
+          <Button
+            variant={filterType === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterType('all')}
+            data-testid="inbox-filter-all"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <Inbox className="gba:h-4 gba:w-4" />
+            All
+            <Badge variant="secondary" className="gba:ml-2">
+              {taskCounts.all}
+            </Badge>
+          </Button>
+          <Button
+            variant={filterType === 'blinks' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterType('blinks')}
+            data-testid="inbox-filter-blinks"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <Zap className="gba:h-4 gba:w-4" />
+            Blinks
+            {taskCounts.blinks > 0 && (
+              <Badge variant="secondary" className="gba:ml-2">
+                {taskCounts.blinks}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            variant={filterType === 'approvals' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterType('approvals')}
+            data-testid="inbox-filter-approvals"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <CheckCircle className="gba:h-4 gba:w-4" />
+            Approvals
+            {taskCounts.approvals > 0 && (
+              <Badge variant="secondary" className="gba:ml-2">
+                {taskCounts.approvals}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            variant={filterType === 'completed' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterType('completed')}
+            data-testid="inbox-filter-completed"
+            className="gba:flex gba:items-center gba:gap-2"
+          >
+            <CheckCheck className="gba:h-4 gba:w-4" />
+            Completed
+            {taskCounts.completed > 0 && (
+              <Badge variant="secondary" className="gba:ml-2">
+                {taskCounts.completed}
+              </Badge>
+            )}
+          </Button>
+        </div>
+
+        {/* Error Alert */}
+        {currentError && (
+          <Alert variant="destructive">
+            <AlertTitle>Error Loading Tasks</AlertTitle>
+            <AlertDescription>{currentError}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Task List - Scrollable */}
+        <div className="gba:flex-1 gba:overflow-y-auto gba:pr-2">
+          {filteredTasks.length === 0 ? (
+            <EmptyState
+              type="inbox"
+              message={
+                searchQuery.trim()
+                  ? `No tasks found matching "${searchQuery}"`
+                  : filterType === 'blinks'
+                    ? 'No Blink tasks at the moment'
+                    : filterType === 'approvals'
+                      ? 'No approval tasks at the moment'
+                      : filterType === 'completed'
+                        ? 'No completed tasks yet'
+                        : 'No tasks assigned to you at the moment'
+              }
+            />
+          ) : (
+            <>
+              <div className="gba:space-y-1.5" data-testid="inbox-task-list">
+                {filteredTasks.map(task => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onView={setSelectedTask}
+                    employeeMap={employeeMap}
+                    isSelected={selectedTask?.id === task.id}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination Info and Load More */}
+              {!searchQuery.trim() && (
+                <div className="gba:flex gba:items-center gba:justify-between gba:pt-4 gba:border-t gba:mt-4">
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    Showing {filteredTasks.length} of {currentTotalCount} tasks
+                  </p>
+                  {currentHasMore && (
+                    <Button
+                      variant="outline"
+                      onClick={currentOnLoadMore}
+                      disabled={currentIsLoading}
+                      data-testid="inbox-load-more-button"
+                    >
+                      Load More
+                    </Button>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
-        </>
-      )}
+        </div>
+      </div>
 
-      {/* Task Detail Dialog */}
-      <TaskDetailDialog
-        task={selectedTask}
-        open={!!selectedTask}
-        onClose={() => setSelectedTask(null)}
-        onTaskUpdated={onRefresh}
-        onTaskCompleted={handleTaskCompleted}
-        accessToken={context.accessToken}
-        userId={context.userInfo?.id}
-      />
+      {/* Detail Panel - Task Details */}
+      <div
+        className={`gba:flex-1 gba:transition-all gba:duration-500 gba:ease-in-out gba:overflow-hidden ${
+          selectedTask
+            ? 'gba:translate-x-0 gba:opacity-100 gba:w-[55%]'
+            : 'gba:translate-x-full gba:opacity-0 gba:w-0 gba:pointer-events-none'
+        }`}
+      >
+        {selectedTask && (
+          <TaskDetailDialog
+            task={selectedTask}
+            onClose={() => setSelectedTask(null)}
+            onTaskUpdated={onRefresh}
+            onTaskCompleted={handleTaskCompleted}
+            accessToken={context.accessToken}
+            userId={context.userInfo?.id}
+          />
+        )}
+      </div>
     </div>
   )
 }

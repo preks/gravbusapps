@@ -5,6 +5,7 @@ A modern, professional inbox/outbox component that consolidates all user tasks a
 ## Features
 
 ### Inbox
+
 - **Multi-source Task Aggregation**:
   - Flow Engine tasks (ASSIGN mode only)
   - CRM Opportunities (owned by user)
@@ -16,6 +17,7 @@ A modern, professional inbox/outbox component that consolidates all user tasks a
 - **Dynamic Detail Views**: Different views for flow tasks, CRM tasks, and approvals
 
 ### Outbox
+
 - **Initiated Workflows**: All workflows started by the user
 - **Status Tracking**: Visual progress indicators for each flow
 - **Flow Details**: Step-by-step progress with completion status
@@ -45,19 +47,31 @@ const MyComponent: React.FC<BusinessAppContextProps> = (context) => {
 ## Navigation
 
 The component is accessible via:
+
 - **URL**: `/platform/every-box`
 - **Development**: `?app=platform/apps/every-box`
 
 ## API Endpoints
 
 ### Flow Engine
+
+**Endpoint Configuration:**
+
+- **Always uses production endpoint**: `https://newwork-dev.newwork.com/flow-engine`
+- Environment variables are ignored to ensure consistent behavior
+- All task and flow data is fetched from the production flow engine
+
+**Endpoints:**
+
 - `GET /api/tasks/user/{userId}?includeAssigned=true&includeClaimable=false` - Inbox tasks
+- `GET /api/tasks/user/{userId}/completed` - Completed tasks
 - `GET /api/flows/user/{userId}/initiated` - Outbox flows
 - `POST /api/tasks/{taskId}/complete` - Complete task
 - `POST /api/tasks/{taskId}/reject` - Reject task
 - `POST /api/tasks/{taskId}/reassign` - Reassign task
 
 ### GraphQL (CRM)
+
 - Opportunities query with owner filter
 - Leads query with owner filter
 
@@ -92,35 +106,39 @@ every-box/
 ## Data Models
 
 ### UnifiedTask
+
 Represents tasks from all sources in a consistent format:
+
 ```typescript
 interface UnifiedTask {
-  id: string;
-  source: 'flow-engine' | 'crm-opportunity' | 'crm-lead' | 'approval';
-  type: string;
-  title: string;
-  description?: string;
-  status: TaskStatus;
-  priority: TaskPriority;
-  dueDate?: string;
-  assignedAt: string;
-  availableActions: string[];
+  id: string
+  source: 'flow-engine' | 'crm-opportunity' | 'crm-lead' | 'approval'
+  type: string
+  title: string
+  description?: string
+  status: TaskStatus
+  priority: TaskPriority
+  dueDate?: string
+  assignedAt: string
+  availableActions: string[]
   // ... more fields
 }
 ```
 
 ### Flow
+
 Represents initiated workflows:
+
 ```typescript
 interface Flow {
-  id: string;
-  templateName: string;
-  status: FlowStatus;
-  initiatedBy: string;
-  startedAt: string;
-  currentStep: number;
-  totalSteps: number;
-  steps: FlowStep[];
+  id: string
+  templateName: string
+  status: FlowStatus
+  initiatedBy: string
+  startedAt: string
+  currentStep: number
+  totalSteps: number
+  steps: FlowStep[]
   // ... more fields
 }
 ```
@@ -139,6 +157,7 @@ interface Flow {
 ## Testing
 
 All interactive elements have `data-testid` attributes:
+
 - `every-box-container` - Main container
 - `every-box-inbox-tab` - Inbox tab
 - `every-box-outbox-tab` - Outbox tab
@@ -165,4 +184,3 @@ All interactive elements have `data-testid` attributes:
 - Mobile app integration
 - IRM service request integration
 - Analytics dashboard
-

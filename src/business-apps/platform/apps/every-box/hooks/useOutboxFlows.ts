@@ -33,21 +33,34 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
     const startTime = performance.now()
     try {
       console.log(`[EveryBox] 🚀 START Fetching outbox flows for user: ${userId}`)
-      const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=100&offset=0`
+      // Reduce limit to 50 and add timeout to prevent 524 errors
+      const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
       console.log(`[EveryBox] Outbox Flow Engine URL: ${url}`)
 
       const fetchStart = performance.now()
+
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+
       const response = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           ...(context.accessToken && { Authorization: `Bearer ${context.accessToken}` })
-        }
+        },
+        signal: controller.signal
       })
+
+      clearTimeout(timeoutId)
+
       const fetchEnd = performance.now()
       console.log(`[EveryBox] ⏱️ Outbox API response time: ${(fetchEnd - fetchStart).toFixed(0)}ms`)
 
       if (!response.ok) {
         console.error(`[EveryBox] Outbox API error: ${response.status} ${response.statusText}`)
+        if (response.status === 524) {
+          throw new Error('Flow engine is taking too long to respond. Please try again.')
+        }
         throw new Error(`Flow engine API error: ${response.status}`)
       }
 
@@ -63,6 +76,12 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       return rawFlows.map(flow => transformFlow(flow))
     } catch (err) {
       const endTime = performance.now()
+
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.error(`[EveryBox] ❌ Request timeout after ${(endTime - startTime).toFixed(0)}ms`)
+        throw new Error('Request timed out. The server is taking too long to respond.')
+      }
+
       console.error(`[EveryBox] ❌ Error fetching initiated flows after ${(endTime - startTime).toFixed(0)}ms:`, err)
       throw err
     }
