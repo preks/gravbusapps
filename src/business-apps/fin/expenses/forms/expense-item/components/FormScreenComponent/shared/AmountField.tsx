@@ -44,7 +44,7 @@ export const AmountField: React.FC<AmountFieldProps> = ({
     const valueStr = String(currentValue).trim()
 
     // Remove non-numeric characters except decimal separators (both . and ,)
-    let cleaned = valueStr.replace(/[^0-9,.-]/g, '')
+    let cleaned = valueStr.replaceAll(/[^0-9,.-]/g, '')
 
     // Find the last occurrence of . or ,
     const lastCommaIndex = cleaned.lastIndexOf(',')
@@ -59,12 +59,12 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
       if (isDecimalSeparator) {
         // This is the decimal separator - convert to period and remove all others
-        const beforeDecimal = cleaned.substring(0, lastSepIndex).replace(/[,.]/g, '')
+        const beforeDecimal = cleaned.substring(0, lastSepIndex).replaceAll(/[,.]/g, '')
         const afterDecimal = afterSep
         cleaned = `${beforeDecimal}.${afterDecimal}`
       } else {
         // No clear decimal separator, remove all
-        cleaned = cleaned.replace(/[,.]/g, '')
+        cleaned = cleaned.replaceAll(/[,.]/g, '')
       }
     }
 
