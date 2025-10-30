@@ -110,11 +110,13 @@ export const AmountField: React.FC<AmountFieldProps> = ({
           // Only update if format is different to avoid infinite loop
           if (String(currentFormValue) !== finalDisplay) {
             form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
+            // IMPORTANT: Notify parent component of the numeric value for validation
+            onAmountChange(numValue)
           }
         }
       }
     }
-  }, [amountValue, form, index])
+  }, [amountValue, form, index, onAmountChange])
 
   const renderAmountInput = () => (
     <InputField
