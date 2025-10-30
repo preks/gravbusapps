@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Alert, Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
+import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import { useBenefitsCatalog } from '../../../hooks/useBenefitsCatalog'
 import BenefitCatalogCard from './BenefitCatalogCard'
 import { BenefitCatalogItem } from '../../../types/benefitCatalogTypes'
@@ -10,15 +11,11 @@ import { DebouncedInput } from '@/components/debounced-input'
 import RequestBenefitModal from './modals/RequestBenefitModal'
 import DeactivateBenefitModal from './modals/DeactivateBenefitModal'
 
-interface BenefitsPerksProps {
+interface BenefitsPerksProps extends BusinessAppContextProps {
   /**
    * Employee ID to fetch benefits for
    */
   employeeId: string
-  /**
-   * Access token for API authentication
-   */
-  accessToken: string
   /**
    * Default currency code for formatting
    */
@@ -43,6 +40,8 @@ interface BenefitsPerksProps {
 const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
   employeeId,
   accessToken,
+  userInfo,
+  additionalData,
   currencyCode = 'EUR',
   loading: externalLoading = false
 }) => {
@@ -272,6 +271,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             benefit={selectedBenefit}
             employeeId={employeeId}
             accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
             onSuccess={handleSuccess}
           />
 
@@ -281,6 +282,8 @@ const BenefitsPerksSection: React.FC<BenefitsPerksProps> = ({
             benefit={selectedBenefit}
             employeeId={employeeId}
             accessToken={accessToken}
+            userInfo={userInfo}
+            additionalData={additionalData}
             onSuccess={handleSuccess}
           />
         </>

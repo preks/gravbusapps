@@ -5,14 +5,14 @@ import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-sys
 import { CompensationData } from '../../../types/compensationTypes'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../../common/utils/windowUtils'
 import { PiCurrencyEur, PiGift, PiHeartbeat } from 'react-icons/pi'
+import { BusinessAppContextProps } from '../../../../../../../../common/BusinessAppContext'
 import TotalRewardsCard from './TotalRewardsCard'
 import BenefitsPerksSection from './BenefitsPerksSection'
 
-interface CurrentCompensationViewProps {
+interface CurrentCompensationViewProps extends BusinessAppContextProps {
   compensationData: CompensationData
   loading: boolean
   employeeId: string
-  accessToken: string
 }
 
 /**

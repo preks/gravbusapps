@@ -5,7 +5,7 @@ import { TabSwitch, TabSwitchList, TabSwitchTrigger, TabSwitchContent, Alert } f
 import { Employee } from '../../hooks/useEmployeeData'
 import { useCompensationData } from '../../hooks/useCompensationData'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
-import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import { BusinessAppContextProps } from '../../../../../../../common/BusinessAppContext'
 import CurrentCompensationView from './components/CurrentCompensationView'
 import PayHistoryView from './components/PayHistoryView'
 import GrowthView from './components/GrowthView'
@@ -13,11 +13,9 @@ import { PiCurrencyEur, PiClockCounterClockwise, PiTrendUp } from 'react-icons/p
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 
-interface JobsCompensationTabProps {
+interface JobsCompensationTabProps extends BusinessAppContextProps {
   employee: Employee
-  accessToken: string
   employeeId?: string
-  userInfo?: UserInfoProps
   isSelfView: boolean
 }
 
@@ -25,7 +23,7 @@ interface JobsCompensationTabProps {
  * Jobs & Compensation Tab Component
  * Main tab containing Current Compensation and Compensation History views
  */
-const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, accessToken, employeeId }) => {
+const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employeeId, accessToken, userInfo }) => {
   const [activeSubTab, setActiveSubTab] = useState('current')
   const empId = employeeId || employee.id
 
@@ -105,6 +103,7 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, accessT
               loading={loading}
               employeeId={empId}
               accessToken={accessToken}
+              userInfo={userInfo}
             />
           )}
         </TabSwitchContent>

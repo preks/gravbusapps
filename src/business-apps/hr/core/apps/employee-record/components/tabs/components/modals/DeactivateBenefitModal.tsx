@@ -22,8 +22,9 @@ import {
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BenefitCatalogItem } from '../../../../types/benefitCatalogTypes'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
-interface DeactivateBenefitModalProps {
+interface DeactivateBenefitModalProps extends BusinessAppContextProps {
   /**
    * Controls modal visibility
    */
@@ -40,10 +41,6 @@ interface DeactivateBenefitModalProps {
    * Employee ID for the request
    */
   employeeId: string
-  /**
-   * Access token for API calls
-   */
-  accessToken: string
   /**
    * Callback after successful submission
    */
