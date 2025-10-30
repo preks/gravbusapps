@@ -93,13 +93,105 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
     })
   }, [notes, searchQuery])
 
+  const renderNotesContent = React.useMemo(() => {
+    if (filteredNotes.length > 0) {
+      return (
+        <div className="gba:space-y-3">
+          {filteredNotes.map(note => (
+            <div
+              key={note.id}
+              className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-4 gba:space-y-2"
+              data-testid={`hr-note-card-${note.id}`}
+            >
+              <div className="gba:flex gba:items-start gba:justify-between">
+                <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
+                  <PiChatCircle
+                    className="gba:text-muted-foreground gba:mt-1 gba:flex-shrink-0"
+                    style={{ fontSize: 24, display: 'block' }}
+                  />
+                  <div className="gba:flex-1">
+                    <div className="gba:mb-3">
+                      <h4 className="gba:font-semibold gba:text-foreground">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_from', 'Note from')}{' '}
+                        {note.createdBy || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'Unknown')}{' '}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_on', 'on')}{' '}
+                        {formatDate(note.createdAt, 'date.short') || ''}
+                      </h4>
+                    </div>
+                    <p className="gba:text-sm gba:text-muted-foreground">{note.noteText}</p>
+                  </div>
+                </div>
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      const noteVersion = (note as any).version !== undefined ? (note as any).version : 0
+                      startProcess({
+                        processName: 'createEmployeeNote',
+                        domain: 'employee',
+                        payload: {
+                          employeeId: employeeId,
+                          noteId: note.id,
+                          notes: note.noteText,
+                          version: noteVersion
+                        },
+                        builderType: 'NATIVE_SCREEN'
+                      })
+                    }}
+                    data-testid={`hr-note-edit-${note.id}`}
+                  >
+                    <EditOutlined style={{ fontSize: 18 }} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-testid={`hr-note-delete-${note.id}`}
+                    disabled={deletingNoteId === note.id}
+                    onClick={() => {
+                      setNoteToDelete(note)
+                      setDeleteDialogOpen(true)
+                    }}
+                  >
+                    <DeleteOutlined style={{ fontSize: 18 }} />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (searchQuery.trim()) {
+      return (
+        <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+          <p>
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.no_notes_found', 'No notes found matching')} &quot;
+            {searchQuery}&quot;.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
+        <p>
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.no_notes_yet', 'No notes yet. Create your first note.')}
+        </p>
+      </div>
+    )
+  }, [filteredNotes, searchQuery, deletingNoteId, employeeId])
+
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
       try {
         const response = event.detail?.response
 
         if (response?.hrNote || response?.HrNote || response?.employeeNote || response?.EmployeeNote) {
-          loadNotes()
+          loadNotes().catch(err => {
+            console.error('Error loading notes after process completion:', err)
+          })
         }
       } catch (err) {
         console.error('Error handling process completion:', err)
@@ -180,88 +272,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
         <h3 className="gba:text-lg gba:font-semibold">
           {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.notes_section', 'Notes')}
         </h3>
-        {filteredNotes.length > 0 ? (
-          <div className="gba:space-y-3">
-            {filteredNotes.map(note => (
-              <div
-                key={note.id}
-                className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:p-4 gba:space-y-2"
-                data-testid={`hr-note-card-${note.id}`}
-              >
-                <div className="gba:flex gba:items-start gba:justify-between">
-                  <div className="gba:flex gba:items-start gba:gap-3 gba:flex-1">
-                    <PiChatCircle
-                      className="gba:text-muted-foreground gba:mt-1 gba:flex-shrink-0"
-                      style={{ fontSize: 24, display: 'block' }}
-                    />
-                    <div className="gba:flex-1">
-                      <div className="gba:mb-3">
-                        <h4 className="gba:font-semibold gba:text-foreground">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_from', 'Note from')}{' '}
-                          {note.createdBy || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'Unknown')}{' '}
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_on', 'on')}{' '}
-                          {formatDate(note.createdAt, 'date.short') || ''}
-                        </h4>
-                      </div>
-                      <p className="gba:text-sm gba:text-muted-foreground">{note.noteText}</p>
-                    </div>
-                  </div>
-                  <div className="gba:flex gba:gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        const noteVersion = (note as any).version !== undefined ? (note as any).version : 0
-                        startProcess({
-                          processName: 'createEmployeeNote',
-                          domain: 'employee',
-                          payload: {
-                            employeeId: employeeId,
-                            noteId: note.id,
-                            notes: note.noteText,
-                            version: noteVersion
-                          },
-                          builderType: 'NATIVE_SCREEN'
-                        })
-                      }}
-                      data-testid={`hr-note-edit-${note.id}`}
-                    >
-                      <EditOutlined style={{ fontSize: 18 }} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      data-testid={`hr-note-delete-${note.id}`}
-                      disabled={deletingNoteId === note.id}
-                      onClick={() => {
-                        setNoteToDelete(note)
-                        setDeleteDialogOpen(true)
-                      }}
-                    >
-                      <DeleteOutlined style={{ fontSize: 18 }} />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : searchQuery.trim() ? (
-          <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-            <p>
-              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.no_notes_found', 'No notes found matching')} &quot;
-              {searchQuery}&quot;.
-            </p>
-          </div>
-        ) : (
-          <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-            <p>
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:hr_notes.no_notes_yet',
-                'No notes yet. Create your first note.'
-              )}
-            </p>
-          </div>
-        )}
+        {renderNotesContent}
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

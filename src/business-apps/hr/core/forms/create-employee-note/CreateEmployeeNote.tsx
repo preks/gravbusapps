@@ -36,16 +36,21 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
     additionalData?.psi_taskPayload?.psi_initialParameters?.notes ||
     ''
 
-  const noteVersion =
-    additionalData?.version !== undefined
-      ? additionalData.version
-      : additionalData?.psi_taskPayload?.version !== undefined
-        ? additionalData.psi_taskPayload.version
-        : additionalData?.psi_taskPayload?.initialParameters?.version !== undefined
-          ? additionalData.psi_taskPayload.initialParameters.version
-          : additionalData?.psi_taskPayload?.psi_initialParameters?.version !== undefined
-            ? additionalData.psi_taskPayload.psi_initialParameters.version
-            : 0
+  const noteVersion = useMemo(() => {
+    if (additionalData?.version !== undefined) {
+      return additionalData.version
+    }
+    if (additionalData?.psi_taskPayload?.version !== undefined) {
+      return additionalData.psi_taskPayload.version
+    }
+    if (additionalData?.psi_taskPayload?.initialParameters?.version !== undefined) {
+      return additionalData.psi_taskPayload.initialParameters.version
+    }
+    if (additionalData?.psi_taskPayload?.psi_initialParameters?.version !== undefined) {
+      return additionalData.psi_taskPayload.psi_initialParameters.version
+    }
+    return 0
+  }, [additionalData])
 
   const isEditMode = !!noteId
 
