@@ -151,31 +151,26 @@ export const getTimeSince = (dateString: string) => {
   }
 }
 
+// Re-export common formatters for convenience
+export { formatCurrencyString as formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
+export { formatForDisplay as formatDate } from '@/common/utils/dateFormatter'
+
 /**
- * Format currency amount with locale support
+ * Get default start date (first day of next month)
  */
-export const formatCurrency = (
-  amount: number,
-  locale: string = 'de-DE',
-  currency: string = 'EUR',
-  options: Intl.NumberFormatOptions = {}
-): string => {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-    ...options
-  }).format(amount)
+export const getDefaultStartDate = (): string => {
+  const date = new Date()
+  date.setMonth(date.getMonth() + 1)
+  date.setDate(1)
+  return date.toISOString().split('T')[0]
 }
 
 /**
- * Format date string with locale support
+ * Get default end date (last day of current month)
  */
-export const formatDate = (dateString: string, locale: string = 'en-US'): string => {
-  return new Date(dateString).toLocaleDateString(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+export const getDefaultEndDate = (): string => {
+  const date = new Date()
+  date.setMonth(date.getMonth() + 1)
+  date.setDate(0) // Last day of current month
+  return date.toISOString().split('T')[0]
 }

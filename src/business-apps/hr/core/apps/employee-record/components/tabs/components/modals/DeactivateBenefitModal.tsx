@@ -24,6 +24,8 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BenefitCatalogItem } from '../../../../types/benefitCatalogTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DEACTIVATION_REASON_OPTIONS, getReasonLabel } from '../../../../constants/benefitDeactivationReasons'
+import { BENEFIT_FORM_VALIDATION } from '../../../../constants/benefitFormValidation'
+import { getDefaultEndDate } from '../../../../utils/utils'
 import BenefitSummaryCard from './BenefitSummaryCard'
 
 interface DeactivateBenefitModalProps extends BusinessAppContextProps {
@@ -68,16 +70,6 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   /**
-   * Get default end date (last day of current month)
-   */
-  const getDefaultEndDate = (): string => {
-    const date = new Date()
-    date.setMonth(date.getMonth() + 1)
-    date.setDate(0) // Last day of current month
-    return date.toISOString().split('T')[0]
-  }
-
-  /**
    * Initialize end date on mount
    */
   React.useEffect(() => {
@@ -92,8 +84,11 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
   const isFormValid = useMemo(() => {
     const hasEndDate = endDate.length > 0
     const hasReason = reason.length > 0
+    const trimmedDetails = additionalDetails.trim()
     const hasDetailsIfOther =
-      reason !== 'other' || (additionalDetails.trim().length >= 20 && additionalDetails.trim().length <= 500)
+      reason !== 'other' ||
+      (trimmedDetails.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
+        trimmedDetails.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH)
 
     return hasEndDate && hasReason && hasDetailsIfOther
   }, [endDate, reason, additionalDetails])
@@ -109,11 +104,11 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
       // Validation
       if (!endDate) throw new Error('End date is required')
       if (!reason) throw new Error('Reason is required')
-      if (reason === 'other' && additionalDetails.trim().length < 20) {
-        throw new Error('Additional details must be at least 20 characters')
+      if (reason === 'other' && additionalDetails.trim().length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH) {
+        throw new Error(`Additional details must be at least ${BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH} characters`)
       }
-      if (reason === 'other' && additionalDetails.trim().length > 500) {
-        throw new Error('Additional details must not exceed 500 characters')
+      if (reason === 'other' && additionalDetails.trim().length > BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH) {
+        throw new Error(`Additional details must not exceed ${BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH} characters`)
       }
 
       // Validate end date is today or later
@@ -244,14 +239,16 @@ const DeactivateBenefitModal: React.FC<DeactivateBenefitModalProps> = ({
                   'Please provide more details...'
                 )}
                 rows={3}
-                maxLength={500}
+                maxLength={BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH}
                 data-testid="deactivate-benefit-additional-details-textarea"
                 disabled={isSubmitting}
               />
               <div className="gba:text-xs gba:text-muted-foreground gba:text-right">
-                {additionalDetails.length} / 500 characters
-                {additionalDetails.length < 20 && additionalDetails.length > 0 && (
-                  <span className="gba:text-destructive gba:ml-2">(minimum 20 characters)</span>
+                {additionalDetails.length} / {BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH} characters
+                {additionalDetails.length > 0 && additionalDetails.length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH && (
+                  <span className="gba:text-destructive gba:ml-2">
+                    (minimum {BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH} characters)
+                  </span>
                 )}
               </div>
             </div>

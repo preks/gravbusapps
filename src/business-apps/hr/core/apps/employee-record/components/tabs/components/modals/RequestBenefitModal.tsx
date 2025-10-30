@@ -12,17 +12,16 @@ import {
   Input,
   Textarea,
   Alert,
-  AlertDescription,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
+  AlertDescription
 } from '@newwork/nw-design-system'
 import { startProcess } from '@/common/utils/start-process'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BenefitCatalogItem } from '../../../../types/benefitCatalogTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { BENEFIT_FORM_VALIDATION } from '../../../../constants/benefitFormValidation'
+import { getDefaultStartDate } from '../../../../utils/utils'
+import BenefitProviderField from '../form-fields/BenefitProviderField'
+import BenefitValueField from '../form-fields/BenefitValueField'
 
 interface RequestBenefitModalProps extends BusinessAppContextProps {
   /**
@@ -67,16 +66,6 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
   const [error, setError] = useState<string | null>(null)
 
   /**
-   * Get default start date (first day of next month)
-   */
-  const getDefaultStartDate = (): string => {
-    const date = new Date()
-    date.setMonth(date.getMonth() + 1)
-    date.setDate(1)
-    return date.toISOString().split('T')[0]
-  }
-
-  /**
    * Initialize start date on mount
    */
   React.useEffect(() => {
@@ -90,12 +79,13 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
    */
   const isFormValid = useMemo(() => {
     const hasProviders = benefit.availableProviders && benefit.availableProviders.length > 0
+    const trimmedJustification = justification.trim()
     return (
       hasProviders &&
       provider.length > 0 &&
       startDate.length > 0 &&
-      justification.trim().length >= 20 &&
-      justification.trim().length <= 500
+      trimmedJustification.length >= BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH &&
+      trimmedJustification.length <= BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH
     )
   }, [benefit.availableProviders, provider, startDate, justification])
 
@@ -110,11 +100,11 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
       // Validation
       if (!provider) throw new Error('Provider is required')
       if (!startDate) throw new Error('Start date is required')
-      if (justification.trim().length < 20) {
-        throw new Error('Justification must be at least 20 characters')
+      if (justification.trim().length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH) {
+        throw new Error(`Justification must be at least ${BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH} characters`)
       }
-      if (justification.trim().length > 500) {
-        throw new Error('Justification must not exceed 500 characters')
+      if (justification.trim().length > BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH) {
+        throw new Error(`Justification must not exceed ${BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH} characters`)
       }
 
       // Validate start date is in the future
@@ -137,7 +127,7 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
           benefitTypeRef: benefit.catalogId,
           benefitProviderRef: provider,
           yearlyAmount: yearlyAmountValue,
-          currencyRef: 'Currency:v1:EUR',
+          currencyRef: BENEFIT_FORM_VALIDATION.DEFAULT_CURRENCY_REF,
           startDate: new Date(startDate).toISOString(),
           justification: justification.trim(),
           requestedBy: employeeId,
@@ -204,59 +194,16 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
           </div>
 
           {/* Benefit Provider (Required) */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.provider', 'Provider')}{' '}
-              <span className="gba:text-destructive">*</span>
-            </Label>
-            {benefit.availableProviders && benefit.availableProviders.length > 0 ? (
-              <Select value={provider} onValueChange={setProvider} disabled={isSubmitting}>
-                <SelectTrigger data-testid="request-benefit-provider-select">
-                  <SelectValue
-                    placeholder={getTranslationFromI18nKeyAndLabel('common.select_provider', 'Select provider')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {benefit.availableProviders.map(providerOption => (
-                    <SelectItem key={providerOption.id} value={providerOption.id}>
-                      {providerOption.value}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="gba:text-sm gba:text-muted-foreground gba:p-3 gba:border gba:border-border gba:rounded-md gba:bg-muted">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:compensation.no_providers_available',
-                  'No providers configured for this benefit type'
-                )}
-              </div>
-            )}
-          </div>
+          <BenefitProviderField
+            value={provider}
+            onChange={setProvider}
+            providers={benefit.availableProviders || []}
+            disabled={isSubmitting}
+            required
+          />
 
           {/* Expected Yearly Value (Optional) */}
-          <div className="gba:space-y-2">
-            <Label className="gba:text-sm gba:font-medium gba:text-foreground">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:compensation.expected_value', 'Expected Yearly Value')} (
-              {getTranslationFromI18nKeyAndLabel('common.optional', 'Optional')})
-            </Label>
-            <div className="gba:relative">
-              <span className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:text-sm gba:text-muted-foreground">
-                €
-              </span>
-              <Input
-                type="number"
-                value={yearlyValue}
-                onChange={e => setYearlyValue(e.target.value)}
-                placeholder="15000"
-                className="gba:pl-8"
-                min="0"
-                step="100"
-                data-testid="request-benefit-value-input"
-                disabled={isSubmitting}
-              />
-            </div>
-          </div>
+          <BenefitValueField value={yearlyValue} onChange={setYearlyValue} disabled={isSubmitting} />
 
           {/* Preferred Start Date (Required) */}
           <div className="gba:space-y-2">
@@ -288,14 +235,16 @@ const RequestBenefitModal: React.FC<RequestBenefitModalProps> = ({
                 'Please explain why you need this benefit...'
               )}
               rows={4}
-              maxLength={500}
+              maxLength={BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH}
               data-testid="request-benefit-justification-textarea"
               disabled={isSubmitting}
             />
             <div className="gba:text-xs gba:text-muted-foreground gba:text-right">
-              {justification.length} / 500 characters
-              {justification.length < 20 && justification.length > 0 && (
-                <span className="gba:text-destructive gba:ml-2">(minimum 20 characters)</span>
+              {justification.length} / {BENEFIT_FORM_VALIDATION.MAX_TEXT_LENGTH} characters
+              {justification.length > 0 && justification.length < BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH && (
+                <span className="gba:text-destructive gba:ml-2">
+                  (minimum {BENEFIT_FORM_VALIDATION.MIN_TEXT_LENGTH} characters)
+                </span>
               )}
             </div>
           </div>
