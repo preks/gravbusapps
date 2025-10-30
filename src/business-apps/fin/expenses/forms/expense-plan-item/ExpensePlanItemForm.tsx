@@ -80,8 +80,8 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
       }
     }
 
-    const num = parseFloat(cleaned)
-    if (isNaN(num)) {
+    const num = Number.parseFloat(cleaned)
+    if (Number.isNaN(num)) {
       return
     }
 
