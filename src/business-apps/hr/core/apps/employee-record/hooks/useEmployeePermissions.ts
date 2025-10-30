@@ -191,7 +191,7 @@ const employeeTabPermissionMap: Record<string, ResourcePermissionMap> = {
   },
   [TAB_KEYS.hrNotes]: {
     domain: 'employee',
-    resource: 'working_conditions',
+    resource: 'employee',
     permission: 'read'
   }
 }
