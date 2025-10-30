@@ -88,44 +88,57 @@ export const AmountField: React.FC<AmountFieldProps> = ({
     onAmountChange(num)
   }
 
+  const parseNumericValue = (value: any): number | null => {
+    if (typeof value === 'number') return value
+    const parsed = parseFloat(String(value).replace(',', '.'))
+    return !isNaN(parsed) && parsed > 0 ? parsed : null
+  }
+
+  const formatAmountForLocale = (numValue: number): string => {
+    const locale = getCurrentActiveUserLocale() || 'en-US'
+    const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
+    const intlFormatted = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(numValue)
+    return platformFormatted && platformFormatted !== String(numValue) ? platformFormatted : intlFormatted
+  }
+
+  const updateFormWithFormattedValue = (numValue: number, finalDisplay: string) => {
+    setTimeout(() => {
+      form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
+      previousValueRef.current = finalDisplay
+      onAmountChange(numValue)
+      form.validateFields([`amount-${index}`])
+    }, 100)
+  }
+
   // Format amount when it changes from external source (e.g., OCR from receipt)
   useEffect(() => {
     const currentValueStr = String(watchedAmount || '')
 
-    // Only process if value changed
-    if (previousValueRef.current !== currentValueStr && watchedAmount) {
-      previousValueRef.current = currentValueStr
+    // Early return if value hasn't changed or is empty
+    if (previousValueRef.current === currentValueStr || !watchedAmount) {
+      return
+    }
 
-      // Check if we have a form value that looks like it came from OCR (unformatted number)
-      if (/^[\d,.]+$/.test(currentValueStr)) {
-        const numValue =
-          typeof watchedAmount === 'number' ? watchedAmount : parseFloat(String(watchedAmount).replace(',', '.'))
+    previousValueRef.current = currentValueStr
 
-        if (!isNaN(numValue) && numValue > 0) {
-          const locale = getCurrentActiveUserLocale() || 'en-US'
-          const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
-          const intlFormatted = new Intl.NumberFormat(locale, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          }).format(numValue)
+    // Early return if not a numeric value
+    if (!/^[\d,.]+$/.test(currentValueStr)) {
+      return
+    }
 
-          const finalDisplay =
-            platformFormatted && platformFormatted !== String(numValue) ? platformFormatted : intlFormatted
+    const numValue = parseNumericValue(watchedAmount)
+    if (!numValue) {
+      return
+    }
 
-          // Only update if format is different
-          if (currentValueStr !== finalDisplay) {
-            // Use setTimeout to avoid updating during render
-            setTimeout(() => {
-              form.setFieldsValue({ [`amount-${index}`]: finalDisplay })
-              previousValueRef.current = finalDisplay
-              // Notify parent component of the numeric value for validation
-              onAmountChange(numValue)
-              // Trigger form validation to enable Create button
-              form.validateFields([`amount-${index}`])
-            }, 100)
-          }
-        }
-      }
+    const finalDisplay = formatAmountForLocale(numValue)
+
+    // Only update if format is different
+    if (currentValueStr !== finalDisplay) {
+      updateFormWithFormattedValue(numValue, finalDisplay)
     }
   }, [watchedAmount, form, index, onAmountChange])
 
