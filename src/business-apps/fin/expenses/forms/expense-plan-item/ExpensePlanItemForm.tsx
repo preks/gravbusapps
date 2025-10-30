@@ -272,27 +272,28 @@ export const ExpensePlanItemForm: React.FC<ExpensePlanItemFormProps> = ({
               <InputField
                 label={t('lowcoder:create_expense_item.change_expense_item_container.current_amount_label', 'Amount')}
                 name="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                className="gba:[&>input[type=number]]:appearance-textfield 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-inner-spin-button]:m-0 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:appearance-none 
-         gba:[&>input[type=number]::-webkit-outer-spin-button]:m-0"
+                type="text"
+                inputMode="decimal"
                 placeholder={t(
                   'lowcoder:create_expense_item.change_expense_item_container.current_amount_placeholder',
                   'Enter Amount'
                 )}
                 data-testid="amount-input"
                 onChange={field => {
-                  let value = field.value as string
-                  if (value.includes('.')) {
-                    const parts = value.split('.')
+                  let value = String(field.value)
+
+                  // Handle both period and comma as decimal separators
+                  if (value.includes('.') || value.includes(',')) {
+                    const sep = value.includes('.') ? '.' : ','
+                    const parts = value.split(sep)
+
+                    // Limit to 2 decimal places
                     if (parts[1] && parts[1].length > 2) {
-                      value = `${parts[0]}.${parts[1].substring(0, 2)}`
+                      value = `${parts[0]}${sep}${parts[1].substring(0, 2)}`
                     }
                   }
+
+                  // Update form field with user input (keep original separator for display)
                   form.setFieldsValue({ amount: value })
                 }}
                 required={true}
