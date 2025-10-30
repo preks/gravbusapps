@@ -18,7 +18,7 @@ export const parseNumericValue = (value: any): number | null => {
  */
 export const formatAmountForLocale = (numValue: number): string => {
   const locale = getCurrentActiveUserLocale() || 'en-US'
-  const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
+  const platformFormatted = formatNumberFunction(String(numValue), '0,0.00')
   const intlFormatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
