@@ -9,7 +9,7 @@ interface InvestmentStatisticsProps extends BusinessAppContextProps {
   selectedCurrency: string
 }
 
-// Removed formatCurrency - now using formatCurrencyCompact utility
+// Removed formatCurrencyCompact - now using formatCurrencyCompact utility
 
 const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`

@@ -15,6 +15,7 @@ import {
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { type LucideIcon } from 'lucide-react'
 import { Investment } from '@/common/data/investment/types/investmentTypes'
+import { formatCurrencyCompact } from '../../../utils/currencyUtils'
 
 // Type definitions
 export interface SubType {
@@ -43,7 +44,6 @@ interface InvestmentBreakdownCardProps {
   calculateTrendData: (investments: Investment[]) => TrendData
   masterCurrency: string
   availableCurrencies: string[]
-  formatCurrency: (amount: number, currency: string) => string
 }
 
 /**
@@ -57,8 +57,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
   formatGroupName,
   calculateTrendData,
   masterCurrency,
-  availableCurrencies,
-  formatCurrency
+  availableCurrencies
 }) => {
   // Individual currency state for this card (starts with master currency)
   const [selectedCurrency, setSelectedCurrency] = useState(masterCurrency)
@@ -115,11 +114,11 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
 
       return {
         name: typeName,
-        amount: formatCurrency(total, selectedCurrency),
+        amount: formatCurrencyCompact(total, selectedCurrency),
         percentage: `${percentage.toFixed(1)}%`
       }
     })
-  }, [currencyFilteredInvestments, totalInvested, selectedCurrency, formatCurrency])
+  }, [currencyFilteredInvestments, totalInvested, selectedCurrency])
   const handleNavigateClick = () => {
     const subtabMap: { [key: string]: string } = {
       Equity: 'equity',
@@ -219,7 +218,7 @@ const InvestmentBreakdownCard: React.FC<InvestmentBreakdownCardProps> = ({
         <div className="gba:mb-4">
           <p className="gba:text-sm gba:text-gray-600 gba:mb-1">Total Invested</p>
           <p className="gba:text-2xl gba:font-bold gba:text-gray-900">
-            {formatCurrency(totalInvested, selectedCurrency)}
+            {formatCurrencyCompact(totalInvested, selectedCurrency)}
           </p>
         </div>
 
