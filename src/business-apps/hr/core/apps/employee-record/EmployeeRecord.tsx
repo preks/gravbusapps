@@ -16,7 +16,8 @@ import {
   PiCalendar,
   PiGraduationCap,
   PiClockCounterClockwise,
-  PiReceipt
+  PiReceipt,
+  PiNotebook
 } from 'react-icons/pi'
 
 // Tab components
@@ -30,8 +31,9 @@ import AbsencesTab from './components/tabs/AbsencesTab'
 import SkillsTab from './components/tabs/SkillsTab'
 import ChangeLogTab from './components/tabs/ChangeLogTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
+import HrNotesTab from './components/tabs/HrNotesTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 
@@ -51,7 +53,8 @@ const TAB_KEYS = {
   absences: 'absences',
   skills: 'skills',
   changeLog: 'changeLog',
-  serviceRequests: 'serviceRequests'
+  serviceRequests: 'serviceRequests',
+  hrNotes: 'hrNotes'
 }
 
 // Helper to read URL parameters
@@ -475,25 +478,50 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             isSelfView={isSelfView}
           />
         )
+      },
+      {
+        key: TAB_KEYS.hrNotes,
+        label: (
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <PiNotebook className="gba:text-xl gba:inline-block gba:align-middle" />
+            <span className="gba:inline-block gba:align-middle">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.tab_name', 'HR Notes')}
+            </span>
+          </div>
+        ),
+        children: (
+          <HrNotesTab
+            accessToken={accessToken}
+            employeeId={employeeIdToShow}
+            employeeName={employee?.displayName || 'Employee'}
+            userInfo={userInfo}
+            additionalData={additionalData}
+          />
+        )
       }
     ]
     // ONLY when not viewing own profile
     return allTabs.filter(tab => {
       const tabKey = tab.key as string
 
-      // If viewing own profile, always show all tabs
+      if (tabKey === TAB_KEYS.hrNotes && isSelfView) {
+        return false
+      }
+
+      // If viewing own profile, show all other tabs
       if (isSelfView) {
         return true
       }
 
-      // If not viewing own profile and tab is employment, documents, absences, changeLog, or serviceRequests, check permissions
+      // If not viewing own profile and tab is employment, documents, absences, changeLog, serviceRequests, or hrNotes, check permissions
       if (
         tabKey === TAB_KEYS.employment ||
         tabKey === TAB_KEYS.documents ||
         tabKey === TAB_KEYS.absences ||
         tabKey === TAB_KEYS.changeLog ||
         tabKey === TAB_KEYS.serviceRequests ||
-        tabKey === TAB_KEYS.timeTracking
+        tabKey === TAB_KEYS.timeTracking ||
+        tabKey === TAB_KEYS.hrNotes
       ) {
         // Check if user has permission to see this tab
         return tabPermissions?.[tabKey]?.hasAccess === true
