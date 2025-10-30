@@ -170,13 +170,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
     return hours > 0 ? `${hours} hours/week` : 'Not specified'
   }, [employee.workingHours])
 
-  const isTouchDevice = typeof window !== 'undefined' && 'ontouchstart' in window
-
   return (
-    <div
-      className={cn('gba:summary-tab gba:space-y-8', isTouchDevice ? 'gba:w-[80%]' : 'gba:w-full')}
-      data-testid="summary-tab-container"
-    >
+    <div className="gba:summary-tab gba:space-y-8" data-testid="summary-tab-container">
       {/* Summary Overview Headline with Action Button */}
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="summary-header">
         <div className="gba:summary-header">
@@ -226,12 +221,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       </div>
 
       {/* Main grid layout for content blocks */}
-      <div
-        className={cn(
-          'gba:grid gba:gap-6 gba:grid-cols-1 gba:md:grid-cols-2',
-          isTouchDevice ? ' gba:lg:grid-cols-2' : 'gba:lg:grid-cols-3'
-        )}
-      >
+      <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
           <Card
