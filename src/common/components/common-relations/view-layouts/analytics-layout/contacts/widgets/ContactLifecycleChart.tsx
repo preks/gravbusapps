@@ -46,7 +46,8 @@ const timeFilterOptions = [
 export const ContactLifecycleChart: React.FC<ContactLifecycleChartProps> = ({
   data,
   selectedTimeFilter,
-  onTimeFilterChange
+  onTimeFilterChange,
+  moduleColor = 'primary'
 }) => {
   const [visibleLines, setVisibleLines] = useState({
     totalContacts: true,

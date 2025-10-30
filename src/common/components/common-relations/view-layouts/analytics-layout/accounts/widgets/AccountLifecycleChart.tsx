@@ -43,7 +43,8 @@ export const AccountLifecycleChart: React.FC<AccountLifecycleChartProps> = ({
   onTimeFilterChange,
   visibleLines,
   onToggleLineVisibility,
-  formatXAxisLabel
+  formatXAxisLabel,
+  moduleColor = 'primary'
 }) => {
   const timeFilterOptions = [
     { key: 'month' as TimeFilter, label: 'Last Month' },
