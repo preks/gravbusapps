@@ -33,40 +33,52 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
           offset: 0
         })
 
+        console.log('🔥 ContentPortal - Fetched catalog entries:', {
+          totalEntries: result.entries.length,
+          entries: result.entries.map(e => ({
+            id: e.id,
+            type: e.type,
+            additionalValue2: e.additionalValue2,
+            parentEntryId: e.parentEntryId,
+            displayOrder: e.displayOrder
+          }))
+        })
+
         // Build map for both vote reactions (+1/-1) and emoji reactions
         const catalogMap: Record<string, string> = {}
         const allowedCodes: string[] = []
 
         result.entries.forEach(entry => {
-          // For +1 and -1 votes (check by ID)
-          if (entry.id === 'ContentReaction:v1:+1') {
-            catalogMap['+1'] = entry.id
-          } else if (entry.id === 'ContentReaction:v1:-1') {
-            catalogMap['-1'] = entry.id
-          }
-          // For other emoji reactions (excluding +1/-1)
-          else if (entry.type === 'EMOJI' && !entry.parentEntryId && entry.additionalValue2) {
+          // Map ALL reactions (including +1/-1 for both voting AND emoji picker)
+          if (entry.type === 'EMOJI' && !entry.parentEntryId && entry.additionalValue2 && entry.id) {
             const unifiedCode = entry.additionalValue2
-            if (unifiedCode && entry.id) {
-              catalogMap[unifiedCode] = entry.id
-              allowedCodes.push(unifiedCode)
+            catalogMap[unifiedCode] = entry.id
+            allowedCodes.push(unifiedCode)
+
+            // Also map +1/-1 by their special keys for VoteButtons
+            if (entry.id === 'ContentReaction:v1:+1') {
+              catalogMap['+1'] = entry.id
+            } else if (entry.id === 'ContentReaction:v1:-1') {
+              catalogMap['-1'] = entry.id
             }
           }
         })
 
-        // Sort emoji codes by display order (exclude +1/-1)
-        const emojiEntries = result.entries
-          .filter(
-            entry =>
-              !entry.parentEntryId &&
-              entry.type === 'EMOJI' &&
-              entry.id !== 'ContentReaction:v1:+1' &&
-              entry.id !== 'ContentReaction:v1:-1'
-          )
-          .sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
-        const sortedCodes = emojiEntries.map(entry => entry.additionalValue2 || '').filter(code => code !== '')
+        // Sort emoji codes by display order
+        const sortedCodes = [...allowedCodes].sort((a, b) => {
+          const entryA = result.entries.find(e => e.additionalValue2 === a)
+          const entryB = result.entries.find(e => e.additionalValue2 === b)
+          return (entryA?.displayOrder || 0) - (entryB?.displayOrder || 0)
+        })
 
-        setAllowedReactions(sortedCodes.length > 0 ? sortedCodes : allowedCodes)
+        console.log('🔥 ContentPortal - Processed reactions:', {
+          allowedCodesCount: allowedCodes.length,
+          sortedCodes,
+          allowedCodes,
+          catalogMap
+        })
+
+        setAllowedReactions(sortedCodes)
         setReactionCatalogMap(catalogMap)
       } catch (error) {
         console.error('Failed to load reactions catalog:', error)
@@ -205,7 +217,7 @@ const ContentPortal: React.FC<ContentPortalProps> = context => {
                 startIcon={<Home className="gba:w-4 gba:h-4" />}
                 data-testid="intranet-tab-home"
               >
-                {t('intranet')}
+                {t('home')}
               </TabSwitchTrigger>
               <TabSwitchTrigger
                 value="news"

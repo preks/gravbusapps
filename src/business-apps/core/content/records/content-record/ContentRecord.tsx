@@ -22,6 +22,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
   const { t } = useTranslation(translations)
   const catalogClient = useCatalogManagerClient(context.accessToken)
   const [reactionCatalogMap, setReactionCatalogMap] = useState<Record<string, string>>(context.reactionCatalogMap || {})
+  const [allowedReactions, setAllowedReactions] = useState<string[]>(context.allowedReactions || [])
 
   // Get contentId from props or URL query parameters
   const contentId = useMemo(() => {
@@ -30,9 +31,18 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
 
   // Load allowed reactions if not provided
   useEffect(() => {
-    if (context.reactionCatalogMap) {
-      return // Already provided
+    // Check if reactions are already provided AND have actual data
+    if (
+      context.reactionCatalogMap &&
+      Object.keys(context.reactionCatalogMap).length > 0 &&
+      context.allowedReactions &&
+      context.allowedReactions.length > 0
+    ) {
+      console.log('🔥 ContentRecord - Using provided reactions from context')
+      return // Already provided with data
     }
+
+    console.log('🔥 ContentRecord - Starting to load reactions...')
 
     const loadReactions = async () => {
       try {
@@ -50,18 +60,42 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
 
         const entries = (response as any).data || []
 
-        // Build map: value -> catalog entry ID (only for +1/-1 votes)
+        // Build map for both vote reactions (+1/-1) and emoji reactions
         const catalogMap: Record<string, string> = {}
+        const allowedCodes: string[] = []
 
         entries.forEach((entry: any) => {
-          // For +1 and -1 votes (check by ID)
-          if (entry.id === 'ContentReaction:v1:+1') {
-            catalogMap['+1'] = entry.id
-          } else if (entry.id === 'ContentReaction:v1:-1') {
-            catalogMap['-1'] = entry.id
+          // Map ALL reactions (including +1/-1 for both voting AND emoji picker)
+          if (entry.type === 'EMOJI' && !entry.parentEntryId && entry.additionalValue2 && entry.id) {
+            const unifiedCode = entry.additionalValue2
+            catalogMap[unifiedCode] = entry.id
+            allowedCodes.push(unifiedCode)
+
+            // Also map +1/-1 by their special keys for VoteButtons
+            if (entry.id === 'ContentReaction:v1:+1') {
+              catalogMap['+1'] = entry.id
+            } else if (entry.id === 'ContentReaction:v1:-1') {
+              catalogMap['-1'] = entry.id
+            }
           }
         })
 
+        // Sort emoji codes by display order
+        const sortedCodes = [...allowedCodes].sort((a, b) => {
+          const entryA = entries.find((e: any) => e.additionalValue2 === a)
+          const entryB = entries.find((e: any) => e.additionalValue2 === b)
+          return (entryA?.displayOrder || 0) - (entryB?.displayOrder || 0)
+        })
+
+        console.log('🔥 ContentRecord - Loaded Reactions:', {
+          totalEntries: entries.length,
+          allowedCodesCount: allowedCodes.length,
+          sortedCodes,
+          allowedCodes,
+          catalogMap
+        })
+
+        setAllowedReactions(sortedCodes)
         setReactionCatalogMap(catalogMap)
       } catch (error) {
         console.error('Error loading reactions:', error)
@@ -69,7 +103,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
     }
 
     loadReactions()
-  }, [context.accessToken, context.reactionCatalogMap])
+  }, [context.accessToken, context.reactionCatalogMap, context.allowedReactions])
 
   // Get the tab parameter to know which tab to return to
   const fromTab = useMemo(() => {
@@ -140,6 +174,7 @@ const ContentRecord: React.FC<ContentRecordProps> = context => {
         accessToken={context.accessToken}
         userId={context.userInfo?.id}
         employeeId={context.userInfo?.employeeDetails?.employeeId}
+        allowedReactions={allowedReactions}
         reactionCatalogMap={reactionCatalogMap}
       />
     </div>

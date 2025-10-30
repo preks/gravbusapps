@@ -1,13 +1,11 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
 import { Badge, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
-import { ThumbsUp, ThumbsDown, MessageCircle, CheckCircle, Share2 } from 'lucide-react'
+import { MessageCircle, CheckCircle, Share2 } from 'lucide-react'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
-import { AppActionProvider } from '@/components/app-action-provider'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { buildReactionPayload } from '@/common/data/content/payloads'
 import { useContentComments, CommentWithReplies } from '../../../hooks/useContentComments'
 import { useUserContentReactions } from '@/common/data/content'
+import { VoteButtons, type VoteState } from '@/common/components/common-content'
 import CommentThreadView from '@/business-apps/core/content/components/interactions/CommentThreadView'
 import AnswerForm from './AnswerForm'
 import translations from '../_i18n'
@@ -93,7 +91,12 @@ const QuestionView: React.FC<QuestionViewProps> = ({
     }
   }
 
-  // Sort answers by score (best answer first)
+  // Get vote counts for question
+  const questionVotes: VoteState = useMemo(() => {
+    return getVoteCounts(item.id)
+  }, [item.id, reactionsByArticle])
+
+  // Sort answers by vote score (best answer first)
   const sortedAnswers = useMemo(() => {
     return [...answers].sort((a, b) => {
       const scoreA = getVoteCounts(a.id).score
@@ -120,8 +123,6 @@ const QuestionView: React.FC<QuestionViewProps> = ({
   const handleBackToAnswers = () => {
     setViewingThread(null)
   }
-
-  const questionVotes = getVoteCounts(item.id)
 
   // If viewing a specific answer thread, show thread view
   if (viewingThread) {
@@ -150,102 +151,17 @@ const QuestionView: React.FC<QuestionViewProps> = ({
         <div className="gba:bg-card gba:rounded-lg gba:border gba:border-border gba:p-8 gba:mb-6">
           <div className="gba:flex gba:gap-6">
             {/* Vote Section for Question */}
-            <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:min-w-[80px]">
-              {/* Upvote button */}
-              <AppActionProvider
-                contextsArray={[FlowContextName.contentEntryReact]}
-                externalContextData={{ contentEntryId: item.id }}
-                accessToken={accessToken || ''}
-                onSuccess={handleVoteSuccess}
-                transformData={() => {
-                  if (!upvoteCatalogId) {
-                    throw new Error('Upvote catalog entry not found')
-                  }
-                  return buildReactionPayload({
-                    contentEntryId: item.id,
-                    catalogEntryId: upvoteCatalogId,
-                    employeeId: employeeId || '',
-                    existingReactionId: questionVotes.userReactionId,
-                    existingCatalogEntryId: questionVotes.userCatalogId,
-                    existingVersion: questionVotes.userVersion
-                  })
-                }}
-              >
-                {({ executeAction, isLoading: isVoting }) => (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`gba:h-10 gba:w-10 gba:p-0 ${
-                      questionVotes.userVote === 'upvote'
-                        ? 'gba:text-success gba:hover:bg-success-secondary'
-                        : 'gba:text-muted-foreground gba:hover:text-success gba:hover:bg-accent'
-                    }`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      executeAction({})
-                    }}
-                    disabled={isVoting}
-                    data-testid="question-upvote-button"
-                  >
-                    <ThumbsUp className="gba:w-6 gba:h-6" />
-                  </Button>
-                )}
-              </AppActionProvider>
-
-              {/* Vote count */}
-              <span
-                className={`gba:font-bold gba:text-2xl ${
-                  questionVotes.score > 0
-                    ? 'gba:text-success'
-                    : questionVotes.score < 0
-                      ? 'gba:text-destructive'
-                      : 'gba:text-foreground'
-                }`}
-              >
-                {questionVotes.score}
-              </span>
-
-              {/* Downvote button */}
-              <AppActionProvider
-                contextsArray={[FlowContextName.contentEntryReact]}
-                externalContextData={{ contentEntryId: item.id }}
-                accessToken={accessToken || ''}
-                onSuccess={handleVoteSuccess}
-                transformData={() => {
-                  if (!downvoteCatalogId) {
-                    throw new Error('Downvote catalog entry not found')
-                  }
-                  return buildReactionPayload({
-                    contentEntryId: item.id,
-                    catalogEntryId: downvoteCatalogId,
-                    employeeId: employeeId || '',
-                    existingReactionId: questionVotes.userReactionId,
-                    existingCatalogEntryId: questionVotes.userCatalogId,
-                    existingVersion: questionVotes.userVersion
-                  })
-                }}
-              >
-                {({ executeAction, isLoading: isVoting }) => (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`gba:h-10 gba:w-10 gba:p-0 ${
-                      questionVotes.userVote === 'downvote'
-                        ? 'gba:text-destructive gba:hover:bg-destructive-secondary'
-                        : 'gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-accent'
-                    }`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      executeAction({})
-                    }}
-                    disabled={isVoting}
-                    data-testid="question-downvote-button"
-                  >
-                    <ThumbsDown className="gba:w-6 gba:h-6" />
-                  </Button>
-                )}
-              </AppActionProvider>
-            </div>
+            <VoteButtons
+              contentEntryId={item.id}
+              initialVoteState={questionVotes}
+              upvoteCatalogId={upvoteCatalogId}
+              downvoteCatalogId={downvoteCatalogId}
+              accessToken={accessToken || ''}
+              employeeId={employeeId || ''}
+              size="lg"
+              onVoteComplete={handleVoteSuccess}
+              data-testid="question-vote"
+            />
 
             {/* Question Content */}
             <div className="gba:flex-1">
@@ -383,112 +299,26 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               >
                 <div className="gba:flex gba:gap-6">
                   {/* Vote Section for Answer */}
-                  <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:min-w-[60px]">
-                    {/* Upvote button */}
-                    <AppActionProvider
-                      contextsArray={[FlowContextName.contentEntryReact]}
-                      externalContextData={{ contentEntryId: answer.id }}
-                      accessToken={accessToken || ''}
-                      onSuccess={handleVoteSuccess}
-                      transformData={() => {
-                        if (!upvoteCatalogId) {
-                          throw new Error('Upvote catalog entry not found')
-                        }
-                        return buildReactionPayload({
-                          contentEntryId: answer.id,
-                          catalogEntryId: upvoteCatalogId,
-                          employeeId: employeeId || '',
-                          existingReactionId: answerVotes.userReactionId,
-                          existingCatalogEntryId: answerVotes.userCatalogId,
-                          existingVersion: answerVotes.userVersion
-                        })
-                      }}
-                    >
-                      {({ executeAction, isLoading: isVoting }) => (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`gba:h-8 gba:w-8 gba:p-0 ${
-                            answerVotes.userVote === 'upvote'
-                              ? 'gba:text-success gba:hover:bg-success-secondary'
-                              : 'gba:text-muted-foreground gba:hover:text-success gba:hover:bg-accent'
-                          }`}
-                          onClick={e => {
-                            e.stopPropagation()
-                            executeAction({})
-                          }}
-                          disabled={isVoting}
-                          data-testid={`answer-upvote-${answer.id}`}
-                        >
-                          <ThumbsUp className="gba:w-5 gba:h-5" />
-                        </Button>
-                      )}
-                    </AppActionProvider>
-
-                    {/* Vote count */}
-                    <span
-                      className={`gba:font-bold gba:text-xl ${
-                        answerVotes.score > 0
-                          ? 'gba:text-success'
-                          : answerVotes.score < 0
-                            ? 'gba:text-destructive'
-                            : 'gba:text-foreground'
-                      }`}
-                    >
-                      {answerVotes.score}
-                    </span>
-
-                    {/* Downvote button */}
-                    <AppActionProvider
-                      contextsArray={[FlowContextName.contentEntryReact]}
-                      externalContextData={{ contentEntryId: answer.id }}
-                      accessToken={accessToken || ''}
-                      onSuccess={handleVoteSuccess}
-                      transformData={() => {
-                        if (!downvoteCatalogId) {
-                          throw new Error('Downvote catalog entry not found')
-                        }
-                        return buildReactionPayload({
-                          contentEntryId: answer.id,
-                          catalogEntryId: downvoteCatalogId,
-                          employeeId: employeeId || '',
-                          existingReactionId: answerVotes.userReactionId,
-                          existingCatalogEntryId: answerVotes.userCatalogId,
-                          existingVersion: answerVotes.userVersion
-                        })
-                      }}
-                    >
-                      {({ executeAction, isLoading: isVoting }) => (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`gba:h-8 gba:w-8 gba:p-0 ${
-                            answerVotes.userVote === 'downvote'
-                              ? 'gba:text-destructive gba:hover:bg-destructive-secondary'
-                              : 'gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-accent'
-                          }`}
-                          onClick={e => {
-                            e.stopPropagation()
-                            executeAction({})
-                          }}
-                          disabled={isVoting}
-                          data-testid={`answer-downvote-${answer.id}`}
-                        >
-                          <ThumbsDown className="gba:w-5 gba:h-5" />
-                        </Button>
-                      )}
-                    </AppActionProvider>
-
-                    {/* Accepted indicator */}
-                    {isAccepted && (
-                      <div className="gba:mt-2">
-                        <CheckCircle className="gba:w-6 gba:h-6 gba:text-success" />
-                      </div>
-                    )}
-                  </div>
+                  <VoteButtons
+                    contentEntryId={answer.id}
+                    initialVoteState={answerVotes}
+                    upvoteCatalogId={upvoteCatalogId}
+                    downvoteCatalogId={downvoteCatalogId}
+                    accessToken={accessToken || ''}
+                    employeeId={employeeId || ''}
+                    size="md"
+                    onVoteComplete={handleVoteSuccess}
+                    data-testid={`answer-vote-${answer.id}`}
+                  />
 
                   {/* Answer Content */}
                   <div className="gba:flex-1">
+                    {isAccepted && (
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:text-success gba:font-semibold gba:mb-2">
+                        <CheckCircle className="gba:w-5 gba:h-5" />
+                        <span>{t('best_answer')}</span>
+                      </div>
+                    )}
                     {/* Answer Text */}
                     {answer.content && (
                       <div

@@ -1,4 +1,5 @@
 # Tabs
+home = Home
 intranet = Intranet
 news = News
 knowledge = Knowledge
@@ -31,6 +32,7 @@ search_documents = Search Documents
 search_questions = Search questions...
 
 # Content sections
+recent_content = Recent Content
 latest_announcements = Latest Announcements
 featured_news = Featured News
 trending_now = Trending Now
@@ -39,6 +41,20 @@ trending_now = Trending Now
 create_article = Create Article
 create_document = Create Document
 ask_question = Ask Question
+create_folder = New Folder
+upload_document = Upload
+
+# Document Management
+document_areas = Document Areas
+folders = Folders
+items = items
+select_document_area = Select a Document Area
+select_document_area_description = Choose a document area from the sidebar to browse folders and files
+no_content_yet = This folder is empty
+no_content_yet_description = Create a new folder or upload documents to get started
+error_loading_areas = Failed to load document areas
+error_loading_contents = Failed to load folder contents
+no_document_areas = No document areas available
 
 # Empty states
 no_more_articles = No more articles

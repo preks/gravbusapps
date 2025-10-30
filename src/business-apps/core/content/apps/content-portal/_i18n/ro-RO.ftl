@@ -1,4 +1,5 @@
 # Tabs
+home = Acasă
 intranet = Intranet
 news = Știri
 knowledge = Bază de cunoștințe
@@ -31,6 +32,7 @@ search_documents = Caută documente
 search_questions = Caută întrebări...
 
 # Content sections
+recent_content = Conținut recent
 latest_announcements = Ultimele anunțuri
 featured_news = Știri de top
 trending_now = În tendințe acum

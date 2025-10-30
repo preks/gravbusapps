@@ -6,7 +6,7 @@ import ContentCard from '../../components/cards/ContentCard'
 import SearchInput from '../../components/shared/SearchInput'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import ContentCarousel from '../../components/shared/ContentCarousel'
-import { contentGroupMapper, INTRANET } from '../../constants/contentConstants'
+import TrendingNow from '../../components/cards/TrendingNow'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import translations from '../../_i18n'
 
@@ -37,10 +37,11 @@ const HomeView: React.FC<HomeViewProps> = ({
   const limit = page === 1 ? DEFAULT_PAGE_SIZE : NEXT_PAGE_SIZE
 
   // Memoize params to prevent infinite re-renders
+  // Home View shows ALL content groups, sorted by newest first
   const queryParams = useMemo(
     () => ({
       role: ContentRole.ROOT,
-      contentGroupRef: contentGroupMapper[INTRANET],
+      // No contentGroupRef - show all groups (News, Knowledge, Documents, etc.)
       search: searchQuery,
       limit,
       offset,
@@ -135,7 +136,27 @@ const HomeView: React.FC<HomeViewProps> = ({
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
         {data.length > 0 && (
-          <ContentCarousel articles={topArticles} className="gba:mt-6 gba:mb-8" currentTab={currentTab} />
+          <>
+            <div className="gba:mb-6 gba:mt-6">
+              <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">
+                {t('latest_announcements')}
+              </h2>
+            </div>
+
+            {/* Carousel and Trending Now Section */}
+            <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-8">
+              <div>
+                <ContentCarousel articles={topArticles} currentTab={currentTab} />
+              </div>
+              <div>
+                <TrendingNow
+                  entries={entries}
+                  className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:shadow-sm gba:h-full"
+                  currentTab={currentTab}
+                />
+              </div>
+            </div>
+          </>
         )}
 
         <div className="gba:w-full gba:flex gba:justify-center gba:mb-8 gba:mt-6">
@@ -145,9 +166,7 @@ const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         <div className="gba:mb-6">
-          <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">
-            {t('latest_announcements')}
-          </h2>
+          <h2 className="gba:text-2xl gba:md:text-3xl gba:text-foreground gba:font-semibold">{t('recent_content')}</h2>
         </div>
 
         <div className="gba:grid gba:grid-cols-2 gba:gap-6 gba:mb-8">

@@ -1,19 +1,16 @@
 import React, { useState, useMemo } from 'react'
-import { useTranslation, Button, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Card } from '@newwork/nw-design-system'
 import { useContentEntries, useUserContentReactions, toIntranetContent } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
 import ContentCard from '../../components/cards/ContentCard'
-import MainFeaturedArticle from '../../components/cards/MainFeaturedArticle'
-import TrendingNow from '../../components/cards/TrendingNow'
 import SearchInput from '../../components/shared/SearchInput'
-import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { KNOWLEDGE_CATEGORIES, ALL_TAG, contentGroupMapper, KNOWLEDGE_BASE } from '../../constants/contentConstants'
-import { updateTags } from '../../utils/contentUtils'
-import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { contentGroupMapper, KNOWLEDGE_BASE } from '../../constants/contentConstants'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useKnowledgeCategories } from '../../hooks/useKnowledgeCategories'
+import { BookOpen, ChevronRight, Folder } from 'lucide-react'
 import translations from '../../_i18n'
 
 interface KnowledgeViewProps extends BusinessAppContextProps {
@@ -24,8 +21,8 @@ interface KnowledgeViewProps extends BusinessAppContextProps {
   reactionCatalogMap?: Record<string, string>
 }
 
-const DEFAULT_PAGE_SIZE = 12
-const NEXT_PAGE_SIZE = 10
+const DEFAULT_PAGE_SIZE = 18
+const NEXT_PAGE_SIZE = 12
 
 const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   accessToken,
@@ -38,14 +35,10 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   const { t } = useTranslation(translations)
   const [page, setPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
-  const [categories, setCategories] = useState<{ label: string; checked: boolean }[]>([
-    { label: ALL_TAG, checked: true },
-    ...KNOWLEDGE_CATEGORIES.map(category => ({ label: category, checked: false }))
-  ])
+  const [selectedCategoryRef, setSelectedCategoryRef] = useState<string | null>(null)
 
-  const isAllSelected = useMemo(() => {
-    return categories.find(cat => cat.label === ALL_TAG)?.checked ?? false
-  }, [categories])
+  // Load categories from catalog
+  const { categories, isLoading: categoriesLoading } = useKnowledgeCategories({ accessToken })
 
   const offset = page === 1 ? 0 : DEFAULT_PAGE_SIZE + (page - 2) * NEXT_PAGE_SIZE
   const limit = page === 1 ? DEFAULT_PAGE_SIZE : NEXT_PAGE_SIZE
@@ -55,16 +48,17 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
     () => ({
       role: ContentRole.ROOT,
       contentGroupRef: contentGroupMapper[KNOWLEDGE_BASE],
+      categoryRefs: selectedCategoryRef ? [selectedCategoryRef] : undefined,
       search: searchQuery,
       limit,
       offset,
       sortBy: 'createdAt' as const,
       sortOrder: 'DESC' as const
     }),
-    [searchQuery, limit, offset]
+    [selectedCategoryRef, searchQuery, limit, offset]
   )
 
-  // Use central content data - FIXED: correct parameter order
+  // Use central content data
   const { entries, totalCount, isLoading, error, refetch } = useContentEntries(queryParams, accessToken)
 
   // Batch fetch reactions
@@ -78,19 +72,6 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   // Convert to legacy format
   const data = useMemo(() => entries.map(toIntranetContent), [entries])
 
-  // Get the first article as featured (only when "All" is selected and no search)
-  const featuredArticle = useMemo(() => {
-    return isAllSelected && !searchQuery && data.length > 0 ? data[0] : null
-  }, [data, isAllSelected, searchQuery])
-
-  // Filter out the featured article from the regular grid
-  const regularArticles = useMemo(() => {
-    if (featuredArticle && isAllSelected && !searchQuery) {
-      return data.filter(item => item.articleId !== featuredArticle.articleId)
-    }
-    return data
-  }, [data, featuredArticle, isAllSelected, searchQuery])
-
   const hasMore = entries.length > 0 && entries.length < totalCount
 
   const handleSearch = (query: string) => {
@@ -98,9 +79,8 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
     setPage(1)
   }
 
-  const handleCategoryClick = (label: string) => {
-    const updatedCategories = updateTags(categories, label)
-    setCategories(updatedCategories)
+  const handleCategoryClick = (categoryRef: string | null) => {
+    setSelectedCategoryRef(categoryRef)
     setPage(1)
   }
 
@@ -108,13 +88,8 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
     setPage(prev => prev + 1)
   }
 
-  const handleArticleClick = (article: any) => {
-    const url = buildPlatformUrl('/platform/content/intranet/content-record', {
-      contentId: article.articleId,
-      tab: currentTab
-    })
-    navigateTo(url)
-  }
+  // Get selected category name for breadcrumb
+  const selectedCategory = categories.find(cat => cat.id === selectedCategoryRef)
 
   if (error) {
     return (
@@ -148,77 +123,132 @@ const KnowledgeView: React.FC<KnowledgeViewProps> = ({
       )}
 
       <div className="gba:w-full gba:max-w-[1300px] gba:mx-auto gba:mb-10 gba:px-4">
-        <div className="gba:w-full gba:mb-6">
-          <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-4">
-            <div>
-              <NavigationTagList
-                tags={categories}
-                onTagClick={handleCategoryClick}
-                maxVisibleTags={6}
-                alwaysVisibleTag={ALL_TAG}
-              />
-            </div>
-            <div className="gba:flex gba:gap-2">
-              <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} />
-              <AppAction
-                contextsArray={[FlowContextName.contentEntryCreate]}
-                externalContextData={{ contentGroup: contentGroupMapper[KNOWLEDGE_BASE] }}
-                accessToken={accessToken}
-                emptyStateBehavior="enable"
-                deferMainContextRequestsUntilClick
-                data-testid="knowledge-view-create-button"
-              >
-                <Button>{t('create_article')}</Button>
-              </AppAction>
-            </div>
+        {/* Wiki-style Header with Search */}
+        <div className="gba:mb-6 gba:py-6 gba:flex gba:justify-between gba:items-center gba:gap-4">
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <BookOpen className="gba:w-8 gba:h-8 gba:text-primary" />
+            <h1 className="gba:text-3xl gba:font-bold gba:text-foreground">
+              {t('knowledge-base-title', 'Knowledge Base')}
+            </h1>
           </div>
-        </div>
-
-        {featuredArticle && isAllSelected && !searchQuery && (
-          <div className="gba:grid gba:grid-cols-[1fr_280px] gba:gap-6 gba:mb-6">
-            <div>
-              <MainFeaturedArticle item={featuredArticle} onClick={handleArticleClick} />
-            </div>
-            <div>
-              <TrendingNow
-                articles={data}
-                className="gba:bg-card gba:border gba:border-border gba:rounded-lg gba:shadow-sm gba:h-full"
-                currentTab={currentTab}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="gba:grid gba:grid-cols-3 gba:gap-6 gba:mb-8">
-          {regularArticles.map(item => (
-            <ContentCard
-              key={item.articleId}
-              item={item}
-              variant="knowledge"
-              currentTab={currentTab}
+          <div className="gba:flex gba:gap-2 gba:items-center">
+            <SearchInput onSearch={handleSearch} placeholder={t('search_knowledge')} className="gba:w-[300px]" />
+            <AppAction
+              contextsArray={[FlowContextName.contentEntryCreate]}
+              externalContextData={{ contentGroup: contentGroupMapper[KNOWLEDGE_BASE] }}
               accessToken={accessToken}
-              userInfo={userInfo}
-              allowedReactions={allowedReactions}
-              reactionCatalogMap={reactionCatalogMap}
-              reactionSummary={reactionsByArticle[item.articleId] || {}}
-              onReactionsRefetch={refetchReactions}
-            />
-          ))}
-
-          {!isLoading && regularArticles.length === 0 && !featuredArticle && (
-            <div className="gba:col-span-3 gba:text-center gba:py-12">
-              <p className="gba:text-muted-foreground">{t('no_knowledge_found')}</p>
-            </div>
-          )}
+              emptyStateBehavior="enable"
+              deferMainContextRequestsUntilClick
+              data-testid="knowledge-view-create-button"
+            >
+              <Button>{t('create_article')}</Button>
+            </AppAction>
+          </div>
         </div>
 
-        {hasMore && (
-          <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
-            <Button variant="default" className="gba:w-56" onClick={loadMore} disabled={isLoading}>
-              {t('load_more')}
-            </Button>
+        {/* Wiki Layout: Sidebar + Content */}
+        <div className="gba:grid gba:grid-cols-[260px_1fr] gba:gap-6">
+          {/* Left Sidebar - Category Navigation */}
+          <div className="gba:sticky gba:top-4 gba:h-fit">
+            <Card className="gba:p-4">
+              <h3 className="gba:text-sm gba:font-semibold gba:mb-4 gba:text-muted-foreground gba:uppercase">
+                {t('categories', 'Categories')}
+              </h3>
+
+              {categoriesLoading ? (
+                <div className="gba:text-sm gba:text-muted-foreground gba:py-2">{t('loading', 'Loading...')}</div>
+              ) : (
+                <nav className="gba:space-y-1">
+                  <button
+                    onClick={() => handleCategoryClick(null)}
+                    className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
+                      selectedCategoryRef === null
+                        ? 'gba:bg-primary gba:text-primary-foreground'
+                        : 'gba:hover:bg-accent gba:text-foreground'
+                    }`}
+                    data-testid="knowledge-category-all"
+                  >
+                    <span className="gba:flex gba:items-center gba:gap-2">
+                      <Folder className="gba:w-4 gba:h-4" />
+                      {t('all_articles', 'All Articles')}
+                    </span>
+                    <ChevronRight className="gba:w-4 gba:h-4" />
+                  </button>
+
+                  {categories.map(category => (
+                    <button
+                      key={category.id}
+                      onClick={() => handleCategoryClick(category.id)}
+                      className={`gba:w-full gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:rounded-md gba:text-sm gba:transition-colors ${
+                        selectedCategoryRef === category.id
+                          ? 'gba:bg-primary gba:text-primary-foreground'
+                          : 'gba:hover:bg-accent gba:text-foreground'
+                      }`}
+                      data-testid={`knowledge-category-${category.code?.toLowerCase()}`}
+                    >
+                      <span className="gba:flex gba:items-center gba:gap-2">
+                        <Folder className="gba:w-4 gba:h-4" />
+                        {category.value}
+                      </span>
+                      <ChevronRight className="gba:w-4 gba:h-4" />
+                    </button>
+                  ))}
+                </nav>
+              )}
+            </Card>
           </div>
-        )}
+
+          {/* Main Content Area */}
+          <div>
+            {/* Breadcrumb */}
+            {selectedCategory && (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4 gba:text-sm gba:text-muted-foreground">
+                <button
+                  onClick={() => handleCategoryClick(null)}
+                  className="gba:hover:text-foreground gba:transition-colors"
+                >
+                  {t('knowledge', 'Knowledge')}
+                </button>
+                <ChevronRight className="gba:w-4 gba:h-4" />
+                <span className="gba:text-foreground gba:font-medium">{selectedCategory.value}</span>
+              </div>
+            )}
+
+            {/* Articles Grid */}
+            <div className="gba:grid gba:grid-cols-3 gba:gap-4 gba:mb-8">
+              {data.map(item => (
+                <ContentCard
+                  key={item.articleId}
+                  item={item}
+                  variant="knowledge"
+                  currentTab={currentTab}
+                  accessToken={accessToken}
+                  userInfo={userInfo}
+                  allowedReactions={allowedReactions}
+                  reactionCatalogMap={reactionCatalogMap}
+                  reactionSummary={reactionsByArticle[item.articleId] || {}}
+                  onReactionsRefetch={refetchReactions}
+                />
+              ))}
+
+              {!isLoading && data.length === 0 && (
+                <div className="gba:col-span-3 gba:text-center gba:py-12">
+                  <p className="gba:text-muted-foreground">
+                    {searchQuery ? t('no_search_results') : t('no_knowledge_found')}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {hasMore && (
+              <div className="gba:flex gba:justify-center gba:w-full gba:mt-6 gba:mb-4">
+                <Button variant="default" className="gba:w-56" onClick={loadMore} disabled={isLoading}>
+                  {t('load_more')}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

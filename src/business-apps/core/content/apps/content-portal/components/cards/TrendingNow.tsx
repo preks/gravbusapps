@@ -1,39 +1,32 @@
 import React from 'react'
 import { useTranslation } from '@newwork/nw-design-system'
-import { Content } from '../../types/content.types'
-import { MessageSquare } from 'lucide-react'
+import { ContentEntry } from '@/common/data/content/types/contentTypes'
+import { MessageSquare, TrendingUp } from 'lucide-react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { useTrendingContent } from '../../hooks/useTrendingContent'
 import translations from '../../_i18n'
 
 interface TrendingNowProps {
-  articles: Content[]
+  entries: ContentEntry[]
   className?: string
   currentTab?: string
 }
 
-const calculateTrendingScore = (article: Content): number => {
-  const reactions = article.reactionsCount || 0
-  const comments = article.commentsCount || 0
-  const shares = article.shareCount || 0
-  return reactions * 1 + comments * 2 + shares * 3
-}
-
-const TrendingNow: React.FC<TrendingNowProps> = ({ articles, className = '', currentTab }) => {
+const TrendingNow: React.FC<TrendingNowProps> = ({ entries, className = '', currentTab }) => {
   const { t } = useTranslation(translations)
 
-  const trendingArticles = [...articles]
-    .sort((a, b) => calculateTrendingScore(b) - calculateTrendingScore(a))
-    .slice(0, 3)
+  // Use smart trending algorithm
+  const trendingEntries = useTrendingContent({ entries, limit: 5 })
 
-  const handleArticleClick = (article: Content) => {
+  const handleArticleClick = (entry: ContentEntry) => {
     const url = buildPlatformUrl('/platform/content/intranet/content-record', {
-      contentId: article.articleId,
+      contentId: entry.id,
       ...(currentTab && { tab: currentTab })
     })
     navigateTo(url)
   }
 
-  if (trendingArticles.length === 0) return null
+  if (trendingEntries.length === 0) return null
 
   return (
     <div
@@ -41,23 +34,20 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ articles, className = '', cur
       data-testid="trending-now"
     >
       <div className="gba:shadow-lg gba:rounded-lg gba:p-4 gba:space-y-4">
-        <div className="gba:mb-4">
-          <h3 className="gba:text-2xl gba:text-foreground gba:font-bold">{t('trending_now')}</h3>
+        <div className="gba:mb-4 gba:flex gba:items-center gba:gap-2">
+          <TrendingUp className="gba:w-5 gba:h-5 gba:text-primary" />
+          <h3 className="gba:text-xl gba:text-foreground gba:font-bold">{t('trending_now')}</h3>
         </div>
-        {trendingArticles.map(article => (
+        {trendingEntries.map(entry => (
           <div
-            key={article.articleId}
+            key={entry.id}
             className="gba:flex gba:gap-3 gba:cursor-pointer gba:hover:bg-accent gba:p-2 gba:rounded-md gba:transition-colors"
-            onClick={() => handleArticleClick(article)}
-            data-testid={`trending-article-${article.articleId}`}
+            onClick={() => handleArticleClick(entry)}
+            data-testid={`trending-article-${entry.id}`}
           >
             <div className="gba:w-16 gba:h-16 gba:rounded-md gba:overflow-hidden gba:shrink-0">
-              {article.contentImage ? (
-                <img
-                  src={article.contentImage}
-                  alt={article.title || ''}
-                  className="gba:w-full gba:h-full gba:object-cover"
-                />
+              {entry.picture ? (
+                <img src={entry.picture} alt={entry.title || ''} className="gba:w-full gba:h-full gba:object-cover" />
               ) : (
                 <div className="gba:w-full gba:h-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground">
                   {t('no_image')}
@@ -67,26 +57,20 @@ const TrendingNow: React.FC<TrendingNowProps> = ({ articles, className = '', cur
 
             <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0">
               <h4 className="gba:text-sm gba:font-medium gba:mb-1 gba:line-clamp-2 gba:text-foreground">
-                {article.title}
+                {entry.title}
               </h4>
 
-              <div className="gba:mt-auto gba:flex gba:items-center gba:gap-2">
-                {article.reactionSummary && Object.keys(article.reactionSummary).length > 0 && (
-                  <div className="gba:flex gba:items-center gba:text-xs gba:text-muted-foreground gba:gap-1">
-                    {Object.entries(article.reactionSummary)
-                      .slice(0, 2)
-                      .map(([emoji, data]) => (
-                        <div key={emoji} className="gba:flex gba:items-center">
-                          <span className="gba:text-foreground">{emoji}</span>
-                          <span className="gba:ml-0.5">{data.count}</span>
-                        </div>
-                      ))}
-                  </div>
+              <div className="gba:mt-auto gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                {entry.reactionCount && entry.reactionCount > 0 && (
+                  <span className="gba:flex gba:items-center gba:gap-1">
+                    <span className="gba:text-primary">❤️</span>
+                    {entry.reactionCount}
+                  </span>
                 )}
 
-                <div className="gba:flex gba:items-center gba:text-xs gba:text-muted-foreground">
+                <div className="gba:flex gba:items-center">
                   <MessageSquare className="gba:fill-current gba:text-foreground gba:w-3 gba:h-3" />
-                  <span className="gba:ml-1">{article.commentsCount || 0}</span>
+                  <span className="gba:ml-1">{entry.commentCount || 0}</span>
                 </div>
               </div>
             </div>

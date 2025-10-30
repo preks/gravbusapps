@@ -305,6 +305,8 @@ export const toIntranetContent = (entry: ContentEntry): any => {
     commentsCount: entry.commentCount || 0,
     tags: entry.tagNames || [],
     tagNames: entry.tagNames || [],
+    categories: entry.categoryNames || [],
+    contentType: entry.contentType?.value,
     authorFullName: entry.creatorDisplayName || '',
     displayAuthor: entry.displayCreator
   }

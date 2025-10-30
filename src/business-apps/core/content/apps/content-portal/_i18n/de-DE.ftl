@@ -1,4 +1,5 @@
 # Tabs
+home = Start
 intranet = Intranet
 news = Nachrichten
 knowledge = Wissensdatenbank
@@ -31,6 +32,7 @@ search_documents = Dokumente durchsuchen
 search_questions = Fragen durchsuchen...
 
 # Content sections
+recent_content = Aktuelle Inhalte
 latest_announcements = Neueste Ankündigungen
 featured_news = Aktuelle Nachrichten
 trending_now = Angesagt

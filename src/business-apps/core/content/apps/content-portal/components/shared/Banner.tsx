@@ -29,27 +29,27 @@ interface BannerCarouselProps {
 export const gradients = {
   [BannerVariant.INTRANET]: {
     className:
-      'gba:bg-gradient-to-r gba:from-pink-500 gba:via-red-500 gba:to-orange-500 gba:dark:from-red-500 gba:dark:via-orange-500 gba:dark:to-yellow-500 gba:animate-gradient-x gba:bg-[length:200%_200%]',
+      'gba:bg-gradient-to-r gba:from-pink-500 gba:via-red-500 gba:to-orange-500 gba:dark:from-red-500 gba:dark:via-orange-500 gba:dark:to-yellow-500',
     textColor: 'gba:text-white'
   },
   [BannerVariant.NEWS]: {
     className:
-      'gba:bg-gradient-to-r gba:from-cyan-400 gba:via-blue-400 gba:to-indigo-400 gba:dark:from-cyan-700 gba:dark:via-blue-500 gba:dark:to-indigo-600 gba:animate-gradient-x gba:bg-[length:200%_200%]',
+      'gba:bg-gradient-to-r gba:from-cyan-400 gba:via-blue-400 gba:to-indigo-400 gba:dark:from-cyan-700 gba:dark:via-blue-500 gba:dark:to-indigo-600',
     textColor: 'gba:text-white'
   },
   [BannerVariant.KNOWLEDGE]: {
     className:
-      'gba:bg-gradient-to-r gba:from-emerald-500 gba:via-teal-500 gba:to-cyan-500 gba:dark:from-blue-500 gba:dark:via-cyan-500 gba:dark:to-teal-500 gba:animate-gradient-x gba:bg-[length:200%_200%]',
+      'gba:bg-gradient-to-r gba:from-emerald-500 gba:via-teal-500 gba:to-cyan-500 gba:dark:from-blue-500 gba:dark:via-cyan-500 gba:dark:to-teal-500',
     textColor: 'gba:text-white'
   },
   [BannerVariant.DOCUMENT]: {
     className:
-      'gba:bg-gradient-to-r gba:from-yellow-200 gba:via-yellow-400 gba:to-yellow-600 gba:dark:from-yellow-400 gba:dark:via-orange-500 gba:dark:to-yellow-600 gba:animate-gradient-x gba:bg-[length:200%_200%]',
+      'gba:bg-gradient-to-r gba:from-yellow-200 gba:via-yellow-400 gba:to-yellow-600 gba:dark:from-yellow-400 gba:dark:via-orange-500 gba:dark:to-yellow-600',
     textColor: 'gba:text-white'
   },
   [BannerVariant.QUESTION]: {
     className:
-      'gba:bg-gradient-to-r gba:from-purple-500 gba:via-violet-500 gba:to-fuchsia-500 gba:dark:from-purple-600 gba:dark:via-violet-600 gba:dark:to-fuchsia-600 gba:animate-gradient-x gba:bg-[length:200%_200%]',
+      'gba:bg-gradient-to-r gba:from-purple-500 gba:via-violet-500 gba:to-fuchsia-500 gba:dark:from-purple-600 gba:dark:via-violet-600 gba:dark:to-fuchsia-600',
     textColor: 'gba:text-white'
   }
 }
@@ -60,7 +60,7 @@ const Banner: React.FC<BannerProps> = ({ title, subtitle, className = '', varian
 
   return (
     <div
-      className={`gba:w-full gba:relative gba:h-[200px] gba:overflow-hidden ${variantConfig.className} gba:shadow-md ${className}`}
+      className={`gba:w-full gba:h-[200px] gba:shrink-0 gba:relative ${variantConfig.className} gba:shadow-md ${className}`}
       data-testid={`banner-${variant}`}
     >
       {isIntranet ? (
@@ -98,7 +98,7 @@ const Banner: React.FC<BannerProps> = ({ title, subtitle, className = '', varian
 
 export const BannerCarousel: React.FC<BannerCarouselProps> = ({ configs, activeIndex, className = '' }) => {
   return (
-    <div className={`gba:w-full gba:h-[200px] gba:relative gba:overflow-hidden gba:shadow-md ${className}`}>
+    <div className={`gba:w-full gba:h-[200px] gba:shrink-0 gba:relative gba:shadow-md ${className}`}>
       {/* All Banner Backgrounds - Stacked with Opacity Transition */}
       {configs.map((config, index) => (
         <div
@@ -110,7 +110,7 @@ export const BannerCarousel: React.FC<BannerCarouselProps> = ({ configs, activeI
       ))}
 
       {/* Text Content with Carousel Slide */}
-      <div className="gba:absolute gba:inset-0 gba:overflow-hidden">
+      <div className="gba:absolute gba:inset-0">
         <div
           className="gba:flex gba:transition-transform gba:duration-700 gba:ease-in-out gba:h-full"
           style={{ transform: `translateX(-${activeIndex * 100}%)` }}

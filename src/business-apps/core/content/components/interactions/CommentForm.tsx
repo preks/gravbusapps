@@ -14,6 +14,7 @@ export interface CommentFormProps {
   accessToken: string
   employeeId: string // Current user's employee ID
   onSuccess?: () => void
+  onOptimisticCreate?: (comment: { content: string; createdAt: Date }) => void // Optimistic update callback
   onCancel?: () => void
   placeholder?: string
   'data-testid'?: string
@@ -31,6 +32,7 @@ export const CommentForm: React.FC<CommentFormProps> = ({
   accessToken,
   employeeId,
   onSuccess,
+  onOptimisticCreate,
   onCancel,
   placeholder = 'Write a comment...',
   'data-testid': dataTestId = 'comment-form'
@@ -99,7 +101,22 @@ export const CommentForm: React.FC<CommentFormProps> = ({
       >
         {({ executeAction, isLoading, isProcessing }) => {
           const handleSubmit = async (formData: CommentFormData) => {
-            await executeAction(formData)
+            // Optimistic update: immediately add comment to UI
+            if (onOptimisticCreate) {
+              onOptimisticCreate({
+                content: formData.comment,
+                createdAt: new Date()
+              })
+              form.reset({ comment: '' })
+            }
+
+            // Call backend
+            try {
+              await executeAction(formData)
+            } catch (error) {
+              // On error, the parent can handle reverting the optimistic update
+              console.error('Failed to create comment:', error)
+            }
           }
 
           const isFormLoading = isLoading || isProcessing

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { Button, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import EmojiPicker, { EmojiClickData, Theme, EmojiStyle } from 'emoji-picker-react'
 import { AppActionProvider } from '@/components/app-action-provider'
@@ -11,16 +11,16 @@ export interface Reaction {
   count: number
   userReacted: boolean
   reactionId?: string
-  catalogEntryId?: string // Catalog entry ID for the reaction
-  imageUrl?: string // For CUSTOM type reactions
-  version?: number // Version from the database
+  catalogEntryId?: string
+  imageUrl?: string
+  version?: number
 }
 
 export interface ReactionSummary {
   [emoji: string]: Reaction
 }
 
-export interface ReactionButtonProps {
+export interface ReactionPickerProps {
   contentEntryId: string
   reactionSummary: ReactionSummary
   allowReaction: boolean
@@ -29,11 +29,10 @@ export interface ReactionButtonProps {
   onSuccess?: () => void
   size?: 'sm' | 'md' | 'lg'
   'data-testid'?: string
-  allowedReactions?: string[] // Unified codes of allowed reactions
-  reactionCatalogMap?: Record<string, string> // Map of unified code -> catalog entry ID
+  allowedReactions?: string[]
+  reactionCatalogMap?: Record<string, string>
 }
 
-// Fallback reactions if not provided
 const DEFAULT_REACTIONS = [
   '1f44d', // 👍
   '2764-fe0f', // ❤️
@@ -46,22 +45,90 @@ const DEFAULT_REACTIONS = [
 ]
 
 /**
- * Reaction Button with Reactions Picker
- * Uses emoji-picker-react's Reactions mode with catalog-based reactions
+ * Centralized ReactionPicker component with optimistic updates
+ * Displays reactions and allows users to add/remove reactions with immediate UI feedback
  */
-export const ReactionButton: React.FC<ReactionButtonProps> = ({
+export const ReactionPicker: React.FC<ReactionPickerProps> = ({
   contentEntryId,
-  reactionSummary,
+  reactionSummary: initialReactionSummary,
   allowReaction,
   accessToken,
   employeeId,
   onSuccess,
-  'data-testid': dataTestId = 'reaction-button',
+  'data-testid': dataTestId = 'reaction-picker',
   allowedReactions = DEFAULT_REACTIONS,
   reactionCatalogMap = {}
 }) => {
   const [open, setOpen] = useState(false)
   const selectedEmojiRef = useRef<string | null>(null)
+
+  // DEBUG LOG
+  console.log('🎨 ReactionPicker received:', {
+    allowedReactionsCount: allowedReactions.length,
+    allowedReactions,
+    reactionCatalogMapKeys: Object.keys(reactionCatalogMap)
+  })
+
+  // Optimistic state
+  const [reactionSummary, setReactionSummary] = useState<ReactionSummary>(initialReactionSummary)
+
+  // Update state when initialReactionSummary changes (e.g., after backend fetch)
+  useEffect(() => {
+    setReactionSummary(initialReactionSummary)
+  }, [initialReactionSummary])
+
+  // Optimistic update helper
+  const getOptimisticReactionState = useCallback(
+    (emoji: string, catalogEntryId: string): ReactionSummary => {
+      const current = reactionSummary[emoji]
+      const userReaction = Object.values(reactionSummary).find(r => r.userReacted)
+
+      // Remove user's existing reaction from another emoji
+      const newSummary = { ...reactionSummary }
+      if (userReaction && userReaction.emoji !== emoji) {
+        const oldEmoji = Object.keys(newSummary).find(k => newSummary[k].userReacted)
+        if (oldEmoji) {
+          const oldReaction = newSummary[oldEmoji]
+          if (oldReaction.count <= 1) {
+            delete newSummary[oldEmoji]
+          } else {
+            newSummary[oldEmoji] = {
+              ...oldReaction,
+              count: oldReaction.count - 1,
+              userReacted: false
+            }
+          }
+        }
+      }
+
+      // Toggle current emoji
+      if (current?.userReacted) {
+        // Remove reaction
+        if (current.count <= 1) {
+          delete newSummary[emoji]
+        } else {
+          newSummary[emoji] = {
+            ...current,
+            count: current.count - 1,
+            userReacted: false
+          }
+        }
+      } else {
+        // Add reaction
+        newSummary[emoji] = {
+          emoji,
+          count: (current?.count || 0) + 1,
+          userReacted: true,
+          catalogEntryId,
+          reactionId: current?.reactionId,
+          version: current?.version
+        }
+      }
+
+      return newSummary
+    },
+    [reactionSummary]
+  )
 
   const handleSuccess = useCallback(() => {
     if (onSuccess) {
@@ -70,6 +137,10 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
     setOpen(false)
     selectedEmojiRef.current = null
   }, [onSuccess])
+
+  const handleReactionError = useCallback((previousState: ReactionSummary) => {
+    setReactionSummary(previousState)
+  }, [])
 
   if (!allowReaction) {
     return null
@@ -80,7 +151,7 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
 
   return (
     <div className="gba:flex gba:items-center gba:gap-2">
-      {/* Reaction summary display */}
+      {/* Reaction summary display - Only show reactions that have been used */}
       {hasReactions && (
         <div className="gba:flex gba:items-center gba:gap-1 gba:flex-wrap">
           {Object.entries(reactionSummary)
@@ -98,7 +169,6 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
                     throw new Error(`No catalog entry ID for reaction: ${emoji}`)
                   }
 
-                  // Check if user already has ANY reaction (user can only have ONE reaction per content entry)
                   const userReaction = Object.values(reactionSummary).find(r => r.userReacted)
 
                   return buildReactionPayload({
@@ -120,7 +190,17 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
                         ? 'gba:bg-primary gba:text-primary-foreground gba:hover:bg-primary/90'
                         : 'gba:bg-muted gba:text-foreground gba:hover:bg-accent'
                     }`}
-                    onClick={() => executeAction({})}
+                    onClick={() => {
+                      // Optimistic update
+                      const previousState = { ...reactionSummary }
+                      const newState = getOptimisticReactionState(emoji, reaction.catalogEntryId!)
+                      setReactionSummary(newState)
+
+                      // Call backend
+                      executeAction({}).catch(() => {
+                        handleReactionError(previousState)
+                      })
+                    }}
                     disabled={isLoading}
                     data-testid={`${dataTestId}-${emoji}`}
                   >
@@ -129,7 +209,9 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
                     ) : (
                       <span className="gba:text-base gba:leading-none">{reaction.emoji}</span>
                     )}
-                    <span className="gba:text-sm gba:font-medium gba:leading-none">{reaction.count}</span>
+                    {reaction.count > 0 && (
+                      <span className="gba:text-sm gba:font-medium gba:leading-none">{reaction.count}</span>
+                    )}
                   </Button>
                 )}
               </AppActionProvider>
@@ -149,25 +231,23 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
             <Smile className="gba:w-4 gba:h-4" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="gba:w-auto gba:p-0 gba:border-0 gba:bg-transparent gba:shadow-none" align="start">
+        <PopoverContent className="gba:w-auto gba:p-0 gba:border-0" align="start">
           <AppActionProvider
             contextsArray={[FlowContextName.contentEntryReact]}
             externalContextData={{ contentEntryId }}
             accessToken={accessToken}
             onSuccess={handleSuccess}
             transformData={() => {
-              // Get the selected emoji's catalog ID
-              const selectedUnified = selectedEmojiRef.current
-              if (!selectedUnified) {
+              const selectedEmoji = selectedEmojiRef.current
+              if (!selectedEmoji) {
                 throw new Error('No emoji selected')
               }
 
-              const catalogEntryId = reactionCatalogMap[selectedUnified]
+              const catalogEntryId = reactionCatalogMap[selectedEmoji]
               if (!catalogEntryId) {
-                throw new Error(`No catalog entry ID found for emoji: ${selectedUnified}`)
+                throw new Error(`No catalog entry for emoji: ${selectedEmoji}`)
               }
 
-              // Check if user already has ANY reaction (user can only have ONE reaction per content entry)
               const userReaction = Object.values(reactionSummary).find(r => r.userReacted)
 
               return buildReactionPayload({
@@ -191,7 +271,19 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
                 onReactionClick={(emojiData: EmojiClickData) => {
                   // Store selected emoji and execute action
                   selectedEmojiRef.current = emojiData.unified
-                  executeAction({})
+
+                  const catalogEntryId = reactionCatalogMap[emojiData.unified]
+                  if (catalogEntryId) {
+                    // Optimistic update
+                    const previousState = { ...reactionSummary }
+                    const newState = getOptimisticReactionState(emojiData.emoji, catalogEntryId)
+                    setReactionSummary(newState)
+
+                    // Call backend
+                    executeAction({}).catch(() => {
+                      handleReactionError(previousState)
+                    })
+                  }
                 }}
                 theme={Theme.AUTO}
               />
@@ -203,4 +295,4 @@ export const ReactionButton: React.FC<ReactionButtonProps> = ({
   )
 }
 
-export default ReactionButton
+export default ReactionPicker

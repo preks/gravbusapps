@@ -4,8 +4,7 @@ import { MessageCircle, Share2 } from 'lucide-react'
 import { Content } from '../../types/content.types'
 import { copyUrlToClipboard, calculateReadingTime } from '../../utils/contentUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ReactionButton } from '@/business-apps/core/content/components/interactions'
-import type { ReactionSummary } from '@/business-apps/core/content/components/interactions/ReactionButton'
+import { ReactionPicker, type ReactionSummary } from '@/common/components/common-content'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs from 'dayjs'
 import translations from '../../_i18n'
@@ -88,10 +87,17 @@ const ContentCard: React.FC<ContentCardProps> = ({
 
         {/* Content */}
         <div className="gba:p-4 gba:flex gba:flex-col gba:flex-grow">
-          {/* Meta Info */}
-          <div className="gba:flex gba:justify-between gba:items-center gba:mb-2 gba:text-xs gba:text-muted-foreground">
-            <p>{formattedDate}</p>
-            <p>{readingTime} mins read</p>
+          {/* Meta Info with ContentType Badge */}
+          <div className="gba:flex gba:justify-between gba:items-center gba:mb-2 gba:text-xs">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <span className="gba:text-muted-foreground">{formattedDate}</span>
+              {variant === 'knowledge' && item.contentType && (
+                <Badge variant="outline" className="gba:text-xs">
+                  {item.contentType}
+                </Badge>
+              )}
+            </div>
+            <span className="gba:text-muted-foreground">{readingTime} mins read</span>
           </div>
 
           {/* Title and Preview */}
@@ -156,7 +162,7 @@ const ContentCard: React.FC<ContentCardProps> = ({
             <div className="gba:flex gba:items-center gba:gap-4 gba:pt-2 gba:border-t gba:border-border">
               {item.allowReaction && (
                 <div onClick={e => e.stopPropagation()}>
-                  <ReactionButton
+                  <ReactionPicker
                     contentEntryId={item.articleId}
                     reactionSummary={reactionSummary}
                     allowReaction={item.allowReaction}

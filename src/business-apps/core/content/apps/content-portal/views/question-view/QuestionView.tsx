@@ -1,14 +1,13 @@
 import React, { useState, useMemo } from 'react'
 import { useTranslation, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
-import { MessageCircle, ThumbsUp, ThumbsDown, Eye } from 'lucide-react'
+import { MessageCircle, Eye } from 'lucide-react'
 import { useContentEntries, toIntranetContent, useUserContentReactions } from '@/common/data/content'
 import { ContentRole } from '@/common/data/content/types/contentEnums'
-import { buildReactionPayload } from '@/common/data/content/payloads'
+import { VoteButtons, type VoteState } from '@/common/components/common-content'
 import SearchInput from '../../components/shared/SearchInput'
 import NavigationTagList from '../../components/shared/NavigationTagList'
 import Banner, { BannerVariant } from '../../components/shared/Banner'
 import { AppAction } from '@/components/app-action'
-import { AppActionProvider } from '@/components/app-action-provider'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { QUESTION_CATEGORIES, ALL_TAG, contentGroupMapper, QUESTION } from '../../constants/contentConstants'
 import { updateTags } from '../../utils/contentUtils'
@@ -225,7 +224,7 @@ const QuestionView: React.FC<QuestionViewProps> = ({
 
         <div className="gba:space-y-4 gba:mb-8">
           {data.map(question => {
-            const votes = getVoteCounts(question.articleId)
+            const votes: VoteState = getVoteCounts(question.articleId)
             return (
               <div
                 key={question.articleId}
@@ -235,101 +234,18 @@ const QuestionView: React.FC<QuestionViewProps> = ({
               >
                 <div className="gba:flex gba:gap-4">
                   {/* Vote section */}
-                  <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:min-w-[80px]">
-                    {/* Upvote button */}
-                    <AppActionProvider
-                      contextsArray={[FlowContextName.contentEntryReact]}
-                      externalContextData={{ contentEntryId: question.articleId }}
+                  <div onClick={e => e.stopPropagation()}>
+                    <VoteButtons
+                      contentEntryId={question.articleId}
+                      initialVoteState={votes}
+                      upvoteCatalogId={upvoteCatalogId}
+                      downvoteCatalogId={downvoteCatalogId}
                       accessToken={accessToken || ''}
-                      onSuccess={handleVoteSuccess}
-                      transformData={() => {
-                        if (!upvoteCatalogId) {
-                          throw new Error('Upvote catalog entry not found')
-                        }
-                        return buildReactionPayload({
-                          contentEntryId: question.articleId,
-                          catalogEntryId: upvoteCatalogId,
-                          employeeId,
-                          existingReactionId: votes.userReactionId,
-                          existingCatalogEntryId: votes.userCatalogId,
-                          existingVersion: votes.userVersion
-                        })
-                      }}
-                    >
-                      {({ executeAction, isLoading }) => (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`gba:h-8 gba:w-8 gba:p-0 ${
-                            votes.userVote === 'upvote'
-                              ? 'gba:text-success gba:hover:bg-success-secondary'
-                              : 'gba:text-muted-foreground gba:hover:text-success gba:hover:bg-accent'
-                          }`}
-                          onClick={e => {
-                            e.stopPropagation()
-                            executeAction({})
-                          }}
-                          disabled={isLoading}
-                          data-testid={`question-upvote-${question.articleId}`}
-                        >
-                          <ThumbsUp className="gba:w-5 gba:h-5" />
-                        </Button>
-                      )}
-                    </AppActionProvider>
-
-                    {/* Vote count */}
-                    <span
-                      className={`gba:font-bold gba:text-xl ${
-                        votes.score > 0
-                          ? 'gba:text-success'
-                          : votes.score < 0
-                            ? 'gba:text-destructive'
-                            : 'gba:text-foreground'
-                      }`}
-                    >
-                      {votes.score}
-                    </span>
-
-                    {/* Downvote button */}
-                    <AppActionProvider
-                      contextsArray={[FlowContextName.contentEntryReact]}
-                      externalContextData={{ contentEntryId: question.articleId }}
-                      accessToken={accessToken || ''}
-                      onSuccess={handleVoteSuccess}
-                      transformData={() => {
-                        if (!downvoteCatalogId) {
-                          throw new Error('Downvote catalog entry not found')
-                        }
-                        return buildReactionPayload({
-                          contentEntryId: question.articleId,
-                          catalogEntryId: downvoteCatalogId,
-                          employeeId,
-                          existingReactionId: votes.userReactionId,
-                          existingCatalogEntryId: votes.userCatalogId,
-                          existingVersion: votes.userVersion
-                        })
-                      }}
-                    >
-                      {({ executeAction, isLoading }) => (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`gba:h-8 gba:w-8 gba:p-0 ${
-                            votes.userVote === 'downvote'
-                              ? 'gba:text-destructive gba:hover:bg-destructive-secondary'
-                              : 'gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-accent'
-                          }`}
-                          onClick={e => {
-                            e.stopPropagation()
-                            executeAction({})
-                          }}
-                          disabled={isLoading}
-                          data-testid={`question-downvote-${question.articleId}`}
-                        >
-                          <ThumbsDown className="gba:w-5 gba:h-5" />
-                        </Button>
-                      )}
-                    </AppActionProvider>
+                      employeeId={employeeId}
+                      size="md"
+                      onVoteComplete={handleVoteSuccess}
+                      data-testid={`question-vote-${question.articleId}`}
+                    />
                   </div>
 
                   {/* Question content */}

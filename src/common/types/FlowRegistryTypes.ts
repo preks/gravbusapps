@@ -6,6 +6,9 @@ export enum FlowContextName {
   contentEntryDelete = 'contentEntryDelete',
   contentEntryReact = 'contentEntryReact',
   contentEntryComment = 'contentEntryComment',
+  contentDocumentCreate = 'contentDocumentCreate',
+  contentDocumentUpdate = 'contentDocumentUpdate',
+  contentDocumentDelete = 'contentDocumentDelete',
 
   // Human Resources
   employeeEntity = 'employeeEntity',

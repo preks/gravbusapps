@@ -2,6 +2,8 @@ import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
 import {
   FormControl,
   FormField,
@@ -54,6 +56,7 @@ const MAX_IMAGE_SIZE_MB = 5
 const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => {
   const { t } = useTranslation('content')
   const catalogContext = CatalogSelect.useContext()
+  const { validateField } = CatalogSelect.useValidation()
 
   const [image, setImage] = useState<string | null>(null)
   const [imageInfo, setImageInfo] = useState<{ name: string; size: string } | null>(null)
@@ -66,6 +69,61 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
     }
     return null
   }, [context.userInfo])
+
+  // Zod Schema with conditional validation for contentTypeRef
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          id: z.string().optional(),
+          version: z.number().optional(),
+          title: z.string().min(1, t('validations.title_required')),
+          previewText: z.string().min(1, t('validations.preview_required')),
+          content: z.string().min(1, t('validations.content_required')),
+          contentImage: z.string().nullable(),
+          contentGroupRef: z.string().min(1, t('validations.group_required')),
+          contentTypeRef: z.string().optional(),
+          role: z.string().optional(),
+          displayAuthor: z.boolean(),
+          author: z.string().nullable(),
+          allowComment: z.boolean(),
+          allowReaction: z.boolean(),
+          startDate: z.union([z.date(), z.string()]).nullable(),
+          endDate: z.union([z.date(), z.string()]).nullable(),
+          schedulePublication: z.boolean()
+        })
+        .superRefine((data, ctx) => {
+          // Conditional validation: contentTypeRef required only when it has options
+          if (validateField('contentTypeRef')) {
+            if (!data.contentTypeRef || data.contentTypeRef.trim() === '') {
+              ctx.addIssue({
+                code: 'custom',
+                path: ['contentTypeRef'],
+                message: t('validations.type_required')
+              })
+            }
+          }
+
+          // Conditional validation: startDate and endDate required when schedulePublication is true
+          if (data.schedulePublication) {
+            if (!data.startDate) {
+              ctx.addIssue({
+                code: 'custom',
+                path: ['startDate'],
+                message: t('validations.start_date_required')
+              })
+            }
+            if (!data.endDate) {
+              ctx.addIssue({
+                code: 'custom',
+                path: ['endDate'],
+                message: t('validations.end_date_required')
+              })
+            }
+          }
+        }),
+    [t, validateField]
+  )
 
   const defaultValues = useMemo(
     () => ({
@@ -91,6 +149,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   )
 
   const form = useForm<ContentEntryFormValues>({
+    resolver: zodResolver(schema),
     defaultValues,
     mode: 'onTouched'
   })
@@ -280,7 +339,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             <FormField
               control={control as any}
               name="contentTypeRef"
-              rules={{ required: t('validations.type_required') }}
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t('fields.content_type')}</FormLabel>
@@ -489,7 +547,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
                   <FormField
                     control={control as any}
                     name="startDate"
-                    rules={watchSchedulePublication ? { required: t('validations.start_date_required') } : undefined}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t('fields.start_date')}</FormLabel>
@@ -509,7 +566,6 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
                   <FormField
                     control={control as any}
                     name="endDate"
-                    rules={watchSchedulePublication ? { required: t('validations.end_date_required') } : undefined}
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>{t('fields.end_date')}</FormLabel>

@@ -4,8 +4,8 @@ import { Button } from '@newwork/nw-design-system'
 import { Share2 } from 'lucide-react'
 import { ContentEntry } from '@/common/data/content/types/contentTypes'
 import { copyUrlToClipboard } from '@/business-apps/core/content/apps/content-portal/utils/contentUtils'
-import { useUserContentReactions, ReactionSummary } from '@/common/data/content'
-import { ReactionButton } from '@/business-apps/core/content/components/interactions'
+import { useUserContentReactions } from '@/common/data/content'
+import { ReactionPicker, type ReactionSummary } from '@/common/components/common-content'
 import translations from '../_i18n'
 import dayjs from 'dayjs'
 
@@ -69,7 +69,7 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
       {/* Stats */}
       <div className="gba:flex gba:flex-row gba:items-center gba:ml-auto gba:gap-4">
         {item.allowReaction && (
-          <ReactionButton
+          <ReactionPicker
             contentEntryId={item.id}
             reactionSummary={reactionSummary}
             allowReaction={item.allowReaction}
@@ -79,7 +79,7 @@ const ContentInfoSection: React.FC<ContentInfoSectionProps> = ({
             size="md"
             allowedReactions={allowedReactions}
             reactionCatalogMap={reactionCatalogMap}
-            data-testid="content-info-reaction-button"
+            data-testid="content-info-reaction-picker"
           />
         )}
 

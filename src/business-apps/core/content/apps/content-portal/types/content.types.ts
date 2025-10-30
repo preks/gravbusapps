@@ -31,6 +31,8 @@ export interface Content {
   status: string
   tagNames: string[] | null
   tags: ContentTag[]
+  categories?: string[]
+  contentType?: string
   attachments: any[] | null
   contentImage: string | null
   createdAt: string | null
