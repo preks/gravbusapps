@@ -4,12 +4,10 @@ import {
   FlowTemplate,
   FlowStep,
   TaskAssignment,
-  InputType,
   FlowStepType,
   InputBlock,
   AssignmentMode,
-  InitStep,
-  AssignmentTarget
+  InitStep
 } from '@/common/network/flows/FlowTemplateClient'
 
 interface FlowTemplateState {
@@ -55,16 +53,6 @@ interface FlowTemplateState {
   saveTemplate: (client: FlowTemplateClient) => Promise<void>
   publishTemplate: (client: FlowTemplateClient) => Promise<void>
 }
-
-const createEmptyAssignmentTarget = (): AssignmentTarget => ({
-  userIds: [],
-  organizationalUnits: [],
-  matrixTeams: [],
-  companies: [],
-  siteLocations: [],
-  costCenters: [],
-  capabilities: []
-})
 
 const createEmptyStep = (): FlowStep => ({
   id: `step-${Date.now()}`,

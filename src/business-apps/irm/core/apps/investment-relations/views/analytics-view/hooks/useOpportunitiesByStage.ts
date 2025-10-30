@@ -20,23 +20,25 @@ export const useOpportunitiesByStage = (accessToken: string, pipelineId?: string
         setIsLoading(true)
         setError(null)
 
-        const query = pipelineId
-          ? `
-          query GetInvestmentOpportunitiesByStage($pipelineId: uuid!) {
+        // Build the pipeline filter - use string interpolation like useRevenueTrends/usePipelineHealth
+        const pipelineFilter = pipelineId ? `opportunityPipeline: {id: {_eq: "${pipelineId}"}}` : ''
+        const whereClause = pipelineFilter ? `isDeleted: {_eq: false}, ${pipelineFilter}` : `isDeleted: {_eq: false}`
+
+        const query = `
+          query GetInvestmentOpportunitiesByStage {
             opportunities: InvestmentOpportunity(
-              where: { isDeleted: { _eq: false }, opportunityPipeline: { id: { _eq: $pipelineId } } }
-            ) { id opportunityPipelineStage { value } estimatedAmount }
+              where: { ${whereClause} }
+            ) {
+              id
+              opportunityPipelineStage {
+                value
+              }
+              estimatedAmount
+            }
           }
         `
-          : `
-          query GetInvestmentOpportunitiesByStageAll {
-            opportunities: InvestmentOpportunity(
-              where: { isDeleted: { _eq: false } }
-            ) { id opportunityPipelineStage { value } estimatedAmount }
-          }
-        `
-        const variables: any = pipelineId ? { pipelineId } : {}
-        const result = await graphqlClient.request<any>(query, variables)
+
+        const result = await graphqlClient.request<any>(query)
         const stageGroups = (result.opportunities || []).reduce((acc: Record<string, StageItem>, opp: any) => {
           const stage = opp.opportunityPipelineStage?.value || 'Unknown'
           if (!acc[stage]) acc[stage] = { stage, count: 0, value: 0 }

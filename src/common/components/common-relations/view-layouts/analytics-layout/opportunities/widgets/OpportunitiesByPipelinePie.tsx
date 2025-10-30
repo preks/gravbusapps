@@ -49,11 +49,41 @@ export const OpportunitiesByPipelinePie: React.FC<OpportunitiesByPipelinePieProp
     return data.map(item => {
       const key = toKey(item.pipeline)
       return {
-        ...item,
+        [key]: item.count,
+        pipeline: item.pipeline,
+        value: item.count,
+        count: item.count,
+        percentage: item.percentage,
         fill: `var(--color-${key})`
       }
     })
   }, [data])
+
+  if (data.length === 0) {
+    return (
+      <Card data-testid="opportunities-by-pipeline-chart">
+        <CardHeader className="gba:flex gba:items-center gba:gap-3">
+          <IconAvatar
+            icon={ChartPieIcon}
+            variant={moduleColor as any}
+            size="md"
+            iconWeight="regular"
+            decorative={true}
+          />
+          <div>
+            <CardTitle>Opportunities by Pipeline</CardTitle>
+            <CardDescription>Pipeline distribution overview</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="gba:flex gba:items-center gba:justify-center gba:h-[200px] gba:text-muted-foreground">
+            No pipeline data available
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card data-testid="opportunities-by-pipeline-chart">
       <CardHeader className="gba:flex gba:items-center gba:gap-3">
@@ -71,7 +101,8 @@ export const OpportunitiesByPipelinePie: React.FC<OpportunitiesByPipelinePieProp
               cx="50%"
               cy="50%"
               outerRadius={60}
-              dataKey="count"
+              dataKey="value"
+              nameKey="pipeline"
               label={({ percentage }) => `${percentage}%`}
             />
             <ChartTooltip

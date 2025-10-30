@@ -139,15 +139,13 @@ const ContactFormComponent: React.FC = () => {
         }
       })
 
-      // ✅ UPDATED: Create clean payload structure with accountContacts for UPDATE, accountIds for CREATE
+      // ✅ UPDATED: Create clean payload structure with accountContacts for both CREATE and UPDATE
       const cleanPayload = {
         investmentContact: {
           ...investmentContactPayload,
-          accountContacts: isUpdate ? accountContacts : undefined, // Only for updates
-          opportunityContacts: isUpdate ? [] : undefined // Include empty array for updates
+          accountContacts: accountContacts // Include for both create and update
         },
-        changeMode: changeMode,
-        accountIds: isUpdate ? undefined : accountContacts.map(ac => ac.account) // For CREATE mode only
+        changeMode: changeMode
       }
 
       const isolatedPayload = JSON.parse(JSON.stringify(cleanPayload))
