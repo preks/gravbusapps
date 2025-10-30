@@ -185,16 +185,12 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
 
   useEffect(() => {
     const handleProcessCompletion = (event: any) => {
-      try {
-        const response = event.detail?.response
+      const response = event.detail?.response
 
-        if (response?.hrNote || response?.HrNote || response?.employeeNote || response?.EmployeeNote) {
-          loadNotes().catch(err => {
-            console.error('Error loading notes after process completion:', err)
-          })
-        }
-      } catch (err) {
-        console.error('Error handling process completion:', err)
+      if (response?.hrNote || response?.HrNote || response?.employeeNote || response?.EmployeeNote) {
+        loadNotes().catch(err => {
+          console.error('Error loading notes after process completion:', err)
+        })
       }
     }
 
