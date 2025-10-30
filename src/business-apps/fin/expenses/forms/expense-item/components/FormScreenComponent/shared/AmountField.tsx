@@ -113,8 +113,9 @@ export const AmountField: React.FC<AmountFieldProps> = ({
         console.log('[AmountField OCR] Parsed numValue:', numValue)
 
         if (!isNaN(numValue) && numValue > 0) {
+          const locale = getCurrentActiveUserLocale() || 'en-US'
           const platformFormatted = formatNumberFunction(String(numValue), '0.00[,]00')
-          const intlFormatted = new Intl.NumberFormat(getCurrentActiveUserLocale() || 'en-US', {
+          const intlFormatted = new Intl.NumberFormat(locale, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
           }).format(numValue)
@@ -123,6 +124,8 @@ export const AmountField: React.FC<AmountFieldProps> = ({
             platformFormatted && platformFormatted !== String(numValue) ? platformFormatted : intlFormatted
 
           console.log('[AmountField OCR] Formatting:', {
+            locale,
+            numValue,
             platformFormatted,
             intlFormatted,
             finalDisplay,
@@ -139,6 +142,16 @@ export const AmountField: React.FC<AmountFieldProps> = ({
               // IMPORTANT: Notify parent component of the numeric value for validation
               onAmountChange(numValue)
               console.log('[AmountField OCR] onAmountChange called with:', numValue)
+
+              // CRITICAL: Trigger form validation after setting value
+              form
+                .validateFields([`amount-${index}`])
+                .then(() => {
+                  console.log('[AmountField OCR] Form validation triggered')
+                })
+                .catch((err: any) => {
+                  console.error('[AmountField OCR] Validation error:', err)
+                })
             }, 100)
           }
         }
