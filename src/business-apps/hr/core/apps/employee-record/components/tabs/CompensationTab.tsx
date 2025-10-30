@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { TabSwitch, TabSwitchList, TabSwitchTrigger, TabSwitchContent, Alert } from '@newwork/nw-design-system'
+import { TabSwitch, TabSwitchList, TabSwitchTrigger, TabSwitchContent, Alert, Toaster } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { useCompensationData } from '../../hooks/useCompensationData'
 import { getTranslationFromI18nKeyAndLabel } from '../../../../../../../common/utils/windowUtils'
@@ -118,6 +118,7 @@ const CompensationTab: React.FC<JobsCompensationTabProps> = ({ employee, employe
           </TabSwitchContent>
         )}
       </TabSwitch>
+      <Toaster position="bottom-right" richColors />
     </div>
   )
 }
