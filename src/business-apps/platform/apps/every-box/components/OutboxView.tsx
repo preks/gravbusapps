@@ -113,10 +113,10 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
   }
 
   return (
-    <div className="gba:flex gba:gap-4 gba:h-[calc(100vh-200px)] gba:overflow-hidden" data-testid="outbox-view">
+    <div className="gba:flex gba:gap-4 gba:h-full gba:overflow-hidden" data-testid="outbox-view">
       {/* Master Panel - Flow List */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-4 gba:transition-all gba:duration-500 gba:ease-in-out ${
+        className={`gba:flex gba:flex-col gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
           selectedFlow ? 'gba:w-[45%]' : 'gba:w-full'
         }`}
       >
@@ -128,7 +128,8 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
               placeholder="Search workflows..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="gba:pl-10"
+              className="gba:pl-11"
+              style={{ paddingLeft: '2.75rem' }}
               data-testid="outbox-search-input"
             />
           </div>
@@ -206,7 +207,7 @@ export const OutboxView: React.FC<OutboxViewProps> = ({ flows, isLoading, error,
               }
             />
           ) : (
-            <div className="gba:space-y-3" data-testid="outbox-flow-list">
+            <div className="gba:space-y-2" data-testid="outbox-flow-list">
               {filteredFlows.map(flow => (
                 <FlowCard
                   key={flow.id}

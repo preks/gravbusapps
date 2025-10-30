@@ -126,25 +126,26 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   return (
     <ThemeProvider defaultTheme="light">
       <ErrorBoundary>
-        <div className="gba:h-screen gba:overflow-auto gba:p-6" data-testid={`${prefixDataTestId}-container`}>
-          <div className="gba:container gba:mx-auto gba:max-w-7xl">
-            <Card>
-              <CardContent className="gba:p-6">
+        <div
+          className="gba:h-screen gba:flex gba:flex-col gba:overflow-hidden gba:p-6"
+          data-testid={`${prefixDataTestId}-container`}
+        >
+          <div className="gba:container gba:mx-auto gba:max-w-7xl gba:flex gba:flex-col gba:h-full">
+            <Card className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
+              <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
                 {/* Header */}
-                <div className="gba:mb-6 gba:flex gba:items-start gba:justify-between">
+                <div className="gba:mb-3 gba:flex gba:items-center gba:justify-between">
                   <div>
-                    <h1 className="gba:text-2xl gba:font-bold gba:mb-2" data-testid={`${prefixDataTestId}-title`}>
+                    <h1 className="gba:text-xl gba:font-bold" data-testid={`${prefixDataTestId}-title`}>
                       EveryBox
                     </h1>
-                    <p className="gba:text-muted-foreground gba:text-sm">
-                      Manage all your tasks and workflows in one place
-                    </p>
                   </div>
 
                   {/* Blink Button */}
                   <Button
                     onClick={() => setIsQuickTaskModalOpen(true)}
                     className="gba:bg-gradient-to-r gba:from-blue-600 gba:to-indigo-600 hover:gba:from-blue-700 hover:gba:to-indigo-700 gba:text-white gba:shadow-lg"
+                    size="sm"
                     data-testid={`${prefixDataTestId}-blink-button`}
                   >
                     <Zap className="gba:h-4 gba:w-4 gba:mr-2" />
@@ -153,8 +154,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                 </div>
 
                 {/* Tabs */}
-                <Tabs defaultValue="inbox" data-testid={`${prefixDataTestId}-tabs`}>
-                  <TabsList className="gba:mb-6">
+                <Tabs
+                  defaultValue="inbox"
+                  className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden"
+                  data-testid={`${prefixDataTestId}-tabs`}
+                >
+                  <TabsList className="gba:mb-3 gba:flex-shrink-0">
                     <TabsTrigger
                       value="inbox"
                       data-testid={`${prefixDataTestId}-inbox-tab`}
@@ -185,7 +190,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     </TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="inbox">
+                  <TabsContent value="inbox" className="gba:flex-1 gba:overflow-hidden">
                     <InboxView
                       {...context}
                       tasks={tasks}
@@ -205,7 +210,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     />
                   </TabsContent>
 
-                  <TabsContent value="outbox">
+                  <TabsContent value="outbox" className="gba:flex-1 gba:overflow-hidden">
                     <OutboxView
                       flows={flows}
                       isLoading={flowsLoading}

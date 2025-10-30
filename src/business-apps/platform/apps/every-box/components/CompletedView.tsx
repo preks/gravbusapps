@@ -89,7 +89,8 @@ export const CompletedView: React.FC<CompletedViewProps> = ({
             placeholder="Search completed tasks..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="gba:pl-10"
+            className="gba:pl-11"
+            style={{ paddingLeft: '2.75rem' }}
             data-testid="completed-search-input"
           />
         </div>

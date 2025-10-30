@@ -181,10 +181,10 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }
 
   return (
-    <div className="gba:flex gba:gap-4 gba:h-[calc(100vh-200px)] gba:overflow-hidden" data-testid="inbox-view">
+    <div className="gba:flex gba:gap-4 gba:h-full gba:overflow-hidden" data-testid="inbox-view">
       {/* Master Panel - Task List */}
       <div
-        className={`gba:flex gba:flex-col gba:gap-4 gba:transition-all gba:duration-500 gba:ease-in-out ${
+        className={`gba:flex gba:flex-col gba:gap-4 gba:h-full gba:transition-all gba:duration-500 gba:ease-in-out ${
           selectedTask ? 'gba:w-[45%]' : 'gba:w-full'
         }`}
       >
@@ -196,7 +196,8 @@ export const InboxView: React.FC<InboxViewProps> = ({
               placeholder="Search tasks..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="gba:pl-10"
+              className="gba:pl-11"
+              style={{ paddingLeft: '2.75rem' }}
               data-testid="inbox-search-input"
             />
           </div>

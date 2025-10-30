@@ -116,10 +116,10 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
       onClick={() => onView(flow)}
       data-testid={`flow-card-${flow.id}`}
     >
-      <CardContent className="gba:p-4">
+      <CardContent className="gba:p-3">
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
           <div className="gba:flex-1 gba:min-w-0">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2 gba:flex-wrap">
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-1.5 gba:flex-wrap">
               {isBlinkFlow && (
                 <>
                   <Badge
@@ -175,22 +175,22 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
               )}
             </div>
 
-            <h3 className="gba:font-semibold gba:text-base gba:mb-1 gba:truncate" data-testid="flow-title">
+            <h3 className="gba:font-semibold gba:text-sm gba:mb-1 gba:truncate" data-testid="flow-title">
               {flow.templateName}
             </h3>
 
             {/* Show assignee completion for all blinks (both single and multi-user) - Hide when selected */}
             {!isSelected && shouldShowAssigneeProgress && (
-              <div className="gba:mb-2">
-                <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:mb-1">
-                  <Users className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              <div className="gba:mb-1.5">
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:mb-0.5">
+                  <Users className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
                   <span data-testid="flow-assignee-progress">
                     {completedAssignees} of {assigneeCount} completed
                   </span>
                 </div>
                 <Progress
                   value={(completedAssignees / assigneeCount) * 100}
-                  className="gba:h-2"
+                  className="gba:h-1.5"
                   data-testid="flow-assignee-progress-bar"
                 />
               </div>
@@ -198,14 +198,14 @@ export const FlowCard: React.FC<FlowCardProps> = memo(({ flow, onView, accessTok
 
             {/* Show step progress for non-blink flows only - Hide when selected */}
             {!isSelected && !shouldShowAssigneeProgress && flow.totalSteps > 0 && (
-              <div className="gba:mb-2">
-                <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:mb-1">
+              <div className="gba:mb-1.5">
+                <div className="gba:flex gba:items-center gba:justify-between gba:text-xs gba:text-muted-foreground gba:mb-0.5">
                   <span>Progress</span>
                   <span data-testid="flow-progress-text">
                     {flow.currentStep} of {flow.totalSteps} steps
                   </span>
                 </div>
-                <Progress value={progressPercentage} className="gba:h-2" data-testid="flow-progress-bar" />
+                <Progress value={progressPercentage} className="gba:h-1.5" data-testid="flow-progress-bar" />
               </div>
             )}
 
