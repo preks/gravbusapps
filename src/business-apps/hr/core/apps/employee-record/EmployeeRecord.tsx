@@ -33,7 +33,7 @@ import ChangeLogTab from './components/tabs/ChangeLogTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
 import HrNotesTab from './components/tabs/HrNotesTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
-import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 
@@ -484,7 +484,9 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         label: (
           <div className="gba:flex gba:items-center gba:gap-2">
             <PiNotebook className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">HR Notes</span>
+            <span className="gba:inline-block gba:align-middle">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.tab_name', 'HR Notes')}
+            </span>
           </div>
         ),
         children: (

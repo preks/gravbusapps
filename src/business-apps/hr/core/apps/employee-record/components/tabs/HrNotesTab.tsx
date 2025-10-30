@@ -19,6 +19,7 @@ import type { EmployeeNoteData } from '../../queries/EmployeeNoteQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { startProcess } from '@/common/utils/start-process'
 import { useEmployeeNoteApi } from '../../hooks/useEmployeeNoteApi'
+import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 
 interface HrNotesTabProps extends BusinessAppContextProps {
   employeeId: string
@@ -50,12 +51,14 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
         const creatorName = creatorEmployee
           ? `${creatorEmployee.firstName || ''} ${creatorEmployee.lastName || ''}`.trim() ||
             creatorEmployee.displayName ||
-            'Unknown'
-          : note.createdBy || 'Unknown'
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'Unknown')
+          : note.createdBy || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'Unknown')
 
         return {
           id: note.id,
-          noteTitle: note.notes?.substring(0, 50) || 'Employee Note',
+          noteTitle:
+            note.notes?.substring(0, 50) ||
+            getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.employee_note', 'Employee Note'),
           noteText: note.notes || '',
           createdAt: note.createdAt,
           createdBy: creatorName,
@@ -84,7 +87,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
     return notes.filter(note => {
       const noteText = (note.noteText || '').toLowerCase()
       const createdBy = (note.createdBy || '').toLowerCase()
-      const createdAt = new Date(note.createdAt).toLocaleDateString().toLowerCase()
+      const createdAt = formatDate(note.createdAt, 'date.short')?.toLowerCase() || ''
 
       return noteText.includes(searchTerm) || createdBy.includes(searchTerm) || createdAt.includes(searchTerm)
     })
@@ -125,9 +128,15 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
     <div data-testid="hr-notes-tab-container" className="gba:space-y-6">
       <div className="gba:flex gba:items-start gba:justify-between">
         <div className="gba:space-y-2">
-          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">HR Notes</h2>
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground">
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.tab_name', 'HR Notes')}
+          </h2>
           <p className="gba:text-sm gba:text-muted-foreground">
-            Manage notes and track interactions with {employeeName}
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:hr_notes.description',
+              'Manage notes and track interactions with'
+            )}{' '}
+            {employeeName}
           </p>
         </div>
         <div className="gba:flex gba:gap-3">
@@ -146,7 +155,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
             data-testid="add-note-button"
           >
             <PlusOutlined className="gba:mr-2" style={{ fontSize: 18 }} />
-            Add Note
+            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
           </Button>
         </div>
       </div>
@@ -158,7 +167,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
             style={{ fontSize: 20 }}
           />
           <Input
-            placeholder="Search notes..."
+            placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.search_placeholder', 'Search notes...')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="gba:!pl-10"
@@ -168,7 +177,9 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
       </div>
 
       <div className="gba:space-y-4 gba:border gba:border-border gba:rounded-lg gba:p-4 gba:bg-card">
-        <h3 className="gba:text-lg gba:font-semibold">Notes</h3>
+        <h3 className="gba:text-lg gba:font-semibold">
+          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.notes_section', 'Notes')}
+        </h3>
         {filteredNotes.length > 0 ? (
           <div className="gba:space-y-3">
             {filteredNotes.map(note => (
@@ -186,7 +197,10 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                     <div className="gba:flex-1">
                       <div className="gba:mb-3">
                         <h4 className="gba:font-semibold gba:text-foreground">
-                          Notes from {note.createdBy || 'Unknown'} on {new Date(note.createdAt).toLocaleDateString()}
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_from', 'Note from')}{' '}
+                          {note.createdBy || getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.unknown', 'Unknown')}{' '}
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.note_on', 'on')}{' '}
+                          {formatDate(note.createdAt, 'date.short') || ''}
                         </h4>
                       </div>
                       <p className="gba:text-sm gba:text-muted-foreground">{note.noteText}</p>
@@ -233,11 +247,19 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
           </div>
         ) : searchQuery.trim() ? (
           <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-            <p>No notes found matching &quot;{searchQuery}&quot;.</p>
+            <p>
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.no_notes_found', 'No notes found matching')} &quot;
+              {searchQuery}&quot;.
+            </p>
           </div>
         ) : (
           <div className="gba:text-center gba:py-12 gba:text-muted-foreground">
-            <p>No notes yet. Create your first note.</p>
+            <p>
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_notes.no_notes_yet',
+                'No notes yet. Create your first note.'
+              )}
+            </p>
           </div>
         )}
       </div>
@@ -245,9 +267,14 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent data-testid="delete-note-dialog">
           <AlertDialogHeader>
-            <AlertDialogTitle data-testid="delete-note-dialog-title">Delete Note</AlertDialogTitle>
+            <AlertDialogTitle data-testid="delete-note-dialog-title">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.delete_note_title', 'Delete Note')}
+            </AlertDialogTitle>
             <AlertDialogDescription data-testid="delete-note-dialog-description">
-              Are you sure you want to delete this note? This action cannot be undone.
+              {getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_notes.delete_note_description',
+                'Are you sure you want to delete this note? This action cannot be undone.'
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -258,7 +285,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
               }}
               data-testid="delete-note-dialog-cancel"
             >
-              Cancel
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.cancel', 'Cancel')}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
@@ -281,7 +308,12 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                   loadNotes()
                 } catch (error) {
                   console.error('Error deleting note:', error)
-                  alert('Failed to delete note. Please try again.')
+                  alert(
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:hr_notes.delete_error',
+                      'Failed to delete note. Please try again.'
+                    )
+                  )
                 } finally {
                   setDeletingNoteId(null)
                 }
@@ -290,7 +322,9 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
               className="gba:bg-destructive gba:text-destructive-foreground gba:hover:bg-destructive/90"
               data-testid="delete-note-dialog-confirm"
             >
-              {deletingNoteId ? 'Deleting...' : 'Delete'}
+              {deletingNoteId
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.deleting', 'Deleting...')
+                : getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

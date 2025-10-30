@@ -84,14 +84,8 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
   const title = useMemo(
     () =>
       isEditMode
-        ? getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.hr_notes.edit_note_form.form_title',
-            'Edit Employee Note'
-          )
-        : getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.hr_notes.create_note_form.form_title',
-            'Create Employee Note'
-          ),
+        ? getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.edit_note_form', 'Edit Employee Note')
+        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.create_note_form', 'Create Employee Note'),
     [isEditMode]
   )
 
@@ -188,15 +182,12 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
         render={({ field }) => (
           <FormItem>
             <Label htmlFor="notes" data-testid="notes-label">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.hr_notes.create_note_form.notes_label',
-                'Note Content'
-              )}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.notes_content', 'Note Content')}
             </Label>
             <Textarea
               id="notes"
               placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.hr_notes.create_note_form.notes_placeholder',
+                'lowcoder:hr_notes.notes_placeholder',
                 'Enter your note...'
               )}
               value={field.value || ''}
@@ -234,10 +225,7 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
             submitButtonTestId="edit-employee-note-submit-button"
             cancelButtonTestId="edit-employee-note-cancel-button"
             isSubmitDisabled={isSubmitDisabled}
-            submitButtonText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.hr_notes.edit_note_form.submit',
-              'Update Note'
-            )}
+            submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.update_note', 'Update Note')}
             cancelButtonText={getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_request.initiate_cancel_button',
               'Cancel'
@@ -273,10 +261,7 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
                     await handleEditSubmit(values)
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.hr_notes.edit_note_form.submit',
-                    'Update Note'
-                  )}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.update_note', 'Update Note')}
                 </Button>
               </div>
             }
@@ -295,10 +280,7 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
             submitButtonTestId="create-employee-note-submit-button"
             cancelButtonTestId="create-employee-note-cancel-button"
             isSubmitDisabled={isSubmitDisabled}
-            submitButtonText={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.hr_notes.create_note_form.submit',
-              'Add Note'
-            )}
+            submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
             cancelButtonText={getTranslationFromI18nKeyAndLabel(
               'lowcoder:create_expense_request.initiate_cancel_button',
               'Cancel'
@@ -335,10 +317,7 @@ const CreateEmployeeNoteContent: React.FC<BusinessAppContextProps> = (context: B
                     dispatchProcessContinueEvent('pse_submit', result)
                   }}
                 >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.hr_notes.create_note_form.submit',
-                    'Add Note'
-                  )}
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
                 </Button>
               </div>
             }
