@@ -19,6 +19,7 @@ import {
   AvatarFallback
 } from '@newwork/nw-design-system'
 import { CheckCircle, User, Calendar, Info, Zap } from 'lucide-react'
+import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import {
   formatDateTime,
@@ -129,6 +130,12 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
 
       console.log('[EveryBox] Blink task completed successfully')
 
+      // Show success message
+      message.success({
+        content: '✓ Blink completed successfully!',
+        duration: 3
+      })
+
       // Remove task from list immediately (if callback provided)
       if (onTaskCompleted && task.id) {
         onTaskCompleted(task.id)
@@ -142,7 +149,10 @@ export const TaskDetailDialog: React.FC<TaskDetailDialogProps> = ({
     } catch (err) {
       console.error('[EveryBox] Error completing blink task:', err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to complete task'
-      alert(`Failed to complete task: ${errorMessage}`)
+      message.error({
+        content: `Failed to complete task: ${errorMessage}`,
+        duration: 5
+      })
     } finally {
       setIsCompleting(false)
     }

@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { Input, Button, Alert, AlertTitle, AlertDescription, Badge } from '@newwork/nw-design-system'
-import { Search, RefreshCw, Zap, CheckCircle, Inbox } from 'lucide-react'
+import { Search, RefreshCw, Zap, CheckCircle, Inbox, CheckCheck } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
 import { TaskDetailDialog } from './TaskDetailDialog'
@@ -257,7 +257,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
           data-testid="inbox-filter-completed"
           className="gba:flex gba:items-center gba:gap-2"
         >
-          <CheckCircle className="gba:h-4 gba:w-4" />
+          <CheckCheck className="gba:h-4 gba:w-4" />
           Completed
           {taskCounts.completed > 0 && (
             <Badge variant="secondary" className="gba:ml-2">
